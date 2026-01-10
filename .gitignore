@@ -16,61 +16,197 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Virtual environments
+# Virtual Environments
 venv/
-ENV/
 env/
+ENV/
+env.bak/
+venv.bak/
 .venv
 
-# Poetry
-poetry.lock
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Testing
+# Python Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
+.nox/
+coverage.xml
+*.cover
+*.log
 
 # Database
 *.db
-*.db-journal
 *.sqlite
 *.sqlite3
-
-# Logs
-*.log
-logs/
-
-# Environment
-.env
-.env.local
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Data files (don't commit user data)
-data/
-*.xlsx
-*.xls
-*.csv
+*.db-journal
+ledger_sync.db
 
 # Alembic
-# Keep the migrations folder but ignore version files if needed
-# src/ledger_sync/db/migrations/versions/*.py
+alembic/versions/__pycache__/
+
+# IDEs - PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# IDEs - VS Code
+.vscode/
+*.code-workspace
+.history/
+*.vsix
+
+# IDEs - Other
+*.swp
+*.swo
+*~
+.fleet/
+
+# Node.js / npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+build/
+dist/
+/.next/
+/out/
+
+# Next.js cache
+.next/cache/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Package managers
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+poetry.lock
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS Files - macOS
+.DS_Store
+.DS_Store?
+._*
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+
+# OS Files - Windows
+[Tt]humbs.db
+[Tt]humbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# OS Files - Linux
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+.cache/
+
+# Backup files
+*.backup
+*.bak
+*.old
+README.backup.md
+
+# Data files (optional - uncomment if you don't want to commit test files)
+# data/
+# *.xlsx
+# *.xls
+# *.csv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath
+*.sage.py
+
+# Spyder
+.spyderproject
+.spyproject
+
+# Rope
+.ropeproject
+
+# mkdocs
+/site
 
 # mypy
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Pyre
+.pyre/
+
+# pytype
+.pytype/
+
+# Cython
+cython_debug/
+
+# Editor-based Rest Client
+.idea/httpRequests
+
+# Android Studio
+.gradle/
+local.properties
+
+# Miscellaneous
+.sass-cache/
+connect.lock
+typings/
+.angular/

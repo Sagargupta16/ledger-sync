@@ -1,0 +1,33 @@
+{
+  "name": "ledger-sync",
+  "version": "1.0.0",
+  "description": "Production-ready data ingestion and reconciliation engine with modern web interface",
+  "scripts": {
+    "frontend": "cd frontend && npm run dev",
+    "backend": "cd backend && set PYTHONPATH=%CD%\\src&&python -m uvicorn ledger_sync.api.main:app --reload",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "install:all": "cd frontend && npm install",
+    "install:backend": "cd backend && pip install -e .",
+    "setup": "npm run install:all && npm run install:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "start:frontend": "cd frontend && npm start",
+    "start:backend": "cd backend && set PYTHONPATH=%CD%\\src&&python -m uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port 8000"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sagargupta16/ledger-sync.git"
+  },
+  "keywords": [
+    "excel",
+    "ingestion",
+    "reconciliation",
+    "fastapi",
+    "nextjs",
+    "money-manager"
+  ],
+  "author": "Sagar Gupta",
+  "license": "MIT"
+}

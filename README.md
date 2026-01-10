@@ -1,383 +1,688 @@
-# ledger-sync
+# Ledger Sync
 
-**Production-ready data ingestion and reconciliation engine for Money Manager Pro Excel exports**
+**Production-ready Excel ingestion and reconciliation engine with modern web interface**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![SQLAlchemy 2.0](https://img.shields.io/badge/sqlalchemy-2.0-red.svg)](https://www.sqlalchemy.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com/)
+[![Next.js 15](https://img.shields.io/badge/next.js-15-black.svg)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/typescript-5.7-blue.svg)](https://www.typescriptlang.org/)
 
 ## Overview
 
-`ledger-sync` is a backend-first application that ingests Excel exports from Money Manager Pro (iOS) and maintains a canonical SQLite database perfectly synchronized with the Excel data across repeated uploads.
+Full-stack application that ingests Excel exports from Money Manager Pro and maintains a synchronized SQLite database. Features a modern web interface for easy file uploads with real-time feedback and statistics.
 
-This is a **data ingestion + reconciliation engine**, not a finance UI application.
+### Key Features
 
-### Core Principles
-
-- ✅ **Excel is the single source of truth** - Database is a deterministic reflection
-- ✅ **Idempotent operations** - Re-uploads produce consistent results
-- ✅ **Production-ready** - Modern stack, clean architecture, type-safe
-- ✅ **Deterministic reconciliation** - Same data → same IDs, every time
-
-## Features
-
-- 📊 **Excel Ingestion** - Validates and loads Money Manager Pro Excel exports
-- 🔄 **Intelligent Reconciliation** - Insert, update, or soft-delete based on changes
-- 🆔 **Deterministic Transaction IDs** - SHA-256 hashing with full field coverage (date, amount, account, note, category, subcategory, type)
-- 💰 **Smart Transfer Handling** - Properly tracks money flow between accounts with "Transfer: From/To" labels
-- 🔍 **Duplicate Detection** - Automatically identifies genuine vs duplicate transactions
-- 🗄️ **SQLite Database** - Fast, reliable, zero-configuration storage
-- ⚡ **Idempotency Guarantee** - Same file uploaded twice = zero net changes
-- 📝 **Comprehensive Logging** - Full audit trail of all operations
-- 🧪 **Tested** - Unit and integration tests with pytest
+- 📊 **Excel Ingestion** - Validates and loads Money Manager Pro exports
+- 🔄 **Intelligent Reconciliation** - Automatic insert, update, and soft-delete
+- 🆔 **Deterministic IDs** - SHA-256 hashing ensures consistency
+- 🌐 **Modern Web UI** - Beautiful Next.js interface with drag & drop
+- 🔔 **Real-time Feedback** - Toast notifications with detailed statistics
+- ⚡ **Idempotent Operations** - Same file uploaded twice = zero net changes
+- 🔌 **REST API** - FastAPI with automatic OpenAPI documentation
 
 ## Tech Stack
 
-| Component             | Technology                  |
-| --------------------- | --------------------------- |
-| Language              | Python 3.11+                |
-| Dependency Management | pip + venv                  |
-| Database              | SQLite + SQLAlchemy 2.0 ORM |
-| Migrations            | Alembic                     |
-| Data Processing       | pandas + openpyxl           |
-| CLI                   | Typer + Rich                |
-| Testing               | pytest                      |
+**Backend:** Python 3.11+ • FastAPI • SQLAlchemy 2.0 • SQLite • Alembic  
+**Frontend:** Next.js 15 • React 19 • TypeScript 5.7 • Tailwind CSS • shadcn/ui
 
-## Installation
+---
 
-### Prerequisites
+## Quick Start
 
-- Python 3.11 or higher
+### 🚀 Start Development (One Command)
 
-### Setup
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/Sagargupta16/ledger-sync.git
-cd ledger-sync
+```powershell
+# Install dependencies and start both servers
+npm run dev
 ```
 
-2. Create and activate virtual environment:
+This starts:
 
-```bash
-python -m venv venv
-venv\Scripts\activate  # Windows
-# source venv/bin/activate  # Linux/Mac
+- Backend API at http://localhost:8000
+- Frontend at http://localhost:3000
+- API Docs at http://localhost:8000/docs
+
+### Alternative: PowerShell Script
+
+```powershell
+.\start.ps1
 ```
 
-3. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-pip install -e .
-```
-
-4. Initialize the database:
-
-```bash
-python -m ledger_sync.cli.main init
-```
-
-## Usage
-
-### Import Excel File
-
-```bash
-python -m ledger_sync.cli.main import "MoneyManager.xlsx"
-```
-
-### Force Re-import
-
-If you need to re-import a file that was previously imported:
-
-```bash
-python -m ledger_sync.cli.main import "MoneyManager.xlsx" --force
-```
-
-### Verbose Logging
-
-Enable detailed logging for debugging:
-
-```bash
-python -m ledger_sync.cli.main import "MoneyManager.xlsx" --verbose
-```
-
-### Check Version
-
-```bash
-python -m ledger_sync.cli.main --version
-```
-
-## Excel Format
-
-The application expects Excel files exported from **Money Manager Pro** with the following columns:
-
-| Column           | Required | Examples                         |
-| ---------------- | -------- | -------------------------------- |
-| Date/Period      | ✅       | "Period", "Date", "date"         |
-| Account          | ✅       | "Accounts", "Account", "account" |
-| Category         | ✅       | "Category", "category"           |
-| Amount           | ✅       | "INR", "Amount / INR", "Amount"  |
-| Type             | ✅       | "Income/Expense", "Type"         |
-| Note/Description | ⚪       | "Note", "Description"            |
-| Subcategory      | ⚪       | "Subcategory", "Sub Category"    |
-| Currency         | ⚪       | "Currency" (defaults to INR)     |
-
-### Supported Transaction Types
-
-- `Expense` / `Exp.`
-- `Income` / `Inc.`
-- `Transfer-In` / `Transfer-Out` (automatically labeled with direction)
-
-## How It Works
-
-### 1. Excel Validation
-
-- Checks file exists and is readable
-- Validates required columns are present
-- Verifies data types are correct
-- Maps optional columns like Note/Description
-
-### 2. Data Normalization
-
-- Dates → ISO-8601 datetime (preserves timestamp precision)
-- Amounts → Decimal with 2-digit precision
-- Strings → Trimmed, preserves case for accounts/notes
-- Types → Mapped to enum values (EXPENSE, INCOME, TRANSFER)
-- **Transfers** → Category labeled as "Transfer: From X" or "Transfer: To Y"
-
-### 3. Transaction ID Generation
-
-Each transaction gets a **deterministic ID** using SHA-256 hash of:
-
-```python
-hash(date + amount + account + note + category + subcategory + type)
-```
-
-**Key Benefits:**
-
-- Includes all relevant fields to avoid false duplicates
-- Same transaction always gets same ID
-- Genuine transactions at same time/amount are distinguished by note/category
-
-### 4. Reconciliation Logic
-
-For each Excel transaction:
-
-| Scenario                 | Action                                       |
-| ------------------------ | -------------------------------------------- |
-| New transaction          | **INSERT** into database                     |
-| Existing transaction     | **UPDATE** category, subcategory, note, type |
-| Transaction not in Excel | **SOFT DELETE** (mark as deleted)            |
-
-### 5. Idempotency Guarantee
-
-- File hash (SHA-256) is calculated before import
-- Previously imported files are detected and skipped
-- Use `--force` to re-import same file
-- Re-importing results in all transactions marked as "skipped" (unchanged)
-- All operations are deterministic and reproducible
-
-## Import Results
-
-After each import, you'll see a summary table:
-
-```
-                Import Results
-┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┓
-┃ Metric             ┃    Count ┃
-┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━┩
-│ Rows Processed     │     5410 │
-│ Inserted           │     5410 │
-│ Updated            │        0 │
-│ Soft Deleted       │        0 │
-│ Skipped (Unchanged)│        0 │
-└────────────────────┴──────────┘
-```
-
-## Database Schema
-
-### Transaction Model
-
-```python
-class Transaction:
-    transaction_id: str         # SHA-256 hash (PK)
-    date: datetime             # Transaction timestamp
-    amount: Decimal            # Amount (2 decimal places)
-    currency: str              # Currency code (default: INR)
-    type: TransactionType      # Expense | Income | Transfer
-    account: str               # Account name
-    category: str              # Category
-    subcategory: str | None    # Optional subcategory
-    note: str | None           # Optional note
-    source_file: str           # Source Excel filename
-    last_seen_at: datetime     # Last import timestamp
-    is_deleted: bool           # Soft delete flag
-```
-
-### Import Log Model
-
-```python
-class ImportLog:
-    id: int                    # Auto-increment PK
-    file_hash: str             # SHA-256 file hash (unique)
-    file_name: str             # Filename
-    imported_at: datetime      # Import timestamp
-    rows_processed: int        # Total rows processed
-    rows_inserted: int         # New rows inserted
-    rows_updated: int          # Existing rows updated
-    rows_deleted: int          # Rows soft deleted
-    rows_skipped: int          # Unchanged rows skipped
-```
-
-## Architecture
-
-```
-┌─────────────────┐
-│  Excel File     │
-│  (Source)       │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Excel Loader   │ ─► Validation
-│  + Validator    │    File Hash
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Normalizer     │ ─► Clean Data
-│                 │    Type Conversion
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Hash ID Gen    │ ─► Deterministic IDs
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Reconciler     │ ─► Insert/Update/Delete
-│                 │    Transaction Logic
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  SQLite DB      │
-│  (Canonical)    │
-└─────────────────┘
-```
-
-## Development
-
-### Run Tests
-
-```bash
-poetry run pytest
-```
-
-### Run Tests with Coverage
-
-```bash
-poetry run pytest --cov=src/ledger_sync --cov-report=html
-```
-
-### Code Formatting
-
-```bash
-poetry run black src/ tests/
-```
-
-### Linting
-
-```bash
-poetry run ruff check src/ tests/
-```
-
-### Type Checking
-
-```bash
-poetry run mypy src/
-```
-
-### Database Migrations
-
-Generate a new migration after model changes:
-
-```bash
-alembic revision --autogenerate -m "description"
-```
-
-Apply migrations:
-
-```bash
-alembic upgrade head
-```
-
-## Configuration
-
-Environment variables can be set with `LEDGER_SYNC_` prefix:
-
-```bash
-export LEDGER_SYNC_DATABASE_URL="sqlite:///./my_ledger.db"
-export LEDGER_SYNC_LOG_LEVEL="DEBUG"
-```
-
-Or create a `.env` file in the project root:
-
-```env
-LEDGER_SYNC_DATABASE_URL=sqlite:///./my_ledger.db
-LEDGER_SYNC_LOG_LEVEL=INFO
-LEDGER_SYNC_DATA_DIR=./data
-```
+---
 
 ## Project Structure
 
 ```
 ledger-sync/
-├── pyproject.toml              # Poetry configuration
-├── alembic.ini                 # Alembic migrations config
-├── README.md                   # This file
-├── src/
-│   └── ledger_sync/
-│       ├── config/             # Configuration & settings
-│       ├── ingest/             # Excel loading & validation
-│       ├── db/                 # Database models & session
-│       ├── core/               # Reconciliation engine
-│       ├── cli/                # CLI application
-│       └── utils/              # Logging & utilities
-├── tests/
-│   ├── unit/                   # Unit tests
-│   ├── integration/            # Integration tests
-│   └── conftest.py             # Pytest fixtures
-└── docs/
-    └── architecture.md         # Architecture documentation
+├── backend/              # Python FastAPI backend
+│   ├── src/             # Source code
+│   │   └── ledger_sync/
+│   │       ├── api/     # FastAPI endpoints
+│   │       ├── cli/     # Command-line interface
+│   │       ├── core/    # Business logic
+│   │       ├── db/      # Database models
+│   │       ├── ingest/  # Excel processing
+│   │       └── utils/   # Utilities
+│   ├── tests/           # Test suite
+│   ├── requirements.txt # Python dependencies
+│   └── alembic.ini      # Migration config
+├── frontend/            # Next.js frontend
+│   ├── app/            # Pages and layouts
+│   ├── components/     # React components
+│   │   ├── ui/         # shadcn/ui components
+│   │   └── ...         # Custom components
+│   ├── hooks/          # Custom React hooks
+│   ├── lib/            # Utilities
+│   └── package.json    # Node dependencies
+├── docs/               # Documentation
+├── package.json        # Root orchestrator
+└── start.ps1           # Quick start script
 ```
 
-## Future Enhancements (Not Implemented)
+---
 
-The architecture is designed to support future additions:
+## Installation
 
-- 📈 Semantic layers (Consumption vs Asset categorization)
-- 📊 Yearly financial summaries
-- 🎁 "Wrapped"-style insights
-- 🚨 Rule-based alerts and notifications
-- 📱 API layer for external integrations
+### Prerequisites
 
-## Philosophy
+- Python 3.11+
+- Node.js 18+
+- npm or yarn
 
-> **Excel is truth. Database is reflection. Sync must be deterministic, lossless, and auditable.**
+### Setup Steps
 
-This project follows the principle that the Excel export is the authoritative source of financial data. The database exists solely to provide a structured, queryable representation of that data for analysis and reporting.
+1. **Clone the repository**
 
-## License
+   ```bash
+   git clone https://github.com/yourusername/ledger-sync.git
+   cd ledger-sync
+   ```
 
-[Add your license here]
+2. **Install root dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **Setup backend**
+
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   alembic upgrade head
+   cd ..
+   ```
+
+4. **Setup frontend**
+
+   ```bash
+   cd frontend
+   npm install
+   cd ..
+   ```
+
+5. **Start development**
+   ```bash
+   npm run dev
+   ```
+
+---
+
+## Available Commands
+
+### Root Commands (From project root)
+
+```bash
+npm run dev              # Start both backend + frontend concurrently
+npm run backend          # Start backend only (port 8000)
+npm run frontend         # Start frontend only (port 3000)
+npm run setup            # Install all dependencies
+```
+
+### Backend Commands
+
+```bash
+cd backend
+
+# Development server
+python -m uvicorn ledger_sync.api.main:app --reload
+
+# CLI Import
+python -m ledger_sync.cli.main import file.xlsx
+python -m ledger_sync.cli.main import file.xlsx --force
+python -m ledger_sync.cli.main import file.xlsx --verbose
+
+# Testing
+pytest
+pytest --cov=ledger_sync tests/
+pytest tests/unit/test_hash_id.py -v
+
+# Database migrations
+alembic upgrade head              # Apply migrations
+alembic revision --autogenerate   # Create new migration
+```
+
+### Frontend Commands
+
+```bash
+cd frontend
+
+# Development
+npm run dev
+
+# Production
+npm run build
+npm start
+
+# Linting
+npm run lint
+```
+
+---
+
+## Usage
+
+### Web Interface
+
+1. Open http://localhost:3000 in your browser
+2. Drag & drop your Excel file or click to browse
+3. Click "Upload & Sync" button
+4. View real-time statistics in toast notification
+5. See detailed breakdown in the statistics card
+
+**Features:**
+
+- Real-time upload progress
+- Toast notifications with stats
+- Visual feedback for drag & drop
+- Error handling with user-friendly messages
+
+### CLI Interface
+
+```bash
+cd backend
+
+# Basic import
+python -m ledger_sync.cli.main import "path/to/MoneyManager.xlsx"
+
+# Force re-import (skip cache)
+python -m ledger_sync.cli.main import "file.xlsx" --force
+
+# Verbose output
+python -m ledger_sync.cli.main import "file.xlsx" --verbose
+```
+
+**Example Output:**
+
+```
+📁 Loading Excel file: MoneyManager.xlsx
+✅ Validation passed
+🔄 Reconciling transactions...
+✨ Sync Complete!
+   Inserted: 45
+   Updated: 12
+   Soft-deleted: 3
+   Unchanged: 234
+```
+
+---
+
+## Excel Format
+
+### Required Columns
+
+Expects Money Manager Pro Excel exports with these columns (case-insensitive):
+
+| Column      | Required    | Accepted Names                   | Examples                 |
+| ----------- | ----------- | -------------------------------- | ------------------------ |
+| Date/Period | ✅          | "Period", "Date", "date"         | "2024-01-15", "Jan 2024" |
+| Account     | ✅          | "Accounts", "Account", "account" | "Cash", "Bank Account"   |
+| Category    | ✅          | "Category", "category"           | "Food", "Salary"         |
+| Amount      | ✅          | "INR", "Amount / INR", "Amount"  | "1500.00", "-250.50"     |
+| Type        | ✅          | "Income/Expense", "Type"         | "Expense", "Income"      |
+| Note        | ⚪ Optional | "Note", "Description"            | "Lunch with team"        |
+| Subcategory | ⚪ Optional | "Subcategory", "Sub Category"    | "Restaurants"            |
+
+### Supported Transaction Types
+
+- **Expense** - Money spent
+- **Income** - Money received
+- **Transfer-In** - Money transferred into account
+- **Transfer-Out** - Money transferred out of account
+
+---
+
+## How It Works
+
+### Data Flow
+
+```
+Excel File → Validation → Normalization → Hash Generation → Reconciliation → Database
+```
+
+### Process Steps
+
+1. **Validation**
+
+   - Checks file format (.xlsx)
+   - Verifies required columns exist
+   - Validates data types
+
+2. **Normalization**
+
+   - Standardizes date formats
+   - Normalizes amount representations
+   - Converts transaction types to canonical form
+
+3. **Hash Generation**
+
+   - Creates deterministic SHA-256 hash IDs
+   - Based on: date, account, category, amount, type
+   - Ensures same transaction = same ID
+
+4. **Reconciliation**
+
+   - Compares incoming data with database
+   - Identifies inserts, updates, deletes, unchanged
+   - Maintains data integrity
+
+5. **Database Update**
+   - Inserts new transactions
+   - Updates modified transactions
+   - Soft-deletes removed transactions
+   - Preserves audit trail
+
+### Reconciliation Logic
+
+| Operation       | Condition                    | Action                 |
+| --------------- | ---------------------------- | ---------------------- |
+| **Insert**      | Hash ID not in database      | Add new record         |
+| **Update**      | Hash ID exists, data changed | Update existing record |
+| **Soft Delete** | Database record not in file  | Mark as deleted        |
+| **Unchanged**   | Hash ID exists, data same    | No action              |
+
+---
+
+## API Documentation
+
+### Endpoints
+
+#### POST /api/upload
+
+Upload and process Excel file
+
+**Request:**
+
+- Content-Type: `multipart/form-data`
+- Body: Form data with `file` field
+- Query params: `force` (boolean, optional)
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "filename": "MoneyManager.xlsx",
+  "inserted": 45,
+  "updated": 12,
+  "soft_deleted": 3,
+  "unchanged": 234,
+  "total_processed": 294,
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+#### GET /health
+
+Health check endpoint
+
+**Response:**
+
+```json
+{
+  "status": "ok",
+  "version": "1.0.0"
+}
+```
+
+### Interactive Documentation
+
+- **Swagger UI:** http://localhost:8000/docs
+- **ReDoc:** http://localhost:8000/redoc
+
+---
+
+## Development
+
+### Backend Development
+
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
+
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+
+# Run with auto-reload
+python -m uvicorn ledger_sync.api.main:app --reload --port 8000
+```
+
+### Frontend Development
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Lint code
+npm run lint
+
+# Build for production
+npm run build
+```
+
+### Hot Reloading
+
+Both backend and frontend support hot reloading:
+
+- **Backend:** FastAPI's `--reload` flag
+- **Frontend:** Next.js Fast Refresh
+
+---
+
+## Testing
+
+### Backend Tests
+
+```bash
+cd backend
+
+# Run all tests
+pytest
+
+# With coverage report
+pytest --cov=ledger_sync tests/
+
+# Specific test file
+pytest tests/unit/test_hash_id.py -v
+
+# Integration tests
+pytest tests/integration/ -v
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py          # Shared fixtures
+├── fixtures/            # Test data
+├── unit/               # Unit tests
+│   ├── test_hash_id.py
+│   └── test_normalizer.py
+└── integration/        # Integration tests
+    └── test_reconciler.py
+```
+
+---
+
+## Database
+
+### Database File
+
+SQLite database stored at: `backend/ledger_sync.db`
+
+### Schema
+
+**Tables:**
+
+- `transactions` - All transaction records
+- `import_logs` - File import history
+- `alembic_version` - Migration tracking
+
+### Database Operations
+
+```bash
+cd backend
+
+# View schema
+sqlite3 ledger_sync.db ".schema"
+
+# Query transactions
+sqlite3 ledger_sync.db "SELECT * FROM transactions LIMIT 10;"
+
+# Reset database
+Remove-Item ledger_sync.db
+alembic upgrade head
+```
+
+---
+
+## Troubleshooting
+
+### Port Already in Use
+
+**Backend (8000):**
+
+```bash
+cd backend
+python -m uvicorn ledger_sync.api.main:app --reload --port 8001
+```
+
+**Frontend (3000):**
+
+```bash
+cd frontend
+npm run dev -- -p 3001
+```
+
+### CORS Errors
+
+Update `backend/src/ledger_sync/api/main.py`:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://your-domain.com"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+### Module Not Found Errors
+
+**Backend:**
+
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+**Frontend:**
+
+```bash
+cd frontend
+npm install
+```
+
+### Database Migration Issues
+
+```bash
+cd backend
+
+# Check current version
+alembic current
+
+# Reset migrations
+Remove-Item ledger_sync.db
+alembic upgrade head
+```
+
+### File Upload Errors
+
+**Common issues:**
+
+1. File too large - Check backend `MAX_FILE_SIZE` setting
+2. Wrong format - Ensure file is `.xlsx`
+3. Missing columns - Verify all required columns exist
+
+---
+
+## Production Deployment
+
+### Backend
+
+```bash
+cd backend
+
+# Install production dependencies
+pip install gunicorn
+
+# Run with Gunicorn
+gunicorn ledger_sync.api.main:app \
+  -w 4 \
+  -k uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000
+```
+
+### Frontend
+
+```bash
+cd frontend
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+### Environment Variables
+
+**Backend (.env):**
+
+```env
+DATABASE_URL=sqlite:///./ledger_sync.db
+LOG_LEVEL=INFO
+MAX_FILE_SIZE=10485760
+```
+
+**Frontend (.env.local):**
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+---
+
+## Architecture
+
+### Backend Architecture
+
+```
+backend/src/ledger_sync/
+├── api/              # FastAPI application
+│   └── main.py       # API routes and app setup
+├── cli/              # Command-line interface
+│   └── main.py       # CLI commands with Typer
+├── core/             # Business logic
+│   ├── sync_engine.py    # Main sync orchestration
+│   └── reconciler.py     # Reconciliation logic
+├── db/               # Database layer
+│   ├── models.py         # SQLAlchemy models
+│   ├── session.py        # Database sessions
+│   └── migrations/       # Alembic migrations
+├── ingest/           # Data ingestion
+│   ├── excel_loader.py   # Excel file parsing
+│   ├── validator.py      # Data validation
+│   ├── normalizer.py     # Data normalization
+│   └── hash_id.py        # ID generation
+└── utils/            # Utilities
+    └── logging.py        # Logging configuration
+```
+
+### Frontend Architecture
+
+```
+frontend/
+├── app/                   # Next.js App Router
+│   ├── page.tsx          # Home page
+│   ├── layout.tsx        # Root layout
+│   └── globals.css       # Global styles
+├── components/           # React components
+│   ├── ui/              # shadcn/ui components
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   ├── input.tsx
+│   │   └── toast.tsx
+│   └── FileUpload.tsx   # Custom upload component
+├── hooks/               # Custom hooks
+│   └── use-toast.ts    # Toast hook
+└── lib/                # Utilities
+    └── utils.ts        # Helper functions
+```
+
+---
 
 ## Contributing
 
-[Add contribution guidelines here]
+Contributions are welcome! Please follow these steps:
 
-## Support
+1. **Fork the repository**
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Commit your changes**
+   ```bash
+   git commit -m 'Add amazing feature'
+   ```
+4. **Push to the branch**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+5. **Open a Pull Request**
 
-For issues, questions, or contributions, please [open an issue](issues) on GitHub.
+### Code Standards
+
+- **Backend:** Follow PEP 8, use type hints
+- **Frontend:** Follow ESLint rules, use TypeScript
+- **Tests:** Write tests for new features
+- **Documentation:** Update relevant docs
+
+---
+
+## License
+
+MIT License - see LICENSE file for details
+
+---
+
+## Acknowledgments
+
+Built with modern web technologies:
+
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [Next.js](https://nextjs.org/) - React framework for production
+- [shadcn/ui](https://ui.shadcn.com/) - Beautiful UI components
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+- [SQLAlchemy](https://www.sqlalchemy.org/) - Python SQL toolkit
+- [Alembic](https://alembic.sqlalchemy.org/) - Database migrations
+- [Radix UI](https://www.radix-ui.com/) - Unstyled, accessible components
+- [Lucide](https://lucide.dev/) - Beautiful icon set
+
+---
+
+**Made with ❤️ for efficient financial data management**
