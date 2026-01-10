@@ -8,6 +8,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from ledger_sync.api.analytics import router as analytics_router
 from ledger_sync.core.sync_engine import SyncEngine
 from ledger_sync.db.session import SessionLocal, init_db
 from ledger_sync.utils.logging import logger, setup_logging
@@ -35,6 +36,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include analytics router
+app.include_router(analytics_router)
 
 
 class UploadResponse(BaseModel):

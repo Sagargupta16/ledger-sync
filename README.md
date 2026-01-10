@@ -9,9 +9,11 @@
 
 ## Overview
 
-Full-stack application that ingests Excel exports from Money Manager Pro and maintains a synchronized SQLite database. Features a modern web interface for easy file uploads with real-time feedback and statistics.
+Full-stack application that ingests Excel exports from Money Manager Pro and maintains a synchronized SQLite database. Features a modern web interface for easy file uploads with real-time feedback and statistics, plus a comprehensive insights dashboard for understanding your financial patterns.
 
 ### Key Features
+
+**Phase 1 - Data Ingestion:**
 
 - 📊 **Excel Ingestion** - Validates and loads Money Manager Pro exports
 - 🔄 **Intelligent Reconciliation** - Automatic insert, update, and soft-delete
@@ -19,7 +21,13 @@ Full-stack application that ingests Excel exports from Money Manager Pro and mai
 - 🌐 **Modern Web UI** - Beautiful Next.js interface with drag & drop
 - 🔔 **Real-time Feedback** - Toast notifications with detailed statistics
 - ⚡ **Idempotent Operations** - Same file uploaded twice = zero net changes
-- 🔌 **REST API** - FastAPI with automatic OpenAPI documentation
+
+**Phase 2 - Financial Insights:**
+
+- 📈 **Overview Dashboard** - Income, expenses, asset allocation, best/worst months
+- 🧠 **Behavior Analysis** - Spending patterns, lifestyle inflation, convenience spending
+- 📊 **Trends & Consistency** - Monthly trends, surplus tracking, consistency scoring
+- ✨ **Yearly Wrapped** - Text-based insights and narratives about your money story
 
 ## Tech Stack
 
@@ -69,13 +77,18 @@ ledger-sync/
 │   └── alembic.ini      # Migration config
 ├── frontend/            # Next.js frontend
 │   ├── app/            # Pages and layouts
+│   │   ├── insights/   # Phase 2: Analytics pages
+│   │   └── ...         # Upload & other pages
 │   ├── components/     # React components
 │   │   ├── ui/         # shadcn/ui components
+│   │   ├── insights/   # Phase 2: Insight components
 │   │   └── ...         # Custom components
 │   ├── hooks/          # Custom React hooks
 │   ├── lib/            # Utilities
 │   └── package.json    # Node dependencies
 ├── docs/               # Documentation
+│   ├── PHASE2.md       # Phase 2: Insights documentation
+│   └── ...             # Other docs
 ├── package.json        # Root orchestrator
 └── start.ps1           # Quick start script
 ```
@@ -183,20 +196,31 @@ npm run lint
 
 ## Usage
 
-### Web Interface
+### Web Interface (Phase 1: Upload)
 
 1. Open http://localhost:3000 in your browser
 2. Drag & drop your Excel file or click to browse
 3. Click "Upload & Sync" button
 4. View real-time statistics in toast notification
-5. See detailed breakdown in the statistics card
+
+### Financial Insights (Phase 2: Analytics)
+
+1. Click "View Financial Insights" on the home page
+2. Navigate between 4 insight screens:
+   - **Overview**: Income, expenses, best/worst months, asset allocation
+   - **Behavior**: Spending patterns, lifestyle inflation, top categories
+   - **Trends**: Monthly trends, surplus tracking, consistency score
+   - **Wrapped**: Text-based insights and narratives
+
+**📖 See [Phase 2 Documentation](docs/PHASE2.md) for detailed metrics explanation**
 
 **Features:**
 
-- Real-time upload progress
-- Toast notifications with stats
-- Visual feedback for drag & drop
-- Error handling with user-friendly messages
+- Read-only analytics (no CRUD operations)
+- Behavioral pattern recognition
+- Trend analysis and consistency scoring
+- Text-based yearly wrapped insights
+- Calm, minimal UI design
 
 ### CLI Interface
 

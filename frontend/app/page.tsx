@@ -1,4 +1,6 @@
 import FileUpload from "@/components/FileUpload";
+import Link from "next/link";
+import { BarChart3 } from "lucide-react";
 
 export default function Home() {
   return (
@@ -15,6 +17,17 @@ export default function Home() {
           <p className="text-lg text-slate-400">
             Excel Ingestion & Database Reconciliation
           </p>
+          
+          {/* Navigation to Insights */}
+          <div className="mt-6">
+            <Link
+              href="/insights"
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all duration-200"
+            >
+              <BarChart3 className="w-5 h-5" />
+              <span>View Financial Insights</span>
+            </Link>
+          </div>
         </div>
 
         {/* Main Content */}
