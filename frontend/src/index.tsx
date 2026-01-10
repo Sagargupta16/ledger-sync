@@ -1,43 +1,25 @@
-import { StrictMode, Suspense } from "react";
+import React, { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import "./styles/index.css";
-import App from "./app/App";
-import EnhancedErrorBoundary from "./components/errors/EnhancedErrorBoundary";
-import { LoadingSpinner } from "./components/ui/Loading";
 
-// Create router configuration
-const router = createBrowserRouter([
-  {
-    path: "/",
-    element: (
-      <EnhancedErrorBoundary>
-        <App />
-      </EnhancedErrorBoundary>
-    ),
-    errorElement: (
-      <EnhancedErrorBoundary>
-        <div className="flex items-center justify-center min-h-screen bg-gray-900">
-          <div className="text-center text-white">
-            <h1 className="text-4xl font-bold mb-4">404</h1>
-            <p className="text-gray-400">Page not found</p>
-            <a href="/" className="text-blue-500 hover:text-blue-400 mt-4 inline-block">
-              Go back home
-            </a>
-          </div>
-        </div>
-      </EnhancedErrorBoundary>
-    ),
-  },
-  {
-    path: "/",
-    element: (
-      <EnhancedErrorBoundary>
-        <App />
-      </EnhancedErrorBoundary>
-    ),
-  },
-]);
+// Minimal test - just show a loading screen
+const SimpleApp = () => (
+  <div style={{ 
+    display: "flex", 
+    alignItems: "center", 
+    justifyContent: "center",
+    minHeight: "100vh",
+    backgroundColor: "#111827",
+    color: "white",
+    flexDirection: "column"
+  }}>
+    <h1>LedgerSync</h1>
+    <p>Loading application...</p>
+    <p style={{ fontSize: "12px", color: "#9ca3af", marginTop: "20px" }}>
+      If this page does not update, there may be a module loading issue.
+    </p>
+  </div>
+);
 
 const rootElement = document.getElementById("root");
 
@@ -48,8 +30,72 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <StrictMode>
-    <Suspense fallback={<LoadingSpinner />}>
-      <RouterProvider router={router} />
-    </Suspense>
+    <SimpleApp />
   </StrictMode>
 );
+
+// Try to load the full App asynchronously
+setTimeout(async () => {
+  try {
+    console.log("Attempting to load full App...");
+    const { default: App } = await import("./app/App");
+    const { EnhancedErrorBoundary, LoadingSpinner } = await import("@/components");
+    const { createBrowserRouter, RouterProvider } = await import("react-router-dom");
+    const { Suspense } = await import("react");
+
+    const router = createBrowserRouter([
+      {
+        path: "/",
+        element: (
+          <EnhancedErrorBoundary>
+            <App />
+          </EnhancedErrorBoundary>
+        ),
+        errorElement: (
+          <EnhancedErrorBoundary>
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              minHeight: "100vh",
+              backgroundColor: "#111827",
+              color: "white",
+              flexDirection: "column"
+            }}>
+              <h1>404 - Page Not Found</h1>
+              <a href="/" style={{ color: "#3b82f6", marginTop: "20px" }}>
+                Go back home
+              </a>
+            </div>
+          </EnhancedErrorBoundary>
+        ),
+      },
+    ]);
+
+    root.render(
+      <StrictMode>
+        <Suspense fallback={<LoadingSpinner />}>
+          <RouterProvider router={router} />
+        </Suspense>
+      </StrictMode>
+    );
+    console.log("Full App loaded successfully!");
+  } catch (error) {
+    console.error("Failed to load App:", error);
+    root.render(
+      <StrictMode>
+        <div style={{ 
+          padding: "20px", 
+          color: "white", 
+          backgroundColor: "#111827",
+          minHeight: "100vh"
+        }}>
+          <h1 style={{ color: "#ef4444" }}>Error Loading Application</h1>
+          <pre style={{ color: "#9ca3af", overflow: "auto" }}>
+            {String(error)}
+          </pre>
+        </div>
+      </StrictMode>
+    );
+  }
+}, 100);

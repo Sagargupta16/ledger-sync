@@ -6,6 +6,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import type { Transaction } from "../../types";
 import { useAdvancedAnalytics } from "../../features/analytics/hooks/useAdvancedAnalytics";
 
 /**
@@ -21,7 +22,7 @@ import { useAdvancedAnalytics } from "../../features/analytics/hooks/useAdvanced
  */
 
 // eslint-disable-next-line max-lines-per-function, complexity
-export const AdvancedAnalyticsDashboard = ({ filteredData }) => {
+export const AdvancedAnalyticsDashboard = ({ filteredData }: { filteredData: Transaction[] }) => {
   const analytics = useAdvancedAnalytics(filteredData);
 
   // Loading state
@@ -47,7 +48,7 @@ export const AdvancedAnalyticsDashboard = ({ filteredData }) => {
         <div className="bg-gradient-to-br from-blue-900/30 to-blue-800/20 border border-blue-500/30 rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-gray-400 text-sm">Monthly Trend</span>
-            {analytics.monthlyComparison?.avgGrowth > 0 ? (
+            {analytics.monthlyComparison?.avgGrowth && analytics.monthlyComparison.avgGrowth > 0 ? (
               <TrendingUp className="text-red-400" size={20} />
             ) : (
               <TrendingDown className="text-green-400" size={20} />
@@ -57,7 +58,7 @@ export const AdvancedAnalyticsDashboard = ({ filteredData }) => {
             {analytics.monthlyComparison?.trend || "Stable"}
           </div>
           <div className="text-sm text-gray-400">
-            {analytics.monthlyComparison?.avgGrowth > 0 ? "+" : ""}
+            {analytics.monthlyComparison?.avgGrowth && analytics.monthlyComparison.avgGrowth > 0 ? "+" : ""}
             {analytics.monthlyComparison?.avgGrowth?.toFixed(1)}% avg growth
           </div>
         </div>
@@ -177,7 +178,7 @@ export const AdvancedAnalyticsDashboard = ({ filteredData }) => {
           </h3>
 
           <div className="space-y-3">
-            {analytics.anomalies.slice(0, 5).map((anom) => (
+            {analytics.anomalies.slice(0, 5).map((anom: any) => (
               <div
                 key={`anomaly-${anom.date}-${anom.amount}`}
                 className={`rounded-lg p-4 ${
@@ -292,7 +293,7 @@ export const AdvancedAnalyticsDashboard = ({ filteredData }) => {
           <h3 className="text-xl font-bold text-white mb-4">Category Growth Trends (Top 5)</h3>
 
           <div className="space-y-4">
-            {analytics.categoryTrends.slice(0, 5).map((cat) => (
+            {analytics.categoryTrends.slice(0, 5).map((cat: any) => (
               <div key={`category-trend-${cat.category}`} className="bg-gray-700/50 rounded-lg p-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-medium text-white">{cat.category}</span>

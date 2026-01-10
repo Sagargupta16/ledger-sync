@@ -1,4 +1,3 @@
-
 import {
   ArrowLeftRight,
   Calculator,
@@ -12,6 +11,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import type { Transaction } from "../../types";
 import {
   CATEGORY_CONCENTRATION_THRESHOLD,
   DEFAULT_ADDITIONAL_KPI,
@@ -47,7 +47,11 @@ import { AccountBalancesCard } from "./components/AccountBalancesCard";
 import { MainKPISection } from "./components/MainKPISection";
 
 // Filter transactions by year and month
-const filterTransactionsByTime = (transactions, year, month) => {
+const filterTransactionsByTime = (
+  transactions: Transaction[],
+  year: string,
+  month: string
+) => {
   if (year === "all") {
     return transactions;
   }
@@ -70,7 +74,7 @@ const filterTransactionsByTime = (transactions, year, month) => {
 };
 
 // Financial Health Metrics Component
-const FinancialHealthMetrics = ({ enhancedKPI }) => {
+const FinancialHealthMetrics = ({ enhancedKPI }: { enhancedKPI: unknown }) => {
   // Validate and provide defaults for enhanced KPI data
   const kpiData = validateKPIData(enhancedKPI, DEFAULT_KPI_VALUES);
   const sectionStyles = getSectionStyles("financial-health");
@@ -178,7 +182,11 @@ const FinancialHealthMetrics = ({ enhancedKPI }) => {
 };
 
 // Transfer Information Component
-const TransferInformationCard = ({ transferData }) => {
+const TransferInformationCard = ({
+  transferData,
+}: {
+  transferData?: { transferIn?: number; transferOut?: number };
+}) => {
   const sectionStyles = getSectionStyles("transfer-info");
 
   if (!transferData?.transferIn && !transferData?.transferOut) {
@@ -227,6 +235,21 @@ const SmartInsightsSection = ({
   selectedMonth,
   onYearChange,
   onMonthChange,
+}: {
+  insights: Array<{
+    type: string;
+    title: string;
+    message: string;
+    priority: string;
+    icon?: string;
+    category?: string;
+  }>;
+  years: number[];
+  months: Array<{ value: string; label: string }>;
+  selectedYear: string;
+  selectedMonth: string;
+  onYearChange: (year: string) => void;
+  onMonthChange: (month: string) => void;
 }) => {
   const sectionStyles = getSectionStyles("insights");
 
@@ -317,6 +340,12 @@ export const OverviewPage = ({
   accountBalances,
   keyInsights,
   filteredData,
+}: {
+  kpiData: { income: number; expense: number };
+  additionalKpiData: unknown;
+  accountBalances: unknown;
+  keyInsights: unknown;
+  filteredData: Transaction[];
 }) => {
   // State for insights time filters
   const [insightsYear, setInsightsYear] = useState("all");
@@ -357,14 +386,14 @@ export const OverviewPage = ({
   );
 
   // Handle year/month change and reset month when year changes to 'all'
-  const handleYearChange = useCallback((year) => {
+  const handleYearChange = useCallback((year: string) => {
     setInsightsYear(year);
     if (year === "all") {
       setInsightsMonth("all");
     }
   }, []);
 
-  const handleMonthChange = useCallback((month) => {
+  const handleMonthChange = useCallback((month: string) => {
     setInsightsMonth(month);
   }, []);
 
@@ -398,7 +427,9 @@ export const OverviewPage = ({
       <TransferInformationCard transferData={validatedAdditionalKPI.transferData} />
 
       {/* Account Balances */}
-      <AccountBalancesCard balances={accountBalances} />
+      <AccountBalancesCard
+        balances={(accountBalances || []) as Array<{ name: string; balance: number }>}
+      />
 
       {/* Key Insights */}
       <div
@@ -432,7 +463,7 @@ export const OverviewPage = ({
       {/* Smart Insights & Recommendations */}
       <SmartInsightsSection
         insights={insights}
-        years={years}
+        years={years as number[]}
         months={months}
         selectedYear={insightsYear}
         selectedMonth={insightsMonth}

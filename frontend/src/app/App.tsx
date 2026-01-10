@@ -1,5 +1,5 @@
-import { useChartData } from "@features/charts";
-import { useAccountBalances, useKeyInsights, useKPIData } from "@features/kpi";
+// Temporarily comment out problematic imports to isolate circular dependency
+import { useKPIData, useKeyInsights, useAccountBalances, useChartData } from "@features/analytics";
 import {
   ArcElement,
   BarElement,
@@ -14,28 +14,28 @@ import {
   Title,
   Tooltip,
 } from "chart.js";
+import { AlertCircle, CheckCircle, Upload as UploadIcon, XCircle } from "lucide-react";
 import { type RefObject, Suspense, useEffect, useRef, useState } from "react";
-import { Footer } from "../components/layout/Footer";
-// Components
-import { Header } from "../components/layout/Header";
 import {
+  Button,
+  CustomTabs,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../components/ui/dialog";
-import { Button } from "../components/ui/button";
-import { AlertCircle, CheckCircle, Upload as UploadIcon, XCircle } from "lucide-react";
-import { CustomTabs, TabContent } from "../components/ui/CustomTabs";
-import { LoadingSpinner } from "../components/ui/Loading";
-import { SectionSkeleton } from "../components/ui/SectionSkeleton";
+  Footer,
+  Header,
+  LoadingSpinner,
+  SectionSkeleton,
+  TabContent,
+} from "@/components";
 // Config
-import { TABS_CONFIG } from "../config/tabs";
+import { TABS_CONFIG } from "@/config/tabs";
 // Hooks
-import { useBackendData } from "../hooks/useBackendData";
-import { useFilteredData, useUniqueValues } from "../hooks/useDataProcessor";
+import { useBackendData } from "@/hooks/useBackendData";
+import { useFilteredData, useUniqueValues } from "@/hooks/useDataProcessor";
 import {
   useError,
   useLoading,
@@ -62,19 +62,19 @@ const TrendsForecastsPage = lazyLoad(
   "TrendsForecastsPage"
 );
 const InvestmentPerformanceTracker = lazyLoad(
-  () => import("../features/analytics/components/InvestmentPerformanceTracker"),
+  () => import("@features/analytics/components/InvestmentPerformanceTracker"),
   "InvestmentPerformanceTracker"
 );
 const TaxPlanningDashboard = lazyLoad(
-  () => import("../features/analytics/components/TaxPlanningDashboard"),
+  () => import("@features/analytics/components/TaxPlanningDashboard"),
   "TaxPlanningDashboard"
 );
 const FamilyHousingManager = lazyLoad(
-  () => import("../features/analytics/components/FamilyHousingManager"),
+  () => import("@features/analytics/components/FamilyHousingManager"),
   "FamilyHousingManager"
 );
 const CreditCardFoodOptimizer = lazyLoad(
-  () => import("../features/analytics/components/CreditCardFoodOptimizer"),
+  () => import("@features/analytics/components/CreditCardFoodOptimizer"),
   "CreditCardFoodOptimizer"
 );
 const PatternsPage = lazyLoad(() => import("../pages/PatternsPage/PatternsPage"), "PatternsPage");
@@ -391,7 +391,10 @@ const App = () => {
 
         <TabContent isActive={activeTab === "investments"}>
           <Suspense fallback={<SectionSkeleton />}>
-            <InvestmentPerformanceTracker filteredData={filteredData} accountBalances={accountBalances} />
+            <InvestmentPerformanceTracker
+              filteredData={filteredData}
+              accountBalances={accountBalances}
+            />
           </Suspense>
         </TabContent>
 
@@ -511,6 +514,7 @@ const App = () => {
                 )}
               </div>
               <button
+                type="button"
                 onClick={() => setUploadNotification({ show: false, type: "success" })}
                 className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
               >

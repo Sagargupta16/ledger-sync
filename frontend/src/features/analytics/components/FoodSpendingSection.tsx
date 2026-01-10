@@ -1,5 +1,6 @@
 import { Coffee, ShoppingBag, UtensilsCrossed } from "lucide-react";
 import { Doughnut, Line } from "react-chartjs-2";
+import type { ChartData, ChartOptions as ChartJSOptions, Point } from "chart.js";
 
 interface FoodData {
   totalFoodSpending: number;
@@ -11,14 +12,10 @@ interface FoodData {
 
 interface FoodSpendingSectionProps {
   foodData: FoodData;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  foodChartData: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  foodTrendsData: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  chartOptions: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  doughnutOptions: any;
+  foodChartData: ChartData<"doughnut", number[], unknown>;
+  foodTrendsData: ChartData<"line", (number | Point | null)[], unknown>;
+  chartOptions: ChartJSOptions<"line">;
+  doughnutOptions: ChartJSOptions<"doughnut">;
 }
 
 /**

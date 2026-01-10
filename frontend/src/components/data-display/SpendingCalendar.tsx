@@ -1,15 +1,9 @@
 import { useMemo } from "react";
+import type { Transaction } from "@/types";
 import logger from "../../utils/logger";
 
-type SpendingCalendarTransaction = {
-  date?: string | Date;
-  type?: string;
-  amount?: number | string;
-  category?: string;
-} & Record<string, unknown>;
-
 interface SpendingCalendarProps {
-  filteredData: SpendingCalendarTransaction[];
+  filteredData: Transaction[];
 }
 
 /**
@@ -20,7 +14,7 @@ export const SpendingCalendar = ({ filteredData }: SpendingCalendarProps) => {
   const calendarData = useMemo(() => {
     const dailySpending: Record<
       string,
-      { total: number; transactions: SpendingCalendarTransaction[] }
+      { total: number; transactions: Transaction[] }
     > = {};
     const today = new Date();
     const thirtyDaysAgo = new Date(today);

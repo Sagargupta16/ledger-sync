@@ -7,12 +7,19 @@ import {
   SmartInsightsPanel,
   SpendingForecastChart,
   YearOverYearComparisonChart,
-} from "../../features/charts/components";
+} from "@features/analytics";
+import type { Transaction } from "../../types";
 
 /**
  * Trends & Forecasts Section - Advanced analytics and predictions
  */
-export const TrendsForecastsPage = ({ chartRefs, filteredData }) => {
+export const TrendsForecastsPage = ({
+  chartRefs,
+  filteredData,
+}: {
+  chartRefs: Record<string, React.RefObject<unknown>>;
+  filteredData: Transaction[];
+}) => {
   return (
     <div className="grid grid-cols-1 gap-6">
       {/* Smart Insights Panel - NEW! */}

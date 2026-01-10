@@ -1,3 +1,4 @@
+import type { Transaction } from "../../types";
 import { RecurringPayments } from "../../features/budget/components/RecurringPayments";
 import { AdvancedAnalyticsDashboard } from "../AdvancedAnalyticsPage/AdvancedAnalyticsPage";
 
@@ -5,7 +6,7 @@ import { AdvancedAnalyticsDashboard } from "../AdvancedAnalyticsPage/AdvancedAna
  * Subscriptions & Patterns Section
  * Recurring payments, subscriptions, and advanced spending analytics
  */
-export const PatternsPage = ({ filteredData }) => {
+export const PatternsPage = ({ filteredData }: { filteredData: Transaction[] }) => {
   return (
     <div className="space-y-8">
       {/* Section Header */}

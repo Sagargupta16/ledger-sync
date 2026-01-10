@@ -1,6 +1,6 @@
 """Integration tests for reconciliation."""
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from ledger_sync.core.reconciler import Reconciler
@@ -88,7 +88,7 @@ class TestReconciler:
         assert sample_transaction.is_deleted is False
 
         # Import with newer timestamp
-        import_time = datetime.now(timezone.utc)
+        import_time = datetime.now(UTC)
         deleted_count = reconciler.mark_soft_deletes(import_time)
 
         test_db_session.refresh(sample_transaction)

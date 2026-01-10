@@ -13,7 +13,21 @@ import { KPICard, SmallKPICard } from "../../../features/kpi/components/KPICards
  * Main KPI Cards Section
  * Displays primary financial metrics: Income, Expense, Net Balance with breakdown
  */
-export const MainKPISection = ({ income = 0, expense = 0, balanceBreakdown = null }) => {
+export const MainKPISection = ({
+  income = 0,
+  expense = 0,
+  balanceBreakdown = null,
+}: {
+  income?: number;
+  expense?: number;
+  balanceBreakdown?: {
+    cash?: number;
+    investments?: number;
+    deposits?: number;
+    debt?: number;
+    other?: number;
+  } | null;
+}) => {
   const netBalance = income - expense;
 
   return (
@@ -59,7 +73,7 @@ export const MainKPISection = ({ income = 0, expense = 0, balanceBreakdown = nul
             title="Credit Card Debt"
             value={Math.abs(balanceBreakdown.debt || 0)}
             icon={<CreditCard size={20} />}
-            color={balanceBreakdown.debt < 0 ? "red" : "gray"}
+            color={(balanceBreakdown.debt || 0) < 0 ? "red" : "blue"}
           />
         </div>
       )}

@@ -1,14 +1,18 @@
-// Re-export basic charts from BasicCharts.js
+/**
+ * Charts Module - Unified Export
+ * All chart components consolidated from the charts feature
+ */
+
+// All chart components
 export * from "./BasicCharts";
-// Re-export complex charts from ChartComponents.js
 export * from "./ChartComponents";
-// Re-export enhanced charts from EnhancedCharts.js
+// Chart utilities
+export * from "./chartHelpers";
 export * from "./EnhancedCharts";
-// Incremental extraction: export newly split charts
 export { EnhancedSpendingByAccountChart } from "./EnhancedSpendingByAccountChart";
-// Re-export SmartInsightsPanel
 export { SmartInsightsPanel } from "./SmartInsightsPanel";
-// Re-export TreemapChart
 export { default as TreemapChart } from "./TreemapChart";
-// Re-export trend charts from TrendCharts.js
 export * from "./TrendCharts";
+// Chart hooks
+export * from "./useChartData";
+export * from "./useChartHooks";

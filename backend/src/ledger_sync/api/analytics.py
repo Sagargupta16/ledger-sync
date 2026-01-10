@@ -219,7 +219,9 @@ def get_yearly_wrapped(
         {
             "title": "Total Income",
             "value": f"₹{totals['total_income']:,.2f}",
-            "description": f"You earned ₹{totals['total_income']:,.2f} from {len(income_txns)} sources",
+            "description": (
+                f"You earned ₹{totals['total_income']:,.2f} " f"from {len(income_txns)} sources"
+            ),
         }
     )
 

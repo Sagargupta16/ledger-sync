@@ -341,9 +341,14 @@ export const InvestmentPerformanceTracker = ({
           <h3 className="text-2xl font-bold gradient-text mb-6">Platform Breakdown</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {platforms
-              .filter((p: any) => ["Groww Stocks", "Groww Mutual Fund", "RSU", "Fixed Deposit"].includes(p.platform))
+              .filter((p: any) =>
+                ["Groww Stocks", "Groww Mutual Fund", "RSU", "Fixed Deposit"].includes(p.platform)
+              )
               .map((p: any) => (
-                <div key={p.platform} className="glass border border-gray-700/40 rounded-2xl p-6 shadow-xl">
+                <div
+                  key={p.platform}
+                  className="glass border border-gray-700/40 rounded-2xl p-6 shadow-xl"
+                >
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-gray-300 text-sm font-bold uppercase tracking-wide">
                       {p.platform}
@@ -352,19 +357,36 @@ export const InvestmentPerformanceTracker = ({
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Capital Deployed</span>
-                      <span className="text-white font-bold">₹{(p.capitalDeployed || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+                      <span className="text-white font-bold">
+                        ₹
+                        {(p.capitalDeployed || 0).toLocaleString("en-IN", {
+                          maximumFractionDigits: 0,
+                        })}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Holdings</span>
-                      <span className="text-indigo-300 font-bold">₹{(p.holdings || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+                      <span className="text-indigo-300 font-bold">
+                        ₹{(p.holdings || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Profits (Q-End)</span>
-                      <span className="text-green-300 font-bold">₹{(p.realizedProfits || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+                      <span className="text-green-300 font-bold">
+                        ₹
+                        {(p.realizedProfits || 0).toLocaleString("en-IN", {
+                          maximumFractionDigits: 0,
+                        })}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Losses (Q-End)</span>
-                      <span className="text-red-300 font-bold">₹{(p.realizedLosses || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+                      <span className="text-red-300 font-bold">
+                        ₹
+                        {(p.realizedLosses || 0).toLocaleString("en-IN", {
+                          maximumFractionDigits: 0,
+                        })}
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 import { TrendingUp } from "lucide-react";
 import { Bar } from "react-chartjs-2";
+import type { ChartOptions as ChartJSOptions } from "chart.js";
 
 interface CommuteBreakdown {
   name: string;
@@ -26,8 +27,7 @@ interface CommuteData {
 
 interface CommuteSectionProps {
   commuteData: CommuteData;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  chartOptions: any;
+  chartOptions: ChartJSOptions<"bar">;
 }
 
 /**

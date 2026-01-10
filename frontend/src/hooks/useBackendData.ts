@@ -3,8 +3,8 @@
  */
 
 import { useEffect } from "react";
-import { fetchTransactions, checkHealth } from "../services/api";
-import { useSetTransactions, useSetLoading, useSetError } from "../store/financialStore";
+import { checkHealth, fetchTransactions } from "../services/api";
+import { useSetError, useSetLoading, useSetTransactions } from "../store/financialStore";
 
 export function useBackendData() {
   const setTransactions = useSetTransactions();

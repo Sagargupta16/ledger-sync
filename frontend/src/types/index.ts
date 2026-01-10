@@ -174,7 +174,7 @@ export interface ChartOptions {
     };
     tooltip?: {
       callbacks?: {
-        label?: (context: any) => string;
+        label?: (context: unknown) => string;
       };
     };
   };
@@ -530,4 +530,84 @@ export interface CommuteMetrics {
   trends: CommuteTrend[];
   monthlyAverage: number;
   topRoutes?: string[];
+}
+
+// ===== COMMON UTILITY TYPES =====
+
+/**
+ * API Response wrapper for standardized responses
+ */
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error?: string;
+  message?: string;
+}
+
+/**
+ * Paginated response format
+ */
+export interface PaginatedResponse<T> {
+  data: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  hasMore: boolean;
+}
+
+/**
+ * Async state for data loading
+ */
+export interface AsyncState<T> {
+  loading: boolean;
+  error: Error | null;
+  data: T | null;
+}
+
+/**
+ * Component props with optional className
+ */
+export interface BaseProps {
+  className?: string;
+  children?: React.ReactNode;
+}
+
+/**
+ * Modal/Dialog props
+ */
+export interface ModalProps extends BaseProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+}
+
+/**
+ * Card props
+ */
+export interface CardProps extends BaseProps {
+  title?: string;
+  subtitle?: string;
+  footer?: React.ReactNode;
+}
+
+/**
+ * Filter state
+ */
+export interface FilterState {
+  category?: string;
+  dateRange?: { start: Date; end: Date };
+  searchTerm?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+/**
+ * Chart options
+ */
+export interface ChartOptions {
+  height?: number;
+  showLegend?: boolean;
+  showGrid?: boolean;
+  animation?: boolean;
+  responsive?: boolean;
 }

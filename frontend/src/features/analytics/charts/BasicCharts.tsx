@@ -21,43 +21,43 @@ interface SubcategoryBreakdownChartProps {
 }
 
 export const IncomeVsExpenseChart = ({ data, chartRef }: ChartProps<DoughnutData>) => (
-  <ChartCard title="Income vs Expense" chartRef={chartRef} fileName="income-vs-expense.png">
-    <Doughnut ref={chartRef} data={data} options={doughnutOptions} />
+  <ChartCard title="Income vs Expense" chartRef={chartRef as React.RefObject<any>} fileName="income-vs-expense.png">
+    <Doughnut ref={chartRef as React.RefObject<any>} data={data} options={doughnutOptions} />
   </ChartCard>
 );
 
 export const TopExpenseCategoriesChart = ({ data, chartRef }: ChartProps<BarData>) => (
-  <ChartCard title="Top Expense Categories" chartRef={chartRef} fileName="top-expenses.png">
-    <Bar ref={chartRef} data={data} options={commonChartOptions} />
+  <ChartCard title="Top Expense Categories" chartRef={chartRef as React.RefObject<any>} fileName="top-expenses.png">
+    <Bar ref={chartRef as React.RefObject<any>} data={data} options={commonChartOptions} />
   </ChartCard>
 );
 
 export const TopIncomeSourcesChart = ({ data, chartRef }: ChartProps<BarData>) => (
-  <ChartCard title="Top Income Sources" chartRef={chartRef} fileName="top-income.png">
-    <Bar ref={chartRef} data={data} options={commonChartOptions} />
+  <ChartCard title="Top Income Sources" chartRef={chartRef as React.RefObject<any>} fileName="top-income.png">
+    <Bar ref={chartRef as React.RefObject<any>} data={data} options={commonChartOptions} />
   </ChartCard>
 );
 
 export const SpendingByAccountChart = ({ data, chartRef }: ChartProps<DoughnutData>) => (
-  <ChartCard title="Spending by Account" chartRef={chartRef} fileName="spending-by-account.png">
-    <Doughnut ref={chartRef} data={data} options={doughnutOptions} />
+  <ChartCard title="Spending by Account" chartRef={chartRef as React.RefObject<any>} fileName="spending-by-account.png">
+    <Doughnut ref={chartRef as React.RefObject<any>} data={data} options={doughnutOptions} />
   </ChartCard>
 );
 
 export const MonthlyTrendsChart = ({ data, chartRef }: ChartProps<LineData>) => (
-  <ChartCard title="Monthly Trends" chartRef={chartRef} fileName="monthly-trends.png">
-    <Line ref={chartRef} data={data} options={commonChartOptions} />
+  <ChartCard title="Monthly Trends" chartRef={chartRef as React.RefObject<any>} fileName="monthly-trends.png">
+    <Line ref={chartRef as React.RefObject<any>} data={data} options={commonChartOptions} />
   </ChartCard>
 );
 
 export const SpendingByDayChart = ({ data, chartRef }: ChartProps<BarData>) => (
-  <ChartCard title="Spending by Day of Week" chartRef={chartRef} fileName="spending-by-day.png">
-    <Bar ref={chartRef} data={data} options={commonChartOptions} />
+  <ChartCard title="Spending by Day of Week" chartRef={chartRef as React.RefObject<any>} fileName="spending-by-day.png">
+    <Bar ref={chartRef as React.RefObject<any>} data={data} options={commonChartOptions} />
   </ChartCard>
 );
 
 export const SubcategoryBreakdownChart = ({ data, chartRef }: SubcategoryBreakdownChartProps) => (
-  <ChartCard title="Subcategory Breakdown" chartRef={chartRef} fileName="subcategory-breakdown.png">
-    <Bar ref={chartRef} data={data} options={commonChartOptions} />
+  <ChartCard title="Subcategory Breakdown" chartRef={chartRef as React.RefObject<any>} fileName="subcategory-breakdown.png">
+    <Bar ref={chartRef as React.RefObject<any>} data={data} options={commonChartOptions} />
   </ChartCard>
 );

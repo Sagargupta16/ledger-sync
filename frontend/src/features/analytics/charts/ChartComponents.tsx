@@ -4,22 +4,17 @@ import React from "react";
 import { Bar, Line } from "react-chartjs-2";
 import { comprehensiveForecast, detectSeasonality } from "../../../lib/analytics/forecasts";
 import { formatCurrency, truncateLabel } from "../../../lib/charts";
+import type { Transaction } from "../../../types";
 import logger from "../../../utils/logger";
-import { useTimeNavigation } from "../hooks/useChartHooks";
-import {
-  aggregateByMonth,
-  commonChartOptions,
-  createDatasets,
-  doughnutOptions,
-} from "../utils/chartHelpers";
+import { aggregateByMonth, commonChartOptions, createDatasets } from "./chartHelpers";
 
 interface ChartComponentProps {
-  filteredData: any[];
-  chartRef?: any;
+  filteredData: Transaction[];
+  chartRef?: React.RefObject<unknown>;
 }
 
 // Re-export for backward compatibility
-export { commonChartOptions, doughnutOptions } from "../utils/chartHelpers";
+export { commonChartOptions, doughnutOptions } from "./chartHelpers";
 
 // eslint-disable-next-line max-lines-per-function
 // Moved to a dedicated file for maintainability
@@ -27,11 +22,11 @@ export { commonChartOptions, doughnutOptions } from "../utils/chartHelpers";
 // The component is now exported via the barrel in index.tsx
 
 interface EnhancedSubcategoryBreakdownChartProps {
-  filteredData: any[];
-  chartRef?: any;
-  categories?: any[];
+  filteredData: Transaction[];
+  chartRef?: React.RefObject<unknown>;
+  categories?: string[];
   selectedCategory?: string;
-  onCategoryChange?: (_category: string) => void;
+  onCategoryChange?: (category: string) => void;
 }
 
 // eslint-disable-next-line max-lines-per-function
@@ -71,13 +66,13 @@ export const EnhancedSubcategoryBreakdownChart = ({
   );
 
   const availableYears = React.useMemo(() => {
-    const years = new Set();
+    const years = new Set<number>();
     filteredData.forEach((item) => {
       if (item.date) {
         years.add(new Date(item.date).getFullYear());
       }
     });
-    return Array.from(years).sort((a, b) => b - a);
+    return Array.from(years).sort((a, b) => (b as number) - (a as number));
   }, [filteredData]);
 
   const timeFilteredData = React.useMemo(() => {
@@ -107,7 +102,7 @@ export const EnhancedSubcategoryBreakdownChart = ({
 
     if (viewMode === "decade") {
       const decade = Math.floor(currentYear / 10) * 10;
-      const yearlyData = {};
+      const yearlyData: Record<number, Record<string, number>> = {};
 
       for (let year = decade; year < decade + 10; year++) {
         yearlyData[year] = {};
@@ -130,15 +125,15 @@ export const EnhancedSubcategoryBreakdownChart = ({
           }
         });
 
-      const decadeTotals = {};
+      const decadeTotals: Record<string, number> = {};
       Object.values(yearlyData).forEach((yearData) => {
         Object.entries(yearData).forEach(([sub, amount]) => {
-          decadeTotals[sub] = (decadeTotals[sub] || 0) + amount;
+          decadeTotals[sub] = (decadeTotals[sub] || 0) + (amount as number);
         });
       });
 
       const topSubcategories = Object.entries(decadeTotals)
-        .sort(([, a], [, b]) => b - a)
+        .sort(([, a], [, b]) => (b as number) - (a as number))
         .slice(0, 5)
         .map(([sub]) => sub);
 
@@ -494,13 +489,13 @@ export const MultiCategoryTimeAnalysisChart = ({
   );
 
   const availableYears = React.useMemo(() => {
-    const years = new Set();
+    const years = new Set<number>();
     filteredData.forEach((item) => {
       if (item.date) {
         years.add(new Date(item.date).getFullYear());
       }
     });
-    return Array.from(years).sort((a, b) => b - a);
+    return Array.from(years).sort((a, b) => (b as number) - (a as number));
   }, [filteredData]);
 
   const timeFilteredData = React.useMemo(() => {
@@ -526,7 +521,7 @@ export const MultiCategoryTimeAnalysisChart = ({
 
     if (viewMode === "decade") {
       const decade = Math.floor(currentYear / 10) * 10;
-      const yearlyData = {};
+      const yearlyData: Record<number, Record<string, number>> = {};
 
       for (let year = decade; year < decade + 10; year++) {
         yearlyData[year] = {};
@@ -548,8 +543,7 @@ export const MultiCategoryTimeAnalysisChart = ({
             yearlyData[year][category] += item.amount;
           }
         });
-
-      const decadeTotals = {};
+      const decadeTotals: Record<string, number> = {};
       Object.values(yearlyData).forEach((yearData) => {
         Object.entries(yearData).forEach(([category, amount]) => {
           decadeTotals[category] = (decadeTotals[category] || 0) + amount;
@@ -836,7 +830,7 @@ export const NetWorthTrendChart = ({ filteredData, chartRef }) => {
   const [currentMonth, setCurrentMonth] = React.useState(new Date().getMonth() + 1);
 
   const availableYears = React.useMemo(() => {
-    const years = new Set();
+    const years = new Set<number>();
     filteredData.forEach((item) => {
       if (item.date) {
         years.add(new Date(item.date).getFullYear());
@@ -1342,7 +1336,7 @@ export const CumulativeCategoryTrendChart = ({ filteredData, chartRef }) => {
   const [selectedCategories, setSelectedCategories] = React.useState(new Set());
 
   const availableYears = React.useMemo(() => {
-    const years = new Set();
+    const years = new Set<number>();
     filteredData.forEach((item) => {
       if (item.date) {
         years.add(new Date(item.date).getFullYear());
@@ -2082,13 +2076,13 @@ export const YearOverYearComparisonChart = ({ filteredData, chartRef }) => {
   const [selectedYears, setSelectedYears] = React.useState(new Set());
 
   const availableYears = React.useMemo(() => {
-    const years = new Set();
+    const years = new Set<number>();
     filteredData.forEach((item) => {
       if (item.date) {
         years.add(new Date(item.date).getFullYear());
       }
     });
-    return Array.from(years).sort((a, b) => b - a);
+    return Array.from(years).sort((a, b) => (b as number) - (a as number));
   }, [filteredData]);
 
   React.useEffect(() => {
