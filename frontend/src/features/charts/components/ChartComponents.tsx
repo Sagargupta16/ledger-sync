@@ -1,5 +1,4 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-// @ts-nocheck
 import React from "react";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 import { comprehensiveForecast, detectSeasonality } from "../../../lib/analytics/forecasts";
@@ -1540,7 +1539,7 @@ export const NetWorthTrendChart = ({ filteredData, chartRef }) => {
     if (chartData.datasets[0].data.length === 0) {
       return 0;
     }
-    return chartData.datasets[0].data[chartData.datasets[0].data.length - 1];
+    return chartData.datasets[0].data.at(-1);
   }, [chartData]);
 
   const netWorthChange = React.useMemo(() => {
@@ -1548,7 +1547,7 @@ export const NetWorthTrendChart = ({ filteredData, chartRef }) => {
     if (data.length < 2) {
       return 0;
     }
-    return data[data.length - 1] - data[0];
+    return data.at(-1) - data[0];
   }, [chartData]);
 
   return (
@@ -1754,8 +1753,8 @@ export const CumulativeCategoryTrendChart = ({ filteredData, chartRef }) => {
         return { category, total };
       });
 
-      const top5Categories = categoryTotals
-        .sort((a, b) => b.total - a.total)
+      const sortedCategories = categoryTotals.sort((a, b) => b.total - a.total);
+      const top5Categories = sortedCategories
         .slice(0, 5)
         .map((item) => item.category);
 

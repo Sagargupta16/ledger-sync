@@ -1,8 +1,26 @@
-# Ledger Sync - Backend
+# Backend - Ledger Sync
 
-FastAPI-based backend for Excel ingestion and database reconciliation.
+FastAPI backend for financial data processing and analytics.
 
-## 🚀 Quick Start
+## Features
+
+- Excel file ingestion and validation
+- Intelligent transaction reconciliation
+- Financial calculations and analytics
+- RESTful API endpoints
+- SQLite database with SQLAlchemy ORM
+- Database migrations with Alembic
+
+## Tech Stack
+
+- Python 3.11+
+- FastAPI - Modern web framework
+- SQLAlchemy 2.0 - ORM and database toolkit
+- Alembic - Database migrations
+- SQLite - Embedded database
+- Pytest - Testing framework
+
+## Quick Start
 
 ```powershell
 # Install dependencies
@@ -11,49 +29,90 @@ pip install -r requirements.txt
 # Initialize database
 alembic upgrade head
 
-# Start server
+# Start development server
 python -m uvicorn ledger_sync.api.main:app --reload
 ```
 
-Backend will be available at: `http://localhost:8000`
+Backend will be available at http://localhost:8000
 
-## 📁 Structure
+## Project Structure
 
 ```
 backend/
-├── src/
-│   └── ledger_sync/
-│       ├── api/           # FastAPI endpoints
-│       ├── cli/           # CLI commands
-│       ├── core/          # Business logic
-│       ├── db/            # Database models
-│       ├── ingest/        # Excel processing
-│       └── utils/         # Utilities
-├── tests/                 # Test suite
-├── alembic.ini           # Alembic config
-├── requirements.txt      # Dependencies
-└── setup.py             # Package setup
+├── src/ledger_sync/
+│   ├── api/              # FastAPI endpoints
+│   │   ├── main.py       # Application entry point
+│   │   ├── analytics.py  # Analytics endpoints
+│   │   └── calculations.py # Calculation endpoints
+│   ├── core/             # Business logic
+│   │   ├── reconciler.py # Transaction reconciliation
+│   │   └── sync_engine.py # Data synchronization
+│   ├── db/               # Database layer
+│   │   ├── models.py     # SQLAlchemy models
+│   │   └── session.py    # Database session
+│   ├── ingest/           # Data ingestion
+│   │   ├── excel_loader.py # Excel file processing
+│   │   ├── normalizer.py # Data normalization
+│   │   └── validator.py  # Data validation
+│   └── utils/            # Utilities
+├── tests/                # Test suite
+│   ├── unit/            # Unit tests
+│   └── integration/     # Integration tests
+├── alembic/             # Database migrations
+├── requirements.txt     # Python dependencies
+└── setup.py            # Package setup
 ```
 
-## 📚 Documentation
+## API Endpoints
 
-- API Docs: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+### Transactions
 
-## 🧪 Testing
+- `GET /api/transactions` - Get all transactions
+- `POST /api/upload` - Upload Excel file
+
+### Analytics
+
+- `GET /api/analytics/overview` - Financial overview
+- `GET /api/analytics/kpis` - Key performance indicators
+- `GET /api/analytics/behavior` - Spending behavior
+- `GET /api/analytics/trends` - Financial trends
+
+### Calculations
+
+- `GET /api/calculations/totals` - Income/expense totals
+- `GET /api/calculations/monthly-aggregation` - Monthly data
+- `GET /api/calculations/category-breakdown` - Category analysis
+- `GET /api/calculations/insights` - Financial insights
+
+## Development
+
+### Running Tests
 
 ```powershell
+# Run all tests
 pytest
+
+# Run with coverage
 pytest --cov=ledger_sync tests/
+
+# Run specific test file
+pytest tests/unit/test_hash_id.py -v
 ```
 
-## 🔧 Configuration
+### Database Migrations
 
-Environment variables (optional):
+```powershell
+# Apply migrations
+alembic upgrade head
 
-- `DATABASE_URL` - Database connection string (default: sqlite:///ledger_sync.db)
+# Create new migration
+alembic revision --autogenerate -m "description"
 
-## 📝 CLI Usage
+# Rollback one migration
+alembic downgrade -1
+```
+
+### CLI Commands
 
 ```powershell
 # Import Excel file
@@ -61,4 +120,23 @@ python -m ledger_sync.cli.main import file.xlsx
 
 # Force re-import
 python -m ledger_sync.cli.main import file.xlsx --force
+
+# Verbose output
+python -m ledger_sync.cli.main import file.xlsx --verbose
 ```
+
+## API Documentation
+
+- Interactive docs: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+## Configuration
+
+Environment variables (optional):
+
+- `DATABASE_URL` - Database connection string
+- `CORS_ORIGINS` - Allowed CORS origins
+
+## License
+
+MIT

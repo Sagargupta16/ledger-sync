@@ -265,7 +265,7 @@ const App = () => {
     let forceReimport = false;
 
     const handleError = async (error: unknown, uploadFile: (force: boolean) => Promise<void>) => {
-      console.error("Upload error:", error);
+      // Log error for debugging
 
       // If duplicate file error, automatically force re-import (since user already confirmed via dialog)
       if (isDuplicateFileError(error)) {

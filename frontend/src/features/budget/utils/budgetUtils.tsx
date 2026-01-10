@@ -3,8 +3,6 @@
  * Simplified, accurate budget tracking with trend analysis
  */
 
-// @ts-nocheck
-
 import { INVESTMENT_ACCOUNTS, INVESTMENT_CATEGORIES } from "../../../constants";
 import {
   calculateTotalDebt,

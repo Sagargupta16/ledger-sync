@@ -8,7 +8,6 @@ import type { RefObject } from "react";
  */
 export const exportChartAsPNG = (chartRef: RefObject<ChartJS>, filename: string): void => {
   if (!chartRef.current) {
-    console.warn("Chart reference is not available");
     return;
   }
 
@@ -19,7 +18,7 @@ export const exportChartAsPNG = (chartRef: RefObject<ChartJS>, filename: string)
     link.href = url;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
   } catch (error) {
     console.error("Error exporting chart:", error);
   }

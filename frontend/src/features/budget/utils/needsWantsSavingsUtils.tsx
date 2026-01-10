@@ -3,8 +3,6 @@
  * Calculate spending breakdown based on the 50/30/20 rule
  */
 
-// @ts-nocheck
-
 import {
   BUDGET_ALLOCATION_DEFAULTS,
   NEEDS_CATEGORIES,

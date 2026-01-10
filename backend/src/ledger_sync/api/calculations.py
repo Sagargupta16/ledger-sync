@@ -12,6 +12,17 @@ from ledger_sync.db.session import get_session
 router = APIRouter(prefix="/api/calculations", tags=["calculations"])
 
 
+def _format_largest_transaction(largest: Transaction | None) -> dict[str, Any] | None:
+    """Helper to format largest transaction data."""
+    if not largest:
+        return None
+    return {
+        "amount": float(largest.amount),
+        "category": largest.category or "",
+        "date": largest.date.isoformat(),
+    }
+
+
 def get_transactions(
     db: Session, start_date: datetime | None = None, end_date: datetime | None = None
 ) -> list[Transaction]:
@@ -319,15 +330,7 @@ def get_financial_insights(
         "average_daily_expense": average_daily_expense,
         "average_monthly_expense": average_monthly_expense,
         "savings_rate": savings_rate,
-        "largest_transaction": (
-            {
-                "amount": float(largest.amount) if largest else 0,
-                "category": largest.category if largest else "",
-                "date": largest.date.isoformat() if largest else None,
-            }
-            if largest
-            else None
-        ),
+        "largest_transaction": _format_largest_transaction(largest),
         "unusual_spending": unusual_spending[:5],  # Top 5
         "total_income": total_income,
         "total_expenses": total_expenses,

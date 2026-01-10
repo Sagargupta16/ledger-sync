@@ -1,4 +1,3 @@
-// @ts-nocheck
 import EnhancedTransactionTable from "../../features/transactions/components/TransactionTable";
 import type { Transaction, TransactionSortKey } from "../../types";
 

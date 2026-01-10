@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { parseCurrency, parseDate } from "../lib/parsers";

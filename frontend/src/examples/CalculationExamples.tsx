@@ -256,9 +256,8 @@ export const CustomDateRangeExample = () => {
         </div>
       </div>
 
-      {isLoading ? (
-        <div>Loading...</div>
-      ) : totals ? (
+      {isLoading && <div>Loading...</div>}
+      {!isLoading && totals && (
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-gray-600">Income</p>
@@ -269,9 +268,8 @@ export const CustomDateRangeExample = () => {
             <p className="text-xl font-bold">${totals.total_expenses.toLocaleString()}</p>
           </div>
         </div>
-      ) : (
-        <div>No data for selected range</div>
       )}
+      {!isLoading && !totals && <div>No data for selected range</div>}
     </div>
   );
 };

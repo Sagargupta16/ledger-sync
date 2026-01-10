@@ -12,6 +12,9 @@ from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
+# Constants
+TIME_RANGE_FILTER_DESC = "Time range filter"
+
 
 def get_filtered_transactions(
     db: Session, time_range: TimeRange = TimeRange.ALL_TIME
@@ -24,7 +27,7 @@ def get_filtered_transactions(
 @router.get("/overview")
 def get_overview(
     db: Session = Depends(get_session),
-    time_range: TimeRange = Query(TimeRange.ALL_TIME, description="Time range filter"),
+    time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get overview statistics: income, expenses, net change, best/worst month."""
 
@@ -67,7 +70,7 @@ def get_overview(
 @router.get("/behavior")
 def get_behavior(
     db: Session = Depends(get_session),
-    time_range: TimeRange = Query(TimeRange.ALL_TIME, description="Time range filter"),
+    time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get spending behavior metrics."""
 
@@ -128,7 +131,7 @@ def get_behavior(
 @router.get("/trends")
 def get_trends(
     db: Session = Depends(get_session),
-    time_range: TimeRange = Query(TimeRange.ALL_TIME, description="Time range filter"),
+    time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get spending and income trends over time."""
 
@@ -176,7 +179,7 @@ def get_trends(
 @router.get("/wrapped")
 def get_yearly_wrapped(
     db: Session = Depends(get_session),
-    time_range: TimeRange = Query(TimeRange.ALL_TIME, description="Time range filter"),
+    time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get yearly wrapped insights - text-based narratives."""
 
@@ -216,9 +219,7 @@ def get_yearly_wrapped(
         {
             "title": "Total Income",
             "value": f"₹{totals['total_income']:,.2f}",
-            "description": (
-                f"You earned ₹{totals['total_income']:,.2f} " f"from {len(income_txns)} sources"
-            ),
+            "description": f"You earned ₹{totals['total_income']:,.2f} from {len(income_txns)} sources",
         }
     )
 
@@ -291,7 +292,7 @@ def get_yearly_wrapped(
 @router.get("/kpis")
 def get_kpis(
     db: Session = Depends(get_session),
-    time_range: TimeRange = Query(TimeRange.ALL_TIME, description="Time range filter"),
+    time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get all KPI metrics in one call."""
 
@@ -336,7 +337,7 @@ def get_kpis(
 @router.get("/charts/income-expense")
 def get_income_expense_chart(
     db: Session = Depends(get_session),
-    time_range: TimeRange = Query(TimeRange.ALL_TIME, description="Time range filter"),
+    time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get data for income vs expense doughnut chart."""
 
@@ -354,7 +355,7 @@ def get_income_expense_chart(
 @router.get("/charts/categories")
 def get_categories_chart(
     db: Session = Depends(get_session),
-    time_range: TimeRange = Query(TimeRange.ALL_TIME, description="Time range filter"),
+    time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
     limit: int = Query(10, description="Number of top categories to return"),
 ) -> dict[str, Any]:
     """Get data for top categories bar chart."""
@@ -371,7 +372,7 @@ def get_categories_chart(
 @router.get("/charts/monthly-trends")
 def get_monthly_trends_chart(
     db: Session = Depends(get_session),
-    time_range: TimeRange = Query(TimeRange.LAST_12_MONTHS, description="Time range filter"),
+    time_range: TimeRange = Query(TimeRange.LAST_12_MONTHS, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get data for monthly trends line chart."""
 
@@ -395,7 +396,7 @@ def get_monthly_trends_chart(
 @router.get("/charts/account-distribution")
 def get_account_distribution_chart(
     db: Session = Depends(get_session),
-    time_range: TimeRange = Query(TimeRange.ALL_TIME, description="Time range filter"),
+    time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get data for account distribution doughnut chart."""
 
@@ -411,7 +412,7 @@ def get_account_distribution_chart(
 @router.get("/insights/generated")
 def get_generated_insights(
     db: Session = Depends(get_session),
-    time_range: TimeRange = Query(TimeRange.ALL_TIME, description="Time range filter"),
+    time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get AI-generated insights from transaction data."""
     from ledger_sync.core.insights import InsightEngine

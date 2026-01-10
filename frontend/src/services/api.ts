@@ -85,50 +85,40 @@ function mapTransactionType(type: string): Transaction["type"] {
  * Fetch all transactions from backend
  */
 export async function fetchTransactions(): Promise<Transaction[]> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/transactions`);
+  const response = await fetch(`${API_BASE_URL}/api/transactions`);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch transactions: ${response.statusText}`);
-    }
-
-    const data: BackendTransaction[] = await response.json();
-    return data.map(transformTransaction);
-  } catch (error) {
-    console.error("Error fetching transactions:", error);
-    throw error;
+  if (!response.ok) {
+    throw new Error(`Failed to fetch transactions: ${response.statusText}`);
   }
+
+  const data: BackendTransaction[] = await response.json();
+  return data.map(transformTransaction);
 }
 
 /**
  * Upload Excel file to backend
  */
 export async function uploadExcelFile(file: File, force = false): Promise<UploadResponse> {
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
+  const formData = new FormData();
+  formData.append("file", file);
 
-    const url = new URL(`${API_BASE_URL}/api/upload`);
-    if (force) {
-      url.searchParams.append("force", "true");
-    }
-
-    const response = await fetch(url.toString(), {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Upload failed: ${response.statusText}`);
-    }
-
-    const data: UploadResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error uploading file:", error);
-    throw error;
+  const url = new URL(`${API_BASE_URL}/api/upload`);
+  if (force) {
+    url.searchParams.append("force", "true");
   }
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Upload failed: ${response.statusText}`);
+  }
+
+  const data: UploadResponse = await response.json();
+  return data;
 }
 
 /**
@@ -139,7 +129,6 @@ export async function checkHealth(): Promise<boolean> {
     const response = await fetch(`${API_BASE_URL}/health`);
     return response.ok;
   } catch (error) {
-    console.error("Health check failed:", error);
     return false;
   }
 }
@@ -148,34 +137,24 @@ export async function checkHealth(): Promise<boolean> {
  * Fetch analytics overview
  */
 export async function fetchAnalyticsOverview(timeRange = "all_time") {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/analytics/overview?time_range=${timeRange}`);
+  const response = await fetch(`${API_BASE_URL}/api/analytics/overview?time_range=${timeRange}`);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch overview: ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching analytics overview:", error);
-    throw error;
+  if (!response.ok) {
+    throw new Error(`Failed to fetch overview: ${response.statusText}`);
   }
+
+  return await response.json();
 }
 
 /**
  * Fetch KPI data
  */
 export async function fetchKPIs(timeRange = "all_time") {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/analytics/kpis?time_range=${timeRange}`);
+  const response = await fetch(`${API_BASE_URL}/api/analytics/kpis?time_range=${timeRange}`);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch KPIs: ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching KPIs:", error);
-    throw error;
+  if (!response.ok) {
+    throw new Error(`Failed to fetch KPIs: ${response.statusText}`);
   }
+
+  return await response.json();
 }

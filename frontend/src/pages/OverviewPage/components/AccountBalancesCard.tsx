@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { formatCurrency } from "../../../lib/formatters";
 
 export const AccountBalancesCard = ({ balances }) => (

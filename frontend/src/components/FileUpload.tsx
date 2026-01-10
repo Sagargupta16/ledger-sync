@@ -40,7 +40,6 @@ export function FileUpload() {
     // Store file and show confirmation dialog
     setSelectedFile(file);
     setShowConfirmDialog(true);
-    console.log("Opening confirmation dialog for file:", file.name);
 
     // Reset input to allow re-selecting the same file
     event.target.value = "";

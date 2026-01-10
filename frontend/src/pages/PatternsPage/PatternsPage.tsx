@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { RecurringPayments } from "../../features/budget/components/RecurringPayments";
 import { AdvancedAnalyticsDashboard } from "../AdvancedAnalyticsPage/AdvancedAnalyticsPage";
 

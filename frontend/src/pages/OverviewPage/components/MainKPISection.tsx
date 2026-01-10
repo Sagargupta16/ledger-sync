@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   CreditCard,
   TrendingUp as Investment,
