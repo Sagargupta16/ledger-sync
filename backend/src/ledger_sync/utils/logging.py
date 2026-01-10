@@ -2,12 +2,11 @@
 
 import logging
 import sys
-from typing import Optional
 
 from ledger_sync.config.settings import settings
 
 
-def setup_logging(log_level: Optional[str] = None) -> logging.Logger:
+def setup_logging(log_level: str | None = None) -> logging.Logger:
     """Configure application logging.
 
     Args:

@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum as PyEnum
 
@@ -43,7 +43,7 @@ class Transaction(Base):
     # Metadata
     source_file: Mapped[str] = mapped_column(String(500), nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), index=True
     )
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
 

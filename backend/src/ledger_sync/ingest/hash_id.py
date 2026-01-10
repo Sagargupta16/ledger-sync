@@ -74,7 +74,10 @@ class TransactionHasher:
         norm_type = self.normalize_for_hash(tx_type)
 
         # Concatenate with delimiter - include more fields for better uniqueness
-        hash_input = f"{norm_date}|{norm_amount}|{norm_account}|{norm_note}|{norm_category}|{norm_subcategory}|{norm_type}"
+        hash_input = (
+            f"{norm_date}|{norm_amount}|{norm_account}|{norm_note}|"
+            f"{norm_category}|{norm_subcategory}|{norm_type}"
+        )
 
         # Generate SHA-256 hash
         hash_bytes = hashlib.sha256(hash_input.encode("utf-8")).digest()

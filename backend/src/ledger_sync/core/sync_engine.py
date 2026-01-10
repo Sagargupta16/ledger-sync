@@ -1,8 +1,7 @@
 """Main synchronization engine."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,7 +27,7 @@ class SyncEngine:
         self.normalizer = DataNormalizer()
         self.reconciler = Reconciler(session)
 
-    def check_already_imported(self, file_hash: str) -> Optional[ImportLog]:
+    def check_already_imported(self, file_hash: str) -> ImportLog | None:
         """Check if file has already been imported.
 
         Args:
@@ -54,7 +53,7 @@ class SyncEngine:
             ValueError: If file was already imported and force=False
         """
         logger.info(f"Starting import of {file_path}")
-        import_time = datetime.now(timezone.utc)
+        import_time = datetime.now(UTC)
 
         # Step 1: Load and validate Excel
         df, column_mapping, file_hash = self.loader.load(file_path)

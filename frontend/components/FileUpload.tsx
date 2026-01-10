@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Upload, CheckCircle2, XCircle, Loader2, FileSpreadsheet } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Upload, CheckCircle2, Loader2, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ export default function FileUpload() {
   const [lastUploadStats, setLastUploadStats] = useState<UploadStats | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [forceReimport, setForceReimport] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -128,25 +129,33 @@ export default function FileUpload() {
       // Clear the selected file after successful upload
       setSelectedFile(null);
       setForceReimport(false); // Reset force flag
-    } catch (error: any) {
+      // Reset file input to allow re-selecting the same file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error: unknown) {
       console.error("Upload error:", error);
       
-      if (error.response?.status === 409) {
+      const isAxiosError = error && typeof error === 'object' && 'response' in error;
+      const errorResponse = isAxiosError ? (error as { response?: { status?: number; data?: { detail?: string } } }).response : undefined;
+      
+      if (errorResponse?.status === 409) {
         toast({
           variant: "destructive",
           title: "File Already Imported",
           description: (
             <div className="space-y-2">
-              <p>{error.response.data.detail || "This file has already been imported"}</p>
-              <p className="text-sm font-semibold">💡 Tip: Check "Force Re-import" below to re-import this file</p>
+              <p>{errorResponse.data?.detail || "This file has already been imported"}</p>
+              <p className="text-sm font-semibold">💡 Tip: Check &ldquo;Force Re-import&rdquo; below to re-import this file</p>
             </div>
           ),
         });
       } else {
+        const errorMessage = errorResponse?.data?.detail || (error instanceof Error ? error.message : 'An error occurred while uploading the file');
         toast({
           variant: "destructive",
           title: "Upload Failed",
-          description: error.response?.data?.detail || error.message || "An error occurred while uploading the file",
+          description: errorMessage,
         });
       }
     } finally {
@@ -180,6 +189,7 @@ export default function FileUpload() {
             >
               <Input
                 id="file-upload"
+                ref={fileInputRef}
                 type="file"
                 accept=".xlsx,.xls"
                 onChange={handleFileChange}

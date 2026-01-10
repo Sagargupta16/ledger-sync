@@ -183,8 +183,9 @@ class Reconciler:
                 if transaction_id in seen_in_batch:
                     logger.warning(
                         f"Skipping duplicate transaction in batch: {transaction_id[:16]}... "
-                        f"(Date: {row['date']}, Amount: {row['amount']}, Account: {row['account']}, "
-                        f"Category: {row['category']}, Type: {row['type']})"
+                        f"(Date: {row['date']}, Amount: {row['amount']}, "
+                        f"Account: {row['account']}, Category: {row['category']}, "
+                        f"Type: {row['type']})"
                     )
                     stats.processed += 1
                     stats.skipped += 1

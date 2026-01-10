@@ -1,9 +1,9 @@
 """Test fixtures."""
 
-import pytest
-from pathlib import Path
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -18,8 +18,8 @@ def test_db_session() -> Session:
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
 
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
+    session_local = sessionmaker(bind=engine)
+    session = session_local()
 
     yield session
 
@@ -55,7 +55,7 @@ def sample_transaction(test_db_session: Session) -> Transaction:
         subcategory="Groceries",
         note="Weekly shopping",
         source_file="test.xlsx",
-        last_seen_at=datetime.now(timezone.utc),
+        last_seen_at=datetime.now(UTC),
         is_deleted=False,
     )
     test_db_session.add(transaction)

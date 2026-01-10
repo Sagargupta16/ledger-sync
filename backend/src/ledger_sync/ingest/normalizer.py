@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 

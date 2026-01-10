@@ -11,7 +11,10 @@
     "setup": "npm run install:all && npm run install:backend",
     "build:frontend": "cd frontend && npm run build",
     "start:frontend": "cd frontend && npm start",
-    "start:backend": "cd backend && set PYTHONPATH=%CD%\\src&&python -m uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port 8000"
+    "start:backend": "cd backend && set PYTHONPATH=%CD%\\src&&python -m uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port 8000",
+    "format": "npm run format:frontend && npm run format:backend",
+    "format:frontend": "cd frontend && npm run lint -- --fix",
+    "format:backend": "cd backend && python -m black src/ tests/ && python -m ruff check --fix src/ tests/"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

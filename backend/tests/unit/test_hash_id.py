@@ -3,8 +3,6 @@
 from datetime import datetime
 from decimal import Decimal
 
-import pytest
-
 from ledger_sync.ingest.hash_id import TransactionHasher
 
 

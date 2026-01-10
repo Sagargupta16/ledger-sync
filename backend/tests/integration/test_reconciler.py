@@ -1,12 +1,9 @@
 """Integration tests for reconciliation."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
-import pytest
-
 from ledger_sync.core.reconciler import Reconciler
-from ledger_sync.db.models import Transaction, TransactionType
 
 
 class TestReconciler:
@@ -15,7 +12,7 @@ class TestReconciler:
     def test_insert_new_transaction(self, test_db_session, sample_transaction_data):
         """Test inserting a new transaction."""
         reconciler = Reconciler(test_db_session)
-        import_time = datetime.now(timezone.utc)
+        import_time = datetime.now(UTC)
 
         transaction, action = reconciler.reconcile_transaction(
             sample_transaction_data,
@@ -30,7 +27,7 @@ class TestReconciler:
     def test_update_existing_transaction(self, test_db_session, sample_transaction_data):
         """Test updating an existing transaction."""
         reconciler = Reconciler(test_db_session)
-        import_time1 = datetime.now(timezone.utc)
+        import_time1 = datetime.now(UTC)
 
         # First import
         transaction1, action1 = reconciler.reconcile_transaction(
@@ -47,7 +44,9 @@ class TestReconciler:
         modified_data = sample_transaction_data.copy()
         modified_data["category"] = "Shopping"
 
-        import_time2 = datetime.now(timezone.utc)
+        import_time2 = datetime.now(UTC)
+        transaction2, action2 = reconciler.reconcile_transaction(
+            modified_data,
             "test.xlsx",
             import_time2,
         )
@@ -59,7 +58,7 @@ class TestReconciler:
     def test_skip_unchanged_transaction(self, test_db_session, sample_transaction_data):
         """Test skipping unchanged transaction."""
         reconciler = Reconciler(test_db_session)
-        import_time1 = datetime.now(timezone.utc)
+        import_time1 = datetime.now(UTC)
 
         # First import
         transaction1, action1 = reconciler.reconcile_transaction(
@@ -71,7 +70,7 @@ class TestReconciler:
 
         assert action1 == "inserted"
 
-        import_time2 = datetime.now(timezone.utc)
+        import_time2 = datetime.now(UTC)
         transaction2, action2 = reconciler.reconcile_transaction(
             sample_transaction_data,
             "test.xlsx",

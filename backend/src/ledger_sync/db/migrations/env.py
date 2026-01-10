@@ -3,9 +3,8 @@
 
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # Import application config and models
 from ledger_sync.config.settings import settings

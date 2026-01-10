@@ -2,7 +2,6 @@
 
 import hashlib
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
@@ -36,7 +35,7 @@ class ExcelLoader:
         return sha256_hash.hexdigest()
 
     def load(
-        self, file_path: Path, sheet_name: Optional[str | int] = 0
+        self, file_path: Path, sheet_name: str | int | None = 0
     ) -> tuple[pd.DataFrame, dict[str, str], str]:
         """Load Excel file and validate.
 
