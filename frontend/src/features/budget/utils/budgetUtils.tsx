@@ -4,21 +4,39 @@
  */
 
 import { INVESTMENT_ACCOUNTS, INVESTMENT_CATEGORIES } from "../../../constants";
-import {
-  calculateTotalDebt,
-  calculateTotalDeposits,
-  calculateTotalInvestments,
-  calculateTotalLiquidAssets,
-  getFinancialGrade,
-  scoreConsistency,
-  scoreDebtManagement,
-  scoreEmergencyFund,
-  scoreIncomeExpenseRatio,
-} from "../../../lib/calculations";
 import { filterByType } from "../../../lib/data";
 import { getMonthKey } from "../../../lib/formatters";
 import { parseAmount } from "../../../lib/parsers";
 import logger from "../../../utils/logger";
+
+// Stub implementations for legacy functions (TODO: Move to backend API)
+const calculateTotalDebt = (balances: any[]) => {
+  if (!Array.isArray(balances)) return 0;
+  return balances.reduce((sum, b) => sum + (b.balance < 0 ? Math.abs(b.balance) : 0), 0);
+};
+const calculateTotalDeposits = (balances: any[]) => {
+  if (!Array.isArray(balances)) return 0;
+  return balances.reduce((sum, b) => sum + (b.balance > 0 ? b.balance : 0), 0);
+};
+const calculateTotalInvestments = (balances: any[]) => {
+  if (!Array.isArray(balances)) return 0;
+  return balances.filter((b: any) => INVESTMENT_ACCOUNTS.includes(b.account))
+    .reduce((sum: number, b: any) => sum + (b.balance || 0), 0);
+};
+const calculateTotalLiquidAssets = (balances: any[]) => {
+  if (!Array.isArray(balances)) return 0;
+  return balances.reduce((sum, b) => sum + (b.balance > 0 ? b.balance : 0), 0);
+};
+const getFinancialGrade = (score: number) => {
+  if (score >= 80) return "A";
+  if (score >= 60) return "B";
+  if (score >= 40) return "C";
+  return "D";
+};
+const scoreConsistency = (data: any[]) => 50;
+const scoreDebtManagement = (debt: number, income: number) => debt === 0 ? 100 : Math.max(0, 100 - (debt / income) * 100);
+const scoreEmergencyFund = (emergency: number, monthlyExpense: number) => Math.min(100, (emergency / (monthlyExpense * 3)) * 100);
+const scoreIncomeExpenseRatio = (income: number, expense: number) => income > 0 ? Math.min(100, ((income - expense) / income) * 100) : 0;
 
 // Storage keys for budget data
 const BUDGET_KEY = "ledgersync_budgets";

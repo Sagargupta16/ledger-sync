@@ -19,13 +19,13 @@ import {
   DEFAULT_KPI_VALUES,
   MESSAGES,
 } from "../../config/overview";
-import { useAdvancedAnalytics } from "../../features/analytics/hooks/useAdvancedAnalytics";
-import { SmallKPICard } from "../../features/kpi/components/KPICards";
-import {
+import { 
+  useAdvancedAnalytics,
+  SmallKPICard,
   AdvancedAnalyticsKPISection,
   SecondaryKPISection,
-} from "../../features/kpi/components/KPISections";
-import { useEnhancedKPIData } from "../../features/kpi/hooks/useCalculations";
+  useEnhancedKPIData
+} from "@features/analytics";
 import { generateSmartInsights } from "../../lib/analytics/insights";
 import {
   getCategoryConcentrationColor,

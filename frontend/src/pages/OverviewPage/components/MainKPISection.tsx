@@ -7,7 +7,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { KPICard, SmallKPICard } from "../../../features/kpi/components/KPICards";
+import { KPICard, SmallKPICard } from "@features/analytics";
 
 /**
  * Main KPI Cards Section

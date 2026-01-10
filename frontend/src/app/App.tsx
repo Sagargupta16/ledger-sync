@@ -35,7 +35,7 @@ import {
 import { TABS_CONFIG } from "@/config/tabs";
 // Hooks
 import { useBackendData } from "@/hooks/useBackendData";
-import { useFilteredData, useUniqueValues } from "@/hooks/useDataProcessor";
+import { useFilteredData, useUniqueValues } from "@/hooks/useTransactions";
 import {
   useError,
   useLoading,

@@ -3,9 +3,6 @@
  * Centralized configuration for the Financial Dashboard
  */
 
-// Initial CSV data - empty by default, user will upload their own file
-export const initialCsvData = `Date,Time,Accounts,Category,Subcategory,Note,INR,Income/Expense`;
-
 // Chart color palettes
 export const CHART_COLORS = {
   primary: ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981"],

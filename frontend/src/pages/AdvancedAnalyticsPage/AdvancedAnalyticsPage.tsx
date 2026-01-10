@@ -7,7 +7,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { Transaction } from "../../types";
-import { useAdvancedAnalytics } from "../../features/analytics/hooks/useAdvancedAnalytics";
+import { useAdvancedAnalytics } from "@features/analytics";
 
 /**
  * Advanced Analytics Dashboard Component
