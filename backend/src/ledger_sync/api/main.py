@@ -4,13 +4,16 @@ import tempfile
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from ledger_sync.api.analytics import router as analytics_router
+from ledger_sync.api.calculations import router as calculations_router
 from ledger_sync.core.sync_engine import SyncEngine
-from ledger_sync.db.session import SessionLocal, init_db
+from ledger_sync.db.models import Transaction
+from ledger_sync.db.session import SessionLocal, get_session, init_db
 from ledger_sync.utils.logging import logger, setup_logging
 
 # Initialize logging
@@ -37,8 +40,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include analytics router
+# Include routers
 app.include_router(analytics_router)
+app.include_router(calculations_router)
 
 
 class UploadResponse(BaseModel):
@@ -67,6 +71,33 @@ async def root() -> HealthResponse:
 async def health() -> HealthResponse:
     """Health check endpoint."""
     return HealthResponse(status="healthy", version="1.0.0")
+
+
+@app.get("/api/transactions")
+async def get_transactions(db: Session = Depends(get_session)) -> list[dict]:
+    """Get all non-deleted transactions.
+
+    Returns:
+        List of transactions in JSON format
+    """
+    transactions = db.query(Transaction).filter(Transaction.is_deleted.is_(False)).all()
+
+    return [
+        {
+            "id": tx.transaction_id,
+            "date": tx.date.isoformat(),
+            "amount": float(tx.amount),
+            "currency": tx.currency,
+            "type": tx.type.value,
+            "category": tx.category,
+            "subcategory": tx.subcategory or "",
+            "account": tx.account,
+            "note": tx.note or "",
+            "source_file": tx.source_file,
+            "last_seen_at": tx.last_seen_at.isoformat(),
+        }
+        for tx in transactions
+    ]
 
 
 @app.post("/api/upload", response_model=UploadResponse)
