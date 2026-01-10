@@ -178,9 +178,9 @@ export const AdvancedAnalyticsDashboard = ({ filteredData }: { filteredData: Tra
           </h3>
 
           <div className="space-y-3">
-            {analytics.anomalies.slice(0, 5).map((anom: any) => (
+            {analytics.anomalies.slice(0, 5).map((anom: any, index: number) => (
               <div
-                key={`anomaly-${anom.date}-${anom.amount}`}
+                key={`anomaly-${index}-${anom.date}-${anom.amount}-${anom.description || ''}`}
                 className={`rounded-lg p-4 ${
                   anom.severity === "high"
                     ? "bg-red-900/40 border border-red-500/50"
