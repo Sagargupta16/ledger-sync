@@ -43,7 +43,7 @@ export const NeedsWantsSavings = ({ transactions }: NeedsWantsSavingsProps) => {
   // Calculate total income
   const totalIncome = useMemo(() => {
     const incomeTransactions = filterByType(transactions, "Income");
-    return incomeTransactions.reduce((sum: number, t: any) => sum + parseAmount(t), 0);
+    return incomeTransactions.reduce((sum: number, t) => sum + parseAmount(t), 0);
   }, [transactions]);
 
   // Calculate breakdown
@@ -148,18 +148,21 @@ export const NeedsWantsSavings = ({ transactions }: NeedsWantsSavingsProps) => {
           {editMode ? (
             <>
               <button
+                type="button"
                 onClick={resetToDefault}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >
                 Reset
               </button>
               <button
+                type="button"
                 onClick={cancelEdit}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={saveAllocationChanges}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
               >
@@ -168,6 +171,7 @@ export const NeedsWantsSavings = ({ transactions }: NeedsWantsSavingsProps) => {
             </>
           ) : (
             <button
+              type="button"
               onClick={() => setEditMode(true)}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
             >
@@ -186,6 +190,10 @@ export const NeedsWantsSavings = ({ transactions }: NeedsWantsSavingsProps) => {
             percentage: 0,
             percentageOfIncome: null,
           };
+
+          const statusBadge = getStatusBadge(data?.status || "good");
+          const progressBarColor = getProgressBarColor(key);
+          const actualVsIdeal = Math.min(((data?.actual || 0) / (data?.ideal || 1)) * 100, 100);
 
           return (
             <div
@@ -217,7 +225,7 @@ export const NeedsWantsSavings = ({ transactions }: NeedsWantsSavingsProps) => {
                   </div>
                 </div>
                 <span
-                  className={`px-2 py-1 rounded text-xs font-medium border ${getStatusBadge(data?.status || "good")}`}
+                  className={`px-2 py-1 rounded text-xs font-medium border ${statusBadge}`}
                 >
                   {data?.status === "good" ? "✓ On Track" : "⚠ Review"}
                 </span>
@@ -248,9 +256,9 @@ export const NeedsWantsSavings = ({ transactions }: NeedsWantsSavingsProps) => {
                 </div>
                 <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                   <div
-                    className={`h-full ${getProgressBarColor(key)} transition-all duration-500`}
+                    className={`h-full ${progressBarColor} transition-all duration-500`}
                     style={{
-                      width: `${Math.min(((data?.actual || 0) / (data?.ideal || 1)) * 100, 100)}%`,
+                      width: `${actualVsIdeal}%`,
                     }}
                   />
                 </div>

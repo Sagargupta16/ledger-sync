@@ -1,3 +1,4 @@
+import { KPICard, SmallKPICard } from "@features/analytics";
 import {
   CreditCard,
   TrendingUp as Investment,
@@ -7,7 +8,6 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { KPICard, SmallKPICard } from "@features/analytics";
 
 /**
  * Main KPI Cards Section

@@ -256,20 +256,14 @@ export const HRA_RENT_DEDUCTION_PERCENT = 0.1;
 /**
  * Categories considered as investment-related
  */
-export const INVESTMENT_CATEGORIES = new Set([
-  "Investment Charges & Loss",
-  "Investment Income",
-  "Invest",
-  "Grow Stocks",
-  "RSU",
-  "FD",
-  "Fixed Deposit",
-]);
+// Dynamic via /api/meta/buckets; keep empty fallback only
+export const INVESTMENT_CATEGORIES = new Set<string>();
 
 /**
  * Accounts considered as investment accounts
  */
-export const INVESTMENT_ACCOUNTS = new Set(["Grow Stocks", "Zerodha", "Upstox", "RSUs"]);
+// Dynamic via /api/meta/buckets; keep empty fallback only
+export const INVESTMENT_ACCOUNTS = new Set<string>();
 
 // Financial Health Score Constants
 // ============================================================================
@@ -417,89 +411,20 @@ export const RECURRING_AMOUNT_ROUNDING_BASE = 100;
  * Category classifications for the 50/30/20 budgeting rule
  * Categories that are considered essential needs (50% of income)
  */
-export const NEEDS_CATEGORIES = new Set([
-  "Groceries",
-  "Food & Dining",
-  "Health & Fitness",
-  "Healthcare",
-  "Medical",
-  "Utilities",
-  "Electricity",
-  "Water",
-  "Gas",
-  "Rent",
-  "Housing",
-  "Insurance",
-  "Bills & Utilities",
-  "Transportation",
-  "Fuel",
-  "Petrol",
-  "Auto & Transport",
-  "Public Transport",
-  "Essential Shopping",
-  "Education",
-  "Child Care",
-  "Pet Care",
-  "Loan Repayment",
-  "Debt Payment",
-  "Credit Card Payment",
-]);
+// Dynamic via /api/meta/buckets; keep empty fallback only
+export const NEEDS_CATEGORIES = new Set<string>();
 
 /**
  * Categories that are considered wants/discretionary spending (30% of income)
  */
-export const WANTS_CATEGORIES = new Set([
-  "Entertainment",
-  "Movies",
-  "Dining Out",
-  "Restaurants",
-  "Travel",
-  "Vacation",
-  "Shopping",
-  "Clothing",
-  "Fashion",
-  "Electronics",
-  "Gadgets",
-  "Hobbies",
-  "Sports",
-  "Gym",
-  "Subscriptions",
-  "Streaming",
-  "Gaming",
-  "Beauty & Spa",
-  "Personal Care",
-  "Gifts",
-  "Donations",
-  "Alcohol & Bars",
-  "Luxury",
-  "Home Decor",
-  "Books",
-  "Music",
-]);
+// Dynamic via /api/meta/buckets; keep empty fallback only
+export const WANTS_CATEGORIES = new Set<string>();
 
 /**
  * Categories that are considered savings/investments (20% of income)
  */
-export const SAVINGS_CATEGORIES = new Set([
-  "Investment",
-  "Investment Charges & Loss",
-  "Investment Income",
-  "Invest",
-  "Grow Stocks",
-  "Savings",
-  "Fixed Deposit",
-  "Recurring Deposit",
-  "Mutual Funds",
-  "Stocks",
-  "Emergency Fund",
-  "Retirement",
-  "PPF",
-  "EPF",
-  "NPS",
-  "Gold",
-  "Crypto",
-  "SIP",
-]);
+// Dynamic via /api/meta/buckets; keep empty fallback only
+export const SAVINGS_CATEGORIES = new Set<string>();
 
 /**
  * Default budget allocation percentages (50/30/20 rule)

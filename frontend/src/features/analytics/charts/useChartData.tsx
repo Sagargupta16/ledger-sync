@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type { Transaction } from "../../../types";
 
 /**
@@ -14,7 +14,7 @@ export const useChartData = (
   kpiData: { income: number; expense: number },
   drilldownCategory: string
 ) => {
-  const toDate = (value: unknown): Date | null => {
+  const toDate = useCallback((value: unknown): Date | null => {
     if (!value) {
       return null;
     }
@@ -26,7 +26,7 @@ export const useChartData = (
       return Number.isNaN(date.getTime()) ? null : date;
     }
     return null;
-  };
+  }, []);
 
   const doughnutChartData = useMemo(
     () => ({
@@ -112,9 +112,10 @@ export const useChartData = (
     };
   }, [filteredData]);
 
-  const lineChartData = useMemo(() => {
-    const monthly = filteredData.reduce<Record<string, { income: number; expense: number }>>(
-      (acc, item) => {
+  const buildMonthlySummaries = useCallback(
+    (data: Transaction[]) =>
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: aggregation logic kept explicit
+      data.reduce<Record<string, { income: number; expense: number }>>((acc, item) => {
         if (item.category === "In-pocket") {
           return acc;
         }
@@ -132,28 +133,38 @@ export const useChartData = (
           acc[month].expense += Number(item.amount) || 0;
         }
         return acc;
-      },
-      {}
-    );
-    const sortedMonths = Object.keys(monthly).sort((a, b) => a.localeCompare(b));
+      }, {}),
+    [toDate]
+  );
 
-    // Convert YYYY-MM format to readable month labels
+  const monthlyTotals = useMemo(
+    () => buildMonthlySummaries(filteredData),
+    [buildMonthlySummaries, filteredData]
+  );
+
+  const sortedMonths = useMemo(
+    () => Object.keys(monthlyTotals).sort((a, b) => a.localeCompare(b)),
+    [monthlyTotals]
+  );
+
+  const lineChartData = useMemo(() => {
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
     const formatMonthLabel = (monthString: string) => {
       const [year, month] = monthString.split("-");
-      const monthNames = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
       return `${monthNames[Number.parseInt(month, 10) - 1]} ${year}`;
     };
 
@@ -162,7 +173,7 @@ export const useChartData = (
       datasets: [
         {
           label: "Income",
-          data: sortedMonths.map((m) => monthly[m].income),
+          data: sortedMonths.map((m) => monthlyTotals[m].income),
           borderColor: "#22c55e",
           backgroundColor: "#22c55e",
           tension: 0.3,
@@ -170,7 +181,7 @@ export const useChartData = (
         },
         {
           label: "Expense",
-          data: sortedMonths.map((m) => monthly[m].expense),
+          data: sortedMonths.map((m) => monthlyTotals[m].expense),
           borderColor: "#ef4444",
           backgroundColor: "#ef4444",
           tension: 0.3,
@@ -178,7 +189,7 @@ export const useChartData = (
         },
       ],
     };
-  }, [filteredData, toDate]);
+  }, [sortedMonths, monthlyTotals]);
 
   const spendingByDayData = useMemo(() => {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

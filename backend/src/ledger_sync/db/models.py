@@ -15,7 +15,13 @@ class TransactionType(str, PyEnum):
 
     EXPENSE = "Expense"
     INCOME = "Income"
-    TRANSFER = "Transfer"
+
+
+class TransferType(str, PyEnum):
+    """Transfer type enumeration."""
+
+    TRANSFER_IN = "Transfer-In"
+    TRANSFER_OUT = "Transfer-Out"
 
 
 class Transaction(Base):
@@ -60,6 +66,56 @@ class Transaction(Base):
             f"date={self.date.date()}, "
             f"amount={self.amount}, "
             f"type={self.type.value})>"
+        )
+
+
+class Transfer(Base):
+    """Transfer model - represents money movement between accounts."""
+
+    __tablename__ = "transfers"
+
+    # Primary key - deterministic hash
+    transfer_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+    # Core transfer fields
+    date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="INR")
+    type: Mapped[TransferType] = mapped_column(Enum(TransferType), nullable=False, index=True)
+
+    # From/To accounts
+    from_account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    to_account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+
+    # Category information (for compatibility)
+    category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Optional fields
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Metadata
+    source_file: Mapped[str] = mapped_column(String(500), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), index=True
+    )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+
+    # Create composite index for common queries
+    __table_args__ = (
+        Index("ix_transfers_date_type", "date", "type"),
+        Index("ix_transfers_from_to", "from_account", "to_account"),
+    )
+
+    def __repr__(self) -> str:
+        """String representation."""
+        return (
+            f"<Transfer(id={self.transfer_id[:8]}..., "
+            f"date={self.date.date()}, "
+            f"amount={self.amount}, "
+            f"type={self.type.value}, "
+            f"from={self.from_account}, "
+            f"to={self.to_account})>"
         )
 
 

@@ -1,6 +1,6 @@
+import type { ChartOptions as ChartJSOptions } from "chart.js";
 import { TrendingUp } from "lucide-react";
 import { Bar } from "react-chartjs-2";
-import type { ChartOptions as ChartJSOptions } from "chart.js";
 
 interface CommuteBreakdown {
   name: string;

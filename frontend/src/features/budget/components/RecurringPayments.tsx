@@ -7,40 +7,59 @@ import type { Transaction } from "../../../types";
 // Stub implementation (TODO: Move to backend API)
 const detectRecurringTransactions = (transactions: Transaction[]) => {
   const groups = new Map<string, Transaction[]>();
-  
-  transactions.filter(t => t.type === "Expense").forEach(t => {
-    const key = `${t.description}-${Math.round((t.amount || 0) / 100) * 100}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(t);
-  });
-  
-  const recurring: any[] = [];
-  groups.forEach((txns, key) => {
+
+  transactions
+    .filter((t) => t.type === "Expense")
+    .forEach((t) => {
+      const key = `${t.description}-${Math.round((t.amount || 0) / 100) * 100}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(t);
+    });
+
+  const recurring: Array<{
+    merchant: string;
+    count: number;
+    avgAmount: number;
+    totalSpent: number;
+    lastDate: Date;
+    daysSinceLast: number;
+    predictedDays?: number;
+    txns: Transaction[];
+  }> = [];
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: recurring payment detection requires inline analysis
+  groups.forEach((txns, _key) => {
     if (txns.length >= 2) {
       const avgAmount = txns.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0) / txns.length;
-      const sortedDates = txns.map(t => new Date(t.date || "").getTime()).sort((a, b) => a - b);
+      const sortedDates = txns.map((t) => new Date(t.date || "").getTime()).sort((a, b) => a - b);
       const lastDate = new Date(sortedDates[sortedDates.length - 1]);
       const daysSinceLast = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
-      
+
       const intervals = [];
       for (let i = 1; i < sortedDates.length; i++) {
         intervals.push((sortedDates[i] - sortedDates[i - 1]) / (1000 * 60 * 60 * 24));
       }
       const avgInterval = intervals.reduce((sum, i) => sum + i, 0) / intervals.length;
-      
+
       let frequency = "monthly";
       if (avgInterval < 10) frequency = "weekly";
       else if (avgInterval < 20) frequency = "bi-weekly";
       else if (avgInterval < 45) frequency = "monthly";
       else if (avgInterval < 100) frequency = "bi-monthly";
       else frequency = "quarterly";
-      
+
       const monthlyEquivalent = avgAmount * (30 / avgInterval);
       const nextExpected = new Date(lastDate.getTime() + avgInterval * 24 * 60 * 60 * 1000);
       const isActive = daysSinceLast < avgInterval * 2;
-      
-      const consistency = Math.max(0, 100 - (intervals.reduce((sum, i) => sum + Math.abs(i - avgInterval), 0) / intervals.length / avgInterval * 100));
-      
+
+      const consistency = Math.max(
+        0,
+        100 -
+          (intervals.reduce((sum, i) => sum + Math.abs(i - avgInterval), 0) /
+            intervals.length /
+            avgInterval) *
+            100
+      );
+
       recurring.push({
         description: txns[0].description,
         category: txns[0].category,
@@ -53,11 +72,11 @@ const detectRecurringTransactions = (transactions: Transaction[]) => {
         nextExpected,
         isActive,
         consistency,
-        daysSinceLastOccurrence: daysSinceLast
+        daysSinceLastOccurrence: daysSinceLast,
       });
     }
   });
-  
+
   return recurring.sort((a, b) => b.monthlyEquivalent - a.monthlyEquivalent);
 };
 

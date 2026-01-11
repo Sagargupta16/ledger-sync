@@ -98,6 +98,7 @@ const PeriodCard = ({ item, isSelected, onSelect, viewMode }: PeriodCardProps) =
 
   return (
     <button
+      type="button"
       onClick={() => onSelect(isSelected ? null : periodKey)}
       className={`w-full bg-gray-800/50 rounded-lg p-4 border transition-all text-left ${
         isSelected ? "border-blue-500 bg-gray-800" : "border-gray-700 hover:border-gray-600"
@@ -211,7 +212,7 @@ export const MonthlyYearlyNWS = ({ transactions }: MonthlyYearlyNWSProps) => {
 
     const data = Object.entries(breakdown)
       .map(([monthKey, values]) => {
-        const { needs = 0, wants = 0, savings = 0, ...rest } = (values as any) || {};
+        const { needs = 0, wants = 0, savings = 0, ...rest } = (values as Record<string, number>) || {};
         return {
           monthKey,
           needs,
@@ -234,7 +235,7 @@ export const MonthlyYearlyNWS = ({ transactions }: MonthlyYearlyNWSProps) => {
 
     const data = Object.entries(breakdown)
       .map(([year, values]) => {
-        const { needs = 0, wants = 0, savings = 0, ...rest } = (values as any) || {};
+        const { needs = 0, wants = 0, savings = 0, ...rest } = (values as Record<string, number>) || {};
         return {
           year: Number.parseInt(year, 10),
           needs,
@@ -285,8 +286,7 @@ export const MonthlyYearlyNWS = ({ transactions }: MonthlyYearlyNWSProps) => {
           <p className="text-gray-400 mt-1">Track your Needs/Wants/Savings over time</p>
         </div>
         <div className="flex gap-2 bg-gray-800 rounded-lg p-1 border border-gray-700">
-          <button
-            onClick={() => {
+          <button            type="button"            onClick={() => {
               setViewMode("monthly");
               setSelectedPeriod(null);
             }}
@@ -296,8 +296,7 @@ export const MonthlyYearlyNWS = ({ transactions }: MonthlyYearlyNWSProps) => {
           >
             Monthly
           </button>
-          <button
-            onClick={() => {
+          <button            type="button"            onClick={() => {
               setViewMode("yearly");
               setSelectedPeriod(null);
             }}
@@ -345,6 +344,7 @@ export const MonthlyYearlyNWS = ({ transactions }: MonthlyYearlyNWSProps) => {
                   <p className="text-gray-400 mt-1">Detailed Breakdown</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setSelectedPeriod(null)}
                   className="text-gray-400 hover:text-white transition-colors"
                 >

@@ -1,6 +1,6 @@
+import type { ChartData, ChartOptions as ChartJSOptions, Point } from "chart.js";
 import { Coffee, ShoppingBag, UtensilsCrossed } from "lucide-react";
 import { Doughnut, Line } from "react-chartjs-2";
-import type { ChartData, ChartOptions as ChartJSOptions, Point } from "chart.js";
 
 interface FoodData {
   totalFoodSpending: number;

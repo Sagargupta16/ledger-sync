@@ -3,7 +3,8 @@
  */
 
 // Transaction Types
-export type TransactionType = "Income" | "Expense" | "Transfer" | "Reimbursement" | "Investment";
+export type TransactionType = "Income" | "Expense" | "Reimbursement" | "Investment";
+export type TransferType = "Transfer-In" | "Transfer-Out";
 
 export interface Transaction {
   id: string;
@@ -18,7 +19,29 @@ export interface Transaction {
   description?: string;
   notes?: string;
   tags?: string[];
+  is_transfer: false;
 }
+
+export interface Transfer {
+  id: string;
+  date: string | Date;
+  time?: string;
+  amount: number;
+  type: TransferType;
+  category: string;
+  subcategory: string;
+  from_account: string;
+  to_account: string;
+  account: string; // For compatibility - usually from_account
+  note?: string;
+  description?: string;
+  notes?: string;
+  tags?: string[];
+  is_transfer: true;
+}
+
+// Combined type for tables and displays
+export type TransactionOrTransfer = Transaction | Transfer;
 
 // Category & Subcategory
 export interface CategoryMapping {

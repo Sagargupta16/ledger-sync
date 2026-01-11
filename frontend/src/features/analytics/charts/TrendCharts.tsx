@@ -11,6 +11,161 @@ interface EnhancedMonthlyTrendsChartProps {
   chartRef?: React.RefObject<ChartJS<"line"> | undefined>;
 }
 
+const isTransactionInView = (
+  item: Transaction,
+  viewMode: string,
+  currentYear: number,
+  now: Date
+) => {
+  if (!item.date || item.category === "In-pocket") {
+    return false;
+  }
+
+  const date = new Date(item.date);
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  if (viewMode === "all-time") {
+    return true;
+  }
+  if (viewMode === "year") {
+    return date.getFullYear() === currentYear;
+  }
+  if (viewMode === "last-12-months") {
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+    return date >= twelveMonthsAgo;
+  }
+  return false;
+};
+
+const buildMonthlyTotals = (data: Transaction[]) => {
+  return data.reduce<Record<string, { income: number; expense: number }>>((acc, item) => {
+    if (!item.date) {
+      return acc;
+    }
+
+    const date = new Date(item.date);
+    if (Number.isNaN(date.getTime())) {
+      return acc;
+    }
+
+    const month = date.toISOString().slice(0, 7);
+    if (!acc[month]) {
+      acc[month] = { income: 0, expense: 0 };
+    }
+
+    if (item.type === "Income") {
+      acc[month].income += item.amount || 0;
+    } else if (item.type === "Expense") {
+      acc[month].expense += item.amount || 0;
+    }
+    return acc;
+  }, {});
+};
+
+const createMonthlyChartData = (
+  monthly: Record<string, { income: number; expense: number }>,
+  sortedMonths: string[],
+  viewMode: string,
+  dataMode: string
+) => {
+  const formatMonthLabel = (monthString: string) => {
+    const [year, month] = monthString.split("-");
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    if (viewMode === "all-time") {
+      return `${monthNames[Number.parseInt(month, 10) - 1]} ${year}`;
+    }
+    return monthNames[Number.parseInt(month, 10) - 1];
+  };
+
+  if (dataMode === "cumulative") {
+    let cumulativeIncome = 0;
+    let cumulativeExpense = 0;
+
+    return {
+      labels: sortedMonths.map(formatMonthLabel),
+      datasets: [
+        {
+          label: "Cumulative Income",
+          data: sortedMonths.map((m) => {
+            cumulativeIncome += monthly[m].income;
+            return cumulativeIncome;
+          }),
+          borderColor: "#22c55e",
+          backgroundColor: "rgba(34, 197, 94, 0.1)",
+          tension: 0.3,
+          fill: "+1",
+        },
+        {
+          label: "Cumulative Expense",
+          data: sortedMonths.map((m) => {
+            cumulativeExpense += monthly[m].expense;
+            return cumulativeExpense;
+          }),
+          borderColor: "#ef4444",
+          backgroundColor: "rgba(239, 68, 68, 0.1)",
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: "Cumulative Net",
+          data: sortedMonths.map((_, index) => {
+            const totalIncome = sortedMonths
+              .slice(0, index + 1)
+              .reduce((sum, month) => sum + monthly[month].income, 0);
+            const totalExpense = sortedMonths
+              .slice(0, index + 1)
+              .reduce((sum, month) => sum + monthly[month].expense, 0);
+            return totalIncome - totalExpense;
+          }),
+          borderColor: "#9333ea",
+          backgroundColor: "rgba(147, 51, 234, 0.1)",
+          tension: 0.3,
+          fill: false,
+          borderWidth: 3,
+        },
+      ],
+    };
+  }
+
+  return {
+    labels: sortedMonths.map(formatMonthLabel),
+    datasets: [
+      {
+        label: "Income",
+        data: sortedMonths.map((m) => monthly[m].income),
+        borderColor: "#22c55e",
+        backgroundColor: "#22c55e",
+        tension: 0.3,
+        fill: false,
+      },
+      {
+        label: "Expense",
+        data: sortedMonths.map((m) => monthly[m].expense),
+        borderColor: "#ef4444",
+        backgroundColor: "#ef4444",
+        tension: 0.3,
+        fill: false,
+      },
+    ],
+  };
+};
+
 // Enhanced Monthly Trends Chart with time navigation
 
 export const EnhancedMonthlyTrendsChart = ({
@@ -36,153 +191,23 @@ export const EnhancedMonthlyTrendsChart = ({
 
   const timeFilteredData = React.useMemo(() => {
     const now = new Date();
-    return filteredData.filter((item) => {
-      if (!item.date || item.category === "In-pocket") {
-        return false;
-      }
-
-      const date = new Date(item.date);
-      if (Number.isNaN(date.getTime())) {
-        return false;
-      }
-
-      if (viewMode === "all-time") {
-        return true;
-      } else if (viewMode === "year") {
-        return date.getFullYear() === currentYear;
-      } else if (viewMode === "last-12-months") {
-        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, 1);
-        return date >= twelveMonthsAgo;
-      }
-      return false;
-    });
+    return filteredData.filter((item) => isTransactionInView(item, viewMode, currentYear, now));
   }, [filteredData, currentYear, viewMode]);
 
-  const chartData = React.useMemo(() => {
-    const monthly = timeFilteredData.reduce<Record<string, { income: number; expense: number }>>(
-      (acc, item) => {
-        if (!item.date) {
-          return acc;
-        }
+  const monthlyTotals = React.useMemo(
+    () => buildMonthlyTotals(timeFilteredData),
+    [timeFilteredData]
+  );
 
-        const date = new Date(item.date);
-        if (Number.isNaN(date.getTime())) {
-          return acc;
-        }
+  const sortedMonths = React.useMemo(
+    () => Object.keys(monthlyTotals).sort((a, b) => a.localeCompare(b)),
+    [monthlyTotals]
+  );
 
-        const month = date.toISOString().slice(0, 7);
-        if (!acc[month]) {
-          acc[month] = { income: 0, expense: 0 };
-        }
-
-        if (item.type === "Income") {
-          acc[month].income += item.amount || 0;
-        } else if (item.type === "Expense") {
-          acc[month].expense += item.amount || 0;
-        }
-        return acc;
-      },
-      {}
-    );
-
-    const sortedMonths = Object.keys(monthly).sort((a, b) => a.localeCompare(b));
-
-    const formatMonthLabel = (monthString: string) => {
-      const [year, month] = monthString.split("-");
-      const monthNames = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-
-      if (viewMode === "all-time") {
-        return `${monthNames[Number.parseInt(month, 10) - 1]} ${year}`;
-      } else {
-        return monthNames[Number.parseInt(month, 10) - 1];
-      }
-    };
-
-    if (dataMode === "cumulative") {
-      let cumulativeIncome = 0;
-      let cumulativeExpense = 0;
-
-      return {
-        labels: sortedMonths.map(formatMonthLabel),
-        datasets: [
-          {
-            label: "Cumulative Income",
-            data: sortedMonths.map((m) => {
-              cumulativeIncome += monthly[m].income;
-              return cumulativeIncome;
-            }),
-            borderColor: "#22c55e",
-            backgroundColor: "rgba(34, 197, 94, 0.1)",
-            tension: 0.3,
-            fill: "+1",
-          },
-          {
-            label: "Cumulative Expense",
-            data: sortedMonths.map((m) => {
-              cumulativeExpense += monthly[m].expense;
-              return cumulativeExpense;
-            }),
-            borderColor: "#ef4444",
-            backgroundColor: "rgba(239, 68, 68, 0.1)",
-            tension: 0.3,
-            fill: true,
-          },
-          {
-            label: "Cumulative Net",
-            data: sortedMonths.map((_, index) => {
-              const totalIncome = sortedMonths
-                .slice(0, index + 1)
-                .reduce((sum, month) => sum + monthly[month].income, 0);
-              const totalExpense = sortedMonths
-                .slice(0, index + 1)
-                .reduce((sum, month) => sum + monthly[month].expense, 0);
-              return totalIncome - totalExpense;
-            }),
-            borderColor: "#9333ea",
-            backgroundColor: "rgba(147, 51, 234, 0.1)",
-            tension: 0.3,
-            fill: false,
-            borderWidth: 3,
-          },
-        ],
-      };
-    } else {
-      return {
-        labels: sortedMonths.map(formatMonthLabel),
-        datasets: [
-          {
-            label: "Income",
-            data: sortedMonths.map((m) => monthly[m].income),
-            borderColor: "#22c55e",
-            backgroundColor: "#22c55e",
-            tension: 0.3,
-            fill: false,
-          },
-          {
-            label: "Expense",
-            data: sortedMonths.map((m) => monthly[m].expense),
-            borderColor: "#ef4444",
-            backgroundColor: "#ef4444",
-            tension: 0.3,
-            fill: false,
-          },
-        ],
-      };
-    }
-  }, [timeFilteredData, viewMode, dataMode]);
+  const chartData = React.useMemo(
+    () => createMonthlyChartData(monthlyTotals, sortedMonths, viewMode, dataMode),
+    [monthlyTotals, sortedMonths, viewMode, dataMode]
+  );
 
   const handlePrevious = () => {
     if (viewMode === "year") {

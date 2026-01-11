@@ -1,5 +1,5 @@
-import type { Transaction } from "../../types";
 import { RecurringPayments } from "../../features/budget/components/RecurringPayments";
+import type { Transaction } from "../../types";
 import { AdvancedAnalyticsDashboard } from "../AdvancedAnalyticsPage/AdvancedAnalyticsPage";
 
 /**

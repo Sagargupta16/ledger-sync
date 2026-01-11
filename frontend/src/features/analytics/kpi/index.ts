@@ -4,7 +4,7 @@
  */
 
 export { KPICard, SmallKPICard } from "./KPICards";
-export { SecondaryKPISection, AdvancedAnalyticsKPISection } from "./KPISections";
+export { AdvancedAnalyticsKPISection, SecondaryKPISection } from "./KPISections";
 
 // KPI Hooks
 export {

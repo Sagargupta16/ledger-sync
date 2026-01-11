@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ledger_sync.db.models import Transaction
+from ledger_sync.db.models import Transaction, Transfer
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.utils.logging import logger
 
@@ -212,6 +212,183 @@ class Reconciler:
 
         # Mark soft deletes
         stats.deleted = self.mark_soft_deletes(import_time)
+        self.session.commit()
+
+        return stats
+
+    def reconcile_transfer(
+        self,
+        normalized_row: dict[str, Any],
+        source_file: str,
+        import_time: datetime,
+    ) -> tuple[Transfer, str]:
+        """Reconcile a single transfer.
+
+        Args:
+            normalized_row: Normalized transfer data
+            source_file: Source file name
+            import_time: Import timestamp
+
+        Returns:
+            Tuple of (Transfer, action) where action is "inserted", "updated", or "skipped"
+        """
+        # Generate transfer ID
+        transfer_id = self.hasher.generate_transaction_id(
+            date=normalized_row["date"],
+            amount=normalized_row["amount"],
+            account=normalized_row["from_account"],
+            note=normalized_row["note"],
+            category=normalized_row["category"],
+            subcategory=normalized_row["subcategory"],
+            tx_type=normalized_row["type"],
+        )
+
+        # Check if transfer exists
+        stmt = select(Transfer).where(Transfer.transfer_id == transfer_id)
+        existing = self.session.execute(stmt).scalar_one_or_none()
+
+        if existing is None:
+            # INSERT new transfer
+            transfer = Transfer(
+                transfer_id=transfer_id,
+                date=normalized_row["date"],
+                amount=normalized_row["amount"],
+                currency=normalized_row["currency"],
+                type=normalized_row["type"],
+                from_account=normalized_row["from_account"],
+                to_account=normalized_row["to_account"],
+                category=normalized_row["category"],
+                subcategory=normalized_row["subcategory"],
+                note=normalized_row["note"],
+                source_file=source_file,
+                last_seen_at=import_time,
+                is_deleted=False,
+            )
+            self.session.add(transfer)
+            return transfer, "inserted"
+
+        else:
+            # UPDATE existing transfer
+            changed = False
+
+            updateable_fields = [
+                "category",
+                "subcategory",
+                "note",
+                "type",
+                "from_account",
+                "to_account",
+            ]
+            for field in updateable_fields:
+                new_value = normalized_row[field]
+                old_value = getattr(existing, field)
+
+                if new_value != old_value:
+                    setattr(existing, field, new_value)
+                    changed = True
+
+            # Always update last_seen_at and is_deleted
+            existing.last_seen_at = import_time
+            if existing.is_deleted:
+                existing.is_deleted = False
+                changed = True
+
+            if changed:
+                return existing, "updated"
+            else:
+                return existing, "skipped"
+
+    def mark_soft_deletes_transfers(self, import_time: datetime) -> int:
+        """Mark transfers not seen in this import as deleted.
+
+        Args:
+            import_time: Import timestamp
+
+        Returns:
+            Number of transfers marked as deleted
+        """
+        stmt = (
+            select(Transfer)
+            .where(Transfer.last_seen_at < import_time)
+            .where(Transfer.is_deleted == False)  # noqa: E712
+        )
+
+        stale_transfers = self.session.execute(stmt).scalars().all()
+
+        count = 0
+        for transfer in stale_transfers:
+            transfer.is_deleted = True
+            count += 1
+
+        if count > 0:
+            logger.info(f"Marked {count} transfers as deleted")
+
+        return count
+
+    def reconcile_transfers_batch(
+        self,
+        normalized_rows: list[dict[str, Any]],
+        source_file: str,
+        import_time: datetime,
+    ) -> ReconciliationStats:
+        """Reconcile a batch of transfers.
+
+        Args:
+            normalized_rows: List of normalized transfer data
+            source_file: Source file name
+            import_time: Import timestamp
+
+        Returns:
+            Reconciliation statistics
+        """
+        stats = ReconciliationStats()
+        seen_in_batch = set()
+
+        for row in normalized_rows:
+            try:
+                # Generate transfer ID to check for duplicates
+                transfer_id = self.hasher.generate_transaction_id(
+                    date=row["date"],
+                    amount=row["amount"],
+                    account=row["from_account"],
+                    note=row["note"],
+                    category=row["category"],
+                    subcategory=row["subcategory"],
+                    tx_type=row["type"],
+                )
+
+                # Skip duplicates within the same batch
+                if transfer_id in seen_in_batch:
+                    logger.warning(
+                        f"Skipping duplicate transfer in batch: {transfer_id[:16]}... "
+                        f"(Date: {row['date']}, Amount: {row['amount']}, "
+                        f"From: {row['from_account']}, To: {row['to_account']})"
+                    )
+                    stats.processed += 1
+                    stats.skipped += 1
+                    continue
+
+                seen_in_batch.add(transfer_id)
+
+                _, action = self.reconcile_transfer(row, source_file, import_time)
+
+                stats.processed += 1
+                if action == "inserted":
+                    stats.inserted += 1
+                elif action == "updated":
+                    stats.updated += 1
+                elif action == "skipped":
+                    stats.skipped += 1
+
+            except Exception as e:
+                logger.error(f"Error reconciling transfer: {e}")
+                continue
+
+        # Commit all changes
+        self.session.commit()
+
+        # Mark soft deletes
+        stats.deleted = self.mark_soft_deletes_transfers(import_time)
         self.session.commit()
 
         return stats

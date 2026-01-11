@@ -9,21 +9,51 @@ import { getMonthKey } from "../../../lib/formatters";
 import { parseAmount } from "../../../lib/parsers";
 import logger from "../../../utils/logger";
 
+const getInvestmentSets = () => {
+  try {
+    const cached = sessionStorage.getItem("buckets");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      return {
+        categories: new Set<string>(parsed.investment_categories || []),
+        accounts: new Set<string>(parsed.investment_accounts || []),
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return {
+    categories: new Set<string>(INVESTMENT_CATEGORIES),
+    accounts: new Set<string>(INVESTMENT_ACCOUNTS),
+  };
+};
+
+const isInvestmentCategory = (category: string | undefined | null) => {
+  const { categories } = getInvestmentSets();
+  return category ? categories.has(category) : false;
+};
+
+const isInvestmentAccount = (account: string | undefined | null) => {
+  const { accounts } = getInvestmentSets();
+  return account ? accounts.has(account) : false;
+};
+
 // Stub implementations for legacy functions (TODO: Move to backend API)
-const calculateTotalDebt = (balances: any[]) => {
+const calculateTotalDebt = (balances: Array<{ balance: number }>) => {
   if (!Array.isArray(balances)) return 0;
   return balances.reduce((sum, b) => sum + (b.balance < 0 ? Math.abs(b.balance) : 0), 0);
 };
-const calculateTotalDeposits = (balances: any[]) => {
+const calculateTotalDeposits = (balances: Array<{ balance: number }>) => {
   if (!Array.isArray(balances)) return 0;
   return balances.reduce((sum, b) => sum + (b.balance > 0 ? b.balance : 0), 0);
 };
-const calculateTotalInvestments = (balances: any[]) => {
+const calculateTotalInvestments = (balances: Array<{ account: string; balance: number }>) => {
   if (!Array.isArray(balances)) return 0;
-  return balances.filter((b: any) => INVESTMENT_ACCOUNTS.includes(b.account))
-    .reduce((sum: number, b: any) => sum + (b.balance || 0), 0);
+  return balances
+    .filter((b) => isInvestmentAccount(b.account))
+    .reduce((sum: number, b) => sum + (b.balance || 0), 0);
 };
-const calculateTotalLiquidAssets = (balances: any[]) => {
+const calculateTotalLiquidAssets = (balances: Array<{ balance: number }>) => {
   if (!Array.isArray(balances)) return 0;
   return balances.reduce((sum, b) => sum + (b.balance > 0 ? b.balance : 0), 0);
 };
@@ -33,10 +63,13 @@ const getFinancialGrade = (score: number) => {
   if (score >= 40) return "C";
   return "D";
 };
-const scoreConsistency = (data: any[]) => 50;
-const scoreDebtManagement = (debt: number, income: number) => debt === 0 ? 100 : Math.max(0, 100 - (debt / income) * 100);
-const scoreEmergencyFund = (emergency: number, monthlyExpense: number) => Math.min(100, (emergency / (monthlyExpense * 3)) * 100);
-const scoreIncomeExpenseRatio = (income: number, expense: number) => income > 0 ? Math.min(100, ((income - expense) / income) * 100) : 0;
+const scoreConsistency = (_data: Transaction[]) => 50;
+const scoreDebtManagement = (debt: number, income: number) =>
+  debt === 0 ? 100 : Math.max(0, 100 - (debt / income) * 100);
+const scoreEmergencyFund = (emergency: number, monthlyExpense: number) =>
+  Math.min(100, (emergency / (monthlyExpense * 3)) * 100);
+const scoreIncomeExpenseRatio = (income: number, expense: number) =>
+  income > 0 ? Math.min(100, ((income - expense) / income) * 100) : 0;
 
 // Storage keys for budget data
 const BUDGET_KEY = "ledgersync_budgets";
@@ -315,6 +348,7 @@ export const detectRecurringPayments = (transactions) => {
     });
 
     // Check for recurring patterns
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: recurring pattern detection requires inline logic
     Object.entries(amountGroups).forEach(([baseAmount, groupItems]) => {
       if (groupItems.length >= 3) {
         // Sort by date
@@ -381,8 +415,8 @@ const calculateSpendingVariance = (transactions) => {
   const expenses = transactions.filter(
     (t) =>
       t.type === "Expense" &&
-      !INVESTMENT_CATEGORIES.has(t.category) &&
-      !INVESTMENT_ACCOUNTS.has(t.account)
+      !isInvestmentCategory(t.category) &&
+      !isInvestmentAccount(t.account)
   );
 
   // Group by month
@@ -443,8 +477,8 @@ export const calculateHealthScore = (data) => {
     const expenseTransactions = filteredData.filter(
       (t) =>
         t.type === "Expense" &&
-        !INVESTMENT_CATEGORIES.has(t.category) &&
-        !INVESTMENT_ACCOUNTS.has(t.account)
+        !isInvestmentCategory(t.category) &&
+        !isInvestmentAccount(t.account)
     );
 
     expenseTransactions.forEach((transaction) => {
@@ -524,6 +558,7 @@ export const calculateHealthScore = (data) => {
 /**
  * Generate actionable recommendations based on financial health
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: recommendation generation requires multiple conditions
 export const generateRecommendations = (budgetComparison, healthScore) => {
   const recommendations = [];
 

@@ -7,8 +7,8 @@ import {
   IncomeVsExpenseChart,
   SpendingByDayChart,
 } from "@features/analytics";
-import type { Transaction } from "../../types";
 import type { BubbleDataPoint, ChartData } from "chart.js";
+import type { Transaction } from "../../types";
 
 type BarData = ChartData<"bar", (number | [number, number] | BubbleDataPoint | null)[], unknown>;
 type DoughnutData = ChartData<"doughnut", number[], unknown>;
@@ -20,7 +20,7 @@ export const IncomeExpensePage = ({
   chartData,
   chartRefs,
   filteredData,
-  uniqueValues,
+  expenseCategories,
   drilldownCategory,
   setDrilldownCategory,
 }: {
@@ -31,37 +31,40 @@ export const IncomeExpensePage = ({
   };
   chartRefs: Record<string, React.RefObject<unknown> | undefined>;
   filteredData: Transaction[];
-  uniqueValues: { expenseCategories: string[] };
+  expenseCategories: string[];
   drilldownCategory: string;
   setDrilldownCategory: (category: string) => void;
 }) => {
   return (
     <div className="grid grid-cols-1 gap-6">
       {/* Income vs Expense Doughnut */}
-      <IncomeVsExpenseChart data={chartData.doughnutChartData as DoughnutData} chartRef={chartRefs.doughnut as React.RefObject<any>} />
+      <IncomeVsExpenseChart
+        data={chartData.doughnutChartData as DoughnutData}
+        chartRef={chartRefs.doughnut as React.RefObject<unknown>}
+      />
 
       {/* Top Expense Categories */}
       <EnhancedTopExpenseCategoriesChart
         filteredData={filteredData}
-        chartRef={chartRefs.bar as React.RefObject<any>}
+        chartRef={chartRefs.bar as React.RefObject<unknown>}
       />
 
       {/* Top Income Sources */}
       <EnhancedTopIncomeSourcesChart
         filteredData={filteredData}
-        chartRef={chartRefs.incomeSources as React.RefObject<any>}
+        chartRef={chartRefs.incomeSources as React.RefObject<unknown>}
       />
 
       {/* Spending by Account */}
       <EnhancedSpendingByAccountChart
         filteredData={filteredData}
-        chartRef={chartRefs.spendingByAccount as React.RefObject<any>}
+        chartRef={chartRefs.spendingByAccount as React.RefObject<unknown>}
       />
 
       {/* Monthly Trends */}
       <EnhancedMonthlyTrendsChart
         filteredData={filteredData}
-        chartRef={chartRefs.line as React.RefObject<any>}
+        chartRef={chartRefs.line as React.RefObject<unknown>}
       />
 
       {/* Detailed Analysis Row */}
@@ -76,7 +79,7 @@ export const IncomeExpensePage = ({
         <EnhancedSubcategoryBreakdownChart
           filteredData={filteredData}
           chartRef={chartRefs.subcategoryBreakdown}
-          categories={uniqueValues.expenseCategories}
+          categories={expenseCategories}
           selectedCategory={drilldownCategory}
           onCategoryChange={setDrilldownCategory}
         />

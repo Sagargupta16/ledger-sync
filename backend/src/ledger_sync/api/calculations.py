@@ -6,10 +6,68 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from ledger_sync.db.models import Transaction, TransactionType
+from ledger_sync.db.models import Transaction, TransactionType, Transfer
 from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/api/calculations", tags=["calculations"])
+
+
+@router.get("/categories/master")
+def get_master_categories(db: Session = Depends(get_session)) -> dict[str, Any]:
+    """Get all unique categories and subcategories organized by transaction type.
+
+    Returns a hierarchical structure of all categories used in the system,
+    grouped by Income/Expense type, with subcategories under each category.
+
+    Returns:
+        {
+            "income": {
+                "Salary": ["Basic", "Bonus", "Allowances"],
+                "Investment Returns": ["Dividends", "Interest"],
+                ...
+            },
+            "expense": {
+                "Groceries": ["Vegetables", "Dairy"],
+                "Rent": ["Housing"],
+                ...
+            }
+        }
+    """
+    result: dict[str, dict[str, list[str]]] = {
+        "income": {},
+        "expense": {},
+    }
+
+    # Get all transactions
+    transactions = db.query(Transaction).filter(Transaction.is_deleted.is_(False)).all()
+
+    # Process transactions to extract categories and subcategories
+    for tx in transactions:
+        tx_type = "income" if tx.type == TransactionType.INCOME else "expense"
+        category = tx.category or "Uncategorized"
+        subcategory = tx.subcategory or "Other"
+
+        # Initialize category if not exists
+        if category not in result[tx_type]:
+            result[tx_type][category] = []
+
+        # Add subcategory if not already present
+        if subcategory not in result[tx_type][category]:
+            result[tx_type][category].append(subcategory)
+
+    # Get transfers (they don't have income/expense distinction, but track separately if needed)
+    # For now, we'll skip transfers from category listing since they're movements,
+    # not income/expense
+
+    # Sort subcategories for consistency
+    for tx_type in result:
+        for category in result[tx_type]:
+            result[tx_type][category].sort()
+        # Sort categories alphabetically
+        sorted_categories = dict(sorted(result[tx_type].items()))
+        result[tx_type] = sorted_categories
+
+    return result
 
 
 def _format_largest_transaction(largest: Transaction | None) -> dict[str, Any] | None:
@@ -206,12 +264,21 @@ def get_account_balances(
     start_date: datetime | None = Query(None),
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
-    """Calculate current balance for each account."""
+    """Calculate current balance for each account including transfers."""
 
     transactions = get_transactions(db, start_date, end_date)
 
+    # Get transfers
+    transfers_query = db.query(Transfer).filter(Transfer.is_deleted.is_(False))
+    if start_date:
+        transfers_query = transfers_query.filter(Transfer.date >= start_date)
+    if end_date:
+        transfers_query = transfers_query.filter(Transfer.date <= end_date)
+    transfers = transfers_query.all()
+
     account_balances: dict[str, dict[str, Any]] = {}
 
+    # Process regular transactions
     for tx in transactions:
         account = tx.account or "Unknown"
 
@@ -222,10 +289,11 @@ def get_account_balances(
                 "last_transaction": None,
             }
 
+        amount = abs(float(tx.amount))
         if tx.type == TransactionType.INCOME:
-            account_balances[account]["balance"] += float(tx.amount)
+            account_balances[account]["balance"] += amount
         elif tx.type == TransactionType.EXPENSE:
-            account_balances[account]["balance"] -= float(tx.amount)
+            account_balances[account]["balance"] -= amount
 
         account_balances[account]["transactions"] += 1
 
@@ -234,7 +302,44 @@ def get_account_balances(
             account_balances[account]["last_transaction"] is None
             or tx.date > account_balances[account]["last_transaction"]
         ):
-            account_balances[account]["last_transaction"] = tx.date.isoformat()
+            account_balances[account]["last_transaction"] = tx.date
+
+    # Process transfers (add to destination, subtract from source) regardless of transfer subtype
+    # The dataset often stores each movement twice (Transfer-In/Transfer-Out) with identical from/to
+    # so we deduplicate by (date, amount, src, dst) to avoid double counting.
+    seen_transfers: set[tuple[datetime, float, str, str]] = set()
+    for tf in transfers:
+        amount = abs(float(tf.amount))
+        src = tf.from_account or "Unknown"
+        dst = tf.to_account or "Unknown"
+        key = (tf.date, amount, src, dst)
+
+        # Skip duplicate representations of the same movement
+        if key in seen_transfers:
+            continue
+        seen_transfers.add(key)
+
+        # Initialize accounts if needed
+        for acc in (src, dst):
+            if acc not in account_balances:
+                account_balances[acc] = {
+                    "balance": 0,
+                    "transactions": 0,
+                    "last_transaction": None,
+                }
+
+        # Apply formula: +to_account, -from_account
+        account_balances[src]["balance"] -= amount
+        account_balances[dst]["balance"] += amount
+
+        # Update transaction counts and dates
+        for acc in (src, dst):
+            account_balances[acc]["transactions"] += 1
+            if (
+                account_balances[acc]["last_transaction"] is None
+                or tf.date > account_balances[acc]["last_transaction"]
+            ):
+                account_balances[acc]["last_transaction"] = tf.date
 
     # Calculate statistics
     total_balance = sum(acc["balance"] for acc in account_balances.values())
@@ -243,8 +348,19 @@ def get_account_balances(
     positive_accounts = sum(1 for acc in account_balances.values() if acc["balance"] > 0)
     negative_accounts = sum(1 for acc in account_balances.values() if acc["balance"] < 0)
 
+    # Convert last_transaction datetimes to isoformat for response
+    serialized_accounts: dict[str, dict[str, Any]] = {}
+    for acc, info in account_balances.items():
+        serialized_accounts[acc] = {
+            "balance": info["balance"],
+            "transactions": info["transactions"],
+            "last_transaction": (
+                info["last_transaction"].isoformat() if info["last_transaction"] else None
+            ),
+        }
+
     return {
-        "accounts": account_balances,
+        "accounts": serialized_accounts,
         "statistics": {
             "total_accounts": total_accounts,
             "total_balance": total_balance,

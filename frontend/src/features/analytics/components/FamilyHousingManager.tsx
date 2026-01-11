@@ -1,7 +1,7 @@
 /* eslint-disable max-lines-per-function */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Calendar, Home, TrendingUp, Users, Zap } from "lucide-react";
+import type { TooltipItem } from "chart.js";
 import { useMemo } from "react";
 import { Bar, Line } from "react-chartjs-2";
 import {
@@ -14,26 +14,68 @@ interface FamilyHousingManagerProps {
   filteredData: Transaction[];
 }
 
+interface FamilyBreakdownEntry {
+  name: string;
+  total: number;
+  amount: number;
+  count: number;
+  average: number;
+  percentage: number;
+}
+
+interface FamilyExpenseData {
+  totalFamilyExpense: number;
+  monthlyAverage: number;
+  breakdown: FamilyBreakdownEntry[];
+  topExpenses: { date: string; subcategory: string; amount: number; note?: string }[];
+  bySubcategory: Record<string, { total: number; count: number; transactions: Transaction[] }>;
+  insights: unknown[];
+}
+
+interface HousingPayment {
+  date: string;
+  amount: number;
+  note?: string;
+  subcategory?: string;
+}
+
+interface HousingTrendEntry {
+  month: string;
+  rent: number;
+  utilities: number;
+}
+
+interface HousingExpenseData {
+  totalHousing: number;
+  totalRent: number;
+  totalUtilities: number;
+  monthlyRentAverage: number;
+  rentPayments: HousingPayment[];
+  utilities: HousingPayment[];
+  trends: HousingTrendEntry[];
+  hraEligible: number;
+}
+
 /**
  * Family & Housing Expense Manager
  * Track family expenses, rent, and housing costs
  */
 export const FamilyHousingManager = ({ filteredData }: FamilyHousingManagerProps) => {
-  const familyData = useMemo(() => {
+  const familyData: FamilyExpenseData = useMemo(() => {
     return calculateFamilyExpenses(filteredData);
   }, [filteredData]);
 
-  const housingData = useMemo(() => {
+  const housingData: HousingExpenseData = useMemo(() => {
     return calculateHousingExpenses(filteredData);
   }, [filteredData]);
 
   // Family spending chart
   const familyChartData = {
-    labels: familyData.breakdown.map((b: any) => b.name),
+    labels: familyData.breakdown.map((b) => b.name),
     datasets: [
       {
         label: "Family Expense by Type",
-        data: familyData.breakdown.map((b: any) => b.amount),
+        data: familyData.breakdown.map((b) => b.amount),
         backgroundColor: "rgba(139, 92, 246, 0.7)",
         borderColor: "rgb(139, 92, 246)",
         borderWidth: 2,
@@ -43,11 +85,11 @@ export const FamilyHousingManager = ({ filteredData }: FamilyHousingManagerProps
 
   // Housing trends chart
   const housingTrendsData = {
-    labels: housingData.trends.map((t: any) => t.month),
+    labels: housingData.trends.map((t) => t.month),
     datasets: [
       {
         label: "Rent",
-        data: housingData.trends.map((t: any) => t.rent),
+        data: housingData.trends.map((t) => t.rent),
         borderColor: "rgb(59, 130, 246)",
         backgroundColor: "rgba(59, 130, 246, 0.1)",
         tension: 0.4,
@@ -55,7 +97,7 @@ export const FamilyHousingManager = ({ filteredData }: FamilyHousingManagerProps
       },
       {
         label: "Utilities",
-        data: housingData.trends.map((t: any) => t.utilities),
+        data: housingData.trends.map((t) => t.utilities),
         borderColor: "rgb(245, 158, 11)",
         backgroundColor: "rgba(245, 158, 11, 0.1)",
         tension: 0.4,
@@ -73,8 +115,7 @@ export const FamilyHousingManager = ({ filteredData }: FamilyHousingManagerProps
       },
       tooltip: {
         callbacks: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          label: (context: any) => {
+          label: (context: TooltipItem<"line"> | TooltipItem<"bar">) => {
             const label = context.dataset?.label || "";
             const value = context.parsed.y || context.parsed;
             return `${label}: ₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -170,7 +211,7 @@ export const FamilyHousingManager = ({ filteredData }: FamilyHousingManagerProps
           <div className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
             <h4 className="text-xl font-bold text-white mb-4">Top Family Expenses</h4>
             <div className="space-y-3">
-              {familyData.topExpenses.map((expense: any) => (
+              {familyData.topExpenses.map((expense) => (
                 <div
                   key={`${expense.date}-${expense.amount}`}
                   className="flex items-center justify-between bg-gray-700/50 rounded-lg p-4"
@@ -277,7 +318,7 @@ export const FamilyHousingManager = ({ filteredData }: FamilyHousingManagerProps
           <div className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700 mb-6">
             <h4 className="text-xl font-bold text-white mb-4">Recent Rent Payments</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {housingData.rentPayments.slice(0, 6).map((payment: any) => (
+              {housingData.rentPayments.slice(0, 6).map((payment) => (
                 <div
                   key={`${payment.date}-${payment.amount}`}
                   className="flex items-center justify-between bg-gray-700/50 rounded-lg p-4"
@@ -308,7 +349,7 @@ export const FamilyHousingManager = ({ filteredData }: FamilyHousingManagerProps
           <div className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
             <h4 className="text-xl font-bold text-white mb-4">Recent Utility Bills</h4>
             <div className="space-y-2">
-              {housingData.utilities.slice(0, 8).map((utility: any) => (
+              {housingData.utilities.slice(0, 8).map((utility) => (
                 <div
                   key={`${utility.date}-${utility.amount}`}
                   className="flex items-center justify-between bg-gray-700/50 rounded-lg p-3"
@@ -318,7 +359,7 @@ export const FamilyHousingManager = ({ filteredData }: FamilyHousingManagerProps
                       {new Date(utility.date).toLocaleDateString("en-IN")}
                     </div>
                     <div className="text-gray-400 text-xs">
-                      {utility.type || utility.note || "Utility"}
+                      {utility.subcategory || utility.note || "Utility"}
                     </div>
                   </div>
                   <div className="text-lg font-bold text-yellow-400">

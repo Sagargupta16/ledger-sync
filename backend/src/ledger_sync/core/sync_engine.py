@@ -75,15 +75,43 @@ class SyncEngine:
             logger.warning("No valid rows to import")
             return ReconciliationStats()
 
-        # Step 3: Reconcile with database
-        logger.info("Reconciling with database...")
-        stats = self.reconciler.reconcile_batch(
-            normalized_rows=normalized_rows,
-            source_file=file_path.name,
-            import_time=import_time,
-        )
+        # Separate transactions and transfers
+        transactions = [row for row in normalized_rows if not row.get("is_transfer", False)]
+        transfers = [row for row in normalized_rows if row.get("is_transfer", False)]
 
-        # Step 4: Log import
+        logger.info(f"Found {len(transactions)} transactions and {len(transfers)} transfers")
+
+        # Step 3: Reconcile transactions with database
+        stats = ReconciliationStats()
+
+        if transactions:
+            logger.info("Reconciling transactions...")
+            tx_stats = self.reconciler.reconcile_batch(
+                normalized_rows=transactions,
+                source_file=file_path.name,
+                import_time=import_time,
+            )
+            stats.processed += tx_stats.processed
+            stats.inserted += tx_stats.inserted
+            stats.updated += tx_stats.updated
+            stats.deleted += tx_stats.deleted
+            stats.skipped += tx_stats.skipped
+
+        # Step 4: Reconcile transfers with database
+        if transfers:
+            logger.info("Reconciling transfers...")
+            tf_stats = self.reconciler.reconcile_transfers_batch(
+                normalized_rows=transfers,
+                source_file=file_path.name,
+                import_time=import_time,
+            )
+            stats.processed += tf_stats.processed
+            stats.inserted += tf_stats.inserted
+            stats.updated += tf_stats.updated
+            stats.deleted += tf_stats.deleted
+            stats.skipped += tf_stats.skipped
+
+        # Step 5: Log import
         # If this is a re-import, update existing log
         if existing_import and force:
             self.session.delete(existing_import)

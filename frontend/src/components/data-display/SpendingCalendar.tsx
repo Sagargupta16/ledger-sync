@@ -12,10 +12,7 @@ interface SpendingCalendarProps {
  */
 export const SpendingCalendar = ({ filteredData }: SpendingCalendarProps) => {
   const calendarData = useMemo(() => {
-    const dailySpending: Record<
-      string,
-      { total: number; transactions: Transaction[] }
-    > = {};
+    const dailySpending: Record<string, { total: number; transactions: Transaction[] }> = {};
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 29);

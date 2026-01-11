@@ -3,12 +3,7 @@
  * Calculate spending breakdown based on the 50/30/20 rule
  */
 
-import {
-  BUDGET_ALLOCATION_DEFAULTS,
-  NEEDS_CATEGORIES,
-  SAVINGS_CATEGORIES,
-  WANTS_CATEGORIES,
-} from "../../../constants";
+import { BUDGET_ALLOCATION_DEFAULTS } from "../../../constants";
 import { filterByType } from "../../../lib/data";
 import { getMonthKey } from "../../../lib/formatters";
 import { parseAmount } from "../../../lib/parsers";
@@ -16,10 +11,38 @@ import logger from "../../../utils/logger";
 
 const STORAGE_KEY = "ledgersync_nws_allocation";
 
+type BucketSets = {
+  needs: Set<string>;
+  wants: Set<string>;
+  savings: Set<string>;
+};
+
+const getCategoryBuckets = (): BucketSets => {
+  try {
+    const cached = sessionStorage.getItem("buckets");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      return {
+        needs: new Set(parsed.needs || []),
+        wants: new Set(parsed.wants || []),
+        savings: new Set(parsed.savings || []),
+      };
+    }
+  } catch {
+    // ignore
+  }
+  // Fallback to empty sets; classification will then default to "wants"
+  return {
+    needs: new Set<string>(),
+    wants: new Set<string>(),
+    savings: new Set<string>(),
+  };
+};
+
 /**
  * Classify a category into Needs, Wants, or Savings
  */
-export const classifyCategory = (category) => {
+export const classifyCategory = (category, bucketSets: BucketSets = getCategoryBuckets()) => {
   if (!category) {
     return "wants"; // Default for uncategorized
   }
@@ -27,19 +50,19 @@ export const classifyCategory = (category) => {
   const categoryLower = category.toLowerCase();
 
   // Check if it's in any of the predefined sets
-  for (const cat of NEEDS_CATEGORIES) {
+  for (const cat of bucketSets.needs) {
     if (categoryLower.includes(cat.toLowerCase())) {
       return "needs";
     }
   }
 
-  for (const cat of SAVINGS_CATEGORIES) {
+  for (const cat of bucketSets.savings) {
     if (categoryLower.includes(cat.toLowerCase())) {
       return "savings";
     }
   }
 
-  for (const cat of WANTS_CATEGORIES) {
+  for (const cat of bucketSets.wants) {
     if (categoryLower.includes(cat.toLowerCase())) {
       return "wants";
     }
@@ -54,6 +77,7 @@ export const classifyCategory = (category) => {
  * COMPLETE REWRITE - Clean and simple logic
  */
 export const calculateNWSBreakdown = (transactions) => {
+  const bucketSets = getCategoryBuckets();
   // Initialize result structure
   const result = {
     needs: 0,
@@ -76,6 +100,7 @@ export const calculateNWSBreakdown = (transactions) => {
   let totalWantsSpending = 0;
 
   // Process each transaction
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: classification logic kept explicit
   transactions.forEach((transaction) => {
     // Get transaction details
     const category = transaction.category || "Uncategorized";
@@ -96,7 +121,7 @@ export const calculateNWSBreakdown = (transactions) => {
     // Handle expenses only
     if (type === "expense") {
       // Classify the category
-      const classification = classifyCategory(category);
+      const classification = classifyCategory(category, bucketSets);
 
       // Add to appropriate bucket
       result[classification] += amount;
@@ -137,6 +162,7 @@ export const calculateNWSBreakdown = (transactions) => {
  * COMPLETE REWRITE - Clean and simple
  */
 export const calculateMonthlyNWSBreakdown = (transactions) => {
+  const bucketSets = getCategoryBuckets();
   const monthlyData = {};
 
   if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
@@ -179,7 +205,7 @@ export const calculateMonthlyNWSBreakdown = (transactions) => {
 
     // Handle expenses
     if (type === "expense") {
-      const classification = classifyCategory(category);
+      const classification = classifyCategory(category, bucketSets);
 
       // Add to totals
       month[classification] += amount;
@@ -216,6 +242,7 @@ export const calculateMonthlyNWSBreakdown = (transactions) => {
  * COMPLETE REWRITE - Clean and simple
  */
 export const calculateYearlyNWSBreakdown = (transactions) => {
+  const bucketSets = getCategoryBuckets();
   const yearlyData = {};
 
   if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
@@ -259,7 +286,7 @@ export const calculateYearlyNWSBreakdown = (transactions) => {
 
     // Handle expenses
     if (type === "expense") {
-      const classification = classifyCategory(category);
+      const classification = classifyCategory(category, bucketSets);
 
       // Add to totals
       yearData[classification] += amount;
@@ -294,7 +321,7 @@ export const calculateYearlyNWSBreakdown = (transactions) => {
 /**
  * Calculate percentage breakdown for Needs/Wants/Savings
  */
-export const calculateNWSPercentages = (breakdown: any, income?: number) => {
+export const calculateNWSPercentages = (breakdown: { needs: number; wants: number; savings: number }, income?: number) => {
   const total = breakdown.needs + breakdown.wants + breakdown.savings;
 
   if (total === 0) {
@@ -334,7 +361,8 @@ export const calculateNWSPercentages = (breakdown: any, income?: number) => {
 /**
  * Compare actual spending vs. ideal 50/30/20 allocation
  */
-export const compareWithIdealAllocation = (breakdown, customAllocation?: any) => {
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: allocation comparison requires multiple conditionals
+export const compareWithIdealAllocation = (breakdown: { needs: number; wants: number; savings: number; [key: string]: unknown }, customAllocation?: { needs: number; wants: number; savings: number }) => {
   const allocation = customAllocation || BUDGET_ALLOCATION_DEFAULTS;
   const total = breakdown.needs + breakdown.wants + breakdown.savings;
 
@@ -352,12 +380,12 @@ export const compareWithIdealAllocation = (breakdown, customAllocation?: any) =>
     savings: (breakdown.savings / total) * 100,
   };
 
-  const comparison: Record<string, any> = {};
+  const comparison: Record<string, { difference: number; status: string; actual: number; ideal: number }> = {};
   for (const [key, idealPercent] of Object.entries(allocation as Record<string, number>)) {
-    const actualPercent = (actualPercentages as any)[key] ?? 0;
+    const actualPercent = (actualPercentages as Record<string, number>)[key] ?? 0;
     const difference = actualPercent - idealPercent;
 
-    let status;
+    let status: string;
     if (key === "savings") {
       // For savings, lower is worse
       if (difference < -10) {

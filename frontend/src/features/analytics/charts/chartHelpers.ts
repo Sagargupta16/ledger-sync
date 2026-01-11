@@ -3,9 +3,31 @@
  * Shared utilities for chart data processing and configuration
  */
 
-import { getCommonChartOptions, truncateLabel } from "../../../lib/charts";
+import { truncateLabel } from "../../../lib/formatters";
 
-export const commonChartOptions = getCommonChartOptions();
+export { truncateLabel };
+
+export const commonChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      labels: {
+        color: "#9ca3af",
+      },
+    },
+  },
+  scales: {
+    x: {
+      ticks: { color: "#9ca3af" },
+      grid: { color: "#374151" },
+    },
+    y: {
+      ticks: { color: "#9ca3af" },
+      grid: { color: "#374151" },
+    },
+  },
+};
 
 export const doughnutOptions = {
   ...commonChartOptions,
@@ -89,4 +111,61 @@ export const createDatasets = (
     tension: 0.4,
     fill: false,
   }));
+};
+
+/**
+ * Comprehensive forecasting function
+ * Provides simple moving average, exponential smoothing, and automatic best method selection
+ */
+export const comprehensiveForecast = (
+  data: number[],
+  periods: number
+): {
+  simple: { forecast: number[]; confidence: null };
+  exponential: { forecast: number[]; confidence: { lower: number[]; upper: number[] } };
+  best: { forecast: number[]; confidence: { lower: number[]; upper: number[] } | null; method: string };
+} => {
+  // Simple moving average forecast
+  const simpleForecast: number[] = [];
+  const avg = data.reduce((sum, val) => sum + val, 0) / data.length;
+  for (let i = 0; i < periods; i++) {
+    simpleForecast.push(avg);
+  }
+
+  // Exponential smoothing forecast
+  const alpha = 0.3;
+  let lastValue = data[data.length - 1];
+  const exponentialForecast: number[] = [];
+  const exponentialLower: number[] = [];
+  const exponentialUpper: number[] = [];
+
+  // Calculate standard deviation for confidence intervals
+  const mean = data.reduce((sum, val) => sum + val, 0) / data.length;
+  const variance = data.reduce((sum, val) => sum + (val - mean) ** 2, 0) / data.length;
+  const stdDev = Math.sqrt(variance);
+
+  for (let i = 0; i < periods; i++) {
+    const forecast = lastValue;
+    exponentialForecast.push(forecast);
+    exponentialLower.push(forecast - 1.96 * stdDev);
+    exponentialUpper.push(forecast + 1.96 * stdDev);
+    lastValue = alpha * forecast + (1 - alpha) * lastValue;
+  }
+
+  // Determine best method based on data volatility
+  const volatility = stdDev / Math.abs(mean);
+  const bestMethod = volatility < 0.2 ? "exponential" : "simple";
+  const bestForecast = bestMethod === "exponential" ? exponentialForecast : simpleForecast;
+  const bestConfidence = bestMethod === "exponential" 
+    ? { lower: exponentialLower, upper: exponentialUpper }
+    : null;
+
+  return {
+    simple: { forecast: simpleForecast, confidence: null },
+    exponential: { 
+      forecast: exponentialForecast, 
+      confidence: { lower: exponentialLower, upper: exponentialUpper } 
+    },
+    best: { forecast: bestForecast, confidence: bestConfidence, method: bestMethod },
+  };
 };

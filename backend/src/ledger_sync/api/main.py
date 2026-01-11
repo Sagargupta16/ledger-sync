@@ -11,8 +11,9 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.api.analytics import router as analytics_router
 from ledger_sync.api.calculations import router as calculations_router
+from ledger_sync.api.meta import router as meta_router
 from ledger_sync.core.sync_engine import SyncEngine
-from ledger_sync.db.models import Transaction
+from ledger_sync.db.models import Transaction, Transfer
 from ledger_sync.db.session import SessionLocal, get_session, init_db
 from ledger_sync.utils.logging import logger, setup_logging
 
@@ -43,6 +44,7 @@ app.add_middleware(
 # Include routers
 app.include_router(analytics_router)
 app.include_router(calculations_router)
+app.include_router(meta_router)
 
 
 class UploadResponse(BaseModel):
@@ -75,29 +77,63 @@ async def health() -> HealthResponse:
 
 @app.get("/api/transactions")
 async def get_transactions(db: Session = Depends(get_session)) -> list[dict]:
-    """Get all non-deleted transactions.
+    """Get all non-deleted transactions and transfers combined.
 
     Returns:
-        List of transactions in JSON format
+        List of transactions and transfers in JSON format
     """
+    # Get regular transactions
     transactions = db.query(Transaction).filter(Transaction.is_deleted.is_(False)).all()
 
-    return [
-        {
-            "id": tx.transaction_id,
-            "date": tx.date.isoformat(),
-            "amount": float(tx.amount),
-            "currency": tx.currency,
-            "type": tx.type.value,
-            "category": tx.category,
-            "subcategory": tx.subcategory or "",
-            "account": tx.account,
-            "note": tx.note or "",
-            "source_file": tx.source_file,
-            "last_seen_at": tx.last_seen_at.isoformat(),
-        }
-        for tx in transactions
-    ]
+    # Get transfers
+    transfers = db.query(Transfer).filter(Transfer.is_deleted.is_(False)).all()
+
+    result = []
+
+    # Add transactions
+    for tx in transactions:
+        result.append(
+            {
+                "id": tx.transaction_id,
+                "date": tx.date.isoformat(),
+                "amount": float(tx.amount),
+                "currency": tx.currency,
+                "type": tx.type.value,
+                "category": tx.category,
+                "subcategory": tx.subcategory or "",
+                "account": tx.account,
+                "note": tx.note or "",
+                "source_file": tx.source_file,
+                "last_seen_at": tx.last_seen_at.isoformat(),
+                "is_transfer": False,
+            }
+        )
+
+    # Add transfers
+    for tf in transfers:
+        result.append(
+            {
+                "id": tf.transfer_id,
+                "date": tf.date.isoformat(),
+                "amount": float(tf.amount),
+                "currency": tf.currency,
+                "type": tf.type.value,
+                "category": tf.category,
+                "subcategory": tf.subcategory or "",
+                "account": tf.from_account,  # For compatibility
+                "from_account": tf.from_account,
+                "to_account": tf.to_account,
+                "note": tf.note or "",
+                "source_file": tf.source_file,
+                "last_seen_at": tf.last_seen_at.isoformat(),
+                "is_transfer": True,
+            }
+        )
+
+    # Sort by date descending
+    result.sort(key=lambda x: x["date"], reverse=True)
+
+    return result
 
 
 @app.post("/api/upload", response_model=UploadResponse)

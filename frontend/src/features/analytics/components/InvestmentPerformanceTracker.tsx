@@ -1,13 +1,13 @@
 /* eslint-disable max-lines-per-function */
 
-import {
-  AlertTriangle,
+import {  AlertTriangle,
   CheckCircle,
   CreditCard,
   DollarSign,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import type { TooltipItem } from "chart.js";
 import { useMemo } from "react";
 import { Line } from "react-chartjs-2";
 import { preparePnLChartData } from "../../../lib/analytics/investments";
@@ -19,17 +19,227 @@ interface InvestmentPerformanceTrackerProps {
   accountBalances?: Array<{ name: string; balance: number }>;
 }
 
+interface PlatformBreakdown {
+  platform: string;
+  capitalDeployed: number;
+  withdrawals: number;
+  holdings: number;
+  realizedProfits: number;
+  realizedLosses: number;
+  brokerageFees: number;
+  netPnL: number;
+}
+
+interface ExtendedInvestmentData {
+  totalCapitalDeployed: number;
+  totalWithdrawals: number;
+  currentHoldings: number;
+  rsuHoldings?: number;
+  realizedProfits: number;
+  realizedLosses: number;
+  netProfitLoss: number;
+  brokerageFees: number;
+  returnPercentage: number;
+  transactions: InvestmentTransaction[];
+  platforms?: PlatformBreakdown[];
+  investmentAccountBreakdown?: Array<{ name: string; balance: number }>;
+}
+
 /**
  * Investment Performance Tracker
  * Track stock market performance, P&L, brokerage fees
  */
+
+const InvestmentMetricsGrid = ({ metrics }: { metrics: {
+  totalCapitalDeployed: number;
+  realizedProfits: number;
+  realizedLosses: number;
+  netProfitLoss: number;
+  returnPercentage: number;
+  brokerageFees: number;
+  totalWithdrawals: number;
+  currentHoldings: number;
+  rsuHoldings: number;
+}}) => (
+  <>
+    {/* Key Metrics */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* Total Capital Deployed */}
+      <div className="glass border border-blue-500/30 rounded-2xl p-6 shadow-xl card-hover group relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-blue-500/5" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-gray-300 text-sm font-bold uppercase tracking-wide">
+              Capital Currently Deployed
+            </span>
+            <DollarSign
+              className="text-blue-400 group-hover:scale-110 transition-transform duration-300"
+              size={28}
+            />
+          </div>
+          <div className="text-4xl font-extrabold text-white mb-2">
+            ₹{metrics.totalCapitalDeployed.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+          </div>
+          <div className="text-xs font-semibold text-blue-300/80">Cash still invested</div>
+        </div>
+      </div>
+
+      {/* Realized Profits */}
+      <div className="glass border border-green-500/30 rounded-2xl p-6 shadow-xl card-hover group relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-green-600/10 to-green-500/5" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-gray-300 text-sm font-bold uppercase tracking-wide">
+              Realized Profits
+            </span>
+            <TrendingUp
+              className="text-green-400 group-hover:scale-110 transition-transform duration-300"
+              size={28}
+            />
+          </div>
+          <div className="text-4xl font-extrabold text-white mb-2">
+            ₹{metrics.realizedProfits.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+          </div>
+        </div>
+      </div>
+
+      {/* Realized Losses */}
+      <div className="glass border border-red-500/30 rounded-2xl p-6 shadow-xl card-hover group relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 to-red-500/5" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-gray-300 text-sm font-bold uppercase tracking-wide">
+              Realized Losses
+            </span>
+            <TrendingDown
+              className="text-red-400 group-hover:scale-110 transition-transform duration-300"
+              size={28}
+            />
+          </div>
+          <div className="text-4xl font-extrabold text-white mb-2">
+            ₹{metrics.realizedLosses.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+          </div>
+        </div>
+      </div>
+
+      {/* Net P&L */}
+      <div className={`glass border rounded-2xl p-6 shadow-xl card-hover group relative overflow-hidden ${
+        metrics.netProfitLoss >= 0 ? "border-green-500/30" : "border-red-500/30"
+      }`}>
+        <div className={`absolute inset-0 bg-gradient-to-br ${
+          metrics.netProfitLoss >= 0 ? "from-green-600/10 to-green-500/5" : "from-red-600/10 to-red-500/5"
+        }`} />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-gray-300 text-sm font-bold uppercase tracking-wide">
+              Net P&L
+            </span>
+            {metrics.netProfitLoss >= 0 ? (
+              <CheckCircle className="text-green-400 group-hover:scale-110 transition-transform duration-300" size={28} />
+            ) : (
+              <AlertTriangle className="text-red-400 group-hover:scale-110 transition-transform duration-300" size={28} />
+            )}
+          </div>
+          <div className={`text-4xl font-extrabold mb-2 ${
+            metrics.netProfitLoss >= 0 ? "text-green-400" : "text-red-400"
+          }`}>
+            ₹{metrics.netProfitLoss.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+          </div>
+          <div className={`text-xs font-semibold ${
+            metrics.netProfitLoss >= 0 ? "text-green-300/80" : "text-red-300/80"
+          }`}>
+            {metrics.returnPercentage >= 0 ? "+" : ""}{metrics.returnPercentage.toFixed(2)}% Return
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Additional Metrics */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* Brokerage Fees */}
+      <div className="glass border border-yellow-500/30 rounded-2xl p-6 shadow-xl card-hover group relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/10 to-yellow-500/5" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-gray-300 text-sm font-bold uppercase tracking-wide">
+              Brokerage Fees
+            </span>
+            <CreditCard className="text-yellow-400 group-hover:rotate-6 transition-transform duration-300" size={24} />
+          </div>
+          <div className="text-3xl font-extrabold text-white mb-2">
+            ₹{metrics.brokerageFees.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+          </div>
+          <div className="text-xs font-semibold text-gray-400">
+            {((metrics.brokerageFees / (metrics.totalCapitalDeployed + metrics.totalWithdrawals)) * 100).toFixed(3)}% of capital
+          </div>
+        </div>
+      </div>
+
+      {/* Withdrawals */}
+      <div className="glass border border-purple-500/30 rounded-2xl p-6 shadow-xl card-hover group relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-purple-500/5" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-gray-300 text-sm font-bold uppercase tracking-wide">
+              Total Withdrawals
+            </span>
+            <TrendingDown className="text-purple-400 group-hover:scale-110 transition-transform duration-300" size={24} />
+          </div>
+          <div className="text-3xl font-extrabold text-white mb-2">
+            ₹{metrics.totalWithdrawals.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+          </div>
+        </div>
+      </div>
+
+      {/* Current Holdings */}
+      <div className="glass border border-indigo-500/30 rounded-2xl p-6 shadow-xl card-hover group relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/10 to-indigo-500/5" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-gray-300 text-sm font-bold uppercase tracking-wide">
+              Current Holdings
+            </span>
+            <DollarSign className="text-indigo-400 group-hover:rotate-12 transition-transform duration-300" size={24} />
+          </div>
+          <div className="text-3xl font-extrabold text-white mb-2">
+            ₹{metrics.currentHoldings.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+          </div>
+          {metrics.rsuHoldings > 0 && (
+            <div className="text-xs text-gray-400">
+              (RSU: ₹{metrics.rsuHoldings.toLocaleString("en-IN", { maximumFractionDigits: 2 })})
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Win/Loss Ratio */}
+      <div className="glass border border-purple-500/30 rounded-2xl p-6 shadow-xl card-hover group relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-purple-500/5" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-gray-300 text-sm font-bold uppercase tracking-wide">
+              Profit/Loss Ratio
+            </span>
+            <TrendingUp className="text-purple-400 group-hover:rotate-6 transition-transform duration-300" size={24} />
+          </div>
+          <div className="text-3xl font-extrabold text-white mb-2">
+            {metrics.realizedLosses > 0 ? (metrics.realizedProfits / metrics.realizedLosses).toFixed(2) : "∞"}
+          </div>
+          <div className="text-xs font-semibold text-gray-400">
+            {metrics.realizedProfits > metrics.realizedLosses ? "More profits than losses" : "More losses than profits"}
+          </div>
+        </div>
+      </div>
+    </div>
+  </>
+);
 
 export const InvestmentPerformanceTracker = ({
   filteredData,
   accountBalances,
 }: InvestmentPerformanceTrackerProps) => {
   const investmentData = useMemo(() => {
-    return calculateInvestmentPerformance(filteredData, accountBalances);
+    return calculateInvestmentPerformance(filteredData, accountBalances) as ExtendedInvestmentData;
   }, [filteredData, accountBalances]);
 
   const {
@@ -44,7 +254,7 @@ export const InvestmentPerformanceTracker = ({
     returnPercentage,
     transactions,
   } = investmentData;
-  const platforms = (investmentData as any).platforms || [];
+  const platforms = investmentData.platforms || [];
 
   // Prepare chart data for P&L over time using extracted service
   const chartData = useMemo(() => {
@@ -60,7 +270,7 @@ export const InvestmentPerformanceTracker = ({
       },
       tooltip: {
         callbacks: {
-          label: (context: any) =>
+          label: (context: TooltipItem<"line">) =>
             `P&L: ₹${context.parsed.y.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`,
         },
       },
@@ -73,7 +283,7 @@ export const InvestmentPerformanceTracker = ({
       y: {
         ticks: {
           color: "#9ca3af",
-          callback: (value: any) => `₹${(value / 1000).toFixed(0)}k`,
+          callback: (value: number | string) => `₹${(Number(value) / 1000).toFixed(0)}k`,
         },
         grid: { color: "rgba(75, 85, 99, 0.3)" },
       },
@@ -97,7 +307,19 @@ export const InvestmentPerformanceTracker = ({
         </div>
       </div>
 
-      {/* Key Metrics */}
+      <InvestmentMetricsGrid metrics={{
+        totalCapitalDeployed,
+        realizedProfits,
+        realizedLosses,
+        netProfitLoss,
+        returnPercentage,
+        brokerageFees,
+        totalWithdrawals,
+        currentHoldings,
+        rsuHoldings,
+      }} />
+
+      {/* Key Metrics - kept for backwards compatibility */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Total Capital Deployed */}
         <div className="glass border border-blue-500/30 rounded-2xl p-6 shadow-xl card-hover group relative overflow-hidden">
@@ -311,11 +533,11 @@ export const InvestmentPerformanceTracker = ({
       )}
 
       {/* Account Balance Breakdown */}
-      {(investmentData as any).investmentAccountBreakdown?.length > 0 && (
+      {investmentData.investmentAccountBreakdown?.length && investmentData.investmentAccountBreakdown.length > 0 && (
         <div className="glass border border-gray-700/30 rounded-2xl p-7 shadow-2xl">
           <h3 className="text-2xl font-bold gradient-text mb-6">Investment Account Balances</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(investmentData as any).investmentAccountBreakdown.map((acc: any) => (
+            {investmentData.investmentAccountBreakdown.map((acc) => (
               <div key={acc.name} className="glass border border-gray-700/40 rounded-xl p-4">
                 <div className="text-sm text-gray-400 mb-1">{acc.name}</div>
                 <div className="text-2xl font-bold text-white">
@@ -341,10 +563,10 @@ export const InvestmentPerformanceTracker = ({
           <h3 className="text-2xl font-bold gradient-text mb-6">Platform Breakdown</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {platforms
-              .filter((p: any) =>
+              .filter((p) =>
                 ["Groww Stocks", "Groww Mutual Fund", "RSU", "Fixed Deposit"].includes(p.platform)
               )
-              .map((p: any) => (
+              .map((p) => (
                 <div
                   key={p.platform}
                   className="glass border border-gray-700/40 rounded-2xl p-6 shadow-xl"

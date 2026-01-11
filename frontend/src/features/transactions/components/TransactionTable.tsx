@@ -13,41 +13,48 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
+import { useCategories, useDebouncedValue, useMetaFilters } from "../../../hooks";
 import { formatCurrency } from "../../../lib/formatters";
-import type { SortConfig, Transaction, TransactionSortKey } from "../../../types";
+import type { SortConfig, TransactionOrTransfer, TransactionSortKey } from "../../../types";
 
 // Helper functions for styling
-const getTypeStyles = (type: string, category?: string) => {
-  switch (type) {
-    case "Income":
-      return "bg-green-900/50 text-green-300";
-    case "Expense":
-      return "bg-red-900/50 text-red-300";
-    case "Transfer":
-      return category?.includes("Transfer: From")
-        ? "bg-blue-900/50 text-blue-300"
-        : "bg-orange-900/50 text-orange-300";
-    default:
-      return "bg-gray-700 text-gray-300";
+const getTypeStyles = (transaction: TransactionOrTransfer) => {
+  const type = transaction.type;
+  
+  if (type === "Income") {
+    return "bg-green-900/50 text-green-300";
   }
+  if (type === "Expense") {
+    return "bg-red-900/50 text-red-300";
+  }
+  if (type === "Transfer-In") {
+    return "bg-blue-900/50 text-blue-300";
+  }
+  if (type === "Transfer-Out") {
+    return "bg-orange-900/50 text-orange-300";
+  }
+  return "bg-gray-700 text-gray-300";
 };
 
-const getAmountTextColor = (type: string, category?: string) => {
+const getAmountTextColor = (transaction: TransactionOrTransfer) => {
+  const type = transaction.type;
+  
   if (type === "Income") {
     return "text-green-400";
   }
-  if (type === "Transfer") {
-    // Blue for incoming, orange for outgoing
-    return category?.includes("Transfer: From") ? "text-blue-400" : "text-orange-400";
+  if (type === "Transfer-In") {
+    return "text-blue-400";
+  }
+  if (type === "Transfer-Out") {
+    return "text-orange-400";
   }
   return "text-red-400";
 };
 
 // Add running balance to transactions
 const addRunningBalance = (
-  transactions: Transaction[]
-): Array<Transaction & { runningBalance: number }> => {
+  transactions: TransactionOrTransfer[]
+): Array<TransactionOrTransfer & { runningBalance: number }> => {
   // Sort by date ascending first
   const sorted = [...transactions].sort((a, b) => {
     const dateA = a.date instanceof Date ? a.date : new Date(a.date);
@@ -61,13 +68,10 @@ const addRunningBalance = (
       balance += transaction.amount;
     } else if (transaction.type === "Expense") {
       balance -= transaction.amount;
-    } else if (transaction.type === "Transfer") {
-      // Transfer direction from category
-      if (transaction.category?.includes("Transfer: From")) {
-        balance += transaction.amount; // Money coming in
-      } else if (transaction.category?.includes("Transfer: To")) {
-        balance -= transaction.amount; // Money going out
-      }
+    } else if (transaction.type === "Transfer-In") {
+      balance += transaction.amount; // Money coming in
+    } else if (transaction.type === "Transfer-Out") {
+      balance -= transaction.amount; // Money going out
     }
 
     return {
@@ -85,7 +89,7 @@ export const EnhancedTransactionTable = ({
   transactionsPerPage = 25,
   initialFilters = {},
 }: {
-  data: Transaction[];
+  data: TransactionOrTransfer[];
   onSort?: (key: TransactionSortKey) => void;
   currentPage?: number;
   transactionsPerPage?: number;
@@ -129,23 +133,50 @@ export const EnhancedTransactionTable = ({
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 300);
   const debouncedFilters = useDebouncedValue(filters, 300);
 
+  // Fetch master categories and meta filters from API
+  const { categories: masterCategories, incomeCategories, expenseCategories } = useCategories();
+  const { filters: metaFilters } = useMetaFilters();
+
   // Get unique values for filter dropdowns
   const uniqueValues = useMemo(() => {
+    // Get all categories from master data
+    const allCategories = [
+      ...Object.keys(incomeCategories || {}),
+      ...Object.keys(expenseCategories || {}),
+    ].sort((a, b) => a.localeCompare(b));
+
+    // Get subcategories for selected category or all if no selection
+    const subcats = new Set<string>();
+    if (masterCategories) {
+      Object.values(masterCategories.income).forEach((subs) => {
+        subs.forEach((sub) => {
+          subcats.add(sub);
+        });
+      });
+      Object.values(masterCategories.expense).forEach((subs) => {
+        subs.forEach((sub) => {
+          subcats.add(sub);
+        });
+      });
+    }
+    const allSubcategories = Array.from(subcats).sort();
+
     return {
-      accounts: [...new Set(data.map((item) => item.account).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b)
-      ),
-      categories: [...new Set(data.map((item) => item.category).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b)
-      ),
-      subcategories: [...new Set(data.map((item) => item.subcategory).filter(Boolean))].sort(
-        (a, b) => a.localeCompare(b)
-      ),
-      types: [...new Set(data.map((item) => item.type).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b)
-      ),
+      accounts:
+        metaFilters?.accounts ??
+        [...new Set(data.map((item) => item.account).filter(Boolean))].sort((a, b) =>
+          a.localeCompare(b)
+        ),
+      categories: allCategories,
+      subcategories: allSubcategories,
+      types:
+        metaFilters?.transaction_types && metaFilters.transfer_types
+          ? [...metaFilters.transaction_types, ...metaFilters.transfer_types]
+          : [...new Set(data.map((item) => item.type).filter(Boolean))].sort((a, b) =>
+              a.localeCompare(b)
+            ),
     };
-  }, [data]);
+  }, [data, masterCategories, incomeCategories, expenseCategories, metaFilters]);
 
   // Apply filters and search
   const filteredData = useMemo(() => {
@@ -282,7 +313,7 @@ export const EnhancedTransactionTable = ({
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchTerm, debouncedFilters]);
+  }, []);
 
   // Count active filters
   useEffect(() => {
@@ -815,8 +846,7 @@ export const EnhancedTransactionTable = ({
                 </td>
                 <td
                   className={`p-3 font-bold text-sm ${getAmountTextColor(
-                    item.type,
-                    item.category
+                    item
                   )} transition-transform duration-300 group-hover:scale-105 text-right`}
                 >
                   {formatCurrency(item.amount)}
@@ -824,8 +854,7 @@ export const EnhancedTransactionTable = ({
                 <td className="p-3">
                   <span
                     className={`px-2 py-1 text-xs font-bold rounded-full border border-transparent group-hover:border-current transition-all duration-300 ${getTypeStyles(
-                      item.type,
-                      item.category
+                      item
                     )}`}
                   >
                     {item.type}

@@ -1,4 +1,11 @@
 import {
+  AdvancedAnalyticsKPISection,
+  SecondaryKPISection,
+  SmallKPICard,
+  useAdvancedAnalytics,
+  useEnhancedKPIData,
+} from "@features/analytics";
+import {
   ArrowLeftRight,
   Calculator,
   Calendar,
@@ -11,7 +18,6 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import type { Transaction } from "../../types";
 import {
   CATEGORY_CONCENTRATION_THRESHOLD,
   DEFAULT_ADDITIONAL_KPI,
@@ -19,13 +25,6 @@ import {
   DEFAULT_KPI_VALUES,
   MESSAGES,
 } from "../../config/overview";
-import { 
-  useAdvancedAnalytics,
-  SmallKPICard,
-  AdvancedAnalyticsKPISection,
-  SecondaryKPISection,
-  useEnhancedKPIData
-} from "@features/analytics";
 import { generateSmartInsights } from "../../lib/analytics/insights";
 import {
   getCategoryConcentrationColor,
@@ -43,15 +42,12 @@ import {
 } from "../../lib/analytics/metrics";
 import { calculateNetBalanceBreakdownFromAccounts } from "../../lib/calculations/financial";
 import { formatCurrency } from "../../lib/formatters";
+import type { Transaction } from "../../types";
 import { AccountBalancesCard } from "./components/AccountBalancesCard";
 import { MainKPISection } from "./components/MainKPISection";
 
 // Filter transactions by year and month
-const filterTransactionsByTime = (
-  transactions: Transaction[],
-  year: string,
-  month: string
-) => {
+const filterTransactionsByTime = (transactions: Transaction[], year: string, month: string) => {
   if (year === "all") {
     return transactions;
   }

@@ -1,17 +1,30 @@
 import { hierarchy, treemap, treemapBinary } from "d3-hierarchy";
 import { scaleOrdinal } from "d3-scale";
 import { select } from "d3-selection";
+import type { Selection } from "d3-selection";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatCurrency } from "../../../lib/formatters";
 import type { Transaction } from "../../../types";
+import type { HierarchyNode, HierarchyRectangularNode } from "d3-hierarchy";
 
 interface TreemapChartProps {
   filteredData: Transaction[];
   chartRef?: React.RefObject<SVGSVGElement | null>;
 }
 
+type TreemapNode = {
+  name: string;
+  value: number;
+  category?: string;
+  fullName?: string;
+  children?: TreemapNode[];
+};
 // Helper function to add text line to treemap labels
-const appendTextLine = (textElement: any, line: string, index: number): void => {
+const appendTextLine = (
+  textElement: Selection<SVGTextElement, unknown, null, undefined>,
+  line: string,
+  index: number
+): void => {
   textElement
     .append("tspan")
     .attr("x", 4)
@@ -230,7 +243,12 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
     };
 
     // Helper function to add text labels to rectangles
-    const addTextLabels = (text: any, d: any, rectWidth: number, rectHeight: number): void => {
+    const addTextLabels = (
+      text: Selection<SVGTextElement, unknown, null, undefined>,
+      d: { data: { name: string; value: number } },
+      rectWidth: number,
+      rectHeight: number
+    ): void => {
       if (rectWidth < 50 || rectHeight < 30) {
         return; // Don't add text for very small rectangles
       }
@@ -271,9 +289,9 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
       const height = containerHeight - margin.top - margin.bottom;
 
       // Create hierarchy and treemap layout
-      const root = hierarchy(treemapData)
-        .sum((d: any) => d.value || 0)
-        .sort((a: any, b: any) => (b.value || 0) - (a.value || 0));
+      const root = hierarchy<TreemapNode>(treemapData as TreemapNode)
+        .sum((d: TreemapNode) => d.value || 0)
+        .sort((a: HierarchyNode<TreemapNode>, b: HierarchyNode<TreemapNode>) => (b.value || 0) - (a.value || 0));
 
       const treemapLayout = treemap()
         .tile(treemapBinary)
@@ -292,7 +310,7 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
         .style("max-width", "100%")
         .style("max-height", "100%");
 
-      const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+      const _g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
       // Create tooltip
       const tooltip = select("body")
@@ -308,18 +326,18 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
         .style("z-index", "1000");
 
       // Create leaves (rectangles)
-      const leaves = g
+      const leaves = svg
         .selectAll("g")
         .data(root.leaves())
         .join("g")
-        .attr("transform", (d: any) => `translate(${d.x0 || 0},${d.y0 || 0})`);
+        .attr("transform", (d: HierarchyRectangularNode<TreemapNode>) => `translate(${d.x0 || 0},${d.y0 || 0})`);
 
       // Add rectangles
       leaves
         .append("rect")
-        .attr("width", (d: any) => d.x1 - d.x0)
-        .attr("height", (d: any) => d.y1 - d.y0)
-        .attr("fill", (d: any) => {
+        .attr("width", (d: HierarchyRectangularNode<TreemapNode>) => d.x1 - d.x0)
+        .attr("height", (d: HierarchyRectangularNode<TreemapNode>) => d.y1 - d.y0)
+        .attr("fill", (d: HierarchyRectangularNode<TreemapNode>) => {
           const category = showSubcategories ? d.data.category : d.data.name;
           return colorScale(category);
         })
@@ -327,7 +345,11 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
         .attr("stroke-width", 1)
         .attr("opacity", 0.8)
         .style("cursor", "pointer")
-        .on("mouseover", function (this: SVGRectElement, _event: any, d: any) {
+        .on("mouseover", function (
+          this: SVGRectElement,
+          _event: MouseEvent,
+          d: HierarchyRectangularNode<TreemapNode>
+        ) {
           select(this).attr("opacity", 1);
           const displayName = showSubcategories ? d.data.fullName : d.data.name;
           tooltip.style("visibility", "visible").html(`
@@ -336,7 +358,7 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
             ${((d.data.value / root.value) * 100).toFixed(1)}% of total
           `);
         })
-        .on("mousemove", (event: any) => {
+        .on("mousemove", (event: MouseEvent) => {
           tooltip.style("top", `${event.pageY - 10}px`).style("left", `${event.pageX + 10}px`);
         })
         .on("mouseout", function (this: SVGRectElement) {
@@ -350,7 +372,7 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
         .attr("x", 4)
         .attr("y", 14)
         .attr("font-family", "Arial, sans-serif")
-        .attr("font-size", (d: any) => {
+        .attr("font-size", (d: HierarchyRectangularNode<TreemapNode>) => {
           const rectWidth = d.x1 - d.x0;
           const rectHeight = d.y1 - d.y0;
           const area = rectWidth * rectHeight;
@@ -369,7 +391,7 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
         .attr("fill", "white")
         .attr("text-shadow", "1px 1px 2px rgba(0,0,0,0.7)")
         .style("pointer-events", "none")
-        .each(function (this: SVGTextElement, d: any) {
+        .each(function (this: SVGTextElement, d: HierarchyRectangularNode<TreemapNode>) {
           const text = select(this);
           const rectWidth = d.x1 - d.x0;
           const rectHeight = d.y1 - d.y0;
@@ -411,6 +433,7 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-semibold text-white">Expense Breakdown Treemap</h3>
         <button
+          type="button"
           onClick={() => {
             if (chartRef?.current) {
               const svgElement = chartRef.current;
@@ -439,6 +462,7 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
             strokeLinecap="round"
             strokeLinejoin="round"
           >
+            <title>Download treemap</title>
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="7,10 12,15 17,10" />
             <line x1="12" y1="15" x2="12" y2="3" />
@@ -472,6 +496,7 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={handlePrevious}
             disabled={!canGoPrevious()}
             className="text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
@@ -484,6 +509,7 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
               stroke="currentColor"
               strokeWidth="2"
             >
+              <title>Previous period</title>
               <polyline points="15,18 9,12 15,6"></polyline>
             </svg>
           </button>
@@ -501,6 +527,7 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
           </div>
 
           <button
+            type="button"
             onClick={handleNext}
             disabled={!canGoNext()}
             className="text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
@@ -513,6 +540,7 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
               stroke="currentColor"
               strokeWidth="2"
             >
+              <title>Next period</title>
               <polyline points="9,18 15,12 9,6"></polyline>
             </svg>
           </button>
@@ -525,7 +553,9 @@ export const TreemapChart = ({ filteredData, chartRef }: TreemapChartProps) => {
       <div className="flex-1 w-full h-full overflow-hidden relative">
         {treemapData.children && treemapData.children.length > 0 ? (
           <div className="w-full h-full">
-            <svg ref={svgRef} className="w-full h-full block"></svg>
+            <svg ref={svgRef} className="w-full h-full block" role="img">
+              <title>Expense treemap</title>
+            </svg>
           </div>
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400">

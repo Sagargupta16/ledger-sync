@@ -1,5 +1,5 @@
 // Temporarily comment out problematic imports to isolate circular dependency
-import { useKPIData, useKeyInsights, useAccountBalances, useChartData } from "@features/analytics";
+import { useChartData, useKeyInsights, useKPIData } from "@features/analytics";
 import {
   ArcElement,
   BarElement,
@@ -15,7 +15,7 @@ import {
   Tooltip,
 } from "chart.js";
 import { AlertCircle, CheckCircle, Upload as UploadIcon, XCircle } from "lucide-react";
-import { type RefObject, Suspense, useEffect, useRef, useState } from "react";
+import { type RefObject, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   CustomTabs,
@@ -35,7 +35,10 @@ import {
 import { TABS_CONFIG } from "@/config/tabs";
 // Hooks
 import { useBackendData } from "@/hooks/useBackendData";
-import { useFilteredData, useUniqueValues } from "@/hooks/useTransactions";
+import { useCategories } from "@/hooks/useCategories";
+import { useMetaFilters } from "@/hooks/useMetaFilters";
+import { useAccountBalances as useAccountBalancesApi } from "@/hooks/useCalculations";
+import { useFilteredData } from "@/hooks/useTransactions";
 import {
   useError,
   useLoading,
@@ -189,11 +192,33 @@ const App = () => {
   const error = useError();
   const setError = useSetError();
 
+  // Meta-driven data
+  const {
+    expenseCategories,
+    loading: categoriesLoading,
+    error: categoriesError,
+  } = useCategories();
+  const { loading: metaLoading, error: metaError } = useMetaFilters();
+  const accountBalancesApi = useAccountBalancesApi();
+  const balancesError = accountBalancesApi.error as Error | null;
+
   // Load data from backend
   useBackendData();
 
-  // Custom hooks
-  const uniqueValues = useUniqueValues(transactions);
+  // Derived expense categories (prefer backend master categories, fallback to data)
+  const derivedExpenseCategories = useMemo(() => {
+    if (expenseCategories.length) {
+      return expenseCategories;
+    }
+
+    const expenses = new Set<string>();
+    transactions.forEach((tx) => {
+      if (tx.type === "Expense") {
+        expenses.add(tx.category);
+      }
+    });
+    return Array.from(expenses).sort((a, b) => a.localeCompare(b));
+  }, [expenseCategories, transactions]);
 
   // Default filters for data processing
   const defaultFilters = {
@@ -208,15 +233,26 @@ const App = () => {
   const filteredData = useFilteredData(transactions, defaultFilters, sortConfig);
   const { kpiData, additionalKpiData } = useKPIData(filteredData);
   const keyInsights = useKeyInsights(filteredData, kpiData, additionalKpiData);
-  const accountBalances = useAccountBalances(transactions);
+  const accountBalances = useMemo(() => {
+    type AccountInfo = { balance?: number; last_transaction?: string | null };
+    const accounts = (accountBalancesApi.data?.accounts || {}) as Record<string, AccountInfo>;
+
+    return Object.entries(accounts)
+      .map(([name, info]) => ({
+        name,
+        balance: Number(info?.balance) || 0,
+        last_transaction: info?.last_transaction ?? null,
+      }))
+      .sort((a, b) => b.balance - a.balance);
+  }, [accountBalancesApi.data]);
   const chartData = useChartData(filteredData, kpiData, drilldownCategory);
 
   // Effects
   useEffect(() => {
-    if (uniqueValues.expenseCategories.length > 0 && !drilldownCategory) {
-      setDrilldownCategory(uniqueValues.expenseCategories[0]);
+    if (derivedExpenseCategories.length > 0 && !drilldownCategory) {
+      setDrilldownCategory(derivedExpenseCategories[0]);
     }
-  }, [uniqueValues.expenseCategories, drilldownCategory]);
+  }, [derivedExpenseCategories, drilldownCategory]);
 
   // Helper function to process upload response
   const processUploadResponse = async (file: File, force: boolean) => {
@@ -321,18 +357,20 @@ const App = () => {
     setCurrentPage(1); // Reset to first page when sorting
   };
 
+  const compositeError = error || categoriesError || metaError || balancesError?.message;
+
   // Loading and error states
-  if (loading) {
+  if (loading || categoriesLoading || metaLoading || accountBalancesApi.isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
         <LoadingSpinner size="xl" message="Loading your financial data..." />
       </div>
     );
   }
-  if (error) {
+  if (compositeError) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900 text-red-400">
-        <p>{error}</p>
+        <p>{compositeError}</p>
       </div>
     );
   }
@@ -364,7 +402,7 @@ const App = () => {
               chartData={chartData}
               chartRefs={chartRefs}
               filteredData={filteredData}
-              uniqueValues={uniqueValues}
+              expenseCategories={derivedExpenseCategories}
               drilldownCategory={drilldownCategory}
               setDrilldownCategory={setDrilldownCategory}
             />
@@ -376,7 +414,7 @@ const App = () => {
             <CategoryAnalysisPage
               chartRefs={chartRefs}
               filteredData={filteredData}
-              uniqueValues={uniqueValues}
+              expenseCategories={derivedExpenseCategories}
               drilldownCategory={drilldownCategory}
               setDrilldownCategory={setDrilldownCategory}
             />

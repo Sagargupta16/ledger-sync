@@ -114,6 +114,7 @@ const KeyMetricsSection = ({
   totalTaxLiability,
   estimatedTax,
   cess,
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: metrics display with many conditional renders
 }: KeyMetricsProps) => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
     <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 shadow-lg">
@@ -770,7 +771,7 @@ export const TaxPlanningDashboard = ({ filteredData }: TaxPlanningDashboardProps
   const taxData: ComprehensiveTaxData =
     selectedFY === "overall"
       ? overall
-      : (byFinancialYear as Record<string, any>)[selectedFY] || overall;
+      : (byFinancialYear as Record<string, ComprehensiveTaxData>)[selectedFY] || overall;
 
   const {
     totalIncome = 0,

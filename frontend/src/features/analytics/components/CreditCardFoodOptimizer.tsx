@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { CreditCard, TrendingUp, UtensilsCrossed } from "lucide-react";
 import { useMemo } from "react";
+import type { TooltipItem } from "chart.js";
 import {
   calculateCashbackMetrics,
   calculateCommuteMetrics,
@@ -22,11 +22,19 @@ interface CreditCardFoodOptimizerProps {
 const CreditCardFoodOptimizer = ({ filteredData }: CreditCardFoodOptimizerProps) => {
   // Calculate metrics using useMemo for performance
   const creditCardData = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = calculateCashbackMetrics(filteredData) as any;
+    type CashbackRaw = {
+      cardBreakdown?: CardBreakdown[];
+      breakdown?: CardBreakdown[];
+      totalCashbackEarned?: number;
+      cashbackShared?: number;
+      actualCashback?: number;
+      cashbackRate?: number;
+      byCard?: Record<string, unknown>;
+      insights?: unknown[];
+    };
+    const raw = calculateCashbackMetrics(filteredData) as CashbackRaw;
     const normalizedBreakdown: CardBreakdown[] = (raw.cardBreakdown || raw.breakdown || []).map(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (item: any) => {
+      (item: Partial<CardBreakdown> & { spending?: number; total?: number; cashback?: number; rate?: number; name?: string }) => {
         const spending = item.spending ?? item.total ?? 0;
         const cashback = item.cashback ?? 0;
         const computedRate = spending > 0 ? (cashback / spending) * 100 : 0;
@@ -148,7 +156,7 @@ const CreditCardFoodOptimizer = ({ filteredData }: CreditCardFoodOptimizerProps)
         },
         tooltip: {
           callbacks: {
-            label: (context: any) => {
+            label: (context: TooltipItem<"line"> | TooltipItem<"bar">) => {
               const label = context.label || context.dataset?.label || "";
               const value = context.parsed.y === undefined ? context.parsed : context.parsed.y;
               return `${label}: ₹${value.toLocaleString("en-IN", {
@@ -237,13 +245,48 @@ const CreditCardFoodOptimizer = ({ filteredData }: CreditCardFoodOptimizerProps)
   );
 };
 
+interface FoodDataMetrics {
+  totalFood: number;
+  totalFoodSpending: number;
+  monthlyAverage: number;
+  dailyAverage: number;
+  deliveryApps: number;
+  groceries: number;
+  diningOut: number;
+  officeCafeteria: number;
+  bySubcategory: Record<string, number>;
+  breakdown: { name: string; total: number }[];
+  monthlyTrends: { month: string; total: number }[];
+  insights: unknown[];
+}
+
+interface CreditCardMetrics {
+  totalCreditCardSpending: number;
+  totalCashbackEarned: number;
+  cashbackShared: number;
+  actualCashback: number;
+  cashbackRate: number;
+  byCard: Record<string, unknown>;
+  cardBreakdown: CardBreakdown[];
+  insights: unknown[];
+}
+
+interface CommuteMetrics {
+  totalCommute: number;
+  totalTransportation: number;
+  monthlyAverage: number;
+  dailyAverage: number;
+  dailyCommute: number;
+  intercityTravel: number;
+  byMode: Record<string, number>;
+  breakdown: { mode: string; amount: number }[];
+  insights: unknown[];
+}
+
 interface OptimizationTipsProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  foodData: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  creditCardData: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  commuteData: any;
+  foodData: FoodDataMetrics;
+  creditCardData: CreditCardMetrics;
+  commuteData: CommuteMetrics;
 }
 
 /**

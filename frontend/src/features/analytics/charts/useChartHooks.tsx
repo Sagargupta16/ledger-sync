@@ -150,6 +150,7 @@ export const useChartDataProcessor = (
     limit = null,
   } = options;
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: chart processing kept as-is
   return useMemo(() => {
     let processedData: GenericDataItem[] = data;
 
@@ -264,7 +265,7 @@ export const useTrendAnalysis = (data: GenericDataItem[]) => {
     const change = ((latest.net - previous.net) / Math.abs(previous.net)) * 100;
 
     // Determine trend based on change percentage
-    let trendStatus;
+    let trendStatus: "improving" | "declining" | "stable";
     if (change > 5) {
       trendStatus = "improving";
     } else if (change < -5) {
@@ -274,7 +275,7 @@ export const useTrendAnalysis = (data: GenericDataItem[]) => {
     }
 
     // Determine direction based on change
-    let direction;
+    let direction: "up" | "down" | "stable";
     if (change > 0) {
       direction = "up";
     } else if (change < 0) {
@@ -331,7 +332,7 @@ export const useForecastData = (
     }
 
     // Determine confidence level based on data points
-    let confidence;
+    let confidence: "high" | "medium" | "low";
     if (recentData.length >= 6) {
       confidence = "high";
     } else if (recentData.length >= 3) {

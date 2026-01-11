@@ -12,7 +12,7 @@ import {
   calculateTotalReimbursements,
 } from "../../../lib/calculations";
 import type { DateRangeResult } from "../../../lib/calculations/time/dateRange";
-import type { Transaction } from "../../../types";
+import type { Transaction, TransactionOrTransfer, Transfer } from "../../../types";
 
 type TransferData = { transferIn: number; transferOut: number };
 type CashbackData = {
@@ -195,46 +195,61 @@ export const useKeyInsights = (
   }, [filteredData, additionalKpiData]);
 };
 
-export const useAccountBalances = (data: Transaction[]) => {
+export const useAccountBalances = (data: TransactionOrTransfer[]) => {
   return useMemo(() => {
     // Validate input
     if (!data || data.length === 0) {
       return [];
     }
 
-    const balances = data.reduce(
-      (acc: Record<string, number>, transaction) => {
-        const { account, type, amount, category } = transaction;
-        if (!account) {
-          return acc;
-        }
-        if (!acc[account]) {
-          acc[account] = 0;
-        }
+    const balances = data.reduce((acc: Record<string, { balance: number; last: number }>, tx) => {
+      const amount = Math.abs(Number(tx.amount) || 0);
+      const asDate = new Date(tx.date).getTime();
 
-        const validAmount = Math.abs(Number(amount) || 0);
-
-        // Handle all transaction types - transfers show movement between accounts
-        if (type === "Income") {
-          acc[account] += validAmount;
-        } else if (type === "Expense") {
-          acc[account] -= validAmount;
-        } else if (type === "Transfer") {
-          // Transfer direction from category: "Transfer: From X" = money in, "Transfer: To Y" = money out
-          if (category?.includes("Transfer: From")) {
-            acc[account] += validAmount; // Money coming into this account
-          } else if (category?.includes("Transfer: To")) {
-            acc[account] -= validAmount; // Money going out of this account
-          }
+      const ensure = (accountName?: string | null) => {
+        const key = accountName?.trim() ? accountName.trim() : "Unknown";
+        if (!acc[key]) {
+          acc[key] = { balance: 0, last: 0 };
         }
+        return key;
+      };
 
-        return acc;
-      },
-      {} as Record<string, number>
-    );
+      const update = (accountName: string | null | undefined, delta: number) => {
+        const key = ensure(accountName);
+        acc[key].balance += delta;
+        if (asDate && asDate > acc[key].last) {
+          acc[key].last = asDate;
+        }
+      };
+
+      // Apply user-requested formula: Income - Expense + Transfer-In - Transfer-Out (per account)
+      if (tx.is_transfer || tx.type === "Transfer-In" || tx.type === "Transfer-Out") {
+        const transfer = tx as Transfer;
+        const fromAccount = transfer.from_account || transfer.account;
+        const toAccount = transfer.to_account || transfer.account;
+
+        if (tx.type === "Transfer-Out") {
+          update(fromAccount, -amount);
+        } else if (tx.type === "Transfer-In") {
+          update(toAccount, amount);
+        }
+      } else {
+        if (tx.type === "Income") {
+          update(tx.account, amount);
+        } else if (tx.type === "Expense") {
+          update(tx.account, -amount);
+        }
+      }
+
+      return acc;
+    }, {});
 
     return Object.entries(balances)
-      .map(([name, balance]) => ({ name, balance: Number(balance) || 0 }))
+      .map(([name, { balance, last }]) => ({
+        name,
+        balance: Number(balance) || 0,
+        last_transaction: Number.isFinite(last) && last > 0 ? new Date(last).toISOString() : null,
+      }))
       .sort((a, b) => b.balance - a.balance);
   }, [data]);
 };

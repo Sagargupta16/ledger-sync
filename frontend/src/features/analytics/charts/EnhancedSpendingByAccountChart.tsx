@@ -1,9 +1,9 @@
+import type { Chart as ChartJS, TooltipItem } from "chart.js";
 import React from "react";
 import { Doughnut } from "react-chartjs-2";
-import { formatCurrency, truncateLabel } from "../../../lib/charts";
-import { useTimeNavigation } from "./useChartHooks";
-import type { Chart as ChartJS, TooltipItem } from "chart.js";
+import { formatCurrency, truncateLabel } from "../../../lib/formatters";
 import type { Transaction } from "../../../types";
+import { useTimeNavigation } from "./useChartHooks";
 
 interface ChartComponentProps {
   filteredData: Transaction[];
@@ -228,6 +228,7 @@ export const EnhancedSpendingByAccountChart = ({ filteredData, chartRef }: Chart
           {getDisplayTitle()}
         </h3>
         <button
+          type="button"
           onClick={() => {
             if (chartRef?.current) {
               const canvas = chartRef.current.canvas;

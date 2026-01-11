@@ -8,7 +8,7 @@ export const AccountBalancesCard = ({
   <div className="bg-gray-800 p-6 rounded-2xl shadow-lg">
     <h3 className="text-xl font-semibold text-white mb-4">Account Balances</h3>
     <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
-        {balances.map(({ name, balance }: { name: string; balance: number }) => (
+      {balances.map(({ name, balance }: { name: string; balance: number }) => (
         <div
           key={name}
           className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-gray-700/50"

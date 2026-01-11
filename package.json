@@ -7,7 +7,7 @@
     "backend": "cd backend && ..\\venv\\Scripts\\python -m uvicorn ledger_sync.api.main:app --reload",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
     "install:all": "cd frontend && pnpm install",
-    "install:backend": "cd backend && ..\\venv\\Scripts\\pip install -e . && ..\\venv\\Scripts\\pip install -r requirements.txt",
+    "install:backend": "cd backend && ..\\venv\\Scripts\\pip install -e .",
     "setup": "npm run install:all && npm run install:backend",
     "build:frontend": "cd frontend && pnpm run build",
     "start:frontend": "cd frontend && pnpm run preview",

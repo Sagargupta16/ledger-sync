@@ -14,32 +14,31 @@ export function useBackendData() {
   useEffect(() => {
     let mounted = true;
 
-    async function loadData() {
-      try {
-        setLoading(true);
-        setError(null);
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
 
-        // Check if backend is available
+      try {
         const isHealthy = await checkHealth();
         if (!isHealthy) {
           throw new Error("Backend server is not available. Please start the backend server.");
         }
 
-        // Fetch transactions
         const transactions = await fetchTransactions();
-
         if (mounted) {
           setTransactions(transactions);
-          setLoading(false);
         }
       } catch (error) {
         console.error("Error loading data from backend:", error);
         if (mounted) {
           setError(error instanceof Error ? error.message : "Failed to load data from backend");
+        }
+      } finally {
+        if (mounted) {
           setLoading(false);
         }
       }
-    }
+    };
 
     loadData();
 
