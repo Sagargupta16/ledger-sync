@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { transactionsService } from '@/services/api/transactions'
+import { transactionsService, type TransactionFilters } from '@/services/api/transactions'
 
-export function useTransactions() {
+export function useTransactions(filters?: TransactionFilters) {
   return useQuery({
-    queryKey: ['transactions'],
-    queryFn: () => transactionsService.getTransactions(),
+    queryKey: ['transactions', filters],
+    queryFn: () => transactionsService.getTransactions(filters),
   })
 }

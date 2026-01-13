@@ -82,14 +82,32 @@ async def health() -> HealthResponse:
 
 
 @app.get("/api/transactions")
-async def get_transactions(db: Session = Depends(get_session)) -> list[dict]:
+async def get_transactions(
+    db: Session = Depends(get_session),
+    start_date: datetime | None = Query(None, description="Start date (inclusive)"),
+    end_date: datetime | None = Query(None, description="End date (inclusive)"),
+) -> list[dict]:
     """Get all non-deleted transactions (including transfers).
+
+    Args:
+        db: Database session
+        start_date: Optional start date filter (inclusive)
+        end_date: Optional end date filter (inclusive)
 
     Returns:
         List of transactions in JSON format
     """
+    # Build query
+    query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
+    
+    # Apply date filters if provided
+    if start_date:
+        query = query.filter(Transaction.date >= start_date.date())
+    if end_date:
+        query = query.filter(Transaction.date <= end_date.date())
+    
     # Get all transactions
-    transactions = db.query(Transaction).filter(Transaction.is_deleted.is_(False)).all()
+    transactions = query.all()
 
     result = []
 

@@ -1,14 +1,24 @@
 import { motion } from 'framer-motion'
-import { ShoppingBag, TrendingUp, Zap } from 'lucide-react'
+import { ShoppingBag, TrendingUp, Zap, Activity, Gift, Receipt, Flame, ArrowLeftRight } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { useTotals } from '@/hooks/useAnalytics'
 import LoadingSkeleton from './LoadingSkeleton'
 
-export default function QuickInsights() {
+interface QuickInsightsProps {
+  dateRange?: { start_date?: string; end_date?: string }
+}
+
+export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
   const { data: categoryData, isLoading: categoryLoading } = useCategoryBreakdown({
     transaction_type: 'expense',
+    ...dateRange,
   })
-  const { data: allTransactions = [], isLoading: transactionsLoading } = useTransactions()
+  const { data: allTransactions = [], isLoading: transactionsLoading } = useTransactions({
+    start_date: dateRange.start_date,
+    end_date: dateRange.end_date,
+  })
+  const { data: totalsData, isLoading: totalsLoading } = useTotals(dateRange)
 
   // Filter for expense transactions
   const transactionsData = {
@@ -17,11 +27,16 @@ export default function QuickInsights() {
     ),
   }
 
-  const isLoading = categoryLoading || transactionsLoading
+  const isLoading = categoryLoading || transactionsLoading || totalsLoading
 
   if (isLoading) {
     return (
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <LoadingSkeleton className="h-16 w-full" />
+        <LoadingSkeleton className="h-16 w-full" />
+        <LoadingSkeleton className="h-16 w-full" />
+        <LoadingSkeleton className="h-16 w-full" />
+        <LoadingSkeleton className="h-16 w-full" />
         <LoadingSkeleton className="h-16 w-full" />
         <LoadingSkeleton className="h-16 w-full" />
         <LoadingSkeleton className="h-16 w-full" />
@@ -53,12 +68,88 @@ export default function QuickInsights() {
       )
     : { amount: 0, category: 'N/A', date: '' }
 
+  // Calculate days in range
+  const getDaysInRange = () => {
+    if (!dateRange.start_date || !dateRange.end_date) {
+      // For ALL time, calculate from earliest transaction to today
+      if (transactions.length > 0) {
+        const dates = transactions.map(t => new Date(t.date).getTime())
+        const earliest = Math.min(...dates)
+        const latest = Math.max(...dates)
+        return Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) || 1
+      }
+      return 30
+    }
+    const start = new Date(dateRange.start_date)
+    const end = new Date(dateRange.end_date)
+    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) || 1
+  }
+  const daysInRange = getDaysInRange()
+
   // Calculate average daily spending
   const totalSpending = Object.values(categories).reduce(
     (sum, cat) => sum + (cat as CategoryData).total,
     0,
   )
-  const avgDailySpending = totalSpending / 30 // Approximate for last month
+  const avgDailySpending = totalSpending / daysInRange
+
+  // Calculate total transactions count
+  const totalTransactions = transactions.length
+
+  // Find most frequent spending category
+  const mostFrequentCategory = Object.entries(categories)
+    .sort(([, a], [, b]) => {
+      const aCount = (a as CategoryData).count
+      const bCount = (b as CategoryData).count
+      return bCount - aCount
+    })[0]
+
+  // Calculate net cashback earned (Refund & Cashbacks - Cashback Shared transfers)
+  // Only count Credit Card Cashbacks and Other Cashbacks, exclude refunds
+  const cashbackTransactions = allTransactions.filter(
+    (t) => 
+      t.category === 'Refund & Cashbacks' && 
+      (t.type === 'Income' || t.type === 'income') &&
+      (t.subcategory === 'Credit Card Cashbacks' || t.subcategory === 'Other Cashbacks')
+  )
+  const cashbackSharedTransactions = allTransactions.filter(
+    (t) => (t.type === 'Transfer' || t.type === 'transfer') && t.to_account === 'Cashback Shared'
+  )
+  const totalCashback = cashbackTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  const totalCashbackShared = cashbackSharedTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  const netCashback = totalCashback - totalCashbackShared
+
+  // Calculate average transaction amount
+  const avgTransactionAmount = transactions.length > 0 
+    ? totalSpending / transactions.length 
+    : 0
+
+  // Calculate monthly burn rate (average spending per month)
+  const getMonthsInRange = () => {
+    if (!dateRange.start_date || !dateRange.end_date) {
+      // For ALL time, calculate from earliest transaction
+      if (transactions.length > 0) {
+        const dates = transactions.map(t => new Date(t.date).getTime())
+        const earliest = Math.min(...dates)
+        const latest = Math.max(...dates)
+        const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24))
+        return Math.max(days / 30, 1) // Convert days to months
+      }
+      return 1
+    }
+    const start = new Date(dateRange.start_date)
+    const end = new Date(dateRange.end_date)
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+    return Math.max(days / 30, 1) // Convert days to months
+  }
+  const monthsInRange = getMonthsInRange()
+  const monthlyBurnRate = totalSpending / monthsInRange
+
+  // Calculate total internal transfers
+  const transferTransactions = allTransactions.filter(
+    (t) => t.type === 'Transfer' || t.type === 'transfer'
+  )
+  const totalTransfers = transferTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
 
   const insights = [
     {
@@ -72,6 +163,22 @@ export default function QuickInsights() {
         : '',
     },
     {
+      icon: Gift,
+      color: 'text-green-400',
+      bg: 'bg-green-500/20',
+      title: 'Net Cashback Earned',
+      value: `₹${netCashback.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+      subtitle: `From ${cashbackTransactions.length} cashback transactions`,
+    },
+    {
+      icon: Activity,
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/20',
+      title: 'Total Transactions',
+      value: totalTransactions.toLocaleString('en-IN'),
+      subtitle: mostFrequentCategory ? `Most frequent: ${mostFrequentCategory[0]}` : '',
+    },
+    {
       icon: TrendingUp,
       color: 'text-red-400',
       bg: 'bg-red-500/20',
@@ -80,17 +187,41 @@ export default function QuickInsights() {
       subtitle: biggestTransaction?.category || '',
     },
     {
+      icon: Receipt,
+      color: 'text-cyan-400',
+      bg: 'bg-cyan-500/20',
+      title: 'Avg Transaction Amount',
+      value: `₹${avgTransactionAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+      subtitle: `Per transaction`,
+    },
+    {
       icon: Zap,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/20',
+      color: 'text-amber-400',
+      bg: 'bg-amber-500/20',
       title: 'Average Daily Spending',
       value: `₹${avgDailySpending.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
-      subtitle: 'Last 30 days',
+      subtitle: `Over ${daysInRange} days`,
+    },
+    {
+      icon: Flame,
+      color: 'text-orange-400',
+      bg: 'bg-orange-500/20',
+      title: 'Monthly Burn Rate',
+      value: `₹${monthlyBurnRate.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+      subtitle: `Avg per month over ${monthsInRange.toFixed(1)} months`,
+    },
+    {
+      icon: ArrowLeftRight,
+      color: 'text-indigo-400',
+      bg: 'bg-indigo-500/20',
+      title: 'Total Internal Transfers',
+      value: `₹${totalTransfers.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+      subtitle: `${transferTransactions.length} transfer transactions`,
     },
   ]
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       {insights.map((insight, index) => (
         <motion.div
           key={insight.title}

@@ -193,7 +193,7 @@ export default function DashboardPage() {
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
-          <QuickInsights />
+          <QuickInsights dateRange={dateRange} />
         </motion.div>
       </div>
     </div>

@@ -26,8 +26,10 @@ export interface TransactionsResponse {
 }
 
 export const transactionsService = {
-  getTransactions: async (): Promise<Transaction[]> => {
-    const response = await apiClient.get<Transaction[]>('/api/transactions')
+  getTransactions: async (filters?: TransactionFilters): Promise<Transaction[]> => {
+    const response = await apiClient.get<Transaction[]>('/api/transactions', {
+      params: filters,
+    })
     return response.data || []
   },
 
