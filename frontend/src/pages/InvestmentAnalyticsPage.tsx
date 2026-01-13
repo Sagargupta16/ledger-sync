@@ -347,6 +347,13 @@ export default function InvestmentAnalyticsPage() {
                     backgroundColor: 'rgba(17, 24, 39, 0.95)',
                     border: '1px solid rgba(16, 185, 129, 0.3)',
                     borderRadius: '8px',
+                    color: '#ffffff',
+                  }}
+                  labelStyle={{
+                    color: '#ffffff',
+                  }}
+                  itemStyle={{
+                    color: '#ffffff',
                   }}
                   formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`}
                 />

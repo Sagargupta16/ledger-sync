@@ -33,7 +33,9 @@ interface TaxSlab {
 function calculateTax(
   income: number, 
   slabs: TaxSlab[], 
-  standardDeduction: number = 0
+  standardDeduction: number = 0,
+  applyProfessionalTax: boolean = true,
+  salaryMonthsCount: number = 12
 ): { 
   tax: number
   slabBreakdown: { slab: TaxSlab; taxAmount: number }[]
@@ -59,8 +61,8 @@ function calculateTax(
   // Add 4% Health & Education Cess
   const cess = tax * 0.04
   
-  // Professional Tax (₹2,400 annual in most states)
-  const professionalTax = 2400
+  // Professional Tax (₹200/month, prorated based on salary months)
+  const professionalTax = applyProfessionalTax ? (200 * salaryMonthsCount) : 0
   
   // Total tax including cess and professional tax
   const totalTax = tax + cess + professionalTax
@@ -73,13 +75,20 @@ function calculateGrossFromNet(
   netIncome: number, 
   slabs: TaxSlab[], 
   standardDeduction: number = 0,
+  applyProfessionalTax: boolean = true,
+  salaryMonthsCount: number = 12,
   maxIterations: number = 10
 ): number {
+  // If no income, return 0 immediately
+  if (netIncome <= 0) {
+    return 0
+  }
+  
   // Use iterative approach to find gross income
   let grossIncome = netIncome
   
   for (let i = 0; i < maxIterations; i++) {
-    const { totalTax } = calculateTax(grossIncome, slabs, standardDeduction)
+    const { totalTax } = calculateTax(grossIncome, slabs, standardDeduction, applyProfessionalTax, salaryMonthsCount)
     const calculatedNet = grossIncome - totalTax
     
     // If we're close enough, return
@@ -110,35 +119,45 @@ function getFYFromDate(date: string): string {
 export default function TaxPlanningPage() {
   const { data: allTransactions = [], isLoading } = useTransactions()
   const [selectedFY, setSelectedFY] = useState<string>('')
+  const [showProjection, setShowProjection] = useState(false)
 
   // Group transactions by Financial Year
   const transactionsByFY = useMemo(() => {
     const grouped: Record<string, { 
       income: number
       expense: number
-      taxableIncome: number
+      taxableIncome: number  // Net received (after TDS) - only Salary/Stipend/RSU
+      salaryMonths: Set<string>
       transactions: typeof allTransactions 
     }> = {}
 
     for (const tx of allTransactions) {
       const fy = getFYFromDate(tx.date)
       if (!grouped[fy]) {
-        grouped[fy] = { income: 0, expense: 0, taxableIncome: 0, transactions: [] }
+        grouped[fy] = { income: 0, expense: 0, taxableIncome: 0, salaryMonths: new Set(), transactions: [] }
       }
       grouped[fy].transactions.push(tx)
 
       if (tx.type === 'Income') {
+        // Total income (all types)
         grouped[fy].income += tx.amount
         
-        // Check if this is employment income (taxable)
-        const employmentCategories = ['salary', 'stipend', 'rsu', 'bonus', 'employment']
-        const category = tx.category?.toLowerCase() || ''
-        const subCategory = tx.sub_category?.toLowerCase() || ''
+        // Taxable income: Only Salary, Stipend, RSU, or Pluxee (check note field)
+        const note = tx.note?.toLowerCase() || ''
+        const hasSalary = note.includes('salary')
+        const hasStipend = note.includes('stipend')
+        const hasRSU = note.includes('rsu')
+        const hasPluxee = note.includes('pluxee')
         
-        if (employmentCategories.some(emp => 
-          category.includes(emp) || subCategory.includes(emp)
-        )) {
+        // Add to taxable income if it's employment income
+        if (hasSalary || hasStipend || hasRSU || hasPluxee) {
           grouped[fy].taxableIncome += tx.amount
+        }
+        
+        // Track months with Salary/Stipend/Pluxee for professional tax (not RSU)
+        if (hasSalary || hasStipend || hasPluxee) {
+          const month = tx.date.substring(0, 7) // YYYY-MM
+          grouped[fy].salaryMonths.add(month)
         }
       } else if (tx.type === 'Expense') {
         grouped[fy].expense += tx.amount
@@ -160,10 +179,10 @@ export default function TaxPlanningPage() {
 
   // Get data for selected FY from transactions
   const currentFYData = selectedFY ? transactionsByFY[selectedFY] : null
-  const income = currentFYData?.income || 0
+  const income = currentFYData?.income || 0  // Total income (all types)
   const expense = currentFYData?.expense || 0
-  const netTaxableIncome = currentFYData?.taxableIncome || 0 // This is AFTER tax
-  const netIncome = income - expense
+  const netTaxableIncome = currentFYData?.taxableIncome || 0  // Net received after TDS (Salary + Stipend + RSU only)
+  const salaryMonthsCount = currentFYData?.salaryMonths?.size || 0  // Unique months with Salary/Stipend
 
   // Determine which tax slabs to use
   const fyYear = selectedFY ? parseInt(selectedFY.split(' ')[1].split('-')[0]) : 0
@@ -173,9 +192,67 @@ export default function TaxPlanningPage() {
   // Standard deduction based on FY
   const standardDeduction = fyYear >= 2024 ? 75000 : 50000
 
-  // Since income is already post-tax, calculate gross income and tax already paid
-  const grossTaxableIncome = calculateGrossFromNet(netTaxableIncome, taxSlabs, standardDeduction)
-  const { tax: baseTax, slabBreakdown, cess, professionalTax, totalTax: taxAlreadyPaid } = calculateTax(grossTaxableIncome, taxSlabs, standardDeduction)
+  // Calculate gross income from net received (reverse calculation)
+  // netTaxableIncome = what you actually received (after TDS)
+  // grossTaxableIncome = what you earned before tax (before std deduction)
+  const hasEmploymentIncome = netTaxableIncome > 0
+  
+  const grossTaxableIncome = calculateGrossFromNet(netTaxableIncome, taxSlabs, standardDeduction, hasEmploymentIncome, salaryMonthsCount)
+  const {tax: baseTax, slabBreakdown, cess, professionalTax, totalTax: taxAlreadyPaid} = calculateTax(grossTaxableIncome, taxSlabs, standardDeduction, hasEmploymentIncome, salaryMonthsCount)
+
+  // Projection calculations for remaining months
+  const isCurrentFY = selectedFY === fyList[0]
+  let projectedGrossTaxableIncome = grossTaxableIncome
+  let projectedTaxAlreadyPaid = taxAlreadyPaid
+  let projectedBaseTax = baseTax
+  let projectedCess = cess
+  let projectedProfessionalTax = professionalTax
+  let projectedSlabBreakdown = slabBreakdown
+  let remainingMonths = 0
+  let lastMonthSalary = 0
+  let projectedAdditionalIncome = 0
+  let projectedTotalGrossIncome = grossTaxableIncome + standardDeduction
+  
+  if (showProjection && isCurrentFY && hasEmploymentIncome) {
+    // Get current month (0-11)
+    const now = new Date()
+    const currentMonth = now.getMonth() // 0 = Jan, 3 = Apr
+    
+    // Financial year runs Apr (3) to Mar (2)
+    // Calculate remaining months AFTER current month (since current month may already have salary)
+    // If current month is Apr-Dec (3-11), remaining = 12 - (month - 3) - 1
+    // If current month is Jan-Mar (0-2), remaining = 3 - month - 1
+    if (currentMonth >= 3) {
+      remainingMonths = 12 - (currentMonth - 3) - 1
+    } else {
+      remainingMonths = 3 - currentMonth - 1
+    }
+    
+    // Get the last AWS Salary transaction
+    const salaryTransactions = currentFYData?.transactions
+      .filter(tx => {
+        if (tx.type !== 'Income') return false
+        const note = tx.note?.toLowerCase() || ''
+        return note.includes('aws salary')
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || []
+    
+    if (salaryTransactions.length > 0 && remainingMonths > 0) {
+      lastMonthSalary = salaryTransactions[0].amount
+      projectedAdditionalIncome = lastMonthSalary * remainingMonths
+      const projectedNetTotal = netTaxableIncome + projectedAdditionalIncome
+      const projectedSalaryMonthsCount = salaryMonthsCount + remainingMonths
+      
+      projectedGrossTaxableIncome = calculateGrossFromNet(projectedNetTotal, taxSlabs, standardDeduction, true, projectedSalaryMonthsCount)
+      projectedTotalGrossIncome = projectedGrossTaxableIncome + standardDeduction
+      const projectedCalc = calculateTax(projectedGrossTaxableIncome, taxSlabs, standardDeduction, true, projectedSalaryMonthsCount)
+      projectedBaseTax = projectedCalc.tax
+      projectedSlabBreakdown = projectedCalc.slabBreakdown
+      projectedCess = projectedCalc.cess
+      projectedProfessionalTax = projectedCalc.professionalTax
+      projectedTaxAlreadyPaid = projectedCalc.totalTax
+    }
+  }
 
   // Navigate FY
   const currentIndex = fyList.indexOf(selectedFY)
@@ -200,6 +277,27 @@ export default function TaxPlanningPage() {
           <p className="text-muted-foreground mt-2">
             Track income tax by Financial Year
           </p>
+          
+          {/* Projection Toggle */}
+          {isCurrentFY && hasEmploymentIncome && (
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                onClick={() => setShowProjection(!showProjection)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  showProjection
+                    ? 'bg-primary text-white shadow-lg shadow-primary/50'
+                    : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                }`}
+              >
+                {showProjection ? '📊 Showing Projection' : '📈 Show Year-End Projection'}
+              </button>
+              {showProjection && remainingMonths > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  Projecting {remainingMonths} more {remainingMonths === 1 ? 'month' : 'months'} @ ₹{lastMonthSalary.toLocaleString('en-IN')}/month
+                </span>
+              )}
+            </div>
+          )}
         </motion.div>
 
         {/* FY Selector */}
@@ -217,11 +315,36 @@ export default function TaxPlanningPage() {
               <ChevronLeft className="w-5 h-5" />
             </button>
 
-            <div className="text-center">
-              <h2 className="text-3xl font-bold text-white">{selectedFY || 'Select FY'}</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {isNewRegime ? 'New Tax Regime (2025-26 onwards)' : 'Old Tax Regime (Before 2025-26)'}
-              </p>
+            <div className="text-center flex-1">
+              <div className="flex items-center justify-center gap-4">
+                <div>
+                  <h2 className="text-3xl font-bold text-white">{selectedFY || 'Select FY'}</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {isNewRegime ? 'New Tax Regime (2025-26 onwards)' : 'Old Tax Regime (Before 2025-26)'}
+                  </p>
+                </div>
+                
+                {/* Projection Toggle - only for current FY */}
+                {isCurrentFY && hasEmploymentIncome && selectedFY === 'FY2025-26' && (
+                  <div className="flex flex-col items-start gap-1">
+                    <button
+                      onClick={() => setShowProjection(!showProjection)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                        showProjection
+                          ? 'bg-primary text-white shadow-lg shadow-primary/50'
+                          : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                      }`}
+                    >
+                      {showProjection ? '📊 Showing Projection' : '📈 Show Year-End Projection'}
+                    </button>
+                    {showProjection && remainingMonths > 0 && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        Projecting {remainingMonths} more {remainingMonths === 1 ? 'month' : 'months'} @ ₹{lastMonthSalary.toLocaleString('en-IN')}/month
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <button
@@ -235,7 +358,7 @@ export default function TaxPlanningPage() {
         </motion.div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -247,10 +370,11 @@ export default function TaxPlanningPage() {
                 <TrendingUp className="w-6 h-6 text-green-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Income</p>
+                <p className="text-sm text-muted-foreground">Salaried Income</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${income.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : `₹${(showProjection && isCurrentFY && hasEmploymentIncome ? netTaxableIncome + projectedAdditionalIncome : netTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">Received after TDS</p>
               </div>
             </div>
           </motion.div>
@@ -262,14 +386,15 @@ export default function TaxPlanningPage() {
             className="glass rounded-xl border border-white/10 p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-red-500/20 rounded-xl shadow-lg shadow-red-500/30">
-                <Receipt className="w-6 h-6 text-red-500" />
+              <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
+                <IndianRupee className="w-6 h-6 text-blue-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Expense</p>
+                <p className="text-sm text-muted-foreground">Taxable Income</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${expense.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : `₹${(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">Before standard deduction</p>
               </div>
             </div>
           </motion.div>
@@ -281,53 +406,13 @@ export default function TaxPlanningPage() {
             className="glass rounded-xl border border-white/10 p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
-                <IndianRupee className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Taxable Income (Net)</p>
-                <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${netTaxableIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">After tax deduction</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-500/20 rounded-xl shadow-lg shadow-green-500/30">
-                <IndianRupee className="w-6 h-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Gross Income (Estimated)</p>
-                <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${grossTaxableIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Before tax deduction</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
               <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">
                 <Calculator className="w-6 h-6 text-primary" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Tax Already Paid</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${taxAlreadyPaid.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : `₹${(showProjection && isCurrentFY && hasEmploymentIncome ? projectedTaxAlreadyPaid : taxAlreadyPaid).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">Deducted at source</p>
               </div>
@@ -339,7 +424,7 @@ export default function TaxPlanningPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.4 }}
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <h3 className="text-xl font-semibold text-white mb-4">
@@ -353,7 +438,7 @@ export default function TaxPlanningPage() {
               {fyYear >= 2024 ? ' (from FY 2024-25)' : ' (before FY 2024-25)'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Tax calculated on: ₹{(grossTaxableIncome - standardDeduction).toLocaleString('en-IN')} (Gross - Standard Deduction)
+              Tax calculated on: ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome).toLocaleString('en-IN')} (After standard deduction)
             </p>
           </div>
 
@@ -369,9 +454,10 @@ export default function TaxPlanningPage() {
               </thead>
               <tbody>
                 {taxSlabs.map((slab, index) => {
-                  const breakdown = slabBreakdown.find(b => b.slab === slab)
+                  const breakdown = (showProjection && isCurrentFY && hasEmploymentIncome ? projectedSlabBreakdown : slabBreakdown).find(b => b.slab === slab)
                   const taxAmount = breakdown?.taxAmount || 0
-                  const isApplicable = grossTaxableIncome > slab.lower
+                  const relevantGrossIncome = showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome
+                  const isApplicable = relevantGrossIncome > slab.lower
 
                   return (
                     <tr
@@ -398,7 +484,7 @@ export default function TaxPlanningPage() {
                     Tax on Base:
                   </td>
                   <td className="py-3 px-4 text-right font-bold text-white">
-                    ₹{baseTax.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedBaseTax : baseTax).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                   </td>
                 </tr>
                 <tr className="border-b border-white/5">
@@ -406,7 +492,7 @@ export default function TaxPlanningPage() {
                     + Health & Education Cess (4%):
                   </td>
                   <td className="py-3 px-4 text-right text-sm text-gray-300">
-                    ₹{cess.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedCess : cess).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                   </td>
                 </tr>
                 <tr className="border-b border-white/5">
@@ -414,7 +500,7 @@ export default function TaxPlanningPage() {
                     + Professional Tax:
                   </td>
                   <td className="py-3 px-4 text-right text-sm text-gray-300">
-                    ₹{professionalTax.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedProfessionalTax : professionalTax).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                   </td>
                 </tr>
                 <tr className="border-t-2 border-primary/30">
@@ -422,7 +508,7 @@ export default function TaxPlanningPage() {
                     Total Tax Already Paid:
                   </td>
                   <td className="py-4 px-4 text-right text-2xl font-bold text-primary">
-                    ₹{taxAlreadyPaid.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedTaxAlreadyPaid : taxAlreadyPaid).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                   </td>
                 </tr>
               </tbody>
@@ -442,25 +528,25 @@ export default function TaxPlanningPage() {
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-sm text-gray-400 mb-2">Effective Tax Rate</p>
               <p className="text-2xl font-bold text-primary">
-                {grossTaxableIncome > 0 ? ((taxAlreadyPaid / grossTaxableIncome) * 100).toFixed(2) : '0.00'}%
+                {(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome) > 0 ? (((showProjection && isCurrentFY && hasEmploymentIncome ? projectedTaxAlreadyPaid : taxAlreadyPaid) / (showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome)) * 100).toFixed(2) : '0.00'}%
               </p>
             </div>
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-sm text-gray-400 mb-2">Gross Taxable Income</p>
               <p className="text-2xl font-bold text-blue-400">
-                ₹{grossTaxableIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </p>
             </div>
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-sm text-gray-400 mb-2">Net Received (After Tax)</p>
               <p className="text-2xl font-bold text-green-400">
-                ₹{netTaxableIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? netTaxableIncome + projectedAdditionalIncome : netTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </p>
             </div>
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-sm text-gray-400 mb-2">Net Savings</p>
               <p className="text-2xl font-bold text-purple-400">
-                ₹{(income - expense).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                ₹{((showProjection && isCurrentFY && hasEmploymentIncome ? income + projectedAdditionalIncome : income) - expense).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </p>
             </div>
           </div>

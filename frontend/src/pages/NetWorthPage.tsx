@@ -2,10 +2,22 @@ import { motion } from 'framer-motion'
 import { TrendingUp, PiggyBank, CreditCard, BarChart3 } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { useState, useEffect } from 'react'
+import React from 'react'
 
 export default function NetWorthPage() {
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
   const { data: aggregationData, isLoading: aggregationLoading } = useMonthlyAggregation()
+  const [showStacked, setShowStacked] = useState(false)
+  const [accountClassifications, setAccountClassifications] = useState<Record<string, string>>({})
+
+  // Fetch account classifications
+  useEffect(() => {
+    fetch('/api/account-classifications')
+      .then(res => res.json())
+      .then(data => setAccountClassifications(data))
+      .catch(err => console.error('Failed to fetch account classifications:', err))
+  }, [])
 
   const isLoading = balancesLoading || aggregationLoading
 
@@ -21,16 +33,82 @@ export default function NetWorthPage() {
   )
   const netWorth = totalAssets - totalLiabilities
 
-  // Format monthly data for area chart
+  // Categorize accounts based on API classifications
+  const categorizeAccount = (accountName: string) => {
+    const classification = accountClassifications[accountName]
+    const name = accountName.toLowerCase()
+    
+    // Lended category only for Fam, Flat, Friends
+    if (name.includes('fam') || name.includes('flat') || name.includes('friend')) {
+      return 'lended'
+    }
+    
+    if (!classification) return 'other'
+    
+    // Map API classifications to chart categories
+    switch (classification) {
+      case 'Investments':
+        return 'invested'
+      case 'Bank Accounts':
+      case 'Cash':
+      case 'Other Wallets':
+        return 'cashbank'
+      case 'Credit Cards':
+        return 'liability'
+      default:
+        return 'other'
+    }
+  }
+
+  // Calculate category totals from current balances
+  const categoryTotals = Object.entries(accounts).reduce((acc, [name, data]: [string, { balance: number; transaction_count: number }]) => {
+    const category = categorizeAccount(name)
+    if (!acc[category]) acc[category] = 0
+    // Use absolute value since negative balances are assets
+    acc[category] += Math.abs(data.balance)
+    return acc
+  }, {} as Record<string, number>)
+
+  const totalPositive = totalAssets
+  const categoryProportions = {
+    cashbank: (categoryTotals.cashbank || 0) / totalPositive,
+    invested: (categoryTotals.invested || 0) / totalPositive,
+    lended: (categoryTotals.lended || 0) / totalPositive,
+    other: (categoryTotals.other || 0) / totalPositive,
+  }
+
+  // Format monthly data for area chart with cumulative net worth
   const monthlyNetWorth = Object.entries(aggregationData || {})
     .map(([month, data]: [string, { income: number; expense: number }]) => ({
       month,
-      netWorth: data.income - data.expense,
+      monthlyFlow: data.income - data.expense,
       income: data.income,
       expenses: data.expense,
     }))
     .sort((a, b) => a.month.localeCompare(b.month))
-    .slice(-12)
+  
+  // Calculate cumulative values for net worth, income, and expenses
+  let cumulativeNetWorth = 0
+  let cumulativeIncome = 0
+  let cumulativeExpenses = 0
+  const netWorthData = monthlyNetWorth.map(item => {
+    cumulativeNetWorth += item.monthlyFlow
+    cumulativeIncome += item.income
+    cumulativeExpenses += item.expenses
+    
+    // Calculate category breakdowns based on current proportions
+    const positiveNetWorth = Math.max(cumulativeNetWorth, 0)
+    return {
+      ...item,
+      netWorth: cumulativeNetWorth,
+      cumulativeIncome,
+      cumulativeExpenses,
+      cashbank: positiveNetWorth * categoryProportions.cashbank,
+      invested: positiveNetWorth * categoryProportions.invested,
+      lended: positiveNetWorth * categoryProportions.lended,
+      other: positiveNetWorth * categoryProportions.other,
+    }
+  })
 
   return (
     <div className="min-h-screen p-8">
@@ -107,21 +185,57 @@ export default function NetWorthPage() {
           transition={{ delay: 0.4 }}
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
-          <div className="flex items-center gap-3 mb-6">
-            <BarChart3 className="w-5 h-5 text-blue-400" />
-            <h3 className="text-lg font-semibold text-white">Net Worth Trend (Last 12 Months)</h3>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <BarChart3 className="w-5 h-5 text-blue-400" />
+              <h3 className="text-lg font-semibold text-white">Net Worth Trend (All Time)</h3>
+            </div>
+            <button
+              onClick={() => setShowStacked(!showStacked)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                showStacked
+                  ? 'bg-primary text-white shadow-lg shadow-primary/50'
+                  : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-white/10'
+              }`}
+            >
+              {showStacked ? '📊 Stacked View' : '📈 Total View'}
+            </button>
           </div>
           {isLoading ? (
             <div className="h-80 flex items-center justify-center">
               <div className="animate-pulse text-gray-400">Loading chart...</div>
             </div>
-          ) : monthlyNetWorth.length > 0 ? (
+          ) : netWorthData.length > 0 ? (
             <ResponsiveContainer width="100%" height={320}>
-              <AreaChart data={monthlyNetWorth}>
+              <AreaChart data={netWorthData}>
                 <defs>
                   <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
+                  </linearGradient>
+                  <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
+                  </linearGradient>
+                  <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.7} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.2} />
+                  </linearGradient>
+                  <linearGradient id="colorInvested" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.7} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.2} />
+                  </linearGradient>
+                  <linearGradient id="colorLended" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.7} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.2} />
+                  </linearGradient>
+                  <linearGradient id="colorOther" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ec4899" stopOpacity={0.7} />
+                    <stop offset="95%" stopColor="#ec4899" stopOpacity={0.2} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -136,13 +250,55 @@ export default function NetWorthPage() {
                   formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`}
                 />
                 <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="netWorth"
-                  stroke="#8b5cf6"
-                  fillOpacity={1}
-                  fill="url(#colorNetWorth)"
-                />
+                {showStacked ? (
+                  <>
+                    <Area
+                      type="monotone"
+                      dataKey="cashbank"
+                      stackId="1"
+                      stroke="#10b981"
+                      fillOpacity={1}
+                      fill="url(#colorCash)"
+                      name="Cash/Bank"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="invested"
+                      stackId="1"
+                      stroke="#8b5cf6"
+                      fillOpacity={1}
+                      fill="url(#colorInvested)"
+                      name="Investments"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="lended"
+                      stackId="1"
+                      stroke="#f59e0b"
+                      fillOpacity={1}
+                      fill="url(#colorLended)"
+                      name="Lended"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="other"
+                      stackId="1"
+                      stroke="#ec4899"
+                      fillOpacity={1}
+                      fill="url(#colorOther)"
+                      name="Others"
+                    />
+                  </>
+                ) : (
+                  <Area
+                    type="monotone"
+                    dataKey="netWorth"
+                    stroke="#8b5cf6"
+                    fillOpacity={1}
+                    fill="url(#colorNetWorth)"
+                    name="Net Worth"
+                  />
+                )}
               </AreaChart>
             </ResponsiveContainer>
           ) : (
@@ -156,49 +312,193 @@ export default function NetWorthPage() {
           transition={{ delay: 0.5 }}
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
-          <h3 className="text-lg font-semibold text-white mb-6">Account Breakdown</h3>
+          <h3 className="text-lg font-semibold text-white mb-6">Assets (Positive Balances)</h3>
           {isLoading ? (
             <div className="text-center py-8 text-gray-400">Loading accounts...</div>
-          ) : Object.keys(accounts).length > 0 ? (
+          ) : Object.keys(accounts).filter(name => accounts[name].balance > 0).length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400">Account</th>
                     <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Balance</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">% Allocated</th>
                     <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Type</th>
                     <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Transactions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {Object.entries(accounts)
-                    .sort((a: [string, { balance: number; transaction_count: number }], b: [string, { balance: number; transaction_count: number }]) => Math.abs(b[1].balance) - Math.abs(a[1].balance))
-                    .map(([accountName, accountData]: [string, { balance: number; transaction_count: number }]) => (
-                      <motion.tr
-                        key={accountName}
-                        className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                      >
-                        <td className="py-3 px-4 text-white font-medium">{accountName}</td>
-                        <td
-                          className={`py-3 px-4 text-right font-bold ${
-                            accountData.balance > 0 ? 'text-green-400' : 'text-red-400'
-                          }`}
+                    .filter(([_, accountData]: [string, { balance: number; transaction_count: number }]) => accountData.balance > 0 && Math.abs(accountData.balance) >= 0.01)
+                    .sort((a: [string, { balance: number; transaction_count: number }], b: [string, { balance: number; transaction_count: number }]) => {
+                      // Sort by category first, then by balance within category
+                      const catA = accountClassifications[a[0]] || 'Other'
+                      const catB = accountClassifications[b[0]] || 'Other'
+                      if (catA !== catB) return catA.localeCompare(catB)
+                      return b[1].balance - a[1].balance
+                    })
+                    .reduce((acc, [accountName, accountData], index, array) => {
+                      const currentCategory = accountClassifications[accountName] || 'Other'
+                      const prevCategory = index > 0 ? (accountClassifications[array[index - 1][0]] || 'Other') : null
+                      const showCategoryHeader = currentCategory !== prevCategory
+                      
+                      // Calculate category totals
+                      if (!acc.categoryTotals[currentCategory]) {
+                        acc.categoryTotals[currentCategory] = { balance: 0, transactions: 0 }
+                      }
+                      acc.categoryTotals[currentCategory].balance += accountData.balance
+                      acc.categoryTotals[currentCategory].transactions += accountData.transactions
+                      
+                      // Add category header with totals
+                      if (showCategoryHeader) {
+                        // Need to calculate totals for this category first
+                        const categoryAccounts = array.filter(([name]) => (accountClassifications[name] || 'Other') === currentCategory)
+                        const catBalance = categoryAccounts.reduce((sum, [, data]) => sum + data.balance, 0)
+                        const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
+                        const catPercent = ((catBalance / totalAssets) * 100).toFixed(2)
+                        
+                        acc.elements.push(
+                          <tr key={`header-${currentCategory}`} className="bg-white/5">
+                            <td className="py-2 px-4 text-sm font-semibold text-primary">{currentCategory}</td>
+                            <td className="py-2 px-4 text-right text-sm font-medium text-green-400/70">
+                              ₹{catBalance.toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
+                              {catPercent}%
+                            </td>
+                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">—</td>
+                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">{catTransactions}</td>
+                          </tr>
+                        )
+                      }
+                      
+                      // Add account row
+                      acc.elements.push(
+                        <motion.tr
+                          key={accountName}
+                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
                         >
-                          ₹{Math.abs(accountData.balance).toLocaleString('en-IN')}
-                        </td>
-                        <td className="py-3 px-4 text-right text-gray-400">
-                          {accountData.balance > 0 ? 'Asset' : 'Liability'}
-                        </td>
-                        <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
-                      </motion.tr>
-                    ))}
+                          <td className="py-3 px-4 text-white font-medium">{accountName}</td>
+                          <td className="py-3 px-4 text-right font-bold text-green-400">
+                            ₹{accountData.balance.toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-4 text-right text-gray-400">
+                            {((accountData.balance / totalAssets) * 100).toFixed(2)}%
+                          </td>
+                          <td className="py-3 px-4 text-right text-gray-400">
+                            {accountClassifications[accountName] || 'Other'}
+                          </td>
+                          <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
+                        </motion.tr>
+                      )
+                      
+                      return acc
+                    }, { elements: [] as React.ReactNode[], categoryTotals: {} as Record<string, { balance: number; transactions: number }> }).elements}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-400">No accounts found</div>
+            <div className="text-center py-8 text-gray-400">No asset accounts found</div>
+          )}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+        >
+          <h3 className="text-lg font-semibold text-white mb-6">Liabilities (Negative Balances)</h3>
+          {isLoading ? (
+            <div className="text-center py-8 text-gray-400">Loading accounts...</div>
+          ) : Object.keys(accounts).filter(name => accounts[name].balance < 0).length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400">Account</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Balance</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">% Allocated</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Type</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Transactions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(accounts)
+                    .filter(([_, accountData]: [string, { balance: number; transaction_count: number }]) => accountData.balance < 0 && Math.abs(accountData.balance) >= 0.01)
+                    .sort((a: [string, { balance: number; transaction_count: number }], b: [string, { balance: number; transaction_count: number }]) => {
+                      // Sort by category first, then by balance within category
+                      const catA = accountClassifications[a[0]] || 'Other'
+                      const catB = accountClassifications[b[0]] || 'Other'
+                      if (catA !== catB) return catA.localeCompare(catB)
+                      return Math.abs(b[1].balance) - Math.abs(a[1].balance)
+                    })
+                    .reduce((acc, [accountName, accountData], index, array) => {
+                      const currentCategory = accountClassifications[accountName] || 'Other'
+                      const prevCategory = index > 0 ? (accountClassifications[array[index - 1][0]] || 'Other') : null
+                      const showCategoryHeader = currentCategory !== prevCategory
+                      
+                      // Calculate category totals
+                      if (!acc.categoryTotals[currentCategory]) {
+                        acc.categoryTotals[currentCategory] = { balance: 0, transactions: 0 }
+                      }
+                      acc.categoryTotals[currentCategory].balance += Math.abs(accountData.balance)
+                      acc.categoryTotals[currentCategory].transactions += accountData.transactions
+                      
+                      // Add category header with totals
+                      if (showCategoryHeader) {
+                        // Need to calculate totals for this category first
+                        const categoryAccounts = array.filter(([name]) => (accountClassifications[name] || 'Other') === currentCategory)
+                        const catBalance = categoryAccounts.reduce((sum, [, data]) => sum + Math.abs(data.balance), 0)
+                        const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
+                        const catPercent = ((catBalance / totalLiabilities) * 100).toFixed(2)
+                        
+                        acc.elements.push(
+                          <tr key={`header-${currentCategory}`} className="bg-white/5">
+                            <td className="py-2 px-4 text-sm font-semibold text-primary">{currentCategory}</td>
+                            <td className="py-2 px-4 text-right text-sm font-medium text-red-400/70">
+                              ₹{catBalance.toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
+                              {catPercent}%
+                            </td>
+                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">—</td>
+                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">{catTransactions}</td>
+                          </tr>
+                        )
+                      }
+                      
+                      // Add account row
+                      acc.elements.push(
+                        <motion.tr
+                          key={accountName}
+                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                        >
+                          <td className="py-3 px-4 text-white font-medium">{accountName}</td>
+                          <td className="py-3 px-4 text-right font-bold text-red-400">
+                            ₹{Math.abs(accountData.balance).toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-4 text-right text-gray-400">
+                            {((Math.abs(accountData.balance) / totalLiabilities) * 100).toFixed(2)}%
+                          </td>
+                          <td className="py-3 px-4 text-right text-gray-400">
+                            {accountClassifications[accountName] || 'Other'}
+                          </td>
+                          <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
+                        </motion.tr>
+                      )
+                      
+                      return acc
+                    }, { elements: [] as React.ReactNode[], categoryTotals: {} as Record<string, { balance: number; transactions: number }> }).elements}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400">No liability accounts found</div>
           )}
         </motion.div>
       </div>

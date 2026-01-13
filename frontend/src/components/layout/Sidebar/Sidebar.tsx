@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  Settings
+  Settings,
+  ArrowRightLeft
 } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { cn } from '@/lib/cn'
@@ -30,10 +31,11 @@ const navigationGroups = [
   },
   {
     id: 'data',
-    title: '📁 Data Management',
-    icon: Upload,
+    title: '⚙️ Settings & Data',
+    icon: Settings,
     items: [
       { path: ROUTES.UPLOAD, label: 'Upload & Sync', icon: Upload },
+      { path: ROUTES.SETTINGS, label: 'Account Classification', icon: Settings },
     ],
   },
   {
@@ -77,6 +79,7 @@ const navigationGroups = [
     items: [
       { path: ROUTES.SPENDING_ANALYSIS, label: 'Category Spending', icon: BarChart3 },
       { path: ROUTES.INCOME_ANALYSIS, label: 'Income Analysis', icon: TrendingUp },
+      { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Income-Expense Flow', icon: ArrowRightLeft },
     ],
   },
   {
@@ -85,14 +88,6 @@ const navigationGroups = [
     icon: ForecastIcon,
     items: [
       { path: ROUTES.TRENDS_FORECASTS, label: 'Forecasts', icon: ForecastIcon },
-    ],
-  },
-  {
-    id: 'settings',
-    title: '⚙️ Settings',
-    icon: Settings,
-    items: [
-      { path: ROUTES.SETTINGS, label: 'Account Classification', icon: Settings },
     ],
   },
 ]
@@ -114,31 +109,38 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed lg:sticky top-0 h-screen glass-strong border-r border-border/50 transition-all duration-300 z-40 shadow-2xl',
-          isCollapsed ? 'w-16' : 'w-64',
+          'fixed lg:sticky top-0 h-screen bg-gradient-to-b from-gray-900 via-gray-900/95 to-gray-950 border-r border-purple-500/20 transition-all duration-300 z-40 shadow-2xl backdrop-blur-xl',
+          isCollapsed ? 'w-20' : 'w-72',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-4 border-b border-border/50 backdrop-blur-sm">
+          <div className="p-6 border-b border-purple-500/20 bg-gradient-to-r from-purple-900/20 to-blue-900/20">
             <div className="flex items-center justify-between">
               {!isCollapsed && (
-                <h1 className="text-xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-                  Ledger Sync
-                </h1>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl shadow-lg shadow-purple-500/50">
+                    <PiggyBank className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent drop-shadow-lg">
+                      Ledger Sync
+                    </h1>
+                    <p className="text-xs text-gray-400">Financial Dashboard</p>
+                  </div>
+                </div>
               )}
-              <button
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="hidden lg:block p-1 rounded hover:bg-white/10 transition-colors"
-              >
-                {isCollapsed ? <ChevronRight size={20} /> : <ChevronDown size={20} />}
-              </button>
+              {isCollapsed && (
+                <div className="p-2 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl shadow-lg shadow-purple-500/50 mx-auto">
+                  <PiggyBank className="w-6 h-6 text-white" />
+                </div>
+              )}
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-2 scrollbar-thin">
+          <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent">
             {navigationGroups.map((group) => (
               <SidebarGroup
                 key={group.id}
@@ -160,10 +162,11 @@ export default function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-border/50 backdrop-blur-sm">
+          <div className="p-4 border-t border-purple-500/20 bg-gradient-to-r from-purple-900/10 to-blue-900/10">
             {!isCollapsed && (
-              <div className="text-xs text-muted-foreground">
-                v1.0.0 | Built with ❤️
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-400">v1.0.0</span>
+                <span className="text-gray-500">Built with ❤️</span>
               </div>
             )}
           </div>

@@ -188,7 +188,7 @@ export default function SettingsPage() {
         </motion.div>
 
         {/* Categories Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {ACCOUNT_TYPES.map((category, index) => (
             <motion.div
               key={category}
@@ -197,48 +197,44 @@ export default function SettingsPage() {
               transition={{ delay: index * 0.05 }}
               onDragOver={handleDragOver}
               onDrop={() => handleDropOnCategory(category)}
-              className={`glass rounded-xl border-2 border-dashed border-white/20 hover:border-white/40 p-6 min-h-96 transition-all ${
+              className={`glass rounded-xl border-2 border-dashed border-white/20 hover:border-white/40 p-4 transition-all ${
                 draggedAccount ? 'opacity-75' : ''
               }`}
             >
               {/* Category Header */}
-              <div className={`bg-gradient-to-r ${CATEGORY_COLORS[category]} rounded-lg p-4 mb-4`}>
-                <h2 className="text-xl font-bold text-white">{category}</h2>
-                <p className="text-sm text-white/80 mt-1">
+              <div className={`bg-gradient-to-r ${CATEGORY_COLORS[category]} rounded-lg p-3 mb-3`}>
+                <h2 className="text-lg font-bold text-white">{category}</h2>
+                <p className="text-xs text-white/80 mt-0.5">
                   {accountsByCategory[category].length} account{accountsByCategory[category].length !== 1 ? 's' : ''}
                 </p>
               </div>
 
-              {/* Accounts List */}
-              <div className="space-y-3">
+              {/* Accounts List - Fixed height with scroll */}
+              <div className="space-y-1.5 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent pr-1">
                 {accountsByCategory[category].length > 0 ? (
                   accountsByCategory[category].map((accountName) => (
                     <motion.div
                       key={accountName}
                       draggable
                       onDragStart={() => handleDragStart(accountName)}
-                      className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-lg cursor-move hover:bg-white/10 hover:border-white/20 transition-all group"
+                      className="flex items-center gap-2 px-2.5 py-2 bg-white/5 border border-white/10 rounded-md cursor-move hover:bg-white/10 hover:border-white/20 transition-all group text-sm"
                       whileHover={{ scale: 1.02 }}
                       whileDrag={{ scale: 0.95, opacity: 0.5 }}
                     >
-                      <GripVertical className="w-4 h-4 text-white/40 group-hover:text-white/60 transition-colors" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-white truncate">{accountName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {balancesLoading ? (
-                            'Loading balance...'
-                          ) : (
-                            `₹${Math.abs(balanceData?.accounts[accountName]?.balance || 0).toLocaleString('en-IN')}`
-                          )}
-                        </p>
+                      <GripVertical className="w-3.5 h-3.5 text-white/40 group-hover:text-white/60 transition-colors flex-shrink-0" />
+                      <div className="flex items-center justify-between flex-1 min-w-0 gap-2">
+                        <span className="font-medium text-white truncate">{accountName}</span>
+                        {!balancesLoading && (
+                          <span className="text-xs text-gray-400 whitespace-nowrap font-mono">
+                            ₹{Math.abs(balanceData?.accounts[accountName]?.balance || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          </span>
+                        )}
                       </div>
                     </motion.div>
                   ))
                 ) : (
-                  <div className="flex items-center justify-center h-32 text-gray-500 border-2 border-dashed border-white/10 rounded-lg">
-                    <div className="text-center">
-                      <p className="text-sm">Drop accounts here</p>
-                    </div>
+                  <div className="flex items-center justify-center h-20 text-gray-500 border-2 border-dashed border-white/10 rounded-lg">
+                    <p className="text-xs">Drop here</p>
                   </div>
                 )}
               </div>

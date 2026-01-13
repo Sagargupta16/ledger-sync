@@ -17,6 +17,7 @@ import {
   NetWorthPage,
   SpendingAnalysisPage,
   IncomeAnalysisPage,
+  IncomeExpenseFlowPage,
   TrendsForecastsPage,
   SettingsPage,
 } from '@/pages'
@@ -39,6 +40,7 @@ function App() {
             <Route path={ROUTES.NET_WORTH} element={<NetWorthPage />} />
             <Route path={ROUTES.SPENDING_ANALYSIS} element={<SpendingAnalysisPage />} />
             <Route path={ROUTES.INCOME_ANALYSIS} element={<IncomeAnalysisPage />} />
+            <Route path={ROUTES.INCOME_EXPENSE_FLOW} element={<IncomeExpenseFlowPage />} />
             <Route path={ROUTES.TRENDS_FORECASTS} element={<TrendsForecastsPage />} />
           </Route>
         </Routes>

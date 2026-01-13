@@ -56,12 +56,12 @@ export default function RecentTransactions({ transactions, isLoading }: RecentTr
             {/* Icon */}
             <div
               className={`p-2 rounded-lg shadow-lg transition-all duration-300 group-hover:scale-110 ${
-                transaction.amount >= 0
+                transaction.type === 'Income'
                   ? 'bg-green-500/20 text-green-500 shadow-green-500/30'
                   : 'bg-red-500/20 text-red-500 shadow-red-500/30'
               }`}
             >
-              {transaction.amount >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+              {transaction.type === 'Income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
             </div>
 
             {/* Details */}
@@ -84,8 +84,8 @@ export default function RecentTransactions({ transactions, isLoading }: RecentTr
 
           {/* Amount */}
           <div className="text-right">
-            <p className={`font-semibold ${transaction.amount >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {transaction.amount >= 0 ? '+' : '-'}
+            <p className={`font-semibold ${transaction.type === 'Income' ? 'text-green-500' : 'text-red-500'}`}>
+              {transaction.type === 'Income' ? '+' : '-'}
               {formatCurrency(transaction.amount)}
             </p>
             {transaction.account && <p className="text-xs text-muted-foreground mt-1">{transaction.account}</p>}
