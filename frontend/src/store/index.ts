@@ -1,6 +1,2 @@
-/**
- * Store Barrel Export
- * Centralized exports for state stores
- */
-
-export * from "./financialStore";
+// Store index
+export { useAccountStore, type AccountType } from './accountStore'

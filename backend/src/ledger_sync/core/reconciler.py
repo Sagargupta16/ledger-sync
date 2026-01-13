@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ledger_sync.db.models import Transaction, Transfer
+from ledger_sync.db.models import Transaction
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.utils.logging import logger
 
@@ -221,8 +221,8 @@ class Reconciler:
         normalized_row: dict[str, Any],
         source_file: str,
         import_time: datetime,
-    ) -> tuple[Transfer, str]:
-        """Reconcile a single transfer.
+    ) -> tuple[Transaction, str]:
+        """Reconcile a single transfer (now stored as Transaction with type='Transfer').
 
         Args:
             normalized_row: Normalized transfer data
@@ -230,9 +230,9 @@ class Reconciler:
             import_time: Import timestamp
 
         Returns:
-            Tuple of (Transfer, action) where action is "inserted", "updated", or "skipped"
+            Tuple of (Transaction, action) where action is "inserted", "updated", or "skipped"
         """
-        # Generate transfer ID
+        # Generate transfer ID (using from_account as account for hash)
         transfer_id = self.hasher.generate_transaction_id(
             date=normalized_row["date"],
             amount=normalized_row["amount"],
@@ -243,18 +243,19 @@ class Reconciler:
             tx_type=normalized_row["type"],
         )
 
-        # Check if transfer exists
-        stmt = select(Transfer).where(Transfer.transfer_id == transfer_id)
+        # Check if transfer exists in transactions table
+        stmt = select(Transaction).where(Transaction.transaction_id == transfer_id)
         existing = self.session.execute(stmt).scalar_one_or_none()
 
         if existing is None:
-            # INSERT new transfer
-            transfer = Transfer(
-                transfer_id=transfer_id,
+            # INSERT new transfer as Transaction
+            transfer = Transaction(
+                transaction_id=transfer_id,
                 date=normalized_row["date"],
                 amount=normalized_row["amount"],
                 currency=normalized_row["currency"],
                 type=normalized_row["type"],
+                account=normalized_row["from_account"],
                 from_account=normalized_row["from_account"],
                 to_account=normalized_row["to_account"],
                 category=normalized_row["category"],
@@ -308,9 +309,10 @@ class Reconciler:
             Number of transfers marked as deleted
         """
         stmt = (
-            select(Transfer)
-            .where(Transfer.last_seen_at < import_time)
-            .where(Transfer.is_deleted == False)  # noqa: E712
+            select(Transaction)
+            .where(Transaction.type == "Transfer")
+            .where(Transaction.last_seen_at < import_time)
+            .where(Transaction.is_deleted == False)  # noqa: E712
         )
 
         stale_transfers = self.session.execute(stmt).scalars().all()

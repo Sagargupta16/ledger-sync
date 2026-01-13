@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from ledger_sync.db.models import Transaction, TransactionType, Transfer
+from ledger_sync.db.models import Transaction, TransactionType
 from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/api/calculations", tags=["calculations"])
@@ -268,13 +268,8 @@ def get_account_balances(
 
     transactions = get_transactions(db, start_date, end_date)
 
-    # Get transfers
-    transfers_query = db.query(Transfer).filter(Transfer.is_deleted.is_(False))
-    if start_date:
-        transfers_query = transfers_query.filter(Transfer.date >= start_date)
-    if end_date:
-        transfers_query = transfers_query.filter(Transfer.date <= end_date)
-    transfers = transfers_query.all()
+    # Note: Transfers are now stored in transactions table with type='Transfer'
+    # No need for separate transfer query
 
     account_balances: dict[str, dict[str, Any]] = {}
 
@@ -304,20 +299,13 @@ def get_account_balances(
         ):
             account_balances[account]["last_transaction"] = tx.date
 
-    # Process transfers (add to destination, subtract from source) regardless of transfer subtype
-    # The dataset often stores each movement twice (Transfer-In/Transfer-Out) with identical from/to
-    # so we deduplicate by (date, amount, src, dst) to avoid double counting.
-    seen_transfers: set[tuple[datetime, float, str, str]] = set()
-    for tf in transfers:
-        amount = abs(float(tf.amount))
-        src = tf.from_account or "Unknown"
-        dst = tf.to_account or "Unknown"
-        key = (tf.date, amount, src, dst)
-
-        # Skip duplicate representations of the same movement
-        if key in seen_transfers:
-            continue
-        seen_transfers.add(key)
+    # Process transfers from transactions table (type='Transfer')
+    # Transfers now have from_account and to_account fields
+    transfer_txs = [tx for tx in transactions if tx.type == TransactionType.TRANSFER]
+    for tx in transfer_txs:
+        amount = abs(float(tx.amount))
+        src = tx.from_account or "Unknown"
+        dst = tx.to_account or "Unknown"
 
         # Initialize accounts if needed
         for acc in (src, dst):
@@ -337,9 +325,9 @@ def get_account_balances(
             account_balances[acc]["transactions"] += 1
             if (
                 account_balances[acc]["last_transaction"] is None
-                or tf.date > account_balances[acc]["last_transaction"]
+                or tx.date > account_balances[acc]["last_transaction"]
             ):
-                account_balances[acc]["last_transaction"] = tf.date
+                account_balances[acc]["last_transaction"] = tx.date
 
     # Calculate statistics
     total_balance = sum(acc["balance"] for acc in account_balances.values())

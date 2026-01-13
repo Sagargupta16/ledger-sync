@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from ledger_sync.db.models import Transaction, TransactionType, Transfer, TransferType
+from ledger_sync.db.models import Transaction, TransactionType
 from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/api/meta", tags=["meta"])
@@ -11,33 +11,39 @@ router = APIRouter(prefix="/api/meta", tags=["meta"])
 
 @router.get("/types")
 def get_types() -> dict[str, list[str]]:
-    """Return transaction and transfer types."""
+    """Return transaction types."""
     return {
         "transaction_types": [t.value for t in TransactionType],
-        "transfer_types": [t.value for t in TransferType],
     }
 
 
 @router.get("/accounts")
 def get_accounts(db: Session = Depends(get_session)) -> dict[str, list[str]]:
-    """Return unique accounts from transactions and transfers."""
+    """Return unique accounts from transactions (including transfers)."""
     accounts: set[str] = set()
 
-    # From transactions
+    # From transactions (account field)
     for (acct,) in (
         db.query(Transaction.account).filter(Transaction.is_deleted.is_(False)).distinct()
     ):
         if acct:
             accounts.add(acct)
 
-    # From transfers (both from/to)
-    for from_acct, to_acct in (
-        db.query(Transfer.from_account, Transfer.to_account)
-        .filter(Transfer.is_deleted.is_(False))
+    # From transfers (from_account field)
+    for (from_acct,) in (
+        db.query(Transaction.from_account)
+        .filter(Transaction.is_deleted.is_(False), Transaction.from_account.isnot(None))
         .distinct()
     ):
         if from_acct:
             accounts.add(from_acct)
+
+    # From transfers (to_account field)
+    for (to_acct,) in (
+        db.query(Transaction.to_account)
+        .filter(Transaction.is_deleted.is_(False), Transaction.to_account.isnot(None))
+        .distinct()
+    ):
         if to_acct:
             accounts.add(to_acct)
 
@@ -54,7 +60,6 @@ def get_filter_meta(db: Session = Depends(get_session)) -> dict[str, list[str]]:
     accounts = get_accounts(db)
     return {
         "transaction_types": types["transaction_types"],
-        "transfer_types": types["transfer_types"],
         "accounts": accounts["accounts"],
     }
 
@@ -144,14 +149,22 @@ def get_buckets(db: Session = Depends(get_session)) -> dict[str, list[str]]:
         if acct and _classify_account(acct) == "investment":
             investment_accounts.add(acct)
 
-    for from_acct, to_acct in (
-        db.query(Transfer.from_account, Transfer.to_account)
-        .filter(Transfer.is_deleted.is_(False))
+    # Check from_account and to_account in transactions (for transfers)
+    for (from_acct,) in (
+        db.query(Transaction.from_account)
+        .filter(Transaction.is_deleted.is_(False), Transaction.from_account.isnot(None))
         .distinct()
     ):
-        for acct in (from_acct, to_acct):
-            if acct and _classify_account(acct) == "investment":
-                investment_accounts.add(acct)
+        if from_acct and _classify_account(from_acct) == "investment":
+            investment_accounts.add(from_acct)
+
+    for (to_acct,) in (
+        db.query(Transaction.to_account)
+        .filter(Transaction.is_deleted.is_(False), Transaction.to_account.isnot(None))
+        .distinct()
+    ):
+        if to_acct and _classify_account(to_acct) == "investment":
+            investment_accounts.add(to_acct)
 
     return {
         "needs": sorted(needs),

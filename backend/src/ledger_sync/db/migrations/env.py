@@ -9,7 +9,7 @@ from sqlalchemy import engine_from_config, pool
 # Import application config and models
 from ledger_sync.config.settings import settings
 from ledger_sync.db.base import Base
-from ledger_sync.db.models import ImportLog, Transaction, Transfer  # noqa: F401
+from ledger_sync.db.models import ImportLog, Transaction  # noqa: F401
 
 # this is the Alembic Config object
 config = context.config
