@@ -30,20 +30,22 @@ const navigationGroups = [
     ],
   },
   {
-    id: 'data',
-    title: '⚙️ Settings & Data',
-    icon: Settings,
+    id: 'networth',
+    title: '📈 Net Worth & Forecasts',
+    icon: PiggyBank,
     items: [
-      { path: ROUTES.UPLOAD, label: 'Upload & Sync', icon: Upload },
-      { path: ROUTES.SETTINGS, label: 'Account Classification', icon: Settings },
+      { path: ROUTES.NET_WORTH, label: 'Net Worth Tracker', icon: PiggyBank },
+      { path: ROUTES.TRENDS_FORECASTS, label: 'Trends & Forecasts', icon: ForecastIcon },
     ],
   },
   {
-    id: 'transactions',
-    title: '💰 Transactions',
-    icon: Receipt,
+    id: 'analytics',
+    title: '📊 Financial Analytics',
+    icon: BarChart3,
     items: [
-      { path: ROUTES.TRANSACTIONS, label: 'All Transactions', icon: Receipt },
+      { path: ROUTES.SPENDING_ANALYSIS, label: 'Expense Analysis', icon: BarChart3 },
+      { path: ROUTES.INCOME_ANALYSIS, label: 'Income Analysis', icon: TrendingUp },
+      { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Cash Flow', icon: ArrowRightLeft },
     ],
   },
   {
@@ -65,29 +67,20 @@ const navigationGroups = [
     ],
   },
   {
-    id: 'networth',
-    title: '📈 Net Worth',
-    icon: PiggyBank,
+    id: 'transactions',
+    title: '💰 Transactions',
+    icon: Receipt,
     items: [
-      { path: ROUTES.NET_WORTH, label: 'Net Worth Tracker', icon: PiggyBank },
+      { path: ROUTES.TRANSACTIONS, label: 'All Transactions', icon: Receipt },
     ],
   },
   {
-    id: 'spending',
-    title: '📊 Spending Analysis',
-    icon: BarChart3,
+    id: 'data',
+    title: '⚙️ Settings & Data',
+    icon: Settings,
     items: [
-      { path: ROUTES.SPENDING_ANALYSIS, label: 'Category Spending', icon: BarChart3 },
-      { path: ROUTES.INCOME_ANALYSIS, label: 'Income Analysis', icon: TrendingUp },
-      { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Income-Expense Flow', icon: ArrowRightLeft },
-    ],
-  },
-  {
-    id: 'forecasts',
-    title: '🔮 Trends & Forecasts',
-    icon: ForecastIcon,
-    items: [
-      { path: ROUTES.TRENDS_FORECASTS, label: 'Forecasts', icon: ForecastIcon },
+      { path: ROUTES.UPLOAD, label: 'Upload & Sync', icon: Upload },
+      { path: ROUTES.SETTINGS, label: 'Account Classification', icon: Settings },
     ],
   },
 ]

@@ -61,8 +61,8 @@ function calculateTax(
   // Add 4% Health & Education Cess
   const cess = tax * 0.04
   
-  // Professional Tax (₹200/month, prorated based on salary months)
-  const professionalTax = applyProfessionalTax ? (200 * salaryMonthsCount) : 0
+  // Professional Tax (₹200/month, capped at 12 months maximum)
+  const professionalTax = applyProfessionalTax ? (200 * Math.min(salaryMonthsCount, 12)) : 0
   
   // Total tax including cess and professional tax
   const totalTax = tax + cess + professionalTax
@@ -154,8 +154,9 @@ export default function TaxPlanningPage() {
           grouped[fy].taxableIncome += tx.amount
         }
         
-        // Track months with Salary/Stipend/Pluxee for professional tax (not RSU)
-        if (hasSalary || hasStipend || hasPluxee) {
+        // Track months with Salary/Stipend only for professional tax (not RSU or Pluxee)
+        // Professional tax is only deducted when actual salary is paid
+        if (hasSalary || hasStipend) {
           const month = tx.date.substring(0, 7) // YYYY-MM
           grouped[fy].salaryMonths.add(month)
         }
@@ -219,13 +220,13 @@ export default function TaxPlanningPage() {
     const currentMonth = now.getMonth() // 0 = Jan, 3 = Apr
     
     // Financial year runs Apr (3) to Mar (2)
-    // Calculate remaining months AFTER current month (since current month may already have salary)
-    // If current month is Apr-Dec (3-11), remaining = 12 - (month - 3) - 1
-    // If current month is Jan-Mar (0-2), remaining = 3 - month - 1
+    // Calculate remaining months INCLUDING current month (since salary not received yet in current month)
+    // If current month is Apr-Dec (3-11), remaining = 12 - (month - 3)
+    // If current month is Jan-Mar (0-2), remaining = 3 - month
     if (currentMonth >= 3) {
-      remainingMonths = 12 - (currentMonth - 3) - 1
+      remainingMonths = 12 - (currentMonth - 3)
     } else {
-      remainingMonths = 3 - currentMonth - 1
+      remainingMonths = 3 - currentMonth
     }
     
     // Get the last AWS Salary transaction

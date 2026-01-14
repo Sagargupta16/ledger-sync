@@ -28,11 +28,12 @@ export default function Pagination({
           <select
             value={itemsPerPage}
             onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-            className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            className="px-3 py-1 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer hover:bg-gray-800"
           >
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
+            <option value={10} className="bg-gray-800 text-gray-200">10</option>
+            <option value={25} className="bg-gray-800 text-gray-200">25</option>
+            <option value={50} className="bg-gray-800 text-gray-200">50</option>
+            <option value={100} className="bg-gray-800 text-gray-200">100</option>
           </select>
           <span className="text-sm text-muted-foreground">per page</span>
         </div>

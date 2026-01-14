@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 export default function TransactionsPage() {
   const [filters, setFilters] = useState<FilterValues>({})
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(50)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }])
   const [isExporting, setIsExporting] = useState(false)
 
