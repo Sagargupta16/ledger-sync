@@ -1,11 +1,13 @@
 """FastAPI application for ledger-sync web interface."""
 
+import csv
+import io
 import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -20,6 +22,10 @@ from ledger_sync.db.session import get_session, init_db
 from ledger_sync.ingest.normalizer import NormalizationError
 from ledger_sync.ingest.validator import ValidationError
 from ledger_sync.utils.logging import logger, setup_logging
+
+# Query description constants
+START_DATE_DESC = "Start date (inclusive)"
+END_DATE_DESC = "End date (inclusive)"
 
 # Initialize logging
 setup_logging("INFO")
@@ -84,8 +90,8 @@ async def health() -> HealthResponse:
 @app.get("/api/transactions")
 async def get_transactions(
     db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None, description="Start date (inclusive)"),
-    end_date: datetime | None = Query(None, description="End date (inclusive)"),
+    start_date: datetime | None = Query(None, description=START_DATE_DESC),
+    end_date: datetime | None = Query(None, description=END_DATE_DESC),
 ) -> list[dict]:
     """Get all non-deleted transactions (including transfers).
 
@@ -148,8 +154,8 @@ async def search_transactions(
     type: str | None = Query(None, description="Filter by type (Income/Expense/Transfer)"),
     min_amount: float | None = Query(None, description="Minimum amount"),
     max_amount: float | None = Query(None, description="Maximum amount"),
-    start_date: datetime | None = Query(None, description="Start date (inclusive)"),
-    end_date: datetime | None = Query(None, description="End date (inclusive)"),
+    start_date: datetime | None = Query(None, description=START_DATE_DESC),
+    end_date: datetime | None = Query(None, description=END_DATE_DESC),
     limit: int = Query(100, ge=1, le=1000, description="Maximum results to return"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     sort_by: str = Query(
@@ -377,6 +383,66 @@ async def upload_excel(
             except PermissionError:
                 # On Windows, file might still be locked, ignore
                 pass
+
+
+# --- CSV Export Endpoint ---
+@app.get("/api/transactions/export")
+async def export_transactions(
+    db: Session = Depends(get_session),
+    start_date: datetime | None = Query(None, description=START_DATE_DESC),
+    end_date: datetime | None = Query(None, description=END_DATE_DESC),
+):
+    """Export all non-deleted transactions as CSV."""
+    query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
+    if start_date:
+        query = query.filter(Transaction.date >= start_date.date())
+    if end_date:
+        query = query.filter(Transaction.date <= end_date.date())
+    transactions = query.all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "id",
+            "date",
+            "amount",
+            "currency",
+            "type",
+            "category",
+            "subcategory",
+            "account",
+            "from_account",
+            "to_account",
+            "note",
+            "source_file",
+            "last_seen_at",
+        ]
+    )
+    for tx in transactions:
+        writer.writerow(
+            [
+                tx.transaction_id,
+                tx.date.isoformat(),
+                float(tx.amount),
+                tx.currency,
+                tx.type.value,
+                tx.category,
+                tx.subcategory or "",
+                tx.account,
+                tx.from_account,
+                tx.to_account,
+                tx.note or "",
+                tx.source_file,
+                tx.last_seen_at.isoformat(),
+            ]
+        )
+    output.seek(0)
+    return Response(
+        content=output.read(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=transactions.csv"},
+    )
 
 
 if __name__ == "__main__":
