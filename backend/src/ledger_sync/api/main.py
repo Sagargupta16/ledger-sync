@@ -99,13 +99,13 @@ async def get_transactions(
     """
     # Build query
     query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
-    
+
     # Apply date filters if provided
     if start_date:
         query = query.filter(Transaction.date >= start_date.date())
     if end_date:
         query = query.filter(Transaction.date <= end_date.date())
-    
+
     # Get all transactions
     transactions = query.all()
 

@@ -18,7 +18,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     start_date: dateRange.start_date,
     end_date: dateRange.end_date,
   })
-  const { data: totalsData, isLoading: totalsLoading } = useTotals(dateRange)
+  const { isLoading: totalsLoading } = useTotals(dateRange)
 
   // Filter for expense transactions
   const transactionsData = {

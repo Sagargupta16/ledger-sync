@@ -88,17 +88,15 @@ export default function NetWorthPage() {
     .sort((a, b) => a.month.localeCompare(b.month))
   
   // Calculate cumulative values for net worth, income, and expenses
-  let cumulativeNetWorth = 0
-  let cumulativeIncome = 0
-  let cumulativeExpenses = 0
-  const netWorthData = monthlyNetWorth.map(item => {
-    cumulativeNetWorth += item.monthlyFlow
-    cumulativeIncome += item.income
-    cumulativeExpenses += item.expenses
+  const netWorthData = monthlyNetWorth.reduce((acc, item) => {
+    const prevItem = acc[acc.length - 1]
+    const cumulativeNetWorth = (prevItem?.netWorth || 0) + item.monthlyFlow
+    const cumulativeIncome = (prevItem?.cumulativeIncome || 0) + item.income
+    const cumulativeExpenses = (prevItem?.cumulativeExpenses || 0) + item.expenses
     
     // Calculate category breakdowns based on current proportions
     const positiveNetWorth = Math.max(cumulativeNetWorth, 0)
-    return {
+    acc.push({
       ...item,
       netWorth: cumulativeNetWorth,
       cumulativeIncome,
@@ -107,8 +105,9 @@ export default function NetWorthPage() {
       invested: positiveNetWorth * categoryProportions.invested,
       lended: positiveNetWorth * categoryProportions.lended,
       other: positiveNetWorth * categoryProportions.other,
-    }
-  })
+    })
+    return acc
+  }, [] as Array<typeof monthlyNetWorth[number] & { netWorth: number; cumulativeIncome: number; cumulativeExpenses: number; cashbank: number; invested: number; lended: number; other: number }>)
 
   return (
     <div className="min-h-screen p-8">
@@ -329,7 +328,7 @@ export default function NetWorthPage() {
                 </thead>
                 <tbody>
                   {Object.entries(accounts)
-                    .filter(([_, accountData]: [string, { balance: number; transaction_count: number }]) => accountData.balance > 0 && Math.abs(accountData.balance) >= 0.01)
+                    .filter(([, accountData]: [string, { balance: number; transaction_count: number }]) => accountData.balance > 0 && Math.abs(accountData.balance) >= 0.01)
                     .sort((a: [string, { balance: number; transaction_count: number }], b: [string, { balance: number; transaction_count: number }]) => {
                       // Sort by category first, then by balance within category
                       const catA = accountClassifications[a[0]] || 'Other'
@@ -427,7 +426,7 @@ export default function NetWorthPage() {
                 </thead>
                 <tbody>
                   {Object.entries(accounts)
-                    .filter(([_, accountData]: [string, { balance: number; transaction_count: number }]) => accountData.balance < 0 && Math.abs(accountData.balance) >= 0.01)
+                    .filter(([, accountData]: [string, { balance: number; transaction_count: number }]) => accountData.balance < 0 && Math.abs(accountData.balance) >= 0.01)
                     .sort((a: [string, { balance: number; transaction_count: number }], b: [string, { balance: number; transaction_count: number }]) => {
                       // Sort by category first, then by balance within category
                       const catA = accountClassifications[a[0]] || 'Other'

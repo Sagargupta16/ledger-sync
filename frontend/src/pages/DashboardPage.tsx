@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { DollarSign, TrendingDown, TrendingUp, Percent, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
+import { DollarSign, TrendingDown, TrendingUp, Percent } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import RecentTransactions from '@/components/shared/RecentTransactions'
 import QuickInsights from '@/components/shared/QuickInsights'
@@ -57,43 +57,6 @@ export default function DashboardPage() {
     return Object.values(monthlyData).map((m: { expense?: number }) => Math.abs(m.expense || 0))
   }, [monthlyData])
 
-  // Calculate current month and last month data
-  const monthlyComparison = useMemo(() => {
-    if (!monthlyData || Object.keys(monthlyData).length === 0) {
-      return { currentMonth: null, lastMonth: null, changes: { income: 0, expense: 0, savings: 0 } }
-    }
-
-    const months = Object.keys(monthlyData).sort()
-    const currentMonthKey = months[months.length - 1]
-    const lastMonthKey = months[months.length - 2]
-
-    const current = monthlyData[currentMonthKey] || { income: 0, expense: 0 }
-    const last = lastMonthKey ? (monthlyData[lastMonthKey] || { income: 0, expense: 0 }) : { income: 0, expense: 0 }
-
-    const currentIncome = current.income || 0
-    const currentExpense = Math.abs(current.expense || 0)
-    const currentSavings = currentIncome - currentExpense
-
-    const lastIncome = last.income || 0
-    const lastExpense = Math.abs(last.expense || 0)
-    const lastSavings = lastIncome - lastExpense
-
-    const calculateChange = (current: number, last: number) => {
-      if (last === 0) return 0
-      return ((current - last) / last) * 100
-    }
-
-    return {
-      currentMonth: { income: currentIncome, expense: currentExpense, savings: currentSavings },
-      lastMonth: { income: lastIncome, expense: lastExpense, savings: lastSavings },
-      changes: {
-        income: calculateChange(currentIncome, lastIncome),
-        expense: calculateChange(currentExpense, lastExpense),
-        savings: calculateChange(currentSavings, lastSavings),
-      },
-    }
-  }, [monthlyData])
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -101,28 +64,6 @@ export default function DashboardPage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value)
-  }
-
-  const renderChangeIndicator = (change: number) => {
-    if (Math.abs(change) < 0.1) {
-      return (
-        <span className="flex items-center gap-1 text-xs text-gray-400">
-          <Minus className="w-3 h-3" />
-          <span>0%</span>
-        </span>
-      )
-    }
-    
-    const isPositive = change > 0
-    const Icon = isPositive ? ArrowUpRight : ArrowDownRight
-    const colorClass = isPositive ? 'text-green-500' : 'text-red-500'
-    
-    return (
-      <span className={`flex items-center gap-1 text-xs ${colorClass}`}>
-        <Icon className="w-3 h-3" />
-        <span>{Math.abs(change).toFixed(1)}%</span>
-      </span>
-    )
   }
 
   return (

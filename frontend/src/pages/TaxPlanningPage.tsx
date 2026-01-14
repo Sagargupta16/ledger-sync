@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Receipt, Calculator, TrendingUp, ChevronLeft, ChevronRight, IndianRupee } from 'lucide-react'
+import { Calculator, TrendingUp, ChevronLeft, ChevronRight, IndianRupee } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 
 // Tax slabs before FY 2025-26
@@ -212,7 +212,6 @@ export default function TaxPlanningPage() {
   let remainingMonths = 0
   let lastMonthSalary = 0
   let projectedAdditionalIncome = 0
-  let projectedTotalGrossIncome = grossTaxableIncome + standardDeduction
   
   if (showProjection && isCurrentFY && hasEmploymentIncome) {
     // Get current month (0-11)
@@ -245,7 +244,6 @@ export default function TaxPlanningPage() {
       const projectedSalaryMonthsCount = salaryMonthsCount + remainingMonths
       
       projectedGrossTaxableIncome = calculateGrossFromNet(projectedNetTotal, taxSlabs, standardDeduction, true, projectedSalaryMonthsCount)
-      projectedTotalGrossIncome = projectedGrossTaxableIncome + standardDeduction
       const projectedCalc = calculateTax(projectedGrossTaxableIncome, taxSlabs, standardDeduction, true, projectedSalaryMonthsCount)
       projectedBaseTax = projectedCalc.tax
       projectedSlabBreakdown = projectedCalc.slabBreakdown

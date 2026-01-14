@@ -3,9 +3,17 @@ import { ArrowRightLeft, TrendingUp, TrendingDown, Calendar } from 'lucide-react
 import { useState, useEffect } from 'react'
 import { ResponsiveContainer, Sankey, Tooltip } from 'recharts'
 
+interface Transaction {
+  date: string
+  amount: number
+  category: string
+  account: string
+  [key: string]: unknown
+}
+
 const IncomeExpenseFlowPage = () => {
   const [selectedFY, setSelectedFY] = useState('25-26')
-  const [transactions, setTransactions] = useState<any[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -60,8 +68,8 @@ const IncomeExpenseFlowPage = () => {
   const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0
 
   // Prepare Sankey data
-  const nodes: any[] = []
-  const links: any[] = []
+  const nodes: Array<{ name: string; color?: string }> = []
+  const links: Array<{ source: number; target: number; value: number; color?: string }> = []
   let nodeIndex = 0
   const nodeMap = new Map<string, number>()
   const nodeValues = new Map<number, number>()
@@ -278,14 +286,14 @@ const IncomeExpenseFlowPage = () => {
           </div>
         ) : nodes.length > 0 ? (
           <div className="relative bg-gradient-to-br from-gray-900/30 to-gray-800/30 rounded-xl border border-white/5 p-6 overflow-x-auto">
-            <div style={{ minWidth: '1000px', height: '700px' }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ minWidth: '1000px', height: '700px', position: 'relative' }}>
+              <ResponsiveContainer width="100%" height={700}>
                 <Sankey
-                  data={sankeyData}
+                  data={sankeyData as { nodes: Array<{ name: string }>; links: Array<{ source: number; target: number; value: number }> }}
                   nodeWidth={20}
                   nodePadding={60}
                   margin={{ top: 30, right: 200, bottom: 30, left: 200 }}
-                  node={(nodeProps: any) => {
+                  node={(nodeProps: { x: number; y: number; width: number; height: number; index: number; payload: { name: string } }) => {
                     const { x, y, width, height, index, payload } = nodeProps
                     const value = nodeValues.get(index) || 0
                     const percentage = totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0'

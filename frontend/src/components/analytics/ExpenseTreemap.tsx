@@ -210,7 +210,7 @@ export default function ExpenseTreemap() {
             isAnimationActive={false}
             content={(props: unknown) => {
               const typedProps = props as { x: number; y: number; width: number; height: number; name: string; size: number; colorIndex: number; depth: number }
-              const { x, y, width, height, name, size, colorIndex, depth } = typedProps
+              const { x, y, width, height, name, size, colorIndex } = typedProps
               
               // Hide text in very small boxes
               if (width < 45 || height < 32) return null

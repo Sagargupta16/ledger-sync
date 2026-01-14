@@ -97,11 +97,22 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
         ),
         cell: ({ row }) => {
           const amount = row.original.amount
-          const isIncome = amount >= 0
+          const type = row.original.type
+          const isIncome = type === 'Income' || type === 'income'
+          const isTransfer = type === 'Transfer' || type === 'transfer'
+          
+          const colorClass = isTransfer 
+            ? 'text-blue-400' 
+            : isIncome 
+            ? 'text-green-500' 
+            : 'text-red-500'
+          
+          const prefix = isTransfer ? '' : isIncome ? '+' : '-'
+          
           return (
-            <span className={`text-sm font-semibold ${isIncome ? 'text-green-500' : 'text-red-500'}`}>
-              {isIncome ? '+' : '-'}
-              {formatCurrency(amount)}
+            <span className={`text-sm font-semibold ${colorClass}`}>
+              {prefix}
+              {formatCurrency(Math.abs(amount))}
             </span>
           )
         },
@@ -119,6 +130,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     []
   )
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: transactions,
     columns,

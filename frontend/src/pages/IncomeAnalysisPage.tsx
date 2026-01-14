@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TrendingUp, DollarSign, Activity, BarChart3, Calendar } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts'
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { useState, useMemo } from 'react'
 
 const COLORS = ['#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b']
@@ -16,7 +16,6 @@ export default function IncomeAnalysisPage() {
   const { data: transactions } = useTransactions()
 
   const totalIncome = incomeData?.total || 0
-  const categoriesCount = Object.keys(incomeData?.categories || {}).length
   const topSource = Object.entries(incomeData?.categories || {}).sort((a, b) => b[1].total - a[1].total)[0]?.[0] || 'N/A'
 
   // Process income trend data
