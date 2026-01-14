@@ -123,42 +123,64 @@ export default function TaxPlanningPage() {
 
   // Group transactions by Financial Year
   const transactionsByFY = useMemo(() => {
-    const grouped: Record<string, { 
-      income: number
-      expense: number
-      taxableIncome: number  // Net received (after TDS) - only Salary/Stipend/RSU
-      salaryMonths: Set<string>
-      transactions: typeof allTransactions 
-    }> = {}
+    const grouped: Record<
+      string,
+      {
+        income: number
+        expense: number
+        taxableIncome: number
+        salaryMonths: Set<string>
+        transactions: typeof allTransactions
+        incomeGroups: {
+          [key: string]: {
+            total: number
+            transactions: typeof allTransactions
+          }
+        }
+      }
+    > = {}
 
     for (const tx of allTransactions) {
       const fy = getFYFromDate(tx.date)
       if (!grouped[fy]) {
-        grouped[fy] = { income: 0, expense: 0, taxableIncome: 0, salaryMonths: new Set(), transactions: [] }
+        grouped[fy] = {
+          income: 0,
+          expense: 0,
+          taxableIncome: 0,
+          salaryMonths: new Set(),
+          transactions: [],
+          incomeGroups: {
+            'Salary & Stipend': { total: 0, transactions: [] },
+            EPF: { total: 0, transactions: [] },
+            'Other Taxable Income': { total: 0, transactions: [] },
+          },
+        }
       }
       grouped[fy].transactions.push(tx)
 
       if (tx.type === 'Income') {
-        // Total income (all types)
         grouped[fy].income += tx.amount
-        
-        // Taxable income: Only Salary, Stipend, RSU, or Pluxee (check note field)
+
         const note = tx.note?.toLowerCase() || ''
-        const hasSalary = note.includes('salary')
-        const hasStipend = note.includes('stipend')
-        const hasRSU = note.includes('rsu')
-        const hasPluxee = note.includes('pluxee')
-        
-        // Add to taxable income if it's employment income
-        if (hasSalary || hasStipend || hasRSU || hasPluxee) {
-          grouped[fy].taxableIncome += tx.amount
-        }
-        
-        // Track months with Salary/Stipend only for professional tax (not RSU or Pluxee)
-        // Professional tax is only deducted when actual salary is paid
-        if (hasSalary || hasStipend) {
-          const month = tx.date.substring(0, 7) // YYYY-MM
-          grouped[fy].salaryMonths.add(month)
+        const isSalaryOrStipend = note.includes('salary') || note.includes('stipend')
+        const isEPF = note.includes('aws epf')
+        const isOtherTaxable = note.includes('rsu') || note.includes('pluxee') || note.includes('aws relocation money')
+
+        if (isSalaryOrStipend) {
+            grouped[fy].taxableIncome += tx.amount
+            grouped[fy].incomeGroups['Salary & Stipend'].total += tx.amount
+            grouped[fy].incomeGroups['Salary & Stipend'].transactions.push(tx)
+            const month = tx.date.substring(0, 7)
+            grouped[fy].salaryMonths.add(month)
+        } else if (isEPF) {
+            const epfTaxablePortion = tx.amount / 2
+            grouped[fy].taxableIncome += epfTaxablePortion
+            grouped[fy].incomeGroups.EPF.total += epfTaxablePortion
+            grouped[fy].incomeGroups.EPF.transactions.push(tx)
+        } else if (isOtherTaxable) {
+            grouped[fy].taxableIncome += tx.amount
+            grouped[fy].incomeGroups['Other Taxable Income'].total += tx.amount
+            grouped[fy].incomeGroups['Other Taxable Income'].transactions.push(tx)
         }
       } else if (tx.type === 'Expense') {
         grouped[fy].expense += tx.amount
@@ -548,6 +570,55 @@ export default function TaxPlanningPage() {
                 ₹{((showProjection && isCurrentFY && hasEmploymentIncome ? income + projectedAdditionalIncome : income) - expense).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </p>
             </div>
+          </div>
+        </motion.div>
+
+        {/* Salaried Taxable Income Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+        >
+          <h3 className="text-lg font-semibold text-white mb-6">Salaried Taxable Income for {selectedFY}</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Date</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-300">Amount</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Type</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentFYData?.incomeGroups && Object.entries(currentFYData.incomeGroups).map(([group, data]) => (
+                  data.transactions.length > 0 && (
+                    <>
+                      <tr className="border-b border-white/10 bg-white/5">
+                        <td colSpan={2} className="py-3 px-4 text-left font-bold text-white">{group}</td>
+                        <td className="py-3 px-4 text-right font-bold text-white">
+                          ₹{data.total.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3 px-4 text-right font-bold text-white">
+                          {netTaxableIncome > 0 ? `${((data.total / netTaxableIncome) * 100).toFixed(2)}%` : '0.00%'}
+                        </td>
+                      </tr>
+                      {data.transactions.map((tx, index) => (
+                        <tr key={index} className="border-b border-white/5">
+                          <td className="py-3 px-4 text-white">{new Date(tx.date).toLocaleDateString()}</td>
+                          <td className="py-3 px-4 text-right font-bold text-green-400">
+                            ₹{(group === 'EPF' ? tx.amount / 2 : tx.amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-4 text-white">{tx.type}</td>
+                          <td className="py-3 px-4 text-white">{tx.note}</td>
+                        </tr>
+                      ))}
+                    </>
+                  )
+                ))}
+              </tbody>
+            </table>
           </div>
         </motion.div>
       </div>
