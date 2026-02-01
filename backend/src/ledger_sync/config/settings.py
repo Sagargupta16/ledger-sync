@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     data_dir: Path = Path("./data")
 
+    # CORS settings
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+    ]
+
     # Column name mappings (for normalization)
     date_column_names: list[str] = ["Period", "Date", "date", "period"]
     account_column_names: list[str] = ["Accounts", "Account", "account", "accounts"]

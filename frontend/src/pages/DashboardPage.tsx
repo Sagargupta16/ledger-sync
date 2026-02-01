@@ -5,6 +5,7 @@ import RecentTransactions from '@/components/shared/RecentTransactions'
 import QuickInsights from '@/components/shared/QuickInsights'
 import TimeRangeSelector, { type TimeRange } from '@/components/shared/TimeRangeSelector'
 import Sparkline from '@/components/shared/Sparkline'
+import { FinancialHealthScore, PeriodComparison, BudgetTracker } from '@/components/analytics'
 import { useRecentTransactions } from '@/hooks/api/useAnalytics'
 import { useMonthlyAggregation, useTotals } from '@/hooks/useAnalytics'
 import { useState, useMemo } from 'react'
@@ -131,6 +132,15 @@ export default function DashboardPage() {
           <QuickInsights dateRange={dateRange} />
         </motion.div>
       </div>
+
+      {/* Financial Health & Period Comparison */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <FinancialHealthScore />
+        <PeriodComparison />
+      </div>
+
+      {/* Budget Tracker */}
+      <BudgetTracker />
     </div>
   )
 }

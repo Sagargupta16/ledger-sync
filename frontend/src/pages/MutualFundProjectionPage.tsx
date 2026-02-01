@@ -84,8 +84,7 @@ export default function MutualFundProjectionPage() {
           .sort((a, b) => b.balance - a.balance)
 
         setInvestmentAccounts(accounts)
-      } catch (error) {
-        console.error('Failed to load mutual fund accounts', error)
+      } catch {
         setInvestmentAccounts([])
       }
     }

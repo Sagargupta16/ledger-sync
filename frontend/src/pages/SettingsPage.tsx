@@ -70,14 +70,12 @@ export default function SettingsPage() {
       setError(null)
       try {
         const data = await accountClassificationsService.getAllClassifications()
-        console.log('Loaded classifications:', data)
         
         // Fill in defaults for accounts without classifications
         const withDefaults = { ...getDefaultClassifications(accounts), ...data }
         setClassifications(withDefaults)
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Failed to load account classifications'
-        console.error('Error loading classifications:', error)
         setError(errorMsg)
         toast.error(errorMsg)
       } finally {
@@ -126,9 +124,8 @@ export default function SettingsPage() {
 
       setHasChanges(false)
       toast.success('Account classifications saved successfully')
-    } catch (error) {
+    } catch {
       toast.error('Failed to save account classifications')
-      console.error(error)
     } finally {
       setIsSaving(false)
     }
@@ -140,8 +137,7 @@ export default function SettingsPage() {
       setClassifications(data)
       setHasChanges(false)
       toast.success('Changes discarded')
-    } catch (error) {
-      console.error('Failed to reload classifications:', error)
+    } catch {
       toast.error('Failed to reload classifications')
     }
   }

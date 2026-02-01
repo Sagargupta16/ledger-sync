@@ -5,6 +5,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { useState, useEffect } from 'react'
 import React from 'react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { CreditCardHealth } from '@/components/analytics'
 
 export default function NetWorthPage() {
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
@@ -17,7 +18,7 @@ export default function NetWorthPage() {
     fetch('/api/account-classifications')
       .then(res => res.json())
       .then(data => setAccountClassifications(data))
-      .catch(err => console.error('Failed to fetch account classifications:', err))
+      .catch(() => { /* silently fail */ })
   }, [])
 
   const isLoading = balancesLoading || aggregationLoading
@@ -499,6 +500,9 @@ export default function NetWorthPage() {
             <div className="text-center py-8 text-gray-400">No liability accounts found</div>
           )}
         </motion.div>
+
+        {/* Credit Card Health */}
+        <CreditCardHealth />
       </div>
     </div>
   )

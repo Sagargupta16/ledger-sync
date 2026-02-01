@@ -22,8 +22,8 @@ export default function InvestmentAnalyticsPage() {
       try {
         const result = await accountClassificationsService.getAccountsByType('Investments')
         setInvestmentAccounts(result.accounts || [])
-      } catch (error) {
-        console.error('Failed to load investment accounts:', error)
+      } catch {
+        // Silently fail - will use empty array
       } finally {
         setIsLoadingClassifications(false)
       }

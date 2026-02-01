@@ -16,6 +16,7 @@ from ledger_sync.api.account_classifications import router as account_classifica
 from ledger_sync.api.analytics import router as analytics_router
 from ledger_sync.api.calculations import router as calculations_router
 from ledger_sync.api.meta import router as meta_router
+from ledger_sync.config.settings import settings
 from ledger_sync.core.sync_engine import SyncEngine
 from ledger_sync.db.models import Transaction
 from ledger_sync.db.session import get_session, init_db
@@ -42,11 +43,7 @@ app = FastAPI(
 # Configure CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-    ],  # Next.js and Vite default ports
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,6 +72,35 @@ class HealthResponse(BaseModel):
     version: str
 
 
+class TransactionResponse(BaseModel):
+    """Single transaction response model."""
+
+    id: str
+    date: str
+    amount: float
+    currency: str
+    type: str
+    category: str
+    subcategory: str
+    account: str
+    from_account: str | None
+    to_account: str | None
+    note: str
+    source_file: str
+    last_seen_at: str
+    is_transfer: bool
+
+
+class TransactionsListResponse(BaseModel):
+    """Paginated transactions list response."""
+
+    data: list[TransactionResponse]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
 @app.get("/", response_model=HealthResponse)
 async def root() -> HealthResponse:
     """Root endpoint - health check."""
@@ -87,21 +113,25 @@ async def health() -> HealthResponse:
     return HealthResponse(status="healthy", version="1.0.0")
 
 
-@app.get("/api/transactions")
+@app.get("/api/transactions", response_model=TransactionsListResponse)
 async def get_transactions(
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None, description=START_DATE_DESC),
     end_date: datetime | None = Query(None, description=END_DATE_DESC),
-) -> list[dict]:
-    """Get all non-deleted transactions (including transfers).
+    limit: int = Query(100, ge=1, le=1000, description="Maximum results to return"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+) -> TransactionsListResponse:
+    """Get all non-deleted transactions (including transfers) with pagination.
 
     Args:
         db: Database session
         start_date: Optional start date filter (inclusive)
         end_date: Optional end date filter (inclusive)
+        limit: Maximum number of results to return
+        offset: Number of results to skip (for pagination)
 
     Returns:
-        List of transactions in JSON format
+        Paginated list of transactions in JSON format
     """
     # Build query
     query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
@@ -112,36 +142,42 @@ async def get_transactions(
     if end_date:
         query = query.filter(Transaction.date <= end_date.date())
 
-    # Get all transactions
-    transactions = query.all()
+    # Get total count before pagination
+    total = query.count()
+
+    # Apply sorting and pagination
+    transactions = query.order_by(Transaction.date.desc()).offset(offset).limit(limit).all()
 
     result = []
 
     # Add transactions
     for tx in transactions:
         result.append(
-            {
-                "id": tx.transaction_id,
-                "date": tx.date.isoformat(),
-                "amount": float(tx.amount),
-                "currency": tx.currency,
-                "type": tx.type.value,
-                "category": tx.category,
-                "subcategory": tx.subcategory or "",
-                "account": tx.account,
-                "from_account": tx.from_account,
-                "to_account": tx.to_account,
-                "note": tx.note or "",
-                "source_file": tx.source_file,
-                "last_seen_at": tx.last_seen_at.isoformat(),
-                "is_transfer": tx.type.value == "Transfer",
-            }
+            TransactionResponse(
+                id=tx.transaction_id,
+                date=tx.date.isoformat(),
+                amount=float(tx.amount),
+                currency=tx.currency,
+                type=tx.type.value,
+                category=tx.category,
+                subcategory=tx.subcategory or "",
+                account=tx.account,
+                from_account=tx.from_account,
+                to_account=tx.to_account,
+                note=tx.note or "",
+                source_file=tx.source_file,
+                last_seen_at=tx.last_seen_at.isoformat(),
+                is_transfer=tx.type.value == "Transfer",
+            )
         )
 
-    # Sort by date descending
-    result.sort(key=lambda x: x["date"], reverse=True)
-
-    return result
+    return TransactionsListResponse(
+        data=result,
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=offset + limit < total,
+    )
 
 
 @app.get("/api/transactions/search")
@@ -381,8 +417,19 @@ async def upload_excel(
             try:
                 tmp_path.unlink()
             except PermissionError:
-                # On Windows, file might still be locked, ignore
-                pass
+                # On Windows, file might still be locked, schedule for later cleanup
+                import atexit
+
+                def cleanup_later():
+                    try:
+                        if tmp_path.exists():
+                            tmp_path.unlink()
+                    except Exception:
+                        pass
+
+                atexit.register(cleanup_later)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to clean up temp file {tmp_path}: {cleanup_error}")
 
 
 # --- CSV Export Endpoint ---

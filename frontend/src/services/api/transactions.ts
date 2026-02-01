@@ -17,20 +17,58 @@ export interface TransactionFilters {
   sort_order?: 'asc' | 'desc'
 }
 
-export interface TransactionsResponse {
-  transactions: Transaction[]
+export interface PaginatedResponse<T> {
+  data: T[]
   total: number
-  page: number
   limit: number
+  offset: number
   has_more: boolean
 }
 
 export const transactionsService = {
+  /**
+   * Get ALL transactions (for charts and analytics that need complete data).
+   * This fetches all pages from the API.
+   */
   getTransactions: async (filters?: TransactionFilters): Promise<Transaction[]> => {
-    const response = await apiClient.get<Transaction[]>('/api/transactions', {
-      params: filters,
+    // If a specific limit is provided, use single request
+    if (filters?.limit) {
+      const response = await apiClient.get<PaginatedResponse<Transaction> | Transaction[]>('/api/transactions', {
+        params: filters,
+      })
+      if (Array.isArray(response.data)) {
+        return response.data
+      }
+      return response.data?.data || []
+    }
+    
+    // Otherwise fetch ALL transactions (for charts/analytics)
+    const allTransactions: Transaction[] = []
+    let offset = 0
+    const pageSize = 1000 // Fetch in larger chunks for efficiency
+    
+    while (true) {
+      const response = await apiClient.get<PaginatedResponse<Transaction>>('/api/transactions', {
+        params: { ...filters, limit: pageSize, offset },
+      })
+      
+      const pageData = response.data?.data || []
+      allTransactions.push(...pageData)
+      
+      if (!response.data?.has_more || pageData.length === 0) {
+        break
+      }
+      offset += pageSize
+    }
+    
+    return allTransactions
+  },
+
+  getTransactionsPaginated: async (filters?: TransactionFilters): Promise<PaginatedResponse<Transaction>> => {
+    const response = await apiClient.get<PaginatedResponse<Transaction>>('/api/transactions', {
+      params: { ...filters, limit: filters?.limit || 100 },
     })
-    return response.data || []
+    return response.data
   },
 
   exportToCSV: async (filters: TransactionFilters = {}): Promise<Blob> => {

@@ -43,7 +43,11 @@ def sample_transaction_data() -> dict:
 
 @pytest.fixture
 def sample_transaction(test_db_session: Session) -> Transaction:
-    """Create a sample transaction in the database."""
+    """Create a sample transaction in the database with an old timestamp."""
+    from datetime import timedelta
+
+    # Use an old timestamp so soft delete tests work correctly
+    old_timestamp = datetime.now(UTC) - timedelta(days=1)
     transaction = Transaction(
         transaction_id="test123",
         date=datetime(2024, 1, 15, 10, 30, 0),
@@ -55,7 +59,7 @@ def sample_transaction(test_db_session: Session) -> Transaction:
         subcategory="Groceries",
         note="Weekly shopping",
         source_file="test.xlsx",
-        last_seen_at=datetime.now(UTC),
+        last_seen_at=old_timestamp,
         is_deleted=False,
     )
     test_db_session.add(transaction)

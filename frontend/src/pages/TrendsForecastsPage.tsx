@@ -4,6 +4,7 @@ import { useTrends } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, ComposedChart, Line, Bar, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { CashFlowForecast } from '@/components/analytics'
 
 import type { TimeRange } from '@/types'
 
@@ -482,6 +483,9 @@ export default function TrendsForecastsPage() {
             <div className="text-center py-8 text-gray-400">No data available</div>
           )}
         </motion.div>
+
+        {/* Cash Flow Forecast */}
+        <CashFlowForecast />
       </div>
     </div>
   )

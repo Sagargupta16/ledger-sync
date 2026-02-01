@@ -93,7 +93,9 @@ class ImportLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     file_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     file_name: Mapped[str] = mapped_column(String(500), nullable=False)
-    imported_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
     rows_processed: Mapped[int] = mapped_column(nullable=False, default=0)
     rows_inserted: Mapped[int] = mapped_column(nullable=False, default=0)
     rows_updated: Mapped[int] = mapped_column(nullable=False, default=0)

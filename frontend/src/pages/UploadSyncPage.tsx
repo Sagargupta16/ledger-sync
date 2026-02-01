@@ -34,7 +34,6 @@ export default function UploadSyncPage() {
           description: errorMessage,
         })
       }
-      console.error('Upload failed:', error)
     }
   }
 
@@ -46,7 +45,6 @@ export default function UploadSyncPage() {
 
   const downloadTemplate = () => {
     // TODO: Add template download functionality
-    console.log('Download template')
   }
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Calculator, TrendingUp, ChevronLeft, ChevronRight, IndianRupee } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -595,7 +595,7 @@ export default function TaxPlanningPage() {
               <tbody>
                 {currentFYData?.incomeGroups && Object.entries(currentFYData.incomeGroups).map(([group, data]) => (
                   data.transactions.length > 0 && (
-                    <>
+                    <React.Fragment key={group}>
                       <tr className="border-b border-white/10 bg-white/5">
                         <td colSpan={2} className="py-3 px-4 text-left font-bold text-white">{group}</td>
                         <td className="py-3 px-4 text-right font-bold text-white">
@@ -615,7 +615,7 @@ export default function TaxPlanningPage() {
                           <td className="py-3 px-4 text-white">{tx.note}</td>
                         </tr>
                       ))}
-                    </>
+                    </React.Fragment>
                   )
                 ))}
               </tbody>

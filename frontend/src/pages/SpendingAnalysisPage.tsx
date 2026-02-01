@@ -2,10 +2,15 @@ import { motion } from 'framer-motion'
 import { TrendingDown, Tag, PieChart } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import { formatCurrency } from '@/lib/formatters'
-import ExpenseTreemap from '@/components/analytics/ExpenseTreemap'
-import EnhancedSubcategoryAnalysis from '@/components/analytics/EnhancedSubcategoryAnalysis'
-import MultiCategoryTimeAnalysis from '@/components/analytics/MultiCategoryTimeAnalysis'
-import SubcategoryAnalysis from '@/components/analytics/SubcategoryAnalysis'
+import {
+  ExpenseTreemap,
+  EnhancedSubcategoryAnalysis,
+  MultiCategoryTimeAnalysis,
+  SubcategoryAnalysis,
+  YearOverYearComparison,
+  RecurringTransactions,
+  TopMerchants,
+} from '@/components/analytics'
 
 export default function SpendingAnalysisPage() {
   const { data: categoryData, isLoading: categoriesLoading } = useCategoryBreakdown({
@@ -72,6 +77,15 @@ export default function SpendingAnalysisPage() {
         <ExpenseTreemap />
         
         <MultiCategoryTimeAnalysis />
+
+        {/* Year-over-Year & Recurring */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <YearOverYearComparison />
+          <RecurringTransactions />
+        </div>
+
+        {/* Top Merchants */}
+        <TopMerchants />
 
         <EnhancedSubcategoryAnalysis />
 

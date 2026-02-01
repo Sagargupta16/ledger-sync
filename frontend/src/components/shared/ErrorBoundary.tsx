@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Component, type ReactNode } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 
 interface Props {
@@ -18,13 +18,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
-    console.error('ErrorBoundary caught error:', error)
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo)
-    console.error('Component stack:', errorInfo.componentStack)
+  componentDidCatch() {
+    // Error already captured in state via getDerivedStateFromError
   }
 
   handleReset = () => {

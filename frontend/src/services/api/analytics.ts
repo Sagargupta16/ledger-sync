@@ -67,9 +67,15 @@ export const analyticsService = {
   },
 
   getRecentTransactions: async (limit: number = 5): Promise<Transaction[]> => {
-    const response = await apiClient.get<Transaction[]>('/api/transactions')
-    const transactions = response.data || []
-    return transactions.slice(0, limit)
+    const response = await apiClient.get<{ data: Transaction[] } | Transaction[]>('/api/transactions', {
+      params: { limit, sort: 'date', sort_order: 'desc' },
+    })
+    // Handle both old array format and new paginated format
+    const data = response.data
+    if (Array.isArray(data)) {
+      return data.slice(0, limit)
+    }
+    return (data?.data || []).slice(0, limit)
   },
 
   getOverview: async (timeRange: TimeRange = 'all_time') => {

@@ -1,31 +1,13 @@
 import { motion } from 'framer-motion'
 import { ArrowRightLeft, TrendingUp, TrendingDown, Calendar } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ResponsiveContainer, Sankey, Tooltip } from 'recharts'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
-
-interface Transaction {
-  date: string
-  amount: number
-  category: string
-  account: string
-  [key: string]: unknown
-}
+import { useTransactions } from '@/hooks/api/useTransactions'
 
 const IncomeExpenseFlowPage = () => {
   const [selectedFY, setSelectedFY] = useState('25-26')
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/transactions')
-      .then(res => res.json())
-      .then(data => {
-        setTransactions(data)
-        setIsLoading(false)
-      })
-      .catch(() => setIsLoading(false))
-  }, [])
+  const { data: transactions = [], isLoading } = useTransactions()
 
   // Calculate FY start and end dates
   const getFYDates = (fy: string) => {

@@ -145,7 +145,6 @@ export default function EnhancedSubcategoryAnalysis() {
 
   const handleExport = () => {
     // TODO: Implement export functionality
-    console.log('Export chart data')
   }
 
   const handlePrevYear = () => setCurrentYear((prev) => prev - 1)

@@ -4,14 +4,9 @@ import './index.css'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/shared/ErrorBoundary'
 
-console.log('Main.tsx loading...')
-
 const rootElement = document.getElementById('root')
-console.log('Root element:', rootElement)
 
-if (!rootElement) {
-  console.error('Root element not found!')
-} else {
+if (rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
       <ErrorBoundary>
@@ -19,5 +14,4 @@ if (!rootElement) {
       </ErrorBoundary>
     </StrictMode>,
   )
-  console.log('App rendered successfully')
 }
