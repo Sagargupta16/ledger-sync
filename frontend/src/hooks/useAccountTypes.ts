@@ -1,4 +1,10 @@
 import { useAccountStore } from '@/store/accountStore'
+import { 
+  INVESTMENT_KEYWORDS, 
+  DEPOSIT_KEYWORDS, 
+  LOAN_KEYWORDS, 
+  matchesKeywords 
+} from '@/constants/accountTypes'
 
 /**
  * Hook to determine if an account should be treated as an investment account
@@ -14,20 +20,7 @@ export const useIsInvestmentAccount = (accountName: string): boolean => {
   }
 
   // Fallback to keyword-based heuristic
-  const INVESTMENT_KEYWORDS = [
-    'invest',
-    'mutual',
-    'stock',
-    'equity',
-    'sip',
-    'portfolio',
-    'fund',
-    'demat',
-    'brokerage',
-    'share',
-  ]
-  const lower = accountName.toLowerCase()
-  return INVESTMENT_KEYWORDS.some((keyword) => lower.includes(keyword))
+  return matchesKeywords(accountName, INVESTMENT_KEYWORDS)
 }
 
 /**
@@ -42,9 +35,7 @@ export const useIsDepositAccount = (accountName: string): boolean => {
   }
 
   // Fallback heuristic
-  const DEPOSIT_KEYWORDS = ['saving', 'current', 'deposit', 'bank', 'account', 'cash', 'wallet']
-  const lower = accountName.toLowerCase()
-  return DEPOSIT_KEYWORDS.some((keyword) => lower.includes(keyword))
+  return matchesKeywords(accountName, DEPOSIT_KEYWORDS)
 }
 
 /**
@@ -59,9 +50,7 @@ export const useIsLoanAccount = (accountName: string): boolean => {
   }
 
   // Fallback heuristic
-  const LOAN_KEYWORDS = ['loan', 'credit', 'emi', 'debt', 'mortgage', 'liability']
-  const lower = accountName.toLowerCase()
-  return LOAN_KEYWORDS.some((keyword) => lower.includes(keyword))
+  return matchesKeywords(accountName, LOAN_KEYWORDS)
 }
 
 /**
@@ -69,19 +58,6 @@ export const useIsLoanAccount = (accountName: string): boolean => {
  */
 export const useFilterInvestmentAccounts = (accounts: Record<string, unknown>) => {
   const { isAccountType } = useAccountStore()
-  
-  const INVESTMENT_KEYWORDS = [
-    'invest',
-    'mutual',
-    'stock',
-    'equity',
-    'sip',
-    'portfolio',
-    'fund',
-    'demat',
-    'brokerage',
-    'share',
-  ]
   
   return Object.keys(accounts).filter((accountName) => {
     const userClassified = isAccountType(accountName, 'investment')
@@ -91,7 +67,6 @@ export const useFilterInvestmentAccounts = (accounts: Record<string, unknown>) =
     }
     
     // Fallback heuristic
-    const lower = accountName.toLowerCase()
-    return INVESTMENT_KEYWORDS.some((keyword) => lower.includes(keyword))
+    return matchesKeywords(accountName, INVESTMENT_KEYWORDS)
   })
 }

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Calculator, TrendingUp, ChevronLeft, ChevronRight, IndianRupee } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency, formatCurrencyCompact, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 // Tax slabs before FY 2025-26
 const TAX_SLABS_OLD = [

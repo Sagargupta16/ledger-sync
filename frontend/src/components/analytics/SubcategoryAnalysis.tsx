@@ -4,8 +4,10 @@ import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { CHART_COLORS } from '@/constants/chartColors'
+import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 
-const COLORS = ['#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#f97316']
+const COLORS = CHART_COLORS
 
 interface SubcategoryAnalysisProps {
   categoryData: Array<{
@@ -20,8 +22,8 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [cumulative, setCumulative] = useState(true)
   const [viewMode, setViewMode] = useState<'monthly' | 'yearly' | 'all_time'>('yearly')
-  const [currentYear, setCurrentYear] = useState(2025)
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().substring(0, 7))
+  const [currentYear, setCurrentYear] = useState(getCurrentYear())
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const { data: transactions } = useTransactions()
 
   // Get subcategory details for selected category

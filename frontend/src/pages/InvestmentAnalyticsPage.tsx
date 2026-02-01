@@ -6,8 +6,9 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { INCOME_COLORS } from '@/constants/chartColors'
 
-const COLORS = ['#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#f97316', '#14b8a6']
+const COLORS = [...INCOME_COLORS, '#f97316', '#14b8a6']
 
 export default function InvestmentAnalyticsPage() {
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()

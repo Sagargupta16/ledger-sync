@@ -121,10 +121,6 @@ export default function TrendsForecastsPage() {
     return rawData
   }, [trendsData])
 
-  // Using shared formatters from @/lib/formatters
-  const formatCurrencyValue = (value: number) => formatCurrency(value)
-  const formatPercentValue = (value: number) => formatPercent(value, true)
-
   const getTrendIcon = (direction: 'up' | 'down' | 'stable', isPositiveGood: boolean) => {
     if (direction === 'stable') return <Minus className="w-5 h-5 text-gray-400" />
     if (direction === 'up') {

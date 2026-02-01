@@ -1,3 +1,7 @@
+// Re-export shared constants
+export * from './chartColors'
+export * from './accountTypes'
+
 export const ROUTES = {
   HOME: '/',
   DASHBOARD: '/dashboard',

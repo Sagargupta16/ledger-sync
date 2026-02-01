@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-
-export type AccountType = 'investment' | 'deposit' | 'loan'
+import type { AccountType } from '@/types'
 
 interface AccountState {
   accountTypes: Record<string, AccountType[]>

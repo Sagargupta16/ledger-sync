@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -21,22 +21,56 @@ export interface FilterValues {
 
 const TRANSACTION_TYPES = ['Income', 'Expense', 'Transfer']
 
+// Custom debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+
+  return debouncedValue
+}
+
 export default function TransactionFilters({ onFilterChange, categories, accounts }: TransactionFiltersProps) {
   const [filters, setFilters] = useState<FilterValues>({})
+  const [searchQuery, setSearchQuery] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const isFirstRender = useRef(true)
 
-  const handleFilterChange = (key: keyof FilterValues, value: string | number | undefined) => {
+  // Debounce search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
+
+  // Handle debounced search - notify parent of filter changes
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    const newFilters = { ...filters, query: debouncedSearchQuery || undefined }
+    setFilters(newFilters)
+    onFilterChange(newFilters)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery])
+
+  const handleFilterChange = useCallback((key: keyof FilterValues, value: string | number | undefined) => {
+    if (key === 'query') {
+      setSearchQuery(value as string || '')
+      return
+    }
     const newFilters = { ...filters, [key]: value || undefined }
     setFilters(newFilters)
     onFilterChange(newFilters)
-  }
+  }, [filters, onFilterChange])
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({})
+    setSearchQuery('')
     onFilterChange({})
-  }
+  }, [onFilterChange])
 
-  const hasActiveFilters = Object.values(filters).some((v) => v !== undefined && v !== '')
+  const hasActiveFilters = Object.values(filters).some((v) => v !== undefined && v !== '') || searchQuery !== ''
 
   return (
     <div className="space-y-4">
@@ -48,7 +82,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
             <input
               type="text"
               placeholder="Search transactions by note, category, or account..."
-              value={filters.query || ''}
+              value={searchQuery}
               onChange={(e) => handleFilterChange('query', e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-transparent border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
             />

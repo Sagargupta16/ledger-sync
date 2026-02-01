@@ -4,14 +4,16 @@ import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { CHART_COLORS_WARM } from '@/constants/chartColors'
+import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 
-const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#a855f7', '#ec4899']
+const COLORS = CHART_COLORS_WARM.slice(0, 8) // Use first 8 colors
 
 export default function MultiCategoryTimeAnalysis() {
   const [viewMode, setViewMode] = useState<'monthly' | 'yearly' | 'all_time'>('yearly')
   const [cumulative, setCumulative] = useState(true)
-  const [currentYear, setCurrentYear] = useState(2025)
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().substring(0, 7)) // YYYY-MM
+  const [currentYear, setCurrentYear] = useState(getCurrentYear())
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
 
   const { data: transactions } = useTransactions()
 

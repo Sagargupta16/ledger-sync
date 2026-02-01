@@ -5,13 +5,15 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { INCOME_COLORS } from '@/constants/chartColors'
+import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 
-const COLORS = ['#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b']
+const COLORS = INCOME_COLORS
 
 export default function IncomeAnalysisPage() {
   const [viewMode, setViewMode] = useState<'monthly' | 'yearly' | 'all_time'>('yearly')
-  const [currentYear, setCurrentYear] = useState(2025)
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().substring(0, 7))
+  const [currentYear, setCurrentYear] = useState(getCurrentYear())
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   
   const { data: incomeData, isLoading: incomeLoading } = useCategoryBreakdown({ transaction_type: 'income' })
   const { data: transactions } = useTransactions()
