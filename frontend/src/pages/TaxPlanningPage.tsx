@@ -314,7 +314,7 @@ export default function TaxPlanningPage() {
               </button>
               {showProjection && remainingMonths > 0 && (
                 <span className="text-sm text-muted-foreground">
-                  Projecting {remainingMonths} more {remainingMonths === 1 ? 'month' : 'months'} @ ₹{lastMonthSalary.toLocaleString('en-IN')}/month
+                  Projecting {remainingMonths} more {remainingMonths === 1 ? 'month' : 'months'} @ ₹{Math.round(lastMonthSalary).toLocaleString('en-IN', { maximumFractionDigits: 0 })}/month
                 </span>
               )}
             </div>
@@ -393,7 +393,7 @@ export default function TaxPlanningPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Salaried Income</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${(showProjection && isCurrentFY && hasEmploymentIncome ? netTaxableIncome + projectedAdditionalIncome : netTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : `₹${Math.round(showProjection && isCurrentFY && hasEmploymentIncome ? netTaxableIncome + projectedAdditionalIncome : netTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">Received after TDS</p>
               </div>
@@ -413,7 +413,7 @@ export default function TaxPlanningPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Taxable Income</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : `₹${Math.round(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">Before standard deduction</p>
               </div>
@@ -433,7 +433,7 @@ export default function TaxPlanningPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Tax Already Paid</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${(showProjection && isCurrentFY && hasEmploymentIncome ? projectedTaxAlreadyPaid : taxAlreadyPaid).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : `₹${Math.round(showProjection && isCurrentFY && hasEmploymentIncome ? projectedTaxAlreadyPaid : taxAlreadyPaid).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">Deducted at source</p>
               </div>
@@ -455,11 +455,11 @@ export default function TaxPlanningPage() {
           {/* Standard Deduction Info */}
           <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
             <p className="text-sm text-blue-400">
-              ℹ️ Standard Deduction: <span className="font-semibold">₹{standardDeduction.toLocaleString('en-IN')}</span>
+              ℹ️ Standard Deduction: <span className="font-semibold">₹{Math.round(standardDeduction).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
               {fyYear >= 2024 ? ' (from FY 2024-25)' : ' (before FY 2024-25)'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Tax calculated on: ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome).toLocaleString('en-IN')} (After standard deduction)
+              Tax calculated on: ₹{Math.round(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })} (After standard deduction)
             </p>
           </div>
 
@@ -486,16 +486,16 @@ export default function TaxPlanningPage() {
                       className={`border-b border-white/5 ${isApplicable ? 'bg-primary/5' : ''}`}
                     >
                       <td className="py-3 px-4 text-white">
-                        ₹{slab.lower.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        ₹{Math.round(slab.lower).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </td>
                       <td className="py-3 px-4 text-white">
                         {slab.upper === Infinity
                           ? 'Above'
-                          : `₹${slab.upper.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
+                          : `₹${Math.round(slab.upper).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                       </td>
                       <td className="py-3 px-4 text-right text-white font-semibold">{slab.rate.toFixed(2)}%</td>
                       <td className="py-3 px-4 text-right font-bold text-primary">
-                        {isApplicable ? `₹${taxAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '₹0.00'}
+                        {isApplicable ? `₹${Math.round(taxAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '₹0'}
                       </td>
                     </tr>
                   )
@@ -505,7 +505,7 @@ export default function TaxPlanningPage() {
                     Tax on Base:
                   </td>
                   <td className="py-3 px-4 text-right font-bold text-white">
-                    ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedBaseTax : baseTax).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    ₹{Math.round(showProjection && isCurrentFY && hasEmploymentIncome ? projectedBaseTax : baseTax).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </td>
                 </tr>
                 <tr className="border-b border-white/5">
@@ -513,7 +513,7 @@ export default function TaxPlanningPage() {
                     + Health & Education Cess (4%):
                   </td>
                   <td className="py-3 px-4 text-right text-sm text-gray-300">
-                    ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedCess : cess).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    ₹{Math.round(showProjection && isCurrentFY && hasEmploymentIncome ? projectedCess : cess).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </td>
                 </tr>
                 <tr className="border-b border-white/5">
@@ -521,7 +521,7 @@ export default function TaxPlanningPage() {
                     + Professional Tax:
                   </td>
                   <td className="py-3 px-4 text-right text-sm text-gray-300">
-                    ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedProfessionalTax : professionalTax).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    ₹{Math.round(showProjection && isCurrentFY && hasEmploymentIncome ? projectedProfessionalTax : professionalTax).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </td>
                 </tr>
                 <tr className="border-t-2 border-primary/30">
@@ -529,7 +529,7 @@ export default function TaxPlanningPage() {
                     Total Tax Already Paid:
                   </td>
                   <td className="py-4 px-4 text-right text-2xl font-bold text-primary">
-                    ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedTaxAlreadyPaid : taxAlreadyPaid).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    ₹{Math.round(showProjection && isCurrentFY && hasEmploymentIncome ? projectedTaxAlreadyPaid : taxAlreadyPaid).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </td>
                 </tr>
               </tbody>
@@ -555,19 +555,19 @@ export default function TaxPlanningPage() {
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-sm text-gray-400 mb-2">Gross Taxable Income</p>
               <p className="text-2xl font-bold text-blue-400">
-                ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                ₹{Math.round(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </p>
             </div>
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-sm text-gray-400 mb-2">Net Received (After Tax)</p>
               <p className="text-2xl font-bold text-green-400">
-                ₹{(showProjection && isCurrentFY && hasEmploymentIncome ? netTaxableIncome + projectedAdditionalIncome : netTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                ₹{Math.round(showProjection && isCurrentFY && hasEmploymentIncome ? netTaxableIncome + projectedAdditionalIncome : netTaxableIncome).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </p>
             </div>
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-sm text-gray-400 mb-2">Net Savings</p>
               <p className="text-2xl font-bold text-purple-400">
-                ₹{((showProjection && isCurrentFY && hasEmploymentIncome ? income + projectedAdditionalIncome : income) - expense).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                ₹{Math.round((showProjection && isCurrentFY && hasEmploymentIncome ? income + projectedAdditionalIncome : income) - expense).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </p>
             </div>
           </div>
@@ -598,17 +598,17 @@ export default function TaxPlanningPage() {
                       <tr className="border-b border-white/10 bg-white/5">
                         <td colSpan={2} className="py-3 px-4 text-left font-bold text-white">{group}</td>
                         <td className="py-3 px-4 text-right font-bold text-white">
-                          ₹{data.total.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                          ₹{Math.round(data.total).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-white">
-                          {netTaxableIncome > 0 ? `${((data.total / netTaxableIncome) * 100).toFixed(2)}%` : '0.00%'}
+                          {netTaxableIncome > 0 ? `${Math.round((data.total / netTaxableIncome) * 100)}%` : '0%'}
                         </td>
                       </tr>
                       {data.transactions.map((tx, index) => (
                         <tr key={index} className="border-b border-white/5">
                           <td className="py-3 px-4 text-white">{new Date(tx.date).toLocaleDateString()}</td>
                           <td className="py-3 px-4 text-right font-bold text-green-400">
-                            ₹{(group === 'EPF' ? tx.amount / 2 : tx.amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                            ₹{Math.round(group === 'EPF' ? tx.amount / 2 : tx.amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                           </td>
                           <td className="py-3 px-4 text-white">{tx.type}</td>
                           <td className="py-3 px-4 text-white">{tx.note}</td>

@@ -4,8 +4,10 @@ import { useTrends } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useState } from 'react'
 
+import type { TimeRange } from '@/types'
+
 export default function TrendsForecastsPage() {
-  const [timeRange, setTimeRange] = useState<'last_6_months' | 'last_12_months'>('last_12_months')
+  const [timeRange, setTimeRange] = useState<TimeRange>('last_12_months')
   const { data: trendsData, isLoading } = useTrends(timeRange)
 
   // Get latest month data for stats
@@ -39,8 +41,17 @@ export default function TrendsForecastsPage() {
           <p className="text-muted-foreground mt-2">Predict future spending and income patterns</p>
         </motion.div>
 
-        <motion.div className="flex gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-          {(['last_6_months', 'last_12_months'] as const).map((range) => (
+        <motion.div className="flex gap-2 flex-wrap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+          {([
+            'current_month',
+            'last_month',
+            'last_3_months',
+            'last_6_months',
+            'last_12_months',
+            'current_year',
+            'last_year',
+            'all_time',
+          ] as TimeRange[]).map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}
@@ -51,8 +62,14 @@ export default function TrendsForecastsPage() {
                   : 'glass text-gray-400 hover:text-gray-300'
               }`}
             >
+              {range === 'current_month' && 'Current Month'}
+              {range === 'last_month' && 'Last Month'}
+              {range === 'last_3_months' && 'Last 3 Months'}
               {range === 'last_6_months' && 'Last 6 Months'}
               {range === 'last_12_months' && 'Last 12 Months'}
+              {range === 'current_year' && 'Current Year'}
+              {range === 'last_year' && 'Last Year'}
+              {range === 'all_time' && 'All Time'}
             </button>
           ))}
         </motion.div>
@@ -71,7 +88,7 @@ export default function TrendsForecastsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Spending Forecast</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${parseFloat(spendingForecast).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : `₹${Math.round(spendingForecast).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </p>
               </div>
             </div>
@@ -138,7 +155,7 @@ export default function TrendsForecastsPage() {
                     border: '1px solid rgba(139, 92, 246, 0.3)',
                     borderRadius: '8px',
                   }}
-                  formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`}
+                  formatter={(value: number) => `₹${Math.round(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 />
                 <Legend />
                 <Bar dataKey="income" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -181,14 +198,14 @@ export default function TrendsForecastsPage() {
                       transition={{ delay: 0.6 + index * 0.05 }}
                     >
                       <td className="py-3 px-4 text-white font-medium">{trend.month}</td>
-                      <td className="py-3 px-4 text-right text-green-400">₹{trend.income.toLocaleString('en-IN')}</td>
-                      <td className="py-3 px-4 text-right text-red-400">₹{trend.expenses.toLocaleString('en-IN')}</td>
+                      <td className="py-3 px-4 text-right text-green-400">₹{Math.round(trend.income).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                      <td className="py-3 px-4 text-right text-red-400">₹{Math.round(trend.expenses).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
                       <td
                         className={`py-3 px-4 text-right font-bold ${
                           trend.surplus > 0 ? 'text-green-400' : 'text-red-400'
                         }`}
                       >
-                        ₹{trend.surplus.toLocaleString('en-IN')}
+                        ₹{Math.round(trend.surplus).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </td>
                     </motion.tr>
                   ))}

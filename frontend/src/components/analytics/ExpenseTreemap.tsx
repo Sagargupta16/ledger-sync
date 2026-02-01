@@ -276,7 +276,7 @@ export default function ExpenseTreemap() {
                       userSelect: 'none',
                     }}
                   >
-                    ₹{size ? size.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'}
+                    ₹{size ? Math.round(size).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'}
                   </text>
                 </g>
               )
@@ -288,7 +288,7 @@ export default function ExpenseTreemap() {
                 border: '1px solid rgba(139, 92, 246, 0.3)',
                 borderRadius: '8px',
               }}
-              formatter={(value: number | undefined) => value ? `₹${value.toLocaleString('en-IN')}` : '₹0'}
+              formatter={(value: number | undefined) => value ? `₹${Math.round(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '₹0'}
             />
           </Treemap>
         </ResponsiveContainer>

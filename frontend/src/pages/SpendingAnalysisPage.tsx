@@ -37,7 +37,7 @@ export default function SpendingAnalysisPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Spending</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : `₹${totalSpending.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}</p>
+                <p className="text-2xl font-bold">{isLoading ? '...' : `₹${Math.round(totalSpending).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}</p>
               </div>
             </div>
           </motion.div>

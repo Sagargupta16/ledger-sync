@@ -4,13 +4,13 @@
   "description": "Production-ready data ingestion and reconciliation engine with modern web interface",
   "scripts": {
     "setup": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run setup:backend\" \"pnpm run setup:frontend\"",
-    "setup:backend": "cd backend && python -m venv ..\\venv && ..\\venv\\Scripts\\python -m pip install -e .[dev]",
+    "setup:backend": "cd backend && python -m pip install -e .[dev]",
     "setup:frontend": "cd frontend && pnpm install",
     "dev": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
-    "dev:backend": "cd backend && ..\\venv\\Scripts\\python -m uvicorn ledger_sync.api.main:app --reload --port 8000",
+    "dev:backend": "cd backend && python -m uvicorn ledger_sync.api.main:app --reload --port 8000",
     "dev:frontend": "cd frontend && pnpm run dev",
     "format": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run format:backend\" \"pnpm run format:frontend\"",
-    "format:backend": "cd backend && ..\\venv\\Scripts\\python -m black src/ tests/ && ..\\venv\\Scripts\\python -m ruff check --fix src/ tests/",
+    "format:backend": "cd backend && python -m black src/ tests/ && python -m ruff check --fix src/ tests/",
     "format:frontend": "cd frontend && pnpm run format"
   },
   "devDependencies": {

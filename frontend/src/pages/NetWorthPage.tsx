@@ -133,7 +133,7 @@ export default function NetWorthPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Assets</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${totalAssets.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : `₹${Math.round(totalAssets).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </p>
               </div>
             </div>
@@ -152,7 +152,7 @@ export default function NetWorthPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Liabilities</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${totalLiabilities.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : `₹${Math.round(totalLiabilities).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </p>
               </div>
             </div>
@@ -171,7 +171,7 @@ export default function NetWorthPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Net Worth</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${netWorth.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : `₹${Math.round(netWorth).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </p>
               </div>
             </div>
@@ -246,7 +246,7 @@ export default function NetWorthPage() {
                     border: '1px solid rgba(139, 92, 246, 0.3)',
                     borderRadius: '8px',
                   }}
-                  formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`}
+                  formatter={(value: number) => `₹${Math.round(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 />
                 <Legend />
                 {showStacked ? (
@@ -360,7 +360,7 @@ export default function NetWorthPage() {
                           <tr key={`header-${currentCategory}`} className="bg-white/5">
                             <td className="py-2 px-4 text-sm font-semibold text-primary">{currentCategory}</td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-green-400/70">
-                              ₹{catBalance.toLocaleString('en-IN')}
+                              ₹{Math.round(catBalance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                             </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
                               {catPercent}%
@@ -381,7 +381,7 @@ export default function NetWorthPage() {
                         >
                           <td className="py-3 px-4 text-white font-medium">{accountName}</td>
                           <td className="py-3 px-4 text-right font-bold text-green-400">
-                            ₹{accountData.balance.toLocaleString('en-IN')}
+                            ₹{Math.round(accountData.balance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                           </td>
                           <td className="py-3 px-4 text-right text-gray-400">
                             {((accountData.balance / totalAssets) * 100).toFixed(2)}%
@@ -458,7 +458,7 @@ export default function NetWorthPage() {
                           <tr key={`header-${currentCategory}`} className="bg-white/5">
                             <td className="py-2 px-4 text-sm font-semibold text-primary">{currentCategory}</td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-red-400/70">
-                              ₹{catBalance.toLocaleString('en-IN')}
+                              ₹{Math.round(catBalance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                             </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
                               {catPercent}%
@@ -479,7 +479,7 @@ export default function NetWorthPage() {
                         >
                           <td className="py-3 px-4 text-white font-medium">{accountName}</td>
                           <td className="py-3 px-4 text-right font-bold text-red-400">
-                            ₹{Math.abs(accountData.balance).toLocaleString('en-IN')}
+                            ₹{Math.round(Math.abs(accountData.balance)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                           </td>
                           <td className="py-3 px-4 text-right text-gray-400">
                             {((Math.abs(accountData.balance) / totalLiabilities) * 100).toFixed(2)}%

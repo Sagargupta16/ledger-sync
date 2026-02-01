@@ -383,22 +383,12 @@ export default function InvestmentAnalyticsPage() {
             <ResponsiveContainer width="100%" height={400}>
                 <AreaChart data={monthlyGrowthData}>
                   <defs>
-                    {(() => {
-                      // Order: MF bottom, then FD, RSUs, Stocks top (most movement)
-                      const orderedAccounts = [
-                        investmentAccounts.find(a => a.toLowerCase().includes('mutual')),
-                        investmentAccounts.find(a => a.toLowerCase().includes('fd') || a.toLowerCase().includes('bond')),
-                        investmentAccounts.find(a => a.toLowerCase().includes('rsu')),
-                        investmentAccounts.find(a => a.toLowerCase().includes('stock')),
-                      ].filter(Boolean) as string[]
-                      
-                      return orderedAccounts.map((account, index) => (
-                        <linearGradient key={`gradient-${account}`} id={`color-${index}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.2}/>
-                        </linearGradient>
-                      ))
-                    })()}
+                    {investmentAccounts.map((account, index) => (
+                      <linearGradient key={`gradient-${account}`} id={`color-${index}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.2}/>
+                      </linearGradient>
+                    ))}
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis 
@@ -423,28 +413,18 @@ export default function InvestmentAnalyticsPage() {
                     labelFormatter={(label) => `Month: ${label}`}
                   />
                   <Legend />
-                  {(() => {
-                    // Order: MF bottom, then FD, RSUs, Stocks top (most movement)
-                    const orderedAccounts = [
-                      investmentAccounts.find(a => a.toLowerCase().includes('mutual')),
-                      investmentAccounts.find(a => a.toLowerCase().includes('fd') || a.toLowerCase().includes('bond')),
-                      investmentAccounts.find(a => a.toLowerCase().includes('rsu')),
-                      investmentAccounts.find(a => a.toLowerCase().includes('stock')),
-                    ].filter(Boolean) as string[]
-                    
-                    return orderedAccounts.map((account, index) => (
-                      <Area 
-                        key={account}
-                        type="monotone" 
-                        dataKey={account}
-                        stackId="1"
-                        stroke={COLORS[index % COLORS.length]} 
-                        strokeWidth={2}
-                        fillOpacity={1} 
-                        fill={`url(#color-${index})`}
-                      />
-                    ))
-                  })()}
+                  {investmentAccounts.map((account, index) => (
+                    <Area 
+                      key={account}
+                      type="monotone" 
+                      dataKey={account}
+                      stackId="1"
+                      stroke={COLORS[index % COLORS.length]} 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill={`url(#color-${index})`}
+                    />
+                  ))}
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
