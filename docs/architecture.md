@@ -163,82 +163,101 @@ Savings Rate = (Income - Expenses) / Income
 
 #### 1. **Pages Layer** (`src/pages/`)
 
-- **Responsibility**: Screen-level components, layout
-- **Components**:
-  - `OverviewPage` - Dashboard with KPIs
-  - `IncomeExpensePage` - Income/expense analysis
-  - `CategoryAnalysisPage` - Category breakdown
-  - `TrendsForecastsPage` - Trends and predictions
-  - `TransactionsPage` - Transaction table
-  - `PatternsPage` - Recurring payments and analytics
+- **Responsibility**: Screen-level components, layout, page composition
+- **Components** (13 pages):
+  - `DashboardPage` - Main dashboard with overview and analytics
+  - `TransactionsPage` - Transaction table with filtering
+  - `UploadSyncPage` - File upload and data sync
+  - `SpendingAnalysisPage` - Spending breakdown and analysis
+  - `IncomeAnalysisPage` - Income analysis
+  - `IncomeExpenseFlowPage` - Income/expense flow visualization
+  - `TrendsForecastsPage` - Trends and forecasting
+  - `InvestmentAnalyticsPage` - Investment portfolio tracking
+  - `MutualFundProjectionPage` - SIP/MF projections
+  - `ReturnsAnalysisPage` - Returns analysis
+  - `TaxPlanningPage` - Tax planning tools
+  - `NetWorthPage` - Net worth tracking
+  - `SettingsPage` - App settings
 
-#### 2. **Features Layer** (`src/features/`)
+#### 2. **Components Layer** (`src/components/`)
 
-- **Responsibility**: Feature-specific components and logic
+- **Responsibility**: Reusable UI components organized by domain
 - **Modules**:
-  - `analytics/` - Investment, tax, housing components
-  - `budget/` - Budget and goals management
-  - `charts/` - Visualization components
-  - `kpi/` - KPI cards and metrics
-  - `transactions/` - Transaction components
-
-#### 3. **Components Layer** (`src/components/`)
-
-- **Responsibility**: Reusable UI components
-- **Types**:
-  - `FileUpload` - File upload component
+  - `analytics/` - Analytics visualization components (13 components)
+    - `FinancialHealthScore` - Comprehensive health score (6 metrics)
+    - `YearOverYearComparison` - YoY financial comparison
+    - `PeriodComparison` - Month-to-month comparison with selectors
+    - `CashFlowForecast` - Future cash flow predictions
+    - `RecurringTransactions` - Recurring payment detection
+    - `BudgetTracker` - Budget tracking visualization
+    - `ExpenseTreemap` - Expense visualization as treemap
+    - `TopMerchants` - Top merchants/vendors analysis
+    - `SubcategoryAnalysis` - Subcategory breakdown
+    - `EnhancedSubcategoryAnalysis` - Advanced subcategory analysis
+    - `MultiCategoryTimeAnalysis` - Time-based category analysis
+    - `CreditCardHealth` - Credit card utilization metrics
+  - `layout/` - Layout components (Header, Sidebar, etc.)
+  - `shared/` - Shared components
+  - `transactions/` - Transaction-specific components
   - `ui/` - Base UI components (buttons, cards, dialogs)
-  - Other shared components
+  - `upload/` - File upload components
 
-#### 4. **Hooks Layer** (`src/hooks/`)
+#### 3. **Hooks Layer** (`src/hooks/`)
 
 - **Responsibility**: Custom React hooks for logic reuse
 - **Examples**:
-  - `useDataProcessor` - Parse and process transaction data
-  - `useChartExport` - Export charts as PNG
-  - `useLocalStorage` - Persist data to localStorage
+  - `useAccountTypes` - Account type management
+  - `useAnalytics` - Analytics data fetching
+  - `api/` - API-specific hooks using TanStack Query
 
-#### 5. **Services Layer** (`src/services/`)
+#### 4. **Services Layer** (`src/services/`)
 
 - **Responsibility**: API communication
 - **Components**:
-  - `api.ts` - Backend API client with all endpoints
+  - `api/` - Backend API client with typed endpoints
 
-#### 6. **Store/State Layer** (`src/store/`)
+#### 5. **Store/State Layer** (`src/store/`)
 
-- **Responsibility**: Global state management
-- **Tools**: Zustand for state management
+- **Responsibility**: Global state management with Zustand
 - **Stores**:
-  - Transaction store
-  - Filter and sort state
+  - `accountStore` - Account settings and preferences
+  - `investmentAccountStore` - Investment account classifications
 
-#### 7. **Utils Layer** (`src/lib/`)
+#### 6. **Utils Layer** (`src/lib/`)
 
 - **Responsibility**: Utility functions and helpers
 - **Modules**:
-  - `analytics/` - Analytics calculations
-  - `calculations/` - Financial calculations
-  - `formatters.ts` - Data formatting utilities
-  - `parsers.ts` - Data parsing
+  - `cn.ts` - Class name utility (clsx + tailwind-merge)
+  - `queryClient.ts` - TanStack Query client configuration
 
 ### Component Hierarchy
 
 ```
 App
-├── FileUpload
-├── Navigation/Tabs
-└── Page Component
-    ├── Page-specific state
-    ├── Data fetching
-    └── Feature Components
-        ├── Chart Components
-        │   ├── Line
-        │   ├── Bar
-        │   ├── Doughnut
-        │   └── Custom Charts
-        ├── KPI Cards
-        ├── Tables
-        └── Panels
+├── Layout
+│   ├── Sidebar (Navigation)
+│   └── Main Content Area
+│       └── Page Component
+│           ├── Page-specific state
+│           ├── Data fetching (TanStack Query)
+│           └── Analytics Components
+│               ├── Chart Components (Recharts)
+│               │   ├── LineChart
+│               │   ├── BarChart
+│               │   ├── PieChart
+│               │   ├── AreaChart
+│               │   └── Treemap
+│               ├── Score Components
+│               │   └── FinancialHealthScore
+│               ├── Comparison Components
+│               │   ├── YearOverYearComparison
+│               │   └── PeriodComparison
+│               └── Analysis Components
+│                   ├── CashFlowForecast
+│                   ├── RecurringTransactions
+│                   └── SubcategoryAnalysis
+└── Upload Components
+    └── FileUpload
 ```
 
 ### Data Flow
@@ -330,12 +349,13 @@ transactions         - Related transactions
 
 ### Frontend
 
-- **React 19**: Component-based UI
+- **React 19**: Component-based UI with latest features
 - **TypeScript**: Type safety and better DX
 - **Vite**: Fast build tool and dev server
 - **Tailwind CSS**: Utility-first styling
-- **Chart.js**: Data visualization
+- **Recharts**: Data visualization library (replaces Chart.js)
 - **Zustand**: Lightweight state management
+- **TanStack Query**: Server state management and caching
 
 ## API Contract
 
@@ -359,20 +379,29 @@ POST   /api/upload                      - Upload Excel file
 GET    /api/transactions                - Get all transactions
 GET    /api/analytics/overview          - Get financial overview
 GET    /api/analytics/kpis              - Get KPIs
+GET    /api/analytics/behavior          - Get spending behavior
+GET    /api/analytics/trends            - Get financial trends
+GET    /api/analytics/wrapped           - Get yearly financial wrap
+GET    /api/analytics/charts/*          - Chart data endpoints
+GET    /api/analytics/insights/generated - AI-generated insights
 GET    /api/calculations/totals         - Get income/expense totals
-GET    /api/calculations/insights       - Get financial insights
+GET    /api/calculations/monthly-aggregation - Monthly data
+GET    /api/calculations/yearly-aggregation - Yearly data
+GET    /api/calculations/category-breakdown - Category analysis
+GET    /api/calculations/account-balances - Account balances
+GET    /api/calculations/categories/master - Master category list
+GET    /api/account-classifications/*   - Account classification endpoints
+GET    /api/meta/*                      - Metadata endpoints
 ```
 
 ## Security Considerations
 
 1. **Input Validation**
-
    - Validate Excel file format
    - Sanitize data during import
    - Type checking with TypeScript and Python
 
 2. **Data Protection**
-
    - Use soft deletes instead of hard deletes
    - Maintain audit trail with timestamps
    - CORS configuration for cross-origin requests

@@ -23,16 +23,29 @@ cd frontend && npm run dev
 
 ## API Endpoints Summary
 
-| Method | Endpoint                     | Purpose               |
-| ------ | ---------------------------- | --------------------- |
-| POST   | `/api/upload`                | Upload Excel file     |
-| GET    | `/api/transactions`          | Get all transactions  |
-| GET    | `/api/analytics/overview`    | Financial overview    |
-| GET    | `/api/analytics/kpis`        | KPI metrics           |
-| GET    | `/api/analytics/behavior`    | Spending behavior     |
-| GET    | `/api/analytics/trends`      | Financial trends      |
-| GET    | `/api/calculations/totals`   | Income/expense totals |
-| GET    | `/api/calculations/insights` | Financial insights    |
+| Method | Endpoint                                     | Purpose                      |
+| ------ | -------------------------------------------- | ---------------------------- |
+| POST   | `/api/upload`                                | Upload Excel file            |
+| GET    | `/api/transactions`                          | Get all transactions         |
+| GET    | `/api/analytics/overview`                    | Financial overview           |
+| GET    | `/api/analytics/kpis`                        | KPI metrics                  |
+| GET    | `/api/analytics/behavior`                    | Spending behavior            |
+| GET    | `/api/analytics/trends`                      | Financial trends             |
+| GET    | `/api/analytics/wrapped`                     | Yearly financial wrap        |
+| GET    | `/api/analytics/charts/income-expense`       | Income vs expense chart data |
+| GET    | `/api/analytics/charts/categories`           | Category breakdown chart     |
+| GET    | `/api/analytics/charts/monthly-trends`       | Monthly trends chart         |
+| GET    | `/api/analytics/charts/account-distribution` | Account distribution         |
+| GET    | `/api/analytics/insights/generated`          | AI-generated insights        |
+| GET    | `/api/calculations/totals`                   | Income/expense totals        |
+| GET    | `/api/calculations/monthly-aggregation`      | Monthly aggregation          |
+| GET    | `/api/calculations/yearly-aggregation`       | Yearly aggregation           |
+| GET    | `/api/calculations/category-breakdown`       | Category breakdown           |
+| GET    | `/api/calculations/account-balances`         | Account balances             |
+| GET    | `/api/calculations/categories/master`        | Master category list         |
+| GET    | `/api/account-classifications`               | Account classifications      |
+| POST   | `/api/account-classifications`               | Set account classification   |
+| DELETE | `/api/account-classifications/{name}`        | Remove classification        |
 
 ## Common Backend Commands
 
@@ -142,13 +155,20 @@ ledger-sync/
 │   └── ingest/        ← File processing
 │
 └── frontend/src/
-    ├── pages/         ← Add pages here
-    ├── features/      ← Feature components
-    ├── components/    ← Reusable components
+    ├── pages/         ← Add pages here (13 pages)
+    ├── components/    ← UI components
+    │   ├── analytics/ ← Analytics components (13 components)
+    │   ├── layout/    ← Layout components
+    │   ├── shared/    ← Shared components
+    │   ├── transactions/ ← Transaction components
+    │   ├── ui/        ← Base UI components
+    │   └── upload/    ← Upload components
     ├── hooks/         ← Custom hooks
-    ├── lib/           ← Utilities
+    ├── lib/           ← Utilities (cn, queryClient)
     ├── services/      ← API client
-    └── types/         ← TypeScript types
+    ├── store/         ← Zustand stores
+    ├── types/         ← TypeScript types
+    └── constants/     ← App constants
 ```
 
 ## Testing Quick Start
@@ -235,30 +255,40 @@ def get_data(db: Session = Depends(get_session)):
     return {"data": result}
 ```
 
-### Frontend Component
+### Frontend Component with TanStack Query
 
 ```tsx
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/services/api";
 
-export const MyComponent = ({ data }) => {
-  const [state, setState] = useState(null);
+export const MyComponent = () => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["myData"],
+    queryFn: () => api.getData(),
+  });
 
-  useEffect(() => {
-    // Side effects
-  }, [data]);
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
 
   return <div>{/* JSX */}</div>;
 };
 ```
 
-### API Call
+### API Call with Services
 
 ```typescript
-export async function fetchData() {
-  const response = await fetch(`${API_BASE_URL}/api/endpoint`);
-  if (!response.ok) throw new Error("Failed");
-  return await response.json();
-}
+// services/api/index.ts
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+export const api = {
+  async getTransactions(limit = 100) {
+    const response = await fetch(
+      `${API_BASE_URL}/api/transactions?limit=${limit}`,
+    );
+    if (!response.ok) throw new Error("Failed");
+    return await response.json();
+  },
+};
 ```
 
 ## Performance Tips

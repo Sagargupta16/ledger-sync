@@ -1,73 +1,89 @@
-# React + TypeScript + Vite
+# Ledger Sync Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Modern financial analytics dashboard built with React 19, TypeScript, and Vite.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19** - UI framework with latest features
+- **TypeScript** - Type safety
+- **Vite** - Fast build tool and dev server
+- **TanStack Query** - Server state management and caching
+- **Zustand** - Lightweight global state management
+- **Recharts** - Charting library for data visualization
+- **Tailwind CSS** - Utility-first styling
 
-## React Compiler
+## Project Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── pages/              # 13 page components
+│   ├── DashboardPage.tsx
+│   ├── TransactionsPage.tsx
+│   ├── SpendingAnalysisPage.tsx
+│   ├── IncomeAnalysisPage.tsx
+│   └── ... (9 more pages)
+├── components/
+│   ├── analytics/      # 13 analytics components
+│   │   ├── FinancialHealthScore.tsx
+│   │   ├── YearOverYearComparison.tsx
+│   │   ├── PeriodComparison.tsx
+│   │   ├── CashFlowForecast.tsx
+│   │   └── ... (9 more components)
+│   ├── layout/         # Layout components
+│   ├── shared/         # Shared components
+│   ├── transactions/   # Transaction components
+│   ├── ui/            # Base UI components
+│   └── upload/        # Upload components
+├── hooks/             # Custom React hooks
+│   └── api/           # API-specific hooks
+├── services/          # API client services
+│   └── api/           # API modules
+├── store/             # Zustand state stores
+├── lib/               # Utilities
+├── types/             # TypeScript types
+└── constants/         # App constants
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Getting Started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Install dependencies
+pnpm install
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start development server
+pnpm run dev
+
+# Build for production
+pnpm run build
+
+# Preview production build
+pnpm run preview
 ```
+
+## Key Features
+
+### Analytics Components
+
+- **Financial Health Score** - Comprehensive scoring with 6 metrics
+- **Year-over-Year Comparison** - FY comparison (April-March)
+- **Period Comparison** - Month selector for quick comparisons
+- **Cash Flow Forecast** - Future cash flow predictions
+- **Recurring Transactions** - Automatic recurring payment detection
+- **Budget Tracker** - Budget tracking visualization
+- **Expense Treemap** - Visual expense breakdown
+- **Subcategory Analysis** - Category drill-down
+
+### State Management
+
+- **TanStack Query** - API data caching and synchronization
+- **Zustand** - Persistent stores for user preferences
+
+## Environment Variables
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+## Development
+
+See the main [Development Guide](../docs/DEVELOPMENT.md) for comprehensive instructions.

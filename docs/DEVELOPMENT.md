@@ -27,13 +27,12 @@ source venv/bin/activate
 
 # 4. Install Python dependencies
 cd backend
-pip install -r requirements.txt
-pip install -r requirements-dev.txt  # For development tools
+pip install -e ".[dev]"  # Install with development dependencies
 cd ..
 
-# 5. Install Node dependencies
+# 5. Install Node dependencies (using pnpm)
 cd frontend
-npm install
+pnpm install
 cd ..
 
 # 6. Initialize database
@@ -44,10 +43,18 @@ cd ..
 
 ## Running the Application
 
-### Option 1: Run Both Services (Recommended)
+### Option 1: Use Setup Script (Windows)
 
 ```powershell
-npm run dev
+.\setup.ps1   # First time setup
+.\start.ps1   # Start both services
+```
+
+### Option 2: Run Both Services Manually
+
+```powershell
+# From project root
+pnpm run dev
 ```
 
 This runs both backend and frontend concurrently using the `concurrently` package.
@@ -249,16 +256,24 @@ print(f"Elapsed: {end - start:.3f}s")
 ```
 frontend/
 ├── src/
-│   ├── pages/           # Page components
-│   ├── features/        # Feature modules
-│   ├── components/      # Shared components
-│   ├── hooks/          # Custom hooks
-│   ├── lib/            # Utilities
-│   ├── services/       # API client
-│   ├── store/          # State management
-│   └── types/          # TypeScript types
-├── public/             # Static assets
-└── package.json        # Dependencies
+│   ├── pages/           # Page components (13 pages)
+│   ├── components/      # UI components
+│   │   ├── analytics/   # Analytics components (13 components)
+│   │   ├── layout/      # Layout components
+│   │   ├── shared/      # Shared components
+│   │   ├── transactions/ # Transaction components
+│   │   ├── ui/          # Base UI components
+│   │   └── upload/      # Upload components
+│   ├── hooks/           # Custom hooks
+│   │   └── api/         # API-specific hooks
+│   ├── lib/             # Utilities (cn, queryClient)
+│   ├── services/        # API client
+│   │   └── api/         # API service modules
+│   ├── store/           # Zustand state stores
+│   ├── types/           # TypeScript types
+│   └── constants/       # App constants
+├── public/              # Static assets
+└── package.json         # Dependencies
 ```
 
 ### Hot Reload
@@ -270,93 +285,98 @@ The frontend uses Vite's HMR (Hot Module Replacement). Changes automatically ref
 1. **Create page component** in `src/pages/`:
 
 ```tsx
-// src/pages/NewPage/NewPage.tsx
-export const NewPage = ({ filteredData }) => {
+// src/pages/NewPage.tsx
+export default function NewPage() {
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold">New Page</h1>
+      <h1 className="text-3xl font-bold text-white">New Page</h1>
       {/* Content */}
     </div>
   );
-};
+}
 ```
 
-2. **Add route in** `src/app/App.tsx`:
+2. **Export from** `src/pages/index.ts`:
 
 ```tsx
-const NewPage = lazyLoad(() => import("../pages/NewPage/NewPage"), "NewPage");
-
-// In the render method
-case "new-page":
-  return <NewPage filteredData={filteredData} />;
+export { default as NewPage } from "./NewPage";
 ```
 
-3. **Add navigation tab**:
+3. **Add route** in App.tsx or router configuration
+
+### Creating New Analytics Components
+
+1. **Create component** in `src/components/analytics/`:
 
 ```tsx
-<button
-  onClick={() => setActiveTab("new-page")}
-  className={activeTab === "new-page" ? "active" : ""}
->
-  New Page
-</button>
-```
+// src/components/analytics/MyAnalyticsComponent.tsx
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/services/api";
 
-### Creating New Components
-
-1. **Create component** in `src/features/` or `src/components/`:
-
-```tsx
-// src/components/MyComponent.tsx
-interface MyComponentProps {
-  data: string;
-  onAction: () => void;
+interface Props {
+  timeRange?: string;
 }
 
-export const MyComponent = ({ data, onAction }: MyComponentProps) => {
+export default function MyAnalyticsComponent({ timeRange }: Props) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["myData", timeRange],
+    queryFn: () => api.getMyData(timeRange),
+  });
+
+  if (isLoading) return <div className="animate-pulse">Loading...</div>;
+  if (error) return <div className="text-red-400">Error loading data</div>;
+
   return (
-    <div className="p-4 border rounded">
-      <p>{data}</p>
-      <button onClick={onAction}>Action</button>
+    <div className="bg-zinc-900 rounded-xl p-6 border border-white/10">
+      <h3 className="text-lg font-semibold text-white mb-4">My Analytics</h3>
+      {/* Chart or visualization */}
     </div>
   );
-};
+}
 ```
 
-2. **Use in page**:
+2. **Export from** `src/components/analytics/index.ts`:
 
 ```tsx
-import { MyComponent } from "../components/MyComponent";
-
-export const MyPage = () => {
-  return <MyComponent data="Hello" onAction={() => console.log("Clicked")} />;
-};
+export { default as MyAnalyticsComponent } from "./MyAnalyticsComponent";
 ```
 
-### Creating Custom Hooks
+### Creating Custom Hooks with TanStack Query
 
 ```typescript
-// src/hooks/useMyHook.ts
-import { useState, useEffect } from "react";
+// src/hooks/api/useMyData.ts
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/services/api";
 
-export const useMyHook = (initialValue: string) => {
-  const [value, setValue] = useState(initialValue);
-
-  useEffect(() => {
-    // Side effect
-  }, [value]);
-
-  return { value, setValue };
-};
+export function useMyData(timeRange?: string) {
+  return useQuery({
+    queryKey: ["myData", timeRange],
+    queryFn: () => api.getMyData(timeRange),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
 ```
 
-### API Integration
+### API Integration with Services
 
-1. **Add API call** in `src/services/api.ts`:
+1. **Add API call** in `src/services/api/`:
 
 ```typescript
-export async function fetchNewData(): Promise<Data[]> {
-  const response = await fetch(`${API_BASE_URL}/api/new-endpoint`);
+// src/services/api/myApi.ts
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+export interface MyDataResponse {
+  data: MyData[];
+  total: number;
+}
+
+export async function getMyData(timeRange?: string): Promise<MyDataResponse> {
+  const params = new URLSearchParams();
+  if (timeRange) params.set("time_range", timeRange);
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/my-endpoint?${params.toString()}`,
+  );
   if (!response.ok) {
     throw new Error(`Failed to fetch: ${response.statusText}`);
   }
@@ -364,36 +384,49 @@ export async function fetchNewData(): Promise<Data[]> {
 }
 ```
 
-2. **Create custom hook** in `src/hooks/`:
-
-```typescript
-export const useNewData = () => {
-  const [data, setData] = useState<Data[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    fetchNewData()
-      .then(setData)
-      .catch(setError)
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { data, loading, error };
-};
-```
-
-3. **Use in component**:
+2. **Use with TanStack Query**:
 
 ```tsx
-export const MyComponent = () => {
-  const { data, loading, error } = useNewData();
+import { useQuery } from "@tanstack/react-query";
+import { getMyData } from "@/services/api/myApi";
 
-  if (loading) return <div>Loading...</div>;
+export const MyComponent = () => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["myData"],
+    queryFn: () => getMyData(),
+  });
+
+  if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
 
   return <div>{/* Render data */}</div>;
 };
+```
+
+### Using Zustand Stores
+
+```typescript
+// src/store/myStore.ts
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+interface MyStore {
+  items: string[];
+  addItem: (item: string) => void;
+  removeItem: (item: string) => void;
+}
+
+export const useMyStore = create<MyStore>()(
+  persist(
+    (set) => ({
+      items: [],
+      addItem: (item) => set((state) => ({ items: [...state.items, item] })),
+      removeItem: (item) =>
+        set((state) => ({ items: state.items.filter((i) => i !== item) })),
+    }),
+    { name: "my-store" },
+  ),
+);
 ```
 
 ### Styling

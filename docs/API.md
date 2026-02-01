@@ -477,6 +477,219 @@ Get top spending categories.
 
 ---
 
+## Account Classification Endpoints
+
+### Get All Account Classifications
+
+**GET** `/api/account-classifications`
+
+Get all account classifications set by user.
+
+**Response (200 OK):**
+
+```json
+{
+  "classifications": [
+    {
+      "account_name": "Grow Mutual Funds",
+      "account_type": "investment"
+    },
+    {
+      "account_name": "HDFC Savings",
+      "account_type": "savings"
+    }
+  ]
+}
+```
+
+### Get Account Classification
+
+**GET** `/api/account-classifications/{account_name}`
+
+Get classification for a specific account.
+
+**Response (200 OK):**
+
+```json
+{
+  "account_name": "Grow Mutual Funds",
+  "account_type": "investment"
+}
+```
+
+### Set Account Classification
+
+**POST** `/api/account-classifications`
+
+Set or update account classification.
+
+**Request Body:**
+
+```json
+{
+  "account_name": "Grow Mutual Funds",
+  "account_type": "investment"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Account classification saved"
+}
+```
+
+### Delete Account Classification
+
+**DELETE** `/api/account-classifications/{account_name}`
+
+Remove account classification.
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Account classification removed"
+}
+```
+
+### Get Accounts by Type
+
+**GET** `/api/account-classifications/type/{account_type}`
+
+Get all accounts of a specific type.
+
+**Parameters:**
+
+- `account_type` - One of: `investment`, `savings`, `checking`, `credit`, `loan`
+
+**Response (200 OK):**
+
+```json
+{
+  "accounts": ["Grow Mutual Funds", "Zerodha Stocks", "PPF Account"]
+}
+```
+
+---
+
+## Chart Data Endpoints
+
+### Income/Expense Chart
+
+**GET** `/api/analytics/charts/income-expense`
+
+Get monthly income vs expense data for charts.
+
+**Response (200 OK):**
+
+```json
+{
+  "data": [
+    {
+      "month": "Jan 2025",
+      "income": 150000,
+      "expense": 85000
+    }
+  ]
+}
+```
+
+### Category Chart
+
+**GET** `/api/analytics/charts/categories`
+
+Get category breakdown for pie/donut charts.
+
+**Response (200 OK):**
+
+```json
+{
+  "data": [
+    {
+      "category": "Food",
+      "amount": 25000,
+      "percentage": 0.15
+    }
+  ]
+}
+```
+
+### Monthly Trends Chart
+
+**GET** `/api/analytics/charts/monthly-trends`
+
+Get monthly trend data for line charts.
+
+**Response (200 OK):**
+
+```json
+{
+  "data": [
+    {
+      "month": "2025-01",
+      "income": 150000,
+      "expense": 85000,
+      "savings": 65000
+    }
+  ]
+}
+```
+
+### Account Distribution Chart
+
+**GET** `/api/analytics/charts/account-distribution`
+
+Get account balance distribution.
+
+**Response (200 OK):**
+
+```json
+{
+  "data": [
+    {
+      "account": "HDFC Savings",
+      "balance": 250000,
+      "percentage": 0.45
+    }
+  ]
+}
+```
+
+---
+
+## Generated Insights
+
+### Get AI-Generated Insights
+
+**GET** `/api/analytics/insights/generated`
+
+Get AI-generated financial insights and recommendations.
+
+**Response (200 OK):**
+
+```json
+{
+  "insights": [
+    {
+      "type": "spending",
+      "message": "Your food expenses increased 20% this month",
+      "severity": "warning"
+    },
+    {
+      "type": "savings",
+      "message": "Great job! You saved 35% of your income",
+      "severity": "success"
+    }
+  ]
+}
+```
+
+---
+
 ## Error Codes
 
 | Code | Meaning      | Action                                 |

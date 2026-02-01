@@ -13,7 +13,6 @@ Welcome to Ledger Sync documentation! This guide covers all aspects of the proje
 ### Comprehensive Guides
 
 1. **[Architecture](./architecture.md)** - System design and components
-
    - High-level architecture
    - Backend layers (API, Business Logic, Data Access)
    - Frontend layers (Pages, Features, Components)
@@ -22,7 +21,6 @@ Welcome to Ledger Sync documentation! This guide covers all aspects of the proje
    - Scalability considerations
 
 2. **[API Documentation](./API.md)** - REST API reference
-
    - Base URL and authentication
    - Upload endpoints
    - Transaction endpoints
@@ -32,7 +30,6 @@ Welcome to Ledger Sync documentation! This guide covers all aspects of the proje
    - Interactive API docs links
 
 3. **[Database Schema](./DATABASE.md)** - Database design and operations
-
    - Database models (Transaction)
    - Create, Read, Update, Delete operations
    - Alembic migrations
@@ -43,7 +40,6 @@ Welcome to Ledger Sync documentation! This guide covers all aspects of the proje
    - Future scaling to PostgreSQL
 
 4. **[Development Guide](./DEVELOPMENT.md)** - Development environment and workflow
-
    - Setup instructions
    - Running the application
    - Creating new endpoints
@@ -54,7 +50,6 @@ Welcome to Ledger Sync documentation! This guide covers all aspects of the proje
    - Common development tasks
 
 5. **[Testing Guide](./TESTING.md)** - Testing strategies and practices
-
    - Backend testing (pytest)
    - Frontend testing (Jest, React Testing Library)
    - Writing unit tests
@@ -148,28 +143,36 @@ ledger-sync/
 │   ├── DEVELOPMENT.md      # Development guide
 │   ├── TESTING.md          # Testing guide
 │   ├── DEPLOYMENT.md       # Deployment guide
+│   ├── ROADMAP.md          # Future roadmap
+│   ├── QUICK-REFERENCE.md  # Quick reference guide
 │   └── INDEX.md            # This file
 ├── backend/                 # Python FastAPI backend
 │   ├── README.md
 │   ├── src/
 │   │   └── ledger_sync/
-│   │       ├── api/
-│   │       ├── core/
-│   │       ├── db/
-│   │       ├── ingest/
-│   │       └── utils/
+│   │       ├── api/        # FastAPI endpoints
+│   │       ├── core/       # Business logic
+│   │       ├── db/         # Database models & migrations
+│   │       ├── ingest/     # Excel file processing
+│   │       └── utils/      # Utilities
 │   └── tests/
 ├── frontend/                # React TypeScript frontend
 │   ├── README.md
 │   ├── src/
-│   │   ├── pages/
-│   │   ├── features/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── lib/
-│   │   ├── services/
-│   │   ├── store/
-│   │   └── types/
+│   │   ├── pages/          # Page components (13 pages)
+│   │   ├── components/     # UI components
+│   │   │   ├── analytics/  # Analytics components (13 components)
+│   │   │   ├── layout/     # Layout components
+│   │   │   ├── shared/     # Shared components
+│   │   │   ├── transactions/ # Transaction components
+│   │   │   ├── ui/         # Base UI components
+│   │   │   └── upload/     # Upload components
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── lib/            # Utilities (cn, queryClient)
+│   │   ├── services/       # API client services
+│   │   ├── store/          # Zustand state stores
+│   │   ├── types/          # TypeScript types
+│   │   └── constants/      # App constants
 │   └── tests/
 └── README.md                # Main project README
 ```
@@ -193,9 +196,10 @@ ledger-sync/
 - **Framework**: React 19
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS
-- **Charts**: Chart.js
+- **Charts**: Recharts
 - **State Management**: Zustand
-- **Testing**: Jest, React Testing Library
+- **API Layer**: TanStack Query (React Query)
+- **Testing**: Vitest, React Testing Library
 
 ---
 
@@ -238,21 +242,18 @@ See [API Documentation](./API.md) for full reference.
 ### Adding a New Financial Metric
 
 1. **Backend**:
-
    - Add calculation function in `core/calculator.py`
    - Create API endpoint in `api/calculations.py`
    - Add tests in `tests/unit/test_calculator.py`
    - Update database if needed (migration)
 
 2. **Frontend**:
-
    - Add API call in `services/api.ts`
    - Create component in `features/kpi/components/`
    - Add to page component
    - Write component tests
 
 3. **Testing**:
-
    - Backend: Write calculation unit test
    - Frontend: Write component test
    - Integration: Test end-to-end

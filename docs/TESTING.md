@@ -19,13 +19,13 @@ Ledger Sync includes comprehensive testing for both backend and frontend to ensu
 backend/tests/
 ├── __init__.py
 ├── conftest.py          # Shared fixtures
-├── unit/               # Unit tests
+├── fixtures/            # Test data fixtures
+│   └── README.md
+├── unit/                # Unit tests
 │   ├── test_hash_id.py
-│   ├── test_normalizer.py
-│   └── test_validator.py
-└── integration/        # Integration tests
-    ├── test_reconciler.py
-    └── test_api_endpoints.py
+│   └── test_normalizer.py
+└── integration/         # Integration tests
+    └── test_reconciler.py
 ```
 
 ### Running Tests
@@ -292,19 +292,22 @@ jobs:
 
 ### Testing Framework
 
-- **Jest** - Unit and integration testing
+- **Vitest** - Fast unit test runner (Vite-native)
 - **React Testing Library** - Component testing
-- **Vitest** - Fast unit test runner (alternative to Jest)
+- **@testing-library/user-event** - User interaction simulation
 
 ### Test Structure
 
 ```
-frontend/tests/
-├── unit/              # Unit tests
-│   └── utils/
-├── components/        # Component tests
-│   └── ChartComponent.test.tsx
-└── integration/       # Integration tests
+frontend/
+├── src/
+│   ├── components/
+│   │   └── __tests__/      # Component tests
+│   ├── hooks/
+│   │   └── __tests__/      # Hook tests
+│   └── lib/
+│       └── __tests__/      # Utility tests
+└── vitest.config.ts        # Vitest configuration
 ```
 
 ### Running Tests
@@ -313,19 +316,19 @@ frontend/tests/
 cd frontend
 
 # Run all tests
-npm test
+pnpm test
 
 # Run specific test file
-npm test -- ChartComponent.test.tsx
+pnpm test MyComponent.test.tsx
 
 # Run with coverage
-npm test -- --coverage
+pnpm test -- --coverage
 
 # Run in watch mode
-npm test -- --watch
+pnpm test -- --watch
 
-# Update snapshots
-npm test -- -u
+# Run UI mode
+pnpm test -- --ui
 ```
 
 ### Writing Component Tests
@@ -333,7 +336,8 @@ npm test -- -u
 ```typescript
 // src/components/__tests__/MyComponent.test.tsx
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { userEvent } from "@testing-library/user-event";
+import { describe, it, expect, vi } from "vitest";
 import { MyComponent } from "../MyComponent";
 
 describe("MyComponent", () => {
@@ -343,7 +347,7 @@ describe("MyComponent", () => {
   });
 
   it("calls onAction when button clicked", async () => {
-    const mockAction = jest.fn();
+    const mockAction = vi.fn();
     render(<MyComponent data="Test" onAction={mockAction} />);
 
     const button = screen.getByRole("button", { name: /action/i });
@@ -364,6 +368,7 @@ describe("MyComponent", () => {
 ```typescript
 // src/hooks/__tests__/useMyHook.test.ts
 import { renderHook, act } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
 import { useMyHook } from "../useMyHook";
 
 describe("useMyHook", () => {
@@ -384,15 +389,57 @@ describe("useMyHook", () => {
 });
 ```
 
+### Testing with TanStack Query
+
+```typescript
+// src/components/__tests__/MyDataComponent.test.tsx
+import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { describe, it, expect, vi } from "vitest";
+import { MyDataComponent } from "../MyDataComponent";
+
+// Mock the API module
+vi.mock("../../services/api", () => ({
+  api: {
+    getData: vi.fn(),
+  },
+}));
+
+import { api } from "../../services/api";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+  },
+});
+
+const wrapper = ({ children }) => (
+  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+);
+
+describe("MyDataComponent", () => {
+  it("renders data from API", async () => {
+    vi.mocked(api.getData).mockResolvedValue([{ id: 1, name: "Test" }]);
+
+    render(<MyDataComponent />, { wrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Test")).toBeInTheDocument();
+    });
+  });
+});
+```
+
 ### Mocking API Calls
 
 ```typescript
 import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MyComponent } from "../MyComponent";
 
 // Mock the API module
-jest.mock("../../services/api", () => ({
-  fetchData: jest.fn(),
+vi.mock("../../services/api", () => ({
+  fetchData: vi.fn(),
 }));
 
 import { fetchData } from "../../services/api";
@@ -532,7 +579,6 @@ describe("File Upload", () => {
    ```
 
 4. **Keep Tests Isolated**
-
    - Each test should be independent
    - Clean up after tests (teardown)
    - Don't rely on test execution order
