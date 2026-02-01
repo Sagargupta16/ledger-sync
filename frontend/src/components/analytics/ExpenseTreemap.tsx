@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, Treemap, Tooltip } from 'recharts'
+import { formatCurrency } from '@/lib/formatters'
 
 const COLORS = ['#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#f97316']
 
@@ -276,7 +277,7 @@ export default function ExpenseTreemap() {
                       userSelect: 'none',
                     }}
                   >
-                    ₹{size ? Math.round(size).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'}
+                    {formatCurrency(size ?? 0)}
                   </text>
                 </g>
               )
@@ -288,7 +289,7 @@ export default function ExpenseTreemap() {
                 border: '1px solid rgba(139, 92, 246, 0.3)',
                 borderRadius: '8px',
               }}
-              formatter={(value: number | undefined) => value ? `₹${Math.round(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '₹0'}
+              formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
             />
           </Treemap>
         </ResponsiveContainer>

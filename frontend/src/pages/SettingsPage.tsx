@@ -4,6 +4,7 @@ import { Save, RotateCcw, GripVertical } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { toast } from 'sonner'
+import { formatCurrency } from '@/lib/formatters'
 
 const ACCOUNT_TYPES = ['Cash', 'Bank Accounts', 'Credit Cards', 'Investments', 'Loans', 'Other Wallets']
 
@@ -226,7 +227,7 @@ export default function SettingsPage() {
                         <span className="font-medium text-white truncate">{accountName}</span>
                         {!balancesLoading && (
                           <span className="text-xs text-gray-400 whitespace-nowrap font-mono">
-                            ₹{Math.abs(balanceData?.accounts[accountName]?.balance || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            {formatCurrency(Math.abs(balanceData?.accounts[accountName]?.balance || 0))}
                           </span>
                         )}
                       </div>

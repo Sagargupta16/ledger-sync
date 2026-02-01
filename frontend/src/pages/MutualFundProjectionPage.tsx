@@ -14,6 +14,7 @@ import {
 } from 'recharts'
 import { useState, useMemo, useEffect } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 
 // Hide number input spinners
 const hideSpinnersStyle = `
@@ -288,7 +289,7 @@ export default function MutualFundProjectionPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Projected Value</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${projection.value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : formatCurrency(projection.value)}
                 </p>
               </div>
             </div>
@@ -307,7 +308,7 @@ export default function MutualFundProjectionPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Expected Returns</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${projection.returns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : formatCurrency(projection.returns)}
                 </p>
               </div>
             </div>
@@ -326,7 +327,7 @@ export default function MutualFundProjectionPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Current Invested</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${currentInvested.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : formatCurrency(currentInvested)}
                 </p>
                 <p className="text-xs text-gray-500">Groww mutual fund inflows</p>
               </div>
@@ -355,9 +356,9 @@ export default function MutualFundProjectionPage() {
                 }}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50"
               />
-              <p className="text-xs text-gray-500 mt-1">₹{effectiveSipAmount.toLocaleString('en-IN')}/month</p>
+              <p className="text-xs text-gray-500 mt-1">{formatCurrency(effectiveSipAmount)}/month</p>
               {lastSipAmount > 0 ? (
-                <p className="text-[11px] text-gray-500">Last SIP: ₹{lastSipAmount.toLocaleString('en-IN')}</p>
+                <p className="text-[11px] text-gray-500">Last SIP: {formatCurrency(lastSipAmount)}</p>
               ) : null}
             </div>
             <div>
@@ -369,7 +370,7 @@ export default function MutualFundProjectionPage() {
                 onChange={(e) => setReturnRate(Number(e.target.value))}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50"
               />
-              <p className="text-xs text-gray-500 mt-1">{returnRate}% p.a.</p>
+              <p className="text-xs text-gray-500 mt-1">{formatPercent(returnRate)} p.a.</p>
             </div>
             <div>
               <label htmlFor="till-date-return" className="block text-sm font-medium text-gray-400 mb-2">Till Date Return (%)</label>
@@ -380,7 +381,7 @@ export default function MutualFundProjectionPage() {
                 onChange={(e) => setTillDateReturn(Number(e.target.value))}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50"
               />
-              <p className="text-xs text-gray-500 mt-1">{tillDateReturn}% gained so far</p>
+              <p className="text-xs text-gray-500 mt-1">{formatPercent(tillDateReturn)} gained so far</p>
             </div>
             <div>
               <label htmlFor="years-input" className="block text-sm font-medium text-gray-400 mb-2">Years</label>
@@ -469,12 +470,12 @@ export default function MutualFundProjectionPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="month" stroke="#9ca3af" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
-                <YAxis stroke="#9ca3af" tickFormatter={(v) => `₹${(v / 100000).toFixed(0)}L`} />
+                <YAxis stroke="#9ca3af" tickFormatter={(v) => formatCurrencyShort(v)} />
                 {combinedChartData.find((d) => d.isToday) && (
                   <line x1={combinedChartData.findIndex((d) => d.isToday)} y1={0} x2={combinedChartData.findIndex((d) => d.isToday)} y2={1} stroke="#fbbf24" strokeWidth={2} strokeDasharray="5 5" />
                 )}
                 <Tooltip
-                  formatter={(value: number) => `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  formatter={(value: number) => formatCurrency(value)}
                   contentStyle={{ background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}
                   labelFormatter={(label) => label}
                 />
@@ -490,21 +491,21 @@ export default function MutualFundProjectionPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-xs text-gray-400">Current Invested</p>
-                <p className="text-xl font-bold text-blue-400">{isLoading ? '...' : `₹${currentInvested.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}</p>
+                <p className="text-xl font-bold text-blue-400">{isLoading ? '...' : formatCurrency(currentInvested)}</p>
               </div>
               {showProjection && (
                 <>
                   <div>
                     <p className="text-xs text-gray-400">Expected Invested</p>
-                    <p className="text-xl font-bold text-blue-300">{isLoading ? '...' : `₹${projection.invested.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}</p>
+                    <p className="text-xl font-bold text-blue-300">{isLoading ? '...' : formatCurrency(projection.invested)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400">Expected Gain ({returnRate}%)</p>
-                    <p className="text-xl font-bold text-green-400">{isLoading ? '...' : `₹${projection.returns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}</p>
+                    <p className="text-xs text-gray-400">Expected Gain ({formatPercent(returnRate)})</p>
+                    <p className="text-xl font-bold text-green-400">{isLoading ? '...' : formatCurrency(projection.returns)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">Future Worth</p>
-                    <p className="text-xl font-bold text-emerald-400">{isLoading ? '...' : `₹${projection.value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}</p>
+                    <p className="text-xl font-bold text-emerald-400">{isLoading ? '...' : formatCurrency(projection.value)}</p>
                   </div>
                 </>
               )}

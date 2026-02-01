@@ -8,6 +8,7 @@ import Sparkline from '@/components/shared/Sparkline'
 import { useRecentTransactions } from '@/hooks/api/useAnalytics'
 import { useMonthlyAggregation, useTotals } from '@/hooks/useAnalytics'
 import { useState, useMemo } from 'react'
+import { formatCurrency } from '@/lib/formatters'
 
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('6M')
@@ -57,14 +58,7 @@ export default function DashboardPage() {
     return Object.values(monthlyData).map((m: { expense?: number }) => Math.abs(m.expense || 0))
   }, [monthlyData])
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value)
-  }
+  // Using shared formatCurrency from @/lib/formatters
 
   return (
     <div className="p-8 space-y-8">
@@ -83,7 +77,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="Total Income"
-          value={filteredTotals ? formatCurrency(filteredTotals.total_income) : '₹0'}
+          value={filteredTotals ? formatCurrency(filteredTotals.total_income) : formatCurrency(0)}
           icon={TrendingUp}
           color="green"
           isLoading={isLoading}
@@ -91,7 +85,7 @@ export default function DashboardPage() {
         />
         <MetricCard
           title="Total Expenses"
-          value={filteredTotals ? formatCurrency(Math.abs(filteredTotals.total_expenses)) : '₹0'}
+          value={filteredTotals ? formatCurrency(Math.abs(filteredTotals.total_expenses)) : formatCurrency(0)}
           icon={TrendingDown}
           color="red"
           isLoading={isLoading}
@@ -99,7 +93,7 @@ export default function DashboardPage() {
         />
         <MetricCard
           title="Net Savings"
-          value={filteredTotals ? formatCurrency(filteredTotals.net_savings) : '₹0'}
+          value={filteredTotals ? formatCurrency(filteredTotals.net_savings) : formatCurrency(0)}
           icon={DollarSign}
           color="blue"
           isLoading={isLoading}

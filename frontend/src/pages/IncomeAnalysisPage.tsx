@@ -4,6 +4,7 @@ import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { useState, useMemo } from 'react'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 
 const COLORS = ['#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b']
 
@@ -111,7 +112,7 @@ export default function IncomeAnalysisPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Income</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : `₹${totalIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}</p>
+                <p className="text-2xl font-bold">{isLoading ? '...' : formatCurrency(totalIncome)}</p>
               </div>
             </div>
           </motion.div>
@@ -135,7 +136,7 @@ export default function IncomeAnalysisPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Growth Rate</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : `${growthRate > 0 ? '+' : ''}${growthRate.toFixed(1)}%`}</p>
+                <p className="text-2xl font-bold">{isLoading ? '...' : formatPercent(growthRate, true)}</p>
               </div>
             </div>
           </motion.div>
@@ -147,7 +148,7 @@ export default function IncomeAnalysisPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Avg per Period</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : `₹${avgIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}</p>
+                <p className="text-2xl font-bold">{isLoading ? '...' : formatCurrency(avgIncome)}</p>
               </div>
             </div>
           </motion.div>
@@ -248,7 +249,7 @@ export default function IncomeAnalysisPage() {
                   <YAxis
                     stroke="#9ca3af"
                     tick={{ fill: '#9ca3af', fontSize: 11 }}
-                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                    tickFormatter={(value) => formatCurrencyShort(value)}
                   />
                   <Tooltip
                     contentStyle={{
@@ -256,7 +257,7 @@ export default function IncomeAnalysisPage() {
                       border: '1px solid rgba(16, 185, 129, 0.3)',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Income']}
+                    formatter={(value: number) => [formatCurrency(value), 'Income']}
                   />
                   <Line
                     type="monotone"
@@ -299,9 +300,9 @@ export default function IncomeAnalysisPage() {
                   </div>
                   <div className="text-right">
                     <div className="font-semibold text-white">
-                      ₹{data.total.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      {formatCurrency(data.total)}
                     </div>
-                    <div className="text-sm text-gray-400">{data.percentage.toFixed(1)}%</div>
+                    <div className="text-sm text-gray-400">{formatPercent(data.percentage)}</div>
                   </div>
                 </div>
               ))}

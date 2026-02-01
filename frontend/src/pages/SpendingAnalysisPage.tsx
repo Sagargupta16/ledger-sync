@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { TrendingDown, Tag, PieChart } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
+import { formatCurrency } from '@/lib/formatters'
 import ExpenseTreemap from '@/components/analytics/ExpenseTreemap'
 import EnhancedSubcategoryAnalysis from '@/components/analytics/EnhancedSubcategoryAnalysis'
 import MultiCategoryTimeAnalysis from '@/components/analytics/MultiCategoryTimeAnalysis'
@@ -37,7 +38,7 @@ export default function SpendingAnalysisPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Spending</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : `₹${Math.round(totalSpending).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}</p>
+                <p className="text-2xl font-bold">{isLoading ? '...' : formatCurrency(totalSpending)}</p>
               </div>
             </div>
           </motion.div>

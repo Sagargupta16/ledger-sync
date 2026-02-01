@@ -4,6 +4,7 @@ import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useTotals } from '@/hooks/useAnalytics'
 import LoadingSkeleton from './LoadingSkeleton'
+import { formatCurrency } from '@/lib/formatters'
 
 interface QuickInsightsProps {
   dateRange?: { start_date?: string; end_date?: string }
@@ -159,7 +160,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       title: 'Top Spending Category',
       value: topCategory ? topCategory[0] : 'N/A',
       subtitle: topCategory
-        ? `₹${Math.abs((topCategory[1] as CategoryData).total).toLocaleString('en-IN')}`
+        ? formatCurrency(Math.abs((topCategory[1] as CategoryData).total))
         : '',
     },
     {
@@ -167,7 +168,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       color: 'text-green-400',
       bg: 'bg-green-500/20',
       title: 'Net Cashback Earned',
-      value: `₹${netCashback.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+      value: formatCurrency(netCashback),
       subtitle: `From ${cashbackTransactions.length} cashback transactions`,
     },
     {
@@ -183,7 +184,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       color: 'text-red-400',
       bg: 'bg-red-500/20',
       title: 'Biggest Transaction',
-      value: `₹${Math.abs(biggestTransaction?.amount || 0).toLocaleString('en-IN')}`,
+      value: formatCurrency(Math.abs(biggestTransaction?.amount || 0)),
       subtitle: biggestTransaction?.category || '',
     },
     {
@@ -191,7 +192,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       color: 'text-cyan-400',
       bg: 'bg-cyan-500/20',
       title: 'Avg Transaction Amount',
-      value: `₹${avgTransactionAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+      value: formatCurrency(avgTransactionAmount),
       subtitle: `Per transaction`,
     },
     {
@@ -199,7 +200,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       color: 'text-amber-400',
       bg: 'bg-amber-500/20',
       title: 'Average Daily Spending',
-      value: `₹${avgDailySpending.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+      value: formatCurrency(avgDailySpending),
       subtitle: `Over ${daysInRange} days`,
     },
     {
@@ -207,7 +208,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       color: 'text-orange-400',
       bg: 'bg-orange-500/20',
       title: 'Monthly Burn Rate',
-      value: `₹${monthlyBurnRate.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+      value: formatCurrency(monthlyBurnRate),
       subtitle: `Avg per month over ${monthsInRange.toFixed(1)} months`,
     },
     {
@@ -215,7 +216,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       color: 'text-indigo-400',
       bg: 'bg-indigo-500/20',
       title: 'Total Internal Transfers',
-      value: `₹${totalTransfers.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+      value: formatCurrency(totalTransfers),
       subtitle: `${transferTransactions.length} transfer transactions`,
     },
   ]

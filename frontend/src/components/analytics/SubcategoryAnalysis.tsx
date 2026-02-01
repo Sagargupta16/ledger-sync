@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 
 const COLORS = ['#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#f97316']
 
@@ -184,9 +185,9 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <div className="font-semibold text-white">
-                    ₹{item.amount.toLocaleString('en-IN')}
+                    {formatCurrency(item.amount)}
                   </div>
-                  <div className="text-sm text-gray-400">{item.percentage.toFixed(1)}%</div>
+                  <div className="text-sm text-gray-400">{formatPercent(item.percentage)}</div>
                 </div>
                 {selectedCategory === item.category ? (
                   <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -286,7 +287,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                       <div className="p-3 bg-gray-800/30 rounded-lg">
                         <div className="text-sm text-gray-400 mb-1">Total Spending</div>
                         <div className="text-lg font-semibold text-white">
-                          ₹{subcategoryDetails.totalAmount.toLocaleString('en-IN')}
+                          {formatCurrency(subcategoryDetails.totalAmount)}
                         </div>
                       </div>
                       <div className="p-3 bg-gray-800/30 rounded-lg">
@@ -315,9 +316,9 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                             </div>
                             <div className="text-right">
                               <div className="text-sm font-medium text-white">
-                                ₹{subcat.amount.toLocaleString('en-IN')}
+                                {formatCurrency(subcat.amount)}
                               </div>
-                              <div className="text-xs text-gray-400">{subcat.percentage.toFixed(1)}%</div>
+                              <div className="text-xs text-gray-400">{formatPercent(subcat.percentage)}</div>
                             </div>
                           </div>
                         ))}
@@ -338,7 +339,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                             <YAxis
                               stroke="#9ca3af"
                               tick={{ fill: '#9ca3af', fontSize: 11 }}
-                              tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                              tickFormatter={(value) => formatCurrencyShort(value)}
                             />
                             <Tooltip
                               contentStyle={{
@@ -347,7 +348,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                                 borderRadius: '8px',
                                 fontSize: '12px',
                               }}
-                              formatter={(value: number | undefined) => value ? `₹${value.toLocaleString('en-IN')}` : '₹0'}
+                              formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
                             />
                             {subcategoryNames.map((name, idx) => (
                               <Line

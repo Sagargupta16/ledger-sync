@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 
 const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#a855f7', '#ec4899']
 
@@ -259,7 +260,7 @@ export default function MultiCategoryTimeAnalysis() {
                 <YAxis
                   stroke="#9ca3af"
                   tick={{ fill: '#9ca3af', fontSize: 11 }}
-                  tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
                   contentStyle={{
@@ -267,7 +268,7 @@ export default function MultiCategoryTimeAnalysis() {
                     border: '1px solid rgba(139, 92, 246, 0.3)',
                     borderRadius: '8px',
                   }}
-                  formatter={(value: number | undefined) => value ? `₹${value.toLocaleString('en-IN')}` : '₹0'}
+                  formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
                 />
                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
                 {topCategories.map((category, index) => (
@@ -293,7 +294,7 @@ export default function MultiCategoryTimeAnalysis() {
                 <YAxis
                   stroke="#9ca3af"
                   tick={{ fill: '#9ca3af', fontSize: 11 }}
-                  tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
                   contentStyle={{
@@ -301,7 +302,7 @@ export default function MultiCategoryTimeAnalysis() {
                     border: '1px solid rgba(139, 92, 246, 0.3)',
                     borderRadius: '8px',
                   }}
-                  formatter={(value: number | undefined) => value ? `₹${value.toLocaleString('en-IN')}` : '₹0'}
+                  formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
                 />
                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
                 {topCategories.map((category, index) => (

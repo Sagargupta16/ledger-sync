@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Calendar, Tag } from 'lucide-react'
 import type { Transaction } from '@/types'
 import { format } from 'date-fns'
+import { formatCurrency } from '@/lib/formatters'
 
 interface RecentTransactionsProps {
   transactions: Transaction[]
@@ -9,15 +10,6 @@ interface RecentTransactionsProps {
 }
 
 export default function RecentTransactions({ transactions, isLoading }: RecentTransactionsProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(Math.abs(value))
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -86,7 +78,7 @@ export default function RecentTransactions({ transactions, isLoading }: RecentTr
           <div className="text-right">
             <p className={`font-semibold ${transaction.type === 'Income' ? 'text-green-500' : 'text-red-500'}`}>
               {transaction.type === 'Income' ? '+' : '-'}
-              {formatCurrency(transaction.amount)}
+              {formatCurrency(Math.abs(transaction.amount))}
             </p>
             {transaction.account && <p className="text-xs text-muted-foreground mt-1">{transaction.account}</p>}
           </div>

@@ -10,6 +10,7 @@ import {
 import { ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react'
 import type { Transaction } from '@/types'
 import { format } from 'date-fns'
+import { formatCurrency } from '@/lib/formatters'
 import { motion } from 'framer-motion'
 
 interface TransactionTableProps {
@@ -20,15 +21,6 @@ interface TransactionTableProps {
 }
 
 export default function TransactionTable({ transactions, isLoading, sorting, onSortingChange }: TransactionTableProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(Math.abs(value))
-  }
-
   const columns = useMemo<ColumnDef<Transaction>[]>(
     () => [
       {

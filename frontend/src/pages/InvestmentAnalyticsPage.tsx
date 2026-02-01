@@ -5,6 +5,7 @@ import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 
 const COLORS = ['#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#f97316', '#14b8a6']
 
@@ -268,7 +269,7 @@ export default function InvestmentAnalyticsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Investment Value</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${totalInvestmentValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : formatCurrency(totalInvestmentValue)}
                 </p>
               </div>
             </div>
@@ -304,7 +305,7 @@ export default function InvestmentAnalyticsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Est. Returns (5%)</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${investmentReturns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : formatCurrency(investmentReturns)}
                 </p>
               </div>
             </div>
@@ -355,7 +356,7 @@ export default function InvestmentAnalyticsPage() {
                   itemStyle={{
                     color: '#ffffff',
                   }}
-                  formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`}
+                  formatter={(value: number) => formatCurrency(value)}
                 />
                 <Legend />
               </RechartsPie>
@@ -401,7 +402,7 @@ export default function InvestmentAnalyticsPage() {
                   />
                   <YAxis 
                     stroke="#9ca3af"
-                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                    tickFormatter={(value) => formatCurrencyShort(value)}
                   />
                   <Tooltip
                     contentStyle={{
@@ -409,7 +410,7 @@ export default function InvestmentAnalyticsPage() {
                       border: '1px solid rgba(139, 92, 246, 0.3)',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [`₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, '']}
+                    formatter={(value: number) => [formatCurrency(value), '']}
                     labelFormatter={(label) => `Month: ${label}`}
                   />
                   <Legend />
@@ -459,8 +460,8 @@ export default function InvestmentAnalyticsPage() {
                       transition={{ delay: 0.6 + index * 0.05 }}
                     >
                       <td className="py-3 px-4 text-white font-medium">{item.name}</td>
-                      <td className="py-3 px-4 text-right text-green-400">₹{item.value.toLocaleString('en-IN')}</td>
-                      <td className="py-3 px-4 text-right text-purple-400">{item.percentage}%</td>
+                      <td className="py-3 px-4 text-right text-green-400">{formatCurrency(item.value)}</td>
+                      <td className="py-3 px-4 text-right text-purple-400">{formatPercent(Number.parseFloat(item.percentage))}</td>
                     </motion.tr>
                   ))}
                 </tbody>

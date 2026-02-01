@@ -4,6 +4,7 @@ import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useState, useEffect } from 'react'
 import React from 'react'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 export default function NetWorthPage() {
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
@@ -133,7 +134,7 @@ export default function NetWorthPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Assets</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${Math.round(totalAssets).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : formatCurrency(totalAssets)}
                 </p>
               </div>
             </div>
@@ -152,7 +153,7 @@ export default function NetWorthPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Liabilities</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${Math.round(totalLiabilities).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : formatCurrency(totalLiabilities)}
                 </p>
               </div>
             </div>
@@ -171,7 +172,7 @@ export default function NetWorthPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Net Worth</p>
                 <p className="text-2xl font-bold">
-                  {isLoading ? '...' : `₹${Math.round(netWorth).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {isLoading ? '...' : formatCurrency(netWorth)}
                 </p>
               </div>
             </div>
@@ -246,7 +247,7 @@ export default function NetWorthPage() {
                     border: '1px solid rgba(139, 92, 246, 0.3)',
                     borderRadius: '8px',
                   }}
-                  formatter={(value: number) => `₹${Math.round(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  formatter={(value: number) => formatCurrency(value)}
                 />
                 <Legend />
                 {showStacked ? (
@@ -354,16 +355,15 @@ export default function NetWorthPage() {
                         const categoryAccounts = array.filter(([name]) => (accountClassifications[name] || 'Other') === currentCategory)
                         const catBalance = categoryAccounts.reduce((sum, [, data]) => sum + data.balance, 0)
                         const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
-                        const catPercent = ((catBalance / totalAssets) * 100).toFixed(2)
                         
                         acc.elements.push(
                           <tr key={`header-${currentCategory}`} className="bg-white/5">
                             <td className="py-2 px-4 text-sm font-semibold text-primary">{currentCategory}</td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-green-400/70">
-                              ₹{Math.round(catBalance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              {formatCurrency(catBalance)}
                             </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
-                              {catPercent}%
+                              {formatPercent(catBalance / totalAssets)}
                             </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">—</td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">{catTransactions}</td>
@@ -381,10 +381,10 @@ export default function NetWorthPage() {
                         >
                           <td className="py-3 px-4 text-white font-medium">{accountName}</td>
                           <td className="py-3 px-4 text-right font-bold text-green-400">
-                            ₹{Math.round(accountData.balance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            {formatCurrency(accountData.balance)}
                           </td>
                           <td className="py-3 px-4 text-right text-gray-400">
-                            {((accountData.balance / totalAssets) * 100).toFixed(2)}%
+                            {formatPercent(accountData.balance / totalAssets)}
                           </td>
                           <td className="py-3 px-4 text-right text-gray-400">
                             {accountClassifications[accountName] || 'Other'}
@@ -452,16 +452,15 @@ export default function NetWorthPage() {
                         const categoryAccounts = array.filter(([name]) => (accountClassifications[name] || 'Other') === currentCategory)
                         const catBalance = categoryAccounts.reduce((sum, [, data]) => sum + Math.abs(data.balance), 0)
                         const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
-                        const catPercent = ((catBalance / totalLiabilities) * 100).toFixed(2)
                         
                         acc.elements.push(
                           <tr key={`header-${currentCategory}`} className="bg-white/5">
                             <td className="py-2 px-4 text-sm font-semibold text-primary">{currentCategory}</td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-red-400/70">
-                              ₹{Math.round(catBalance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              {formatCurrency(catBalance)}
                             </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
-                              {catPercent}%
+                              {formatPercent(catBalance / totalLiabilities)}
                             </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">—</td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">{catTransactions}</td>
@@ -479,10 +478,10 @@ export default function NetWorthPage() {
                         >
                           <td className="py-3 px-4 text-white font-medium">{accountName}</td>
                           <td className="py-3 px-4 text-right font-bold text-red-400">
-                            ₹{Math.round(Math.abs(accountData.balance)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            {formatCurrency(Math.abs(accountData.balance))}
                           </td>
                           <td className="py-3 px-4 text-right text-gray-400">
-                            {((Math.abs(accountData.balance) / totalLiabilities) * 100).toFixed(2)}%
+                            {formatPercent(Math.abs(accountData.balance) / totalLiabilities)}
                           </td>
                           <td className="py-3 px-4 text-right text-gray-400">
                             {accountClassifications[accountName] || 'Other'}

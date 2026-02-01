@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { ArrowRightLeft, TrendingUp, TrendingDown, Calendar } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { ResponsiveContainer, Sankey, Tooltip } from 'recharts'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 interface Transaction {
   date: string
@@ -223,7 +224,7 @@ const IncomeExpenseFlowPage = () => {
             <p className="text-sm text-muted-foreground">Total Income</p>
           </div>
           <p className="text-2xl font-bold text-green-400">
-            ₹{totalIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {formatCurrency(totalIncome)}
           </p>
         </div>
 
@@ -233,7 +234,7 @@ const IncomeExpenseFlowPage = () => {
             <p className="text-sm text-muted-foreground">Total Expense</p>
           </div>
           <p className="text-2xl font-bold text-red-400">
-            ₹{totalExpense.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {formatCurrency(totalExpense)}
           </p>
         </div>
 
@@ -243,7 +244,7 @@ const IncomeExpenseFlowPage = () => {
             <p className="text-sm text-muted-foreground">Net Savings</p>
           </div>
           <p className={`text-2xl font-bold ${netSavings >= 0 ? 'text-primary' : 'text-red-400'}`}>
-            ₹{Math.abs(netSavings).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {formatCurrency(Math.abs(netSavings))}
           </p>
         </div>
 
@@ -253,7 +254,7 @@ const IncomeExpenseFlowPage = () => {
             <p className="text-sm text-muted-foreground">Savings Rate</p>
           </div>
           <p className={`text-2xl font-bold ${savingsRate >= 20 ? 'text-green-400' : 'text-yellow-400'}`}>
-            {savingsRate.toFixed(1)}%
+            {formatPercent(savingsRate)}
           </p>
         </div>
       </motion.div>
@@ -352,7 +353,7 @@ const IncomeExpenseFlowPage = () => {
                           fontSize={11}
                           fontWeight="500"
                         >
-                          ₹{value.toLocaleString('en-IN', { maximumFractionDigits: 0 })} ({percentage}%)
+                          {formatCurrency(value)} ({percentage}%)
                         </text>
                       </g>
                     )
@@ -396,7 +397,7 @@ const IncomeExpenseFlowPage = () => {
                       fontSize: '13px',
                     }}
                     formatter={(value: number) => [
-                      `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+                      formatCurrency(value),
                       'Amount'
                     ]}
                   />

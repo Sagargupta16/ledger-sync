@@ -4,6 +4,7 @@ import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { useMemo } from 'react'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 
 const INVESTMENT_KEYWORDS = ['invest', 'mutual', 'stock', 'equity', 'sip', 'portfolio', 'fund', 'demat']
 
@@ -230,7 +231,7 @@ export default function ReturnsAnalysisPage() {
   }, [transactions])
 
   // Simple return on investment calculation
-  const roi = monthlyDataArray.length > 0 ? (estimatedCAGR / 12).toFixed(1) : '0'
+  const roi = monthlyDataArray.length > 0 ? estimatedCAGR / 12 : 0
 
   return (
     <div className="min-h-screen p-8">
@@ -261,7 +262,7 @@ export default function ReturnsAnalysisPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Net Profit/Loss</p>
                 <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {netProfitLoss >= 0 ? '+' : ''}₹{netProfitLoss.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  {formatCurrency(netProfitLoss, true)}
                 </p>
               </div>
             </div>
@@ -280,7 +281,7 @@ export default function ReturnsAnalysisPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Dividend Income</p>
                 <p className="text-2xl font-bold text-emerald-400">
-                  ₹{dividendIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  {formatCurrency(dividendIncome)}
                 </p>
               </div>
             </div>
@@ -299,7 +300,7 @@ export default function ReturnsAnalysisPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Broker Fees</p>
                 <p className="text-2xl font-bold text-orange-400">
-                  ₹{brokerFees.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  {formatCurrency(brokerFees)}
                 </p>
               </div>
             </div>
@@ -335,7 +336,7 @@ export default function ReturnsAnalysisPage() {
                 />
                 <YAxis 
                   stroke="#9ca3af"
-                  tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
                   contentStyle={{
@@ -344,8 +345,8 @@ export default function ReturnsAnalysisPage() {
                     borderRadius: '8px',
                   }}
                   formatter={(value: number, name: string) => {
-                    if (name === 'cumulative') return [`₹${value.toLocaleString('en-IN')}`, 'Cumulative Returns']
-                    if (name === 'monthlyNet') return [`₹${value.toLocaleString('en-IN')}`, 'Monthly Net']
+                    if (name === 'cumulative') return [formatCurrency(value), 'Cumulative Returns']
+                    if (name === 'monthlyNet') return [formatCurrency(value), 'Monthly Net']
                     return value
                   }}
                 />
@@ -375,29 +376,29 @@ export default function ReturnsAnalysisPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">CAGR</p>
-              <p className="text-2xl font-bold text-green-400">{isLoading ? '...' : `${estimatedCAGR.toFixed(1)}%`}</p>
+              <p className="text-2xl font-bold text-green-400">{isLoading ? '...' : formatPercent(estimatedCAGR)}</p>
             </div>
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">Monthly ROI</p>
-              <p className="text-2xl font-bold text-blue-400">{isLoading ? '...' : `${roi}%`}</p>
+              <p className="text-2xl font-bold text-blue-400">{isLoading ? '...' : formatPercent(roi)}</p>
             </div>
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">Net P&L</p>
               <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                ₹{Math.abs(netProfitLoss).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                {formatCurrency(Math.abs(netProfitLoss))}
               </p>
             </div>
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">Dividends</p>
-              <p className="text-2xl font-bold text-emerald-400">₹{dividendIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+              <p className="text-2xl font-bold text-emerald-400">{formatCurrency(dividendIncome)}</p>
             </div>
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">Fees Paid</p>
-              <p className="text-2xl font-bold text-orange-400">₹{brokerFees.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+              <p className="text-2xl font-bold text-orange-400">{formatCurrency(brokerFees)}</p>
             </div>
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">Interest Income</p>
-              <p className="text-2xl font-bold text-teal-400">₹{interestIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+              <p className="text-2xl font-bold text-teal-400">{formatCurrency(interestIncome)}</p>
             </div>
           </div>
         </motion.div>
@@ -416,19 +417,19 @@ export default function ReturnsAnalysisPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-xs text-gray-400">Investment Profit</span>
-                    <span className="text-sm font-semibold text-green-400">₹{investmentProfit.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-semibold text-green-400">{formatCurrency(investmentProfit)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs text-gray-400">Dividend Income</span>
-                    <span className="text-sm font-semibold text-emerald-400">₹{dividendIncome.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-semibold text-emerald-400">{formatCurrency(dividendIncome)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs text-gray-400">Interest Income</span>
-                    <span className="text-sm font-semibold text-teal-400">₹{interestIncome.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-semibold text-teal-400">{formatCurrency(interestIncome)}</span>
                   </div>
                   <div className="flex justify-between border-t border-green-500/20 pt-2">
                     <span className="text-sm font-semibold text-gray-300">Total</span>
-                    <span className="text-lg font-bold text-green-400">₹{(investmentProfit + dividendIncome + interestIncome).toLocaleString('en-IN')}</span>
+                    <span className="text-lg font-bold text-green-400">{formatCurrency(investmentProfit + dividendIncome + interestIncome)}</span>
                   </div>
                 </div>
               </div>
@@ -437,15 +438,15 @@ export default function ReturnsAnalysisPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-xs text-gray-400">Investment Loss</span>
-                    <span className="text-sm font-semibold text-red-400">₹{investmentLoss.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-semibold text-red-400">{formatCurrency(investmentLoss)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs text-gray-400">Broker Fees</span>
-                    <span className="text-sm font-semibold text-orange-400">₹{brokerFees.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-semibold text-orange-400">{formatCurrency(brokerFees)}</span>
                   </div>
                   <div className="flex justify-between border-t border-red-500/20 pt-2">
                     <span className="text-sm font-semibold text-gray-300">Total</span>
-                    <span className="text-lg font-bold text-red-400">₹{(investmentLoss + brokerFees).toLocaleString('en-IN')}</span>
+                    <span className="text-lg font-bold text-red-400">{formatCurrency(investmentLoss + brokerFees)}</span>
                   </div>
                 </div>
               </div>
@@ -454,7 +455,7 @@ export default function ReturnsAnalysisPage() {
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-white">Net Profit/Loss</span>
                 <span className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {netProfitLoss >= 0 ? '+' : ''}₹{netProfitLoss.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  {formatCurrency(netProfitLoss, true)}
                 </span>
               </div>
             </div>

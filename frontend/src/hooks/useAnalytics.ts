@@ -88,3 +88,10 @@ export const useTotals = (params?: { start_date?: string; end_date?: string }) =
     },
   })
 }
+
+export const useGeneratedInsights = (timeRange: TimeRange = 'all_time') => {
+  return useQuery({
+    queryKey: ['analytics', 'generated-insights', timeRange],
+    queryFn: () => analyticsService.getGeneratedInsights(timeRange),
+  })
+}

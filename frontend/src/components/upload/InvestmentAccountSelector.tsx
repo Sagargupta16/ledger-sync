@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
+import { formatCurrency } from '@/lib/formatters'
 import { toast } from 'sonner'
 
 export default function InvestmentAccountSelector() {
@@ -57,7 +58,7 @@ export default function InvestmentAccountSelector() {
               <div className="flex-1">
                 <p className="font-medium text-white">{account.name}</p>
                 <p className="text-sm text-muted-foreground">
-                  ₹{Math.abs(account.balance).toLocaleString('en-IN')}
+                  {formatCurrency(Math.abs(account.balance))}
                 </p>
               </div>
               <div
