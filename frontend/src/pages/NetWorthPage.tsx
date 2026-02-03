@@ -32,7 +32,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
   'Cash & Wallets': { label: 'Cash & Wallets', color: '#10b981' },
   'Bank Accounts': { label: 'Bank Accounts', color: '#3b82f6' },
   'Investments': { label: 'Investments', color: '#8b5cf6' },
-  'Loans': { label: 'Loans', color: '#ef4444' },
+  'Loans/Lended': { label: 'Loans/Lended', color: '#ef4444' },
   'Credit Cards': { label: 'Credit Cards', color: '#f97316' },
   // Fallback categories
   'cashbank': { label: 'Cash & Bank', color: '#3b82f6' },
@@ -83,23 +83,27 @@ export default function NetWorthPage() {
   const getAccountType = (accountName: string): string => {
     // First check if classified in user preferences
     if (classifications[accountName]) {
-      // If it's an Investment, show the specific investment type
-      if (classifications[accountName] === 'Investments' && investmentMappings[accountName]) {
-        return formatAccountType(investmentMappings[accountName])
+      // For Investments, just show "Investments" (don't break into subcategories)
+      if (classifications[accountName] === 'Investments') {
+        return 'Investments'
+      }
+      // Combine Cash and Other Wallets
+      if (classifications[accountName] === 'Cash' || classifications[accountName] === 'Other Wallets') {
+        return 'Cash & Wallets'
       }
       return classifications[accountName]
     }
     
-    // Fallback: If it's mapped as an investment, show the formatted investment type
+    // Fallback: If it's mapped as an investment, show "Investments"
     if (investmentMappings[accountName]) {
-      return formatAccountType(investmentMappings[accountName])
+      return 'Investments'
     }
     
     // Fallback to name-based heuristics for unclassified accounts
     const name = accountName.toLowerCase()
     if (name.includes('credit') || name.includes('card')) return 'Credit Cards'
     if (name.includes('bank')) return 'Bank Accounts'
-    if (name.includes('cash') || name.includes('wallet')) return 'Cash'
+    if (name.includes('cash') || name.includes('wallet')) return 'Cash & Wallets'
     
     return 'Other'
   }
@@ -121,7 +125,8 @@ export default function NetWorthPage() {
         case 'Credit Cards':
           return 'Credit Cards'
         case 'Loans':
-          return 'Loans'
+        case 'Loans/Lended':
+          return 'Loans/Lended'
         default:
           return classification
       }
@@ -137,7 +142,7 @@ export default function NetWorthPage() {
     if (name.includes('credit') || name.includes('card')) return 'Credit Cards'
     if (name.includes('bank')) return 'Bank Accounts'
     if (name.includes('cash') || name.includes('wallet')) return 'Cash & Wallets'
-    if (name.includes('loan') || name.includes('emi')) return 'Loans'
+    if (name.includes('loan') || name.includes('emi') || name.includes('lend')) return 'Loans/Lended'
     
     return 'Other'
   }
@@ -178,7 +183,7 @@ export default function NetWorthPage() {
   // Get all unique categories for the chart
   const allCategories = useMemo(() => {
     const categories = new Set(Object.keys(categoryTotals))
-    return Array.from(categories).filter(cat => !['Credit Cards', 'Loans', 'Other'].includes(cat)) // Exclude liabilities and generic Other from asset chart
+    return Array.from(categories).filter(cat => !['Credit Cards', 'Loans', 'Loans/Lended', 'Other'].includes(cat)) // Exclude liabilities and generic Other from asset chart
   }, [categoryTotals])
 
   const totalPositive = totalAssets

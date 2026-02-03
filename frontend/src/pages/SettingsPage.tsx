@@ -49,7 +49,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id']
 
 // Account classification types
-const ACCOUNT_TYPES = ['Cash', 'Bank Accounts', 'Credit Cards', 'Investments', 'Loans', 'Other Wallets']
+const ACCOUNT_TYPES = ['Cash', 'Bank Accounts', 'Credit Cards', 'Investments', 'Loans/Lended', 'Other Wallets']
 
 const CATEGORY_COLORS: Record<string, string> = {
   Cash: 'from-green-500 to-emerald-600',
@@ -244,7 +244,7 @@ export default function SettingsPage() {
       } else if (lowerName.includes('investment') || lowerName.includes('mutual') || lowerName.includes('stock')) {
         defaults[name] = 'Investments'
       } else if (lowerName.includes('loan') || lowerName.includes('debt')) {
-        defaults[name] = 'Loans'
+        defaults[name] = 'Loans/Lended'
       } else {
         defaults[name] = 'Other Wallets'
       }

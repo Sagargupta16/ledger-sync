@@ -894,7 +894,7 @@ class AnalyticsEngine:
                         other_assets += balance
                 else:
                     other_assets += balance
-            elif account_type == "Loans":
+            elif account_type in ("Loans", "Loans/Lended"):
                 if balance < 0:
                     loans_payable += abs(balance)
                 else:

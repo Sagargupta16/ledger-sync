@@ -123,7 +123,7 @@ class AccountType(str, PyEnum):
     BANK_ACCOUNTS = "Bank Accounts"
     CREDIT_CARDS = "Credit Cards"
     INVESTMENTS = "Investments"
-    LOANS = "Loans"
+    LOANS = "Loans/Lended"
     OTHER_WALLETS = "Other Wallets"
 
 
