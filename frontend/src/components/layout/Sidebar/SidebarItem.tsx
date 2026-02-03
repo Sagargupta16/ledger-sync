@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { rawColors } from '@/constants/colors'
 
 interface SidebarItemProps {
   to: string
   icon: LucideIcon
   label: string
-  isCollapsed: boolean
+  isCollapsed?: boolean
 }
 
 export default function SidebarItem({ to, icon: Icon, label, isCollapsed }: SidebarItemProps) {
@@ -15,30 +16,33 @@ export default function SidebarItem({ to, icon: Icon, label, isCollapsed }: Side
       to={to}
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-3 px-4 py-2.5 text-sm rounded-xl transition-all duration-200 group relative',
-          'hover:bg-gradient-to-r hover:from-purple-500/20 hover:to-blue-500/20',
-          'hover:shadow-lg hover:shadow-purple-500/10 hover:translate-x-1',
+          'flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl transition-all duration-200 group relative',
           isActive
-            ? 'bg-gradient-to-r from-purple-500/30 to-blue-500/30 text-white font-medium shadow-lg shadow-purple-500/20 border border-purple-500/30'
-            : 'text-gray-400 hover:text-white border border-transparent',
+            ? 'bg-white/[0.12] text-white font-medium'
+            : 'text-[#98989f] hover:bg-white/[0.06] hover:text-white',
           isCollapsed && 'justify-center px-2'
         )
       }
       title={isCollapsed ? label : undefined}
     >
-      {isActive => (
+      {({ isActive }) => (
         <>
-          <Icon size={18} className={cn(
-            'transition-all duration-200',
-            isActive ? 'text-purple-300' : 'text-gray-500 group-hover:text-purple-400'
-          )} />
+          {/* iOS-style active indicator */}
+          {isActive && (
+            <div 
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" 
+              style={{ backgroundColor: rawColors.ios.blue }}
+            />
+          )}
+          <Icon 
+            size={18} 
+            className="transition-colors duration-200 flex-shrink-0"
+            style={{ 
+              color: isActive ? rawColors.ios.blue : rawColors.text.tertiary 
+            }}
+          />
           {!isCollapsed && (
-            <>
-              <span className="flex-1">{label}</span>
-              {isActive && (
-                <div className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></div>
-              )}
-            </>
+            <span className="flex-1 truncate">{label}</span>
           )}
         </>
       )}

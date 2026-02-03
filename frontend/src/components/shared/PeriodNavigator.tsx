@@ -31,9 +31,11 @@ export const PeriodNavigator = memo(function PeriodNavigator({
   return (
     <div className={cn('flex flex-wrap items-center gap-4', className)}>
       {/* View Mode Toggle */}
-      <div className="flex bg-white/5 rounded-lg p-1">
+      <div className="flex bg-white/5 rounded-lg p-1" role="tablist" aria-label="Period view mode">
         <button
           type="button"
+          role="tab"
+          aria-selected={viewMode === 'monthly'}
           onClick={() => onViewModeChange('monthly')}
           className={cn(
             'px-3 py-1.5 text-sm rounded-md transition-all',
@@ -46,6 +48,8 @@ export const PeriodNavigator = memo(function PeriodNavigator({
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={viewMode === 'yearly'}
           onClick={() => onViewModeChange('yearly')}
           className={cn(
             'px-3 py-1.5 text-sm rounded-md transition-all',
@@ -59,6 +63,8 @@ export const PeriodNavigator = memo(function PeriodNavigator({
         {showAllTime && (
           <button
             type="button"
+            role="tab"
+            aria-selected={viewMode === 'all_time'}
             onClick={() => onViewModeChange('all_time')}
             className={cn(
               'px-3 py-1.5 text-sm rounded-md transition-all',

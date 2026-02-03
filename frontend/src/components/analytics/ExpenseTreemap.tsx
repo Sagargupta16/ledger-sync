@@ -290,7 +290,10 @@ export default function ExpenseTreemap() {
                 backgroundColor: 'rgba(17, 24, 39, 0.95)',
                 border: '1px solid rgba(139, 92, 246, 0.3)',
                 borderRadius: '8px',
+                color: '#fff',
               }}
+              labelStyle={{ color: '#9ca3af' }}
+              itemStyle={{ color: '#fff' }}
               formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
             />
           </Treemap>

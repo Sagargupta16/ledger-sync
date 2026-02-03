@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Banknote, Receipt } from 'lucide-react'
+import { TrendingUp, TrendingDown, Banknote, Receipt, Upload } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import EmptyState from '@/components/shared/EmptyState'
 
 const INVESTMENT_KEYWORDS = ['invest', 'mutual', 'stock', 'equity', 'sip', 'portfolio', 'fund', 'demat']
 
@@ -343,7 +344,10 @@ export default function ReturnsAnalysisPage() {
                     backgroundColor: 'rgba(17, 24, 39, 0.95)',
                     border: '1px solid rgba(16, 185, 129, 0.3)',
                     borderRadius: '8px',
+                    color: '#fff',
                   }}
+                  labelStyle={{ color: '#9ca3af' }}
+                  itemStyle={{ color: '#fff' }}
                   formatter={(value: number, name: string) => {
                     if (name === 'cumulative') return [formatCurrency(value), 'Cumulative Returns']
                     if (name === 'monthlyNet') return [formatCurrency(value), 'Monthly Net']
@@ -360,9 +364,13 @@ export default function ReturnsAnalysisPage() {
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-80 flex items-center justify-center text-gray-400">
-              No transaction data available
-            </div>
+            <EmptyState
+              icon={TrendingUp}
+              title="No transaction data available"
+              description="Upload your investment transactions to track returns over time."
+              actionLabel="Upload Data"
+              actionHref="/upload"
+            />
           )}
         </motion.div>
 

@@ -16,4 +16,5 @@ export {
   useMonthlyAggregation,
   useTotals,
   useGeneratedInsights,
+  useMasterCategories,
 } from './api/useAnalytics'

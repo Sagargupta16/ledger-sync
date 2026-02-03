@@ -14,8 +14,10 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.api.account_classifications import router as account_classifications_router
 from ledger_sync.api.analytics import router as analytics_router
+from ledger_sync.api.analytics_v2 import router as analytics_v2_router
 from ledger_sync.api.calculations import router as calculations_router
 from ledger_sync.api.meta import router as meta_router
+from ledger_sync.api.preferences import router as preferences_router
 from ledger_sync.config.settings import settings
 from ledger_sync.core.sync_engine import SyncEngine
 from ledger_sync.db.models import Transaction
@@ -51,9 +53,11 @@ app.add_middleware(
 
 # Include routers
 app.include_router(analytics_router)
+app.include_router(analytics_v2_router)
 app.include_router(calculations_router)
 app.include_router(meta_router)
 app.include_router(account_classifications_router)
+app.include_router(preferences_router)
 
 
 class UploadResponse(BaseModel):

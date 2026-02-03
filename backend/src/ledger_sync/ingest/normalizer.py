@@ -1,5 +1,15 @@
-"""Data normalization."""
+"""Data normalization and preprocessing.
 
+This module provides comprehensive data cleaning and normalization:
+- Date parsing from various formats
+- Amount normalization to Decimal with 2 decimal places
+- Text cleaning (whitespace, unicode, special characters)
+- Category and account name standardization
+- Transaction type mapping
+"""
+
+import re
+import unicodedata
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -17,7 +27,148 @@ class NormalizationError(Exception):
 
 
 class DataNormalizer:
-    """Normalizes raw Excel data into consistent format."""
+    """Normalizes and cleans raw Excel data into consistent format."""
+
+    # Common category name corrections (typos, inconsistencies)
+    CATEGORY_CORRECTIONS = {
+        "food & dinning": "Food & Dining",
+        "food and dining": "Food & Dining",
+        "food&dining": "Food & Dining",
+        "entertianment": "Entertainment & Recreations",
+        "entertainment": "Entertainment & Recreations",
+        "entertainments": "Entertainment & Recreations",
+        "transportation": "Transportation",
+        "transport": "Transportation",
+        "healthcare": "Healthcare",
+        "health care": "Healthcare",
+        "health": "Healthcare",
+        "utilites": "Utilities",
+        "utilities": "Utilities",
+        "educaton": "Education",
+        "education": "Education",
+        "personal care": "Personal Care",
+        "personalcare": "Personal Care",
+        "charity": "Charity",
+        "donation": "Charity",
+        "donations": "Charity",
+    }
+
+    # Regex patterns for text cleaning
+    MULTI_SPACE_PATTERN = re.compile(r"\s+")
+    CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+    URL_PATTERN = re.compile(r"https?://\S+|www\.\S+")
+
+    def _clean_text(self, text: str) -> str:
+        """Clean text by removing problematic characters and normalizing whitespace.
+
+        Args:
+            text: Raw text string
+
+        Returns:
+            Cleaned text
+        """
+        if not text:
+            return ""
+
+        # Unicode normalization (NFKC - compatibility decomposition + canonical composition)
+        text = unicodedata.normalize("NFKC", text)
+
+        # Remove control characters (except newlines which we'll convert to spaces)
+        text = self.CONTROL_CHAR_PATTERN.sub("", text)
+
+        # Replace multiple whitespace (including newlines, tabs) with single space
+        text = self.MULTI_SPACE_PATTERN.sub(" ", text)
+
+        # Strip leading/trailing whitespace
+        text = text.strip()
+
+        return text
+
+    def _clean_note(self, note: str) -> str:
+        """Clean note field with additional processing.
+
+        Args:
+            note: Raw note string
+
+        Returns:
+            Cleaned note
+        """
+        if not note:
+            return ""
+
+        # Basic text cleaning
+        note = self._clean_text(note)
+
+        # Optionally shorten very long URLs to just domain
+        # (keeps the info but reduces noise)
+        def shorten_url(match: re.Match) -> str:
+            url = match.group(0)
+            # Extract domain from URL
+            domain_match = re.search(r"(?:https?://)?(?:www\.)?([^/\s]+)", url)
+            if domain_match:
+                return f"[{domain_match.group(1)}]"
+            return url
+
+        note = self.URL_PATTERN.sub(shorten_url, note)
+
+        return note
+
+    def _standardize_category(self, category: str) -> str:
+        """Standardize category name for consistency.
+
+        Args:
+            category: Raw category name
+
+        Returns:
+            Standardized category name
+        """
+        if not category:
+            return ""
+
+        # Clean text first
+        category = self._clean_text(category)
+
+        # Check for known corrections (case-insensitive)
+        category_lower = category.lower()
+        if category_lower in self.CATEGORY_CORRECTIONS:
+            return self.CATEGORY_CORRECTIONS[category_lower]
+
+        # Title case for consistency if not in corrections
+        # But preserve original if it looks intentional (has mixed case)
+        if category.isupper() or category.islower():
+            return category.title()
+
+        return category
+
+    def _standardize_account(self, account: str) -> str:
+        """Standardize account name for consistency.
+
+        Args:
+            account: Raw account name
+
+        Returns:
+            Standardized account name
+        """
+        if not account:
+            return ""
+
+        # Clean text
+        account = self._clean_text(account)
+
+        # Common account name fixes
+        account_fixes = {
+            "sbi bank": "SBI Bank",
+            "hdfc bank": "HDFC Bank",
+            "icici bank": "ICICI Bank",
+            "axis bank": "Axis Bank",
+            "kotak bank": "Kotak Bank",
+        }
+
+        account_lower = account.lower()
+        if account_lower in account_fixes:
+            return account_fixes[account_lower]
+
+        return account
 
     def normalize_date(self, value: Any) -> datetime:
         """Normalize date value to datetime.
@@ -66,18 +217,19 @@ class DataNormalizer:
             raise NormalizationError(f"Cannot convert amount '{value}': {e}")
 
     def normalize_string(self, value: Any) -> str:
-        """Normalize string value.
+        """Normalize string value with full cleaning.
 
         Args:
             value: Raw string value
 
         Returns:
-            Normalized string (lowercased, trimmed)
+            Normalized string (cleaned, lowercased)
         """
         if pd.isna(value):
             return ""
 
-        return str(value).strip().lower()
+        cleaned = self._clean_text(str(value))
+        return cleaned.lower()
 
     def normalize_string_preserve_case(self, value: Any) -> str:
         """Normalize string value while preserving case.
@@ -86,12 +238,12 @@ class DataNormalizer:
             value: Raw string value
 
         Returns:
-            Normalized string (trimmed only)
+            Normalized string (cleaned, case preserved)
         """
         if pd.isna(value):
             return ""
 
-        return str(value).strip()
+        return self._clean_text(str(value))
 
     def normalize_transaction_type(self, value: Any) -> TransactionType:
         """Normalize transaction type (Income/Expense/Transfer).
@@ -130,7 +282,13 @@ class DataNormalizer:
         return transaction_type
 
     def normalize_row(self, row: pd.Series, column_mapping: dict[str, str]) -> dict[str, Any]:
-        """Normalize a single row from Excel.
+        """Normalize a single row from Excel with full preprocessing.
+
+        Preprocessing includes:
+        - Text cleaning (whitespace, unicode, control chars)
+        - Category standardization
+        - Account name standardization
+        - Note cleaning (URLs shortened)
 
         Args:
             row: DataFrame row
@@ -152,42 +310,46 @@ class DataNormalizer:
 
             currency = "INR"
             if currency_col and not pd.isna(row[currency_col]):
-                currency = self.normalize_string_preserve_case(row[currency_col]).upper()
+                currency = self._clean_text(str(row[currency_col])).upper()
 
-            # Get optional fields
+            # Get optional fields with cleaning
             subcategory = None
             for col in ["Subcategory", "subcategory", "Sub Category"]:
                 if col in row.index and not pd.isna(row[col]):
-                    subcategory = self.normalize_string_preserve_case(row[col])
+                    # Clean but preserve original formatting
+                    subcategory = self._clean_text(str(row[col]))
                     break
 
+            # Clean note with URL shortening
             note = None
             note_col = column_mapping.get("note")
             if note_col and note_col in row.index and not pd.isna(row[note_col]):
-                note = self.normalize_string_preserve_case(row[note_col])
+                note = self._clean_note(str(row[note_col]))
 
             # Check if this is a transfer or regular transaction
             raw_type = str(row[column_mapping["type"]]).strip().lower()
             is_transfer = any(x in raw_type for x in ["transfer", "transfer-in", "transfer-out"])
 
-            account = self.normalize_string_preserve_case(row[column_mapping["account"]])
-            category = self.normalize_string_preserve_case(row[column_mapping["category"]])
+            # Standardize account and category names
+            account = self._standardize_account(str(row[column_mapping["account"]]))
+            category = self._standardize_category(str(row[column_mapping["category"]]))
 
             # Normalize the type
             tx_type = self.normalize_transaction_type(row[column_mapping["type"]])
 
             if is_transfer:
                 # Handle transfers - determine from/to accounts based on raw type
+                # Also standardize the account names in transfers
                 if "transfer-in" in raw_type or "transfer in" in raw_type:
                     # Money coming IN: category is source (from),
                     # account is destination (to)
-                    from_account = category
-                    to_account = account
+                    from_account = self._standardize_account(category)
+                    to_account = self._standardize_account(account)
                 else:
                     # Money going OUT (default): account is source (from),
                     # category is destination (to)
-                    from_account = account
-                    to_account = category
+                    from_account = self._standardize_account(account)
+                    to_account = self._standardize_account(category)
 
                 normalized = {
                     "date": self.normalize_date(row[column_mapping["date"]]),

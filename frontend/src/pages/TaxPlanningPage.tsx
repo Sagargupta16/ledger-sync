@@ -2,7 +2,9 @@ import React, { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Calculator, TrendingUp, ChevronLeft, ChevronRight, IndianRupee } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { classifyIncomeType, getFiscalYearDates, type IncomeType } from '@/lib/preferencesUtils'
 
 // Tax slabs before FY 2025-26
 const TAX_SLABS_OLD = [
@@ -105,13 +107,13 @@ function calculateGrossFromNet(
   return grossIncome
 }
 
-function getFYFromDate(date: string): string {
+function getFYFromDate(date: string, fiscalYearStartMonth: number = 4): string {
   const d = new Date(date)
   const year = d.getFullYear()
   const month = d.getMonth() + 1 // 0-indexed
 
-  // FY runs from April to March
-  if (month >= 4) {
+  // FY runs from fiscalYearStartMonth to fiscalYearStartMonth - 1 next year
+  if (month >= fiscalYearStartMonth) {
     return `FY ${year}-${(year + 1).toString().slice(-2)}`
   }
   return `FY ${year - 1}-${year.toString().slice(-2)}`
@@ -119,8 +121,20 @@ function getFYFromDate(date: string): string {
 
 export default function TaxPlanningPage() {
   const { data: allTransactions = [], isLoading } = useTransactions()
+  const { data: preferences } = usePreferences()
   const [selectedFY, setSelectedFY] = useState<string>('')
   const [showProjection, setShowProjection] = useState(false)
+
+  // Get fiscal year start month from preferences (default to 4 for April)
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
+
+  // Get income categories from preferences for classification
+  const incomeCategories = useMemo(() => ({
+    salary: preferences?.salary_categories || {},
+    bonus: preferences?.bonus_categories || {},
+    investmentIncome: preferences?.investment_income_categories || {},
+    cashback: preferences?.cashback_categories || {},
+  }), [preferences])
 
   // Group transactions by Financial Year
   const transactionsByFY = useMemo(() => {
@@ -142,7 +156,7 @@ export default function TaxPlanningPage() {
     > = {}
 
     for (const tx of allTransactions) {
-      const fy = getFYFromDate(tx.date)
+      const fy = getFYFromDate(tx.date, fiscalYearStartMonth)
       if (!grouped[fy]) {
         grouped[fy] = {
           income: 0,
@@ -152,6 +166,7 @@ export default function TaxPlanningPage() {
           transactions: [],
           incomeGroups: {
             'Salary & Stipend': { total: 0, transactions: [] },
+            'Bonus': { total: 0, transactions: [] },
             EPF: { total: 0, transactions: [] },
             'Other Taxable Income': { total: 0, transactions: [] },
           },
@@ -162,34 +177,42 @@ export default function TaxPlanningPage() {
       if (tx.type === 'Income') {
         grouped[fy].income += tx.amount
 
+        // Use preferences-based income classification
+        const incomeType = classifyIncomeType(tx, incomeCategories)
         const note = tx.note?.toLowerCase() || ''
-        const isSalaryOrStipend = note.includes('salary') || note.includes('stipend')
-        const isEPF = note.includes('aws epf')
-        const isOtherTaxable = note.includes('rsu') || note.includes('pluxee') || note.includes('aws relocation money')
-
-        if (isSalaryOrStipend) {
-            grouped[fy].taxableIncome += tx.amount
-            grouped[fy].incomeGroups['Salary & Stipend'].total += tx.amount
-            grouped[fy].incomeGroups['Salary & Stipend'].transactions.push(tx)
-            const month = tx.date.substring(0, 7)
-            grouped[fy].salaryMonths.add(month)
+        
+        // EPF handling (special case - half taxable)
+        const isEPF = note.includes('aws epf') || note.includes('epf withdrawal')
+        
+        if (incomeType === 'salary') {
+          grouped[fy].taxableIncome += tx.amount
+          grouped[fy].incomeGroups['Salary & Stipend'].total += tx.amount
+          grouped[fy].incomeGroups['Salary & Stipend'].transactions.push(tx)
+          const month = tx.date.substring(0, 7)
+          grouped[fy].salaryMonths.add(month)
+        } else if (incomeType === 'bonus') {
+          grouped[fy].taxableIncome += tx.amount
+          grouped[fy].incomeGroups['Bonus'].total += tx.amount
+          grouped[fy].incomeGroups['Bonus'].transactions.push(tx)
         } else if (isEPF) {
-            const epfTaxablePortion = tx.amount / 2
-            grouped[fy].taxableIncome += epfTaxablePortion
-            grouped[fy].incomeGroups.EPF.total += epfTaxablePortion
-            grouped[fy].incomeGroups.EPF.transactions.push(tx)
-        } else if (isOtherTaxable) {
-            grouped[fy].taxableIncome += tx.amount
-            grouped[fy].incomeGroups['Other Taxable Income'].total += tx.amount
-            grouped[fy].incomeGroups['Other Taxable Income'].transactions.push(tx)
+          const epfTaxablePortion = tx.amount / 2
+          grouped[fy].taxableIncome += epfTaxablePortion
+          grouped[fy].incomeGroups.EPF.total += epfTaxablePortion
+          grouped[fy].incomeGroups.EPF.transactions.push(tx)
+        } else if (note.includes('rsu') || note.includes('relocation')) {
+          // Other taxable income (RSU, relocation benefits)
+          grouped[fy].taxableIncome += tx.amount
+          grouped[fy].incomeGroups['Other Taxable Income'].total += tx.amount
+          grouped[fy].incomeGroups['Other Taxable Income'].transactions.push(tx)
         }
+        // Note: Investment income and cashback are generally not taxable as regular income
       } else if (tx.type === 'Expense') {
         grouped[fy].expense += tx.amount
       }
     }
 
     return grouped
-  }, [allTransactions])
+  }, [allTransactions, fiscalYearStartMonth, incomeCategories])
 
   // Get sorted FY list
   const fyList = useMemo(() => {

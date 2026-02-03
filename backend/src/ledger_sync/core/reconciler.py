@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ledger_sync.db.models import Transaction
+from ledger_sync.db.models import Transaction, TransactionType
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.utils.logging import logger
 
@@ -97,13 +97,39 @@ class Reconciler:
             # UPDATE existing transaction
             # Check if anything changed
             changed = False
+            changes_detected = []
 
             updateable_fields = ["category", "subcategory", "note", "type"]
             for field in updateable_fields:
                 new_value = normalized_row[field]
                 old_value = getattr(existing, field)
 
-                if new_value != old_value:
+                # Normalize for comparison
+                # - None and empty string are treated as equal
+                # - Enums are compared by their normalized values (case-insensitive)
+                if field == "type":
+                    # Compare enum values case-insensitively
+                    new_val_str = (
+                        new_value.value
+                        if hasattr(new_value, "value")
+                        else str(new_value) if new_value else None
+                    )
+                    old_val_str = (
+                        old_value.value
+                        if hasattr(old_value, "value")
+                        else str(old_value) if old_value else None
+                    )
+                    values_equal = (new_val_str.upper() if new_val_str else None) == (
+                        old_val_str.upper() if old_val_str else None
+                    )
+                else:
+                    # For strings: treat None and "" as equal
+                    new_val_normalized = new_value if new_value else None
+                    old_val_normalized = old_value if old_value else None
+                    values_equal = new_val_normalized == old_val_normalized
+
+                if not values_equal:
+                    changes_detected.append(f"{field}: {repr(old_value)} -> {repr(new_value)}")
                     setattr(existing, field, new_value)
                     changed = True
 
@@ -114,6 +140,10 @@ class Reconciler:
                 changed = True
 
             if changed:
+                if changes_detected:
+                    logger.info(
+                        f"Transaction {transaction_id[:12]}... updated: {', '.join(changes_detected)}"
+                    )
                 return existing, "updated"
             else:
                 # Still update last_seen_at even if nothing else changed
@@ -122,17 +152,20 @@ class Reconciler:
     def mark_soft_deletes(self, import_time: datetime) -> int:
         """Mark transactions not seen in this import as deleted.
 
+        Note: Excludes transfers as they are handled separately by mark_soft_deletes_transfers.
+
         Args:
             import_time: Import timestamp
 
         Returns:
             Number of transactions marked as deleted
         """
-        # Find transactions that weren't seen in this import
+        # Find transactions that weren't seen in this import (excluding transfers)
         stmt = (
             select(Transaction)
             .where(Transaction.last_seen_at < import_time)
             .where(Transaction.is_deleted == False)  # noqa: E712
+            .where(Transaction.type != TransactionType.TRANSFER)
         )
 
         stale_transactions = self.session.execute(stmt).scalars().all()
@@ -271,6 +304,7 @@ class Reconciler:
         else:
             # UPDATE existing transfer
             changed = False
+            changes_detected = []
 
             updateable_fields = [
                 "category",
@@ -284,7 +318,32 @@ class Reconciler:
                 new_value = normalized_row[field]
                 old_value = getattr(existing, field)
 
-                if new_value != old_value:
+                # Normalize for comparison
+                # - None and empty string are treated as equal
+                # - Enums are compared by their normalized values (case-insensitive)
+                if field == "type":
+                    # Compare enum values case-insensitively
+                    new_val_str = (
+                        new_value.value
+                        if hasattr(new_value, "value")
+                        else str(new_value) if new_value else None
+                    )
+                    old_val_str = (
+                        old_value.value
+                        if hasattr(old_value, "value")
+                        else str(old_value) if old_value else None
+                    )
+                    values_equal = (new_val_str.upper() if new_val_str else None) == (
+                        old_val_str.upper() if old_val_str else None
+                    )
+                else:
+                    # For strings: treat None and "" as equal
+                    new_val_normalized = new_value if new_value else None
+                    old_val_normalized = old_value if old_value else None
+                    values_equal = new_val_normalized == old_val_normalized
+
+                if not values_equal:
+                    changes_detected.append(f"{field}: {repr(old_value)} -> {repr(new_value)}")
                     setattr(existing, field, new_value)
                     changed = True
 
@@ -295,6 +354,9 @@ class Reconciler:
                 changed = True
 
             if changed:
+                if changes_detected:
+                    # Log first few to console
+                    print(f"Transfer {transfer_id[:12]}... updated: {', '.join(changes_detected)}")
                 return existing, "updated"
             else:
                 return existing, "skipped"
@@ -310,7 +372,7 @@ class Reconciler:
         """
         stmt = (
             select(Transaction)
-            .where(Transaction.type == "Transfer")
+            .where(Transaction.type == TransactionType.TRANSFER)
             .where(Transaction.last_seen_at < import_time)
             .where(Transaction.is_deleted == False)  # noqa: E712
         )

@@ -1,37 +1,44 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, PieChart, DollarSign, LineChart } from 'lucide-react'
-import { useEffect, useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { accountClassificationsService } from '@/services/api/accountClassifications'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, formatAccountType } from '@/lib/formatters'
 import { INCOME_COLORS } from '@/constants/chartColors'
+import EmptyState from '@/components/shared/EmptyState'
 
 const COLORS = [...INCOME_COLORS, '#f97316', '#14b8a6']
+
+// Investment type colors - using display names as keys
+const INVESTMENT_TYPE_COLORS: Record<string, string> = {
+  'Stocks': '#10b981',
+  'Mutual Funds': '#8b5cf6',
+  'PPF / EPF': '#f59e0b',
+  'PPF': '#f59e0b',
+  'NPS': '#06b6d4',
+  'Fixed Deposits': '#ec4899',
+  'FD': '#ec4899',
+  'EPF': '#14b8a6',
+  'Gold': '#eab308',
+  'Bonds': '#6366f1',
+  'Real Estate': '#84cc16',
+  'Crypto': '#f97316',
+  'Other Investments': '#6b7280',
+  'Other': '#6b7280',
+}
 
 export default function InvestmentAnalyticsPage() {
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
   const { data: transactions = [] } = useTransactions()
-  const [investmentAccounts, setInvestmentAccounts] = useState<string[]>([])
-  const [isLoadingClassifications, setIsLoadingClassifications] = useState(true)
+  const { data: preferences, isLoading: preferencesLoading } = usePreferences()
 
-  // Load investment accounts from API
-  useEffect(() => {
-    const loadInvestmentAccounts = async () => {
-      try {
-        const result = await accountClassificationsService.getAccountsByType('Investments')
-        setInvestmentAccounts(result.accounts || [])
-      } catch {
-        // Silently fail - will use empty array
-      } finally {
-        setIsLoadingClassifications(false)
-      }
-    }
-    loadInvestmentAccounts()
-  }, [])
+  // Get investment accounts from user preferences (investment_account_mappings)
+  const investmentMappings = preferences?.investment_account_mappings || {}
+  const investmentAccounts = Object.keys(investmentMappings)
 
-  const isLoading = balancesLoading || isLoadingClassifications
+  const isLoading = balancesLoading || preferencesLoading
 
   // Filter accounts based on user selection
   const accounts = balanceData?.accounts || {}
@@ -42,6 +49,7 @@ export default function InvestmentAnalyticsPage() {
       name,
       value: Math.abs(data.balance || 0),
       balance: data.balance || 0,
+      investmentType: formatAccountType(investmentMappings[name] || 'Other'),
     }))
     .filter((acc) => acc.value > 0)
 
@@ -51,7 +59,27 @@ export default function InvestmentAnalyticsPage() {
   // Simple return calculation based on category breakdown of income
   const investmentReturns = totalInvestmentValue * 0.05 // Assume 5% average returns
 
-  // Prepare pie chart data
+  // Group by investment type (from user preferences)
+  const investmentTypeBreakdown = useMemo(() => {
+    const breakdown: Record<string, number> = {}
+    
+    selectedInvestmentAccounts.forEach((acc) => {
+      const type = acc.investmentType
+      breakdown[type] = (breakdown[type] || 0) + acc.value
+    })
+    
+    return Object.entries(breakdown)
+      .filter(([, value]) => value > 0)
+      .map(([name, value]) => ({
+        name,
+        value,
+        color: INVESTMENT_TYPE_COLORS[name] || INVESTMENT_TYPE_COLORS['Other'],
+        percentage: totalInvestmentValue > 0 ? ((value / totalInvestmentValue) * 100).toFixed(1) : '0',
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [selectedInvestmentAccounts, totalInvestmentValue])
+
+  // Prepare pie chart data (individual accounts)
   const portfolioData = selectedInvestmentAccounts
     .sort((a, b) => b.value - a.value)
     .slice(0, 8)
@@ -59,43 +87,12 @@ export default function InvestmentAnalyticsPage() {
       name: acc.name, // Use full account name
       value: acc.value,
       balance: acc.balance,
+      investmentType: acc.investmentType,
       percentage: totalInvestmentValue > 0 ? (acc.value / totalInvestmentValue * 100).toFixed(1) : '0',
     }))
 
-  // Asset allocation - simplified buckets
-  const assetAllocation = [
-    {
-      name: 'Mutual Funds',
-      value: selectedInvestmentAccounts
-        .filter((a) => a.name.toLowerCase().includes('mutual') || a.name.toLowerCase().includes('fund'))
-        .reduce((sum, a) => sum + a.value, 0),
-    },
-    {
-      name: 'Equities',
-      value: selectedInvestmentAccounts
-        .filter((a) => a.name.toLowerCase().includes('equity') || a.name.toLowerCase().includes('stock'))
-        .reduce((sum, a) => sum + a.value, 0),
-    },
-    {
-      name: 'Others (FD / Bonds)',
-      value: selectedInvestmentAccounts
-        .filter((a) => {
-          const n = a.name.toLowerCase()
-          return (
-            !n.includes('mutual') &&
-            !n.includes('fund') &&
-            !n.includes('equity') &&
-            !n.includes('stock')
-          )
-        })
-        .reduce((sum, a) => sum + a.value, 0),
-    },
-  ]
-    .filter((item) => item.value > 0)
-    .map((item) => ({
-      ...item,
-      percentage: totalInvestmentValue > 0 ? (item.value / totalInvestmentValue * 100).toFixed(1) : '0',
-    }))
+  // Asset allocation based on user preferences (investmentTypeBreakdown already calculated above)
+  const assetAllocation = investmentTypeBreakdown
 
   // Calculate monthly portfolio value growth per account
   const monthlyGrowthData = useMemo(() => {
@@ -341,7 +338,7 @@ export default function InvestmentAnalyticsPage() {
                   dataKey="value"
                 >
                   {assetAllocation.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -363,7 +360,13 @@ export default function InvestmentAnalyticsPage() {
               </RechartsPie>
             </ResponsiveContainer>
           ) : (
-            <div className="h-80 flex items-center justify-center text-gray-400">No investment data</div>
+            <EmptyState
+              icon={PieChart}
+              title="No investment data"
+              description="Configure your investment accounts in Settings to see asset allocation."
+              actionLabel="Go to Settings"
+              actionHref="/settings"
+            />
           )}
         </motion.div>
 
@@ -410,7 +413,10 @@ export default function InvestmentAnalyticsPage() {
                       backgroundColor: 'rgba(17, 24, 39, 0.95)',
                       border: '1px solid rgba(139, 92, 246, 0.3)',
                       borderRadius: '8px',
+                      color: '#fff',
                     }}
+                    labelStyle={{ color: '#9ca3af' }}
+                    itemStyle={{ color: '#fff' }}
                     formatter={(value: number) => [formatCurrency(value), '']}
                     labelFormatter={(label) => `Month: ${label}`}
                   />
@@ -430,7 +436,13 @@ export default function InvestmentAnalyticsPage() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-80 flex items-center justify-center text-gray-400">No investment data</div>
+              <EmptyState
+                icon={LineChart}
+                title="No investment data"
+                description="Add investment transactions to see growth over time."
+                actionLabel="Upload Data"
+                actionHref="/upload"
+              />
             )}
         </motion.div>
 

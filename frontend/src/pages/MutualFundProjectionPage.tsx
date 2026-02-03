@@ -475,7 +475,13 @@ export default function MutualFundProjectionPage() {
                 )}
                 <Tooltip
                   formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{ background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}
+                  contentStyle={{
+                    background: '#0b1220',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: '#fff',
+                  }}
+                  labelStyle={{ color: '#9ca3af' }}
+                  itemStyle={{ color: '#fff' }}
                   labelFormatter={(label) => label}
                 />
                 <Legend />

@@ -3,6 +3,7 @@ import { Shield, TrendingUp, AlertTriangle, CheckCircle, Info, ChevronDown, Chev
 import { useMemo, useState } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
+import { formatCurrencyCompact } from '@/lib/formatters'
 
 interface HealthMetric {
   name: string
@@ -525,7 +526,7 @@ export default function FinancialHealthScore() {
     investmentDetails.push(`${Math.round(analysisData.investmentRegularity * 100)}% months with net investments`)
     investmentDetails.push(`${netRatio.toFixed(1)}% of income (net invested)`)
     if (analysisData.totalInvestmentOutflow > 0) {
-      investmentDetails.push(`Withdrawals: ₹${(analysisData.totalInvestmentOutflow / 100000).toFixed(1)}L`)
+      investmentDetails.push(`Withdrawals: ${formatCurrencyCompact(analysisData.totalInvestmentOutflow)}`)
     }
     
     metrics.push({

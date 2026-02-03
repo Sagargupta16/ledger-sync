@@ -4,7 +4,18 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, DateTime, Enum, Index, Numeric, String, Text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ledger_sync.db.base import Base
@@ -16,6 +27,37 @@ class TransactionType(str, PyEnum):
     EXPENSE = "Expense"
     INCOME = "Income"
     TRANSFER = "Transfer"
+
+
+class AnomalyType(str, PyEnum):
+    """Anomaly type enumeration."""
+
+    HIGH_EXPENSE = "high_expense"
+    UNUSUAL_CATEGORY = "unusual_category"
+    LARGE_TRANSFER = "large_transfer"
+    DUPLICATE_SUSPECTED = "duplicate_suspected"
+    MISSING_RECURRING = "missing_recurring"
+    BUDGET_EXCEEDED = "budget_exceeded"
+
+
+class RecurrenceFrequency(str, PyEnum):
+    """Recurring transaction frequency."""
+
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    BIWEEKLY = "biweekly"
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    YEARLY = "yearly"
+
+
+class GoalStatus(str, PyEnum):
+    """Goal status enumeration."""
+
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    PAUSED = "paused"
+    CANCELLED = "cancelled"
 
 
 class Transaction(Base):
@@ -195,3 +237,642 @@ class TaxRecord(Base):
             f"gross={self.total_gross_income}, "
             f"tax_paid={self.total_tax_paid})>"
         )
+
+
+# =============================================================================
+# NET WORTH & INVESTMENT TRACKING
+# =============================================================================
+
+
+class NetWorthSnapshot(Base):
+    """Point-in-time net worth snapshot - calculated after each upload."""
+
+    __tablename__ = "net_worth_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Snapshot date (typically end of month or upload date)
+    snapshot_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+    # Asset breakdown
+    cash_and_bank: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    investments: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    mutual_funds: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    stocks: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    fixed_deposits: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    ppf_epf: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    other_assets: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Liability breakdown
+    credit_card_outstanding: Mapped[Decimal] = mapped_column(
+        Numeric(precision=15, scale=2), default=0
+    )
+    loans_payable: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    other_liabilities: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Calculated totals
+    total_assets: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
+    total_liabilities: Mapped[Decimal] = mapped_column(
+        Numeric(precision=15, scale=2), nullable=False
+    )
+    net_worth: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
+
+    # Change from previous snapshot
+    net_worth_change: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    net_worth_change_pct: Mapped[float] = mapped_column(Float, default=0)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    source: Mapped[str] = mapped_column(String(50), default="upload")  # upload, manual, api
+
+    __table_args__ = (Index("ix_net_worth_date", "snapshot_date"),)
+
+
+class InvestmentHolding(Base):
+    """Track investment holdings and their values."""
+
+    __tablename__ = "investment_holdings"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Investment details
+    account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    investment_type: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # stocks, mf, fd, etc.
+    instrument_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Value tracking
+    invested_amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
+    current_value: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
+    realized_gains: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    unrealized_gains: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Metadata
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    __table_args__ = (Index("ix_investment_account_type", "account", "investment_type"),)
+
+
+# =============================================================================
+# MONTHLY & CATEGORY AGGREGATIONS (Pre-calculated for performance)
+# =============================================================================
+
+
+class MonthlySummary(Base):
+    """Pre-calculated monthly summary - updated after each upload."""
+
+    __tablename__ = "monthly_summaries"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Period identification
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    month: Mapped[int] = mapped_column(Integer, nullable=False)
+    period_key: Mapped[str] = mapped_column(
+        String(7), nullable=False, unique=True, index=True
+    )  # YYYY-MM
+
+    # Income breakdown
+    total_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    salary_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    investment_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    other_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Expense breakdown
+    total_expenses: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    essential_expenses: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    discretionary_expenses: Mapped[Decimal] = mapped_column(
+        Numeric(precision=15, scale=2), default=0
+    )
+
+    # Transfer totals
+    total_transfers_out: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    total_transfers_in: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    net_investment_flow: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Calculated metrics
+    net_savings: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    savings_rate: Mapped[float] = mapped_column(Float, default=0)
+    expense_ratio: Mapped[float] = mapped_column(Float, default=0)
+
+    # Transaction counts
+    income_count: Mapped[int] = mapped_column(Integer, default=0)
+    expense_count: Mapped[int] = mapped_column(Integer, default=0)
+    transfer_count: Mapped[int] = mapped_column(Integer, default=0)
+    total_transactions: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Comparison with previous month
+    income_change_pct: Mapped[float] = mapped_column(Float, default=0)
+    expense_change_pct: Mapped[float] = mapped_column(Float, default=0)
+
+    # Metadata
+    last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (Index("ix_monthly_summary_year_month", "year", "month"),)
+
+
+class CategoryTrend(Base):
+    """Category-level monthly trends for time series analysis."""
+
+    __tablename__ = "category_trends"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Period and category
+    period_key: Mapped[str] = mapped_column(String(7), nullable=False, index=True)  # YYYY-MM
+    category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    transaction_type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False)
+
+    # Aggregated values
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    transaction_count: Mapped[int] = mapped_column(Integer, default=0)
+    avg_transaction: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    max_transaction: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    min_transaction: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Percentage of total for the month
+    pct_of_monthly_total: Mapped[float] = mapped_column(Float, default=0)
+
+    # Month-over-month change
+    mom_change: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    mom_change_pct: Mapped[float] = mapped_column(Float, default=0)
+
+    last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        Index("ix_category_trend_period_category", "period_key", "category"),
+        Index("ix_category_trend_type", "transaction_type"),
+    )
+
+
+# =============================================================================
+# TRANSFER FLOW ANALYSIS
+# =============================================================================
+
+
+class TransferFlow(Base):
+    """Aggregated transfer flows between accounts."""
+
+    __tablename__ = "transfer_flows"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Flow identification
+    from_account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    to_account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+
+    # Aggregated values (all-time)
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    transaction_count: Mapped[int] = mapped_column(Integer, default=0)
+    avg_transfer: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Recent activity
+    last_transfer_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_transfer_amount: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=15, scale=2), nullable=True
+    )
+
+    # Account types (for Sankey diagram coloring)
+    from_account_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    to_account_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        Index("ix_transfer_flow_accounts", "from_account", "to_account", unique=True),
+    )
+
+
+# =============================================================================
+# RECURRING TRANSACTIONS & PATTERNS
+# =============================================================================
+
+
+class RecurringTransaction(Base):
+    """Detected recurring transactions (subscriptions, bills, salary, etc.)."""
+
+    __tablename__ = "recurring_transactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Pattern identification
+    pattern_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str] = mapped_column(String(255), nullable=False)
+    subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    account: Mapped[str] = mapped_column(String(255), nullable=False)
+    transaction_type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False)
+
+    # Recurrence details
+    frequency: Mapped[RecurrenceFrequency] = mapped_column(
+        Enum(RecurrenceFrequency), nullable=False
+    )
+    expected_amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
+    amount_variance: Mapped[Decimal] = mapped_column(
+        Numeric(precision=15, scale=2), default=0
+    )  # Allowed variance
+    expected_day: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Day of month/week
+
+    # Detection confidence
+    confidence_score: Mapped[float] = mapped_column(Float, default=0)  # 0-100
+    occurrences_detected: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Tracking
+    last_occurrence: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    next_expected: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    times_missed: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Status
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_user_confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Metadata
+    first_detected: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (Index("ix_recurring_category_account", "category", "account"),)
+
+
+class MerchantIntelligence(Base):
+    """Aggregated merchant/vendor intelligence."""
+
+    __tablename__ = "merchant_intelligence"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Merchant identification (extracted from notes)
+    merchant_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    merchant_aliases: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # JSON list of variations
+
+    # Primary category
+    primary_category: Mapped[str] = mapped_column(String(255), nullable=False)
+    primary_subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Aggregated stats
+    total_spent: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    transaction_count: Mapped[int] = mapped_column(Integer, default=0)
+    avg_transaction: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Activity tracking
+    first_transaction: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_transaction: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    months_active: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Frequency analysis
+    avg_days_between: Mapped[float] = mapped_column(Float, default=0)
+    is_recurring: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+
+# =============================================================================
+# ANOMALY DETECTION
+# =============================================================================
+
+
+class Anomaly(Base):
+    """Detected anomalies and unusual patterns."""
+
+    __tablename__ = "anomalies"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Anomaly details
+    anomaly_type: Mapped[AnomalyType] = mapped_column(Enum(AnomalyType), nullable=False, index=True)
+    severity: Mapped[str] = mapped_column(String(20), nullable=False)  # low, medium, high, critical
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Related transaction (if applicable)
+    transaction_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("transactions.transaction_id"), nullable=True
+    )
+
+    # Period (for monthly anomalies)
+    period_key: Mapped[str | None] = mapped_column(String(7), nullable=True)  # YYYY-MM
+
+    # Detection metrics
+    expected_value: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=15, scale=2), nullable=True
+    )
+    actual_value: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=15, scale=2), nullable=True
+    )
+    deviation_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Status
+    is_reviewed: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_dismissed: Mapped[bool] = mapped_column(Boolean, default=False)
+    review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Metadata
+    detected_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_anomaly_type_severity", "anomaly_type", "severity"),
+        Index("ix_anomaly_period", "period_key"),
+    )
+
+
+# =============================================================================
+# BUDGETS & GOALS
+# =============================================================================
+
+
+class Budget(Base):
+    """Budget tracking per category."""
+
+    __tablename__ = "budgets"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Budget scope
+    category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Budget amounts
+    monthly_limit: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
+    alert_threshold_pct: Mapped[float] = mapped_column(Float, default=80)  # Alert when 80% consumed
+
+    # Current period tracking
+    current_month_spent: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    current_month_remaining: Mapped[Decimal] = mapped_column(
+        Numeric(precision=15, scale=2), default=0
+    )
+    current_month_pct: Mapped[float] = mapped_column(Float, default=0)
+
+    # Historical performance
+    avg_monthly_actual: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    months_over_budget: Mapped[int] = mapped_column(Integer, default=0)
+    months_under_budget: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Status
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+
+class FinancialGoal(Base):
+    """Financial goals tracking."""
+
+    __tablename__ = "financial_goals"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Goal details
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    goal_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # savings, investment, debt_payoff, custom
+
+    # Target
+    target_amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
+    current_amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    target_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Progress
+    progress_pct: Mapped[float] = mapped_column(Float, default=0)
+    monthly_target: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    on_track: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Status
+    status: Mapped[GoalStatus] = mapped_column(Enum(GoalStatus), default=GoalStatus.ACTIVE)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+# =============================================================================
+# FISCAL YEAR SUMMARIES (India: Apr-Mar)
+# =============================================================================
+
+
+class FYSummary(Base):
+    """Fiscal year summary (April to March for India)."""
+
+    __tablename__ = "fy_summaries"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # FY identification (e.g., "FY2024-25" for Apr 2024 - Mar 2025)
+    fiscal_year: Mapped[str] = mapped_column(String(15), nullable=False, unique=True, index=True)
+    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    # Income summary
+    total_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    salary_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    bonus_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    investment_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    other_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Expense summary
+    total_expenses: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    tax_paid: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    investments_made: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Net position
+    net_savings: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    savings_rate: Mapped[float] = mapped_column(Float, default=0)
+
+    # YoY comparison
+    yoy_income_change: Mapped[float] = mapped_column(Float, default=0)
+    yoy_expense_change: Mapped[float] = mapped_column(Float, default=0)
+    yoy_savings_change: Mapped[float] = mapped_column(Float, default=0)
+
+    # Metadata
+    last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    is_complete: Mapped[bool] = mapped_column(
+        Boolean, default=False
+    )  # False if FY is still ongoing
+
+
+# =============================================================================
+# AUDIT LOGGING
+# =============================================================================
+
+
+class AuditLog(Base):
+    """Audit log for tracking all changes and operations."""
+
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # Operation details
+    operation: Mapped[str] = mapped_column(
+        String(50), nullable=False, index=True
+    )  # upload, reconcile, edit, delete
+    entity_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # transaction, budget, goal, etc.
+    entity_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # Change details
+    action: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # create, update, delete, soft_delete
+    old_value: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON of old state
+    new_value: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON of new state
+    changes_summary: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # Human-readable summary
+
+    # Context
+    source_file: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), index=True
+    )
+
+    __table_args__ = (
+        Index("ix_audit_operation_entity", "operation", "entity_type"),
+        Index("ix_audit_created", "created_at"),
+    )
+
+
+class ColumnMappingLog(Base):
+    """Track Excel column mapping changes for debugging imports."""
+
+    __tablename__ = "column_mapping_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # File info
+    file_name: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    # Column mappings found
+    original_columns: Mapped[str] = mapped_column(Text, nullable=False)  # JSON list
+    mapped_columns: Mapped[str] = mapped_column(
+        Text, nullable=False
+    )  # JSON dict of original -> mapped
+    unmapped_columns: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # JSON list of ignored columns
+
+    # Validation results
+    is_valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    validation_errors: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # JSON list of errors
+    validation_warnings: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # JSON list of warnings
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+
+class UserPreferences(Base):
+    """User preferences for customizing analytics and display.
+
+    Stores all user-configurable settings in a single row (single-user app).
+    JSON fields allow flexible storage of lists/dicts without schema changes.
+    """
+
+    __tablename__ = "user_preferences"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # ===== 1. Fiscal Year Configuration =====
+    fiscal_year_start_month: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=4  # April (India FY)
+    )  # 1=Jan, 4=Apr, 7=Jul, 10=Oct
+
+    # ===== 2. Essential vs Discretionary Categories =====
+    # JSON array of category names
+    essential_categories: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default='["Housing", "Healthcare", "Transportation", "Food & Dining", "Education", "Family", "Utilities"]',
+    )
+    # Categories not in essential are considered discretionary
+
+    # ===== 3. Investment Account Mappings =====
+    # JSON object: account_pattern -> investment_type
+    # Types: stocks, mutual_funds, fixed_deposits, ppf_epf, gold, crypto, other
+    investment_account_mappings: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default='{"Grow Stocks": "stocks", "Grow Mutual Funds": "mutual_funds", "IND money": "stocks", "FD/Bonds": "fixed_deposits", "EPF": "ppf_epf", "PPF": "ppf_epf", "RSUs": "stocks"}',
+    )
+
+    # ===== 4. Income Source Categories =====
+    # JSON object for income classification
+    salary_categories: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default='{"Employment Income": ["Salary", "Stipend"]}',  # category: [subcategories]
+    )
+    bonus_categories: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default='{"Employment Income": ["Bonus", "RSUs/Stock Options"]}',
+    )
+    investment_income_categories: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default='{"Investment Income": ["Dividends", "Interest", "Capital Gains"]}',
+    )
+    cashback_categories: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default='{"Cashback": ["Credit Card Cashback", "Rewards"]}',
+    )
+
+    # ===== 5. Budget Defaults =====
+    default_budget_alert_threshold: Mapped[float] = mapped_column(
+        Float, nullable=False, default=80.0  # Alert at 80% usage
+    )
+    auto_create_budgets: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    budget_rollover_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # ===== 6. Display/Format Preferences =====
+    number_format: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="indian"  # "indian" or "international"
+    )  # indian: 1,00,000 | international: 100,000
+    currency_symbol: Mapped[str] = mapped_column(String(10), nullable=False, default="₹")
+    currency_symbol_position: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="before"  # "before" or "after"
+    )
+    default_time_range: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="last_12_months"
+    )
+
+    # ===== 7. Anomaly Detection Settings =====
+    anomaly_expense_threshold: Mapped[float] = mapped_column(
+        Float, nullable=False, default=2.0  # Flag if expense > 2x category average
+    )
+    anomaly_types_enabled: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default='["high_expense", "unusual_category", "large_transfer", "budget_exceeded"]',
+    )
+    auto_dismiss_recurring_anomalies: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+
+    # ===== 8. Recurring Transaction Settings =====
+    recurring_min_confidence: Mapped[float] = mapped_column(
+        Float, nullable=False, default=50.0  # Min confidence % to show
+    )
+    recurring_auto_confirm_occurrences: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=6  # Auto-confirm after 6 occurrences
+    )
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )

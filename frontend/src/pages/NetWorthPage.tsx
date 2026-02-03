@@ -1,24 +1,65 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, PiggyBank, CreditCard, BarChart3 } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
-import { useState, useEffect } from 'react'
-import React from 'react'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { useState, useMemo, useEffect } from 'react'
+import { formatCurrency, formatPercent, formatAccountType } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
+import EmptyState from '@/components/shared/EmptyState'
+import { accountClassificationsService } from '@/services/api/accountClassifications'
+
+// Investment type colors - now using display names as keys
+const INVESTMENT_TYPE_COLORS: Record<string, string> = {
+  'Stocks': '#10b981',
+  'Mutual Funds': '#8b5cf6',
+  'PPF / EPF': '#f59e0b',
+  'PPF': '#f59e0b',
+  'NPS': '#06b6d4',
+  'Fixed Deposits': '#ec4899',
+  'FD': '#ec4899',
+  'EPF': '#14b8a6',
+  'Gold': '#eab308',
+  'Bonds': '#6366f1',
+  'Real Estate': '#84cc16',
+  'Crypto': '#f97316',
+  'Other Investments': '#6b7280',
+  'Other': '#6b7280',
+}
+
+// Category display configuration
+const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
+  'Cash & Wallets': { label: 'Cash & Wallets', color: '#10b981' },
+  'Bank Accounts': { label: 'Bank Accounts', color: '#3b82f6' },
+  'Investments': { label: 'Investments', color: '#8b5cf6' },
+  'Loans': { label: 'Loans', color: '#ef4444' },
+  'Credit Cards': { label: 'Credit Cards', color: '#f97316' },
+  // Fallback categories
+  'cashbank': { label: 'Cash & Bank', color: '#3b82f6' },
+  'invested': { label: 'Investments', color: '#8b5cf6' },
+  'lended': { label: 'Lended', color: '#14b8a6' },
+  'liability': { label: 'Liabilities', color: '#ef4444' },
+  'other': { label: 'Other', color: '#6b7280' },
+}
 
 export default function NetWorthPage() {
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
   const { data: aggregationData, isLoading: aggregationLoading } = useMonthlyAggregation()
+  const { data: preferences } = usePreferences()
   const [showStacked, setShowStacked] = useState(false)
-  const [accountClassifications, setAccountClassifications] = useState<Record<string, string>>({})
+  const [classifications, setClassifications] = useState<Record<string, string>>({})
 
-  // Fetch account classifications
+  // Load account classifications
   useEffect(() => {
-    fetch('/api/account-classifications')
-      .then(res => res.json())
-      .then(data => setAccountClassifications(data))
-      .catch(() => { /* silently fail */ })
+    const loadClassifications = async () => {
+      try {
+        const data = await accountClassificationsService.getAllClassifications()
+        setClassifications(data)
+      } catch (error) {
+        console.error('Failed to load classifications:', error)
+      }
+    }
+    loadClassifications()
   }, [])
 
   const isLoading = balancesLoading || aggregationLoading
@@ -35,49 +76,121 @@ export default function NetWorthPage() {
   )
   const netWorth = totalAssets - totalLiabilities
 
-  // Categorize accounts based on API classifications
-  const categorizeAccount = (accountName: string) => {
-    const classification = accountClassifications[accountName]
+  // Get investment account mappings from preferences
+  const investmentMappings = preferences?.investment_account_mappings || {}
+  
+  // Helper to get account type (for display in tables) - uses classifications from preferences
+  const getAccountType = (accountName: string): string => {
+    // First check if classified in user preferences
+    if (classifications[accountName]) {
+      // If it's an Investment, show the specific investment type
+      if (classifications[accountName] === 'Investments' && investmentMappings[accountName]) {
+        return formatAccountType(investmentMappings[accountName])
+      }
+      return classifications[accountName]
+    }
+    
+    // Fallback: If it's mapped as an investment, show the formatted investment type
+    if (investmentMappings[accountName]) {
+      return formatAccountType(investmentMappings[accountName])
+    }
+    
+    // Fallback to name-based heuristics for unclassified accounts
     const name = accountName.toLowerCase()
+    if (name.includes('credit') || name.includes('card')) return 'Credit Cards'
+    if (name.includes('bank')) return 'Bank Accounts'
+    if (name.includes('cash') || name.includes('wallet')) return 'Cash'
     
-    // Lended category only for Fam, Flat, Friends
-    if (name.includes('fam') || name.includes('flat') || name.includes('friend')) {
-      return 'lended'
+    return 'Other'
+  }
+  
+  // Categorize accounts - uses classifications from preferences
+  const categorizeAccount = (accountName: string) => {
+    // First check user's classification preferences
+    const classification = classifications[accountName]
+    
+    if (classification) {
+      switch (classification) {
+        case 'Cash':
+        case 'Other Wallets':
+          return 'Cash & Wallets'
+        case 'Bank Accounts':
+          return 'Bank Accounts'
+        case 'Investments':
+          return 'Investments'
+        case 'Credit Cards':
+          return 'Credit Cards'
+        case 'Loans':
+          return 'Loans'
+        default:
+          return classification
+      }
     }
     
-    if (!classification) return 'other'
-    
-    // Map API classifications to chart categories
-    switch (classification) {
-      case 'Investments':
-        return 'invested'
-      case 'Bank Accounts':
-      case 'Cash':
-      case 'Other Wallets':
-        return 'cashbank'
-      case 'Credit Cards':
-        return 'liability'
-      default:
-        return 'other'
+    // Check if it's in investment mappings (even without classification)
+    if (investmentMappings[accountName]) {
+      return 'Investments'
     }
+    
+    // Fallback to name-based heuristics for unclassified accounts
+    const name = accountName.toLowerCase()
+    if (name.includes('credit') || name.includes('card')) return 'Credit Cards'
+    if (name.includes('bank')) return 'Bank Accounts'
+    if (name.includes('cash') || name.includes('wallet')) return 'Cash & Wallets'
+    if (name.includes('loan') || name.includes('emi')) return 'Loans'
+    
+    return 'Other'
   }
 
-  // Calculate category totals from current balances
-  const categoryTotals = Object.entries(accounts).reduce((acc, [name, data]: [string, { balance: number; transaction_count: number }]) => {
-    const category = categorizeAccount(name)
-    if (!acc[category]) acc[category] = 0
-    // Use absolute value since negative balances are assets
-    acc[category] += Math.abs(data.balance)
-    return acc
-  }, {} as Record<string, number>)
+  // Calculate investment breakdown by type from user preferences
+  const investmentBreakdown = useMemo(() => {
+    const breakdown: Record<string, number> = {}
+    
+    Object.entries(accounts).forEach(([accountName, data]: [string, { balance: number }]) => {
+      if (investmentMappings[accountName]) {
+        // Format the investment type for display
+        const investmentType = formatAccountType(investmentMappings[accountName])
+        breakdown[investmentType] = (breakdown[investmentType] || 0) + Math.abs(data.balance)
+      }
+    })
+    
+    return Object.entries(breakdown)
+      .filter(([, value]) => value > 0)
+      .map(([name, value]) => ({
+        name,
+        value,
+        color: INVESTMENT_TYPE_COLORS[name] || INVESTMENT_TYPE_COLORS['Other'],
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [accounts, investmentMappings])
+
+  // Calculate category totals from current balances using classifications
+  const categoryTotals = useMemo(() => {
+    return Object.entries(accounts).reduce((acc, [name, data]: [string, { balance: number; transaction_count: number }]) => {
+      const category = categorizeAccount(name)
+      if (!acc[category]) acc[category] = 0
+      // Use absolute value since negative balances are assets
+      acc[category] += Math.abs(data.balance)
+      return acc
+    }, {} as Record<string, number>)
+  }, [accounts, classifications, investmentMappings])
+
+  // Get all unique categories for the chart
+  const allCategories = useMemo(() => {
+    const categories = new Set(Object.keys(categoryTotals))
+    return Array.from(categories).filter(cat => !['Credit Cards', 'Loans', 'Other'].includes(cat)) // Exclude liabilities and generic Other from asset chart
+  }, [categoryTotals])
 
   const totalPositive = totalAssets
-  const categoryProportions = {
-    cashbank: (categoryTotals.cashbank || 0) / totalPositive,
-    invested: (categoryTotals.invested || 0) / totalPositive,
-    lended: (categoryTotals.lended || 0) / totalPositive,
-    other: (categoryTotals.other || 0) / totalPositive,
-  }
+  
+  // Calculate proportions dynamically based on actual categories
+  const categoryProportions = useMemo(() => {
+    const props: Record<string, number> = {}
+    allCategories.forEach(cat => {
+      props[cat] = totalPositive > 0 ? (categoryTotals[cat] || 0) / totalPositive : 0
+    })
+    return props
+  }, [categoryTotals, allCategories, totalPositive])
 
   // Format monthly data for area chart with cumulative net worth
   const monthlyNetWorth = Object.entries(aggregationData || {})
@@ -90,26 +203,33 @@ export default function NetWorthPage() {
     .sort((a, b) => a.month.localeCompare(b.month))
   
   // Calculate cumulative values for net worth, income, and expenses
-  const netWorthData = monthlyNetWorth.reduce((acc, item) => {
-    const prevItem = acc[acc.length - 1]
-    const cumulativeNetWorth = (prevItem?.netWorth || 0) + item.monthlyFlow
-    const cumulativeIncome = (prevItem?.cumulativeIncome || 0) + item.income
-    const cumulativeExpenses = (prevItem?.cumulativeExpenses || 0) + item.expenses
-    
-    // Calculate category breakdowns based on current proportions
-    const positiveNetWorth = Math.max(cumulativeNetWorth, 0)
-    acc.push({
-      ...item,
-      netWorth: cumulativeNetWorth,
-      cumulativeIncome,
-      cumulativeExpenses,
-      cashbank: positiveNetWorth * categoryProportions.cashbank,
-      invested: positiveNetWorth * categoryProportions.invested,
-      lended: positiveNetWorth * categoryProportions.lended,
-      other: positiveNetWorth * categoryProportions.other,
-    })
-    return acc
-  }, [] as Array<typeof monthlyNetWorth[number] & { netWorth: number; cumulativeIncome: number; cumulativeExpenses: number; cashbank: number; invested: number; lended: number; other: number }>)
+  const netWorthData = useMemo(() => {
+    return monthlyNetWorth.reduce((acc, item) => {
+      const prevItem = acc[acc.length - 1]
+      const cumulativeNetWorth = (prevItem?.netWorth || 0) + item.monthlyFlow
+      const cumulativeIncome = (prevItem?.cumulativeIncome || 0) + item.income
+      const cumulativeExpenses = (prevItem?.cumulativeExpenses || 0) + item.expenses
+      
+      // Calculate category breakdowns based on current proportions
+      const positiveNetWorth = Math.max(cumulativeNetWorth, 0)
+      
+      // Build the data point with all category proportions
+      const dataPoint: Record<string, number | string> = {
+        ...item,
+        netWorth: cumulativeNetWorth,
+        cumulativeIncome,
+        cumulativeExpenses,
+      }
+      
+      // Add each category's proportion
+      allCategories.forEach(cat => {
+        dataPoint[cat] = positiveNetWorth * (categoryProportions[cat] || 0)
+      })
+      
+      acc.push(dataPoint as typeof monthlyNetWorth[number] & { netWorth: number; cumulativeIncome: number; cumulativeExpenses: number; [key: string]: number | string })
+      return acc
+    }, [] as Array<typeof monthlyNetWorth[number] & { netWorth: number; cumulativeIncome: number; cumulativeExpenses: number; [key: string]: number | string }>)
+  }, [monthlyNetWorth, allCategories, categoryProportions])
 
   return (
     <div className="min-h-screen p-8">
@@ -222,22 +342,16 @@ export default function NetWorthPage() {
                     <stop offset="5%" stopColor="#ef4444" stopOpacity={0.6} />
                     <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
                   </linearGradient>
-                  <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.7} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.2} />
-                  </linearGradient>
-                  <linearGradient id="colorInvested" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.7} />
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.2} />
-                  </linearGradient>
-                  <linearGradient id="colorLended" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.7} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.2} />
-                  </linearGradient>
-                  <linearGradient id="colorOther" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ec4899" stopOpacity={0.7} />
-                    <stop offset="95%" stopColor="#ec4899" stopOpacity={0.2} />
-                  </linearGradient>
+                  {/* Dynamic gradients for each category */}
+                  {allCategories.map((cat) => {
+                    const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
+                    return (
+                      <linearGradient key={`color-${cat}`} id={`color-${cat.replace(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={config.color} stopOpacity={0.7} />
+                        <stop offset="95%" stopColor={config.color} stopOpacity={0.2} />
+                      </linearGradient>
+                    )
+                  })}
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="month" stroke="#9ca3af" />
@@ -247,48 +361,30 @@ export default function NetWorthPage() {
                     backgroundColor: 'rgba(17, 24, 39, 0.95)',
                     border: '1px solid rgba(139, 92, 246, 0.3)',
                     borderRadius: '8px',
+                    color: '#fff',
                   }}
+                  labelStyle={{ color: '#9ca3af' }}
+                  itemStyle={{ color: '#fff' }}
                   formatter={(value: number) => formatCurrency(value)}
                 />
                 <Legend />
                 {showStacked ? (
                   <>
-                    <Area
-                      type="monotone"
-                      dataKey="cashbank"
-                      stackId="1"
-                      stroke="#10b981"
-                      fillOpacity={1}
-                      fill="url(#colorCash)"
-                      name="Cash/Bank"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="invested"
-                      stackId="1"
-                      stroke="#8b5cf6"
-                      fillOpacity={1}
-                      fill="url(#colorInvested)"
-                      name="Investments"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="lended"
-                      stackId="1"
-                      stroke="#f59e0b"
-                      fillOpacity={1}
-                      fill="url(#colorLended)"
-                      name="Lended"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="other"
-                      stackId="1"
-                      stroke="#ec4899"
-                      fillOpacity={1}
-                      fill="url(#colorOther)"
-                      name="Others"
-                    />
+                    {allCategories.map((cat) => {
+                      const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
+                      return (
+                        <Area
+                          key={cat}
+                          type="monotone"
+                          dataKey={cat}
+                          stackId="1"
+                          stroke={config.color}
+                          fillOpacity={1}
+                          fill={`url(#color-${cat.replace(/\s+/g, '')})`}
+                          name={config.label}
+                        />
+                      )
+                    })}
                   </>
                 ) : (
                   <Area
@@ -303,7 +399,13 @@ export default function NetWorthPage() {
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-80 flex items-center justify-center text-gray-400">No data available</div>
+            <EmptyState
+              icon={BarChart3}
+              title="No data available"
+              description="Upload your transaction data to track net worth over time."
+              actionLabel="Upload Data"
+              actionHref="/upload"
+            />
           )}
         </motion.div>
 
@@ -333,14 +435,14 @@ export default function NetWorthPage() {
                     .filter(([, accountData]: [string, { balance: number; transaction_count: number }]) => accountData.balance > 0 && Math.abs(accountData.balance) >= 0.01)
                     .sort((a: [string, { balance: number; transaction_count: number }], b: [string, { balance: number; transaction_count: number }]) => {
                       // Sort by category first, then by balance within category
-                      const catA = accountClassifications[a[0]] || 'Other'
-                      const catB = accountClassifications[b[0]] || 'Other'
+                      const catA = getAccountType(a[0])
+                      const catB = getAccountType(b[0])
                       if (catA !== catB) return catA.localeCompare(catB)
                       return b[1].balance - a[1].balance
                     })
                     .reduce((acc, [accountName, accountData], index, array) => {
-                      const currentCategory = accountClassifications[accountName] || 'Other'
-                      const prevCategory = index > 0 ? (accountClassifications[array[index - 1][0]] || 'Other') : null
+                      const currentCategory = getAccountType(accountName)
+                      const prevCategory = index > 0 ? getAccountType(array[index - 1][0]) : null
                       const showCategoryHeader = currentCategory !== prevCategory
                       
                       // Calculate category totals
@@ -353,7 +455,7 @@ export default function NetWorthPage() {
                       // Add category header with totals
                       if (showCategoryHeader) {
                         // Need to calculate totals for this category first
-                        const categoryAccounts = array.filter(([name]) => (accountClassifications[name] || 'Other') === currentCategory)
+                        const categoryAccounts = array.filter(([name]) => (getAccountType(name)) === currentCategory)
                         const catBalance = categoryAccounts.reduce((sum, [, data]) => sum + data.balance, 0)
                         const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
                         
@@ -388,7 +490,7 @@ export default function NetWorthPage() {
                             {formatPercent(accountData.balance / totalAssets)}
                           </td>
                           <td className="py-3 px-4 text-right text-gray-400">
-                            {accountClassifications[accountName] || 'Other'}
+                            {getAccountType(accountName)}
                           </td>
                           <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
                         </motion.tr>
@@ -400,7 +502,12 @@ export default function NetWorthPage() {
               </table>
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-400">No asset accounts found</div>
+            <EmptyState
+              icon={PiggyBank}
+              title="No asset accounts found"
+              description="Add transactions for accounts with positive balances to see your assets."
+              variant="compact"
+            />
           )}
         </motion.div>
 
@@ -430,14 +537,14 @@ export default function NetWorthPage() {
                     .filter(([, accountData]: [string, { balance: number; transaction_count: number }]) => accountData.balance < 0 && Math.abs(accountData.balance) >= 0.01)
                     .sort((a: [string, { balance: number; transaction_count: number }], b: [string, { balance: number; transaction_count: number }]) => {
                       // Sort by category first, then by balance within category
-                      const catA = accountClassifications[a[0]] || 'Other'
-                      const catB = accountClassifications[b[0]] || 'Other'
+                      const catA = getAccountType(a[0])
+                      const catB = getAccountType(b[0])
                       if (catA !== catB) return catA.localeCompare(catB)
                       return Math.abs(b[1].balance) - Math.abs(a[1].balance)
                     })
                     .reduce((acc, [accountName, accountData], index, array) => {
-                      const currentCategory = accountClassifications[accountName] || 'Other'
-                      const prevCategory = index > 0 ? (accountClassifications[array[index - 1][0]] || 'Other') : null
+                      const currentCategory = getAccountType(accountName)
+                      const prevCategory = index > 0 ? getAccountType(array[index - 1][0]) : null
                       const showCategoryHeader = currentCategory !== prevCategory
                       
                       // Calculate category totals
@@ -450,7 +557,7 @@ export default function NetWorthPage() {
                       // Add category header with totals
                       if (showCategoryHeader) {
                         // Need to calculate totals for this category first
-                        const categoryAccounts = array.filter(([name]) => (accountClassifications[name] || 'Other') === currentCategory)
+                        const categoryAccounts = array.filter(([name]) => (getAccountType(name)) === currentCategory)
                         const catBalance = categoryAccounts.reduce((sum, [, data]) => sum + Math.abs(data.balance), 0)
                         const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
                         
@@ -485,7 +592,7 @@ export default function NetWorthPage() {
                             {formatPercent(Math.abs(accountData.balance) / totalLiabilities)}
                           </td>
                           <td className="py-3 px-4 text-right text-gray-400">
-                            {accountClassifications[accountName] || 'Other'}
+                            {getAccountType(accountName)}
                           </td>
                           <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
                         </motion.tr>
@@ -497,7 +604,12 @@ export default function NetWorthPage() {
               </table>
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-400">No liability accounts found</div>
+            <EmptyState
+              icon={CreditCard}
+              title="No liability accounts found"
+              description="Great news! You don't have any liability accounts with negative balances."
+              variant="compact"
+            />
           )}
         </motion.div>
 

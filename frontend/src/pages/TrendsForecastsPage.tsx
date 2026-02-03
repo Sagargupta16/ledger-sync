@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Minus, Wallet, PiggyBank, CreditCard, LineChart, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Wallet, PiggyBank, CreditCard, LineChart, ArrowUpRight, ArrowDownRight, Upload } from 'lucide-react'
 import { useTrends } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, ComposedChart, Line, Bar, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { CashFlowForecast } from '@/components/analytics'
+import EmptyState from '@/components/shared/EmptyState'
 
 import type { TimeRange } from '@/types'
 
@@ -359,7 +360,10 @@ export default function TrendsForecastsPage() {
                     backgroundColor: 'rgba(17, 24, 39, 0.95)',
                     border: '1px solid rgba(139, 92, 246, 0.3)',
                     borderRadius: '8px',
+                    color: '#fff',
                   }}
+                  labelStyle={{ color: '#9ca3af' }}
+                  itemStyle={{ color: '#fff' }}
                   formatter={(value: number, name: string) => [
                     formatCurrency(value),
                     name === 'income' ? 'Income' : name === 'expenses' ? 'Spending' : 'Savings'
@@ -373,7 +377,13 @@ export default function TrendsForecastsPage() {
             </ResponsiveContainer>
           )}
           {!isLoading && chartData.length === 0 && (
-            <div className="h-80 flex items-center justify-center text-gray-400">No data available</div>
+            <EmptyState
+              icon={LineChart}
+              title="No data available"
+              description="Upload your transaction data to see spending trends and forecasts."
+              actionLabel="Upload Data"
+              actionHref="/upload"
+            />
           )}
         </motion.div>
 
@@ -405,7 +415,10 @@ export default function TrendsForecastsPage() {
                     backgroundColor: 'rgba(17, 24, 39, 0.95)',
                     border: '1px solid rgba(139, 92, 246, 0.3)',
                     borderRadius: '8px',
+                    color: '#fff',
                   }}
+                  labelStyle={{ color: '#9ca3af' }}
+                  itemStyle={{ color: '#fff' }}
                   formatter={(_value: number, _name: string, props: { payload?: { rawSavingsRate?: number } }) => {
                     const actual = props.payload?.rawSavingsRate ?? 0
                     const label = actual < 0 ? `${actual.toFixed(1)}% (deficit)` : `${actual.toFixed(1)}%`
@@ -429,7 +442,12 @@ export default function TrendsForecastsPage() {
             </ResponsiveContainer>
           )}
           {!isLoading && chartData.length === 0 && (
-            <div className="h-64 flex items-center justify-center text-gray-400">No data available</div>
+            <EmptyState
+              icon={PiggyBank}
+              title="No data available"
+              description="Add transactions to track your savings rate over time."
+              variant="compact"
+            />
           )}
         </motion.div>
 
@@ -480,7 +498,12 @@ export default function TrendsForecastsPage() {
             </div>
           )}
           {!isLoading && chartData.length === 0 && (
-            <div className="text-center py-8 text-gray-400">No data available</div>
+            <EmptyState
+              icon={TrendingUp}
+              title="No data available"
+              description="Monthly breakdown will appear here once you have transactions."
+              variant="compact"
+            />
           )}
         </motion.div>
 

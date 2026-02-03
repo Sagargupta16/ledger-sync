@@ -1,14 +1,31 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, DollarSign, Activity, BarChart3, Calendar } from 'lucide-react'
+import { TrendingUp, DollarSign, Activity, BarChart3, Calendar, Wallet, Briefcase, Gift, PiggyBank } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { usePreferences } from '@/hooks/api/usePreferences'
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { INCOME_COLORS } from '@/constants/chartColors'
 import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
+import EmptyState from '@/components/shared/EmptyState'
+import { 
+  calculateIncomeBreakdown, 
+  INCOME_TYPE_LABELS, 
+  INCOME_TYPE_COLORS,
+  type IncomeType 
+} from '@/lib/preferencesUtils'
 
 const COLORS = INCOME_COLORS
+
+// Icons for income types
+const INCOME_TYPE_ICONS: Record<IncomeType, React.ComponentType<{ className?: string }>> = {
+  salary: Briefcase,
+  bonus: Gift,
+  investmentIncome: TrendingUp,
+  cashback: Wallet,
+  other: PiggyBank,
+}
 
 export default function IncomeAnalysisPage() {
   const [viewMode, setViewMode] = useState<'monthly' | 'yearly' | 'all_time'>('yearly')
@@ -17,9 +34,39 @@ export default function IncomeAnalysisPage() {
   
   const { data: incomeData, isLoading: incomeLoading } = useCategoryBreakdown({ transaction_type: 'income' })
   const { data: transactions } = useTransactions()
+  const { data: preferences } = usePreferences()
 
   const totalIncome = incomeData?.total || 0
   const topSource = Object.entries(incomeData?.categories || {}).sort((a, b) => b[1].total - a[1].total)[0]?.[0] || 'N/A'
+
+  // Calculate income breakdown by type (salary, bonus, investment, cashback)
+  const incomeBreakdown = useMemo(() => {
+    if (!transactions || !preferences) return null
+    
+    return calculateIncomeBreakdown(transactions, {
+      salary: preferences.salary_categories || {},
+      bonus: preferences.bonus_categories || {},
+      investmentIncome: preferences.investment_income_categories || {},
+      cashback: preferences.cashback_categories || {},
+    })
+  }, [transactions, preferences])
+
+  // Prepare income type chart data
+  const incomeTypeChartData = useMemo(() => {
+    if (!incomeBreakdown) return []
+    return (Object.entries(incomeBreakdown) as [IncomeType, number][])
+      .filter(([, value]) => value > 0)
+      .map(([type, value]) => ({
+        name: INCOME_TYPE_LABELS[type],
+        type,
+        value,
+        color: INCOME_TYPE_COLORS[type],
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [incomeBreakdown])
+
+  // Get primary income type
+  const primaryIncomeType = incomeTypeChartData[0]?.name || 'N/A'
 
   // Process income trend data
   const trendData = useMemo(() => {
@@ -125,8 +172,8 @@ export default function IncomeAnalysisPage() {
                 <Activity className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Primary Source</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : topSource}</p>
+                <p className="text-sm text-muted-foreground">Primary Income Type</p>
+                <p className="text-2xl font-bold">{isLoading ? '...' : primaryIncomeType}</p>
               </div>
             </div>
           </motion.div>
@@ -155,6 +202,88 @@ export default function IncomeAnalysisPage() {
             </div>
           </motion.div>
         </div>
+
+        {/* Income Type Breakdown */}
+        <motion.div 
+          className="glass p-6 rounded-xl border border-white/10"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+        >
+          <h3 className="text-lg font-semibold text-white mb-4">Income by Type</h3>
+          {incomeTypeChartData.length > 0 ? (
+            <div className="flex flex-col lg:flex-row items-center gap-8">
+              <div className="w-64 h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={incomeTypeChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={90}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {incomeTypeChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{
+                        background: 'rgba(0,0,0,0.9)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                      }}
+                      labelStyle={{ color: '#9ca3af' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {incomeTypeChartData.map((item) => {
+                  const Icon = INCOME_TYPE_ICONS[item.type as IncomeType]
+                  const percentage = incomeBreakdown
+                    ? ((item.value / Object.values(incomeBreakdown).reduce((a, b) => a + b, 0)) * 100).toFixed(1)
+                    : '0'
+                  return (
+                    <div
+                      key={item.name}
+                      className="p-4 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-all"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div 
+                          className="p-2 rounded-lg"
+                          style={{ backgroundColor: `${item.color}20` }}
+                        >
+                          <Icon className="w-5 h-5" style={{ color: item.color }} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">{item.name}</p>
+                          <p className="text-xs text-gray-400">{percentage}% of income</p>
+                        </div>
+                      </div>
+                      <p className="text-xl font-bold" style={{ color: item.color }}>
+                        {formatCurrency(item.value)}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              icon={Wallet}
+              title="No income type data available"
+              description="Configure income categories in Settings to see breakdown."
+              actionLabel="Go to Settings"
+              actionHref="/settings"
+            />
+          )}
+        </motion.div>
 
         {/* Income Trend Chart */}
         <motion.div 
@@ -258,7 +387,10 @@ export default function IncomeAnalysisPage() {
                       backgroundColor: 'rgba(17, 24, 39, 0.95)',
                       border: '1px solid rgba(16, 185, 129, 0.3)',
                       borderRadius: '8px',
+                      color: '#fff',
                     }}
+                    labelStyle={{ color: '#9ca3af' }}
+                    itemStyle={{ color: '#fff' }}
                     formatter={(value: number) => [formatCurrency(value), 'Income']}
                   />
                   <Line
@@ -272,7 +404,13 @@ export default function IncomeAnalysisPage() {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-96 flex items-center justify-center text-gray-400">No income data available</div>
+              <EmptyState
+                icon={TrendingUp}
+                title="No income data available"
+                description="Start by uploading your transaction data to see income trends."
+                actionLabel="Upload Data"
+                actionHref="/upload"
+              />
             )}
           </div>
         </motion.div>

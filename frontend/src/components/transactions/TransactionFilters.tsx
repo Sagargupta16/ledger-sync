@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { usePreferencesStore } from '@/store/preferencesStore'
 
 interface TransactionFiltersProps {
   onFilterChange: (filters: FilterValues) => void
@@ -38,6 +39,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
   const [searchQuery, setSearchQuery] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const isFirstRender = useRef(true)
+  const currencySymbol = usePreferencesStore((state) => state.displayPreferences.currencySymbol)
 
   // Debounce search query
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
@@ -78,13 +80,14 @@ export default function TransactionFilters({ onFilterChange, categories, account
       <div className="glass rounded-xl border border-white/10 p-4 shadow-lg">
         <div className="flex items-center gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" aria-hidden="true" />
             <input
               type="text"
               placeholder="Search transactions by note, category, or account..."
               value={searchQuery}
               onChange={(e) => handleFilterChange('query', e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-transparent border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              aria-label="Search transactions"
             />
           </div>
           <button
@@ -93,16 +96,20 @@ export default function TransactionFilters({ onFilterChange, categories, account
                 ? 'bg-primary text-white shadow-lg shadow-primary/30'
                 : 'bg-white/5 hover:bg-white/10 border border-white/10'
               }`}
+            aria-expanded={showAdvanced}
+            aria-controls="advanced-filters"
+            aria-label={showAdvanced ? 'Hide filters' : 'Show filters'}
           >
-            <Filter className="w-4 h-4" />
+            <Filter className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">Filters</span>
           </button>
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500/30 transition-colors"
+              aria-label="Clear all filters"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden="true" />
               <span className="text-sm font-medium">Clear</span>
             </button>
           )}
@@ -113,24 +120,29 @@ export default function TransactionFilters({ onFilterChange, categories, account
       <AnimatePresence>
         {showAdvanced && (
           <motion.div
+            id="advanced-filters"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="glass rounded-xl border border-white/10 p-6 shadow-lg space-y-4 overflow-hidden"
+            role="region"
+            aria-label="Advanced filters"
           >
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Filter className="w-5 h-5 text-primary" />
+              <Filter className="w-5 h-5 text-primary" aria-hidden="true" />
               Advanced Filters
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Type Filter */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Type</label>
+                <label htmlFor="filter-type" className="text-sm font-medium text-muted-foreground">Type</label>
                 <select
+                  id="filter-type"
                   value={filters.type || ''}
                   onChange={(e) => handleFilterChange('type', e.target.value)}
                   className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-white"
+                  aria-label="Filter by transaction type"
                 >
                   <option value="" className="bg-gray-900 text-white">All Types</option>
                   {TRANSACTION_TYPES.map((type) => (
@@ -205,7 +217,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Min Amount */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Min Amount (₹)</label>
+                <label className="text-sm font-medium text-muted-foreground">Min Amount ({currencySymbol})</label>
                 <input
                   type="number"
                   placeholder="0"
@@ -217,7 +229,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Max Amount */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Max Amount (₹)</label>
+                <label className="text-sm font-medium text-muted-foreground">Max Amount ({currencySymbol})</label>
                 <input
                   type="number"
                   placeholder="∞"

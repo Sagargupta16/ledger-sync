@@ -1,0 +1,473 @@
+"""User Preferences API endpoints.
+
+Provides CRUD operations for user preferences including:
+- Fiscal year configuration
+- Essential vs discretionary categories
+- Investment account mappings
+- Income source categories
+- Budget defaults
+- Display/format preferences
+- Anomaly detection settings
+- Recurring transaction settings
+"""
+
+import json
+from datetime import datetime
+from typing import Any
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from ledger_sync.db.models import UserPreferences
+from ledger_sync.db.session import get_session
+
+router = APIRouter(prefix="/preferences", tags=["preferences"])
+
+
+# ----- Pydantic Models -----
+
+
+class FiscalYearConfig(BaseModel):
+    """Fiscal year configuration."""
+
+    fiscal_year_start_month: int = Field(
+        ge=1, le=12, description="Month number (1-12) when fiscal year starts"
+    )
+
+
+class EssentialCategoriesConfig(BaseModel):
+    """Essential vs discretionary categories configuration."""
+
+    essential_categories: list[str] = Field(
+        description="List of category names considered essential/non-discretionary"
+    )
+
+
+class InvestmentMappingsConfig(BaseModel):
+    """Investment account to type mappings."""
+
+    investment_account_mappings: dict[str, str] = Field(
+        description="Map of account name to investment type (stocks, mutual_funds, etc.)"
+    )
+
+
+class IncomeSourcesConfig(BaseModel):
+    """Income source category configurations."""
+
+    salary_categories: dict[str, list[str]] = Field(
+        description="Category:subcategories for salary income"
+    )
+    bonus_categories: dict[str, list[str]] = Field(
+        description="Category:subcategories for bonus income"
+    )
+    investment_income_categories: dict[str, list[str]] = Field(
+        description="Category:subcategories for investment income"
+    )
+    cashback_categories: dict[str, list[str]] = Field(
+        description="Category:subcategories for cashback income"
+    )
+
+
+class BudgetDefaultsConfig(BaseModel):
+    """Budget default settings."""
+
+    default_budget_alert_threshold: float = Field(
+        ge=0, le=100, description="Alert when budget usage exceeds this percentage"
+    )
+    auto_create_budgets: bool = Field(description="Auto-create budgets from spending patterns")
+    budget_rollover_enabled: bool = Field(description="Roll over unused budget to next month")
+
+
+class DisplayPreferencesConfig(BaseModel):
+    """Display and format preferences."""
+
+    number_format: str = Field(description="Number format: 'indian' or 'international'")
+    currency_symbol: str = Field(description="Currency symbol to display")
+    currency_symbol_position: str = Field(description="Symbol position: 'before' or 'after'")
+    default_time_range: str = Field(
+        description="Default time range: 'last_3_months', 'last_6_months', 'last_12_months', 'current_fy', 'all_time'"
+    )
+
+
+class AnomalySettingsConfig(BaseModel):
+    """Anomaly detection settings."""
+
+    anomaly_expense_threshold: float = Field(
+        ge=1.0, le=10.0, description="Standard deviations for expense anomaly detection"
+    )
+    anomaly_types_enabled: list[str] = Field(
+        description="Enabled anomaly types: high_expense, unusual_category, large_transfer, budget_exceeded"
+    )
+    auto_dismiss_recurring_anomalies: bool = Field(
+        description="Auto-dismiss anomalies that match recurring patterns"
+    )
+
+
+class RecurringSettingsConfig(BaseModel):
+    """Recurring transaction detection settings."""
+
+    recurring_min_confidence: float = Field(
+        ge=0, le=100, description="Minimum confidence % to flag as recurring"
+    )
+    recurring_auto_confirm_occurrences: int = Field(
+        ge=2, le=12, description="Auto-confirm recurring after this many occurrences"
+    )
+
+
+class UserPreferencesResponse(BaseModel):
+    """Full user preferences response."""
+
+    id: int
+
+    # 1. Fiscal Year
+    fiscal_year_start_month: int
+
+    # 2. Essential Categories
+    essential_categories: list[str]
+
+    # 3. Investment Mappings
+    investment_account_mappings: dict[str, str]
+
+    # 4. Income Sources
+    salary_categories: dict[str, list[str]]
+    bonus_categories: dict[str, list[str]]
+    investment_income_categories: dict[str, list[str]]
+    cashback_categories: dict[str, list[str]]
+
+    # 5. Budget Defaults
+    default_budget_alert_threshold: float
+    auto_create_budgets: bool
+    budget_rollover_enabled: bool
+
+    # 6. Display Preferences
+    number_format: str
+    currency_symbol: str
+    currency_symbol_position: str
+    default_time_range: str
+
+    # 7. Anomaly Settings
+    anomaly_expense_threshold: float
+    anomaly_types_enabled: list[str]
+    auto_dismiss_recurring_anomalies: bool
+
+    # 8. Recurring Settings
+    recurring_min_confidence: float
+    recurring_auto_confirm_occurrences: int
+
+    # Metadata
+    created_at: datetime | None
+    updated_at: datetime | None
+
+    class Config:
+        from_attributes = True
+
+
+class UserPreferencesUpdate(BaseModel):
+    """Partial update model for preferences."""
+
+    # 1. Fiscal Year
+    fiscal_year_start_month: int | None = None
+
+    # 2. Essential Categories
+    essential_categories: list[str] | None = None
+
+    # 3. Investment Mappings
+    investment_account_mappings: dict[str, str] | None = None
+
+    # 4. Income Sources
+    salary_categories: dict[str, list[str]] | None = None
+    bonus_categories: dict[str, list[str]] | None = None
+    investment_income_categories: dict[str, list[str]] | None = None
+    cashback_categories: dict[str, list[str]] | None = None
+
+    # 5. Budget Defaults
+    default_budget_alert_threshold: float | None = None
+    auto_create_budgets: bool | None = None
+    budget_rollover_enabled: bool | None = None
+
+    # 6. Display Preferences
+    number_format: str | None = None
+    currency_symbol: str | None = None
+    currency_symbol_position: str | None = None
+    default_time_range: str | None = None
+
+    # 7. Anomaly Settings
+    anomaly_expense_threshold: float | None = None
+    anomaly_types_enabled: list[str] | None = None
+    auto_dismiss_recurring_anomalies: bool | None = None
+
+    # 8. Recurring Settings
+    recurring_min_confidence: float | None = None
+    recurring_auto_confirm_occurrences: int | None = None
+
+
+# ----- Helper Functions -----
+
+
+def _parse_json_field(value: str | list | dict) -> Any:
+    """Parse JSON field if it's a string."""
+    if isinstance(value, str):
+        return json.loads(value)
+    return value
+
+
+def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
+    """Convert SQLAlchemy model to Pydantic response."""
+    return UserPreferencesResponse(
+        id=prefs.id,
+        fiscal_year_start_month=prefs.fiscal_year_start_month,
+        essential_categories=_parse_json_field(prefs.essential_categories),
+        investment_account_mappings=_parse_json_field(prefs.investment_account_mappings),
+        salary_categories=_parse_json_field(prefs.salary_categories),
+        bonus_categories=_parse_json_field(prefs.bonus_categories),
+        investment_income_categories=_parse_json_field(prefs.investment_income_categories),
+        cashback_categories=_parse_json_field(prefs.cashback_categories),
+        default_budget_alert_threshold=prefs.default_budget_alert_threshold,
+        auto_create_budgets=prefs.auto_create_budgets,
+        budget_rollover_enabled=prefs.budget_rollover_enabled,
+        number_format=prefs.number_format,
+        currency_symbol=prefs.currency_symbol,
+        currency_symbol_position=prefs.currency_symbol_position,
+        default_time_range=prefs.default_time_range,
+        anomaly_expense_threshold=prefs.anomaly_expense_threshold,
+        anomaly_types_enabled=_parse_json_field(prefs.anomaly_types_enabled),
+        auto_dismiss_recurring_anomalies=prefs.auto_dismiss_recurring_anomalies,
+        recurring_min_confidence=prefs.recurring_min_confidence,
+        recurring_auto_confirm_occurrences=prefs.recurring_auto_confirm_occurrences,
+        created_at=prefs.created_at,
+        updated_at=prefs.updated_at,
+    )
+
+
+def _get_or_create_preferences(session: Session) -> UserPreferences:
+    """Get existing preferences or create defaults."""
+    result = session.execute(select(UserPreferences).limit(1))
+    prefs = result.scalar_one_or_none()
+
+    if prefs is None:
+        # Create default preferences
+        prefs = UserPreferences()
+        session.add(prefs)
+        session.commit()
+        session.refresh(prefs)
+
+    return prefs
+
+
+# ----- API Endpoints -----
+
+
+@router.get("", response_model=UserPreferencesResponse)
+def get_preferences(session: Session = Depends(get_session)) -> UserPreferencesResponse:
+    """Get current user preferences."""
+    prefs = _get_or_create_preferences(session)
+    return _model_to_response(prefs)
+
+
+@router.put("", response_model=UserPreferencesResponse)
+def update_preferences(
+    updates: UserPreferencesUpdate,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
+    """Update user preferences (partial update supported)."""
+    prefs = _get_or_create_preferences(session)
+
+    # Apply updates for non-None fields
+    update_data = updates.model_dump(exclude_none=True)
+
+    for field, value in update_data.items():
+        # Convert lists/dicts to JSON strings for storage
+        if isinstance(value, (list, dict)):
+            value = json.dumps(value)
+        setattr(prefs, field, value)
+
+    prefs.updated_at = datetime.now()
+    session.commit()
+    session.refresh(prefs)
+
+    return _model_to_response(prefs)
+
+
+@router.post("/reset", response_model=UserPreferencesResponse)
+def reset_preferences(session: Session = Depends(get_session)) -> UserPreferencesResponse:
+    """Reset all preferences to defaults."""
+    prefs = _get_or_create_preferences(session)
+
+    # Reset to defaults
+    prefs.fiscal_year_start_month = 4
+    prefs.essential_categories = json.dumps(
+        [
+            "Housing",
+            "Healthcare",
+            "Transportation",
+            "Food & Dining",
+            "Education",
+            "Family",
+            "Utilities",
+        ]
+    )
+    prefs.investment_account_mappings = json.dumps(
+        {
+            "Grow Stocks": "stocks",
+            "Grow Mutual Funds": "mutual_funds",
+            "IND money": "stocks",
+            "FD/Bonds": "fixed_deposits",
+            "EPF": "ppf_epf",
+            "PPF": "ppf_epf",
+            "RSUs": "stocks",
+        }
+    )
+    prefs.salary_categories = json.dumps({"Employment Income": ["Salary", "Stipend"]})
+    prefs.bonus_categories = json.dumps({"Employment Income": ["Bonus", "RSUs/Stock Options"]})
+    prefs.investment_income_categories = json.dumps(
+        {"Investment Income": ["Dividends", "Interest", "Capital Gains"]}
+    )
+    prefs.cashback_categories = json.dumps({"Cashback": ["Credit Card Cashback", "Rewards"]})
+    prefs.default_budget_alert_threshold = 80.0
+    prefs.auto_create_budgets = False
+    prefs.budget_rollover_enabled = False
+    prefs.number_format = "indian"
+    prefs.currency_symbol = "₹"
+    prefs.currency_symbol_position = "before"
+    prefs.default_time_range = "last_12_months"
+    prefs.anomaly_expense_threshold = 2.0
+    prefs.anomaly_types_enabled = json.dumps(
+        ["high_expense", "unusual_category", "large_transfer", "budget_exceeded"]
+    )
+    prefs.auto_dismiss_recurring_anomalies = True
+    prefs.recurring_min_confidence = 50.0
+    prefs.recurring_auto_confirm_occurrences = 6
+    prefs.updated_at = datetime.now()
+
+    session.commit()
+    session.refresh(prefs)
+
+    return _model_to_response(prefs)
+
+
+# ----- Section-specific endpoints for granular updates -----
+
+
+@router.put("/fiscal-year", response_model=UserPreferencesResponse)
+def update_fiscal_year(
+    config: FiscalYearConfig,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
+    """Update fiscal year configuration."""
+    prefs = _get_or_create_preferences(session)
+    prefs.fiscal_year_start_month = config.fiscal_year_start_month
+    prefs.updated_at = datetime.now()
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
+@router.put("/essential-categories", response_model=UserPreferencesResponse)
+def update_essential_categories(
+    config: EssentialCategoriesConfig,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
+    """Update essential categories list."""
+    prefs = _get_or_create_preferences(session)
+    prefs.essential_categories = json.dumps(config.essential_categories)
+    prefs.updated_at = datetime.now()
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
+@router.put("/investment-mappings", response_model=UserPreferencesResponse)
+def update_investment_mappings(
+    config: InvestmentMappingsConfig,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
+    """Update investment account mappings."""
+    prefs = _get_or_create_preferences(session)
+    prefs.investment_account_mappings = json.dumps(config.investment_account_mappings)
+    prefs.updated_at = datetime.now()
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
+@router.put("/income-sources", response_model=UserPreferencesResponse)
+def update_income_sources(
+    config: IncomeSourcesConfig,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
+    """Update income source category mappings."""
+    prefs = _get_or_create_preferences(session)
+    prefs.salary_categories = json.dumps(config.salary_categories)
+    prefs.bonus_categories = json.dumps(config.bonus_categories)
+    prefs.investment_income_categories = json.dumps(config.investment_income_categories)
+    prefs.cashback_categories = json.dumps(config.cashback_categories)
+    prefs.updated_at = datetime.now()
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
+@router.put("/budget-defaults", response_model=UserPreferencesResponse)
+def update_budget_defaults(
+    config: BudgetDefaultsConfig,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
+    """Update budget default settings."""
+    prefs = _get_or_create_preferences(session)
+    prefs.default_budget_alert_threshold = config.default_budget_alert_threshold
+    prefs.auto_create_budgets = config.auto_create_budgets
+    prefs.budget_rollover_enabled = config.budget_rollover_enabled
+    prefs.updated_at = datetime.now()
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
+@router.put("/display", response_model=UserPreferencesResponse)
+def update_display_preferences(
+    config: DisplayPreferencesConfig,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
+    """Update display and format preferences."""
+    prefs = _get_or_create_preferences(session)
+    prefs.number_format = config.number_format
+    prefs.currency_symbol = config.currency_symbol
+    prefs.currency_symbol_position = config.currency_symbol_position
+    prefs.default_time_range = config.default_time_range
+    prefs.updated_at = datetime.now()
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
+@router.put("/anomaly-settings", response_model=UserPreferencesResponse)
+def update_anomaly_settings(
+    config: AnomalySettingsConfig,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
+    """Update anomaly detection settings."""
+    prefs = _get_or_create_preferences(session)
+    prefs.anomaly_expense_threshold = config.anomaly_expense_threshold
+    prefs.anomaly_types_enabled = json.dumps(config.anomaly_types_enabled)
+    prefs.auto_dismiss_recurring_anomalies = config.auto_dismiss_recurring_anomalies
+    prefs.updated_at = datetime.now()
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
+@router.put("/recurring-settings", response_model=UserPreferencesResponse)
+def update_recurring_settings(
+    config: RecurringSettingsConfig,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
+    """Update recurring transaction detection settings."""
+    prefs = _get_or_create_preferences(session)
+    prefs.recurring_min_confidence = config.recurring_min_confidence
+    prefs.recurring_auto_confirm_occurrences = config.recurring_auto_confirm_occurrences
+    prefs.updated_at = datetime.now()
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)

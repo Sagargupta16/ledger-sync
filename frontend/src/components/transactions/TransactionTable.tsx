@@ -7,11 +7,12 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react'
+import { ArrowUpDown, TrendingUp, TrendingDown, Search } from 'lucide-react'
 import type { Transaction } from '@/types'
 import { format } from 'date-fns'
 import { formatCurrency } from '@/lib/formatters'
 import { motion } from 'framer-motion'
+import EmptyState from '@/components/shared/EmptyState'
 
 interface TransactionTableProps {
   transactions: Transaction[]
@@ -168,8 +169,13 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
 
   if (transactions.length === 0) {
     return (
-      <div className="glass rounded-xl border border-white/10 p-12 text-center">
-        <p className="text-muted-foreground">No transactions found. Try adjusting your filters.</p>
+      <div className="glass rounded-xl border border-white/10 shadow-lg">
+        <EmptyState
+          icon={Search}
+          title="No transactions found"
+          description="Try adjusting your filters or search terms to find what you're looking for."
+          variant="default"
+        />
       </div>
     )
   }

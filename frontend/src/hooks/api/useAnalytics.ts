@@ -114,3 +114,14 @@ export const useGeneratedInsights = (timeRange: TimeRange = 'all_time') => {
     queryFn: () => analyticsService.getGeneratedInsights(timeRange),
   })
 }
+
+// Master Categories
+export const useMasterCategories = () => {
+  return useQuery({
+    queryKey: ['calculations', 'master-categories'],
+    queryFn: async () => {
+      const response = await calculationsApi.getMasterCategories()
+      return response.data
+    },
+  })
+}

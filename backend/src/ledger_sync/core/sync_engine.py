@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.analytics_engine import AnalyticsEngine
 from ledger_sync.core.reconciler import Reconciler, ReconciliationStats
 from ledger_sync.db.models import ImportLog
 from ledger_sync.ingest.excel_loader import ExcelLoader
@@ -132,5 +133,15 @@ class SyncEngine:
         self.session.commit()
 
         logger.info(f"Import completed: {stats}")
+
+        # Step 6: Run analytics calculations
+        logger.info("Running post-import analytics...")
+        try:
+            analytics_engine = AnalyticsEngine(self.session)
+            analytics_results = analytics_engine.run_full_analytics(source_file=file_path.name)
+            logger.info(f"Analytics completed: {analytics_results}")
+        except Exception as e:
+            # Analytics failure shouldn't fail the import
+            logger.error(f"Analytics calculation failed (non-fatal): {e}")
 
         return stats

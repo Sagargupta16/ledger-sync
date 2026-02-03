@@ -168,7 +168,14 @@ export default function TopMerchants() {
                   formatter={(value: number) =>
                     viewMode === 'amount' ? formatCurrency(value) : `${value} visits`
                   }
-                  contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: '8px' }}
+                  contentStyle={{
+                    backgroundColor: 'rgba(0,0,0,0.9)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                  }}
+                  labelStyle={{ color: '#9ca3af' }}
+                  itemStyle={{ color: '#fff' }}
                 />
               </PieChart>
             </ResponsiveContainer>

@@ -10,6 +10,7 @@ interface UploadResultsProps {
 
 export default function UploadResults({ stats, fileName, uploadTime }: UploadResultsProps) {
   const totalChanges = stats.inserted + stats.updated + stats.deleted
+  const totalProcessed = totalChanges + (stats.unchanged || 0)
 
   return (
     <motion.div
@@ -35,7 +36,7 @@ export default function UploadResults({ stats, fileName, uploadTime }: UploadRes
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           icon={CheckCircle}
           label="Inserted"
@@ -57,14 +58,27 @@ export default function UploadResults({ stats, fileName, uploadTime }: UploadRes
           color="text-red-500"
           bgColor="bg-red-500/20"
         />
+        <StatCard
+          icon={Clock}
+          label="Unchanged"
+          value={stats.unchanged || 0}
+          color="text-gray-500"
+          bgColor="bg-gray-500/20"
+        />
       </div>
 
       {/* Summary */}
       <div className="pt-4 border-t border-border">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Total Changes</span>
-          <span className="font-semibold">{totalChanges} transactions</span>
+          <span className="text-muted-foreground">Total Processed</span>
+          <span className="font-semibold">{totalProcessed} transactions</span>
         </div>
+        {totalChanges > 0 && (
+          <div className="flex items-center justify-between text-sm mt-1">
+            <span className="text-muted-foreground">Changes Made</span>
+            <span className="font-semibold text-blue-500">{totalChanges} transactions</span>
+          </div>
+        )}
       </div>
     </motion.div>
   )

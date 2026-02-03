@@ -14,6 +14,7 @@ import {
   ArrowRightLeft
 } from 'lucide-react'
 import { ROUTES } from '@/constants'
+import { rawColors } from '@/constants/colors'
 import { cn } from '@/lib/cn'
 import SidebarGroup from './SidebarGroup'
 import SidebarItem from './SidebarItem'
@@ -21,7 +22,7 @@ import SidebarItem from './SidebarItem'
 const navigationGroups = [
   {
     id: 'overview',
-    title: '📊 Overview',
+    title: 'Overview',
     icon: LayoutDashboard,
     items: [
       { path: ROUTES.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
@@ -29,7 +30,7 @@ const navigationGroups = [
   },
   {
     id: 'networth',
-    title: '📈 Net Worth & Forecasts',
+    title: 'Net Worth',
     icon: PiggyBank,
     items: [
       { path: ROUTES.NET_WORTH, label: 'Net Worth Tracker', icon: PiggyBank },
@@ -38,7 +39,7 @@ const navigationGroups = [
   },
   {
     id: 'analytics',
-    title: '📊 Financial Analytics',
+    title: 'Analytics',
     icon: BarChart3,
     items: [
       { path: ROUTES.SPENDING_ANALYSIS, label: 'Expense Analysis', icon: BarChart3 },
@@ -48,7 +49,7 @@ const navigationGroups = [
   },
   {
     id: 'investments',
-    title: '💼 Investments',
+    title: 'Investments',
     icon: TrendingUp,
     items: [
       { path: ROUTES.INVESTMENT_ANALYTICS, label: 'Investment Analytics', icon: TrendingUp },
@@ -58,7 +59,7 @@ const navigationGroups = [
   },
   {
     id: 'tax',
-    title: '💳 Tax Planning',
+    title: 'Tax Planning',
     icon: TaxIcon,
     items: [
       { path: ROUTES.TAX_PLANNING, label: 'Tax Summary', icon: TaxIcon },
@@ -66,7 +67,7 @@ const navigationGroups = [
   },
   {
     id: 'transactions',
-    title: '💰 Transactions',
+    title: 'Transactions',
     icon: Receipt,
     items: [
       { path: ROUTES.TRANSACTIONS, label: 'All Transactions', icon: Receipt },
@@ -74,7 +75,7 @@ const navigationGroups = [
   },
   {
     id: 'data',
-    title: '⚙️ Settings & Data',
+    title: 'Settings',
     icon: Settings,
     items: [
       { path: ROUTES.UPLOAD, label: 'Upload & Sync', icon: Upload },
@@ -88,39 +89,47 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile toggle button */}
+      {/* Mobile toggle button - iOS style */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg glass-strong shadow-lg"
+        className="lg:hidden fixed top-4 left-4 z-50 p-3 rounded-2xl glass-strong shadow-xl shadow-black/20 active:scale-95 transition-transform"
+        aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
       >
-        {isMobileOpen ? <X size={24} /> : <Menu size={24} />}
+        {isMobileOpen ? <X size={22} className="text-white" /> : <Menu size={22} className="text-white" />}
       </button>
 
-      {/* Sidebar */}
+      {/* Sidebar - iOS Frosted Glass */}
       <aside
         className={cn(
-          'fixed lg:sticky top-0 h-screen w-72 bg-gradient-to-b from-gray-900 via-gray-900/95 to-gray-950 border-r border-purple-500/20 transition-all duration-300 z-40 shadow-2xl backdrop-blur-xl',
+          'fixed lg:sticky top-0 h-screen w-72 glass-ultra transition-all duration-500 ease-out z-40',
+          'border-r border-white/[0.06]',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="p-6 border-b border-purple-500/20 bg-gradient-to-r from-purple-900/20 to-blue-900/20">
+          {/* Header - iOS style */}
+          <div className="p-6 border-b border-white/[0.06]">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl shadow-lg shadow-purple-500/50">
+              <div 
+                className="p-2.5 rounded-2xl shadow-lg"
+                style={{ 
+                  background: `linear-gradient(to bottom right, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
+                  boxShadow: `0 10px 30px ${rawColors.ios.blue}33`
+                }}
+              >
                 <PiggyBank className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent drop-shadow-lg">
+                <h1 className="text-xl font-semibold text-white tracking-tight">
                   Ledger Sync
                 </h1>
-                <p className="text-xs text-gray-400">Financial Dashboard</p>
+                <p className="text-xs" style={{ color: rawColors.text.secondary }}>Financial Dashboard</p>
               </div>
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent">
+          {/* Navigation - iOS style grouped list */}
+          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2">
             {navigationGroups.map((group) => (
               <SidebarGroup
                 key={group.id}
@@ -139,20 +148,20 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          {/* Footer */}
-          <div className="p-4 border-t border-purple-500/20 bg-gradient-to-r from-purple-900/10 to-blue-900/10">
+          {/* Footer - iOS style */}
+          <div className="p-4 border-t border-white/[0.06]">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-400">v1.0.0</span>
-              <span className="text-gray-500">Built with ❤️</span>
+              <span className="text-[#636366] font-medium">v1.0.0</span>
+              <span className="text-[#48484a]">Built with ❤️</span>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Mobile overlay */}
+      {/* Mobile overlay - iOS blur style */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-md z-30 lg:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-xl z-30 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}

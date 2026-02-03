@@ -1,15 +1,27 @@
 import { motion } from 'framer-motion'
-import { DollarSign, TrendingDown, TrendingUp, Percent } from 'lucide-react'
+import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import RecentTransactions from '@/components/shared/RecentTransactions'
 import QuickInsights from '@/components/shared/QuickInsights'
 import TimeRangeSelector, { type TimeRange } from '@/components/shared/TimeRangeSelector'
 import Sparkline from '@/components/shared/Sparkline'
+import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore, PeriodComparison, BudgetTracker } from '@/components/analytics'
 import { useRecentTransactions } from '@/hooks/api/useAnalytics'
 import { useMonthlyAggregation, useTotals } from '@/hooks/useAnalytics'
+import { useTransactions } from '@/hooks/api/useTransactions'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { useState, useMemo } from 'react'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { 
+  calculateIncomeBreakdown, 
+  calculateSpendingBreakdown,
+  INCOME_TYPE_LABELS,
+  INCOME_TYPE_COLORS,
+  SPENDING_TYPE_COLORS,
+  type IncomeType
+} from '@/lib/preferencesUtils'
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
 
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('6M')
@@ -47,6 +59,61 @@ export default function DashboardPage() {
   const { data: recentTransactions, isLoading: isLoadingTransactions } = useRecentTransactions(5)
   const { data: filteredTotals, isLoading } = useTotals(dateRange)
   const { data: monthlyData } = useMonthlyAggregation(dateRange)
+  const { data: allTransactions } = useTransactions()
+  const { data: preferences } = usePreferences()
+
+  // Calculate income breakdown by type (salary, bonus, investment, cashback)
+  const incomeBreakdown = useMemo(() => {
+    if (!allTransactions || !preferences) return null
+    
+    // Filter transactions by date range
+    const filtered = allTransactions.filter((t) => {
+      if (!dateRange.start_date) return true
+      return t.date >= dateRange.start_date && (!dateRange.end_date || t.date <= dateRange.end_date)
+    })
+    
+    return calculateIncomeBreakdown(filtered, {
+      salary: preferences.salary_categories || {},
+      bonus: preferences.bonus_categories || {},
+      investmentIncome: preferences.investment_income_categories || {},
+      cashback: preferences.cashback_categories || {},
+    })
+  }, [allTransactions, preferences, dateRange])
+
+  // Calculate spending breakdown (essential vs discretionary)
+  const spendingBreakdown = useMemo(() => {
+    if (!allTransactions || !preferences) return null
+    
+    // Filter transactions by date range
+    const filtered = allTransactions.filter((t) => {
+      if (!dateRange.start_date) return true
+      return t.date >= dateRange.start_date && (!dateRange.end_date || t.date <= dateRange.end_date)
+    })
+    
+    return calculateSpendingBreakdown(filtered, preferences.essential_categories)
+  }, [allTransactions, preferences, dateRange])
+
+  // Prepare income breakdown for pie chart
+  const incomeChartData = useMemo(() => {
+    if (!incomeBreakdown) return []
+    return (Object.entries(incomeBreakdown) as [IncomeType, number][])
+      .filter(([, value]) => value > 0)
+      .map(([type, value]) => ({
+        name: INCOME_TYPE_LABELS[type],
+        value,
+        color: INCOME_TYPE_COLORS[type],
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [incomeBreakdown])
+
+  // Prepare spending breakdown for pie chart
+  const spendingChartData = useMemo(() => {
+    if (!spendingBreakdown) return []
+    return [
+      { name: 'Essential', value: spendingBreakdown.essential, color: SPENDING_TYPE_COLORS.essential },
+      { name: 'Discretionary', value: spendingBreakdown.discretionary, color: SPENDING_TYPE_COLORS.discretionary },
+    ].filter((d) => d.value > 0)
+  }, [spendingBreakdown])
 
   // Prepare sparkline data for mini charts - show all months in the filtered range
   const incomeSparkline = useMemo(() => {
@@ -130,6 +197,189 @@ export default function DashboardPage() {
         >
           <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
           <QuickInsights dateRange={dateRange} />
+        </motion.div>
+      </div>
+
+      {/* Income & Spending Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Income Sources Breakdown */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
+        >
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-green-500" />
+            Income Sources
+          </h2>
+          {incomeChartData.length > 0 ? (
+            <div className="flex items-center gap-6">
+              <div className="w-40 h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={incomeChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={35}
+                      outerRadius={65}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {incomeChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{
+                        background: 'rgba(0,0,0,0.9)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                      }}
+                      labelStyle={{ color: '#9ca3af' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex-1 space-y-2">
+                {incomeChartData.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-sm">{item.name}</span>
+                    </div>
+                    <span className="text-sm font-medium">{formatCurrency(item.value)}</span>
+                  </div>
+                ))}
+                {incomeBreakdown && (
+                  <div className="pt-2 mt-2 border-t border-white/10">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Total</span>
+                      <span className="text-sm font-bold text-green-500">
+                        {formatCurrency(
+                          Object.values(incomeBreakdown).reduce((a, b) => a + b, 0)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              icon={Wallet}
+              title="No income data available"
+              description="Configure income categories in Settings to see your income breakdown."
+              actionLabel="Go to Settings"
+              actionHref="/settings"
+              variant="compact"
+            />
+          )}
+        </motion.div>
+
+        {/* Essential vs Discretionary Spending */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
+        >
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-red-500" />
+            Spending Breakdown
+          </h2>
+          {spendingChartData.length > 0 ? (
+            <div className="flex items-center gap-6">
+              <div className="w-40 h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={spendingChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={35}
+                      outerRadius={65}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {spendingChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{
+                        background: 'rgba(0,0,0,0.9)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                      }}
+                      labelStyle={{ color: '#9ca3af' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex-1 space-y-3">
+                {spendingChartData.map((item) => {
+                  const percentage = spendingBreakdown
+                    ? ((item.value / spendingBreakdown.total) * 100).toFixed(1)
+                    : '0'
+                  return (
+                    <div key={item.name}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="text-sm">{item.name}</span>
+                        </div>
+                        <span className="text-sm font-medium">
+                          {formatCurrency(item.value)} ({percentage}%)
+                        </span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${percentage}%`,
+                            backgroundColor: item.color,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+                {spendingBreakdown && (
+                  <div className="pt-2 mt-2 border-t border-white/10">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Total Spending</span>
+                      <span className="text-sm font-bold text-red-500">
+                        {formatCurrency(spendingBreakdown.total)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              icon={CreditCard}
+              title="No spending data available"
+              description="Configure essential categories in Settings to see your spending breakdown."
+              actionLabel="Go to Settings"
+              actionHref="/settings"
+              variant="compact"
+            />
+          )}
         </motion.div>
       </div>
 

@@ -153,8 +153,9 @@ const IncomeExpenseFlowPage = () => {
     ? `${String(currentYear).slice(2)}-${String(currentYear + 1).slice(2)}` 
     : `${String(currentYear - 1).slice(2)}-${String(currentYear).slice(2)}`
   
+  // Generate FY options - include all FYs from 21-22 onwards
   const fyOptions = []
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const year = parseInt(`20${currentFY.split('-')[0]}`) - i
     fyOptions.push(`${String(year).slice(2)}-${String(year + 1).slice(2)}`)
   }
