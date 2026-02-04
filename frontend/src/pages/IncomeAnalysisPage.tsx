@@ -5,21 +5,14 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
-import { INCOME_COLORS } from '@/constants/chartColors'
-import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
-import AnalyticsTimeFilter, { 
-  type AnalyticsViewMode, 
-  getCurrentFY, 
-  getAnalyticsDateRange 
-} from '@/components/shared/AnalyticsTimeFilter'
+import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { 
   calculateIncomeByCategoryBreakdown,
   calculateCashbacksTotal,
   INCOME_CATEGORY_COLORS,
 } from '@/lib/preferencesUtils'
-
-const COLORS = INCOME_COLORS
 
 // Icons for income categories (based on actual data categories)
 const INCOME_CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -150,13 +143,6 @@ export default function IncomeAnalysisPage() {
       }
     })
   }, [filteredTransactions, viewMode, currentYear, currentMonth])
-
-  // Calculate metrics
-  const avgIncome = useMemo(() => {
-    if (trendData.length === 0) return 0
-    const total = trendData.reduce((sum, d) => sum + d.income, 0)
-    return total / trendData.length
-  }, [trendData])
 
   const growthRate = useMemo(() => {
     if (trendData.length < 2) return 0
@@ -397,7 +383,7 @@ export default function IncomeAnalysisPage() {
         >
           <h3 className="text-lg font-semibold text-white mb-4">Income Sources</h3>
           <div className="space-y-3">
-            {incomeTypeChartData.map((item, index) => (
+            {incomeTypeChartData.map((item) => (
                 <div
                   key={item.name}
                   className="flex items-center justify-between p-4 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-all"

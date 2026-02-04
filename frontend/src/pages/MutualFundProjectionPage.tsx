@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, Calculator, Calendar, Percent } from 'lucide-react'
+import { TrendingUp, Calculator, Percent } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import {
@@ -92,7 +92,7 @@ export default function MutualFundProjectionPage() {
           .sort((a, b) => b.balance - a.balance)
 
         setMutualFundAccounts(mfAccounts)
-      } catch (error) {
+      } catch {
         setMutualFundAccounts([])
       }
     }

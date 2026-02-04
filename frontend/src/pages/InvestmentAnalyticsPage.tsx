@@ -6,7 +6,6 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
-import { INCOME_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 
 // 4 Investment Categories with colors
@@ -50,28 +49,15 @@ const mapToCategory = (investmentType: string): InvestmentCategory => {
 }
 
 export default function InvestmentAnalyticsPage() {
-  const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
+  const { isLoading: balancesLoading } = useAccountBalances()
   const { data: transactions = [] } = useTransactions()
   const { data: preferences, isLoading: preferencesLoading } = usePreferences()
 
   // Get investment accounts from user preferences (investment_account_mappings)
-  const investmentMappings = preferences?.investment_account_mappings || {}
-  const investmentAccounts = Object.keys(investmentMappings)
+  const investmentMappings = useMemo(() => preferences?.investment_account_mappings || {}, [preferences?.investment_account_mappings])
+  const investmentAccounts = useMemo(() => Object.keys(investmentMappings), [investmentMappings])
 
   const isLoading = balancesLoading || preferencesLoading
-
-  // Filter accounts based on user selection
-  const accounts = balanceData?.accounts || {}
-  
-  const selectedInvestmentAccounts = Object.entries(accounts)
-    .filter(([name]) => investmentAccounts.includes(name))
-    .map(([name, data]: [string, { balance?: number }]) => ({
-      name,
-      value: Math.abs(data.balance || 0),
-      balance: data.balance || 0,
-      investmentType: investmentMappings[name] || 'Other',
-    }))
-    .filter((acc) => acc.value > 0)
 
   // Map accounts to categories - use raw value from preferences for accurate mapping
   const accountToCategory = useMemo(() => {
@@ -499,7 +485,7 @@ export default function InvestmentAnalyticsPage() {
                 <AreaChart data={monthlyGrowthData}>
                   <defs>
                     {INVESTMENT_CATEGORIES.map((category) => (
-                      <linearGradient key={`gradient-${category}`} id={`color-${category.replace(/[\s\/]/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient key={`gradient-${category}`} id={`color-${category.replace(/[\s/]/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.8}/>
                         <stop offset="95%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.2}/>
                       </linearGradient>
@@ -540,7 +526,7 @@ export default function InvestmentAnalyticsPage() {
                       stroke={CATEGORY_COLORS[category]} 
                       strokeWidth={2}
                       fillOpacity={1} 
-                      fill={`url(#color-${category.replace(/[\s\/]/g, '-')})`}
+                      fill={`url(#color-${category.replace(/[\s/]/g, '-')})`}
                     />
                   ))}
                 </AreaChart>

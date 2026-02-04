@@ -356,8 +356,9 @@ class Reconciler:
 
         if changed:
             if changes_detected:
-                # Log first few to console
-                print(f"Transfer {transfer_id[:12]}... updated: {', '.join(changes_detected)}")
+                logger.debug(
+                    f"Transfer {transfer_id[:12]}... updated: {', '.join(changes_detected)}"
+                )
             return existing, "updated"
         return existing, "skipped"
 

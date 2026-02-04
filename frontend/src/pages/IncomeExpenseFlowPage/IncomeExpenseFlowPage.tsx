@@ -5,8 +5,8 @@ import { ResponsiveContainer, Sankey, Tooltip } from 'recharts'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import AnalyticsTimeFilter, { type AnalyticsViewMode, getCurrentFY, getAnalyticsDateRange } from '@/components/shared/AnalyticsTimeFilter'
-import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
+import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
 
 const IncomeExpenseFlowPage = () => {
   const { data: allTransactions = [], isLoading } = useTransactions()

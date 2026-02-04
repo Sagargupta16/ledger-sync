@@ -64,7 +64,6 @@ export default function DropZone({ onFileSelect, isUploading, compact }: DropZon
               <Upload className={cn('text-primary transition-transform', isDragActive && 'scale-110', compact ? 'w-6 h-6' : 'w-12 h-12')} />
             )}
           </div>
-          </div>
 
           {selectedFile ? (
             <div className={compact ? 'flex-1 text-left' : 'space-y-2'}>

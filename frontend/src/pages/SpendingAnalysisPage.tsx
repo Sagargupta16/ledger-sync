@@ -6,13 +6,9 @@ import { useMemo, useState } from 'react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip } from 'recharts'
 import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
-import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
-import AnalyticsTimeFilter, { 
-  type AnalyticsViewMode, 
-  getCurrentFY, 
-  getAnalyticsDateRange 
-} from '@/components/shared/AnalyticsTimeFilter'
+import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import {
   ExpenseTreemap,
   EnhancedSubcategoryAnalysis,
