@@ -1,17 +1,24 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { 
   LayoutDashboard,
   Upload,
   Receipt,
   TrendingUp,
-  Receipt as TaxIcon,
+  Landmark,
   PiggyBank,
   BarChart3,
-  TrendingUp as ForecastIcon,
+  LineChart,
   Menu,
   X,
-  Settings,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ChevronsLeft,
+  ChevronsRight,
+  Wallet,
+  CircleDollarSign,
+  Coins,
+  Target,
+  SlidersHorizontal
 } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
@@ -19,11 +26,12 @@ import { cn } from '@/lib/cn'
 import SidebarGroup from './SidebarGroup'
 import SidebarItem from './SidebarItem'
 
+const SIDEBAR_COLLAPSED_KEY = 'ledger-sync-sidebar-collapsed'
+
 const navigationGroups = [
   {
     id: 'overview',
     title: 'Overview',
-    icon: LayoutDashboard,
     items: [
       { path: ROUTES.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
     ],
@@ -31,44 +39,39 @@ const navigationGroups = [
   {
     id: 'networth',
     title: 'Net Worth',
-    icon: PiggyBank,
     items: [
-      { path: ROUTES.NET_WORTH, label: 'Net Worth Tracker', icon: PiggyBank },
-      { path: ROUTES.TRENDS_FORECASTS, label: 'Trends & Forecasts', icon: ForecastIcon },
+      { path: ROUTES.NET_WORTH, label: 'Net Worth Tracker', icon: Wallet },
+      { path: ROUTES.TRENDS_FORECASTS, label: 'Trends & Forecasts', icon: LineChart },
     ],
   },
   {
     id: 'analytics',
     title: 'Analytics',
-    icon: BarChart3,
     items: [
       { path: ROUTES.SPENDING_ANALYSIS, label: 'Expense Analysis', icon: BarChart3 },
-      { path: ROUTES.INCOME_ANALYSIS, label: 'Income Analysis', icon: TrendingUp },
+      { path: ROUTES.INCOME_ANALYSIS, label: 'Income Analysis', icon: CircleDollarSign },
       { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Cash Flow', icon: ArrowRightLeft },
     ],
   },
   {
     id: 'investments',
     title: 'Investments',
-    icon: TrendingUp,
     items: [
       { path: ROUTES.INVESTMENT_ANALYTICS, label: 'Investment Analytics', icon: TrendingUp },
-      { path: ROUTES.MUTUAL_FUND_PROJECTION, label: 'SIP Projections', icon: TrendingUp },
-      { path: ROUTES.RETURNS_ANALYSIS, label: 'Returns Analysis', icon: BarChart3 },
+      { path: ROUTES.MUTUAL_FUND_PROJECTION, label: 'SIP Projections', icon: Target },
+      { path: ROUTES.RETURNS_ANALYSIS, label: 'Returns Analysis', icon: Coins },
     ],
   },
   {
     id: 'tax',
     title: 'Tax Planning',
-    icon: TaxIcon,
     items: [
-      { path: ROUTES.TAX_PLANNING, label: 'Tax Summary', icon: TaxIcon },
+      { path: ROUTES.TAX_PLANNING, label: 'Tax Summary', icon: Landmark },
     ],
   },
   {
     id: 'transactions',
     title: 'Transactions',
-    icon: Receipt,
     items: [
       { path: ROUTES.TRANSACTIONS, label: 'All Transactions', icon: Receipt },
     ],
@@ -76,16 +79,30 @@ const navigationGroups = [
   {
     id: 'data',
     title: 'Settings',
-    icon: Settings,
     items: [
       { path: ROUTES.UPLOAD, label: 'Upload & Sync', icon: Upload },
-      { path: ROUTES.SETTINGS, label: 'Account Classification', icon: Settings },
+      { path: ROUTES.SETTINGS, label: 'Account Classification', icon: SlidersHorizontal },
     ],
   },
 ]
 
 export default function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    // Load from localStorage on initial render
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
+      return saved === 'true'
+    }
+    return false
+  })
+
+  // Persist collapse state to localStorage
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed))
+  }, [isCollapsed])
+
+  const toggleCollapse = () => setIsCollapsed(!isCollapsed)
 
   return (
     <>
@@ -101,17 +118,21 @@ export default function Sidebar() {
       {/* Sidebar - iOS Frosted Glass */}
       <aside
         className={cn(
-          'fixed lg:sticky top-0 h-screen w-72 glass-ultra transition-all duration-500 ease-out z-40',
+          'fixed lg:sticky top-0 h-screen glass-ultra transition-all duration-300 ease-out z-40',
           'border-r border-white/[0.06]',
+          isCollapsed ? 'w-20 overflow-visible' : 'w-72',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        <div className="flex flex-col h-full">
+        <div className={cn("flex flex-col h-full", isCollapsed && "overflow-visible")}>
           {/* Header - iOS style */}
-          <div className="p-6 border-b border-white/[0.06]">
-            <div className="flex items-center gap-3">
+          <div className={cn("border-b border-white/[0.06]", isCollapsed ? "p-4" : "p-6")}>
+            <Link to="/" className={cn(
+              "flex items-center hover:opacity-80 transition-opacity",
+              isCollapsed ? "justify-center" : "gap-3"
+            )}>
               <div 
-                className="p-2.5 rounded-2xl shadow-lg"
+                className="p-2.5 rounded-2xl shadow-lg flex-shrink-0"
                 style={{ 
                   background: `linear-gradient(to bottom right, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
                   boxShadow: `0 10px 30px ${rawColors.ios.blue}33`
@@ -119,22 +140,27 @@ export default function Sidebar() {
               >
                 <PiggyBank className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-xl font-semibold text-white tracking-tight">
-                  Ledger Sync
-                </h1>
-                <p className="text-xs" style={{ color: rawColors.text.secondary }}>Financial Dashboard</p>
-              </div>
-            </div>
+              {!isCollapsed && (
+                <div>
+                  <h1 className="text-xl font-semibold text-white tracking-tight">
+                    Ledger Sync
+                  </h1>
+                  <p className="text-xs" style={{ color: rawColors.text.secondary }}>Financial Dashboard</p>
+                </div>
+              )}
+            </Link>
           </div>
 
           {/* Navigation - iOS style grouped list */}
-          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2">
+          <nav className={cn(
+            "flex-1 py-2",
+            isCollapsed ? "px-2 overflow-visible" : "px-3 overflow-y-auto"
+          )}>
             {navigationGroups.map((group) => (
               <SidebarGroup
                 key={group.id}
                 title={group.title}
-                icon={group.icon}
+                isCollapsed={isCollapsed}
               >
                 {group.items.map((item) => (
                   <SidebarItem
@@ -142,18 +168,33 @@ export default function Sidebar() {
                     to={item.path}
                     icon={item.icon}
                     label={item.label}
+                    isCollapsed={isCollapsed}
                   />
                 ))}
               </SidebarGroup>
             ))}
           </nav>
 
-          {/* Footer - iOS style */}
-          <div className="p-4 border-t border-white/[0.06]">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[#636366] font-medium">v1.0.0</span>
-              <span className="text-[#48484a]">Built with ❤️</span>
-            </div>
+          {/* Collapse Toggle Button */}
+          <div className="p-2 border-t border-white/[0.06]">
+            <button
+              onClick={toggleCollapse}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-200",
+                "text-[#98989f] hover:bg-white/[0.08] hover:text-white hover:scale-[1.02]",
+                isCollapsed && "justify-center px-2"
+              )}
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <ChevronsRight size={18} />
+              ) : (
+                <>
+                  <ChevronsLeft size={18} />
+                  <span className="text-sm">Collapse</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </aside>
