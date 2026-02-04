@@ -12,7 +12,7 @@ import re
 import unicodedata
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, ClassVar
 
 import pandas as pd
 
@@ -23,14 +23,12 @@ from ledger_sync.utils.logging import logger
 class NormalizationError(Exception):
     """Raised when normalization fails."""
 
-    pass
-
 
 class DataNormalizer:
     """Normalizes and cleans raw Excel data into consistent format."""
 
     # Common category name corrections (typos, inconsistencies)
-    CATEGORY_CORRECTIONS = {
+    CATEGORY_CORRECTIONS: ClassVar[dict[str, str]] = {
         "food & dinning": "Food & Dining",
         "food and dining": "Food & Dining",
         "food&dining": "Food & Dining",
@@ -66,6 +64,7 @@ class DataNormalizer:
 
         Returns:
             Cleaned text
+
         """
         if not text:
             return ""
@@ -80,9 +79,7 @@ class DataNormalizer:
         text = self.MULTI_SPACE_PATTERN.sub(" ", text)
 
         # Strip leading/trailing whitespace
-        text = text.strip()
-
-        return text
+        return text.strip()
 
     def _clean_note(self, note: str) -> str:
         """Clean note field with additional processing.
@@ -92,6 +89,7 @@ class DataNormalizer:
 
         Returns:
             Cleaned note
+
         """
         if not note:
             return ""
@@ -109,9 +107,7 @@ class DataNormalizer:
                 return f"[{domain_match.group(1)}]"
             return url
 
-        note = self.URL_PATTERN.sub(shorten_url, note)
-
-        return note
+        return self.URL_PATTERN.sub(shorten_url, note)
 
     def _standardize_category(self, category: str) -> str:
         """Standardize category name for consistency.
@@ -121,6 +117,7 @@ class DataNormalizer:
 
         Returns:
             Standardized category name
+
         """
         if not category:
             return ""
@@ -148,6 +145,7 @@ class DataNormalizer:
 
         Returns:
             Standardized account name
+
         """
         if not account:
             return ""
@@ -181,17 +179,20 @@ class DataNormalizer:
 
         Raises:
             NormalizationError: If date cannot be parsed
+
         """
         if pd.isna(value):
-            raise NormalizationError("Date value is missing")
+            msg = "Date value is missing"
+            raise NormalizationError(msg)
 
         if isinstance(value, datetime):
             return value
 
         try:
             return pd.to_datetime(value)
-        except Exception as e:
-            raise NormalizationError(f"Cannot parse date '{value}': {e}")
+        except (ValueError, TypeError) as e:
+            msg = f"Cannot parse date '{value}': {e}"
+            raise NormalizationError(msg) from e
 
     def normalize_amount(self, value: Any) -> Decimal:
         """Normalize amount to Decimal.
@@ -204,9 +205,11 @@ class DataNormalizer:
 
         Raises:
             NormalizationError: If amount cannot be converted
+
         """
         if pd.isna(value):
-            raise NormalizationError("Amount value is missing")
+            msg = "Amount value is missing"
+            raise NormalizationError(msg)
 
         try:
             # Convert to float first (handles pandas numeric types)
@@ -214,7 +217,8 @@ class DataNormalizer:
             # Round to 2 decimal places for consistency
             return Decimal(str(round(float_value, 2)))
         except (ValueError, InvalidOperation) as e:
-            raise NormalizationError(f"Cannot convert amount '{value}': {e}")
+            msg = f"Cannot convert amount '{value}': {e}"
+            raise NormalizationError(msg) from e
 
     def normalize_string(self, value: Any) -> str:
         """Normalize string value with full cleaning.
@@ -224,6 +228,7 @@ class DataNormalizer:
 
         Returns:
             Normalized string (cleaned, lowercased)
+
         """
         if pd.isna(value):
             return ""
@@ -239,6 +244,7 @@ class DataNormalizer:
 
         Returns:
             Normalized string (cleaned, case preserved)
+
         """
         if pd.isna(value):
             return ""
@@ -256,9 +262,11 @@ class DataNormalizer:
 
         Raises:
             NormalizationError: If type cannot be determined
+
         """
         if pd.isna(value):
-            raise NormalizationError("Transaction type is missing")
+            msg = "Transaction type is missing"
+            raise NormalizationError(msg)
 
         value_str = str(value).strip().lower()
 
@@ -277,7 +285,8 @@ class DataNormalizer:
 
         transaction_type = type_mapping.get(value_str)
         if transaction_type is None:
-            raise NormalizationError(f"Unknown transaction type: {value}")
+            msg = f"Unknown transaction type: {value}"
+            raise NormalizationError(msg)
 
         return transaction_type
 
@@ -299,6 +308,7 @@ class DataNormalizer:
 
         Raises:
             NormalizationError: If normalization fails
+
         """
         try:
             # Get currency (optional, defaults to INR)
@@ -380,15 +390,18 @@ class DataNormalizer:
                     "is_transfer": False,
                 }
 
-            return normalized
-
         except NormalizationError:
             raise
-        except Exception as e:
-            raise NormalizationError(f"Unexpected error normalizing row: {e}")
+        except (ValueError, TypeError, KeyError) as e:
+            msg = f"Unexpected error normalizing row: {e}"
+            raise NormalizationError(msg) from e
+        else:
+            return normalized
 
     def normalize_dataframe(
-        self, df: pd.DataFrame, column_mapping: dict[str, str]
+        self,
+        df: pd.DataFrame,
+        column_mapping: dict[str, str],
     ) -> list[dict[str, Any]]:
         """Normalize entire DataFrame.
 
@@ -398,6 +411,7 @@ class DataNormalizer:
 
         Returns:
             List of normalized row dictionaries
+
         """
         normalized_rows = []
         errors = []

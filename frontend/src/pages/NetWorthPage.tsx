@@ -3,7 +3,7 @@ import { TrendingUp, PiggyBank, CreditCard, BarChart3 } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { formatCurrency, formatPercent, formatAccountType } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
@@ -64,8 +64,8 @@ export default function NetWorthPage() {
 
   const isLoading = balancesLoading || aggregationLoading
 
-  // Calculate totals from balance data
-  const accounts = balanceData?.accounts || {}
+  // Calculate totals from balance data - memoized to avoid changing on every render
+  const accounts = useMemo(() => balanceData?.accounts || {}, [balanceData?.accounts])
   const totalAssets = Object.values(accounts)
     .filter((acc: { balance: number; transaction_count: number }) => acc.balance > 0)
     .reduce((sum: number, acc: { balance: number; transaction_count: number }) => sum + acc.balance, 0)
@@ -76,8 +76,11 @@ export default function NetWorthPage() {
   )
   const netWorth = totalAssets - totalLiabilities
 
-  // Get investment account mappings from preferences
-  const investmentMappings = preferences?.investment_account_mappings || {}
+  // Get investment account mappings from preferences - memoized
+  const investmentMappings = useMemo(
+    () => preferences?.investment_account_mappings || {},
+    [preferences?.investment_account_mappings]
+  )
   
   // Helper to get account type (for display in tables) - uses classifications from preferences
   const getAccountType = (accountName: string): string => {
@@ -108,8 +111,8 @@ export default function NetWorthPage() {
     return 'Other'
   }
   
-  // Categorize accounts - uses classifications from preferences
-  const categorizeAccount = (accountName: string) => {
+  // Categorize accounts - uses classifications from preferences - memoized with useCallback
+  const categorizeAccount = useCallback((accountName: string) => {
     // First check user's classification preferences
     const classification = classifications[accountName]
     
@@ -145,10 +148,10 @@ export default function NetWorthPage() {
     if (name.includes('loan') || name.includes('emi') || name.includes('lend')) return 'Loans/Lended'
     
     return 'Other'
-  }
+  }, [classifications, investmentMappings])
 
-  // Calculate investment breakdown by type from user preferences
-  const investmentBreakdown = useMemo(() => {
+  // Calculate investment breakdown by type from user preferences - remove unused variable
+  useMemo(() => {
     const breakdown: Record<string, number> = {}
     
     Object.entries(accounts).forEach(([accountName, data]: [string, { balance: number }]) => {
@@ -178,7 +181,7 @@ export default function NetWorthPage() {
       acc[category] += Math.abs(data.balance)
       return acc
     }, {} as Record<string, number>)
-  }, [accounts, classifications, investmentMappings])
+  }, [accounts, categorizeAccount])
 
   // Get all unique categories for the chart
   const allCategories = useMemo(() => {
@@ -186,7 +189,8 @@ export default function NetWorthPage() {
     return Array.from(categories).filter(cat => !['Credit Cards', 'Loans', 'Loans/Lended', 'Other'].includes(cat)) // Exclude liabilities and generic Other from asset chart
   }, [categoryTotals])
 
-  const totalPositive = totalAssets
+  // totalPositive is the same as totalAssets - memoize to avoid prop changes
+  const totalPositive = useMemo(() => totalAssets, [totalAssets])
   
   // Calculate proportions dynamically based on actual categories
   const categoryProportions = useMemo(() => {

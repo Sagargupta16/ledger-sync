@@ -23,7 +23,7 @@ class ReconciliationStats:
         self.skipped = 0
 
     def __repr__(self) -> str:
-        """String representation."""
+        """Return string representation."""
         return (
             f"ReconciliationStats(processed={self.processed}, "
             f"inserted={self.inserted}, updated={self.updated}, "
@@ -39,6 +39,7 @@ class Reconciler:
 
         Args:
             session: Database session
+
         """
         self.session = session
         self.hasher = TransactionHasher()
@@ -58,6 +59,7 @@ class Reconciler:
 
         Returns:
             Tuple of (Transaction, action) where action is "inserted", "updated", or "skipped"
+
         """
         # Generate transaction ID
         transaction_id = self.hasher.generate_transaction_id(
@@ -93,61 +95,58 @@ class Reconciler:
             self.session.add(transaction)
             return transaction, "inserted"
 
-        else:
-            # UPDATE existing transaction
-            # Check if anything changed
-            changed = False
-            changes_detected = []
+        # UPDATE existing transaction
+        # Check if anything changed
+        changed = False
+        changes_detected = []
 
-            updateable_fields = ["category", "subcategory", "note", "type"]
-            for field in updateable_fields:
-                new_value = normalized_row[field]
-                old_value = getattr(existing, field)
+        updateable_fields = ["category", "subcategory", "note", "type"]
+        for field in updateable_fields:
+            new_value = normalized_row[field]
+            old_value = getattr(existing, field)
 
-                # Normalize for comparison
-                # - None and empty string are treated as equal
-                # - Enums are compared by their normalized values (case-insensitive)
-                if field == "type":
-                    # Compare enum values case-insensitively
-                    new_val_str = (
-                        new_value.value
-                        if hasattr(new_value, "value")
-                        else str(new_value) if new_value else None
-                    )
-                    old_val_str = (
-                        old_value.value
-                        if hasattr(old_value, "value")
-                        else str(old_value) if old_value else None
-                    )
-                    values_equal = (new_val_str.upper() if new_val_str else None) == (
-                        old_val_str.upper() if old_val_str else None
-                    )
-                else:
-                    # For strings: treat None and "" as equal
-                    new_val_normalized = new_value if new_value else None
-                    old_val_normalized = old_value if old_value else None
-                    values_equal = new_val_normalized == old_val_normalized
+            # Normalize for comparison
+            # - None and empty string are treated as equal
+            # - Enums are compared by their normalized values (case-insensitive)
+            if field == "type":
+                # Compare enum values case-insensitively
+                new_val_str = (
+                    new_value.value
+                    if hasattr(new_value, "value")
+                    else str(new_value) if new_value else None
+                )
+                old_val_str = (
+                    old_value.value
+                    if hasattr(old_value, "value")
+                    else str(old_value) if old_value else None
+                )
+                values_equal = (new_val_str.upper() if new_val_str else None) == (
+                    old_val_str.upper() if old_val_str else None
+                )
+            else:
+                # For strings: treat None and "" as equal
+                new_val_normalized = new_value if new_value else None
+                old_val_normalized = old_value if old_value else None
+                values_equal = new_val_normalized == old_val_normalized
 
-                if not values_equal:
-                    changes_detected.append(f"{field}: {repr(old_value)} -> {repr(new_value)}")
-                    setattr(existing, field, new_value)
-                    changed = True
-
-            # Always update last_seen_at and is_deleted
-            existing.last_seen_at = import_time
-            if existing.is_deleted:
-                existing.is_deleted = False
+            if not values_equal:
+                changes_detected.append(f"{field}: {old_value!r} -> {new_value!r}")
+                setattr(existing, field, new_value)
                 changed = True
 
-            if changed:
-                if changes_detected:
-                    logger.info(
-                        f"Transaction {transaction_id[:12]}... updated: {', '.join(changes_detected)}"
-                    )
-                return existing, "updated"
-            else:
-                # Still update last_seen_at even if nothing else changed
-                return existing, "skipped"
+        # Always update last_seen_at and is_deleted
+        existing.last_seen_at = import_time
+        if existing.is_deleted:
+            existing.is_deleted = False
+            changed = True
+
+        if changed:
+            if changes_detected:
+                changes_str = ", ".join(changes_detected)
+                logger.info(f"Transaction {transaction_id[:12]}... updated: {changes_str}")
+            return existing, "updated"
+        # Still update last_seen_at even if nothing else changed
+        return existing, "skipped"
 
     def mark_soft_deletes(self, import_time: datetime) -> int:
         """Mark transactions not seen in this import as deleted.
@@ -159,12 +158,13 @@ class Reconciler:
 
         Returns:
             Number of transactions marked as deleted
+
         """
         # Find transactions that weren't seen in this import (excluding transfers)
         stmt = (
             select(Transaction)
             .where(Transaction.last_seen_at < import_time)
-            .where(Transaction.is_deleted == False)  # noqa: E712
+            .where(Transaction.is_deleted.is_(False))
             .where(Transaction.type != TransactionType.TRANSFER)
         )
 
@@ -195,6 +195,7 @@ class Reconciler:
 
         Returns:
             Reconciliation statistics
+
         """
         stats = ReconciliationStats()
         seen_in_batch = set()  # Track transaction IDs seen in this batch
@@ -218,7 +219,7 @@ class Reconciler:
                         f"Skipping duplicate transaction in batch: {transaction_id[:16]}... "
                         f"(Date: {row['date']}, Amount: {row['amount']}, "
                         f"Account: {row['account']}, Category: {row['category']}, "
-                        f"Type: {row['type']})"
+                        f"Type: {row['type']})",
                     )
                     stats.processed += 1
                     stats.skipped += 1
@@ -236,8 +237,8 @@ class Reconciler:
                 elif action == "skipped":
                     stats.skipped += 1
 
-            except Exception as e:
-                logger.error(f"Error reconciling transaction: {e}")
+            except (ValueError, TypeError, KeyError) as e:
+                logger.error("Error reconciling transaction: %s", e)
                 continue
 
         # Commit all changes
@@ -264,6 +265,7 @@ class Reconciler:
 
         Returns:
             Tuple of (Transaction, action) where action is "inserted", "updated", or "skipped"
+
         """
         # Generate transfer ID (using from_account as account for hash)
         transfer_id = self.hasher.generate_transaction_id(
@@ -301,65 +303,63 @@ class Reconciler:
             self.session.add(transfer)
             return transfer, "inserted"
 
-        else:
-            # UPDATE existing transfer
-            changed = False
-            changes_detected = []
+        # UPDATE existing transfer
+        changed = False
+        changes_detected = []
 
-            updateable_fields = [
-                "category",
-                "subcategory",
-                "note",
-                "type",
-                "from_account",
-                "to_account",
-            ]
-            for field in updateable_fields:
-                new_value = normalized_row[field]
-                old_value = getattr(existing, field)
+        updateable_fields = [
+            "category",
+            "subcategory",
+            "note",
+            "type",
+            "from_account",
+            "to_account",
+        ]
+        for field in updateable_fields:
+            new_value = normalized_row[field]
+            old_value = getattr(existing, field)
 
-                # Normalize for comparison
-                # - None and empty string are treated as equal
-                # - Enums are compared by their normalized values (case-insensitive)
-                if field == "type":
-                    # Compare enum values case-insensitively
-                    new_val_str = (
-                        new_value.value
-                        if hasattr(new_value, "value")
-                        else str(new_value) if new_value else None
-                    )
-                    old_val_str = (
-                        old_value.value
-                        if hasattr(old_value, "value")
-                        else str(old_value) if old_value else None
-                    )
-                    values_equal = (new_val_str.upper() if new_val_str else None) == (
-                        old_val_str.upper() if old_val_str else None
-                    )
-                else:
-                    # For strings: treat None and "" as equal
-                    new_val_normalized = new_value if new_value else None
-                    old_val_normalized = old_value if old_value else None
-                    values_equal = new_val_normalized == old_val_normalized
+            # Normalize for comparison
+            # - None and empty string are treated as equal
+            # - Enums are compared by their normalized values (case-insensitive)
+            if field == "type":
+                # Compare enum values case-insensitively
+                new_val_str = (
+                    new_value.value
+                    if hasattr(new_value, "value")
+                    else str(new_value) if new_value else None
+                )
+                old_val_str = (
+                    old_value.value
+                    if hasattr(old_value, "value")
+                    else str(old_value) if old_value else None
+                )
+                values_equal = (new_val_str.upper() if new_val_str else None) == (
+                    old_val_str.upper() if old_val_str else None
+                )
+            else:
+                # For strings: treat None and "" as equal
+                new_val_normalized = new_value if new_value else None
+                old_val_normalized = old_value if old_value else None
+                values_equal = new_val_normalized == old_val_normalized
 
-                if not values_equal:
-                    changes_detected.append(f"{field}: {repr(old_value)} -> {repr(new_value)}")
-                    setattr(existing, field, new_value)
-                    changed = True
-
-            # Always update last_seen_at and is_deleted
-            existing.last_seen_at = import_time
-            if existing.is_deleted:
-                existing.is_deleted = False
+            if not values_equal:
+                changes_detected.append(f"{field}: {old_value!r} -> {new_value!r}")
+                setattr(existing, field, new_value)
                 changed = True
 
-            if changed:
-                if changes_detected:
-                    # Log first few to console
-                    print(f"Transfer {transfer_id[:12]}... updated: {', '.join(changes_detected)}")
-                return existing, "updated"
-            else:
-                return existing, "skipped"
+        # Always update last_seen_at and is_deleted
+        existing.last_seen_at = import_time
+        if existing.is_deleted:
+            existing.is_deleted = False
+            changed = True
+
+        if changed:
+            if changes_detected:
+                # Log first few to console
+                print(f"Transfer {transfer_id[:12]}... updated: {', '.join(changes_detected)}")
+            return existing, "updated"
+        return existing, "skipped"
 
     def mark_soft_deletes_transfers(self, import_time: datetime) -> int:
         """Mark transfers not seen in this import as deleted.
@@ -369,12 +369,13 @@ class Reconciler:
 
         Returns:
             Number of transfers marked as deleted
+
         """
         stmt = (
             select(Transaction)
             .where(Transaction.type == TransactionType.TRANSFER)
             .where(Transaction.last_seen_at < import_time)
-            .where(Transaction.is_deleted == False)  # noqa: E712
+            .where(Transaction.is_deleted.is_(False))
         )
 
         stale_transfers = self.session.execute(stmt).scalars().all()
@@ -404,6 +405,7 @@ class Reconciler:
 
         Returns:
             Reconciliation statistics
+
         """
         stats = ReconciliationStats()
         seen_in_batch = set()
@@ -426,7 +428,7 @@ class Reconciler:
                     logger.warning(
                         f"Skipping duplicate transfer in batch: {transfer_id[:16]}... "
                         f"(Date: {row['date']}, Amount: {row['amount']}, "
-                        f"From: {row['from_account']}, To: {row['to_account']})"
+                        f"From: {row['from_account']}, To: {row['to_account']})",
                     )
                     stats.processed += 1
                     stats.skipped += 1
@@ -444,8 +446,8 @@ class Reconciler:
                 elif action == "skipped":
                     stats.skipped += 1
 
-            except Exception as e:
-                logger.error(f"Error reconciling transfer: {e}")
+            except (ValueError, TypeError, KeyError) as e:
+                logger.error("Error reconciling transfer: %s", e)
                 continue
 
         # Commit all changes

@@ -1,32 +1,38 @@
 import { motion } from 'framer-motion'
-import { ArrowRightLeft, TrendingUp, TrendingDown, Calendar } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react'
+import { useState, useMemo } from 'react'
 import { ResponsiveContainer, Sankey, Tooltip } from 'recharts'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { usePreferences } from '@/hooks/api/usePreferences'
+import AnalyticsTimeFilter, { type AnalyticsViewMode, getCurrentFY, getAnalyticsDateRange } from '@/components/shared/AnalyticsTimeFilter'
+import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 
 const IncomeExpenseFlowPage = () => {
-  const [selectedFY, setSelectedFY] = useState('25-26')
-  const { data: transactions = [], isLoading } = useTransactions()
+  const { data: allTransactions = [], isLoading } = useTransactions()
+  const { data: preferences } = usePreferences()
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
-  // Calculate FY start and end dates
-  const getFYDates = (fy: string) => {
-    const [startYear] = fy.split('-')
-    const fyStartYear = parseInt(`20${startYear}`)
-    return {
-      start: new Date(fyStartYear, 3, 1), // April 1
-      end: new Date(fyStartYear + 1, 2, 31, 23, 59, 59) // March 31
-    }
-  }
+  // Time filter state
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('fy')
+  const [currentYear, setCurrentYear] = useState(getCurrentYear())
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
+  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
 
-  const { start, end } = getFYDates(selectedFY)
+  // Get date range based on current filter
+  const dateRange = useMemo(() => {
+    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
+  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
 
-  // Filter transactions by FY
-  const fyTransactions = transactions.filter(txn => {
-    if (txn.is_transfer) return false
-    const txnDate = new Date(txn.date)
-    return txnDate >= start && txnDate <= end
-  })
+  // Filter transactions based on selected time range
+  const fyTransactions = useMemo(() => {
+    if (!dateRange.start_date) return allTransactions.filter(txn => !txn.is_transfer)
+    
+    return allTransactions.filter(txn => {
+      if (txn.is_transfer) return false
+      return txn.date >= dateRange.start_date! && (!dateRange.end_date || txn.date <= dateRange.end_date)
+    })
+  }, [allTransactions, dateRange])
 
   // Calculate income and expense totals by category
   const incomeByCategory = fyTransactions
@@ -146,20 +152,6 @@ const IncomeExpenseFlowPage = () => {
 
   const sankeyData = { nodes, links }
 
-  // Generate FY options (last 4 years, excluding 21-22)
-  const currentYear = new Date().getFullYear()
-  const currentMonth = new Date().getMonth()
-  const currentFY = currentMonth >= 3 
-    ? `${String(currentYear).slice(2)}-${String(currentYear + 1).slice(2)}` 
-    : `${String(currentYear - 1).slice(2)}-${String(currentYear).slice(2)}`
-  
-  // Generate FY options - include all FYs from 21-22 onwards
-  const fyOptions = []
-  for (let i = 0; i < 5; i++) {
-    const year = parseInt(`20${currentFY.split('-')[0]}`) - i
-    fyOptions.push(`${String(year).slice(2)}-${String(year + 1).slice(2)}`)
-  }
-
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -167,32 +159,26 @@ const IncomeExpenseFlowPage = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
         >
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-              Income-Expense Flow
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Visualize how your income flows into savings and expenses
-            </p>
-          </div>
-        
-          <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-blue-400" />
-            <select
-              value={selectedFY}
-              onChange={(e) => setSelectedFY(e.target.value)}
-              className="glass px-4 py-2.5 rounded-lg text-white border border-white/10 bg-gray-800/50 hover:bg-gray-800/70 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50"
-            >
-              {fyOptions.map(fy => (
-                <option key={fy} value={fy} className="bg-gray-800 text-white">
-                  FY {fy}
-                </option>
-              ))}
-            </select>
-          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
+            Income-Expense Flow
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Visualize how your income flows into savings and expenses
+          </p>
         </motion.div>
+
+        {/* Analytics Time Filter */}
+        <AnalyticsTimeFilter
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          currentYear={currentYear}
+          currentMonth={currentMonth}
+          currentFY={currentFY}
+          onYearChange={setCurrentYear}
+          onMonthChange={setCurrentMonth}
+          onFYChange={setCurrentFY}
+        />
 
       {/* Summary Cards */}
       <motion.div

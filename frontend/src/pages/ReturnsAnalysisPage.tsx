@@ -1,11 +1,14 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Banknote, Receipt, Upload } from 'lucide-react'
+import { TrendingUp, TrendingDown, Banknote, Receipt } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import EmptyState from '@/components/shared/EmptyState'
+import AnalyticsTimeFilter, { type AnalyticsViewMode, getCurrentFY, getAnalyticsDateRange } from '@/components/shared/AnalyticsTimeFilter'
+import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 
 const INVESTMENT_KEYWORDS = ['invest', 'mutual', 'stock', 'equity', 'sip', 'portfolio', 'fund', 'demat']
 
@@ -21,11 +24,34 @@ const calculateCAGR = (endingValue: number, beginningValue: number, years: numbe
 }
 
 export default function ReturnsAnalysisPage() {
+  const { data: preferences } = usePreferences()
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
+
+  // Time filter state
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('fy')
+  const [currentYear, setCurrentYear] = useState(getCurrentYear())
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
+  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
+  
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
   const { data: aggregationData, isLoading: aggregationLoading } = useMonthlyAggregation()
-  const { data: transactions = [] } = useTransactions()
+  const { data: allTransactions = [] } = useTransactions()
 
   const isLoading = balancesLoading || aggregationLoading
+
+  // Get date range based on current filter
+  const dateRange = useMemo(() => {
+    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
+  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
+
+  // Filter transactions based on selected time range
+  const transactions = useMemo(() => {
+    if (!dateRange.start_date) return allTransactions
+    
+    return allTransactions.filter(tx => {
+      return tx.date >= dateRange.start_date! && (!dateRange.end_date || tx.date <= dateRange.end_date)
+    })
+  }, [allTransactions, dateRange])
 
   // Filter investment accounts first
   const investmentAccounts = useMemo(() => {
@@ -243,6 +269,18 @@ export default function ReturnsAnalysisPage() {
           </h1>
           <p className="text-muted-foreground mt-2">Analyze returns across your investment accounts</p>
         </motion.div>
+
+        {/* Analytics Time Filter */}
+        <AnalyticsTimeFilter
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          currentYear={currentYear}
+          currentMonth={currentMonth}
+          currentFY={currentFY}
+          onYearChange={setCurrentYear}
+          onMonthChange={setCurrentMonth}
+          onFYChange={setCurrentFY}
+        />
 
         {/* P&L Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -18,12 +18,12 @@ export interface DisplayPreferences {
   defaultTimeRange: string
 }
 
-// Income categories mapped by category -> subcategories
-export interface IncomeCategories {
-  salary: Record<string, string[]>
-  bonus: Record<string, string[]>
-  investmentIncome: Record<string, string[]>
-  cashback: Record<string, string[]>
+// Income classification by tax treatment
+export interface IncomeClassification {
+  taxable: string[]
+  investmentReturns: string[]
+  nonTaxable: string[]
+  other: string[]
 }
 
 export interface PreferencesState {
@@ -36,8 +36,8 @@ export interface PreferencesState {
   // Essential categories
   essentialCategories: string[]
 
-  // Income categories
-  incomeCategories: IncomeCategories
+  // Income classification (by tax treatment)
+  incomeClassification: IncomeClassification
 
   // Investment account mappings (account name -> investment type)
   investmentAccountMappings: Record<string, string>
@@ -46,7 +46,7 @@ export interface PreferencesState {
   setDisplayPreferences: (prefs: Partial<DisplayPreferences>) => void
   setFiscalYearStartMonth: (month: number) => void
   setEssentialCategories: (categories: string[]) => void
-  setIncomeCategories: (categories: IncomeCategories) => void
+  setIncomeClassification: (classification: IncomeClassification) => void
   setInvestmentAccountMappings: (mappings: Record<string, string>) => void
   hydrateFromApi: (apiPrefs: {
     number_format: 'indian' | 'international'
@@ -55,10 +55,10 @@ export interface PreferencesState {
     default_time_range: string
     fiscal_year_start_month: number
     essential_categories: string[]
-    salary_categories: Record<string, string[]>
-    bonus_categories: Record<string, string[]>
-    investment_income_categories: Record<string, string[]>
-    cashback_categories: Record<string, string[]>
+    taxable_income_categories: string[]
+    investment_returns_categories: string[]
+    non_taxable_income_categories: string[]
+    other_income_categories: string[]
     investment_account_mappings: Record<string, string>
   }) => void
 }
@@ -85,12 +85,36 @@ export const usePreferencesStore = create<PreferencesState>()(
         'Utilities',
       ],
 
-      // Default income categories
-      incomeCategories: {
-        salary: {},
-        bonus: {},
-        investmentIncome: {},
-        cashback: {},
+      // Default income classification (by tax treatment)
+      // Stored as "Category::Subcategory" format
+      incomeClassification: {
+        taxable: [
+          'Employment Income::Salary',
+          'Employment Income::Stipend',
+          'Employment Income::Bonuses',
+          'Employment Income::RSUs',
+          'Business/Self Employment Income::Gig Work Income',
+        ],
+        investmentReturns: [
+          'Investment Income::Dividends',
+          'Investment Income::Interest',
+          'Investment Income::F&O Income',
+          'Investment Income::Stock Market Profits',
+        ],
+        nonTaxable: [
+          'Refund & Cashbacks::Credit Card Cashbacks',
+          'Refund & Cashbacks::Other Cashbacks',
+          'Refund & Cashbacks::Product/Service Refunds',
+          'Refund & Cashbacks::Deposits Return',
+          'Employment Income::Expense Reimbursement',
+        ],
+        other: [
+          'One-time Income::Gifts',
+          'One-time Income::Pocket Money',
+          'One-time Income::Competition/Contest Prizes',
+          'Employment Income::EPF Contribution',
+          'Other::Other',
+        ],
       },
 
       // Default investment mappings
@@ -108,8 +132,8 @@ export const usePreferencesStore = create<PreferencesState>()(
       setEssentialCategories: (categories) =>
         set({ essentialCategories: categories }),
 
-      setIncomeCategories: (categories) =>
-        set({ incomeCategories: categories }),
+      setIncomeClassification: (classification) =>
+        set({ incomeClassification: classification }),
 
       setInvestmentAccountMappings: (mappings) =>
         set({ investmentAccountMappings: mappings }),
@@ -125,11 +149,11 @@ export const usePreferencesStore = create<PreferencesState>()(
           },
           fiscalYearStartMonth: apiPrefs.fiscal_year_start_month,
           essentialCategories: apiPrefs.essential_categories,
-          incomeCategories: {
-            salary: apiPrefs.salary_categories || {},
-            bonus: apiPrefs.bonus_categories || {},
-            investmentIncome: apiPrefs.investment_income_categories || {},
-            cashback: apiPrefs.cashback_categories || {},
+          incomeClassification: {
+            taxable: apiPrefs.taxable_income_categories || [],
+            investmentReturns: apiPrefs.investment_returns_categories || [],
+            nonTaxable: apiPrefs.non_taxable_income_categories || [],
+            other: apiPrefs.other_income_categories || [],
           },
           investmentAccountMappings: apiPrefs.investment_account_mappings || {},
         }),
@@ -140,7 +164,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         displayPreferences: state.displayPreferences,
         fiscalYearStartMonth: state.fiscalYearStartMonth,
         essentialCategories: state.essentialCategories,
-        incomeCategories: state.incomeCategories,
+        incomeClassification: state.incomeClassification,
         investmentAccountMappings: state.investmentAccountMappings,
       }),
     }
@@ -157,8 +181,8 @@ export const selectCurrencySymbol = (state: PreferencesState) =>
 export const selectCurrencyPosition = (state: PreferencesState) =>
   state.displayPreferences.currencySymbolPosition
 
-export const selectIncomeCategories = (state: PreferencesState) =>
-  state.incomeCategories
+export const selectIncomeClassification = (state: PreferencesState) =>
+  state.incomeClassification
 
 export const selectInvestmentMappings = (state: PreferencesState) =>
   state.investmentAccountMappings

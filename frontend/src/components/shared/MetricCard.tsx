@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion'
 import type { LucideIcon } from 'lucide-react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
-import { cn } from '@/lib/cn'
 import type { ReactNode } from 'react'
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
 

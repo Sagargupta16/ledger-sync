@@ -1,6 +1,6 @@
 """Tests for data normalizer."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pandas as pd
@@ -9,6 +9,10 @@ import pytest
 from ledger_sync.db.models import TransactionType
 from ledger_sync.ingest.normalizer import DataNormalizer, NormalizationError
 
+# Expected values for date assertions
+EXPECTED_YEAR = 2024
+EXPECTED_DAY = 15
+
 
 class TestDataNormalizer:
     """Test data normalization."""
@@ -16,7 +20,7 @@ class TestDataNormalizer:
     def test_normalize_date_from_datetime(self):
         """Test date normalization from datetime."""
         normalizer = DataNormalizer()
-        date = datetime(2024, 1, 15, 10, 30, 0)
+        date = datetime(EXPECTED_YEAR, 1, EXPECTED_DAY, 10, 30, 0, tzinfo=UTC)
 
         result = normalizer.normalize_date(date)
 
@@ -30,9 +34,9 @@ class TestDataNormalizer:
         result = normalizer.normalize_date("2024-01-15")
 
         assert isinstance(result, datetime)
-        assert result.year == 2024
+        assert result.year == EXPECTED_YEAR
         assert result.month == 1
-        assert result.day == 15
+        assert result.day == EXPECTED_DAY
 
     def test_normalize_date_missing_value(self):
         """Test that missing date raises error."""

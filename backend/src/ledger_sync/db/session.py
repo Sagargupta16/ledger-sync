@@ -25,6 +25,7 @@ def get_session() -> Generator[Session, None, None]:
 
     Yields:
         Database session
+
     """
     session = SessionLocal()
     try:

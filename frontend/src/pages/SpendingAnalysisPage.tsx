@@ -1,13 +1,18 @@
 import { motion } from 'framer-motion'
 import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles } from 'lucide-react'
-import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip } from 'recharts'
 import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
+import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
+import AnalyticsTimeFilter, { 
+  type AnalyticsViewMode, 
+  getCurrentFY, 
+  getAnalyticsDateRange 
+} from '@/components/shared/AnalyticsTimeFilter'
 import {
   ExpenseTreemap,
   EnhancedSubcategoryAnalysis,
@@ -18,23 +23,60 @@ import {
 } from '@/components/analytics'
 
 export default function SpendingAnalysisPage() {
-  const { data: categoryData, isLoading: categoriesLoading } = useCategoryBreakdown({
-    transaction_type: 'expense',
-  })
   const { data: transactions } = useTransactions()
   const { data: preferences } = usePreferences()
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
-  const totalSpending = categoryData?.total || 0
-  const categoriesCount = Object.keys(categoryData?.categories || {}).length
+  // Time filter state
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('fy')
+  const [currentYear, setCurrentYear] = useState(getCurrentYear())
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
+  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
+
+  // Get date range based on current filter
+  const dateRange = useMemo(() => {
+    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
+  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
+
+  // Filter transactions by date range
+  const filteredTransactions = useMemo(() => {
+    if (!transactions) return []
+    if (!dateRange.start_date) return transactions
+    
+    return transactions.filter((t) => {
+      return t.date >= dateRange.start_date! && (!dateRange.end_date || t.date <= dateRange.end_date)
+    })
+  }, [transactions, dateRange])
+
+  // Calculate totals for filtered period
+  const totalSpending = useMemo(() => {
+    return filteredTransactions
+      .filter((t) => t.type === 'Expense')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  }, [filteredTransactions])
+
+  // Get category breakdown for filtered transactions
+  const categoryBreakdown = useMemo(() => {
+    const expenses = filteredTransactions.filter((t) => t.type === 'Expense')
+    const categories: Record<string, number> = {}
+    
+    expenses.forEach((t) => {
+      const category = t.category || 'Uncategorized'
+      categories[category] = (categories[category] || 0) + Math.abs(t.amount)
+    })
+    
+    return categories
+  }, [filteredTransactions])
+
+  const categoriesCount = Object.keys(categoryBreakdown).length
   const topCategory =
-    Object.entries(categoryData?.categories || {}).sort((a, b) => b[1].total - a[1].total)[0]?.[0] ||
-    'N/A'
+    Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
 
   // Calculate essential vs discretionary spending
   const spendingBreakdown = useMemo(() => {
-    if (!transactions || !preferences) return null
-    return calculateSpendingBreakdown(transactions, preferences.essential_categories)
-  }, [transactions, preferences])
+    if (!filteredTransactions || !preferences) return null
+    return calculateSpendingBreakdown(filteredTransactions, preferences.essential_categories)
+  }, [filteredTransactions, preferences])
 
   // Prepare spending breakdown chart data
   const spendingChartData = useMemo(() => {
@@ -63,16 +105,28 @@ export default function SpendingAnalysisPage() {
     }
   }, [spendingBreakdown])
 
-  const isLoading = categoriesLoading
+  const isLoading = !transactions
 
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-            Category Spending
-          </h1>
-          <p className="text-muted-foreground mt-2">Analyze spending patterns by category</p>
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
+              Category Spending
+            </h1>
+            <p className="text-muted-foreground mt-2">Analyze spending patterns by category</p>
+          </div>
+          <AnalyticsTimeFilter
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            currentYear={currentYear}
+            currentMonth={currentMonth}
+            currentFY={currentFY}
+            onYearChange={setCurrentYear}
+            onMonthChange={setCurrentMonth}
+            onFYChange={setCurrentFY}
+          />
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

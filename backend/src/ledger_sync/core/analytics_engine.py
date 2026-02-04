@@ -15,7 +15,7 @@ import json
 import re
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from statistics import mean, stdev
 from typing import Any
@@ -77,6 +77,7 @@ class AnalyticsEngine:
 
         Args:
             db: Database session
+
         """
         self.db = db
         self.logger = get_analytics_logger()
@@ -92,8 +93,8 @@ class AnalyticsEngine:
                 self.logger.info("Loaded user preferences from database")
             else:
                 self.logger.info("No user preferences found, using defaults")
-        except Exception as e:
-            self.logger.warning(f"Could not load preferences: {e}, using defaults")
+        except (OSError, RuntimeError, ValueError) as e:
+            self.logger.warning("Could not load preferences: %s, using defaults", e)
             self._preferences = None
 
     def _parse_json_field(self, value: str | list | dict | None, default: Any) -> Any:
@@ -112,7 +113,8 @@ class AnalyticsEngine:
         """Get essential categories from preferences or defaults."""
         if self._preferences and self._preferences.essential_categories:
             cats = self._parse_json_field(
-                self._preferences.essential_categories, list(DEFAULT_ESSENTIAL_CATEGORIES)
+                self._preferences.essential_categories,
+                list(DEFAULT_ESSENTIAL_CATEGORIES),
             )
             return set(cats)
         return DEFAULT_ESSENTIAL_CATEGORIES
@@ -122,7 +124,8 @@ class AnalyticsEngine:
         """Get investment account mappings from preferences or defaults."""
         if self._preferences and self._preferences.investment_account_mappings:
             return self._parse_json_field(
-                self._preferences.investment_account_mappings, DEFAULT_INVESTMENT_ACCOUNT_PATTERNS
+                self._preferences.investment_account_mappings,
+                DEFAULT_INVESTMENT_ACCOUNT_PATTERNS,
             )
         return DEFAULT_INVESTMENT_ACCOUNT_PATTERNS
 
@@ -134,27 +137,58 @@ class AnalyticsEngine:
         return 4  # Default: April (India FY)
 
     @property
-    def salary_categories(self) -> dict[str, list[str]]:
-        """Get salary category mappings from preferences."""
-        default = {"Employment Income": ["Salary", "Stipend"]}
-        if self._preferences and self._preferences.salary_categories:
-            return self._parse_json_field(self._preferences.salary_categories, default)
+    def taxable_income_categories(self) -> list[str]:
+        """Get taxable income subcategories from preferences (Category::Subcategory format)."""
+        default = [
+            "Employment Income::Salary",
+            "Employment Income::Stipend",
+            "Employment Income::Bonuses",
+            "Employment Income::RSUs",
+            "Business/Self Employment Income::Gig Work Income",
+        ]
+        if self._preferences and self._preferences.taxable_income_categories:
+            return self._parse_json_field(self._preferences.taxable_income_categories, default)
         return default
 
     @property
-    def bonus_categories(self) -> dict[str, list[str]]:
-        """Get bonus category mappings from preferences."""
-        default = {"Employment Income": ["Bonus", "RSUs/Stock Options"]}
-        if self._preferences and self._preferences.bonus_categories:
-            return self._parse_json_field(self._preferences.bonus_categories, default)
+    def investment_returns_categories(self) -> list[str]:
+        """Get investment returns subcategories from preferences (Category::Subcategory format)."""
+        default = [
+            "Investment Income::Dividends",
+            "Investment Income::Interest",
+            "Investment Income::F&O Income",
+            "Investment Income::Stock Market Profits",
+        ]
+        if self._preferences and self._preferences.investment_returns_categories:
+            return self._parse_json_field(self._preferences.investment_returns_categories, default)
         return default
 
     @property
-    def investment_income_categories(self) -> dict[str, list[str]]:
-        """Get investment income category mappings from preferences."""
-        default = {"Investment Income": ["Dividends", "Interest", "Capital Gains"]}
-        if self._preferences and self._preferences.investment_income_categories:
-            return self._parse_json_field(self._preferences.investment_income_categories, default)
+    def non_taxable_income_categories(self) -> list[str]:
+        """Get non-taxable income subcategories from preferences (Category::Subcategory format)."""
+        default = [
+            "Refund & Cashbacks::Credit Card Cashbacks",
+            "Refund & Cashbacks::Other Cashbacks",
+            "Refund & Cashbacks::Product/Service Refunds",
+            "Refund & Cashbacks::Deposits Return",
+            "Employment Income::Expense Reimbursement",
+        ]
+        if self._preferences and self._preferences.non_taxable_income_categories:
+            return self._parse_json_field(self._preferences.non_taxable_income_categories, default)
+        return default
+
+    @property
+    def other_income_categories(self) -> list[str]:
+        """Get other income subcategories from preferences (Category::Subcategory format)."""
+        default = [
+            "One-time Income::Gifts",
+            "One-time Income::Pocket Money",
+            "One-time Income::Competition/Contest Prizes",
+            "Employment Income::EPF Contribution",
+            "Other::Other",
+        ]
+        if self._preferences and self._preferences.other_income_categories:
+            return self._parse_json_field(self._preferences.other_income_categories, default)
         return default
 
     @property
@@ -171,29 +205,34 @@ class AnalyticsEngine:
             return self._preferences.recurring_min_confidence
         return 50.0
 
+    def _is_taxable_income(self, txn: Transaction) -> bool:
+        """Check if transaction is taxable income based on preferences."""
+        item = f"{txn.category}::{txn.subcategory}"
+        return item in self.taxable_income_categories
+
     def _is_salary_income(self, txn: Transaction) -> bool:
-        """Check if transaction is salary income based on preferences."""
-        for category, subcategories in self.salary_categories.items():
-            if txn.category == category and txn.subcategory in subcategories:
-                return True
-        return False
+        """Check if transaction is salary income (subset of taxable)."""
+        item = f"{txn.category}::{txn.subcategory}"
+        # Check if it's in taxable and specifically salary/stipend
+        salary_items = [
+            "Employment Income::Salary",
+            "Employment Income::Stipend",
+        ]
+        return item in salary_items or item in self.taxable_income_categories
 
     def _is_bonus_income(self, txn: Transaction) -> bool:
-        """Check if transaction is bonus income based on preferences."""
-        for category, subcategories in self.bonus_categories.items():
-            if txn.category == category and txn.subcategory in subcategories:
-                return True
-        return False
+        """Check if transaction is bonus income (subset of taxable)."""
+        item = f"{txn.category}::{txn.subcategory}"
+        bonus_items = [
+            "Employment Income::Bonuses",
+            "Employment Income::RSUs",
+        ]
+        return item in bonus_items
 
     def _is_investment_income(self, txn: Transaction) -> bool:
         """Check if transaction is investment income based on preferences."""
-        for category, subcategories in self.investment_income_categories.items():
-            if txn.category == category:
-                if subcategories and txn.subcategory in subcategories:
-                    return True
-                elif not subcategories:  # Empty list means all subcategories
-                    return True
-        return False
+        item = f"{txn.category}::{txn.subcategory}"
+        return item in self.investment_returns_categories
 
     def _is_investment_account(self, account_name: str | None) -> bool:
         """Check if account is an investment account based on preferences."""
@@ -217,30 +256,28 @@ class AnalyticsEngine:
 
         Returns:
             Tuple of (fy_label, start_date, end_date)
+
         """
         fy_start_month = self.fiscal_year_start_month
 
-        if date.month >= fy_start_month:
-            fy_year = date.year
-        else:
-            fy_year = date.year - 1
+        fy_year = date.year if date.month >= fy_start_month else date.year - 1
 
-        fy_start = datetime(fy_year, fy_start_month, 1)
+        fy_start = datetime(fy_year, fy_start_month, 1, tzinfo=UTC)
         if fy_start_month == 1:
-            fy_end = datetime(fy_year, 12, 31)
+            fy_end = datetime(fy_year, 12, 31, tzinfo=UTC)
             fy_label = f"FY{fy_year}"
         else:
             fy_end_year = fy_year + 1
             fy_end_month = fy_start_month - 1 if fy_start_month > 1 else 12
             # Get last day of the end month
             if fy_end_month == 12:
-                fy_end = datetime(fy_end_year, 12, 31)
+                fy_end = datetime(fy_end_year, 12, 31, tzinfo=UTC)
             elif fy_end_month in [1, 3, 5, 7, 8, 10]:
-                fy_end = datetime(fy_end_year, fy_end_month, 31)
+                fy_end = datetime(fy_end_year, fy_end_month, 31, tzinfo=UTC)
             elif fy_end_month in [4, 6, 9, 11]:
-                fy_end = datetime(fy_end_year, fy_end_month, 30)
+                fy_end = datetime(fy_end_year, fy_end_month, 30, tzinfo=UTC)
             else:  # February
-                fy_end = datetime(fy_end_year, 2, 28)
+                fy_end = datetime(fy_end_year, 2, 28, tzinfo=UTC)
             fy_label = f"FY{fy_year}-{str(fy_year + 1)[2:]}"
 
         return fy_label, fy_start, fy_end
@@ -253,11 +290,12 @@ class AnalyticsEngine:
 
         Returns:
             Summary of analytics calculated
+
         """
         self.logger.info("=" * 60)
         self.logger.info("ANALYTICS CALCULATION STARTED")
-        self.logger.info(f"Source: {source_file or 'manual trigger'}")
-        self.logger.info(f"Timestamp: {datetime.now().isoformat()}")
+        self.logger.info("Source: %s", source_file or "manual trigger")
+        self.logger.info("Timestamp: %s", datetime.now(UTC).isoformat())
         self.logger.info("=" * 60)
 
         results = {}
@@ -268,21 +306,27 @@ class AnalyticsEngine:
             t0 = time.time()
             results["monthly_summaries"] = self._calculate_monthly_summaries()
             log_analytics_calculation(
-                "Monthly summaries", results["monthly_summaries"], (time.time() - t0) * 1000
+                "Monthly summaries",
+                results["monthly_summaries"],
+                (time.time() - t0) * 1000,
             )
 
             # 2. Calculate category trends
             t0 = time.time()
             results["category_trends"] = self._calculate_category_trends()
             log_analytics_calculation(
-                "Category trends", results["category_trends"], (time.time() - t0) * 1000
+                "Category trends",
+                results["category_trends"],
+                (time.time() - t0) * 1000,
             )
 
             # 3. Calculate transfer flows
             t0 = time.time()
             results["transfer_flows"] = self._calculate_transfer_flows()
             log_analytics_calculation(
-                "Transfer flows", results["transfer_flows"], (time.time() - t0) * 1000
+                "Transfer flows",
+                results["transfer_flows"],
+                (time.time() - t0) * 1000,
             )
 
             # 4. Extract merchant intelligence
@@ -294,35 +338,45 @@ class AnalyticsEngine:
             t0 = time.time()
             results["recurring"] = self._detect_recurring_transactions()
             log_analytics_calculation(
-                "Recurring patterns", results["recurring"], (time.time() - t0) * 1000
+                "Recurring patterns",
+                results["recurring"],
+                (time.time() - t0) * 1000,
             )
 
             # 6. Calculate net worth snapshot
             t0 = time.time()
             results["net_worth"] = self._calculate_net_worth_snapshot()
             log_analytics_calculation(
-                "Net worth snapshot", 1 if results["net_worth"] else 0, (time.time() - t0) * 1000
+                "Net worth snapshot",
+                1 if results["net_worth"] else 0,
+                (time.time() - t0) * 1000,
             )
 
             # 7. Calculate fiscal year summaries
             t0 = time.time()
             results["fy_summaries"] = self._calculate_fy_summaries()
             log_analytics_calculation(
-                "FY summaries", results["fy_summaries"], (time.time() - t0) * 1000
+                "FY summaries",
+                results["fy_summaries"],
+                (time.time() - t0) * 1000,
             )
 
             # 8. Detect anomalies
             t0 = time.time()
             results["anomalies"] = self._detect_anomalies()
             log_analytics_calculation(
-                "Anomalies detected", results["anomalies"], (time.time() - t0) * 1000
+                "Anomalies detected",
+                results["anomalies"],
+                (time.time() - t0) * 1000,
             )
 
             # 9. Update budget tracking
             t0 = time.time()
             results["budgets_updated"] = self._update_budget_tracking()
             log_analytics_calculation(
-                "Budgets updated", results["budgets_updated"], (time.time() - t0) * 1000
+                "Budgets updated",
+                results["budgets_updated"],
+                (time.time() - t0) * 1000,
             )
 
             # Log the analytics run
@@ -338,7 +392,7 @@ class AnalyticsEngine:
 
             total_time = (time.time() - start_time) * 1000
             self.logger.info("-" * 60)
-            self.logger.info(f"ANALYTICS COMPLETED in {total_time:.1f}ms")
+            self.logger.info("ANALYTICS COMPLETED in %.1fms", total_time)
             self.logger.info("=" * 60)
 
         except Exception as e:
@@ -369,7 +423,7 @@ class AnalyticsEngine:
                 "income_count": 0,
                 "expense_count": 0,
                 "transfer_count": 0,
-            }
+            },
         )
 
         for txn in transactions:
@@ -467,7 +521,7 @@ class AnalyticsEngine:
                 + data["transfer_count"],
                 income_change_pct=income_change_pct,
                 expense_change_pct=expense_change_pct,
-                last_calculated=datetime.now(),
+                last_calculated=datetime.now(UTC),
             )
             self.db.add(summary)
             count += 1
@@ -491,7 +545,7 @@ class AnalyticsEngine:
             lambda: {
                 "amounts": [],
                 "subcategory": None,
-            }
+            },
         )
 
         for txn in transactions:
@@ -502,7 +556,7 @@ class AnalyticsEngine:
 
         # Get monthly totals for percentage calculation
         monthly_totals: dict[str, dict[str, Decimal]] = defaultdict(
-            lambda: {"Income": Decimal(0), "Expense": Decimal(0)}
+            lambda: {"Income": Decimal(0), "Expense": Decimal(0)},
         )
         for txn in transactions:
             period_key = txn.date.strftime("%Y-%m")
@@ -541,7 +595,7 @@ class AnalyticsEngine:
                 pct_of_monthly_total=pct,
                 mom_change=Decimal(str(mom_change)),
                 mom_change_pct=mom_change_pct,
-                last_calculated=datetime.now(),
+                last_calculated=datetime.now(UTC),
             )
             self.db.add(trend)
             count += 1
@@ -571,7 +625,7 @@ class AnalyticsEngine:
                 "count": 0,
                 "last_date": None,
                 "last_amount": None,
-            }
+            },
         )
 
         for txn in transfers:
@@ -600,7 +654,7 @@ class AnalyticsEngine:
                 last_transfer_amount=data["last_amount"],
                 from_account_type=classifications.get(from_acc),
                 to_account_type=classifications.get(to_acc),
-                last_calculated=datetime.now(),
+                last_calculated=datetime.now(UTC),
             )
             self.db.add(flow)
             count += 1
@@ -624,7 +678,7 @@ class AnalyticsEngine:
                 "dates": [],
                 "categories": defaultdict(int),
                 "subcategories": defaultdict(int),
-            }
+            },
         )
 
         for txn in expenses:
@@ -683,7 +737,7 @@ class AnalyticsEngine:
                 months_active=months_active,
                 avg_days_between=avg_days,
                 is_recurring=is_recurring,
-                last_calculated=datetime.now(),
+                last_calculated=datetime.now(UTC),
             )
             self.db.add(merchant)
             count += 1
@@ -739,7 +793,7 @@ class AnalyticsEngine:
         self.db.execute(delete(RecurringTransaction))
 
         count = 0
-        for (category, account, amount_bucket, txn_type), txns in patterns.items():
+        for (category, account, _amount_bucket, txn_type), txns in patterns.items():
             if len(txns) < 3:  # Need at least 3 occurrences
                 continue
 
@@ -773,8 +827,8 @@ class AnalyticsEngine:
                 occurrences_detected=len(txns),
                 last_occurrence=max(dates),
                 is_active=True,
-                first_detected=datetime.now(),
-                last_updated=datetime.now(),
+                first_detected=datetime.now(UTC),
+                last_updated=datetime.now(UTC),
             )
             self.db.add(recurring)
             count += 1
@@ -782,7 +836,8 @@ class AnalyticsEngine:
         return count
 
     def _detect_frequency(
-        self, dates: list
+        self,
+        dates: list,
     ) -> tuple[RecurrenceFrequency | None, float, int | None]:
         """Detect recurrence frequency from a list of dates."""
         if len(dates) < 3:
@@ -921,7 +976,7 @@ class AnalyticsEngine:
 
         # Create snapshot
         snapshot = NetWorthSnapshot(
-            snapshot_date=datetime.now(),
+            snapshot_date=datetime.now(UTC),
             cash_and_bank=cash_and_bank,
             investments=total_investments,
             mutual_funds=mutual_funds,
@@ -937,7 +992,7 @@ class AnalyticsEngine:
             net_worth=net_worth,
             net_worth_change=net_worth_change,
             net_worth_change_pct=net_worth_change_pct,
-            created_at=datetime.now(),
+            created_at=datetime.now(UTC),
             source="upload",
         )
         self.db.add(snapshot)
@@ -967,7 +1022,7 @@ class AnalyticsEngine:
                 "investments_made": Decimal(0),
                 "start_date": None,
                 "end_date": None,
-            }
+            },
         )
 
         for txn in transactions:
@@ -1010,7 +1065,7 @@ class AnalyticsEngine:
         prev_income = None
         prev_expenses = None
         prev_savings = None
-        now = datetime.now()
+        now = datetime.now(UTC)
 
         for fy in sorted(fy_data.keys()):
             data = fy_data[fy]
@@ -1092,13 +1147,16 @@ class AnalyticsEngine:
                             "severity": (
                                 "high" if float(month.total) > avg_expense * 2.5 else "medium"
                             ),
-                            "description": f"Unusually high expenses in {month.period}: ₹{float(month.total):,.0f} vs avg ₹{avg_expense:,.0f}",
+                            "description": (
+                                f"Unusually high expenses in {month.period}: "
+                                f"₹{float(month.total):,.0f} vs avg ₹{avg_expense:,.0f}"
+                            ),
                             "period_key": month.period,
                             "expected_value": Decimal(str(avg_expense)),
                             "actual_value": Decimal(str(month.total)),
                             "deviation_pct": ((float(month.total) - avg_expense) / avg_expense)
                             * 100,
-                        }
+                        },
                     )
 
         # 2. Detect large individual transactions (>3x category average)
@@ -1125,12 +1183,15 @@ class AnalyticsEngine:
                     {
                         "type": AnomalyType.HIGH_EXPENSE,
                         "severity": "medium",
-                        "description": f"Large {txn.category} expense: ₹{float(txn.amount):,.0f} vs category avg ₹{cat_avg:,.0f}",
+                        "description": (
+                            f"Large {txn.category} expense: "
+                            f"₹{float(txn.amount):,.0f} vs category avg ₹{cat_avg:,.0f}"
+                        ),
                         "transaction_id": txn.transaction_id,
                         "expected_value": Decimal(str(cat_avg)),
                         "actual_value": Decimal(str(txn.amount)),
                         "deviation_pct": ((float(txn.amount) - cat_avg) / cat_avg) * 100,
-                    }
+                    },
                 )
 
         # Delete old unreviewed anomalies and insert new
@@ -1146,7 +1207,7 @@ class AnalyticsEngine:
                 expected_value=anomaly_data.get("expected_value"),
                 actual_value=anomaly_data.get("actual_value"),
                 deviation_pct=anomaly_data.get("deviation_pct"),
-                detected_at=datetime.now(),
+                detected_at=datetime.now(UTC),
             )
             self.db.add(anomaly)
 
@@ -1160,7 +1221,7 @@ class AnalyticsEngine:
             return 0
 
         # Get current month's spending by category
-        now = datetime.now()
+        now = datetime.now(UTC)
         current_period = now.strftime("%Y-%m")
 
         current_spending = (
@@ -1188,7 +1249,10 @@ class AnalyticsEngine:
                 anomaly = Anomaly(
                     anomaly_type=AnomalyType.BUDGET_EXCEEDED,
                     severity="high",
-                    description=f"Budget exceeded for {budget.category}: ₹{float(spent):,.0f} / ₹{float(budget.monthly_limit):,.0f}",
+                    description=(
+                        f"Budget exceeded for {budget.category}: "
+                        f"₹{float(spent):,.0f} / ₹{float(budget.monthly_limit):,.0f}"
+                    ),
                     period_key=current_period,
                     expected_value=budget.monthly_limit,
                     actual_value=spent,
@@ -1222,6 +1286,6 @@ class AnalyticsEngine:
             new_value=new_value,
             changes_summary=changes_summary,
             source_file=source_file,
-            created_at=datetime.now(),
+            created_at=datetime.now(UTC),
         )
         self.db.add(audit)

@@ -4,7 +4,7 @@ This module provides fast analytics endpoints that read from pre-calculated
 aggregation tables rather than computing on-the-fly.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -110,7 +110,8 @@ def get_category_trends(
     - Spending pattern identification
     """
     query = db.query(CategoryTrend).order_by(
-        desc(CategoryTrend.period_key), desc(CategoryTrend.total_amount)
+        desc(CategoryTrend.period_key),
+        desc(CategoryTrend.total_amount),
     )
 
     if category:
@@ -207,7 +208,8 @@ def get_recurring_transactions(
     - Regular investments
     """
     query = db.query(RecurringTransaction).order_by(
-        desc(RecurringTransaction.confidence_score), desc(RecurringTransaction.expected_amount)
+        desc(RecurringTransaction.confidence_score),
+        desc(RecurringTransaction.expected_amount),
     )
 
     if active_only:
@@ -307,6 +309,7 @@ def get_net_worth_history(
     - Asset breakdown (cash, investments, etc.)
     - Liability breakdown
     - Net worth over time
+
     """
     snapshots = (
         db.query(NetWorthSnapshot).order_by(desc(NetWorthSnapshot.snapshot_date)).limit(limit).all()
@@ -468,7 +471,7 @@ def review_anomaly(
     anomaly.is_reviewed = True
     anomaly.is_dismissed = dismiss
     anomaly.review_notes = notes
-    anomaly.reviewed_at = datetime.now()
+    anomaly.reviewed_at = datetime.now(UTC)
 
     db.commit()
 
@@ -524,8 +527,8 @@ def create_budget(
         monthly_limit=monthly_limit,
         alert_threshold_pct=alert_threshold,
         is_active=True,
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db.add(budget)
     db.commit()
@@ -582,8 +585,8 @@ def create_goal(
     # Calculate monthly target if target date provided
     monthly_target = 0
     if target_date:
-        months_remaining = (target_date.year - datetime.now().year) * 12 + (
-            target_date.month - datetime.now().month
+        months_remaining = (target_date.year - datetime.now(UTC).year) * 12 + (
+            target_date.month - datetime.now(UTC).month
         )
         if months_remaining > 0:
             monthly_target = target_amount / months_remaining
@@ -596,7 +599,7 @@ def create_goal(
         target_date=target_date,
         monthly_target=monthly_target,
         status=GoalStatus.ACTIVE,
-        created_at=datetime.now(),
+        created_at=datetime.now(UTC),
     )
     db.add(goal)
     db.commit()

@@ -1,6 +1,6 @@
 """Time filtering utilities for transaction data."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 
 from ledger_sync.db.models import Transaction
@@ -25,7 +25,8 @@ class TimeFilter:
 
     @staticmethod
     def filter_by_range(
-        transactions: list[Transaction], time_range: TimeRange
+        transactions: list[Transaction],
+        time_range: TimeRange,
     ) -> list[Transaction]:
         """Filter transactions by time range.
 
@@ -35,6 +36,7 @@ class TimeFilter:
 
         Returns:
             Filtered list of transactions
+
         """
         if time_range == TimeRange.ALL_TIME:
             return transactions
@@ -49,7 +51,7 @@ class TimeFilter:
             start_date = latest_date.replace(day=1)
             return [t for t in transactions if t.date >= start_date]
 
-        elif time_range == TimeRange.LAST_MONTH:
+        if time_range == TimeRange.LAST_MONTH:
             # First day of current month
             first_of_month = latest_date.replace(day=1)
             # Last day of previous month
@@ -58,29 +60,29 @@ class TimeFilter:
             last_month_start = last_month_end.replace(day=1)
             return [t for t in transactions if last_month_start <= t.date <= last_month_end]
 
-        elif time_range == TimeRange.LAST_3_MONTHS:
+        if time_range == TimeRange.LAST_3_MONTHS:
             start_date = latest_date - timedelta(days=90)
             return [t for t in transactions if t.date >= start_date]
 
-        elif time_range == TimeRange.LAST_6_MONTHS:
+        if time_range == TimeRange.LAST_6_MONTHS:
             start_date = latest_date - timedelta(days=180)
             return [t for t in transactions if t.date >= start_date]
 
-        elif time_range == TimeRange.LAST_12_MONTHS:
+        if time_range == TimeRange.LAST_12_MONTHS:
             start_date = latest_date - timedelta(days=365)
             return [t for t in transactions if t.date >= start_date]
 
-        elif time_range == TimeRange.THIS_YEAR:
+        if time_range == TimeRange.THIS_YEAR:
             start_date = latest_date.replace(month=1, day=1)
             return [t for t in transactions if t.date >= start_date]
 
-        elif time_range == TimeRange.LAST_YEAR:
+        if time_range == TimeRange.LAST_YEAR:
             year = latest_date.year - 1
-            start_date = datetime(year, 1, 1)
-            end_date = datetime(year, 12, 31, 23, 59, 59)
+            start_date = datetime(year, 1, 1, tzinfo=UTC)
+            end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=UTC)
             return [t for t in transactions if start_date <= t.date <= end_date]
 
-        elif time_range == TimeRange.LAST_DECADE:
+        if time_range == TimeRange.LAST_DECADE:
             start_date = latest_date - timedelta(days=3650)  # Approx 10 years
             return [t for t in transactions if t.date >= start_date]
 
@@ -88,7 +90,9 @@ class TimeFilter:
 
     @staticmethod
     def filter_by_custom_range(
-        transactions: list[Transaction], start_date: datetime, end_date: datetime
+        transactions: list[Transaction],
+        start_date: datetime,
+        end_date: datetime,
     ) -> list[Transaction]:
         """Filter transactions by custom date range.
 
@@ -99,12 +103,15 @@ class TimeFilter:
 
         Returns:
             Filtered list of transactions
+
         """
         return [t for t in transactions if start_date <= t.date <= end_date]
 
     @staticmethod
     def filter_by_month_year(
-        transactions: list[Transaction], month: int, year: int
+        transactions: list[Transaction],
+        month: int,
+        year: int,
     ) -> list[Transaction]:
         """Filter transactions by specific month and year.
 
@@ -115,6 +122,7 @@ class TimeFilter:
 
         Returns:
             Filtered list of transactions
+
         """
         return [t for t in transactions if t.date.month == month and t.date.year == year]
 
@@ -128,6 +136,7 @@ class TimeFilter:
 
         Returns:
             Filtered list of transactions
+
         """
         return [t for t in transactions if t.date.year == year]
 
@@ -140,12 +149,12 @@ class TimeFilter:
 
         Returns:
             Sorted list of years
+
         """
         if not transactions:
             return []
 
-        years = sorted({t.date.year for t in transactions})
-        return years
+        return sorted({t.date.year for t in transactions})
 
     @staticmethod
     def get_available_months(transactions: list[Transaction], year: int) -> list[int]:
@@ -157,9 +166,9 @@ class TimeFilter:
 
         Returns:
             Sorted list of months (1-12)
+
         """
         if not transactions:
             return []
 
-        months = sorted({t.date.month for t in transactions if t.date.year == year})
-        return months
+        return sorted({t.date.month for t in transactions if t.date.year == year})

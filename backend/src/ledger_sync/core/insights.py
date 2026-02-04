@@ -18,6 +18,7 @@ class InsightEngine:
 
         Returns:
             List of insight dictionaries with title, description, severity
+
         """
         insights = []
 
@@ -59,7 +60,7 @@ class InsightEngine:
                         f"Consider reviewing irregular large expenses."
                     ),
                     "severity": "info",
-                }
+                },
             )
         elif consistency > 80:
             insights.append(
@@ -71,7 +72,7 @@ class InsightEngine:
                         f"This indicates good budget control."
                     ),
                     "severity": "positive",
-                }
+                },
             )
 
         # Daily spending rate
@@ -86,7 +87,7 @@ class InsightEngine:
                     f"totaling approximately ₹{monthly_rate:,.0f} monthly."
                 ),
                 "severity": "neutral",
-            }
+            },
         )
 
         return insights
@@ -114,7 +115,7 @@ class InsightEngine:
                         f"(₹{top_category[1]:,.0f})."
                     ),
                     "severity": "info",
-                }
+                },
             )
 
         # Convenience spending
@@ -129,7 +130,7 @@ class InsightEngine:
                         f"discretionary categories like shopping, dining, and entertainment."
                     ),
                     "severity": "info",
-                }
+                },
             )
 
         return insights
@@ -162,7 +163,7 @@ class InsightEngine:
                             f"than your overall average."
                         ),
                         "severity": "warning",
-                    }
+                    },
                 )
             elif recent_avg < overall_avg * 0.8:
                 insights.append(
@@ -174,7 +175,7 @@ class InsightEngine:
                             f"than your overall average."
                         ),
                         "severity": "positive",
-                    }
+                    },
                 )
 
         # Best/worst months
@@ -188,7 +189,7 @@ class InsightEngine:
                         f"with a surplus of ₹{best_worst['best_month']['surplus']:,.0f}."
                     ),
                     "severity": "positive",
-                }
+                },
             )
 
         return insights
@@ -214,7 +215,7 @@ class InsightEngine:
                         f"growth, but worth monitoring."
                     ),
                     "severity": "info",
-                }
+                },
             )
         elif inflation < -10:
             insights.append(
@@ -225,7 +226,7 @@ class InsightEngine:
                         f"compared to your early months. Great job on cutting expenses!"
                     ),
                     "severity": "positive",
-                }
+                },
             )
 
         # Spending velocity
@@ -240,7 +241,7 @@ class InsightEngine:
                         f"than your historical average."
                     ),
                     "severity": "warning",
-                }
+                },
             )
         elif velocity_data["velocity_ratio"] < 0.7:
             insights.append(
@@ -252,7 +253,7 @@ class InsightEngine:
                         f"than your historical average."
                     ),
                     "severity": "positive",
-                }
+                },
             )
 
         return insights
@@ -267,6 +268,7 @@ class InsightEngine:
 
         Returns:
             Dictionary with summary metrics and insights
+
         """
         totals = calculator.calculate_totals(transactions)
         expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
@@ -283,7 +285,8 @@ class InsightEngine:
             "expense_count": len(expenses),
             "top_categories": [{"category": cat, "amount": amt} for cat, amt in top_categories],
             "savings_rate": calculator.calculate_savings_rate(
-                totals["total_income"], totals["total_expenses"]
+                totals["total_income"],
+                totals["total_expenses"],
             ),
         }
 

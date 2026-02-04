@@ -4,7 +4,7 @@ import { Calculator, TrendingUp, ChevronLeft, ChevronRight, IndianRupee } from '
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
-import { classifyIncomeType, getFiscalYearDates, type IncomeType } from '@/lib/preferencesUtils'
+import { classifyIncomeType } from '@/lib/preferencesUtils'
 
 // Tax slabs before FY 2025-26
 const TAX_SLABS_OLD = [
@@ -128,12 +128,12 @@ export default function TaxPlanningPage() {
   // Get fiscal year start month from preferences (default to 4 for April)
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
-  // Get income categories from preferences for classification
-  const incomeCategories = useMemo(() => ({
-    salary: preferences?.salary_categories || {},
-    bonus: preferences?.bonus_categories || {},
-    investmentIncome: preferences?.investment_income_categories || {},
-    cashback: preferences?.cashback_categories || {},
+  // Get income classification from preferences for tax categorization
+  const incomeClassification = useMemo(() => ({
+    taxable: preferences?.taxable_income_categories || [],
+    investmentReturns: preferences?.investment_returns_categories || [],
+    nonTaxable: preferences?.non_taxable_income_categories || [],
+    other: preferences?.other_income_categories || [],
   }), [preferences])
 
   // Group transactions by Financial Year
@@ -178,32 +178,38 @@ export default function TaxPlanningPage() {
         grouped[fy].income += tx.amount
 
         // Use preferences-based income classification
-        const incomeType = classifyIncomeType(tx, incomeCategories)
+        const incomeType = classifyIncomeType(tx, incomeClassification)
         const note = tx.note?.toLowerCase() || ''
+        const subcategory = (tx.subcategory || '').toLowerCase()
         
         // EPF handling (special case - half taxable)
-        const isEPF = note.includes('aws epf') || note.includes('epf withdrawal')
+        const isEPF = note.includes('aws epf') || note.includes('epf withdrawal') || 
+                      (tx.category === 'Employment Income' && tx.subcategory === 'EPF Contribution')
         
-        if (incomeType === 'salary') {
-          grouped[fy].taxableIncome += tx.amount
-          grouped[fy].incomeGroups['Salary & Stipend'].total += tx.amount
-          grouped[fy].incomeGroups['Salary & Stipend'].transactions.push(tx)
-          const month = tx.date.substring(0, 7)
-          grouped[fy].salaryMonths.add(month)
-        } else if (incomeType === 'bonus') {
-          grouped[fy].taxableIncome += tx.amount
-          grouped[fy].incomeGroups['Bonus'].total += tx.amount
-          grouped[fy].incomeGroups['Bonus'].transactions.push(tx)
-        } else if (isEPF) {
+        // Check if it's salary or stipend specifically (subset of taxable)
+        const isSalaryOrStipend = subcategory === 'salary' || subcategory === 'stipend'
+        const isBonus = subcategory === 'bonuses' || subcategory === 'rsus'
+        
+        // Handle EPF separately (50% taxable rule)
+        if (isEPF) {
           const epfTaxablePortion = tx.amount / 2
           grouped[fy].taxableIncome += epfTaxablePortion
           grouped[fy].incomeGroups.EPF.total += epfTaxablePortion
           grouped[fy].incomeGroups.EPF.transactions.push(tx)
-        } else if (note.includes('rsu') || note.includes('relocation')) {
-          // Other taxable income (RSU, relocation benefits)
+        } else if (incomeType === 'taxable') {
           grouped[fy].taxableIncome += tx.amount
-          grouped[fy].incomeGroups['Other Taxable Income'].total += tx.amount
-          grouped[fy].incomeGroups['Other Taxable Income'].transactions.push(tx)
+          if (isSalaryOrStipend) {
+            grouped[fy].incomeGroups['Salary & Stipend'].total += tx.amount
+            grouped[fy].incomeGroups['Salary & Stipend'].transactions.push(tx)
+            const month = tx.date.substring(0, 7)
+            grouped[fy].salaryMonths.add(month)
+          } else if (isBonus) {
+            grouped[fy].incomeGroups['Bonus'].total += tx.amount
+            grouped[fy].incomeGroups['Bonus'].transactions.push(tx)
+          } else {
+            grouped[fy].incomeGroups['Other Taxable Income'].total += tx.amount
+            grouped[fy].incomeGroups['Other Taxable Income'].transactions.push(tx)
+          }
         }
         // Note: Investment income and cashback are generally not taxable as regular income
       } else if (tx.type === 'Expense') {
@@ -212,7 +218,7 @@ export default function TaxPlanningPage() {
     }
 
     return grouped
-  }, [allTransactions, fiscalYearStartMonth, incomeCategories])
+  }, [allTransactions, fiscalYearStartMonth, incomeClassification])
 
   // Get sorted FY list
   const fyList = useMemo(() => {
@@ -248,7 +254,11 @@ export default function TaxPlanningPage() {
   const {tax: baseTax, slabBreakdown, cess, professionalTax, totalTax: taxAlreadyPaid} = calculateTax(grossTaxableIncome, taxSlabs, standardDeduction, hasEmploymentIncome, salaryMonthsCount)
 
   // Projection calculations for remaining months
-  const isCurrentFY = selectedFY === fyList[0]
+  // Determine current FY based on today's date and fiscal year start month
+  const today = new Date()
+  const currentFYLabel = getFYFromDate(today.toISOString().split('T')[0], fiscalYearStartMonth)
+  const isCurrentFY = selectedFY === currentFYLabel
+  
   let projectedGrossTaxableIncome = grossTaxableIncome
   let projectedTaxAlreadyPaid = taxAlreadyPaid
   let projectedBaseTax = baseTax
@@ -256,7 +266,7 @@ export default function TaxPlanningPage() {
   let projectedProfessionalTax = professionalTax
   let projectedSlabBreakdown = slabBreakdown
   let remainingMonths = 0
-  let lastMonthSalary = 0
+  let avgMonthlySalary = 0
   let projectedAdditionalIncome = 0
   
   if (showProjection && isCurrentFY && hasEmploymentIncome) {
@@ -274,18 +284,20 @@ export default function TaxPlanningPage() {
       remainingMonths = 3 - currentMonth
     }
     
-    // Get the last AWS Salary transaction
-    const salaryTransactions = currentFYData?.transactions
-      .filter(tx => {
-        if (tx.type !== 'Income') return false
-        const note = tx.note?.toLowerCase() || ''
-        return note.includes('aws salary')
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || []
+    // Get average of last 3 months salary from Salary & Stipend group
+    const salaryStipendTxs = currentFYData?.incomeGroups?.['Salary & Stipend']?.transactions || []
     
-    if (salaryTransactions.length > 0 && remainingMonths > 0) {
-      lastMonthSalary = salaryTransactions[0].amount
-      projectedAdditionalIncome = lastMonthSalary * remainingMonths
+    if (salaryStipendTxs.length > 0 && remainingMonths > 0) {
+      // Sort by date descending and take last 3 months
+      const recentSalaries = salaryStipendTxs
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, Math.min(3, salaryStipendTxs.length))
+      
+      // Calculate average
+      const totalRecentSalary = recentSalaries.reduce((sum, tx) => sum + tx.amount, 0)
+      avgMonthlySalary = totalRecentSalary / recentSalaries.length
+      
+      projectedAdditionalIncome = avgMonthlySalary * remainingMonths
       const projectedNetTotal = netTaxableIncome + projectedAdditionalIncome
       const projectedSalaryMonthsCount = salaryMonthsCount + remainingMonths
       
@@ -338,7 +350,7 @@ export default function TaxPlanningPage() {
               </button>
               {showProjection && remainingMonths > 0 && (
                 <span className="text-sm text-muted-foreground">
-                  Projecting {remainingMonths} more {remainingMonths === 1 ? 'month' : 'months'} @ {formatCurrency(lastMonthSalary)}/month
+                  Projecting {remainingMonths} more {remainingMonths === 1 ? 'month' : 'months'} @ {formatCurrency(avgMonthlySalary)}/month (avg of last 3 months)
                 </span>
               )}
             </div>
@@ -384,7 +396,7 @@ export default function TaxPlanningPage() {
                     </button>
                     {showProjection && remainingMonths > 0 && (
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        Projecting {remainingMonths} more {remainingMonths === 1 ? 'month' : 'months'} @ {formatCurrency(lastMonthSalary)}/month
+                        Projecting {remainingMonths} more {remainingMonths === 1 ? 'month' : 'months'} @ {formatCurrency(avgMonthlySalary)}/month (avg 3mo)
                       </span>
                     )}
                   </div>
@@ -631,8 +643,15 @@ export default function TaxPlanningPage() {
                       {data.transactions.map((tx, index) => (
                         <tr key={index} className="border-b border-white/5">
                           <td className="py-3 px-4 text-white">{new Date(tx.date).toLocaleDateString()}</td>
-                          <td className="py-3 px-4 text-right font-bold text-green-400">
-                            {formatCurrency(group === 'EPF' ? tx.amount / 2 : tx.amount)}
+                          <td className="py-3 px-4 text-right">
+                            {group === 'EPF' ? (
+                              <div>
+                                <div className="font-bold text-green-400">{formatCurrency(tx.amount / 2)}</div>
+                                <div className="text-xs text-gray-400">(50% of {formatCurrency(tx.amount)})</div>
+                              </div>
+                            ) : (
+                              <span className="font-bold text-green-400">{formatCurrency(tx.amount)}</span>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-white">{tx.type}</td>
                           <td className="py-3 px-4 text-white">{tx.note}</td>

@@ -11,25 +11,6 @@ from ledger_sync.config.settings import settings
 from ledger_sync.db.base import Base
 
 # Import ALL models for autogenerate detection
-from ledger_sync.db.models import (  # noqa: F401
-    AccountClassification,
-    Anomaly,
-    AuditLog,
-    Budget,
-    CategoryTrend,
-    ColumnMappingLog,
-    FinancialGoal,
-    FYSummary,
-    ImportLog,
-    InvestmentHolding,
-    MerchantIntelligence,
-    MonthlySummary,
-    NetWorthSnapshot,
-    RecurringTransaction,
-    TaxRecord,
-    Transaction,
-    TransferFlow,
-)
 
 # this is the Alembic Config object
 config = context.config

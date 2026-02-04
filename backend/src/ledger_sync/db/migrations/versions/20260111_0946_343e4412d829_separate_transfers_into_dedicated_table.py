@@ -47,7 +47,10 @@ def upgrade() -> None:
         op.create_index("ix_transactions_account", "transactions", ["account"], unique=False)
         op.create_index("ix_transactions_category", "transactions", ["category"], unique=False)
         op.create_index(
-            "ix_transactions_last_seen_at", "transactions", ["last_seen_at"], unique=False
+            "ix_transactions_last_seen_at",
+            "transactions",
+            ["last_seen_at"],
+            unique=False,
         )
         op.create_index("ix_transactions_is_deleted", "transactions", ["is_deleted"], unique=False)
         op.create_index("ix_transactions_date_type", "transactions", ["date", "type"], unique=False)
@@ -83,7 +86,9 @@ def upgrade() -> None:
         sa.Column("amount", sa.Numeric(precision=15, scale=2), nullable=False),
         sa.Column("currency", sa.String(length=10), nullable=False),
         sa.Column(
-            "type", sa.Enum("TRANSFER_IN", "TRANSFER_OUT", name="transfertype"), nullable=False
+            "type",
+            sa.Enum("TRANSFER_IN", "TRANSFER_OUT", name="transfertype"),
+            nullable=False,
         ),
         sa.Column("from_account", sa.String(length=255), nullable=False),
         sa.Column("to_account", sa.String(length=255), nullable=False),
@@ -104,7 +109,10 @@ def upgrade() -> None:
     op.create_index("ix_transfers_is_deleted", "transfers", ["is_deleted"], unique=False)
     op.create_index("ix_transfers_date_type", "transfers", ["date", "type"], unique=False)
     op.create_index(
-        "ix_transfers_from_to", "transfers", ["from_account", "to_account"], unique=False
+        "ix_transfers_from_to",
+        "transfers",
+        ["from_account", "to_account"],
+        unique=False,
     )
 
     # Step 4: Migrate existing Transfer records from transactions to transfers table (if any)
@@ -119,8 +127,8 @@ def upgrade() -> None:
                        note, source_file, last_seen_at, is_deleted
                 FROM transactions
                 WHERE type = 'Transfer'
-            """
-                )
+            """,
+                ),
             )
 
             transfer_records = result.fetchall()
@@ -147,7 +155,7 @@ def upgrade() -> None:
                     VALUES (:transfer_id, :date, :amount, :currency, :type,
                             :from_account, :to_account, :category, :subcategory,
                             :note, :source_file, :last_seen_at, :is_deleted)
-                """
+                """,
                     ),
                     {
                         "transfer_id": record[0],
@@ -169,8 +177,9 @@ def upgrade() -> None:
             # Delete Transfer records from transactions table
             if transfer_records:
                 conn.execute(sa.text("DELETE FROM transactions WHERE type = 'Transfer'"))
-        except Exception:  # noqa: E722
-            # No transfer records or type constraint already updated
+        except (sa.exc.OperationalError, sa.exc.ProgrammingError):
+            # No transfer records or type constraint already updated - this is expected
+            # during certain migration states
             pass
 
     # ### end Alembic commands ###
@@ -198,8 +207,8 @@ def downgrade() -> None:
                from_account, to_account, category, subcategory,
                note, source_file, last_seen_at, is_deleted
         FROM transfers
-    """
-        )
+    """,
+        ),
     )
 
     transfer_records = result.fetchall()
@@ -222,7 +231,7 @@ def downgrade() -> None:
             VALUES (:transaction_id, :date, :amount, :currency, 'Transfer',
                     :account, :category, :subcategory,
                     :note, :source_file, :last_seen_at, :is_deleted)
-        """
+        """,
             ),
             {
                 "transaction_id": record[0],

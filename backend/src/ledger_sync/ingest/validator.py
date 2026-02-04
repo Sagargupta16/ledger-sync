@@ -10,8 +10,6 @@ from ledger_sync.config.settings import settings
 class ValidationError(Exception):
     """Raised when validation fails."""
 
-    pass
-
 
 class ExcelValidator:
     """Validates Excel files before processing."""
@@ -38,15 +36,19 @@ class ExcelValidator:
 
         Raises:
             ValidationError: If file doesn't exist or isn't readable
+
         """
         if not file_path.exists():
-            raise ValidationError(f"File not found: {file_path}")
+            msg = f"File not found: {file_path}"
+            raise ValidationError(msg)
 
         if not file_path.is_file():
-            raise ValidationError(f"Path is not a file: {file_path}")
+            msg = f"Path is not a file: {file_path}"
+            raise ValidationError(msg)
 
         if file_path.suffix.lower() not in [".xlsx", ".xls"]:
-            raise ValidationError(f"File must be Excel format (.xlsx or .xls): {file_path}")
+            msg = f"File must be Excel format (.xlsx or .xls): {file_path}"
+            raise ValidationError(msg)
 
     def validate_columns(self, df: pd.DataFrame) -> dict[str, str]:
         """Validate that required columns exist.
@@ -59,6 +61,7 @@ class ExcelValidator:
 
         Raises:
             ValidationError: If required columns are missing
+
         """
         columns = set(df.columns)
         column_mapping: dict[str, str] = {}
@@ -71,10 +74,11 @@ class ExcelValidator:
                     break
 
             if found is None:
-                raise ValidationError(
+                msg = (
                     f"Missing required column type '{col_type}'. "
                     f"Expected one of: {', '.join(possible_names)}"
                 )
+                raise ValidationError(msg)
 
             column_mapping[col_type] = found
 
@@ -96,10 +100,12 @@ class ExcelValidator:
 
         Raises:
             ValidationError: If data types are invalid
+
         """
         # Check for empty dataframe
         if df.empty:
-            raise ValidationError("Excel file contains no data rows")
+            msg = "Excel file contains no data rows"
+            raise ValidationError(msg)
 
         # Validate amount column is numeric
         amount_col = column_mapping["amount"]
@@ -107,10 +113,9 @@ class ExcelValidator:
             # Try to convert
             try:
                 pd.to_numeric(df[amount_col], errors="coerce")
-            except Exception as e:
-                raise ValidationError(
-                    f"Amount column '{amount_col}' must contain numeric values: {e}"
-                )
+            except (ValueError, TypeError) as e:
+                msg = f"Amount column '{amount_col}' must contain numeric values: {e}"
+                raise ValidationError(msg) from e
 
     def validate(self, file_path: Path, df: pd.DataFrame) -> dict[str, str]:
         """Run all validations.
@@ -124,6 +129,7 @@ class ExcelValidator:
 
         Raises:
             ValidationError: If any validation fails
+
         """
         self.validate_file_exists(file_path)
         column_mapping = self.validate_columns(df)

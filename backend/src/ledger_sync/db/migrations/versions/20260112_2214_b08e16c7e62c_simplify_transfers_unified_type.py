@@ -51,7 +51,7 @@ def upgrade() -> None:
         FROM transfers
         WHERE type = 'Transfer-Out'
         AND transfer_id NOT IN (SELECT transaction_id FROM transactions)
-    """
+    """,
     )
 
     # Drop transfers table - no longer needed
@@ -67,7 +67,9 @@ def downgrade() -> None:
         sa.Column("amount", sa.Numeric(precision=15, scale=2), nullable=False),
         sa.Column("currency", sa.String(length=10), nullable=False),
         sa.Column(
-            "type", sa.Enum("Transfer-In", "Transfer-Out", name="transfertype"), nullable=False
+            "type",
+            sa.Enum("Transfer-In", "Transfer-Out", name="transfertype"),
+            nullable=False,
         ),
         sa.Column("from_account", sa.String(length=255), nullable=False),
         sa.Column("to_account", sa.String(length=255), nullable=False),
@@ -88,7 +90,7 @@ def downgrade() -> None:
         SELECT transaction_id, date, amount, currency, 'Transfer-Out', from_account, to_account,
                category, subcategory, note, source_file, last_seen_at, is_deleted
         FROM transactions WHERE type = 'Transfer'
-    """
+    """,
     )
 
     # Remove Transfer type transactions

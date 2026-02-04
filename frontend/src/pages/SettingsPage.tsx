@@ -29,7 +29,6 @@ import {
   RefreshCw,
   X,
   Check,
-  ChevronRight,
 } from 'lucide-react'
 import { useAccountBalances, useMasterCategories } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
@@ -105,13 +104,13 @@ const ANOMALY_TYPES = [
   { value: 'budget_exceeded', label: 'Budget Exceeded' },
 ]
 
-// Income type colors
-const INCOME_TYPE_COLORS = {
-  salary: { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400', gradient: 'from-blue-500 to-blue-600' },
-  bonus: { bg: 'bg-amber-500/20', border: 'border-amber-500/30', text: 'text-amber-400', gradient: 'from-amber-500 to-amber-600' },
-  investment: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', text: 'text-emerald-400', gradient: 'from-emerald-500 to-emerald-600' },
-  cashback: { bg: 'bg-pink-500/20', border: 'border-pink-500/30', text: 'text-pink-400', gradient: 'from-pink-500 to-pink-600' },
-}
+// Income classification types
+const INCOME_CLASSIFICATION_TYPES = [
+  { value: 'taxable', label: '💰 Taxable Income', color: 'from-red-500 to-orange-600', description: 'Salary, bonus, freelance income' },
+  { value: 'investment', label: '📈 Investment Returns', color: 'from-green-500 to-emerald-600', description: 'Dividends, interest, capital gains' },
+  { value: 'non_taxable', label: '💳 Cashbacks', color: 'from-blue-500 to-cyan-600', description: 'Refunds, cashbacks, rewards' },
+  { value: 'other', label: '📦 Others', color: 'from-purple-500 to-pink-600', description: 'Gifts, prizes, miscellaneous' },
+]
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('accounts')
@@ -138,10 +137,10 @@ export default function SettingsPage() {
     fiscal_year_start_month: number
     essential_categories: string[]
     investment_account_mappings: Record<string, string>
-    salary_categories: Record<string, string[]>
-    bonus_categories: Record<string, string[]>
-    investment_income_categories: Record<string, string[]>
-    cashback_categories: Record<string, string[]>
+    taxable_income_categories: string[]
+    investment_returns_categories: string[]
+    non_taxable_income_categories: string[]
+    other_income_categories: string[]
     default_budget_alert_threshold: number
     auto_create_budgets: boolean
     budget_rollover_enabled: boolean
@@ -193,10 +192,10 @@ export default function SettingsPage() {
         fiscal_year_start_month: preferences.fiscal_year_start_month,
         essential_categories: [...preferences.essential_categories],
         investment_account_mappings: { ...preferences.investment_account_mappings },
-        salary_categories: structuredClone(preferences.salary_categories),
-        bonus_categories: structuredClone(preferences.bonus_categories),
-        investment_income_categories: structuredClone(preferences.investment_income_categories),
-        cashback_categories: structuredClone(preferences.cashback_categories || {}),
+        taxable_income_categories: [...(preferences.taxable_income_categories || [])],
+        investment_returns_categories: [...(preferences.investment_returns_categories || [])],
+        non_taxable_income_categories: [...(preferences.non_taxable_income_categories || [])],
+        other_income_categories: [...(preferences.other_income_categories || [])],
         default_budget_alert_threshold: preferences.default_budget_alert_threshold,
         auto_create_budgets: preferences.auto_create_budgets,
         budget_rollover_enabled: preferences.budget_rollover_enabled,
@@ -308,68 +307,43 @@ export default function SettingsPage() {
   // Remove investment mapping
   const handleRemoveInvestmentMapping = (account: string) => {
     if (localPrefs) {
-      const { [account]: _, ...rest } = localPrefs.investment_account_mappings
+      const { [account]: _removed, ...rest } = localPrefs.investment_account_mappings
+      void _removed // Explicitly mark as intentionally unused
       updateLocalPref('investment_account_mappings', rest)
     }
   }
 
-  // Income source drop handlers
-  const handleDropOnIncomeType = (incomeType: 'salary' | 'bonus' | 'investment' | 'cashback') => {
+  // Income classification drop handlers - now with subcategories
+  type IncomeClassificationType = 'taxable' | 'investment' | 'non_taxable' | 'other'
+  
+  const incomeClassificationKeyMap: Record<IncomeClassificationType, 'taxable_income_categories' | 'investment_returns_categories' | 'non_taxable_income_categories' | 'other_income_categories'> = {
+    taxable: 'taxable_income_categories',
+    investment: 'investment_returns_categories',
+    non_taxable: 'non_taxable_income_categories',
+    other: 'other_income_categories',
+  }
+  
+  const handleDropOnIncomeClassification = (classificationType: IncomeClassificationType) => {
     if (draggedItem && dragType === 'income-category' && localPrefs) {
-      // Parse the dragged item: "Category::Subcategory" or just "Category"
-      const [category, subcategory] = draggedItem.split('::')
+      // draggedItem is "Category::Subcategory" format
+      const targetKey = incomeClassificationKeyMap[classificationType]
+      const currentList = [...localPrefs[targetKey]]
       
-      const targetKey = incomeType === 'salary' ? 'salary_categories' 
-        : incomeType === 'bonus' ? 'bonus_categories' 
-        : incomeType === 'cashback' ? 'cashback_categories'
-        : 'investment_income_categories'
-      
-      const currentMapping = { ...localPrefs[targetKey] }
-      
-      if (subcategory) {
-        // Adding a specific subcategory
-        if (!currentMapping[category]) {
-          currentMapping[category] = []
-        }
-        if (!currentMapping[category].includes(subcategory)) {
-          currentMapping[category] = [...currentMapping[category], subcategory]
-        }
-      } else {
-        // Adding entire category (all subcategories)
-        const subcats = allIncomeCategories[category] || []
-        currentMapping[category] = subcats
+      if (!currentList.includes(draggedItem)) {
+        currentList.push(draggedItem)
+        updateLocalPref(targetKey, currentList)
       }
-      
-      updateLocalPref(targetKey, currentMapping)
     }
     handleDragEnd()
   }
 
-  // Remove income source mapping
-  const handleRemoveIncomeMapping = (incomeType: 'salary' | 'bonus' | 'investment' | 'cashback', category: string, subcategory?: string) => {
+  // Remove income classification
+  const handleRemoveIncomeClassification = (classificationType: IncomeClassificationType, item: string) => {
     if (!localPrefs) return
     
-    const targetKey = incomeType === 'salary' ? 'salary_categories' 
-      : incomeType === 'bonus' ? 'bonus_categories' 
-      : incomeType === 'cashback' ? 'cashback_categories'
-      : 'investment_income_categories'
-    
-    const currentMapping = { ...localPrefs[targetKey] }
-    
-    if (subcategory) {
-      // Remove specific subcategory
-      if (currentMapping[category]) {
-        currentMapping[category] = currentMapping[category].filter((s: string) => s !== subcategory)
-        if (currentMapping[category].length === 0) {
-          delete currentMapping[category]
-        }
-      }
-    } else {
-      // Remove entire category
-      delete currentMapping[category]
-    }
-    
-    updateLocalPref(targetKey, currentMapping)
+    const targetKey = incomeClassificationKeyMap[classificationType]
+    const currentList = localPrefs[targetKey].filter((c: string) => c !== item)
+    updateLocalPref(targetKey, currentList)
   }
 
   const updateLocalPref = <K extends keyof NonNullable<typeof localPrefs>>(
@@ -452,6 +426,10 @@ export default function SettingsPage() {
     {} as Record<string, string[]>
   )
 
+  // Get unclassified accounts (not assigned to any category)
+  const classifiedAccounts = new Set(Object.values(accountsByCategory).flat())
+  const unclassifiedAccounts = accounts.filter((name) => !classifiedAccounts.has(name))
+
   // Get unassigned investment accounts (for investment mappings)
   const unmappedAccounts = investmentAccounts.filter(
     (acc) => !localPrefs?.investment_account_mappings[acc]
@@ -461,7 +439,7 @@ export default function SettingsPage() {
   const accountsByInvestmentType = INVESTMENT_TYPES.reduce(
     (acc, type) => {
       acc[type.value] = Object.entries(localPrefs?.investment_account_mappings || {})
-        .filter(([_, t]) => t === type.value)
+        .filter(([, t]) => t === type.value)
         .map(([account]) => account)
       return acc
     },
@@ -473,35 +451,35 @@ export default function SettingsPage() {
     (cat) => !localPrefs?.essential_categories.includes(cat)
   )
 
-  // Get income categories that haven't been assigned yet
-  const getUnassignedIncomeCategories = () => {
-    if (!localPrefs) return Object.entries(allIncomeCategories)
-    
-    const assigned = new Set<string>()
-    
-    // Collect all assigned category::subcategory combinations
-    for (const [cat, subs] of Object.entries(localPrefs.salary_categories)) {
-      subs.forEach((sub: string) => assigned.add(`${cat}::${sub}`))
-    }
-    for (const [cat, subs] of Object.entries(localPrefs.bonus_categories)) {
-      subs.forEach((sub: string) => assigned.add(`${cat}::${sub}`))
-    }
-    for (const [cat, subs] of Object.entries(localPrefs.investment_income_categories)) {
-      subs.forEach((sub: string) => assigned.add(`${cat}::${sub}`))
-    }
-    for (const [cat, subs] of Object.entries(localPrefs.cashback_categories)) {
-      subs.forEach((sub: string) => assigned.add(`${cat}::${sub}`))
+  // Get income subcategories that haven't been classified yet
+  // Returns array of "Category::Subcategory" strings
+  const getUnclassifiedIncomeSubcategories = () => {
+    if (!localPrefs) {
+      // Return all subcategories as "Category::Subcategory"
+      return Object.entries(allIncomeCategories).flatMap(([cat, subs]) =>
+        (subs as string[]).map((sub) => `${cat}::${sub}`)
+      )
     }
     
-    // Filter to only unassigned
-    const result: Record<string, string[]> = {}
-    for (const [cat, subs] of Object.entries(allIncomeCategories)) {
-      const unassignedSubs = subs.filter((sub: string) => !assigned.has(`${cat}::${sub}`))
-      if (unassignedSubs.length > 0) {
-        result[cat] = unassignedSubs
-      }
-    }
-    return Object.entries(result)
+    const allClassified = new Set<string>([
+      ...localPrefs.taxable_income_categories,
+      ...localPrefs.investment_returns_categories,
+      ...localPrefs.non_taxable_income_categories,
+      ...localPrefs.other_income_categories,
+    ])
+    
+    // Return "Category::Subcategory" strings that haven't been classified yet
+    return Object.entries(allIncomeCategories).flatMap(([cat, subs]) =>
+      (subs as string[])
+        .map((sub) => `${cat}::${sub}`)
+        .filter((item) => !allClassified.has(item))
+    )
+  }
+  
+  // Helper to parse "Category::Subcategory" and get display name
+  const parseIncomeItem = (item: string) => {
+    const [category, subcategory] = item.split('::')
+    return { category, subcategory, display: subcategory || category }
   }
 
   return (
@@ -544,53 +522,86 @@ export default function SettingsPage() {
           >
             {/* Account Classifications Tab - DRAG AND DROP */}
             {activeTab === 'accounts' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="space-y-6">
+                <div>
                   <h2 className="text-xl font-semibold text-white">Account Type Classifications</h2>
-                  <p className="text-sm text-gray-400">Drag and drop accounts to organize them</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Drag accounts from the left into category boxes on the right
+                  </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {ACCOUNT_TYPES.map((category) => (
-                    <div
-                      key={category}
-                      onDragOver={handleDragOver}
-                      onDrop={() => handleDropOnAccountCategory(category)}
-                      className={`glass rounded-xl border-2 border-dashed p-4 transition-all ${
-                        dragType === 'account' ? 'border-white/40 bg-white/5' : 'border-white/20 hover:border-white/30'
-                      }`}
-                    >
-                      <div className={`bg-gradient-to-r ${CATEGORY_COLORS[category]} rounded-lg p-3 mb-3`}>
-                        <h3 className="text-lg font-bold text-white">{category}</h3>
-                        <p className="text-xs text-white/80">{accountsByCategory[category].length} accounts</p>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Unassigned Accounts - Source */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+                      Unassigned Accounts ({unclassifiedAccounts.length})
+                    </h3>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[400px]">
+                      <div className="flex flex-wrap gap-2">
+                        {unclassifiedAccounts.map((accountName) => (
+                          <motion.div
+                            key={accountName}
+                            draggable
+                            onDragStart={() => handleDragStart(accountName, 'account')}
+                            onDragEnd={handleDragEnd}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full cursor-move hover:bg-white/20 transition-all"
+                            whileHover={{ scale: 1.05 }}
+                          >
+                            <GripVertical className="w-3 h-3 text-white/40" />
+                            <span className="text-sm text-white truncate">{accountName}</span>
+                            {!balancesLoading && (
+                              <span className="text-xs text-gray-400 font-mono ml-1">
+                                {formatCurrency(Math.abs(balanceData?.accounts[accountName]?.balance || 0))}
+                              </span>
+                            )}
+                          </motion.div>
+                        ))}
+                        {unclassifiedAccounts.length === 0 && (
+                          <p className="text-gray-500 text-sm">All accounts classified</p>
+                        )}
                       </div>
-                      <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                        {accountsByCategory[category].length > 0 ? (
-                          accountsByCategory[category].map((accountName) => (
+                    </div>
+                  </div>
+
+                  {/* Account Type Drop Zones */}
+                  <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {ACCOUNT_TYPES.map((category) => (
+                      <div
+                        key={category}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleDropOnAccountCategory(category)}
+                        className={`bg-white/5 rounded-xl border-2 border-dashed p-4 transition-all min-h-[180px] ${
+                          dragType === 'account' ? 'border-white/40 bg-white/10' : 'border-white/20 hover:border-white/30'
+                        }`}
+                      >
+                        <div className={`bg-gradient-to-r ${CATEGORY_COLORS[category]} rounded-lg px-3 py-2 mb-3`}>
+                          <h4 className="text-sm font-semibold text-white">{category}</h4>
+                          <p className="text-xs text-white/80">{accountsByCategory[category].length} accounts</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {accountsByCategory[category].map((accountName) => (
                             <motion.div
                               key={accountName}
                               draggable
                               onDragStart={() => handleDragStart(accountName, 'account')}
                               onDragEnd={handleDragEnd}
-                              className="flex items-center gap-2 px-2.5 py-2 bg-white/5 border border-white/10 rounded-md cursor-move hover:bg-white/10 text-sm"
-                              whileHover={{ scale: 1.02 }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full cursor-move hover:bg-white/20 transition-all"
+                              whileHover={{ scale: 1.05 }}
                             >
-                              <GripVertical className="w-3.5 h-3.5 text-white/40" />
-                              <span className="font-medium text-white truncate flex-1">{accountName}</span>
-                              {!balancesLoading && (
-                                <span className="text-xs text-gray-400 font-mono">
-                                  {formatCurrency(Math.abs(balanceData?.accounts[accountName]?.balance || 0))}
-                                </span>
-                              )}
+                              <GripVertical className="w-3 h-3 text-white/40" />
+                              <span className="text-sm text-white truncate">{accountName}</span>
                             </motion.div>
-                          ))
-                        ) : (
-                          <div className="flex items-center justify-center h-16 text-gray-500 border-2 border-dashed border-white/10 rounded-lg">
-                            <p className="text-xs">Drop here</p>
-                          </div>
-                        )}
+                          ))}
+                          {accountsByCategory[category].length === 0 && (
+                            <div className="flex items-center justify-center w-full h-16 text-gray-500">
+                              <p className="text-sm">Drop here</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -605,14 +616,14 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Available Categories */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Available Categories - Source */}
                   <div className="space-y-3">
                     <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-gray-500"></span>
                       Available Categories ({availableEssentialCategories.length})
                     </h3>
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[300px] max-h-[400px] overflow-y-auto">
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[400px]">
                       <div className="flex flex-wrap gap-2">
                         {availableEssentialCategories.map((category) => (
                           <motion.div
@@ -635,7 +646,7 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Essential Categories Drop Zone */}
-                  <div className="space-y-3">
+                  <div className="lg:col-span-2 space-y-3">
                     <h3 className="text-sm font-medium text-emerald-400 flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                       Essential Categories ({localPrefs.essential_categories.length})
@@ -643,15 +654,15 @@ export default function SettingsPage() {
                     <div
                       onDragOver={handleDragOver}
                       onDrop={handleDropOnEssential}
-                      className={`bg-emerald-500/10 border-2 border-dashed rounded-xl p-4 min-h-[300px] max-h-[400px] overflow-y-auto transition-all ${
-                        dragType === 'category' ? 'border-emerald-400 bg-emerald-500/20' : 'border-emerald-500/30'
+                      className={`bg-white/5 rounded-xl border-2 border-dashed p-4 min-h-[400px] transition-all ${
+                        dragType === 'category' ? 'border-emerald-400 bg-emerald-500/10' : 'border-white/20 hover:border-white/30'
                       }`}
                     >
                       <div className="flex flex-wrap gap-2">
                         {localPrefs.essential_categories.map((category) => (
                           <motion.div
                             key={category}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/30 border border-emerald-500/50 rounded-full"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/40 rounded-full"
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                           >
@@ -665,7 +676,7 @@ export default function SettingsPage() {
                           </motion.div>
                         ))}
                         {localPrefs.essential_categories.length === 0 && (
-                          <div className="flex items-center justify-center w-full h-32 text-emerald-400/50">
+                          <div className="flex items-center justify-center w-full h-16 text-gray-500">
                             <p className="text-sm">Drop categories here</p>
                           </div>
                         )}
@@ -682,183 +693,188 @@ export default function SettingsPage() {
                 <div>
                   <h2 className="text-xl font-semibold text-white">Investment Account Mappings</h2>
                   <p className="text-sm text-gray-400 mt-1">
-                    Drag accounts into investment categories to classify them for net worth tracking
+                    Drag accounts from the left into investment categories on the right
                   </p>
                 </div>
 
-                {/* Unassigned accounts */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-gray-500"></span>
-                    Unassigned Accounts ({unmappedAccounts.length})
-                  </h3>
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[80px]">
-                    <div className="flex flex-wrap gap-2">
-                      {unmappedAccounts.map((account) => (
-                        <motion.div
-                          key={account}
-                          draggable
-                          onDragStart={() => handleDragStart(account, 'account')}
-                          onDragEnd={handleDragEnd}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg cursor-move hover:bg-white/20 transition-all"
-                          whileHover={{ scale: 1.02 }}
-                        >
-                          <GripVertical className="w-3 h-3 text-white/40" />
-                          <span className="text-sm text-white">{account}</span>
-                        </motion.div>
-                      ))}
-                      {unmappedAccounts.length === 0 && (
-                        <p className="text-gray-500 text-sm">All accounts assigned</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Investment Type Drop Zones */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {INVESTMENT_TYPES.map((type) => (
-                    <div
-                      key={type.value}
-                      onDragOver={handleDragOver}
-                      onDrop={() => handleDropOnInvestmentType(type.value)}
-                      className={`rounded-xl border-2 border-dashed p-3 transition-all ${
-                        dragType === 'account' ? 'border-white/40 bg-white/5' : 'border-white/20'
-                      }`}
-                    >
-                      <div className={`bg-gradient-to-r ${type.color} rounded-lg px-3 py-2 mb-2`}>
-                        <h4 className="text-sm font-semibold text-white">{type.label}</h4>
-                      </div>
-                      <div className="space-y-1 min-h-[60px]">
-                        {accountsByInvestmentType[type.value].map((account) => (
-                          <div
-                            key={account}
-                            className="flex items-center justify-between px-2 py-1 bg-white/5 rounded text-xs"
-                          >
-                            <span className="text-white truncate">{account}</span>
-                            <button
-                              onClick={() => handleRemoveInvestmentMapping(account)}
-                              className="text-gray-400 hover:text-red-400 ml-1"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                        {accountsByInvestmentType[type.value].length === 0 && (
-                          <div className="flex items-center justify-center h-12 text-gray-500 text-xs">
-                            Drop here
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Income Sources Tab - DRAG AND DROP */}
-            {activeTab === 'income' && localPrefs && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-white">Income Source Categories</h2>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Drag income subcategories to classify them as Salary, Bonus, Investment, or Cashback income
-                  </p>
-                </div>
-
-                {/* Available Income Categories - Flat list */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-gray-500"></span>
-                    Available Income Categories
-                  </h3>
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-h-[200px] overflow-y-auto">
-                    <div className="flex flex-wrap gap-2">
-                      {getUnassignedIncomeCategories().flatMap(([category, subcats]) =>
-                        (subcats as string[]).map((sub) => (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Unassigned Accounts - Source */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+                      Unassigned Accounts ({unmappedAccounts.length})
+                    </h3>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[400px]">
+                      <div className="flex flex-wrap gap-2">
+                        {unmappedAccounts.map((account) => (
                           <motion.div
-                            key={`${category}::${sub}`}
+                            key={account}
                             draggable
-                            onDragStart={() => handleDragStart(`${category}::${sub}`, 'income-category')}
+                            onDragStart={() => handleDragStart(account, 'account')}
                             onDragEnd={handleDragEnd}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full cursor-move hover:bg-white/20 transition-all"
                             whileHover={{ scale: 1.05 }}
                           >
                             <GripVertical className="w-3 h-3 text-white/40" />
-                            <span className="text-sm text-white">{sub}</span>
+                            <span className="text-sm text-white">{account}</span>
                           </motion.div>
-                        ))
-                      )}
-                      {getUnassignedIncomeCategories().length === 0 && (
-                        <p className="text-gray-500 text-sm">All income categories assigned</p>
-                      )}
+                        ))}
+                        {unmappedAccounts.length === 0 && (
+                          <p className="text-gray-500 text-sm">All accounts assigned</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Income Type Drop Zones */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {(['salary', 'bonus', 'investment', 'cashback'] as const).map((incomeType) => {
-                    const colors = INCOME_TYPE_COLORS[incomeType]
-                    const data = incomeType === 'salary' ? localPrefs.salary_categories
-                      : incomeType === 'bonus' ? localPrefs.bonus_categories
-                      : incomeType === 'cashback' ? localPrefs.cashback_categories
-                      : localPrefs.investment_income_categories
-                    const label = incomeType === 'salary' ? '💼 Salary Income'
-                      : incomeType === 'bonus' ? '🎁 Bonus Income'
-                      : incomeType === 'cashback' ? '💳 Cashback Income'
-                      : '📈 Investment Income'
-
-                    return (
+                  {/* Investment Type Drop Zones */}
+                  <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {INVESTMENT_TYPES.map((type) => (
                       <div
-                        key={incomeType}
+                        key={type.value}
                         onDragOver={handleDragOver}
-                        onDrop={() => handleDropOnIncomeType(incomeType)}
-                        className={`rounded-xl border-2 border-dashed p-4 transition-all min-h-[200px] ${
-                          dragType === 'income-category' ? `${colors.border} ${colors.bg}` : `${colors.border} ${colors.bg}`
+                        onDrop={() => handleDropOnInvestmentType(type.value)}
+                        className={`bg-white/5 rounded-xl border-2 border-dashed p-4 transition-all min-h-[180px] ${
+                          dragType === 'account' ? 'border-white/40 bg-white/10' : 'border-white/20 hover:border-white/30'
                         }`}
                       >
-                        <div className={`bg-gradient-to-r ${colors.gradient} rounded-lg px-3 py-2 mb-3`}>
-                          <h4 className="text-sm font-semibold text-white">{label}</h4>
+                        <div className={`bg-gradient-to-r ${type.color} rounded-lg px-3 py-2 mb-3`}>
+                          <h4 className="text-sm font-semibold text-white">{type.label}</h4>
                         </div>
-                        <div className="space-y-2">
-                          {Object.entries(data).map(([category, subcats]) => (
-                            <div key={category} className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-white">{category}</span>
-                                <button
-                                  onClick={() => handleRemoveIncomeMapping(incomeType, category)}
-                                  className="text-gray-400 hover:text-red-400"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </div>
-                              <div className="flex flex-wrap gap-1 ml-2">
-                                {(subcats as string[]).map((sub) => (
-                                  <span
-                                    key={sub}
-                                    className={`inline-flex items-center gap-1 px-2 py-0.5 ${colors.bg} rounded text-xs ${colors.text}`}
-                                  >
-                                    {sub}
-                                    <button
-                                      onClick={() => handleRemoveIncomeMapping(incomeType, category, sub)}
-                                      className="hover:text-red-400"
-                                    >
-                                      <X className="w-2.5 h-2.5" />
-                                    </button>
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
+                        <div className="flex flex-wrap gap-2">
+                          {accountsByInvestmentType[type.value].map((account) => (
+                            <motion.div
+                              key={account}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full"
+                              initial={{ scale: 0.8, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                            >
+                              <span className="text-sm text-white truncate">{account}</span>
+                              <button
+                                onClick={() => handleRemoveInvestmentMapping(account)}
+                                className="text-gray-400 hover:text-red-400 transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </motion.div>
                           ))}
-                          {Object.keys(data).length === 0 && (
-                            <div className={`flex items-center justify-center h-24 ${colors.text} opacity-50`}>
-                              <p className="text-sm">Drop categories here</p>
+                          {accountsByInvestmentType[type.value].length === 0 && (
+                            <div className="flex items-center justify-center w-full h-16 text-gray-500">
+                              <p className="text-sm">Drop here</p>
                             </div>
                           )}
                         </div>
                       </div>
-                    )
-                  })}
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Income Classification Tab - DRAG AND DROP */}
+            {activeTab === 'income' && localPrefs && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-white">Income Classification</h2>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Classify your income subcategories by tax treatment. Drag items from the left into the appropriate classification box.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Available Income Subcategories - Source */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+                      Unclassified Income ({getUnclassifiedIncomeSubcategories().length})
+                    </h3>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[400px]">
+                      {/* Group by parent category */}
+                      {Object.entries(allIncomeCategories).map(([category, subs]) => {
+                        const unclassifiedSubs = (subs as string[]).filter((sub) =>
+                          getUnclassifiedIncomeSubcategories().includes(`${category}::${sub}`)
+                        )
+                        if (unclassifiedSubs.length === 0) return null
+                        return (
+                          <div key={category} className="mb-4">
+                            <p className="text-xs text-gray-500 mb-2 font-medium">{category}</p>
+                            <div className="flex flex-wrap gap-2">
+                              {unclassifiedSubs.map((sub) => (
+                                <motion.div
+                                  key={`${category}::${sub}`}
+                                  draggable
+                                  onDragStart={() => handleDragStart(`${category}::${sub}`, 'income-category')}
+                                  onDragEnd={handleDragEnd}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full cursor-move hover:bg-white/20 transition-all"
+                                  whileHover={{ scale: 1.05 }}
+                                >
+                                  <GripVertical className="w-3 h-3 text-white/40" />
+                                  <span className="text-sm text-white">{sub}</span>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {getUnclassifiedIncomeSubcategories().length === 0 && (
+                        <p className="text-gray-500 text-sm">All income subcategories classified</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Income Classification Drop Zones */}
+                  <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {INCOME_CLASSIFICATION_TYPES.map((classType) => {
+                      const dataMap: Record<string, string[]> = {
+                        taxable: localPrefs.taxable_income_categories,
+                        investment: localPrefs.investment_returns_categories,
+                        non_taxable: localPrefs.non_taxable_income_categories,
+                        other: localPrefs.other_income_categories,
+                      }
+                      const items = dataMap[classType.value]
+
+                      return (
+                        <div
+                          key={classType.value}
+                          onDragOver={handleDragOver}
+                          onDrop={() => handleDropOnIncomeClassification(classType.value as 'taxable' | 'investment' | 'non_taxable' | 'other')}
+                          className={`bg-white/5 rounded-xl border-2 border-dashed p-4 transition-all min-h-[180px] ${
+                            dragType === 'income-category' ? 'border-white/40 bg-white/10' : 'border-white/20 hover:border-white/30'
+                          }`}
+                        >
+                          <div className={`bg-gradient-to-r ${classType.color} rounded-lg px-3 py-2 mb-2`}>
+                            <h4 className="text-sm font-semibold text-white">{classType.label}</h4>
+                          </div>
+                          <p className="text-xs text-gray-400 mb-3">{classType.description}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {items.map((item) => {
+                              const { display } = parseIncomeItem(item)
+                              return (
+                                <motion.div
+                                  key={item}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full"
+                                  initial={{ scale: 0.8, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                >
+                                  <span className="text-sm text-white">{display}</span>
+                                  <button
+                                    onClick={() => handleRemoveIncomeClassification(classType.value as 'taxable' | 'investment' | 'non_taxable' | 'other', item)}
+                                    className="text-gray-400 hover:text-red-400 transition-colors"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </motion.div>
+                              )
+                            })}
+                            {items.length === 0 && (
+                              <div className="flex items-center justify-center w-full h-16 text-gray-500">
+                                <p className="text-sm">Drop income types here</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             )}

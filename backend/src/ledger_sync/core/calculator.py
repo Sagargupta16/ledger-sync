@@ -26,6 +26,7 @@ class FinancialCalculator:
 
         Returns:
             Dictionary with total_income, total_expenses, net_change
+
         """
         total_income = sum(
             float(t.amount) for t in transactions if t.type == TransactionType.INCOME
@@ -50,6 +51,7 @@ class FinancialCalculator:
 
         Returns:
             Savings rate as percentage (0-100)
+
         """
         if total_income == 0:
             return 0.0
@@ -66,6 +68,7 @@ class FinancialCalculator:
 
         Returns:
             Average daily spending amount
+
         """
         expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
         if not expenses:
@@ -90,6 +93,7 @@ class FinancialCalculator:
 
         Returns:
             Average monthly spending amount
+
         """
         expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
         if not expenses:
@@ -114,9 +118,10 @@ class FinancialCalculator:
 
         Returns:
             Dictionary mapping month (YYYY-MM) to income/expense amounts
+
         """
         monthly_data: dict[str, dict[str, float]] = defaultdict(
-            lambda: {"income": 0.0, "expenses": 0.0}
+            lambda: {"income": 0.0, "expenses": 0.0},
         )
 
         for t in transactions:
@@ -140,6 +145,7 @@ class FinancialCalculator:
 
         Returns:
             Dictionary mapping category to total amount
+
         """
         category_totals: dict[str, float] = defaultdict(float)
 
@@ -159,6 +165,7 @@ class FinancialCalculator:
 
         Returns:
             Dictionary mapping account to total transaction volume
+
         """
         account_totals: dict[str, float] = defaultdict(float)
 
@@ -179,6 +186,7 @@ class FinancialCalculator:
 
         Returns:
             Consistency score (0-100)
+
         """
         if len(monthly_expenses) <= 1:
             return 100.0
@@ -207,6 +215,7 @@ class FinancialCalculator:
 
         Returns:
             Lifestyle inflation as percentage
+
         """
         expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
         expenses.sort(key=lambda t: t.date)
@@ -252,6 +261,7 @@ class FinancialCalculator:
 
         Returns:
             Percentage of total spent on top category
+
         """
         if not category_totals:
             return 0.0
@@ -265,7 +275,8 @@ class FinancialCalculator:
 
     @staticmethod
     def calculate_spending_velocity(
-        transactions: list[Transaction], recent_days: int = 30
+        transactions: list[Transaction],
+        recent_days: int = 30,
     ) -> dict[str, float]:
         """Calculate spending velocity: recent vs historical.
 
@@ -275,6 +286,7 @@ class FinancialCalculator:
 
         Returns:
             Dictionary with recent_daily, historical_daily, velocity_ratio
+
         """
         expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
         if not expenses:
@@ -316,6 +328,7 @@ class FinancialCalculator:
 
         Returns:
             Dictionary with best_month and worst_month details
+
         """
         if not monthly_data:
             return {"best_month": None, "worst_month": None}
@@ -359,6 +372,7 @@ class FinancialCalculator:
 
         Returns:
             Dictionary with convenience_amount, total_amount, percentage
+
         """
         expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
 

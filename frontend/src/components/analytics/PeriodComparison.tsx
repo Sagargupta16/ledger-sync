@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus, Zap, Calendar, ArrowLeftRight } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
@@ -89,7 +89,7 @@ export default function PeriodComparison() {
   }, [transactions])
 
   // Get transaction count for a period
-  const getTransactionCount = (period: string | number, type: 'total' | 'income' | 'expense' = 'total') => {
+  const getTransactionCount = useCallback((period: string | number, type: 'total' | 'income' | 'expense' = 'total') => {
     if (typeof period === 'number') {
       // Year - aggregate all months
       return Object.entries(transactionCounts)
@@ -97,7 +97,7 @@ export default function PeriodComparison() {
         .reduce((sum, [, counts]) => sum + counts[type], 0)
     }
     return transactionCounts[period]?.[type] ?? 0
-  }
+  }, [transactionCounts])
 
   // Helper to create metric row
   function createMetricRow(
@@ -199,7 +199,7 @@ export default function PeriodComparison() {
         createMetricRow('Months with Data', y1.months, y2.months, 'number'),
       ]
     }
-  }, [compareMode, effectiveMonth1, effectiveMonth2, effectiveYear1, effectiveYear2, monthlyData, availableMonths, yearlyData])
+  }, [compareMode, effectiveMonth1, effectiveMonth2, effectiveYear1, effectiveYear2, monthlyData, availableMonths, yearlyData, getTransactionCount])
 
   const formatValue = (value: number, format?: string) => {
     switch (format) {

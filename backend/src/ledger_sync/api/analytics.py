@@ -17,9 +17,10 @@ TIME_RANGE_FILTER_DESC = "Time range filter"
 
 
 def get_filtered_transactions(
-    db: Session, time_range: TimeRange = TimeRange.ALL_TIME
+    db: Session,
+    time_range: TimeRange = TimeRange.ALL_TIME,
 ) -> list[Transaction]:
-    """Helper to get non-deleted transactions filtered by time range."""
+    """Get non-deleted transactions filtered by time range."""
     all_txns = db.query(Transaction).filter(Transaction.is_deleted.is_(False)).all()
     return TimeFilter.filter_by_range(all_txns, time_range)
 
@@ -30,7 +31,6 @@ def get_overview(
     time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get overview statistics: income, expenses, net change, best/worst month."""
-
     transactions = get_filtered_transactions(db, time_range)
 
     if not transactions:
@@ -73,7 +73,6 @@ def get_behavior(
     time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get spending behavior metrics."""
-
     transactions = get_filtered_transactions(db, time_range)
 
     if not transactions:
@@ -134,7 +133,6 @@ def get_trends(
     time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get spending and income trends over time."""
-
     transactions = get_filtered_transactions(db, time_range)
 
     if not transactions:
@@ -182,7 +180,6 @@ def get_yearly_wrapped(
     time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get yearly wrapped insights - text-based narratives."""
-
     transactions = get_filtered_transactions(db, time_range)
 
     if not transactions:
@@ -193,7 +190,8 @@ def get_yearly_wrapped(
     monthly_data = FinancialCalculator.group_by_month(transactions)
     best_worst = FinancialCalculator.find_best_worst_months(monthly_data)
     savings_rate = FinancialCalculator.calculate_savings_rate(
-        totals["total_income"], totals["total_expenses"]
+        totals["total_income"],
+        totals["total_expenses"],
     )
     daily_rate = FinancialCalculator.calculate_daily_spending_rate(transactions)
 
@@ -211,7 +209,7 @@ def get_yearly_wrapped(
                 f"You spent ₹{totals['total_expenses']:,.2f} "
                 f"across {len(expenses)} transactions"
             ),
-        }
+        },
     )
 
     # Total income insight
@@ -222,7 +220,7 @@ def get_yearly_wrapped(
             "description": (
                 f"You earned ₹{totals['total_income']:,.2f} " f"from {len(income_txns)} sources"
             ),
-        }
+        },
     )
 
     # Biggest expense
@@ -236,7 +234,7 @@ def get_yearly_wrapped(
                     f"Your largest expense was ₹{float(biggest.amount):,.2f} "
                     f"in {biggest.category}"
                 ),
-            }
+            },
         )
 
     # Most frequent category
@@ -250,7 +248,7 @@ def get_yearly_wrapped(
                 "title": "Most Frequent Category",
                 "value": most_frequent[0],
                 "description": (f"You made {most_frequent[1]} transactions in {most_frequent[0]}"),
-            }
+            },
         )
 
     # Best month
@@ -264,7 +262,7 @@ def get_yearly_wrapped(
                     f"Your best month was {best['month']} "
                     f"with a surplus of ₹{best['surplus']:,.2f}"
                 ),
-            }
+            },
         )
 
     # Savings rate
@@ -273,7 +271,7 @@ def get_yearly_wrapped(
             "title": "Savings Rate",
             "value": f"{savings_rate:.1f}%",
             "description": f"You saved {savings_rate:.1f}% of your income",
-        }
+        },
     )
 
     # Daily average spending
@@ -282,7 +280,7 @@ def get_yearly_wrapped(
             "title": "Daily Average",
             "value": f"₹{daily_rate:,.2f}",
             "description": f"You spent an average of ₹{daily_rate:,.2f} per day",
-        }
+        },
     )
 
     return {"insights": insights}
@@ -297,7 +295,6 @@ def get_kpis(
     time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get all KPI metrics in one call."""
-
     transactions = get_filtered_transactions(db, time_range)
 
     if not transactions:
@@ -321,14 +318,15 @@ def get_kpis(
 
     return {
         "savings_rate": FinancialCalculator.calculate_savings_rate(
-            totals["total_income"], totals["total_expenses"]
+            totals["total_income"],
+            totals["total_expenses"],
         ),
         "daily_spending_rate": FinancialCalculator.calculate_daily_spending_rate(transactions),
         "monthly_burn_rate": FinancialCalculator.calculate_monthly_burn_rate(transactions),
         "spending_velocity": spending_velocity["velocity_ratio"]
         * 100,  # Convert ratio to percentage
         "category_concentration": FinancialCalculator.calculate_category_concentration(
-            category_totals
+            category_totals,
         ),
         "consistency_score": FinancialCalculator.calculate_consistency_score(monthly_expenses),
         "lifestyle_inflation": FinancialCalculator.calculate_lifestyle_inflation(transactions),
@@ -342,7 +340,6 @@ def get_income_expense_chart(
     time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get data for income vs expense doughnut chart."""
-
     transactions = get_filtered_transactions(db, time_range)
     totals = FinancialCalculator.calculate_totals(transactions)
 
@@ -350,7 +347,7 @@ def get_income_expense_chart(
         "data": [
             {"name": "Income", "value": totals["total_income"]},
             {"name": "Expenses", "value": totals["total_expenses"]},
-        ]
+        ],
     }
 
 
@@ -361,7 +358,6 @@ def get_categories_chart(
     limit: int = Query(10, description="Number of top categories to return"),
 ) -> dict[str, Any]:
     """Get data for top categories bar chart."""
-
     transactions = get_filtered_transactions(db, time_range)
     category_totals = FinancialCalculator.group_by_category(transactions)
 
@@ -377,7 +373,6 @@ def get_monthly_trends_chart(
     time_range: TimeRange = Query(TimeRange.LAST_12_MONTHS, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get data for monthly trends line chart."""
-
     transactions = get_filtered_transactions(db, time_range)
     monthly_data = FinancialCalculator.group_by_month(transactions)
 
@@ -401,7 +396,6 @@ def get_account_distribution_chart(
     time_range: TimeRange = Query(TimeRange.ALL_TIME, description=TIME_RANGE_FILTER_DESC),
 ) -> dict[str, Any]:
     """Get data for account distribution doughnut chart."""
-
     transactions = get_filtered_transactions(db, time_range)
     account_totals = FinancialCalculator.group_by_account(transactions)
 

@@ -5,28 +5,48 @@ import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { formatCurrency, formatCurrencyShort, formatPercent, formatAccountType } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { INCOME_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 
-const COLORS = [...INCOME_COLORS, '#f97316', '#14b8a6']
+// 4 Investment Categories with colors
+const INVESTMENT_CATEGORIES = ['FD/Bonds', 'Mutual Funds', 'PPF/EPF', 'Stocks'] as const
+type InvestmentCategory = typeof INVESTMENT_CATEGORIES[number]
 
-// Investment type colors - using display names as keys
-const INVESTMENT_TYPE_COLORS: Record<string, string> = {
-  'Stocks': '#10b981',
-  'Mutual Funds': '#8b5cf6',
-  'PPF / EPF': '#f59e0b',
-  'PPF': '#f59e0b',
-  'NPS': '#06b6d4',
-  'Fixed Deposits': '#ec4899',
-  'FD': '#ec4899',
-  'EPF': '#14b8a6',
-  'Gold': '#eab308',
-  'Bonds': '#6366f1',
-  'Real Estate': '#84cc16',
-  'Crypto': '#f97316',
-  'Other Investments': '#6b7280',
-  'Other': '#6b7280',
+const CATEGORY_COLORS: Record<InvestmentCategory, string> = {
+  'FD/Bonds': '#ec4899',      // Pink
+  'Mutual Funds': '#8b5cf6',  // Purple
+  'PPF/EPF': '#f59e0b',       // Amber
+  'Stocks': '#10b981',        // Green
+}
+
+// Map investment types from preferences to our 4 categories
+// Handles both raw values (stocks, mutual_funds) and formatted names (Stocks, Mutual Funds)
+const mapToCategory = (investmentType: string): InvestmentCategory => {
+  const type = investmentType.toLowerCase().replace(/[_\s]/g, '')
+  
+  // Check for stocks (handles: stocks, stock, equity, share, demat, rsu)
+  if (type === 'stocks' || type === 'stock' || type.includes('equity') || type.includes('share') || type.includes('demat') || type.includes('rsu')) {
+    return 'Stocks'
+  }
+  
+  // Check for FD/Bonds (handles: fixed_deposits, fd, bonds, deposit)
+  if (type === 'fixeddeposits' || type === 'fd' || type.includes('bond') || type.includes('deposit')) {
+    return 'FD/Bonds'
+  }
+  
+  // Check for PPF/EPF (handles: ppf_epf, ppf, epf, provident, nps, pension)
+  if (type === 'ppfepf' || type === 'ppf' || type === 'epf' || type.includes('provident') || type.includes('nps') || type.includes('pension')) {
+    return 'PPF/EPF'
+  }
+  
+  // Check for Mutual Funds (handles: mutual_funds, mutualfunds, mf, fund)
+  if (type === 'mutualfunds' || type === 'mf' || type.includes('fund') || type.includes('mutual')) {
+    return 'Mutual Funds'
+  }
+  
+  // Default to Mutual Funds for other investments
+  return 'Mutual Funds'
 }
 
 export default function InvestmentAnalyticsPage() {
@@ -49,131 +69,204 @@ export default function InvestmentAnalyticsPage() {
       name,
       value: Math.abs(data.balance || 0),
       balance: data.balance || 0,
-      investmentType: formatAccountType(investmentMappings[name] || 'Other'),
+      investmentType: investmentMappings[name] || 'Other',
     }))
     .filter((acc) => acc.value > 0)
 
-  // Calculate portfolio metrics
-  const totalInvestmentValue = selectedInvestmentAccounts.reduce((sum, acc) => sum + acc.value, 0)
+  // Map accounts to categories - use raw value from preferences for accurate mapping
+  const accountToCategory = useMemo(() => {
+    const mapping: Record<string, InvestmentCategory> = {}
+    Object.entries(investmentMappings).forEach(([accountName, rawType]) => {
+      mapping[accountName] = mapToCategory(rawType as string)
+    })
+    return mapping
+  }, [investmentMappings])
+
+  // Calculate investment totals (NET = IN - OUT)
+  const filteredInvestmentTotals = useMemo(() => {
+    if (!transactions.length || !investmentAccounts.length) {
+      return { byAccount: {} as Record<string, number>, byCategory: {} as Record<InvestmentCategory, number>, total: 0 }
+    }
+    
+    const byAccount: Record<string, number> = {}
+    investmentAccounts.forEach(acc => {
+      byAccount[acc] = 0
+    })
+    
+    const byCategory: Record<InvestmentCategory, number> = {
+      'FD/Bonds': 0,
+      'Mutual Funds': 0,
+      'PPF/EPF': 0,
+      'Stocks': 0,
+    }
+    
+    // Calculate NET investments (IN - OUT)
+    transactions.forEach(tx => {
+      // Transfers TO investment accounts (ADD)
+      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
+        const toAccount = tx.to_account || ''
+        byAccount[toAccount] = (byAccount[toAccount] || 0) + tx.amount
+        const category = accountToCategory[toAccount] || 'Mutual Funds'
+        byCategory[category] += tx.amount
+      }
+      // Transfers FROM investment accounts (SUBTRACT)
+      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) {
+        const fromAccount = tx.from_account || ''
+        byAccount[fromAccount] = (byAccount[fromAccount] || 0) - tx.amount
+        const category = accountToCategory[fromAccount] || 'Mutual Funds'
+        byCategory[category] -= tx.amount
+      }
+      // Income on investment accounts (dividends, interest) - ADD
+      if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) {
+        const account = tx.account || ''
+        byAccount[account] = (byAccount[account] || 0) + tx.amount
+        const category = accountToCategory[account] || 'Mutual Funds'
+        byCategory[category] += tx.amount
+      }
+      // Expenses on investment accounts - SUBTRACT
+      if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) {
+        const account = tx.account || ''
+        byAccount[account] = (byAccount[account] || 0) - tx.amount
+        const category = accountToCategory[account] || 'Mutual Funds'
+        byCategory[category] -= tx.amount
+      }
+    })
+    
+    const total = Object.values(byCategory).reduce((sum, val) => sum + val, 0)
+    
+    return { byAccount, byCategory, total }
+  }, [transactions, investmentAccounts, accountToCategory])
+
+  // Calculate portfolio metrics - use filtered totals
+  const totalInvestmentValue = filteredInvestmentTotals.total
   
   // Simple return calculation based on category breakdown of income
   const investmentReturns = totalInvestmentValue * 0.05 // Assume 5% average returns
 
-  // Group by investment type (from user preferences)
+  // Group by 4 investment categories - based on filtered data
   const investmentTypeBreakdown = useMemo(() => {
-    const breakdown: Record<string, number> = {}
+    const breakdown = filteredInvestmentTotals.byCategory
     
-    selectedInvestmentAccounts.forEach((acc) => {
-      const type = acc.investmentType
-      breakdown[type] = (breakdown[type] || 0) + acc.value
-    })
-    
-    return Object.entries(breakdown)
+    return INVESTMENT_CATEGORIES
+      .filter(cat => breakdown[cat] > 0)
+      .map(name => ({
+        name,
+        value: breakdown[name],
+        color: CATEGORY_COLORS[name],
+        percentage: totalInvestmentValue > 0 ? ((breakdown[name] / totalInvestmentValue) * 100).toFixed(1) : '0',
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [filteredInvestmentTotals, totalInvestmentValue])
+
+  // Prepare pie chart data (individual accounts) - based on filtered data
+  const portfolioData = useMemo(() => {
+    return Object.entries(filteredInvestmentTotals.byAccount)
       .filter(([, value]) => value > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
       .map(([name, value]) => ({
         name,
         value,
-        color: INVESTMENT_TYPE_COLORS[name] || INVESTMENT_TYPE_COLORS['Other'],
-        percentage: totalInvestmentValue > 0 ? ((value / totalInvestmentValue) * 100).toFixed(1) : '0',
+        balance: value,
+        investmentType: accountToCategory[name] || 'Mutual Funds',
+        percentage: totalInvestmentValue > 0 ? (value / totalInvestmentValue * 100).toFixed(1) : '0',
       }))
-      .sort((a, b) => b.value - a.value)
-  }, [selectedInvestmentAccounts, totalInvestmentValue])
+  }, [filteredInvestmentTotals, accountToCategory, totalInvestmentValue])
 
-  // Prepare pie chart data (individual accounts)
-  const portfolioData = selectedInvestmentAccounts
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8)
-    .map((acc) => ({
-      name: acc.name, // Use full account name
-      value: acc.value,
-      balance: acc.balance,
-      investmentType: acc.investmentType,
-      percentage: totalInvestmentValue > 0 ? (acc.value / totalInvestmentValue * 100).toFixed(1) : '0',
-    }))
-
-  // Asset allocation based on user preferences (investmentTypeBreakdown already calculated above)
+  // Asset allocation based on filtered data
   const assetAllocation = investmentTypeBreakdown
 
-  // Calculate monthly portfolio value growth per account
+  // Calculate monthly portfolio value growth by category
+  // This shows NET INVESTMENTS (IN - OUT) over time
   const monthlyGrowthData = useMemo(() => {
     if (!transactions.length || !investmentAccounts.length) return []
     
-    // Filter and sort transactions chronologically
-    // Include transactions where account is an investment account OR to_account is an investment account
+    // Filter for all investment transactions (both IN and OUT)
     const investmentTransactions = transactions
-      .filter(tx => 
-        investmentAccounts.includes(tx.account || '') || 
-        investmentAccounts.includes(tx.to_account || '')
-      )
+      .filter(tx => {
+        // Transfers TO investment accounts (SIP, deposits, purchases)
+        if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
+          return true
+        }
+        // Transfers FROM investment accounts (withdrawals, sales)
+        if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) {
+          return true
+        }
+        // Income on investment accounts (dividends, interest)
+        if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) {
+          return true
+        }
+        // Expenses on investment accounts
+        if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) {
+          return true
+        }
+        return false
+      })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     
     if (investmentTransactions.length === 0) return []
     
-    // Track running balance per account
-    const accountBalances: Record<string, number> = {}
+    // Track NET investment per account
+    const accountInvestments: Record<string, number> = {}
     investmentAccounts.forEach(acc => {
-      accountBalances[acc] = 0
+      accountInvestments[acc] = 0
     })
     
-    // Track balance at end of each month
-    const monthlySnapshots: Array<{ month: string, balances: Record<string, number> }> = []
+    // Track at end of each month
+    const monthlySnapshots: Array<{ month: string, investments: Record<string, number> }> = []
     let currentMonth = ''
     
     investmentTransactions.forEach(tx => {
       const date = new Date(tx.date)
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
       
-      // Update running balance - amounts are always positive in DB
-      // Use transaction type to determine if we add or subtract
-      const amount = tx.amount // Already positive
+      const amount = tx.amount
       
-      // For investment accounts, we need to handle:
-      // 1. Transfers FROM bank accounts TO investment accounts (buy/deposit)
-      // 2. Transfers FROM investment accounts TO bank accounts (sell/withdrawal)
-      // 3. Income/Expense transactions directly on investment accounts
-      
-      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
-        // Money flowing TO investment account (SIP, deposit, buy)
-        const toAccount = tx.to_account || 'Unknown'
-        accountBalances[toAccount] += amount
-      } else if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) {
-        // Money flowing FROM investment account (sale, withdrawal)
-        const fromAccount = tx.from_account || 'Unknown'
-        accountBalances[fromAccount] -= amount
-      } else if (investmentAccounts.includes(tx.account || '')) {
-        // Regular Income/Expense on investment account
-        const account = tx.account || 'Unknown'
-        if (tx.type === 'Income') {
-          accountBalances[account] += amount
-        } else if (tx.type === 'Expense') {
-          accountBalances[account] -= amount
-        }
-      }
-      
-      // Save snapshot at end of each month
+      // Save previous month before processing new month's first transaction
       if (monthKey !== currentMonth && currentMonth !== '') {
         monthlySnapshots.push({
           month: currentMonth,
-          balances: { ...accountBalances }
+          investments: { ...accountInvestments }
         })
       }
       currentMonth = monthKey
+      
+      // Add inflows
+      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
+        const toAccount = tx.to_account || 'Unknown'
+        accountInvestments[toAccount] += amount
+      }
+      // Subtract outflows
+      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) {
+        const fromAccount = tx.from_account || 'Unknown'
+        accountInvestments[fromAccount] -= amount
+      }
+      // Add income
+      if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) {
+        const account = tx.account || 'Unknown'
+        accountInvestments[account] += amount
+      }
+      // Subtract expenses
+      if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) {
+        const account = tx.account || 'Unknown'
+        accountInvestments[account] -= amount
+      }
     })
     
     // Add final month
     if (currentMonth) {
       monthlySnapshots.push({
         month: currentMonth,
-        balances: { ...accountBalances }
+        investments: { ...accountInvestments }
       })
     }
     
-    // Get all months and fill gaps
     if (monthlySnapshots.length === 0) return []
     
     const firstMonth = monthlySnapshots[0].month
     const lastMonth = monthlySnapshots[monthlySnapshots.length - 1].month
     
+    // Generate all months in range
     const allMonths: string[] = []
     let [year, month] = firstMonth.split('-').map(Number)
     const [endYear, endMonth] = lastMonth.split('-').map(Number)
@@ -187,35 +280,52 @@ export default function InvestmentAnalyticsPage() {
       }
     }
     
-    // Build chart data
-    const snapshotMap = new Map(monthlySnapshots.map(s => [s.month, s.balances]))
+    // Build chart data grouped by category
+    const snapshotMap = new Map(monthlySnapshots.map(s => [s.month, s.investments]))
     const lastKnown: Record<string, number> = {}
     investmentAccounts.forEach(acc => {
       lastKnown[acc] = 0
     })
     
     const chartData = allMonths.map(month => {
-      const [year, monthNum] = month.split('-')
+      const [yearStr, monthNum] = month.split('-')
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-      const displayMonth = `${monthNames[parseInt(monthNum) - 1]} ${year.slice(2)}`
+      const displayMonth = `${monthNames[parseInt(monthNum) - 1]} ${yearStr.slice(2)}`
       
       const dataPoint: Record<string, string | number> = { month: displayMonth, fullMonth: month }
       
       const snapshot = snapshotMap.get(month)
       
+      // Update lastKnown from snapshot if available
+      if (snapshot) {
+        investmentAccounts.forEach(account => {
+          lastKnown[account] = snapshot[account] || lastKnown[account]
+        })
+      }
+      
+      // Aggregate by category
+      const categoryTotals: Record<InvestmentCategory, number> = {
+        'FD/Bonds': 0,
+        'Mutual Funds': 0,
+        'PPF/EPF': 0,
+        'Stocks': 0,
+      }
+      
       investmentAccounts.forEach(account => {
-        if (snapshot) {
-          lastKnown[account] = snapshot[account] || 0
-        }
-        // Show actual balance including negatives
-        dataPoint[account] = lastKnown[account]
+        const category = accountToCategory[account] || 'Mutual Funds'
+        categoryTotals[category] += lastKnown[account]
+      })
+      
+      // Add each category to the data point (always >= 0)
+      INVESTMENT_CATEGORIES.forEach(cat => {
+        dataPoint[cat] = Math.max(0, categoryTotals[cat])
       })
       
       return dataPoint
     })
     
     return chartData
-  }, [transactions, investmentAccounts])
+  }, [transactions, investmentAccounts, accountToCategory])
 
   if (totalInvestmentValue === 0) {
     return (
@@ -250,7 +360,7 @@ export default function InvestmentAnalyticsPage() {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
             Investment Analytics
           </h1>
-          <p className="text-muted-foreground mt-2">Track your investment portfolio and returns</p>
+          <p className="text-muted-foreground mt-2">Track your collective investment portfolio</p>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -388,10 +498,10 @@ export default function InvestmentAnalyticsPage() {
             <ResponsiveContainer width="100%" height={400}>
                 <AreaChart data={monthlyGrowthData}>
                   <defs>
-                    {investmentAccounts.map((account, index) => (
-                      <linearGradient key={`gradient-${account}`} id={`color-${index}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.2}/>
+                    {INVESTMENT_CATEGORIES.map((category) => (
+                      <linearGradient key={`gradient-${category}`} id={`color-${category.replace(/[\s\/]/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.2}/>
                       </linearGradient>
                     ))}
                   </defs>
@@ -417,20 +527,20 @@ export default function InvestmentAnalyticsPage() {
                     }}
                     labelStyle={{ color: '#9ca3af' }}
                     itemStyle={{ color: '#fff' }}
-                    formatter={(value: number) => [formatCurrency(value), '']}
+                    formatter={(value: number, name: string) => [formatCurrency(value), name]}
                     labelFormatter={(label) => `Month: ${label}`}
                   />
                   <Legend />
-                  {investmentAccounts.map((account, index) => (
+                  {INVESTMENT_CATEGORIES.map((category) => (
                     <Area 
-                      key={account}
+                      key={category}
                       type="monotone" 
-                      dataKey={account}
+                      dataKey={category}
                       stackId="1"
-                      stroke={COLORS[index % COLORS.length]} 
+                      stroke={CATEGORY_COLORS[category]} 
                       strokeWidth={2}
                       fillOpacity={1} 
-                      fill={`url(#color-${index})`}
+                      fill={`url(#color-${category.replace(/[\s\/]/g, '-')})`}
                     />
                   ))}
                 </AreaChart>

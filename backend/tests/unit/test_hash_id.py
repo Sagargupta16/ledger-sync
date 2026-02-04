@@ -1,9 +1,12 @@
 """Tests for transaction ID hashing."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from ledger_sync.ingest.hash_id import TransactionHasher
+
+# SHA-256 produces 64 character hex string
+SHA256_HEX_LENGTH = 64
 
 
 class TestTransactionHasher:
@@ -13,7 +16,7 @@ class TestTransactionHasher:
         """Test that identical inputs produce identical hashes."""
         hasher = TransactionHasher()
 
-        date = datetime(2024, 1, 15, 10, 30, 0)
+        date = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
         amount = Decimal("100.50")
         account = "Cash"
         note = "Test transaction"
@@ -27,7 +30,7 @@ class TestTransactionHasher:
         """Test that different inputs produce different hashes."""
         hasher = TransactionHasher()
 
-        base_date = datetime(2024, 1, 15, 10, 30, 0)
+        base_date = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
         base_amount = Decimal("100.50")
 
         hash1 = hasher.generate_transaction_id(base_date, base_amount, "Cash", "Note1")
@@ -40,19 +43,19 @@ class TestTransactionHasher:
         hasher = TransactionHasher()
 
         transaction_id = hasher.generate_transaction_id(
-            datetime(2024, 1, 15),
+            datetime(2024, 1, 15, tzinfo=UTC),
             Decimal("100.00"),
             "Cash",
             "Test",
         )
 
-        assert len(transaction_id) == 64
+        assert len(transaction_id) == SHA256_HEX_LENGTH
 
     def test_case_insensitive_strings(self):
         """Test that string normalization is case-insensitive."""
         hasher = TransactionHasher()
 
-        date = datetime(2024, 1, 15)
+        date = datetime(2024, 1, 15, tzinfo=UTC)
         amount = Decimal("100.00")
 
         hash1 = hasher.generate_transaction_id(date, amount, "Cash", "Test Note")
@@ -64,7 +67,7 @@ class TestTransactionHasher:
         """Test that whitespace is normalized."""
         hasher = TransactionHasher()
 
-        date = datetime(2024, 1, 15)
+        date = datetime(2024, 1, 15, tzinfo=UTC)
         amount = Decimal("100.00")
 
         hash1 = hasher.generate_transaction_id(date, amount, "Cash", "Test")
@@ -76,11 +79,11 @@ class TestTransactionHasher:
         """Test that None notes are handled correctly."""
         hasher = TransactionHasher()
 
-        date = datetime(2024, 1, 15)
+        date = datetime(2024, 1, 15, tzinfo=UTC)
         amount = Decimal("100.00")
 
         hash1 = hasher.generate_transaction_id(date, amount, "Cash", None)
         hash2 = hasher.generate_transaction_id(date, amount, "Cash", None)
 
         assert hash1 == hash2
-        assert len(hash1) == 64
+        assert len(hash1) == SHA256_HEX_LENGTH

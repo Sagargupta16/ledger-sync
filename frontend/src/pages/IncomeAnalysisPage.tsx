@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, DollarSign, Activity, BarChart3, Calendar, Wallet, Briefcase, Gift, PiggyBank } from 'lucide-react'
-import { useCategoryBreakdown } from '@/hooks/useAnalytics'
+import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
@@ -9,58 +8,93 @@ import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/format
 import { INCOME_COLORS } from '@/constants/chartColors'
 import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
+import AnalyticsTimeFilter, { 
+  type AnalyticsViewMode, 
+  getCurrentFY, 
+  getAnalyticsDateRange 
+} from '@/components/shared/AnalyticsTimeFilter'
 import { 
-  calculateIncomeBreakdown, 
-  INCOME_TYPE_LABELS, 
-  INCOME_TYPE_COLORS,
-  type IncomeType 
+  calculateIncomeByCategoryBreakdown,
+  calculateCashbacksTotal,
+  INCOME_CATEGORY_COLORS,
 } from '@/lib/preferencesUtils'
 
 const COLORS = INCOME_COLORS
 
-// Icons for income types
-const INCOME_TYPE_ICONS: Record<IncomeType, React.ComponentType<{ className?: string }>> = {
-  salary: Briefcase,
-  bonus: Gift,
-  investmentIncome: TrendingUp,
-  cashback: Wallet,
-  other: PiggyBank,
+// Icons for income categories (based on actual data categories)
+const INCOME_CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  'Employment Income': Briefcase,
+  'Investment Income': TrendingUp,
+  'Refund & Cashbacks': Wallet,
+  'One-time Income': PiggyBank,
+  'Other Income': DollarSign,
+  'Business/Self Employment Income': Activity,
 }
 
 export default function IncomeAnalysisPage() {
-  const [viewMode, setViewMode] = useState<'monthly' | 'yearly' | 'all_time'>('yearly')
+  const { data: preferences } = usePreferences()
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
+
+  // Time filter state
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('fy')
   const [currentYear, setCurrentYear] = useState(getCurrentYear())
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
+  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
   
-  const { data: incomeData, isLoading: incomeLoading } = useCategoryBreakdown({ transaction_type: 'income' })
   const { data: transactions } = useTransactions()
-  const { data: preferences } = usePreferences()
 
-  const totalIncome = incomeData?.total || 0
-  const topSource = Object.entries(incomeData?.categories || {}).sort((a, b) => b[1].total - a[1].total)[0]?.[0] || 'N/A'
+  // Get date range based on current filter
+  const dateRange = useMemo(() => {
+    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
+  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
 
-  // Calculate income breakdown by type (salary, bonus, investment, cashback)
-  const incomeBreakdown = useMemo(() => {
-    if (!transactions || !preferences) return null
+  // Filter transactions by date range
+  const filteredTransactions = useMemo(() => {
+    if (!transactions) return []
+    if (!dateRange.start_date) return transactions
     
-    return calculateIncomeBreakdown(transactions, {
-      salary: preferences.salary_categories || {},
-      bonus: preferences.bonus_categories || {},
-      investmentIncome: preferences.investment_income_categories || {},
-      cashback: preferences.cashback_categories || {},
+    return transactions.filter((t) => {
+      return t.date >= dateRange.start_date! && (!dateRange.end_date || t.date <= dateRange.end_date)
     })
-  }, [transactions, preferences])
+  }, [transactions, dateRange])
 
-  // Prepare income type chart data
+  // Calculate totals for filtered period
+  const totalIncome = useMemo(() => {
+    return filteredTransactions
+      .filter((t) => t.type === 'Income')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  }, [filteredTransactions])
+
+  // Calculate income breakdown by actual data category (for display)
+  const incomeBreakdown = useMemo(() => {
+    return calculateIncomeByCategoryBreakdown(filteredTransactions)
+  }, [filteredTransactions])
+
+  // Calculate total cashbacks using preferences classification
+  const cashbacksTotal = useMemo(() => {
+    if (!preferences) return 0
+    
+    const incomeClassification = {
+      taxable: preferences.taxable_income_categories || [],
+      investmentReturns: preferences.investment_returns_categories || [],
+      nonTaxable: preferences.non_taxable_income_categories || [],
+      other: preferences.other_income_categories || [],
+    }
+    
+    return calculateCashbacksTotal(filteredTransactions, incomeClassification)
+  }, [filteredTransactions, preferences])
+
+  // Prepare income category chart data (using actual data categories)
   const incomeTypeChartData = useMemo(() => {
     if (!incomeBreakdown) return []
-    return (Object.entries(incomeBreakdown) as [IncomeType, number][])
+    const defaultColor = '#6b7280'
+    return Object.entries(incomeBreakdown)
       .filter(([, value]) => value > 0)
-      .map(([type, value]) => ({
-        name: INCOME_TYPE_LABELS[type],
-        type,
+      .map(([category, value]) => ({
+        name: category,
+        category,
         value,
-        color: INCOME_TYPE_COLORS[type],
+        color: INCOME_CATEGORY_COLORS[category] || defaultColor,
       }))
       .sort((a, b) => b.value - a.value)
   }, [incomeBreakdown])
@@ -70,19 +104,7 @@ export default function IncomeAnalysisPage() {
 
   // Process income trend data
   const trendData = useMemo(() => {
-    if (!transactions) return []
-    
-    const incomeTransactions = transactions.filter((t) => {
-      if (t.type !== 'Income') return false
-      if (viewMode === 'yearly') {
-        const txYear = Number.parseInt(t.date.substring(0, 4))
-        return txYear === currentYear
-      }
-      if (viewMode === 'monthly') {
-        return t.date.substring(0, 7) === currentMonth
-      }
-      return true // all_time
-    })
+    const incomeTransactions = filteredTransactions.filter((t) => t.type === 'Income')
     
     const periodGroups: Record<string, number> = {}
     
@@ -90,7 +112,7 @@ export default function IncomeAnalysisPage() {
       let period: string
       if (viewMode === 'monthly') {
         period = tx.date.substring(8, 10) // DD
-      } else if (viewMode === 'yearly') {
+      } else if (viewMode === 'yearly' || viewMode === 'fy') {
         period = tx.date.substring(5, 7) // MM
       } else {
         // all_time: quarterly
@@ -110,22 +132,24 @@ export default function IncomeAnalysisPage() {
       const month = Number.parseInt(currentMonth.substring(5, 7))
       const daysInMonth = new Date(year, month, 0).getDate()
       allPeriods = Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'))
-    } else if (viewMode === 'yearly') {
+    } else if (viewMode === 'yearly' || viewMode === 'fy') {
       allPeriods = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
     } else {
-      allPeriods = Object.keys(periodGroups).sort()
+      allPeriods = Object.keys(periodGroups).sort((a, b) => a.localeCompare(b))
     }
     
-    return allPeriods.map((period) => ({
-      period,
-      displayPeriod: viewMode === 'monthly'
-        ? period
-        : viewMode === 'yearly'
-        ? new Date(currentYear, Number.parseInt(period) - 1).toLocaleDateString('en-US', { month: 'short' })
-        : period,
-      income: periodGroups[period] || 0
-    }))
-  }, [transactions, viewMode, currentYear, currentMonth])
+    return allPeriods.map((period) => {
+      let displayPeriod = period
+      if (viewMode === 'yearly' || viewMode === 'fy') {
+        displayPeriod = new Date(currentYear, Number.parseInt(period) - 1).toLocaleDateString('en-US', { month: 'short' })
+      }
+      return {
+        period,
+        displayPeriod,
+        income: periodGroups[period] || 0
+      }
+    })
+  }, [filteredTransactions, viewMode, currentYear, currentMonth])
 
   // Calculate metrics
   const avgIncome = useMemo(() => {
@@ -138,19 +162,33 @@ export default function IncomeAnalysisPage() {
     if (trendData.length < 2) return 0
     const nonZeroData = trendData.filter(d => d.income > 0)
     if (nonZeroData.length < 2) return 0
-    return ((nonZeroData[nonZeroData.length - 1].income - nonZeroData[0].income) / nonZeroData[0].income * 100)
+    const lastValue = nonZeroData.at(-1)?.income || 0
+    const firstValue = nonZeroData[0]?.income || 1
+    return ((lastValue - firstValue) / firstValue * 100)
   }, [trendData])
 
-  const isLoading = incomeLoading
+  const isLoading = !transactions
 
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-            Income Analysis
-          </h1>
-          <p className="text-muted-foreground mt-2">Track income sources and trends</p>
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
+              Income Analysis
+            </h1>
+            <p className="text-muted-foreground mt-2">Track income sources and trends</p>
+          </div>
+          <AnalyticsTimeFilter
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            currentYear={currentYear}
+            currentMonth={currentMonth}
+            currentFY={currentFY}
+            onYearChange={setCurrentYear}
+            onMonthChange={setCurrentMonth}
+            onFYChange={setCurrentFY}
+          />
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -193,24 +231,24 @@ export default function IncomeAnalysisPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-cyan-500/20 rounded-xl shadow-lg shadow-cyan-500/30">
-                <Calendar className="w-6 h-6 text-cyan-500" />
+                <Wallet className="w-6 h-6 text-cyan-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Avg per Period</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : formatCurrency(avgIncome)}</p>
+                <p className="text-sm text-muted-foreground">💳 Cashbacks Earned</p>
+                <p className="text-2xl font-bold text-cyan-400">{isLoading ? '...' : formatCurrency(cashbacksTotal)}</p>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Income Type Breakdown */}
+        {/* Income Category Breakdown */}
         <motion.div 
           className="glass p-6 rounded-xl border border-white/10"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.55 }}
         >
-          <h3 className="text-lg font-semibold text-white mb-4">Income by Type</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Income by Category</h3>
           {incomeTypeChartData.length > 0 ? (
             <div className="flex flex-col lg:flex-row items-center gap-8">
               <div className="w-64 h-64">
@@ -245,7 +283,7 @@ export default function IncomeAnalysisPage() {
               </div>
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {incomeTypeChartData.map((item) => {
-                  const Icon = INCOME_TYPE_ICONS[item.type as IncomeType]
+                  const Icon = INCOME_CATEGORY_ICONS[item.category] || DollarSign
                   const percentage = incomeBreakdown
                     ? ((item.value / Object.values(incomeBreakdown).reduce((a, b) => a + b, 0)) * 100).toFixed(1)
                     : '0'
@@ -293,74 +331,9 @@ export default function IncomeAnalysisPage() {
           transition={{ delay: 0.6 }}
         >
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <BarChart3 className="w-5 h-5 text-green-400" />
-                <h3 className="text-lg font-semibold text-white">Income Trend</h3>
-              </div>
-            </div>
-
-            {/* View Controls */}
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <select
-                value={viewMode}
-                onChange={(e) => setViewMode(e.target.value as 'monthly' | 'yearly' | 'all_time')}
-                className="px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-sm focus:outline-none"
-              >
-                <option value="monthly" className="bg-gray-800 text-gray-200">Monthly View</option>
-                <option value="yearly" className="bg-gray-800 text-gray-200">Yearly View</option>
-                <option value="all_time" className="bg-gray-800 text-gray-200">All Time</option>
-              </select>
-
-              {/* Navigation */}
-              {viewMode === 'monthly' && (
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => {
-                      const date = new Date(currentMonth + '-01')
-                      date.setMonth(date.getMonth() - 1)
-                      setCurrentMonth(date.toISOString().substring(0, 7))
-                    }}
-                    className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
-                    type="button"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                  </button>
-                  <span className="text-white font-medium min-w-[120px] text-center">
-                    {new Date(currentMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                  </span>
-                  <button
-                    onClick={() => {
-                      const date = new Date(currentMonth + '-01')
-                      date.setMonth(date.getMonth() + 1)
-                      setCurrentMonth(date.toISOString().substring(0, 7))
-                    }}
-                    className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
-                    type="button"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                  </button>
-                </div>
-              )}
-              {viewMode === 'yearly' && (
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setCurrentYear((prev) => prev - 1)}
-                    className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
-                    type="button"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                  </button>
-                  <span className="text-white font-medium min-w-[100px] text-center">Year {currentYear}</span>
-                  <button
-                    onClick={() => setCurrentYear((prev) => prev + 1)}
-                    className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
-                    type="button"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                  </button>
-                </div>
-              )}
+            <div className="flex items-center gap-3">
+              <TrendingUp className="w-5 h-5 text-green-400" />
+              <h3 className="text-lg font-semibold text-white">Income Trend</h3>
             </div>
 
             {/* Chart */}
@@ -424,25 +397,23 @@ export default function IncomeAnalysisPage() {
         >
           <h3 className="text-lg font-semibold text-white mb-4">Income Sources</h3>
           <div className="space-y-3">
-            {Object.entries(incomeData?.categories || {})
-              .sort((a, b) => b[1].total - a[1].total)
-              .map(([source, data], index) => (
+            {incomeTypeChartData.map((item, index) => (
                 <div
-                  key={source}
+                  key={item.name}
                   className="flex items-center justify-between p-4 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-all"
                 >
                   <div className="flex items-center gap-3 flex-1">
                     <div
                       className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      style={{ backgroundColor: item.color }}
                     />
-                    <span className="font-medium text-white">{source}</span>
+                    <span className="font-medium text-white">{item.name}</span>
                   </div>
                   <div className="text-right">
                     <div className="font-semibold text-white">
-                      {formatCurrency(data.total)}
+                      {formatCurrency(item.value)}
                     </div>
-                    <div className="text-sm text-gray-400">{formatPercent(data.percentage)}</div>
+                    <div className="text-sm text-gray-400">{formatPercent((item.value / totalIncome) * 100)}</div>
                   </div>
                 </div>
               ))}

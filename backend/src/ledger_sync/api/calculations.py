@@ -32,6 +32,7 @@ def get_master_categories(db: Session = Depends(get_session)) -> dict[str, Any]:
                 ...
             }
         }
+
     """
     result: dict[str, dict[str, list[str]]] = {
         "income": {},
@@ -71,7 +72,7 @@ def get_master_categories(db: Session = Depends(get_session)) -> dict[str, Any]:
 
 
 def _format_largest_transaction(largest: Transaction | None) -> dict[str, Any] | None:
-    """Helper to format largest transaction data."""
+    """Format largest transaction data."""
     if not largest:
         return None
     return {
@@ -82,7 +83,9 @@ def _format_largest_transaction(largest: Transaction | None) -> dict[str, Any] |
 
 
 def get_transactions(
-    db: Session, start_date: datetime | None = None, end_date: datetime | None = None
+    db: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
 ) -> list[Transaction]:
     """Get non-deleted transactions, optionally filtered by date range."""
     query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
@@ -102,7 +105,6 @@ def get_totals(
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate total income, expenses, and net savings."""
-
     transactions = get_transactions(db, start_date, end_date)
 
     total_income = sum(float(tx.amount) for tx in transactions if tx.type == TransactionType.INCOME)
@@ -128,7 +130,6 @@ def get_monthly_aggregation(
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate monthly income and expense aggregation."""
-
     transactions = get_transactions(db, start_date, end_date)
 
     monthly_data: dict[str, dict[str, float]] = {}
@@ -167,7 +168,6 @@ def get_yearly_aggregation(
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate yearly income and expense aggregation."""
-
     transactions = get_transactions(db, start_date, end_date)
 
     yearly_data: dict[str, dict[str, Any]] = {}
@@ -211,7 +211,6 @@ def get_category_breakdown(
     transaction_type: str | None = Query(None, description="Filter by type: Income or Expense"),
 ) -> dict[str, Any]:
     """Calculate spending/income breakdown by category and subcategory."""
-
     transactions = get_transactions(db, start_date, end_date)
 
     # Filter by type if specified
@@ -265,7 +264,6 @@ def get_account_balances(
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate current balance for each account including transfers."""
-
     transactions = get_transactions(db, start_date, end_date)
 
     # Note: Transfers are now stored in transactions table with type='Transfer'
@@ -366,7 +364,6 @@ def get_financial_insights(
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate comprehensive financial insights."""
-
     transactions = get_transactions(db, start_date, end_date)
 
     expenses = [tx for tx in transactions if tx.type == TransactionType.EXPENSE]
@@ -418,7 +415,7 @@ def get_financial_insights(
                         "average_amount": avg_amount,
                         "deviation": ((float(tx.amount) - avg_amount) / avg_amount * 100),
                         "date": tx.date.isoformat(),
-                    }
+                    },
                 )
 
     return {
@@ -448,7 +445,6 @@ def get_daily_net_worth(
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate daily income and expense data for net worth trends."""
-
     transactions = get_transactions(db, start_date, end_date)
 
     daily_data: dict[str, dict[str, float]] = {}
@@ -481,7 +477,7 @@ def get_daily_net_worth(
                 "net_worth": cumulative_net_worth,
                 "income": daily_data[date_key]["income"],
                 "expense": daily_data[date_key]["expense"],
-            }
+            },
         )
 
     return {
@@ -499,7 +495,6 @@ def get_top_categories(
     transaction_type: str | None = Query(None, description="Filter by type: Income or Expense"),
 ) -> list[dict[str, Any]]:
     """Get top N categories by amount."""
-
     transactions = get_transactions(db, start_date, end_date)
 
     # Filter by type if specified
@@ -522,7 +517,7 @@ def get_top_categories(
     total_amount = sum(category_totals.values())
 
     # Sort by amount and take top N
-    top_categories = sorted(
+    return sorted(
         [
             {
                 "category": cat,
@@ -535,5 +530,3 @@ def get_top_categories(
         key=lambda x: x["amount"],
         reverse=True,
     )[:limit]
-
-    return top_categories

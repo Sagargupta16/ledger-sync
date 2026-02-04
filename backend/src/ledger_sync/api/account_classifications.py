@@ -18,6 +18,7 @@ async def get_all_classifications(db: Session = Depends(get_session)) -> dict[st
 
     Returns:
         Dictionary mapping account names to their account types
+
     """
     stmt = select(AccountClassification)
     classifications = db.execute(stmt).scalars().all()
@@ -27,15 +28,18 @@ async def get_all_classifications(db: Session = Depends(get_session)) -> dict[st
 
 @router.get("/{account_name}")
 async def get_classification(
-    account_name: str, db: Session = Depends(get_session)
+    account_name: str,
+    db: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """Get classification for a specific account.
 
     Args:
         account_name: Name of the account
+        db: Database session
 
     Returns:
         Account classification details or 404 if not found
+
     """
     stmt = select(AccountClassification).where(AccountClassification.account_name == account_name)
     classification = db.execute(stmt).scalar()
@@ -61,9 +65,11 @@ async def create_or_update_classification(
         account_name: Name of the account
         account_type: Type of account (Investment, Debt, Loan, Savings,
             Checking, Credit Card, Other)
+        db: Database session
 
     Returns:
         Created/updated classification
+
     """
     # Validate account type
     try:
@@ -106,9 +112,11 @@ async def delete_classification(
 
     Args:
         account_name: Name of the account
+        db: Database session
 
     Returns:
         Success status
+
     """
     stmt = select(AccountClassification).where(AccountClassification.account_name == account_name)
     classification = db.execute(stmt).scalar()
@@ -129,9 +137,11 @@ async def get_accounts_by_type(
 
     Args:
         account_type: Type of account to filter by
+        db: Database session
 
     Returns:
         List of account names with the specified type
+
     """
     try:
         acc_type = AccountType(account_type)

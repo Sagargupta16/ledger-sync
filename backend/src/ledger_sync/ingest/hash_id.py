@@ -18,6 +18,7 @@ class TransactionHasher:
 
         Returns:
             Normalized string representation
+
         """
         if value is None:
             return ""
@@ -63,6 +64,7 @@ class TransactionHasher:
 
         Returns:
             64-character hex-encoded transaction ID
+
         """
         # Normalize each component
         norm_date = self.normalize_for_hash(date)
@@ -81,6 +83,4 @@ class TransactionHasher:
 
         # Generate SHA-256 hash
         hash_bytes = hashlib.sha256(hash_input.encode("utf-8")).digest()
-        transaction_id = hash_bytes.hex()
-
-        return transaction_id
+        return hash_bytes.hex()

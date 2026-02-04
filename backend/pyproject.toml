@@ -44,6 +44,22 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# Allow asserts in tests
+"tests/**/*.py" = ["S101"]
+# Migration files are auto-generated
+"**/migrations/**/*.py" = ["D100", "D103", "D104", "D400", "D415"]
+# FastAPI dependency injection uses Depends() in defaults - this is the standard pattern
+# Boolean params in Query() are also standard FastAPI patterns
+# PERF401 - conditional appends in loops are more readable than list.extend alternatives
+"src/ledger_sync/api/**/*.py" = ["B008", "FBT001", "FBT002", "FBT003", "PERF401"]
+# CLI uses typer.Argument/Option in defaults - this is the standard pattern
+"src/ledger_sync/cli/**/*.py" = ["B008", "FBT001", "FBT002", "FBT003"]
+# Core module has boolean parameter in sync_engine.import_file which is intentional
+# PERF401 - conditional appends in loops are more readable
+"src/ledger_sync/core/sync_engine.py" = ["FBT001", "FBT002"]
+"src/ledger_sync/core/analytics_engine.py" = ["PERF401"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

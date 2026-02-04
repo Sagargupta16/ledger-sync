@@ -22,6 +22,7 @@ class SyncEngine:
 
         Args:
             session: Database session
+
         """
         self.session = session
         self.loader = ExcelLoader()
@@ -36,6 +37,7 @@ class SyncEngine:
 
         Returns:
             ImportLog if file was previously imported, None otherwise
+
         """
         stmt = select(ImportLog).where(ImportLog.file_hash == file_hash)
         return self.session.execute(stmt).scalar_one_or_none()
@@ -52,6 +54,7 @@ class SyncEngine:
 
         Raises:
             ValueError: If file was already imported and force=False
+
         """
         logger.info(f"Starting import of {file_path}")
         import_time = datetime.now(UTC)
@@ -63,10 +66,11 @@ class SyncEngine:
         existing_import = self.check_already_imported(file_hash)
         if existing_import and not force:
             logger.info(f"File already imported at {existing_import.imported_at}")
-            raise ValueError(
+            msg = (
                 f"File already imported at {existing_import.imported_at}. "
                 "Use --force to re-import."
             )
+            raise ValueError(msg)
 
         # Step 2: Normalize data
         logger.info("Normalizing data...")
@@ -140,7 +144,7 @@ class SyncEngine:
             analytics_engine = AnalyticsEngine(self.session)
             analytics_results = analytics_engine.run_full_analytics(source_file=file_path.name)
             logger.info(f"Analytics completed: {analytics_results}")
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError) as e:
             # Analytics failure shouldn't fail the import
             logger.error(f"Analytics calculation failed (non-fatal): {e}")
 

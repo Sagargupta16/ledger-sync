@@ -136,6 +136,7 @@ async def get_transactions(
 
     Returns:
         Paginated list of transactions in JSON format
+
     """
     # Build query
     query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
@@ -152,28 +153,26 @@ async def get_transactions(
     # Apply sorting and pagination
     transactions = query.order_by(Transaction.date.desc()).offset(offset).limit(limit).all()
 
-    result = []
-
-    # Add transactions
-    for tx in transactions:
-        result.append(
-            TransactionResponse(
-                id=tx.transaction_id,
-                date=tx.date.isoformat(),
-                amount=float(tx.amount),
-                currency=tx.currency,
-                type=tx.type.value,
-                category=tx.category,
-                subcategory=tx.subcategory or "",
-                account=tx.account,
-                from_account=tx.from_account,
-                to_account=tx.to_account,
-                note=tx.note or "",
-                source_file=tx.source_file,
-                last_seen_at=tx.last_seen_at.isoformat(),
-                is_transfer=tx.type.value == "Transfer",
-            )
+    # Convert transactions to response objects
+    result = [
+        TransactionResponse(
+            id=tx.transaction_id,
+            date=tx.date.isoformat(),
+            amount=float(tx.amount),
+            currency=tx.currency,
+            type=tx.type.value,
+            category=tx.category,
+            subcategory=tx.subcategory or "",
+            account=tx.account,
+            from_account=tx.from_account,
+            to_account=tx.to_account,
+            note=tx.note or "",
+            source_file=tx.source_file,
+            last_seen_at=tx.last_seen_at.isoformat(),
+            is_transfer=tx.type.value == "Transfer",
         )
+        for tx in transactions
+    ]
 
     return TransactionsListResponse(
         data=result,
@@ -199,7 +198,9 @@ async def search_transactions(
     limit: int = Query(100, ge=1, le=1000, description="Maximum results to return"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     sort_by: str = Query(
-        "date", pattern="^(date|amount|category|account)$", description="Sort field"
+        "date",
+        pattern="^(date|amount|category|account)$",
+        description="Sort field",
     ),
     sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
 ) -> dict[str, Any]:
@@ -223,6 +224,7 @@ async def search_transactions(
 
     Returns:
         Dictionary with filtered transactions, total count, and pagination info
+
     """
     # Start with base query
     tx_query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
@@ -252,7 +254,7 @@ async def search_transactions(
         tx_query = tx_query.filter(
             (Transaction.account == account)
             | (Transaction.from_account == account)
-            | (Transaction.to_account == account)
+            | (Transaction.to_account == account),
         )
 
     # Apply type filter
@@ -271,28 +273,25 @@ async def search_transactions(
     transactions = tx_query.all()
 
     # Convert to result format
-    result = []
-
-    # Add transactions
-    for tx in transactions:
-        result.append(
-            {
-                "id": tx.transaction_id,
-                "date": tx.date.isoformat(),
-                "amount": float(tx.amount),
-                "currency": tx.currency,
-                "type": tx.type.value,
-                "category": tx.category,
-                "subcategory": tx.subcategory or "",
-                "account": tx.account,
-                "from_account": tx.from_account,
-                "to_account": tx.to_account,
-                "note": tx.note or "",
-                "source_file": tx.source_file,
-                "last_seen_at": tx.last_seen_at.isoformat(),
-                "is_transfer": tx.type.value == "Transfer",
-            }
-        )
+    result = [
+        {
+            "id": tx.transaction_id,
+            "date": tx.date.isoformat(),
+            "amount": float(tx.amount),
+            "currency": tx.currency,
+            "type": tx.type.value,
+            "category": tx.category,
+            "subcategory": tx.subcategory or "",
+            "account": tx.account,
+            "from_account": tx.from_account,
+            "to_account": tx.to_account,
+            "note": tx.note or "",
+            "source_file": tx.source_file,
+            "last_seen_at": tx.last_seen_at.isoformat(),
+            "is_transfer": tx.type.value == "Transfer",
+        }
+        for tx in transactions
+    ]
 
     # Apply text search filter (client-side since it's across multiple fields)
     if query:
@@ -343,6 +342,7 @@ async def upload_excel(
 
     Raises:
         HTTPException: If upload fails
+
     """
     # Validate file type
     if not file.filename:
@@ -390,30 +390,30 @@ async def upload_excel(
         raise HTTPException(
             status_code=409,
             detail=str(e),
-        )
+        ) from None
 
     except ValidationError as e:
         # Excel validation failed
         logger.warning(f"Invalid Excel file: {e}")
         raise HTTPException(
             status_code=422,
-            detail=f"Invalid Excel file: {str(e)}",
-        )
+            detail=f"Invalid Excel file: {e!s}",
+        ) from None
 
     except NormalizationError as e:
         # Data normalization failed
         logger.warning(f"Data format issue: {e}")
         raise HTTPException(
             status_code=400,
-            detail=f"Data format issue: {str(e)}",
-        )
+            detail=f"Data format issue: {e!s}",
+        ) from None
 
-    except Exception as e:
+    except (OSError, RuntimeError) as e:
         logger.error(f"Unexpected error processing file: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="Failed to process file. Please check the file format and try again.",
-        )
+        ) from None
 
     finally:
         # Clean up temporary file
@@ -428,11 +428,11 @@ async def upload_excel(
                     try:
                         if tmp_path.exists():
                             tmp_path.unlink()
-                    except Exception:
+                    except OSError:
                         pass
 
                 atexit.register(cleanup_later)
-            except Exception as cleanup_error:
+            except OSError as cleanup_error:
                 logger.warning(f"Failed to clean up temp file {tmp_path}: {cleanup_error}")
 
 
@@ -468,7 +468,7 @@ async def export_transactions(
             "note",
             "source_file",
             "last_seen_at",
-        ]
+        ],
     )
     for tx in transactions:
         writer.writerow(
@@ -486,7 +486,7 @@ async def export_transactions(
                 tx.note or "",
                 tx.source_file,
                 tx.last_seen_at.isoformat(),
-            ]
+            ],
         )
     output.seek(0)
     return Response(

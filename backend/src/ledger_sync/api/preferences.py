@@ -12,7 +12,7 @@ Provides CRUD operations for user preferences including:
 """
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -33,7 +33,9 @@ class FiscalYearConfig(BaseModel):
     """Fiscal year configuration."""
 
     fiscal_year_start_month: int = Field(
-        ge=1, le=12, description="Month number (1-12) when fiscal year starts"
+        ge=1,
+        le=12,
+        description="Month number (1-12) when fiscal year starts",
     )
 
 
@@ -41,7 +43,7 @@ class EssentialCategoriesConfig(BaseModel):
     """Essential vs discretionary categories configuration."""
 
     essential_categories: list[str] = Field(
-        description="List of category names considered essential/non-discretionary"
+        description="List of category names considered essential/non-discretionary",
     )
 
 
@@ -49,24 +51,24 @@ class InvestmentMappingsConfig(BaseModel):
     """Investment account to type mappings."""
 
     investment_account_mappings: dict[str, str] = Field(
-        description="Map of account name to investment type (stocks, mutual_funds, etc.)"
+        description="Map of account name to investment type (stocks, mutual_funds, etc.)",
     )
 
 
 class IncomeSourcesConfig(BaseModel):
-    """Income source category configurations."""
+    """Income classification by tax treatment."""
 
-    salary_categories: dict[str, list[str]] = Field(
-        description="Category:subcategories for salary income"
+    taxable_income_categories: list[str] = Field(
+        description="Income category names that are taxable (e.g., Employment Income)",
     )
-    bonus_categories: dict[str, list[str]] = Field(
-        description="Category:subcategories for bonus income"
+    investment_returns_categories: list[str] = Field(
+        description="Income categories from investments (may have different tax treatment)",
     )
-    investment_income_categories: dict[str, list[str]] = Field(
-        description="Category:subcategories for investment income"
+    non_taxable_income_categories: list[str] = Field(
+        description="Non-taxable income categories (refunds, cashbacks)",
     )
-    cashback_categories: dict[str, list[str]] = Field(
-        description="Category:subcategories for cashback income"
+    other_income_categories: list[str] = Field(
+        description="Other/miscellaneous income categories",
     )
 
 
@@ -74,7 +76,9 @@ class BudgetDefaultsConfig(BaseModel):
     """Budget default settings."""
 
     default_budget_alert_threshold: float = Field(
-        ge=0, le=100, description="Alert when budget usage exceeds this percentage"
+        ge=0,
+        le=100,
+        description="Alert when budget usage exceeds this percentage",
     )
     auto_create_budgets: bool = Field(description="Auto-create budgets from spending patterns")
     budget_rollover_enabled: bool = Field(description="Roll over unused budget to next month")
@@ -87,7 +91,8 @@ class DisplayPreferencesConfig(BaseModel):
     currency_symbol: str = Field(description="Currency symbol to display")
     currency_symbol_position: str = Field(description="Symbol position: 'before' or 'after'")
     default_time_range: str = Field(
-        description="Default time range: 'last_3_months', 'last_6_months', 'last_12_months', 'current_fy', 'all_time'"
+        description="Default time range: 'last_3_months', 'last_6_months', "
+        "'last_12_months', 'current_fy', 'all_time'",
     )
 
 
@@ -95,13 +100,16 @@ class AnomalySettingsConfig(BaseModel):
     """Anomaly detection settings."""
 
     anomaly_expense_threshold: float = Field(
-        ge=1.0, le=10.0, description="Standard deviations for expense anomaly detection"
+        ge=1.0,
+        le=10.0,
+        description="Standard deviations for expense anomaly detection",
     )
     anomaly_types_enabled: list[str] = Field(
-        description="Enabled anomaly types: high_expense, unusual_category, large_transfer, budget_exceeded"
+        description="Enabled anomaly types: high_expense, unusual_category, "
+        "large_transfer, budget_exceeded",
     )
     auto_dismiss_recurring_anomalies: bool = Field(
-        description="Auto-dismiss anomalies that match recurring patterns"
+        description="Auto-dismiss anomalies that match recurring patterns",
     )
 
 
@@ -109,10 +117,14 @@ class RecurringSettingsConfig(BaseModel):
     """Recurring transaction detection settings."""
 
     recurring_min_confidence: float = Field(
-        ge=0, le=100, description="Minimum confidence % to flag as recurring"
+        ge=0,
+        le=100,
+        description="Minimum confidence % to flag as recurring",
     )
     recurring_auto_confirm_occurrences: int = Field(
-        ge=2, le=12, description="Auto-confirm recurring after this many occurrences"
+        ge=2,
+        le=12,
+        description="Auto-confirm recurring after this many occurrences",
     )
 
 
@@ -130,11 +142,11 @@ class UserPreferencesResponse(BaseModel):
     # 3. Investment Mappings
     investment_account_mappings: dict[str, str]
 
-    # 4. Income Sources
-    salary_categories: dict[str, list[str]]
-    bonus_categories: dict[str, list[str]]
-    investment_income_categories: dict[str, list[str]]
-    cashback_categories: dict[str, list[str]]
+    # 4. Income Classification (by tax treatment)
+    taxable_income_categories: list[str]
+    investment_returns_categories: list[str]
+    non_taxable_income_categories: list[str]
+    other_income_categories: list[str]
 
     # 5. Budget Defaults
     default_budget_alert_threshold: float
@@ -161,6 +173,8 @@ class UserPreferencesResponse(BaseModel):
     updated_at: datetime | None
 
     class Config:
+        """Pydantic model configuration."""
+
         from_attributes = True
 
 
@@ -176,11 +190,11 @@ class UserPreferencesUpdate(BaseModel):
     # 3. Investment Mappings
     investment_account_mappings: dict[str, str] | None = None
 
-    # 4. Income Sources
-    salary_categories: dict[str, list[str]] | None = None
-    bonus_categories: dict[str, list[str]] | None = None
-    investment_income_categories: dict[str, list[str]] | None = None
-    cashback_categories: dict[str, list[str]] | None = None
+    # 4. Income Classification (by tax treatment)
+    taxable_income_categories: list[str] | None = None
+    investment_returns_categories: list[str] | None = None
+    non_taxable_income_categories: list[str] | None = None
+    other_income_categories: list[str] | None = None
 
     # 5. Budget Defaults
     default_budget_alert_threshold: float | None = None
@@ -220,10 +234,10 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
         fiscal_year_start_month=prefs.fiscal_year_start_month,
         essential_categories=_parse_json_field(prefs.essential_categories),
         investment_account_mappings=_parse_json_field(prefs.investment_account_mappings),
-        salary_categories=_parse_json_field(prefs.salary_categories),
-        bonus_categories=_parse_json_field(prefs.bonus_categories),
-        investment_income_categories=_parse_json_field(prefs.investment_income_categories),
-        cashback_categories=_parse_json_field(prefs.cashback_categories),
+        taxable_income_categories=_parse_json_field(prefs.taxable_income_categories),
+        investment_returns_categories=_parse_json_field(prefs.investment_returns_categories),
+        non_taxable_income_categories=_parse_json_field(prefs.non_taxable_income_categories),
+        other_income_categories=_parse_json_field(prefs.other_income_categories),
         default_budget_alert_threshold=prefs.default_budget_alert_threshold,
         auto_create_budgets=prefs.auto_create_budgets,
         budget_rollover_enabled=prefs.budget_rollover_enabled,
@@ -283,7 +297,7 @@ def update_preferences(
             value = json.dumps(value)
         setattr(prefs, field, value)
 
-    prefs.updated_at = datetime.now()
+    prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)
 
@@ -306,7 +320,7 @@ def reset_preferences(session: Session = Depends(get_session)) -> UserPreference
             "Education",
             "Family",
             "Utilities",
-        ]
+        ],
     )
     prefs.investment_account_mappings = json.dumps(
         {
@@ -317,14 +331,32 @@ def reset_preferences(session: Session = Depends(get_session)) -> UserPreference
             "EPF": "ppf_epf",
             "PPF": "ppf_epf",
             "RSUs": "stocks",
-        }
+        },
     )
     prefs.salary_categories = json.dumps({"Employment Income": ["Salary", "Stipend"]})
-    prefs.bonus_categories = json.dumps({"Employment Income": ["Bonus", "RSUs/Stock Options"]})
+    prefs.bonus_categories = json.dumps({"Employment Income": ["Bonuses", "RSUs"]})
     prefs.investment_income_categories = json.dumps(
-        {"Investment Income": ["Dividends", "Interest", "Capital Gains"]}
+        {"Investment Income": ["Dividends", "Interest", "F&O Income", "Stock Market Profits"]},
     )
-    prefs.cashback_categories = json.dumps({"Cashback": ["Credit Card Cashback", "Rewards"]})
+    prefs.cashback_categories = json.dumps(
+        {
+            "Refund & Cashbacks": [
+                "Credit Card Cashbacks",
+                "Other Cashbacks",
+                "Deposits Return",
+                "Product/Service Refunds",
+            ]
+        },
+    )
+    prefs.employment_benefits_categories = json.dumps(
+        {"Employment Income": ["EPF Contribution", "Expense Reimbursement"]},
+    )
+    prefs.freelance_categories = json.dumps(
+        {"Business/Self Employment Income": ["Gig Work Income"]},
+    )
+    prefs.gifts_categories = json.dumps(
+        {"One-time Income": ["Gifts", "Pocket Money", "Competition/Contest Prizes"]},
+    )
     prefs.default_budget_alert_threshold = 80.0
     prefs.auto_create_budgets = False
     prefs.budget_rollover_enabled = False
@@ -334,12 +366,12 @@ def reset_preferences(session: Session = Depends(get_session)) -> UserPreference
     prefs.default_time_range = "last_12_months"
     prefs.anomaly_expense_threshold = 2.0
     prefs.anomaly_types_enabled = json.dumps(
-        ["high_expense", "unusual_category", "large_transfer", "budget_exceeded"]
+        ["high_expense", "unusual_category", "large_transfer", "budget_exceeded"],
     )
     prefs.auto_dismiss_recurring_anomalies = True
     prefs.recurring_min_confidence = 50.0
     prefs.recurring_auto_confirm_occurrences = 6
-    prefs.updated_at = datetime.now()
+    prefs.updated_at = datetime.now(UTC)
 
     session.commit()
     session.refresh(prefs)
@@ -358,7 +390,7 @@ def update_fiscal_year(
     """Update fiscal year configuration."""
     prefs = _get_or_create_preferences(session)
     prefs.fiscal_year_start_month = config.fiscal_year_start_month
-    prefs.updated_at = datetime.now()
+    prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)
     return _model_to_response(prefs)
@@ -372,7 +404,7 @@ def update_essential_categories(
     """Update essential categories list."""
     prefs = _get_or_create_preferences(session)
     prefs.essential_categories = json.dumps(config.essential_categories)
-    prefs.updated_at = datetime.now()
+    prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)
     return _model_to_response(prefs)
@@ -386,7 +418,7 @@ def update_investment_mappings(
     """Update investment account mappings."""
     prefs = _get_or_create_preferences(session)
     prefs.investment_account_mappings = json.dumps(config.investment_account_mappings)
-    prefs.updated_at = datetime.now()
+    prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)
     return _model_to_response(prefs)
@@ -403,7 +435,10 @@ def update_income_sources(
     prefs.bonus_categories = json.dumps(config.bonus_categories)
     prefs.investment_income_categories = json.dumps(config.investment_income_categories)
     prefs.cashback_categories = json.dumps(config.cashback_categories)
-    prefs.updated_at = datetime.now()
+    prefs.employment_benefits_categories = json.dumps(config.employment_benefits_categories)
+    prefs.freelance_categories = json.dumps(config.freelance_categories)
+    prefs.gifts_categories = json.dumps(config.gifts_categories)
+    prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)
     return _model_to_response(prefs)
@@ -419,7 +454,7 @@ def update_budget_defaults(
     prefs.default_budget_alert_threshold = config.default_budget_alert_threshold
     prefs.auto_create_budgets = config.auto_create_budgets
     prefs.budget_rollover_enabled = config.budget_rollover_enabled
-    prefs.updated_at = datetime.now()
+    prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)
     return _model_to_response(prefs)
@@ -436,7 +471,7 @@ def update_display_preferences(
     prefs.currency_symbol = config.currency_symbol
     prefs.currency_symbol_position = config.currency_symbol_position
     prefs.default_time_range = config.default_time_range
-    prefs.updated_at = datetime.now()
+    prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)
     return _model_to_response(prefs)
@@ -452,7 +487,7 @@ def update_anomaly_settings(
     prefs.anomaly_expense_threshold = config.anomaly_expense_threshold
     prefs.anomaly_types_enabled = json.dumps(config.anomaly_types_enabled)
     prefs.auto_dismiss_recurring_anomalies = config.auto_dismiss_recurring_anomalies
-    prefs.updated_at = datetime.now()
+    prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)
     return _model_to_response(prefs)
@@ -467,7 +502,7 @@ def update_recurring_settings(
     prefs = _get_or_create_preferences(session)
     prefs.recurring_min_confidence = config.recurring_min_confidence
     prefs.recurring_auto_confirm_occurrences = config.recurring_auto_confirm_occurrences
-    prefs.updated_at = datetime.now()
+    prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)
     return _model_to_response(prefs)

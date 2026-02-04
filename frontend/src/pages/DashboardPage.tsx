@@ -12,14 +12,13 @@ import { useMonthlyAggregation, useTotals } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useState, useMemo } from 'react'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { formatCurrency } from '@/lib/formatters'
 import { 
-  calculateIncomeBreakdown, 
+  calculateIncomeByCategoryBreakdown, 
   calculateSpendingBreakdown,
-  INCOME_TYPE_LABELS,
-  INCOME_TYPE_COLORS,
+  calculateCashbacksTotal,
+  INCOME_CATEGORY_COLORS,
   SPENDING_TYPE_COLORS,
-  type IncomeType
 } from '@/lib/preferencesUtils'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
 
@@ -62,9 +61,9 @@ export default function DashboardPage() {
   const { data: allTransactions } = useTransactions()
   const { data: preferences } = usePreferences()
 
-  // Calculate income breakdown by type (salary, bonus, investment, cashback)
+  // Calculate income breakdown by actual data category (for display)
   const incomeBreakdown = useMemo(() => {
-    if (!allTransactions || !preferences) return null
+    if (!allTransactions) return null
     
     // Filter transactions by date range
     const filtered = allTransactions.filter((t) => {
@@ -72,12 +71,28 @@ export default function DashboardPage() {
       return t.date >= dateRange.start_date && (!dateRange.end_date || t.date <= dateRange.end_date)
     })
     
-    return calculateIncomeBreakdown(filtered, {
-      salary: preferences.salary_categories || {},
-      bonus: preferences.bonus_categories || {},
-      investmentIncome: preferences.investment_income_categories || {},
-      cashback: preferences.cashback_categories || {},
+    return calculateIncomeByCategoryBreakdown(filtered)
+  }, [allTransactions, dateRange])
+
+  // Calculate total cashbacks using preferences classification
+  const cashbacksTotal = useMemo(() => {
+    if (!allTransactions || !preferences) return 0
+    
+    // Filter transactions by date range
+    const filtered = allTransactions.filter((t) => {
+      if (!dateRange.start_date) return true
+      return t.date >= dateRange.start_date && (!dateRange.end_date || t.date <= dateRange.end_date)
     })
+    
+    // Build income classification from preferences
+    const incomeClassification = {
+      taxable: preferences.taxable_income_categories || [],
+      investmentReturns: preferences.investment_returns_categories || [],
+      nonTaxable: preferences.non_taxable_income_categories || [],
+      other: preferences.other_income_categories || [],
+    }
+    
+    return calculateCashbacksTotal(filtered, incomeClassification)
   }, [allTransactions, preferences, dateRange])
 
   // Calculate spending breakdown (essential vs discretionary)
@@ -93,15 +108,16 @@ export default function DashboardPage() {
     return calculateSpendingBreakdown(filtered, preferences.essential_categories)
   }, [allTransactions, preferences, dateRange])
 
-  // Prepare income breakdown for pie chart
+  // Prepare income breakdown for pie chart (using actual data categories)
   const incomeChartData = useMemo(() => {
     if (!incomeBreakdown) return []
-    return (Object.entries(incomeBreakdown) as [IncomeType, number][])
+    const defaultColor = '#6b7280' // gray for unknown categories
+    return Object.entries(incomeBreakdown)
       .filter(([, value]) => value > 0)
-      .map(([type, value]) => ({
-        name: INCOME_TYPE_LABELS[type],
+      .map(([category, value]) => ({
+        name: category,
         value,
-        color: INCOME_TYPE_COLORS[type],
+        color: INCOME_CATEGORY_COLORS[category] || defaultColor,
       }))
       .sort((a, b) => b.value - a.value)
   }, [incomeBreakdown])
@@ -259,7 +275,7 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 {incomeBreakdown && (
-                  <div className="pt-2 mt-2 border-t border-white/10">
+                  <div className="pt-2 mt-2 border-t border-white/10 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Total</span>
                       <span className="text-sm font-bold text-green-500">
@@ -268,6 +284,14 @@ export default function DashboardPage() {
                         )}
                       </span>
                     </div>
+                    {cashbacksTotal > 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-cyan-400">💳 Cashbacks Earned</span>
+                        <span className="text-cyan-400 font-medium">
+                          {formatCurrency(cashbacksTotal)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

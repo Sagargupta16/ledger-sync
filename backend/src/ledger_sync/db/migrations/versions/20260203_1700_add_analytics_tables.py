@@ -69,7 +69,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        "ix_investment_account_type", "investment_holdings", ["account", "investment_type"]
+        "ix_investment_account_type",
+        "investment_holdings",
+        ["account", "investment_type"],
     )
 
     # Monthly Summaries
@@ -125,7 +127,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        "ix_category_trend_period_category", "category_trends", ["period_key", "category"]
+        "ix_category_trend_period_category",
+        "category_trends",
+        ["period_key", "category"],
     )
     op.create_index("ix_category_trend_type", "category_trends", ["transaction_type"])
 
@@ -146,7 +150,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        "ix_transfer_flow_accounts", "transfer_flows", ["from_account", "to_account"], unique=True
+        "ix_transfer_flow_accounts",
+        "transfer_flows",
+        ["from_account", "to_account"],
+        unique=True,
     )
 
     # Recurring Transactions
@@ -174,7 +181,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        "ix_recurring_category_account", "recurring_transactions", ["category", "account"]
+        "ix_recurring_category_account",
+        "recurring_transactions",
+        ["category", "account"],
     )
 
     # Merchant Intelligence

@@ -89,7 +89,10 @@ class Transaction(Base):
     # Metadata
     source_file: Mapped[str] = mapped_column(String(500), nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=lambda: datetime.now(UTC), index=True
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        index=True,
     )
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
 
@@ -100,7 +103,7 @@ class Transaction(Base):
     )
 
     def __repr__(self) -> str:
-        """String representation."""
+        """Return string representation."""
         return (
             f"<Transaction(id={self.transaction_id[:8]}..., "
             f"date={self.date.date()}, "
@@ -136,7 +139,9 @@ class ImportLog(Base):
     file_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     file_name: Mapped[str] = mapped_column(String(500), nullable=False)
     imported_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
     rows_processed: Mapped[int] = mapped_column(nullable=False, default=0)
     rows_inserted: Mapped[int] = mapped_column(nullable=False, default=0)
@@ -145,7 +150,7 @@ class ImportLog(Base):
     rows_skipped: Mapped[int] = mapped_column(nullable=False, default=0)
 
     def __repr__(self) -> str:
-        """String representation."""
+        """Return string representation."""
         return (
             f"<ImportLog(id={self.id}, "
             f"file={self.file_name}, "
@@ -164,17 +169,22 @@ class AccountClassification(Base):
     # Account name and classification
     account_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     account_type: Mapped[AccountType] = mapped_column(
-        Enum(AccountType), nullable=False, default=AccountType.OTHER_WALLETS
+        Enum(AccountType),
+        nullable=False,
+        default=AccountType.OTHER_WALLETS,
     )
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.now, onupdate=datetime.now
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        onupdate=datetime.now,
     )
 
     def __repr__(self) -> str:
-        """String representation."""
+        """Return string representation."""
         return f"<AccountClassification(account={self.account_name}, type={self.account_type})>"
 
 
@@ -196,20 +206,23 @@ class TaxRecord(Base):
     rsu: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
     other_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
     total_gross_income: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2), nullable=False
+        Numeric(precision=15, scale=2),
+        nullable=False,
     )
 
     # Tax components
     tds_deducted: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
     advance_tax: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
     self_assessment_tax: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2), nullable=True
+        Numeric(precision=15, scale=2),
+        nullable=True,
     )
     total_tax_paid: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
 
     # Deductions
     standard_deduction: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2), nullable=True
+        Numeric(precision=15, scale=2),
+        nullable=True,
     )
     section_80c: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
     section_80d: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
@@ -222,7 +235,9 @@ class TaxRecord(Base):
     # Metadata
     source_file: Mapped[str] = mapped_column(String(500), nullable=False)
     uploaded_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -230,7 +245,7 @@ class TaxRecord(Base):
     __table_args__ = (Index("ix_tax_records_fy", "financial_year"),)
 
     def __repr__(self) -> str:
-        """String representation."""
+        """Return string representation."""
         return (
             f"<TaxRecord(id={self.id}, "
             f"fy={self.financial_year}, "
@@ -265,7 +280,8 @@ class NetWorthSnapshot(Base):
 
     # Liability breakdown
     credit_card_outstanding: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2), default=0
+        Numeric(precision=15, scale=2),
+        default=0,
     )
     loans_payable: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
     other_liabilities: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
@@ -273,7 +289,8 @@ class NetWorthSnapshot(Base):
     # Calculated totals
     total_assets: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
     total_liabilities: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2), nullable=False
+        Numeric(precision=15, scale=2),
+        nullable=False,
     )
     net_worth: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
 
@@ -298,7 +315,8 @@ class InvestmentHolding(Base):
     # Investment details
     account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     investment_type: Mapped[str] = mapped_column(
-        String(100), nullable=False
+        String(100),
+        nullable=False,
     )  # stocks, mf, fd, etc.
     instrument_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
@@ -331,7 +349,10 @@ class MonthlySummary(Base):
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     month: Mapped[int] = mapped_column(Integer, nullable=False)
     period_key: Mapped[str] = mapped_column(
-        String(7), nullable=False, unique=True, index=True
+        String(7),
+        nullable=False,
+        unique=True,
+        index=True,
     )  # YYYY-MM
 
     # Income breakdown
@@ -344,7 +365,8 @@ class MonthlySummary(Base):
     total_expenses: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
     essential_expenses: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
     discretionary_expenses: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2), default=0
+        Numeric(precision=15, scale=2),
+        default=0,
     )
 
     # Transfer totals
@@ -432,7 +454,8 @@ class TransferFlow(Base):
     # Recent activity
     last_transfer_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_transfer_amount: Mapped[Decimal | None] = mapped_column(
-        Numeric(precision=15, scale=2), nullable=True
+        Numeric(precision=15, scale=2),
+        nullable=True,
     )
 
     # Account types (for Sankey diagram coloring)
@@ -467,11 +490,13 @@ class RecurringTransaction(Base):
 
     # Recurrence details
     frequency: Mapped[RecurrenceFrequency] = mapped_column(
-        Enum(RecurrenceFrequency), nullable=False
+        Enum(RecurrenceFrequency),
+        nullable=False,
     )
     expected_amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
     amount_variance: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2), default=0
+        Numeric(precision=15, scale=2),
+        default=0,
     )  # Allowed variance
     expected_day: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Day of month/week
 
@@ -505,7 +530,8 @@ class MerchantIntelligence(Base):
     # Merchant identification (extracted from notes)
     merchant_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     merchant_aliases: Mapped[str | None] = mapped_column(
-        Text, nullable=True
+        Text,
+        nullable=True,
     )  # JSON list of variations
 
     # Primary category
@@ -548,7 +574,9 @@ class Anomaly(Base):
 
     # Related transaction (if applicable)
     transaction_id: Mapped[str | None] = mapped_column(
-        String(64), ForeignKey("transactions.transaction_id"), nullable=True
+        String(64),
+        ForeignKey("transactions.transaction_id"),
+        nullable=True,
     )
 
     # Period (for monthly anomalies)
@@ -556,10 +584,12 @@ class Anomaly(Base):
 
     # Detection metrics
     expected_value: Mapped[Decimal | None] = mapped_column(
-        Numeric(precision=15, scale=2), nullable=True
+        Numeric(precision=15, scale=2),
+        nullable=True,
     )
     actual_value: Mapped[Decimal | None] = mapped_column(
-        Numeric(precision=15, scale=2), nullable=True
+        Numeric(precision=15, scale=2),
+        nullable=True,
     )
     deviation_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
 
@@ -601,7 +631,8 @@ class Budget(Base):
     # Current period tracking
     current_month_spent: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
     current_month_remaining: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2), default=0
+        Numeric(precision=15, scale=2),
+        default=0,
     )
     current_month_pct: Mapped[float] = mapped_column(Float, default=0)
 
@@ -629,7 +660,8 @@ class FinancialGoal(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     goal_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
+        String(50),
+        nullable=False,
     )  # savings, investment, debt_payoff, custom
 
     # Target
@@ -691,7 +723,8 @@ class FYSummary(Base):
     # Metadata
     last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     is_complete: Mapped[bool] = mapped_column(
-        Boolean, default=False
+        Boolean,
+        default=False,
     )  # False if FY is still ongoing
 
 
@@ -709,21 +742,26 @@ class AuditLog(Base):
 
     # Operation details
     operation: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True
+        String(50),
+        nullable=False,
+        index=True,
     )  # upload, reconcile, edit, delete
     entity_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
+        String(50),
+        nullable=False,
     )  # transaction, budget, goal, etc.
     entity_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Change details
     action: Mapped[str] = mapped_column(
-        String(20), nullable=False
+        String(20),
+        nullable=False,
     )  # create, update, delete, soft_delete
     old_value: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON of old state
     new_value: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON of new state
     changes_summary: Mapped[str | None] = mapped_column(
-        Text, nullable=True
+        Text,
+        nullable=True,
     )  # Human-readable summary
 
     # Context
@@ -732,7 +770,9 @@ class AuditLog(Base):
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), index=True
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        index=True,
     )
 
     __table_args__ = (
@@ -755,23 +795,39 @@ class ColumnMappingLog(Base):
     # Column mappings found
     original_columns: Mapped[str] = mapped_column(Text, nullable=False)  # JSON list
     mapped_columns: Mapped[str] = mapped_column(
-        Text, nullable=False
+        Text,
+        nullable=False,
     )  # JSON dict of original -> mapped
     unmapped_columns: Mapped[str | None] = mapped_column(
-        Text, nullable=True
+        Text,
+        nullable=True,
     )  # JSON list of ignored columns
 
     # Validation results
     is_valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
     validation_errors: Mapped[str | None] = mapped_column(
-        Text, nullable=True
+        Text,
+        nullable=True,
     )  # JSON list of errors
     validation_warnings: Mapped[str | None] = mapped_column(
-        Text, nullable=True
+        Text,
+        nullable=True,
     )  # JSON list of warnings
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+
+# Default JSON values for UserPreferences - defined as constants to avoid long lines
+_DEFAULT_ESSENTIAL_CATEGORIES = (
+    '["Housing", "Healthcare", "Transportation", '
+    '"Food & Dining", "Education", "Family", "Utilities"]'
+)
+_DEFAULT_INVESTMENT_MAPPINGS = (
+    '{"Grow Stocks": "stocks", "Grow Mutual Funds": "mutual_funds", '
+    '"IND money": "stocks", "FD/Bonds": "fixed_deposits", '
+    '"EPF": "ppf_epf", "PPF": "ppf_epf", "RSUs": "stocks"}'
+)
 
 
 class UserPreferences(Base):
@@ -787,7 +843,9 @@ class UserPreferences(Base):
 
     # ===== 1. Fiscal Year Configuration =====
     fiscal_year_start_month: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=4  # April (India FY)
+        Integer,
+        nullable=False,
+        default=4,  # April (India FY)
     )  # 1=Jan, 4=Apr, 7=Jul, 10=Oct
 
     # ===== 2. Essential vs Discretionary Categories =====
@@ -795,7 +853,7 @@ class UserPreferences(Base):
     essential_categories: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        default='["Housing", "Healthcare", "Transportation", "Food & Dining", "Education", "Family", "Utilities"]',
+        default=_DEFAULT_ESSENTIAL_CATEGORIES,
     )
     # Categories not in essential are considered discretionary
 
@@ -805,54 +863,86 @@ class UserPreferences(Base):
     investment_account_mappings: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        default='{"Grow Stocks": "stocks", "Grow Mutual Funds": "mutual_funds", "IND money": "stocks", "FD/Bonds": "fixed_deposits", "EPF": "ppf_epf", "PPF": "ppf_epf", "RSUs": "stocks"}',
+        default=_DEFAULT_INVESTMENT_MAPPINGS,
     )
 
-    # ===== 4. Income Source Categories =====
-    # JSON object for income classification
-    salary_categories: Mapped[str] = mapped_column(
+    # ===== 4. Income Classification by Tax Treatment =====
+    # Classify income subcategories by their tax treatment
+    # Stored as "Category::Subcategory" format for granular control
+    taxable_income_categories: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        default='{"Employment Income": ["Salary", "Stipend"]}',  # category: [subcategories]
+        # Default taxable: Salary, Stipend, Bonuses, RSUs, Gig Work
+        default=(
+            '["Employment Income::Salary", "Employment Income::Stipend", '
+            '"Employment Income::Bonuses", "Employment Income::RSUs", '
+            '"Business/Self Employment Income::Gig Work Income"]'
+        ),
     )
-    bonus_categories: Mapped[str] = mapped_column(
+    investment_returns_categories: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        default='{"Employment Income": ["Bonus", "RSUs/Stock Options"]}',
+        # Default investment returns: Dividends, Interest, F&O, Stock Profits
+        default=(
+            '["Investment Income::Dividends", "Investment Income::Interest", '
+            '"Investment Income::F&O Income", "Investment Income::Stock Market Profits"]'
+        ),
     )
-    investment_income_categories: Mapped[str] = mapped_column(
+    non_taxable_income_categories: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        default='{"Investment Income": ["Dividends", "Interest", "Capital Gains"]}',
+        # Default non-taxable: Cashbacks, Refunds, Reimbursements
+        default=(
+            '["Refund & Cashbacks::Credit Card Cashbacks", '
+            '"Refund & Cashbacks::Other Cashbacks", '
+            '"Refund & Cashbacks::Product/Service Refunds", '
+            '"Refund & Cashbacks::Deposits Return", '
+            '"Employment Income::Expense Reimbursement"]'
+        ),
     )
-    cashback_categories: Mapped[str] = mapped_column(
+    other_income_categories: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        default='{"Cashback": ["Credit Card Cashback", "Rewards"]}',
+        # Default other: Gifts, Pocket Money, Prizes, EPF, Other
+        default=(
+            '["One-time Income::Gifts", "One-time Income::Pocket Money", '
+            '"One-time Income::Competition/Contest Prizes", '
+            '"Employment Income::EPF Contribution", "Other::Other"]'
+        ),
     )
 
     # ===== 5. Budget Defaults =====
     default_budget_alert_threshold: Mapped[float] = mapped_column(
-        Float, nullable=False, default=80.0  # Alert at 80% usage
+        Float,
+        nullable=False,
+        default=80.0,  # Alert at 80% usage
     )
     auto_create_budgets: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     budget_rollover_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # ===== 6. Display/Format Preferences =====
     number_format: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="indian"  # "indian" or "international"
+        String(20),
+        nullable=False,
+        default="indian",  # "indian" or "international"
     )  # indian: 1,00,000 | international: 100,000
     currency_symbol: Mapped[str] = mapped_column(String(10), nullable=False, default="₹")
     currency_symbol_position: Mapped[str] = mapped_column(
-        String(10), nullable=False, default="before"  # "before" or "after"
+        String(10),
+        nullable=False,
+        default="before",  # "before" or "after"
     )
     default_time_range: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="last_12_months"
+        String(20),
+        nullable=False,
+        default="last_12_months",
     )
 
     # ===== 7. Anomaly Detection Settings =====
     anomaly_expense_threshold: Mapped[float] = mapped_column(
-        Float, nullable=False, default=2.0  # Flag if expense > 2x category average
+        Float,
+        nullable=False,
+        default=2.0,  # Flag if expense > 2x category average
     )
     anomaly_types_enabled: Mapped[str] = mapped_column(
         Text,
@@ -860,19 +950,27 @@ class UserPreferences(Base):
         default='["high_expense", "unusual_category", "large_transfer", "budget_exceeded"]',
     )
     auto_dismiss_recurring_anomalies: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True
+        Boolean,
+        nullable=False,
+        default=True,
     )
 
     # ===== 8. Recurring Transaction Settings =====
     recurring_min_confidence: Mapped[float] = mapped_column(
-        Float, nullable=False, default=50.0  # Min confidence % to show
+        Float,
+        nullable=False,
+        default=50.0,  # Min confidence % to show
     )
     recurring_auto_confirm_occurrences: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=6  # Auto-confirm after 6 occurrences
+        Integer,
+        nullable=False,
+        default=6,  # Auto-confirm after 6 occurrences
     )
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )

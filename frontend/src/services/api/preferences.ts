@@ -27,11 +27,11 @@ export interface UserPreferences {
   // 3. Investment Mappings
   investment_account_mappings: Record<string, string>
 
-  // 4. Income Sources
-  salary_categories: Record<string, string[]>
-  bonus_categories: Record<string, string[]>
-  investment_income_categories: Record<string, string[]>
-  cashback_categories: Record<string, string[]>
+  // 4. Income Classification (by tax treatment)
+  taxable_income_categories: string[]
+  investment_returns_categories: string[]
+  non_taxable_income_categories: string[]
+  other_income_categories: string[]
 
   // 5. Budget Defaults
   default_budget_alert_threshold: number
@@ -75,10 +75,10 @@ export interface InvestmentMappingsConfig {
 }
 
 export interface IncomeSourcesConfig {
-  salary_categories: Record<string, string[]>
-  bonus_categories: Record<string, string[]>
-  investment_income_categories: Record<string, string[]>
-  cashback_categories: Record<string, string[]>
+  taxable_income_categories: string[]
+  investment_returns_categories: string[]
+  non_taxable_income_categories: string[]
+  other_income_categories: string[]
 }
 
 export interface BudgetDefaultsConfig {

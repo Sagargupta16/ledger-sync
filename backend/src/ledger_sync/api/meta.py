@@ -119,7 +119,6 @@ def _classify_account(name: str) -> str:
 @router.get("/buckets")
 def get_buckets(db: Session = Depends(get_session)) -> dict[str, list[str]]:
     """Return dynamic buckets (needs/wants/savings/investment) from existing data."""
-
     needs: set[str] = set()
     wants: set[str] = set()
     savings: set[str] = set()

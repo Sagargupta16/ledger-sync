@@ -8,7 +8,7 @@ Provides structured logging with:
 
 import logging
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -23,6 +23,7 @@ def setup_logging(log_level: str | None = None) -> logging.Logger:
 
     Returns:
         Configured logger instance
+
     """
     level = log_level or settings.log_level
 
@@ -83,8 +84,8 @@ def log_import_start(source_file: str) -> None:
     """Log the start of an import operation."""
     logger = get_analytics_logger()
     logger.info("=" * 60)
-    logger.info(f"IMPORT STARTED: {source_file}")
-    logger.info(f"Timestamp: {datetime.now().isoformat()}")
+    logger.info("IMPORT STARTED: %s", source_file)
+    logger.info("Timestamp: %s", datetime.now(tz=UTC).isoformat())
     logger.info("=" * 60)
 
 
@@ -93,23 +94,25 @@ def log_import_stats(stats: dict) -> None:
     logger = get_analytics_logger()
     logger.info("Import Statistics:")
     for key, value in stats.items():
-        logger.info(f"  {key}: {value}")
+        logger.info("  %s: %s", key, value)
 
 
 def log_analytics_calculation(
-    calculation_name: str, count: int, duration_ms: float | None = None
+    calculation_name: str,
+    count: int,
+    duration_ms: float | None = None,
 ) -> None:
     """Log an analytics calculation result."""
     logger = get_analytics_logger()
     duration_str = f" ({duration_ms:.1f}ms)" if duration_ms else ""
-    logger.info(f"  ✓ {calculation_name}: {count} records{duration_str}")
+    logger.info("  ✓ %s: %s records%s", calculation_name, count, duration_str)
 
 
 def log_column_mapping(original: str, mapped: str, source_file: str | None = None) -> None:
     """Log a column name mapping (for tracking Excel format changes)."""
     logger = get_analytics_logger()
     file_str = f" in {source_file}" if source_file else ""
-    logger.debug(f"Column mapping{file_str}: '{original}' → '{mapped}'")
+    logger.debug("Column mapping%s: '%s' → '%s'", file_str, original, mapped)
 
 
 def log_warning(message: str, context: dict | None = None) -> None:
@@ -118,20 +121,22 @@ def log_warning(message: str, context: dict | None = None) -> None:
     logger.warning(message)
     if context:
         for key, value in context.items():
-            logger.warning(f"  {key}: {value}")
+            logger.warning("  %s: %s", key, value)
 
 
 def log_error(
-    message: str, exception: Exception | None = None, context: dict | None = None
+    message: str,
+    exception: Exception | None = None,
+    context: dict | None = None,
 ) -> None:
     """Log an error with optional exception and context."""
     logger = get_analytics_logger()
     logger.error(message)
     if exception:
-        logger.error(f"  Exception: {type(exception).__name__}: {exception}")
+        logger.error("  Exception: %s: %s", type(exception).__name__, exception)
     if context:
         for key, value in context.items():
-            logger.error(f"  {key}: {value}")
+            logger.error("  %s: %s", key, value)
 
 
 # Default logger instance

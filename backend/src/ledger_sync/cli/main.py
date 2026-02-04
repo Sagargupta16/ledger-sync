@@ -39,7 +39,6 @@ def main(
     ),
 ) -> None:
     """Ledger Sync - Excel ingestion and reconciliation engine."""
-    pass
 
 
 @app.command()
@@ -111,17 +110,17 @@ def import_file(
     except ValidationError as e:
         console.print(f"[bold red]Validation Error:[/bold red] {e}")
         logger.error(f"Validation error: {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     except ValueError as e:
         console.print(f"[bold yellow]Warning:[/bold yellow] {e}")
         logger.warning(str(e))
-        raise typer.Exit(code=0)  # Not an error, just already imported
+        raise typer.Exit(code=0) from None  # Not an error, just already imported
 
-    except Exception as e:
+    except (OSError, RuntimeError) as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         logger.exception("Unexpected error during import")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
@@ -135,10 +134,10 @@ def init() -> None:
         console.print("[bold blue]Initializing database...[/bold blue]")
         init_db()
         console.print("[bold green]✓ Database initialized successfully![/bold green]")
-    except Exception as e:
+    except (OSError, RuntimeError) as e:
         console.print(f"[bold red]Error:[/bold red] {e}", err=True)
         logger.exception("Error initializing database")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
 
 @app.command(name="import")

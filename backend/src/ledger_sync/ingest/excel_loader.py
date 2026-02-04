@@ -24,10 +24,11 @@ class ExcelLoader:
 
         Returns:
             Hex-encoded file hash
+
         """
         sha256_hash = hashlib.sha256()
 
-        with open(file_path, "rb") as f:
+        with file_path.open("rb") as f:
             # Read file in chunks for memory efficiency
             for byte_block in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(byte_block)
@@ -35,7 +36,9 @@ class ExcelLoader:
         return sha256_hash.hexdigest()
 
     def load(
-        self, file_path: Path, sheet_name: str | int | None = 0
+        self,
+        file_path: Path,
+        sheet_name: str | int | None = 0,
     ) -> tuple[pd.DataFrame, dict[str, str], str]:
         """Load Excel file and validate.
 
@@ -48,6 +51,7 @@ class ExcelLoader:
 
         Raises:
             ValidationError: If validation fails
+
         """
         logger.info(f"Loading Excel file: {file_path}")
 
@@ -60,8 +64,9 @@ class ExcelLoader:
             df = pd.read_excel(file_path, sheet_name=sheet_name, engine="openpyxl")
             logger.info(f"Loaded {len(df)} rows from Excel")
 
-        except Exception as e:
-            raise ValidationError(f"Failed to read Excel file: {e}")
+        except (ValueError, OSError, KeyError) as e:
+            msg = f"Failed to read Excel file: {e}"
+            raise ValidationError(msg) from e
 
         # Validate
         column_mapping = self.validator.validate(file_path, df)
