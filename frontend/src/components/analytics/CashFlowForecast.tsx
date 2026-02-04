@@ -187,8 +187,8 @@ export default function CashFlowForecast() {
             />
             <YAxis tickFormatter={(v) => formatCurrencyShort(v)} tick={{ fontSize: 10, fill: '#9ca3af' }} />
             <Tooltip
-              formatter={(value: number, name: string) => [
-                formatCurrency(value),
+              formatter={(value: number | undefined, name: string | undefined) => [
+                value !== undefined ? formatCurrency(value) : '',
                 name === 'income' ? 'Income' : 'Expenses',
               ]}
               labelFormatter={(label) => {

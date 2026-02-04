@@ -364,8 +364,8 @@ export default function TrendsForecastsPage() {
                   }}
                   labelStyle={{ color: '#9ca3af' }}
                   itemStyle={{ color: '#fff' }}
-                  formatter={(value: number, name: string) => [
-                    formatCurrency(value),
+                  formatter={(value: number | undefined, name: string | undefined) => [
+                    value !== undefined ? formatCurrency(value) : '',
                     name === 'income' ? 'Income' : name === 'expenses' ? 'Spending' : 'Savings'
                   ]}
                 />
@@ -419,7 +419,7 @@ export default function TrendsForecastsPage() {
                   }}
                   labelStyle={{ color: '#9ca3af' }}
                   itemStyle={{ color: '#fff' }}
-                  formatter={(_value: number, _name: string, props: { payload?: { rawSavingsRate?: number } }) => {
+                  formatter={(_value: number | undefined, _name: string | undefined, props: { payload?: { rawSavingsRate?: number } }) => {
                     const actual = props.payload?.rawSavingsRate ?? 0
                     const label = actual < 0 ? `${actual.toFixed(1)}% (deficit)` : `${actual.toFixed(1)}%`
                     return [label, 'Savings Rate']

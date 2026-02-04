@@ -79,8 +79,8 @@ export default function ExpenseTreemap() {
           }
         })
         .sort((a, b) => {
-          const aTotal = 'children' in a ? a.children.reduce((sum, c) => sum + c.size, 0) : (a.size || 0)
-          const bTotal = 'children' in b ? b.children.reduce((sum, c) => sum + c.size, 0) : (b.size || 0)
+          const aTotal = 'children' in a && a.children ? a.children.reduce((sum, c) => sum + c.size, 0) : (a.size || 0)
+          const bTotal = 'children' in b && b.children ? b.children.reduce((sum, c) => sum + c.size, 0) : (b.size || 0)
           return bTotal - aTotal
         })
       
@@ -211,12 +211,12 @@ export default function ExpenseTreemap() {
             stroke="#fff"
             fill="#8884d8"
             isAnimationActive={false}
-            content={(props: unknown) => {
-              const typedProps = props as { x: number; y: number; width: number; height: number; name: string; size: number; colorIndex: number; depth: number }
+            content={(props) => {
+              const typedProps = props as unknown as { x: number; y: number; width: number; height: number; name: string; size: number; colorIndex: number; depth: number }
               const { x, y, width, height, name, size, colorIndex } = typedProps
               
               // Hide text in very small boxes
-              if (width < 45 || height < 32) return null
+              if (width < 45 || height < 32) return <g />
               
               // Dynamic sizing based on box dimensions
               const boxArea = width * height

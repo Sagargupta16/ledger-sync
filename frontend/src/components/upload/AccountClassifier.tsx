@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
 import { Check, Info, Settings2 } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
-import { useAccountStore, type AccountType } from '@/store/accountStore'
+import { useAccountStore } from '@/store/accountStore'
+import type { AccountType } from '@/types'
 import { toast } from 'sonner'
 
 export default function AccountClassifier() {

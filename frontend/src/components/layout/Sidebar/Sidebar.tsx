@@ -93,7 +93,7 @@ export default function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     // Load from localStorage on initial render
-    if (typeof window !== 'undefined') {
+    if (typeof globalThis.window !== 'undefined') {
       const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
       return saved === 'true'
     }
@@ -292,8 +292,12 @@ export default function Sidebar() {
       {/* Mobile overlay - iOS blur style */}
       {isMobileOpen && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close sidebar"
           className="fixed inset-0 bg-black/40 backdrop-blur-xl z-30 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
+          onKeyDown={(e) => e.key === 'Escape' && setIsMobileOpen(false)}
         />
       )}
     </>

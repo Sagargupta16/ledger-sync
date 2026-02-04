@@ -49,7 +49,9 @@ export default function ReturnsAnalysisPage() {
     if (!dateRange.start_date) return allTransactions
     
     return allTransactions.filter(tx => {
-      return tx.date >= dateRange.start_date! && (!dateRange.end_date || tx.date <= dateRange.end_date)
+      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
+      const txDate = tx.date.substring(0, 10)
+      return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [allTransactions, dateRange])
 
@@ -301,7 +303,7 @@ export default function ReturnsAnalysisPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Net Profit/Loss</p>
                 <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {formatCurrency(netProfitLoss, true)}
+                  {netProfitLoss >= 0 ? '' : '-'}{formatCurrency(Math.abs(netProfitLoss))}
                 </p>
               </div>
             </div>
@@ -386,7 +388,8 @@ export default function ReturnsAnalysisPage() {
                   }}
                   labelStyle={{ color: '#9ca3af' }}
                   itemStyle={{ color: '#fff' }}
-                  formatter={(value: number, name: string) => {
+                  formatter={(value: number | undefined, name: string | undefined) => {
+                    if (value === undefined) return ''
                     if (name === 'cumulative') return [formatCurrency(value), 'Cumulative Returns']
                     if (name === 'monthlyNet') return [formatCurrency(value), 'Monthly Net']
                     return value
@@ -501,7 +504,7 @@ export default function ReturnsAnalysisPage() {
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-white">Net Profit/Loss</span>
                 <span className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {formatCurrency(netProfitLoss, true)}
+                  {netProfitLoss >= 0 ? '' : '-'}{formatCurrency(Math.abs(netProfitLoss))}
                 </span>
               </div>
             </div>

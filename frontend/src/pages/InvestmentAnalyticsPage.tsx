@@ -428,7 +428,7 @@ export default function InvestmentAnalyticsPage() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percentage }) => `${name} (${percentage}%)`}
+                  label={({ name, payload }) => `${name} (${payload.percentage}%)`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -450,7 +450,7 @@ export default function InvestmentAnalyticsPage() {
                   itemStyle={{
                     color: '#ffffff',
                   }}
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                 />
                 <Legend />
               </RechartsPie>
@@ -513,7 +513,10 @@ export default function InvestmentAnalyticsPage() {
                     }}
                     labelStyle={{ color: '#9ca3af' }}
                     itemStyle={{ color: '#fff' }}
-                    formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                    formatter={(value: number | undefined, name: string | undefined) => [
+                      value !== undefined ? formatCurrency(value) : '',
+                      name || ''
+                    ]}
                     labelFormatter={(label) => `Month: ${label}`}
                   />
                   <Legend />

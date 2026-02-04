@@ -67,12 +67,12 @@ export default function NetWorthPage() {
   // Calculate totals from balance data - memoized to avoid changing on every render
   const accounts = useMemo(() => balanceData?.accounts || {}, [balanceData?.accounts])
   const totalAssets = Object.values(accounts)
-    .filter((acc: { balance: number; transaction_count: number }) => acc.balance > 0)
-    .reduce((sum: number, acc: { balance: number; transaction_count: number }) => sum + acc.balance, 0)
+    .filter((acc) => acc.balance > 0)
+    .reduce((sum, acc) => sum + acc.balance, 0)
   const totalLiabilities = Math.abs(
     Object.values(accounts)
-      .filter((acc: { balance: number; transaction_count: number }) => acc.balance < 0)
-      .reduce((sum: number, acc: { balance: number; transaction_count: number }) => sum + acc.balance, 0),
+      .filter((acc) => acc.balance < 0)
+      .reduce((sum, acc) => sum + acc.balance, 0),
   )
   const netWorth = totalAssets - totalLiabilities
 
@@ -174,7 +174,7 @@ export default function NetWorthPage() {
 
   // Calculate category totals from current balances using classifications
   const categoryTotals = useMemo(() => {
-    return Object.entries(accounts).reduce((acc, [name, data]: [string, { balance: number; transaction_count: number }]) => {
+    return Object.entries(accounts).reduce((acc, [name, data]) => {
       const category = categorizeAccount(name)
       if (!acc[category]) acc[category] = 0
       // Use absolute value since negative balances are assets
@@ -374,7 +374,7 @@ export default function NetWorthPage() {
                   }}
                   labelStyle={{ color: '#9ca3af' }}
                   itemStyle={{ color: '#fff' }}
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                 />
                 <Legend />
                 {showStacked ? (
@@ -441,8 +441,8 @@ export default function NetWorthPage() {
                 </thead>
                 <tbody>
                   {Object.entries(accounts)
-                    .filter(([, accountData]: [string, { balance: number; transaction_count: number }]) => accountData.balance > 0 && Math.abs(accountData.balance) >= 0.01)
-                    .sort((a: [string, { balance: number; transaction_count: number }], b: [string, { balance: number; transaction_count: number }]) => {
+                    .filter(([, accountData]) => accountData.balance > 0 && Math.abs(accountData.balance) >= 0.01)
+                    .sort((a, b) => {
                       // Sort by category first, then by balance within category
                       const catA = getAccountType(a[0])
                       const catB = getAccountType(b[0])
@@ -543,8 +543,8 @@ export default function NetWorthPage() {
                 </thead>
                 <tbody>
                   {Object.entries(accounts)
-                    .filter(([, accountData]: [string, { balance: number; transaction_count: number }]) => accountData.balance < 0 && Math.abs(accountData.balance) >= 0.01)
-                    .sort((a: [string, { balance: number; transaction_count: number }], b: [string, { balance: number; transaction_count: number }]) => {
+                    .filter(([, accountData]) => accountData.balance < 0 && Math.abs(accountData.balance) >= 0.01)
+                    .sort((a, b) => {
                       // Sort by category first, then by balance within category
                       const catA = getAccountType(a[0])
                       const catB = getAccountType(b[0])

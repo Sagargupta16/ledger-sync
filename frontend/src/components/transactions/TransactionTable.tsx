@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -6,6 +6,7 @@ import {
   flexRender,
   type ColumnDef,
   type SortingState,
+  type Updater,
 } from '@tanstack/react-table'
 import { ArrowUpDown, TrendingUp, TrendingDown, Search } from 'lucide-react'
 import type { Transaction } from '@/types'
@@ -91,8 +92,8 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
         cell: ({ row }) => {
           const amount = row.original.amount
           const type = row.original.type
-          const isIncome = type === 'Income' || type === 'income'
-          const isTransfer = type === 'Transfer' || type === 'transfer'
+          const isIncome = type === 'Income'
+          const isTransfer = type === 'Transfer'
           
           const colorClass = isTransfer 
             ? 'text-blue-400' 
@@ -123,7 +124,15 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     []
   )
 
-  // eslint-disable-next-line react-hooks/incompatible-library
+  // Wrapper to handle TanStack Table's updater pattern
+  const handleSortingChange = useCallback((updaterOrValue: Updater<SortingState>) => {
+    if (typeof updaterOrValue === 'function') {
+      onSortingChange(updaterOrValue(sorting))
+    } else {
+      onSortingChange(updaterOrValue)
+    }
+  }, [onSortingChange, sorting])
+
   const table = useReactTable({
     data: transactions,
     columns,
@@ -132,7 +141,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     state: {
       sorting,
     },
-    onSortingChange,
+    onSortingChange: handleSortingChange,
     manualSorting: true,
   })
 

@@ -165,8 +165,8 @@ export default function TopMerchants() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) =>
-                    viewMode === 'amount' ? formatCurrency(value) : `${value} visits`
+                  formatter={(value: number | undefined) =>
+                    value !== undefined ? (viewMode === 'amount' ? formatCurrency(value) : `${value} visits`) : ''
                   }
                   contentStyle={{
                     backgroundColor: 'rgba(0,0,0,0.9)',

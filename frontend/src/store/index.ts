@@ -1,5 +1,5 @@
 // Store index
-export { useAccountStore, type AccountType } from './accountStore'
+export { useAccountStore } from './accountStore'
 export { useBudgetStore, type Budget } from './budgetStore'
 export {
   usePreferencesStore,

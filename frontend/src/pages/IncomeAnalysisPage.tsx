@@ -47,7 +47,9 @@ export default function IncomeAnalysisPage() {
     if (!dateRange.start_date) return transactions
     
     return transactions.filter((t) => {
-      return t.date >= dateRange.start_date! && (!dateRange.end_date || t.date <= dateRange.end_date)
+      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
+      const txDate = t.date.substring(0, 10)
+      return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [transactions, dateRange])
 
@@ -254,7 +256,7 @@ export default function IncomeAnalysisPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number) => formatCurrency(value)}
+                      formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                       contentStyle={{
                         background: 'rgba(0,0,0,0.9)',
                         border: '1px solid rgba(255,255,255,0.1)',
@@ -283,7 +285,7 @@ export default function IncomeAnalysisPage() {
                           className="p-2 rounded-lg"
                           style={{ backgroundColor: `${item.color}20` }}
                         >
-                          <Icon className="w-5 h-5" style={{ color: item.color }} />
+                          <Icon className="w-5 h-5" />
                         </div>
                         <div>
                           <p className="font-medium text-white">{item.name}</p>
@@ -350,7 +352,7 @@ export default function IncomeAnalysisPage() {
                     }}
                     labelStyle={{ color: '#9ca3af' }}
                     itemStyle={{ color: '#fff' }}
-                    formatter={(value: number) => [formatCurrency(value), 'Income']}
+                    formatter={(value: number | undefined) => value !== undefined ? [formatCurrency(value), 'Income'] : ''}
                   />
                   <Line
                     type="monotone"

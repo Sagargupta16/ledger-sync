@@ -43,7 +43,9 @@ export default function SpendingAnalysisPage() {
     if (!dateRange.start_date) return transactions
     
     return transactions.filter((t) => {
-      return t.date >= dateRange.start_date! && (!dateRange.end_date || t.date <= dateRange.end_date)
+      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
+      const txDate = t.date.substring(0, 10)
+      return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [transactions, dateRange])
 
@@ -210,7 +212,7 @@ export default function SpendingAnalysisPage() {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: number) => formatCurrency(value)}
+                        formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                         contentStyle={{
                           background: 'rgba(0,0,0,0.9)',
                           border: '1px solid rgba(255,255,255,0.1)',

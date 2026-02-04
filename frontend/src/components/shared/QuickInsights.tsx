@@ -24,7 +24,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
   // Filter for expense transactions
   const transactionsData = {
     transactions: allTransactions.filter(
-      (t) => t.type === 'Expense' || t.type === 'expense'
+      (t) => t.type === 'Expense'
     ),
   }
 
@@ -110,11 +110,11 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
   const cashbackTransactions = allTransactions.filter(
     (t) => 
       t.category === 'Refund & Cashbacks' && 
-      (t.type === 'Income' || t.type === 'income') &&
+      t.type === 'Income' &&
       (t.subcategory === 'Credit Card Cashbacks' || t.subcategory === 'Other Cashbacks')
   )
   const cashbackSharedTransactions = allTransactions.filter(
-    (t) => (t.type === 'Transfer' || t.type === 'transfer') && t.to_account === 'Cashback Shared'
+    (t) => t.type === 'Transfer' && t.to_account === 'Cashback Shared'
   )
   const totalCashback = cashbackTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
   const totalCashbackShared = cashbackSharedTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
@@ -148,7 +148,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
 
   // Calculate total internal transfers
   const transferTransactions = allTransactions.filter(
-    (t) => t.type === 'Transfer' || t.type === 'transfer'
+    (t) => t.type === 'Transfer'
   )
   const totalTransfers = transferTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
 

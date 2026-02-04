@@ -68,7 +68,9 @@ export default function DashboardPage() {
     // Filter transactions by date range
     const filtered = allTransactions.filter((t) => {
       if (!dateRange.start_date) return true
-      return t.date >= dateRange.start_date && (!dateRange.end_date || t.date <= dateRange.end_date)
+      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
+      const txDate = t.date.substring(0, 10)
+      return txDate >= dateRange.start_date && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
     
     return calculateIncomeByCategoryBreakdown(filtered)
@@ -81,7 +83,9 @@ export default function DashboardPage() {
     // Filter transactions by date range
     const filtered = allTransactions.filter((t) => {
       if (!dateRange.start_date) return true
-      return t.date >= dateRange.start_date && (!dateRange.end_date || t.date <= dateRange.end_date)
+      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
+      const txDate = t.date.substring(0, 10)
+      return txDate >= dateRange.start_date && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
     
     // Build income classification from preferences
@@ -102,7 +106,9 @@ export default function DashboardPage() {
     // Filter transactions by date range
     const filtered = allTransactions.filter((t) => {
       if (!dateRange.start_date) return true
-      return t.date >= dateRange.start_date && (!dateRange.end_date || t.date <= dateRange.end_date)
+      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
+      const txDate = t.date.substring(0, 10)
+      return txDate >= dateRange.start_date && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
     
     return calculateSpendingBreakdown(filtered, preferences.essential_categories)
@@ -248,7 +254,7 @@ export default function DashboardPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number) => formatCurrency(value)}
+                      formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                       contentStyle={{
                         background: 'rgba(0,0,0,0.9)',
                         border: '1px solid rgba(255,255,255,0.1)',
@@ -338,7 +344,7 @@ export default function DashboardPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number) => formatCurrency(value)}
+                      formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                       contentStyle={{
                         background: 'rgba(0,0,0,0.9)',
                         border: '1px solid rgba(255,255,255,0.1)',

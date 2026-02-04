@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import { Toaster } from 'sonner'
@@ -45,9 +45,9 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-// Landing page that redirects authenticated users
+// Landing page that shows HomePage
 function LandingPage() {
-  const { isAuthenticated, isLoading } = useAuthStore()
+  const { isLoading } = useAuthStore()
 
   if (isLoading) {
     return (

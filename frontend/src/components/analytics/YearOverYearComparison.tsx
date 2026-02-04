@@ -234,7 +234,7 @@ export default function YearOverYearComparison() {
             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
             <YAxis tickFormatter={(v) => formatCurrencyShort(v)} tick={{ fontSize: 12 }} />
             <Tooltip
-              formatter={(value: number) => formatCurrency(value)}
+              formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
               contentStyle={{
                 backgroundColor: 'rgba(0,0,0,0.9)',
                 border: '1px solid rgba(255,255,255,0.2)',

@@ -30,7 +30,9 @@ const IncomeExpenseFlowPage = () => {
     
     return allTransactions.filter(txn => {
       if (txn.is_transfer) return false
-      return txn.date >= dateRange.start_date! && (!dateRange.end_date || txn.date <= dateRange.end_date)
+      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
+      const txDate = txn.date.substring(0, 10)
+      return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [allTransactions, dateRange])
 
@@ -365,10 +367,10 @@ const IncomeExpenseFlowPage = () => {
                       color: '#a78bfa',
                       fontSize: '13px',
                     }}
-                    formatter={(value: number) => [
+                    formatter={(value: number | undefined) => value !== undefined ? [
                       formatCurrency(value),
                       'Amount'
-                    ]}
+                    ] : ''}
                   />
                 </Sankey>
               </ResponsiveContainer>
@@ -394,7 +396,7 @@ const IncomeExpenseFlowPage = () => {
           <div className="h-[700px] flex items-center justify-center bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-xl border border-white/5">
             <div className="text-center">
               <ArrowRightLeft className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400 text-lg">No transaction data available for FY {selectedFY}</p>
+              <p className="text-gray-400 text-lg">No transaction data available for FY {currentFY}</p>
               <p className="text-gray-500 text-sm mt-2">Select a different financial year or upload transaction data</p>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { 
-  ViewMode, 
+  type ViewMode, 
   getCurrentYear, 
   getCurrentMonth, 
   getPreviousPeriod, 
