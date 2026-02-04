@@ -1,48 +1,95 @@
 # Ledger Sync Frontend
 
-Modern financial analytics dashboard built with React 19, TypeScript, and Vite.
+Modern financial analytics dashboard built with React 18, TypeScript, and Vite.
 
 ## Tech Stack
 
-- **React 19** - UI framework with latest features
+- **React 18** - UI framework
 - **TypeScript** - Type safety
 - **Vite** - Fast build tool and dev server
 - **TanStack Query** - Server state management and caching
 - **Zustand** - Lightweight global state management
 - **Recharts** - Charting library for data visualization
 - **Tailwind CSS** - Utility-first styling
+- **Framer Motion** - Animations
+- **Sonner** - Toast notifications
 
 ## Project Structure
 
 ```
 src/
-├── pages/              # 13 page components
+├── pages/              # Page components
 │   ├── DashboardPage.tsx
+│   ├── UploadSyncPage.tsx       # Beautiful upload UI with hero section
 │   ├── TransactionsPage.tsx
-│   ├── SpendingAnalysisPage.tsx
+│   ├── SpendingAnalysisPage.tsx # 50/30/20 budget rule
 │   ├── IncomeAnalysisPage.tsx
-│   └── ... (9 more pages)
+│   ├── IncomeExpenseFlowPage/   # Sankey diagrams
+│   ├── InvestmentAnalyticsPage.tsx # 4 investment categories
+│   ├── MutualFundProjectionPage.tsx
+│   ├── TaxPlanningPage.tsx
+│   ├── NetWorthPage.tsx
+│   ├── TrendsForecastsPage.tsx
+│   └── SettingsPage.tsx
 ├── components/
-│   ├── analytics/      # 13 analytics components
+│   ├── analytics/      # Analytics components
 │   │   ├── FinancialHealthScore.tsx
 │   │   ├── YearOverYearComparison.tsx
-│   │   ├── PeriodComparison.tsx
 │   │   ├── CashFlowForecast.tsx
-│   │   └── ... (9 more components)
-│   ├── layout/         # Layout components
-│   ├── shared/         # Shared components
-│   ├── transactions/   # Transaction components
-│   ├── ui/            # Base UI components
-│   └── upload/        # Upload components
-├── hooks/             # Custom React hooks
-│   └── api/           # API-specific hooks
-├── services/          # API client services
-│   └── api/           # API modules
-├── store/             # Zustand state stores
-├── lib/               # Utilities
-├── types/             # TypeScript types
-└── constants/         # App constants
+│   │   ├── ExpenseTreemap.tsx
+│   │   └── ...
+│   ├── layout/         # Layout components (Sidebar, AppLayout)
+│   ├── shared/         # Shared components (EmptyState, TimeFilter)
+│   ├── transactions/   # Transaction table components
+│   ├── ui/             # Base UI components (shadcn-style)
+│   └── upload/         # Upload components (DropZone)
+├── hooks/              # Custom React hooks
+│   ├── api/            # TanStack Query hooks
+│   │   ├── useTransactions.ts
+│   │   ├── useUpload.ts
+│   │   ├── usePreferences.ts
+│   │   └── useAnalytics.ts
+│   └── usePeriodNavigation.ts
+├── services/api/       # API client modules
+├── store/              # Zustand state stores
+├── lib/                # Utilities (formatters, dateUtils)
+├── types/              # TypeScript type definitions
+└── constants/          # App constants and colors
 ```
+
+## Key Features
+
+### Upload & Sync Page
+
+- Hero section with gradient background and grid pattern
+- Inline drag-and-drop upload zone
+- Sample Excel format preview table
+- Toast notifications for upload status (bottom-right, glassy style)
+
+### Spending Analysis
+
+- **50/30/20 Budget Rule** with 3 entities:
+  - Needs (50% of income) - Essential expenses
+  - Wants (30% of income) - Discretionary expenses
+  - Savings (20% of income) - Income minus expenses
+- Pie chart with all 3 categories
+- Progress bars showing current vs target
+
+### Investment Analytics
+
+- **4 Investment Categories**:
+  - FD/Bonds (fixed deposits, bonds)
+  - Mutual Funds
+  - PPF/EPF (provident funds)
+  - Stocks
+- NET investment calculation (Inflows - Outflows)
+- Collective portfolio view (no time filter)
+- Asset allocation pie chart
+
+### Cash Flow (Sankey)
+
+- Income sources → Expense categories
+- Visual flow of money through accounts
 
 ## Getting Started
 
@@ -53,36 +100,42 @@ pnpm install
 # Start development server
 pnpm run dev
 
+# Type check
+pnpm run typecheck
+
 # Build for production
 pnpm run build
-
-# Preview production build
-pnpm run preview
 ```
-
-## Key Features
-
-### Analytics Components
-
-- **Financial Health Score** - Comprehensive scoring with 6 metrics
-- **Year-over-Year Comparison** - FY comparison (April-March)
-- **Period Comparison** - Month selector for quick comparisons
-- **Cash Flow Forecast** - Future cash flow predictions
-- **Recurring Transactions** - Automatic recurring payment detection
-- **Budget Tracker** - Budget tracking visualization
-- **Expense Treemap** - Visual expense breakdown
-- **Subcategory Analysis** - Category drill-down
-
-### State Management
-
-- **TanStack Query** - API data caching and synchronization
-- **Zustand** - Persistent stores for user preferences
 
 ## Environment Variables
 
 ```env
 VITE_API_URL=http://localhost:8000
 ```
+
+## State Management
+
+### TanStack Query (Server State)
+
+- Automatic caching with 5min staleTime
+- Background refetching
+- Query invalidation on mutations
+
+### Zustand (Client State)
+
+- `preferencesStore` - User preferences
+- `accountStore` - Account mappings
+- `investmentAccountStore` - Investment category mappings
+- `budgetStore` - Budget settings
+
+## Toast Notifications
+
+Configured globally in `App.tsx`:
+
+- Position: bottom-right
+- Dark theme with glassy background
+- 4-second default duration
+- Backdrop blur effect
 
 ## Development
 

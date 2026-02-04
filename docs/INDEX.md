@@ -1,6 +1,18 @@
 # Documentation Index
 
-Welcome to Ledger Sync documentation! This guide covers all aspects of the project.
+Welcome to Ledger Sync documentation! Your personal finance command center.
+
+## 🌟 Key Features
+
+| Feature                  | Description                                   |
+| ------------------------ | --------------------------------------------- |
+| **Smart Upload**         | Drag-and-drop Excel with duplicate detection  |
+| **50/30/20 Budget**      | Needs/Wants/Savings analysis based on income  |
+| **Investment Portfolio** | Track FD/Bonds, Mutual Funds, PPF/EPF, Stocks |
+| **Cash Flow Sankey**     | Visual money flow diagrams                    |
+| **Tax Planning**         | India FY (Apr-Mar) based insights             |
+
+---
 
 ## Quick Navigation
 
@@ -9,70 +21,43 @@ Welcome to Ledger Sync documentation! This guide covers all aspects of the proje
 - **[README](../README.md)** - Project overview and quick start
 - **[Backend README](../backend/README.md)** - Backend-specific guide
 - **[Frontend README](../frontend/README.md)** - Frontend-specific guide
+- **[Quick Reference](./QUICK-REFERENCE.md)** - Commands and shortcuts
 
 ### Comprehensive Guides
 
 1. **[Architecture](./architecture.md)** - System design and components
    - High-level architecture
    - Backend layers (API, Business Logic, Data Access)
-   - Frontend layers (Pages, Features, Components)
+   - Frontend layers (Pages, Components)
    - Data models and flow
-   - Technology choices
-   - Scalability considerations
+   - Financial calculations (50/30/20 rule, NET investments)
 
 2. **[API Documentation](./API.md)** - REST API reference
-   - Base URL and authentication
    - Upload endpoints
    - Transaction endpoints
    - Analytics endpoints
-   - Calculation endpoints
-   - Error codes and rate limiting
-   - Interactive API docs links
+   - Preferences endpoints
 
 3. **[Database Schema](./DATABASE.md)** - Database design and operations
-   - Database models (Transaction)
-   - Create, Read, Update, Delete operations
+   - Database models (Transaction, ImportLog, Preferences)
+   - Hash ID generation for deduplication
    - Alembic migrations
-   - Hash ID generation
-   - Data integrity
-   - Performance optimization
-   - Backup and recovery
-   - Future scaling to PostgreSQL
 
 4. **[Development Guide](./DEVELOPMENT.md)** - Development environment and workflow
    - Setup instructions
-   - Running the application
    - Creating new endpoints
    - Creating new components
-   - API integration
    - Debugging techniques
-   - IDE setup (VS Code)
-   - Common development tasks
 
 5. **[Testing Guide](./TESTING.md)** - Testing strategies and practices
    - Backend testing (pytest)
-   - Frontend testing (Jest, React Testing Library)
-   - Writing unit tests
-   - Writing integration tests
-   - Component testing
-   - Mocking and fixtures
+   - Frontend testing
    - Code coverage
-   - E2E testing (Cypress)
-   - Test best practices
 
 6. **[Deployment Guide](./DEPLOYMENT.md)** - Deployment to production
-   - Pre-deployment checklist
-   - Self-hosted deployment (VPS/Dedicated Server)
+   - Self-hosted deployment
    - Docker deployment
-   - Cloud deployments (Heroku, AWS, Digital Ocean)
-   - Environment configuration
-   - Database management
-   - Performance optimization
-   - Monitoring and logging
-   - Security considerations
-   - Scaling strategies
-   - CI/CD pipeline
-   - Disaster recovery
+   - Cloud deployments
 
 ---
 
@@ -186,52 +171,66 @@ ledger-sync/
 - **Language**: Python 3.11+
 - **Framework**: FastAPI
 - **ORM**: SQLAlchemy 2.0
-- **Database**: SQLite (Development), PostgreSQL (Production)
+- **Database**: SQLite
 - **Testing**: pytest
 - **Migrations**: Alembic
 
 ### Frontend
 
 - **Language**: TypeScript
-- **Framework**: React 19
+- **Framework**: React 18
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS
 - **Charts**: Recharts
-- **State Management**: Zustand
-- **API Layer**: TanStack Query (React Query)
-- **Testing**: Vitest, React Testing Library
+- **State Management**: Zustand + TanStack Query
+- **Notifications**: Sonner (toast)
 
 ---
 
 ## Key Concepts
 
+### 50/30/20 Budget Rule
+
+The spending analysis follows the 50/30/20 budgeting framework:
+
+| Category | Target | Description                                         |
+| -------- | ------ | --------------------------------------------------- |
+| Needs    | ≤ 50%  | Essential expenses (rent, bills, groceries)         |
+| Wants    | ≤ 30%  | Non-essential spending (entertainment, dining)      |
+| Savings  | ≥ 20%  | Income minus expenses (investments, emergency fund) |
+
+**Calculation**: `Savings = Total Income - Total Expenses`
+
+### Investment Categories
+
+The investment portfolio tracks 4 asset types:
+
+| Category     | Accounts              | Calculation             |
+| ------------ | --------------------- | ----------------------- |
+| FD/Bonds     | Fixed Deposits, Bonds | Cumulative transfers in |
+| Mutual Funds | All MF accounts       | Cumulative transfers in |
+| PPF/EPF      | Provident funds       | Cumulative transfers in |
+| Stocks       | Equity holdings       | NET (In - Out)          |
+
+**Note**: Stocks use NET calculation since transfers out may represent sales, not actual withdrawal.
+
 ### Transaction Reconciliation
 
-The system uses SHA-256 hashing to generate deterministic transaction IDs. This allows:
+The system uses SHA-256 hashing to generate deterministic transaction IDs:
 
-- Deduplication across multiple imports
-- Idempotent uploads (same file twice = no changes)
-- Deterministic tracking without central ID service
+- **Deduplication** - Same transaction won't be imported twice
+- **Idempotent uploads** - Re-uploading produces no changes
+- **Audit trail** - Soft deletes preserve history
 
 See [Architecture](./architecture.md#transaction-reconciliation) for details.
-
-### Soft Deletes
-
-Transactions are marked as deleted rather than removed:
-
-- Maintains audit trail
-- Allows recovery of accidentally deleted data
-- Enables historical analysis
-
-See [Database Schema](./DATABASE.md#delete-soft) for details.
 
 ### API Structure
 
 Endpoints are organized into three main groups:
 
-- **Upload**: File ingestion
-- **Transactions**: Transaction data access
-- **Analytics/Calculations**: Financial insights
+- **Upload**: File ingestion with duplicate detection
+- **Transactions**: Transaction data access and filtering
+- **Analytics/Calculations**: Financial insights and metrics
 
 See [API Documentation](./API.md) for full reference.
 

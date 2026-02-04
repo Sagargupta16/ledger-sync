@@ -1,24 +1,54 @@
 # Quick Reference
 
-Fast lookup for common commands and configurations.
+Fast lookup for common commands, features, and configurations.
+
+## Key Features
+
+### Upload Page
+
+- Hero section with drag-and-drop upload zone
+- Sample Excel format preview table
+- Toast notifications (bottom-right, glassy style)
+- Force reupload for duplicate files
+
+### 50/30/20 Budget Rule (Spending Analysis)
+
+| Category    | Target         | Description                                    |
+| ----------- | -------------- | ---------------------------------------------- |
+| **Needs**   | ≤50% of income | Essential expenses (housing, food, healthcare) |
+| **Wants**   | ≤30% of income | Discretionary (entertainment, shopping)        |
+| **Savings** | ≥20% of income | Income minus all expenses                      |
+
+### Investment Categories
+
+| Category         | Accounts               |
+| ---------------- | ---------------------- |
+| **FD/Bonds**     | Fixed deposits, bonds  |
+| **Mutual Funds** | All MF accounts        |
+| **PPF/EPF**      | Provident funds        |
+| **Stocks**       | Stock trading accounts |
+
+_NET Investment = Transfer-In − Transfer-Out_
+
+---
 
 ## Startup Commands
 
 ```bash
 # Both services
-npm run dev
+pnpm run dev
 
 # Backend only
-npm run backend
+pnpm run backend
 
 # Frontend only
-npm run frontend
+pnpm run frontend
 
 # Backend with direct Python
 cd backend && python -m uvicorn ledger_sync.api.main:app --reload
 
 # Frontend with Vite
-cd frontend && npm run dev
+cd frontend && pnpm run dev
 ```
 
 ## API Endpoints Summary

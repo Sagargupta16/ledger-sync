@@ -30,26 +30,27 @@ Ledger Sync is a **robust financial transaction management system** with strong 
 
 ### Core Functionality
 
-- ✅ **Excel Upload & Processing** - Upload MoneyManager Excel files
+- ✅ **Excel Upload & Processing** - Drag-and-drop upload with sample table preview
 - ✅ **Transaction Reconciliation** - SHA-256 based deduplication
 - ✅ **Database Persistence** - SQLite with SQLAlchemy ORM
 - ✅ **REST API** - FastAPI with comprehensive endpoints
+- ✅ **Toast Notifications** - Sonner with glassy dark theme
 
 ### Frontend Pages (13 pages implemented)
 
 - ✅ **Dashboard** - Main overview with KPIs
 - ✅ **Transactions** - Full transaction list with filtering
-- ✅ **Upload & Sync** - File upload interface
-- ✅ **Spending Analysis** - Detailed spending breakdown
+- ✅ **Upload & Sync** - Hero section with inline dropzone and sample Excel table
+- ✅ **Spending Analysis** - 50/30/20 budget rule (Needs/Wants/Savings)
 - ✅ **Income Analysis** - Income tracking and analysis
-- ✅ **Income/Expense Flow** - Visual flow analysis
+- ✅ **Income/Expense Flow** - Visual Sankey flow analysis
 - ✅ **Trends & Forecasts** - Trend visualization
-- ✅ **Investment Analytics** - Investment portfolio tracking
+- ✅ **Investment Analytics** - 4-category portfolio (FD/Bonds, MF, PPF/EPF, Stocks)
 - ✅ **Mutual Fund Projection** - SIP/MF projections
 - ✅ **Returns Analysis** - Returns tracking
-- ✅ **Tax Planning** - Tax planning tools
+- ✅ **Tax Planning** - Tax planning tools (India FY)
 - ✅ **Net Worth** - Net worth tracking
-- ✅ **Settings** - App configuration
+- ✅ **Settings** - Account classification and preferences
 
 ### Analytics Components (13 components)
 
@@ -64,7 +65,7 @@ Ledger Sync is a **robust financial transaction management system** with strong 
 - ✅ **Period Comparison** - Month-to-month comparison with selectors
 - ✅ **Cash Flow Forecast** - Future cash flow predictions
 - ✅ **Recurring Transactions** - Automatic recurring payment detection
-- ✅ **Budget Tracker** - Budget tracking visualization
+- ✅ **Budget Tracker** - 50/30/20 rule visualization
 - ✅ **Expense Treemap** - Expense visualization
 - ✅ **Top Merchants** - Top vendors/merchants analysis
 - ✅ **Subcategory Analysis** - Category drill-down
@@ -75,9 +76,10 @@ Ledger Sync is a **robust financial transaction management system** with strong 
 ### Technical Features
 
 - ✅ **TanStack Query** - Server state management with caching
-- ✅ **Zustand Stores** - Global state (accounts, investments)
+- ✅ **Zustand Stores** - Global state (accounts, investments, preferences)
 - ✅ **Recharts** - Modern chart library
 - ✅ **Account Classification API** - User-defined account types
+- ✅ **Sonner Toast** - Bottom-right positioned notifications
 - ✅ **Investment Account Detection** - Pattern-based detection
 - ✅ **Dark Theme** - Full dark theme support
 

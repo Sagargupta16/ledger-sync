@@ -5,11 +5,23 @@
 ### Prerequisites
 
 - Python 3.11+
-- Node.js 18+
+- Node.js 18+ (with pnpm)
 - Git
-- Code editor (VS Code recommended)
+- VS Code (recommended)
 
-### Initial Setup
+### Quick Start
+
+```powershell
+# Clone and setup
+git clone https://github.com/Sagargupta16/ledger-sync.git
+cd ledger-sync
+pnpm run setup   # Installs all dependencies
+
+# Run development servers
+pnpm run dev     # Backend: http://localhost:8000, Frontend: http://localhost:3000
+```
+
+### Manual Setup
 
 ```powershell
 # 1. Clone repository
@@ -27,10 +39,10 @@ source venv/bin/activate
 
 # 4. Install Python dependencies
 cd backend
-pip install -e ".[dev]"  # Install with development dependencies
+pip install -e ".[dev]"
 cd ..
 
-# 5. Install Node dependencies (using pnpm)
+# 5. Install Node dependencies
 cd frontend
 pnpm install
 cd ..
@@ -43,21 +55,12 @@ cd ..
 
 ## Running the Application
 
-### Option 1: Use Setup Script (Windows)
+### Option 1: Concurrent Development (Recommended)
 
 ```powershell
-.\setup.ps1   # First time setup
-.\start.ps1   # Start both services
-```
-
-### Option 2: Run Both Services Manually
-
-```powershell
-# From project root
+# From project root - runs both services
 pnpm run dev
 ```
-
-This runs both backend and frontend concurrently using the `concurrently` package.
 
 ### Option 2: Run Services Separately
 
@@ -72,7 +75,7 @@ python -m uvicorn ledger_sync.api.main:app --reload
 
 ```powershell
 cd frontend
-npm run dev
+pnpm run dev
 ```
 
 ### Option 3: PowerShell Script

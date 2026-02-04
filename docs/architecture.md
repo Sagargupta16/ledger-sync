@@ -155,6 +155,14 @@ Income = Sum of all Income type transactions
 Expenses = Sum of all Expense type transactions
 Net = Income - Expenses
 Savings Rate = (Income - Expenses) / Income
+
+# 50/30/20 Budget Rule (based on income)
+Needs = Essential expenses (should be ≤50% of income)
+Wants = Discretionary expenses (should be ≤30% of income)
+Savings = Income - Expenses (should be ≥20% of income)
+
+# Investment NET calculation
+NET Investment = Transfer-In amounts - Transfer-Out amounts
 ```
 
 ## Frontend Architecture
@@ -164,43 +172,39 @@ Savings Rate = (Income - Expenses) / Income
 #### 1. **Pages Layer** (`src/pages/`)
 
 - **Responsibility**: Screen-level components, layout, page composition
-- **Components** (13 pages):
+- **Components** (12 pages):
   - `DashboardPage` - Main dashboard with overview and analytics
   - `TransactionsPage` - Transaction table with filtering
-  - `UploadSyncPage` - File upload and data sync
-  - `SpendingAnalysisPage` - Spending breakdown and analysis
+  - `UploadSyncPage` - Hero upload UI with sample format preview
+  - `SpendingAnalysisPage` - 50/30/20 budget rule analysis
   - `IncomeAnalysisPage` - Income analysis
-  - `IncomeExpenseFlowPage` - Income/expense flow visualization
+  - `IncomeExpenseFlowPage` - Sankey diagram cash flow visualization
   - `TrendsForecastsPage` - Trends and forecasting
-  - `InvestmentAnalyticsPage` - Investment portfolio tracking
+  - `InvestmentAnalyticsPage` - 4-category investment portfolio
   - `MutualFundProjectionPage` - SIP/MF projections
-  - `ReturnsAnalysisPage` - Returns analysis
   - `TaxPlanningPage` - Tax planning tools
   - `NetWorthPage` - Net worth tracking
-  - `SettingsPage` - App settings
+  - `SettingsPage` - App settings and preferences
 
 #### 2. **Components Layer** (`src/components/`)
 
 - **Responsibility**: Reusable UI components organized by domain
 - **Modules**:
-  - `analytics/` - Analytics visualization components (13 components)
+  - `analytics/` - Analytics visualization components
     - `FinancialHealthScore` - Comprehensive health score (6 metrics)
     - `YearOverYearComparison` - YoY financial comparison
     - `PeriodComparison` - Month-to-month comparison with selectors
     - `CashFlowForecast` - Future cash flow predictions
     - `RecurringTransactions` - Recurring payment detection
-    - `BudgetTracker` - Budget tracking visualization
     - `ExpenseTreemap` - Expense visualization as treemap
     - `TopMerchants` - Top merchants/vendors analysis
-    - `SubcategoryAnalysis` - Subcategory breakdown
     - `EnhancedSubcategoryAnalysis` - Advanced subcategory analysis
     - `MultiCategoryTimeAnalysis` - Time-based category analysis
-    - `CreditCardHealth` - Credit card utilization metrics
-  - `layout/` - Layout components (Header, Sidebar, etc.)
-  - `shared/` - Shared components
-  - `transactions/` - Transaction-specific components
-  - `ui/` - Base UI components (buttons, cards, dialogs)
-  - `upload/` - File upload components
+  - `layout/` - Layout components (AppLayout, Sidebar)
+  - `shared/` - Shared components (EmptyState, AnalyticsTimeFilter)
+  - `transactions/` - Transaction table components
+  - `ui/` - Base UI components (shadcn-style)
+  - `upload/` - File upload components (DropZone)
 
 #### 3. **Hooks Layer** (`src/hooks/`)
 
@@ -208,7 +212,8 @@ Savings Rate = (Income - Expenses) / Income
 - **Examples**:
   - `useAccountTypes` - Account type management
   - `useAnalytics` - Analytics data fetching
-  - `api/` - API-specific hooks using TanStack Query
+  - `usePeriodNavigation` - Time period navigation
+  - `api/` - TanStack Query hooks for API calls
 
 #### 4. **Services Layer** (`src/services/`)
 

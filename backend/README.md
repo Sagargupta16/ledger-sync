@@ -4,27 +4,28 @@ FastAPI backend for financial data processing and analytics.
 
 ## Features
 
-- Excel file ingestion and validation
-- Intelligent transaction reconciliation
-- Financial calculations and analytics
-- RESTful API endpoints
-- SQLite database with SQLAlchemy ORM
-- Database migrations with Alembic
+- 📤 Excel file ingestion with duplicate detection
+- 🔄 SHA-256 based transaction reconciliation
+- 📊 Financial analytics and calculations
+- 🗄️ SQLite database with SQLAlchemy ORM
+- 🔀 Alembic database migrations
 
 ## Tech Stack
 
-- Python 3.11+
-- FastAPI - Modern web framework
-- SQLAlchemy 2.0 - ORM and database toolkit
-- Alembic - Database migrations
-- SQLite - Embedded database
-- Pytest - Testing framework
+| Component  | Technology     |
+| ---------- | -------------- |
+| Language   | Python 3.11+   |
+| Framework  | FastAPI        |
+| ORM        | SQLAlchemy 2.0 |
+| Database   | SQLite         |
+| Migrations | Alembic        |
+| Testing    | pytest         |
 
 ## Quick Start
 
 ```powershell
 # Install dependencies
-pip install -r requirements.txt
+pip install -e ".[dev]"
 
 # Initialize database
 alembic upgrade head
@@ -33,7 +34,7 @@ alembic upgrade head
 python -m uvicorn ledger_sync.api.main:app --reload
 ```
 
-Backend will be available at http://localhost:8000
+Backend available at http://localhost:8000
 
 ## Project Structure
 
@@ -43,39 +44,54 @@ backend/
 │   ├── api/              # FastAPI endpoints
 │   │   ├── main.py       # Application entry point
 │   │   ├── analytics.py  # Analytics endpoints
-│   │   └── calculations.py # Calculation endpoints
+│   │   ├── analytics_v2.py # V2 analytics
+│   │   ├── calculations.py # Calculations
+│   │   ├── preferences.py  # User preferences
+│   │   └── account_classifications.py
 │   ├── core/             # Business logic
 │   │   ├── reconciler.py # Transaction reconciliation
-│   │   └── sync_engine.py # Data synchronization
+│   │   ├── calculator.py # Financial calculations
+│   │   └── analytics_engine.py
 │   ├── db/               # Database layer
 │   │   ├── models.py     # SQLAlchemy models
 │   │   └── session.py    # Database session
 │   ├── ingest/           # Data ingestion
-│   │   ├── excel_loader.py # Excel file processing
+│   │   ├── excel_loader.py # Excel processing
 │   │   ├── normalizer.py # Data normalization
-│   │   └── validator.py  # Data validation
+│   │   ├── validator.py  # Validation
+│   │   └── hash_id.py    # Hash ID generation
+│   ├── config/           # Configuration
+│   │   └── settings.py   # App settings
 │   └── utils/            # Utilities
 ├── tests/                # Test suite
 │   ├── unit/            # Unit tests
 │   └── integration/     # Integration tests
-├── alembic/             # Database migrations
-├── requirements.txt     # Python dependencies
-└── setup.py            # Package setup
+└── alembic/             # Database migrations
 ```
 
 ## API Endpoints
 
-### Transactions
+### Upload
 
-- `GET /api/transactions` - Get all transactions
-- `POST /api/upload` - Upload Excel file
+| Method | Endpoint      | Description       |
+| ------ | ------------- | ----------------- |
+| POST   | `/api/upload` | Upload Excel file |
+
+**Response includes:**
+
+- `processed` - Total rows processed
+- `inserted` - New transactions
+- `updated` - Modified transactions
+- `deleted` - Soft-deleted transactions
+- `unchanged` - Skipped (no changes)
 
 ### Analytics
 
-- `GET /api/analytics/overview` - Financial overview
-- `GET /api/analytics/kpis` - Key performance indicators
-- `GET /api/analytics/behavior` - Spending behavior
-- `GET /api/analytics/trends` - Financial trends
+| Method | Endpoint                  | Description                |
+| ------ | ------------------------- | -------------------------- |
+| GET    | `/api/analytics/overview` | Financial overview         |
+| GET    | `/api/analytics/kpis`     | Key performance indicators |
+| GET    | `/api/analytics/trends`   | Financial trends           |
 
 ### Calculations
 
