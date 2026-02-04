@@ -6,7 +6,7 @@ import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 
 const IncomeExpenseFlowPage = () => {
   const { data: allTransactions = [], isLoading } = useTransactions()
@@ -31,7 +31,7 @@ const IncomeExpenseFlowPage = () => {
     return allTransactions.filter(txn => {
       if (txn.is_transfer) return false
       // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = txn.date.substring(0, 10)
+      const txDate = getDateKey(txn.date)
       return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [allTransactions, dateRange])

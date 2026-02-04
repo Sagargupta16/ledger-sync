@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip } from 'recharts'
 import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
-import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import {
@@ -44,7 +44,7 @@ export default function SpendingAnalysisPage() {
     
     return transactions.filter((t) => {
       // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = t.date.substring(0, 10)
+      const txDate = getDateKey(t.date)
       return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [transactions, dateRange])

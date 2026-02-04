@@ -13,6 +13,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useState, useMemo } from 'react'
 import { formatCurrency } from '@/lib/formatters'
+import { getDateKey } from '@/lib/dateUtils'
 import { 
   calculateIncomeByCategoryBreakdown, 
   calculateSpendingBreakdown,
@@ -69,7 +70,7 @@ export default function DashboardPage() {
     const filtered = allTransactions.filter((t) => {
       if (!dateRange.start_date) return true
       // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = t.date.substring(0, 10)
+      const txDate = getDateKey(t.date)
       return txDate >= dateRange.start_date && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
     
@@ -84,7 +85,7 @@ export default function DashboardPage() {
     const filtered = allTransactions.filter((t) => {
       if (!dateRange.start_date) return true
       // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = t.date.substring(0, 10)
+      const txDate = getDateKey(t.date)
       return txDate >= dateRange.start_date && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
     
@@ -107,7 +108,7 @@ export default function DashboardPage() {
     const filtered = allTransactions.filter((t) => {
       if (!dateRange.start_date) return true
       // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = t.date.substring(0, 10)
+      const txDate = getDateKey(t.date)
       return txDate >= dateRange.start_date && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
     

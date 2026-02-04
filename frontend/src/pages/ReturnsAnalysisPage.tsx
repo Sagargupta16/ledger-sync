@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 
 const INVESTMENT_KEYWORDS = ['invest', 'mutual', 'stock', 'equity', 'sip', 'portfolio', 'fund', 'demat']
 
@@ -50,7 +50,7 @@ export default function ReturnsAnalysisPage() {
     
     return allTransactions.filter(tx => {
       // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = tx.date.substring(0, 10)
+      const txDate = getDateKey(tx.date)
       return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [allTransactions, dateRange])

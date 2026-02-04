@@ -5,7 +5,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
-import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { 
@@ -48,7 +48,7 @@ export default function IncomeAnalysisPage() {
     
     return transactions.filter((t) => {
       // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = t.date.substring(0, 10)
+      const txDate = getDateKey(t.date)
       return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [transactions, dateRange])
