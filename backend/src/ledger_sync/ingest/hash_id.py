@@ -46,12 +46,13 @@ class TransactionHasher:
         category: str | None = None,
         subcategory: str | None = None,
         tx_type: str | None = None,
+        user_id: int | None = None,
     ) -> str:
         """Generate deterministic transaction ID.
 
-        Uses SHA-256 hash of normalized core fields including category and type
-        to ensure uniqueness for transactions that occur at the same time
-        with the same amount.
+        Uses SHA-256 hash of normalized core fields including category, type,
+        and user_id to ensure uniqueness for transactions that occur at the same time
+        with the same amount, while keeping each user's data separate.
 
         Args:
             date: Transaction date
@@ -61,6 +62,7 @@ class TransactionHasher:
             category: Transaction category (optional)
             subcategory: Transaction subcategory (optional)
             tx_type: Transaction type (optional)
+            user_id: User ID for multi-user mode (optional)
 
         Returns:
             64-character hex-encoded transaction ID
@@ -74,10 +76,11 @@ class TransactionHasher:
         norm_category = self.normalize_for_hash(category)
         norm_subcategory = self.normalize_for_hash(subcategory)
         norm_type = self.normalize_for_hash(tx_type)
+        norm_user = str(user_id) if user_id is not None else ""
 
-        # Concatenate with delimiter - include more fields for better uniqueness
+        # Concatenate with delimiter - include user_id for multi-user uniqueness
         hash_input = (
-            f"{norm_date}|{norm_amount}|{norm_account}|{norm_note}|"
+            f"{norm_user}|{norm_date}|{norm_amount}|{norm_account}|{norm_note}|"
             f"{norm_category}|{norm_subcategory}|{norm_type}"
         )
 

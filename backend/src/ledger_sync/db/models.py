@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -16,9 +17,54 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ledger_sync.db.base import Base
+
+if TYPE_CHECKING:
+    pass
+
+
+# =============================================================================
+# USER AUTHENTICATION
+# =============================================================================
+
+
+class User(Base):
+    """User model for authentication."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+    last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    transactions: Mapped["list[Transaction]"] = relationship(
+        "Transaction", back_populates="user", lazy="selectin"
+    )
+    preferences: Mapped["UserPreferences | None"] = relationship(
+        "UserPreferences", back_populates="user", uselist=False
+    )
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        return f"<User(id={self.id}, email={self.email})>"
 
 
 class TransactionType(str, PyEnum):
@@ -68,6 +114,11 @@ class Transaction(Base):
     # Primary key - deterministic hash
     transaction_id: Mapped[str] = mapped_column(String(64), primary_key=True)
 
+    # User foreign key - links transaction to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+
     # Core transaction fields
     date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
@@ -96,10 +147,14 @@ class Transaction(Base):
     )
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
 
+    # Relationship back to user
+    user: Mapped["User"] = relationship("User", back_populates="transactions")
+
     # Create composite index for common queries
     __table_args__ = (
         Index("ix_transactions_date_type", "date", "type"),
         Index("ix_transactions_category_subcategory", "category", "subcategory"),
+        Index("ix_transactions_user_date", "user_id", "date"),
     )
 
     def __repr__(self) -> str:
@@ -136,7 +191,13 @@ class ImportLog(Base):
     __tablename__ = "import_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    file_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+
+    # User foreign key - links import to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+
+    file_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     file_name: Mapped[str] = mapped_column(String(500), nullable=False)
     imported_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -818,28 +879,30 @@ class ColumnMappingLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
 
-# Default JSON values for UserPreferences - defined as constants to avoid long lines
-_DEFAULT_ESSENTIAL_CATEGORIES = (
-    '["Housing", "Healthcare", "Transportation", '
-    '"Food & Dining", "Education", "Family", "Utilities"]'
-)
-_DEFAULT_INVESTMENT_MAPPINGS = (
-    '{"Grow Stocks": "stocks", "Grow Mutual Funds": "mutual_funds", '
-    '"IND money": "stocks", "FD/Bonds": "fixed_deposits", '
-    '"EPF": "ppf_epf", "PPF": "ppf_epf", "RSUs": "stocks"}'
-)
+# Default JSON values for UserPreferences - empty by default for new users
+# Users should configure these based on their actual data after first upload
+_DEFAULT_ESSENTIAL_CATEGORIES = "[]"
+_DEFAULT_INVESTMENT_MAPPINGS = "{}"
 
 
 class UserPreferences(Base):
     """User preferences for customizing analytics and display.
 
-    Stores all user-configurable settings in a single row (single-user app).
+    Stores all user-configurable settings per user.
     JSON fields allow flexible storage of lists/dicts without schema changes.
     """
 
     __tablename__ = "user_preferences"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # User foreign key - links preferences to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True
+    )
+
+    # Relationship back to user
+    user: Mapped["User"] = relationship("User", back_populates="preferences")
 
     # ===== 1. Fiscal Year Configuration =====
     fiscal_year_start_month: Mapped[int] = mapped_column(
@@ -872,43 +935,26 @@ class UserPreferences(Base):
     taxable_income_categories: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        # Default taxable: Salary, Stipend, Bonuses, RSUs, Gig Work
-        default=(
-            '["Employment Income::Salary", "Employment Income::Stipend", '
-            '"Employment Income::Bonuses", "Employment Income::RSUs", '
-            '"Business/Self Employment Income::Gig Work Income"]'
-        ),
+        # Empty by default - user configures based on their data
+        default="[]",
     )
     investment_returns_categories: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        # Default investment returns: Dividends, Interest, F&O, Stock Profits
-        default=(
-            '["Investment Income::Dividends", "Investment Income::Interest", '
-            '"Investment Income::F&O Income", "Investment Income::Stock Market Profits"]'
-        ),
+        # Empty by default - user configures based on their data
+        default="[]",
     )
     non_taxable_income_categories: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        # Default non-taxable: Cashbacks, Refunds, Reimbursements
-        default=(
-            '["Refund & Cashbacks::Credit Card Cashbacks", '
-            '"Refund & Cashbacks::Other Cashbacks", '
-            '"Refund & Cashbacks::Product/Service Refunds", '
-            '"Refund & Cashbacks::Deposits Return", '
-            '"Employment Income::Expense Reimbursement"]'
-        ),
+        # Empty by default - user configures based on their data
+        default="[]",
     )
     other_income_categories: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        # Default other: Gifts, Pocket Money, Prizes, EPF, Other
-        default=(
-            '["One-time Income::Gifts", "One-time Income::Pocket Money", '
-            '"One-time Income::Competition/Contest Prizes", '
-            '"Employment Income::EPF Contribution", "Other::Other"]'
-        ),
+        # Empty by default - user configures based on their data
+        default="[]",
     )
 
     # ===== 5. Budget Defaults =====

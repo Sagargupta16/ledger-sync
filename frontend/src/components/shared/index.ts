@@ -9,3 +9,4 @@ export { default as LoadingSkeleton, MetricCardSkeleton, ChartSkeleton, TableSke
 export { PeriodNavigator } from './PeriodNavigator'
 export { default as EmptyState } from './EmptyState'
 export { default as ErrorState } from './ErrorState'
+export { ProtectedRoute } from './ProtectedRoute'

@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from ledger_sync.api.deps import CurrentUser
 from ledger_sync.db.models import Transaction, TransactionType
 from ledger_sync.db.session import get_session
 
@@ -10,7 +11,7 @@ router = APIRouter(prefix="/api/meta", tags=["meta"])
 
 
 @router.get("/types")
-def get_types() -> dict[str, list[str]]:
+def get_types(current_user: CurrentUser) -> dict[str, list[str]]:
     """Return transaction types."""
     return {
         "transaction_types": [t.value for t in TransactionType],
@@ -18,13 +19,18 @@ def get_types() -> dict[str, list[str]]:
 
 
 @router.get("/accounts")
-def get_accounts(db: Session = Depends(get_session)) -> dict[str, list[str]]:
+def get_accounts(
+    current_user: CurrentUser,
+    db: Session = Depends(get_session),
+) -> dict[str, list[str]]:
     """Return unique accounts from transactions (including transfers)."""
     accounts: set[str] = set()
 
     # From transactions (account field)
     for (acct,) in (
-        db.query(Transaction.account).filter(Transaction.is_deleted.is_(False)).distinct()
+        db.query(Transaction.account)
+        .filter(Transaction.user_id == current_user.id, Transaction.is_deleted.is_(False))
+        .distinct()
     ):
         if acct:
             accounts.add(acct)
@@ -32,7 +38,11 @@ def get_accounts(db: Session = Depends(get_session)) -> dict[str, list[str]]:
     # From transfers (from_account field)
     for (from_acct,) in (
         db.query(Transaction.from_account)
-        .filter(Transaction.is_deleted.is_(False), Transaction.from_account.isnot(None))
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.is_deleted.is_(False),
+            Transaction.from_account.isnot(None),
+        )
         .distinct()
     ):
         if from_acct:
@@ -41,7 +51,11 @@ def get_accounts(db: Session = Depends(get_session)) -> dict[str, list[str]]:
     # From transfers (to_account field)
     for (to_acct,) in (
         db.query(Transaction.to_account)
-        .filter(Transaction.is_deleted.is_(False), Transaction.to_account.isnot(None))
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.is_deleted.is_(False),
+            Transaction.to_account.isnot(None),
+        )
         .distinct()
     ):
         if to_acct:
@@ -51,13 +65,16 @@ def get_accounts(db: Session = Depends(get_session)) -> dict[str, list[str]]:
 
 
 @router.get("/filters")
-def get_filter_meta(db: Session = Depends(get_session)) -> dict[str, list[str]]:
+def get_filter_meta(
+    current_user: CurrentUser,
+    db: Session = Depends(get_session),
+) -> dict[str, list[str]]:
     """Return combined filter metadata (types + accounts).
 
     Categories remain available via /api/calculations/categories/master.
     """
-    types = get_types()
-    accounts = get_accounts(db)
+    types = get_types(current_user)
+    accounts = get_accounts(current_user, db)
     return {
         "transaction_types": types["transaction_types"],
         "accounts": accounts["accounts"],
@@ -117,7 +134,10 @@ def _classify_account(name: str) -> str:
 
 
 @router.get("/buckets")
-def get_buckets(db: Session = Depends(get_session)) -> dict[str, list[str]]:
+def get_buckets(
+    current_user: CurrentUser,
+    db: Session = Depends(get_session),
+) -> dict[str, list[str]]:
     """Return dynamic buckets (needs/wants/savings/investment) from existing data."""
     needs: set[str] = set()
     wants: set[str] = set()
@@ -127,7 +147,9 @@ def get_buckets(db: Session = Depends(get_session)) -> dict[str, list[str]]:
 
     # Classify categories from transactions
     for (category,) in (
-        db.query(Transaction.category).filter(Transaction.is_deleted.is_(False)).distinct()
+        db.query(Transaction.category)
+        .filter(Transaction.user_id == current_user.id, Transaction.is_deleted.is_(False))
+        .distinct()
     ):
         if not category:
             continue
@@ -143,7 +165,9 @@ def get_buckets(db: Session = Depends(get_session)) -> dict[str, list[str]]:
 
     # Classify accounts
     for (acct,) in (
-        db.query(Transaction.account).filter(Transaction.is_deleted.is_(False)).distinct()
+        db.query(Transaction.account)
+        .filter(Transaction.user_id == current_user.id, Transaction.is_deleted.is_(False))
+        .distinct()
     ):
         if acct and _classify_account(acct) == "investment":
             investment_accounts.add(acct)
@@ -151,7 +175,11 @@ def get_buckets(db: Session = Depends(get_session)) -> dict[str, list[str]]:
     # Check from_account and to_account in transactions (for transfers)
     for (from_acct,) in (
         db.query(Transaction.from_account)
-        .filter(Transaction.is_deleted.is_(False), Transaction.from_account.isnot(None))
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.is_deleted.is_(False),
+            Transaction.from_account.isnot(None),
+        )
         .distinct()
     ):
         if from_acct and _classify_account(from_acct) == "investment":
@@ -159,7 +187,11 @@ def get_buckets(db: Session = Depends(get_session)) -> dict[str, list[str]]:
 
     for (to_acct,) in (
         db.query(Transaction.to_account)
-        .filter(Transaction.is_deleted.is_(False), Transaction.to_account.isnot(None))
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.is_deleted.is_(False),
+            Transaction.to_account.isnot(None),
+        )
         .distinct()
     ):
         if to_acct and _classify_account(to_acct) == "investment":

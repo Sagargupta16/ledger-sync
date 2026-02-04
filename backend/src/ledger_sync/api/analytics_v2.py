@@ -2,6 +2,10 @@
 
 This module provides fast analytics endpoints that read from pre-calculated
 aggregation tables rather than computing on-the-fly.
+
+NOTE: These aggregation tables currently don't support multi-user filtering.
+They will return data for all users until user_id columns are added and
+the aggregation engine is updated.
 """
 
 from datetime import UTC, datetime
@@ -11,6 +15,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
+from ledger_sync.api.deps import CurrentUser
 from ledger_sync.db.models import (
     Anomaly,
     Budget,
@@ -30,6 +35,7 @@ router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
 
 @router.get("/monthly-summaries")
 def get_monthly_summaries(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_period: str | None = Query(None, description="Start period (YYYY-MM)"),
     end_period: str | None = Query(None, description="End period (YYYY-MM)"),
@@ -85,7 +91,7 @@ def get_monthly_summaries(
                 },
                 "expense_ratio": s.expense_ratio,
                 "total_transactions": s.total_transactions,
-                "last_calculated": s.last_calculated.isoformat() if s.last_calculated else None,
+                "last_calculated": (s.last_calculated.isoformat() if s.last_calculated else None),
             }
             for s in summaries
         ],
@@ -95,6 +101,7 @@ def get_monthly_summaries(
 
 @router.get("/category-trends")
 def get_category_trends(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     category: str | None = Query(None, description="Filter by category"),
     transaction_type: str | None = Query(None, description="Filter by type (Income/Expense)"),
@@ -149,6 +156,7 @@ def get_category_trends(
 
 @router.get("/transfer-flows")
 def get_transfer_flows(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     min_amount: float | None = Query(None, description="Minimum total amount"),
     min_count: int | None = Query(None, description="Minimum transaction count"),
@@ -177,8 +185,8 @@ def get_transfer_flows(
                 "total": float(f.total_amount),
                 "count": f.transaction_count,
                 "avg": float(f.avg_transfer),
-                "last_date": f.last_transfer_date.isoformat() if f.last_transfer_date else None,
-                "last_amount": float(f.last_transfer_amount) if f.last_transfer_amount else None,
+                "last_date": (f.last_transfer_date.isoformat() if f.last_transfer_date else None),
+                "last_amount": (float(f.last_transfer_amount) if f.last_transfer_amount else None),
                 "from_type": f.from_account_type,
                 "to_type": f.to_account_type,
             }
@@ -195,6 +203,7 @@ def get_transfer_flows(
 
 @router.get("/recurring-transactions")
 def get_recurring_transactions(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     active_only: bool = Query(True, description="Only show active recurring patterns"),
     min_confidence: float = Query(50, ge=0, le=100, description="Minimum confidence score"),
@@ -234,8 +243,8 @@ def get_recurring_transactions(
                 "expected_day": r.expected_day,
                 "confidence": r.confidence_score,
                 "occurrences": r.occurrences_detected,
-                "last_occurrence": r.last_occurrence.isoformat() if r.last_occurrence else None,
-                "next_expected": r.next_expected.isoformat() if r.next_expected else None,
+                "last_occurrence": (r.last_occurrence.isoformat() if r.last_occurrence else None),
+                "next_expected": (r.next_expected.isoformat() if r.next_expected else None),
                 "times_missed": r.times_missed,
                 "is_confirmed": r.is_user_confirmed,
             }
@@ -254,6 +263,7 @@ def get_recurring_transactions(
 
 @router.get("/merchant-intelligence")
 def get_merchant_intelligence(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     min_transactions: int = Query(3, ge=1, description="Minimum transaction count"),
     recurring_only: bool = Query(False, description="Only show recurring merchants"),
@@ -287,7 +297,9 @@ def get_merchant_intelligence(
                 "first_transaction": (
                     m.first_transaction.isoformat() if m.first_transaction else None
                 ),
-                "last_transaction": m.last_transaction.isoformat() if m.last_transaction else None,
+                "last_transaction": (
+                    m.last_transaction.isoformat() if m.last_transaction else None
+                ),
                 "months_active": m.months_active,
                 "avg_days_between": m.avg_days_between,
                 "is_recurring": m.is_recurring,
@@ -300,6 +312,7 @@ def get_merchant_intelligence(
 
 @router.get("/net-worth")
 def get_net_worth_history(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     limit: int = Query(12, ge=1, le=120, description="Number of snapshots"),
 ) -> dict[str, Any]:
@@ -358,6 +371,7 @@ def get_net_worth_history(
 
 @router.get("/fy-summaries")
 def get_fy_summaries(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """Get fiscal year summaries (April - March).
@@ -405,6 +419,7 @@ def get_fy_summaries(
 
 @router.get("/anomalies")
 def get_anomalies(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     severity: str | None = Query(None, description="Filter by severity (low/medium/high/critical)"),
     unreviewed_only: bool = Query(True, description="Only show unreviewed anomalies"),
@@ -458,6 +473,7 @@ def get_anomalies(
 @router.post("/anomalies/{anomaly_id}/review")
 def review_anomaly(
     anomaly_id: int,
+    current_user: CurrentUser,
     dismiss: bool = Query(False, description="Dismiss the anomaly"),
     notes: str | None = Query(None, description="Review notes"),
     db: Session = Depends(get_session),
@@ -480,6 +496,7 @@ def review_anomaly(
 
 @router.get("/budgets")
 def get_budgets(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     active_only: bool = Query(True),
 ) -> dict[str, Any]:
@@ -516,6 +533,7 @@ def get_budgets(
 def create_budget(
     category: str,
     monthly_limit: float,
+    current_user: CurrentUser,
     subcategory: str | None = None,
     alert_threshold: float = 80,
     db: Session = Depends(get_session),
@@ -538,6 +556,7 @@ def create_budget(
 
 @router.get("/goals")
 def get_financial_goals(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     status: str | None = Query(None, description="Filter by status (active/completed/paused)"),
 ) -> dict[str, Any]:
@@ -574,6 +593,7 @@ def get_financial_goals(
 def create_goal(
     name: str,
     target_amount: float,
+    current_user: CurrentUser,
     goal_type: str = "savings",
     description: str | None = None,
     target_date: datetime | None = None,

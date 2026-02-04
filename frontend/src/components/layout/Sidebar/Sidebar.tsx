@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { 
   LayoutDashboard,
   Upload,
@@ -18,13 +18,17 @@ import {
   CircleDollarSign,
   Coins,
   Target,
-  SlidersHorizontal
+  SlidersHorizontal,
+  LogOut,
+  User
 } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
 import { cn } from '@/lib/cn'
 import SidebarGroup from './SidebarGroup'
 import SidebarItem from './SidebarItem'
+import { useAuthStore } from '@/store/authStore'
+import { useLogout } from '@/hooks/api/useAuth'
 
 const SIDEBAR_COLLAPSED_KEY = 'ledger-sync-sidebar-collapsed'
 
@@ -96,6 +100,18 @@ export default function Sidebar() {
     }
     return false
   })
+
+  const { user } = useAuthStore()
+  const logout = useLogout()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout.mutate(undefined, {
+      onSuccess: () => {
+        navigate('/')
+      }
+    })
+  }
 
   // Persist collapse state to localStorage
   useEffect(() => {
@@ -193,6 +209,59 @@ export default function Sidebar() {
                   <ChevronsLeft size={18} />
                   <span className="text-sm">Collapse</span>
                 </>
+              )}
+            </button>
+          </div>
+
+          {/* User Profile & Logout */}
+          <div className={cn(
+            "border-t border-white/[0.06]",
+            isCollapsed ? "p-2" : "p-3"
+          )}>
+            {/* User Info */}
+            {user && (
+              <div className={cn(
+                "flex items-center gap-3 mb-2",
+                isCollapsed ? "justify-center" : "px-2 py-2"
+              )}>
+                <div 
+                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ 
+                    background: `linear-gradient(to bottom right, ${rawColors.ios.purple}, ${rawColors.ios.pink})`,
+                  }}
+                >
+                  <User size={18} className="text-white" />
+                </div>
+                {!isCollapsed && (
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">
+                      {user.full_name || user.email.split('@')[0]}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: rawColors.text.secondary }}>
+                      {user.email}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              disabled={logout.isPending}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-200",
+                "text-[#ff453a] hover:bg-[#ff453a]/10 hover:scale-[1.02]",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                isCollapsed && "justify-center px-2"
+              )}
+              title="Sign out"
+            >
+              <LogOut size={18} />
+              {!isCollapsed && (
+                <span className="text-sm">
+                  {logout.isPending ? 'Signing out...' : 'Sign Out'}
+                </span>
               )}
             </button>
           </div>

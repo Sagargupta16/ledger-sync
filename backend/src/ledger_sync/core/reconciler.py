@@ -34,14 +34,16 @@ class ReconciliationStats:
 class Reconciler:
     """Reconciles Excel data with database."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, user_id: int | None = None) -> None:
         """Initialize reconciler.
 
         Args:
             session: Database session
+            user_id: ID of the authenticated user (required for multi-user mode)
 
         """
         self.session = session
+        self.user_id = user_id
         self.hasher = TransactionHasher()
 
     def reconcile_transaction(
@@ -60,8 +62,14 @@ class Reconciler:
         Returns:
             Tuple of (Transaction, action) where action is "inserted", "updated", or "skipped"
 
+        Raises:
+            ValueError: If user_id is not set in multi-user mode
+
         """
-        # Generate transaction ID
+        if self.user_id is None:
+            raise ValueError("user_id is required for reconciliation")
+
+        # Generate transaction ID - include user_id for uniqueness per user
         transaction_id = self.hasher.generate_transaction_id(
             date=normalized_row["date"],
             amount=normalized_row["amount"],
@@ -70,16 +78,21 @@ class Reconciler:
             category=normalized_row["category"],
             subcategory=normalized_row["subcategory"],
             tx_type=normalized_row["type"],
+            user_id=self.user_id,
         )
 
-        # Check if transaction exists
-        stmt = select(Transaction).where(Transaction.transaction_id == transaction_id)
+        # Check if transaction exists for this user
+        stmt = select(Transaction).where(
+            Transaction.transaction_id == transaction_id,
+            Transaction.user_id == self.user_id,
+        )
         existing = self.session.execute(stmt).scalar_one_or_none()
 
         if existing is None:
             # INSERT new transaction
             transaction = Transaction(
                 transaction_id=transaction_id,
+                user_id=self.user_id,
                 date=normalized_row["date"],
                 amount=normalized_row["amount"],
                 currency=normalized_row["currency"],
@@ -160,9 +173,14 @@ class Reconciler:
             Number of transactions marked as deleted
 
         """
+        if self.user_id is None:
+            raise ValueError("user_id is required for reconciliation")
+
         # Find transactions that weren't seen in this import (excluding transfers)
+        # Filter by user
         stmt = (
             select(Transaction)
+            .where(Transaction.user_id == self.user_id)
             .where(Transaction.last_seen_at < import_time)
             .where(Transaction.is_deleted.is_(False))
             .where(Transaction.type != TransactionType.TRANSFER)
@@ -196,7 +214,13 @@ class Reconciler:
         Returns:
             Reconciliation statistics
 
+        Raises:
+            ValueError: If user_id is not set in multi-user mode
+
         """
+        if self.user_id is None:
+            raise ValueError("user_id is required for reconciliation")
+
         stats = ReconciliationStats()
         seen_in_batch = set()  # Track transaction IDs seen in this batch
 
@@ -211,6 +235,7 @@ class Reconciler:
                     category=row["category"],
                     subcategory=row["subcategory"],
                     tx_type=row["type"],
+                    user_id=self.user_id,
                 )
 
                 # Skip duplicates within the same batch
@@ -266,7 +291,13 @@ class Reconciler:
         Returns:
             Tuple of (Transaction, action) where action is "inserted", "updated", or "skipped"
 
+        Raises:
+            ValueError: If user_id is not set in multi-user mode
+
         """
+        if self.user_id is None:
+            raise ValueError("user_id is required for reconciliation")
+
         # Generate transfer ID (using from_account as account for hash)
         transfer_id = self.hasher.generate_transaction_id(
             date=normalized_row["date"],
@@ -276,16 +307,21 @@ class Reconciler:
             category=normalized_row["category"],
             subcategory=normalized_row["subcategory"],
             tx_type=normalized_row["type"],
+            user_id=self.user_id,
         )
 
-        # Check if transfer exists in transactions table
-        stmt = select(Transaction).where(Transaction.transaction_id == transfer_id)
+        # Check if transfer exists in transactions table for this user
+        stmt = select(Transaction).where(
+            Transaction.transaction_id == transfer_id,
+            Transaction.user_id == self.user_id,
+        )
         existing = self.session.execute(stmt).scalar_one_or_none()
 
         if existing is None:
             # INSERT new transfer as Transaction
             transfer = Transaction(
                 transaction_id=transfer_id,
+                user_id=self.user_id,
                 date=normalized_row["date"],
                 amount=normalized_row["amount"],
                 currency=normalized_row["currency"],
@@ -372,8 +408,12 @@ class Reconciler:
             Number of transfers marked as deleted
 
         """
+        if self.user_id is None:
+            raise ValueError("user_id is required for reconciliation")
+
         stmt = (
             select(Transaction)
+            .where(Transaction.user_id == self.user_id)
             .where(Transaction.type == TransactionType.TRANSFER)
             .where(Transaction.last_seen_at < import_time)
             .where(Transaction.is_deleted.is_(False))
@@ -407,7 +447,13 @@ class Reconciler:
         Returns:
             Reconciliation statistics
 
+        Raises:
+            ValueError: If user_id is not set in multi-user mode
+
         """
+        if self.user_id is None:
+            raise ValueError("user_id is required for reconciliation")
+
         stats = ReconciliationStats()
         seen_in_batch = set()
 
@@ -422,6 +468,7 @@ class Reconciler:
                     category=row["category"],
                     subcategory=row["subcategory"],
                     tx_type=row["type"],
+                    user_id=self.user_id,
                 )
 
                 # Skip duplicates within the same batch

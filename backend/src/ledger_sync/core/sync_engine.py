@@ -17,29 +17,33 @@ from ledger_sync.utils.logging import logger
 class SyncEngine:
     """Main synchronization engine orchestrating the import process."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, user_id: int | None = None) -> None:
         """Initialize sync engine.
 
         Args:
             session: Database session
+            user_id: ID of the authenticated user (required for multi-user mode)
 
         """
         self.session = session
+        self.user_id = user_id
         self.loader = ExcelLoader()
         self.normalizer = DataNormalizer()
-        self.reconciler = Reconciler(session)
+        self.reconciler = Reconciler(session, user_id=user_id)
 
     def check_already_imported(self, file_hash: str) -> ImportLog | None:
-        """Check if file has already been imported.
+        """Check if file has already been imported by this user.
 
         Args:
             file_hash: File hash to check
 
         Returns:
-            ImportLog if file was previously imported, None otherwise
+            ImportLog if file was previously imported by this user, None otherwise
 
         """
-        stmt = select(ImportLog).where(ImportLog.file_hash == file_hash)
+        stmt = select(ImportLog).where(
+            ImportLog.file_hash == file_hash, ImportLog.user_id == self.user_id
+        )
         return self.session.execute(stmt).scalar_one_or_none()
 
     def import_file(self, file_path: Path, force: bool = False) -> ReconciliationStats:
@@ -123,6 +127,7 @@ class SyncEngine:
             self.session.commit()
 
         import_log = ImportLog(
+            user_id=self.user_id,
             file_hash=file_hash,
             file_name=file_path.name,
             imported_at=import_time,

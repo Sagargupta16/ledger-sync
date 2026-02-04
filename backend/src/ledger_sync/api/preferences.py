@@ -20,7 +20,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ledger_sync.db.models import UserPreferences
+from ledger_sync.api.deps import CurrentUser
+from ledger_sync.db.models import User, UserPreferences
 from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/preferences", tags=["preferences"])
@@ -255,14 +256,14 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
     )
 
 
-def _get_or_create_preferences(session: Session) -> UserPreferences:
-    """Get existing preferences or create defaults."""
-    result = session.execute(select(UserPreferences).limit(1))
+def _get_or_create_preferences(session: Session, user: User) -> UserPreferences:
+    """Get existing preferences or create defaults for a user."""
+    result = session.execute(select(UserPreferences).where(UserPreferences.user_id == user.id))
     prefs = result.scalar_one_or_none()
 
     if prefs is None:
-        # Create default preferences
-        prefs = UserPreferences()
+        # Create default preferences for this user
+        prefs = UserPreferences(user_id=user.id)
         session.add(prefs)
         session.commit()
         session.refresh(prefs)
@@ -274,19 +275,23 @@ def _get_or_create_preferences(session: Session) -> UserPreferences:
 
 
 @router.get("", response_model=UserPreferencesResponse)
-def get_preferences(session: Session = Depends(get_session)) -> UserPreferencesResponse:
+def get_preferences(
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
     """Get current user preferences."""
-    prefs = _get_or_create_preferences(session)
+    prefs = _get_or_create_preferences(session, current_user)
     return _model_to_response(prefs)
 
 
 @router.put("", response_model=UserPreferencesResponse)
 def update_preferences(
+    current_user: CurrentUser,
     updates: UserPreferencesUpdate,
     session: Session = Depends(get_session),
 ) -> UserPreferencesResponse:
     """Update user preferences (partial update supported)."""
-    prefs = _get_or_create_preferences(session)
+    prefs = _get_or_create_preferences(session, current_user)
 
     # Apply updates for non-None fields
     update_data = updates.model_dump(exclude_none=True)
@@ -305,58 +310,21 @@ def update_preferences(
 
 
 @router.post("/reset", response_model=UserPreferencesResponse)
-def reset_preferences(session: Session = Depends(get_session)) -> UserPreferencesResponse:
-    """Reset all preferences to defaults."""
-    prefs = _get_or_create_preferences(session)
+def reset_preferences(
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+) -> UserPreferencesResponse:
+    """Reset all preferences to defaults (empty values for data-dependent fields)."""
+    prefs = _get_or_create_preferences(session, current_user)
 
-    # Reset to defaults
+    # Reset to defaults - data-dependent fields start empty
     prefs.fiscal_year_start_month = 4
-    prefs.essential_categories = json.dumps(
-        [
-            "Housing",
-            "Healthcare",
-            "Transportation",
-            "Food & Dining",
-            "Education",
-            "Family",
-            "Utilities",
-        ],
-    )
-    prefs.investment_account_mappings = json.dumps(
-        {
-            "Grow Stocks": "stocks",
-            "Grow Mutual Funds": "mutual_funds",
-            "IND money": "stocks",
-            "FD/Bonds": "fixed_deposits",
-            "EPF": "ppf_epf",
-            "PPF": "ppf_epf",
-            "RSUs": "stocks",
-        },
-    )
-    prefs.salary_categories = json.dumps({"Employment Income": ["Salary", "Stipend"]})
-    prefs.bonus_categories = json.dumps({"Employment Income": ["Bonuses", "RSUs"]})
-    prefs.investment_income_categories = json.dumps(
-        {"Investment Income": ["Dividends", "Interest", "F&O Income", "Stock Market Profits"]},
-    )
-    prefs.cashback_categories = json.dumps(
-        {
-            "Refund & Cashbacks": [
-                "Credit Card Cashbacks",
-                "Other Cashbacks",
-                "Deposits Return",
-                "Product/Service Refunds",
-            ]
-        },
-    )
-    prefs.employment_benefits_categories = json.dumps(
-        {"Employment Income": ["EPF Contribution", "Expense Reimbursement"]},
-    )
-    prefs.freelance_categories = json.dumps(
-        {"Business/Self Employment Income": ["Gig Work Income"]},
-    )
-    prefs.gifts_categories = json.dumps(
-        {"One-time Income": ["Gifts", "Pocket Money", "Competition/Contest Prizes"]},
-    )
+    prefs.essential_categories = json.dumps([])  # Empty - user configures after upload
+    prefs.investment_account_mappings = json.dumps({})  # Empty - user configures after upload
+    prefs.taxable_income_categories = json.dumps([])
+    prefs.investment_returns_categories = json.dumps([])
+    prefs.non_taxable_income_categories = json.dumps([])
+    prefs.other_income_categories = json.dumps([])
     prefs.default_budget_alert_threshold = 80.0
     prefs.auto_create_budgets = False
     prefs.budget_rollover_enabled = False
@@ -384,11 +352,12 @@ def reset_preferences(session: Session = Depends(get_session)) -> UserPreference
 
 @router.put("/fiscal-year", response_model=UserPreferencesResponse)
 def update_fiscal_year(
+    current_user: CurrentUser,
     config: FiscalYearConfig,
     session: Session = Depends(get_session),
 ) -> UserPreferencesResponse:
     """Update fiscal year configuration."""
-    prefs = _get_or_create_preferences(session)
+    prefs = _get_or_create_preferences(session, current_user)
     prefs.fiscal_year_start_month = config.fiscal_year_start_month
     prefs.updated_at = datetime.now(UTC)
     session.commit()
@@ -398,11 +367,12 @@ def update_fiscal_year(
 
 @router.put("/essential-categories", response_model=UserPreferencesResponse)
 def update_essential_categories(
+    current_user: CurrentUser,
     config: EssentialCategoriesConfig,
     session: Session = Depends(get_session),
 ) -> UserPreferencesResponse:
     """Update essential categories list."""
-    prefs = _get_or_create_preferences(session)
+    prefs = _get_or_create_preferences(session, current_user)
     prefs.essential_categories = json.dumps(config.essential_categories)
     prefs.updated_at = datetime.now(UTC)
     session.commit()
@@ -412,11 +382,12 @@ def update_essential_categories(
 
 @router.put("/investment-mappings", response_model=UserPreferencesResponse)
 def update_investment_mappings(
+    current_user: CurrentUser,
     config: InvestmentMappingsConfig,
     session: Session = Depends(get_session),
 ) -> UserPreferencesResponse:
     """Update investment account mappings."""
-    prefs = _get_or_create_preferences(session)
+    prefs = _get_or_create_preferences(session, current_user)
     prefs.investment_account_mappings = json.dumps(config.investment_account_mappings)
     prefs.updated_at = datetime.now(UTC)
     session.commit()
@@ -426,11 +397,12 @@ def update_investment_mappings(
 
 @router.put("/income-sources", response_model=UserPreferencesResponse)
 def update_income_sources(
+    current_user: CurrentUser,
     config: IncomeSourcesConfig,
     session: Session = Depends(get_session),
 ) -> UserPreferencesResponse:
     """Update income source category mappings."""
-    prefs = _get_or_create_preferences(session)
+    prefs = _get_or_create_preferences(session, current_user)
     prefs.salary_categories = json.dumps(config.salary_categories)
     prefs.bonus_categories = json.dumps(config.bonus_categories)
     prefs.investment_income_categories = json.dumps(config.investment_income_categories)
@@ -446,11 +418,12 @@ def update_income_sources(
 
 @router.put("/budget-defaults", response_model=UserPreferencesResponse)
 def update_budget_defaults(
+    current_user: CurrentUser,
     config: BudgetDefaultsConfig,
     session: Session = Depends(get_session),
 ) -> UserPreferencesResponse:
     """Update budget default settings."""
-    prefs = _get_or_create_preferences(session)
+    prefs = _get_or_create_preferences(session, current_user)
     prefs.default_budget_alert_threshold = config.default_budget_alert_threshold
     prefs.auto_create_budgets = config.auto_create_budgets
     prefs.budget_rollover_enabled = config.budget_rollover_enabled
@@ -462,11 +435,12 @@ def update_budget_defaults(
 
 @router.put("/display", response_model=UserPreferencesResponse)
 def update_display_preferences(
+    current_user: CurrentUser,
     config: DisplayPreferencesConfig,
     session: Session = Depends(get_session),
 ) -> UserPreferencesResponse:
     """Update display and format preferences."""
-    prefs = _get_or_create_preferences(session)
+    prefs = _get_or_create_preferences(session, current_user)
     prefs.number_format = config.number_format
     prefs.currency_symbol = config.currency_symbol
     prefs.currency_symbol_position = config.currency_symbol_position
@@ -479,11 +453,12 @@ def update_display_preferences(
 
 @router.put("/anomaly-settings", response_model=UserPreferencesResponse)
 def update_anomaly_settings(
+    current_user: CurrentUser,
     config: AnomalySettingsConfig,
     session: Session = Depends(get_session),
 ) -> UserPreferencesResponse:
     """Update anomaly detection settings."""
-    prefs = _get_or_create_preferences(session)
+    prefs = _get_or_create_preferences(session, current_user)
     prefs.anomaly_expense_threshold = config.anomaly_expense_threshold
     prefs.anomaly_types_enabled = json.dumps(config.anomaly_types_enabled)
     prefs.auto_dismiss_recurring_anomalies = config.auto_dismiss_recurring_anomalies
@@ -495,11 +470,12 @@ def update_anomaly_settings(
 
 @router.put("/recurring-settings", response_model=UserPreferencesResponse)
 def update_recurring_settings(
+    current_user: CurrentUser,
     config: RecurringSettingsConfig,
     session: Session = Depends(get_session),
 ) -> UserPreferencesResponse:
     """Update recurring transaction detection settings."""
-    prefs = _get_or_create_preferences(session)
+    prefs = _get_or_create_preferences(session, current_user)
     prefs.recurring_min_confidence = config.recurring_min_confidence
     prefs.recurring_auto_confirm_occurrences = config.recurring_auto_confirm_occurrences
     prefs.updated_at = datetime.now(UTC)

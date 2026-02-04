@@ -9,9 +9,9 @@ from ledger_sync.core.reconciler import Reconciler
 class TestReconciler:
     """Test reconciliation logic."""
 
-    def test_insert_new_transaction(self, test_db_session, sample_transaction_data):
+    def test_insert_new_transaction(self, test_db_session, sample_transaction_data, test_user):
         """Test inserting a new transaction."""
-        reconciler = Reconciler(test_db_session)
+        reconciler = Reconciler(test_db_session, user_id=test_user.id)
         import_time = datetime.now(UTC)
 
         transaction, action = reconciler.reconcile_transaction(
@@ -23,15 +23,16 @@ class TestReconciler:
         assert action == "inserted"
         assert transaction.amount == Decimal("100.50")
         assert transaction.category == "Food"
+        assert transaction.user_id == test_user.id
 
-    def test_update_existing_transaction(self, test_db_session, sample_transaction_data):
+    def test_update_existing_transaction(self, test_db_session, sample_transaction_data, test_user):
         """Test updating an existing transaction when it was soft-deleted.
 
         Note: The transaction ID is a hash of (date, amount, account, note, category,
         subcategory, type). So changing any of these creates a NEW transaction.
         The only way to 'update' is if the same transaction was previously soft-deleted.
         """
-        reconciler = Reconciler(test_db_session)
+        reconciler = Reconciler(test_db_session, user_id=test_user.id)
         import_time1 = datetime.now(UTC)
 
         # First import
@@ -61,9 +62,9 @@ class TestReconciler:
         assert transaction2.transaction_id == original_id
         assert transaction2.is_deleted is False
 
-    def test_skip_unchanged_transaction(self, test_db_session, sample_transaction_data):
+    def test_skip_unchanged_transaction(self, test_db_session, sample_transaction_data, test_user):
         """Test skipping unchanged transaction."""
-        reconciler = Reconciler(test_db_session)
+        reconciler = Reconciler(test_db_session, user_id=test_user.id)
         import_time1 = datetime.now(UTC)
 
         # First import
@@ -86,9 +87,9 @@ class TestReconciler:
         assert action2 == "skipped"
         assert transaction1.transaction_id == transaction2.transaction_id
 
-    def test_soft_delete_stale_transactions(self, test_db_session, sample_transaction):
+    def test_soft_delete_stale_transactions(self, test_db_session, sample_transaction, test_user):
         """Test marking stale transactions as deleted."""
-        reconciler = Reconciler(test_db_session)
+        reconciler = Reconciler(test_db_session, user_id=test_user.id)
 
         # Transaction exists with old timestamp
         assert sample_transaction.is_deleted is False

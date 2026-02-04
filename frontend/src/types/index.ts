@@ -96,3 +96,31 @@ export type TimeRange =
   | 'last_12_months'
   | 'current_year'
   | 'last_year'
+
+// Authentication types
+export interface User {
+  id: number
+  email: string
+  full_name: string | null
+  is_active: boolean
+  is_verified: boolean
+  created_at: string
+  last_login: string | null
+}
+
+export interface AuthTokens {
+  access_token: string
+  refresh_token: string
+  token_type: string
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface RegisterCredentials {
+  email: string
+  password: string
+  full_name?: string
+}

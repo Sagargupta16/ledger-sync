@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from ledger_sync.db.base import Base
-from ledger_sync.db.models import Transaction, TransactionType
+from ledger_sync.db.models import Transaction, TransactionType, User
 
 
 @pytest.fixture
@@ -27,7 +27,22 @@ def test_db_session() -> Session:
 
 
 @pytest.fixture
-def sample_transaction_data() -> dict:
+def test_user(test_db_session: Session) -> User:
+    """Create a test user for transaction ownership."""
+    user = User(
+        email="test@example.com",
+        hashed_password="$2b$12$dummy_hash_for_testing_purposes",
+        full_name="Test User",
+        is_active=True,
+        is_verified=True,
+    )
+    test_db_session.add(user)
+    test_db_session.commit()
+    return user
+
+
+@pytest.fixture
+def sample_transaction_data(test_user: User) -> dict:
     """Sample normalized transaction data."""
     return {
         "date": datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
@@ -38,15 +53,17 @@ def sample_transaction_data() -> dict:
         "category": "Food",
         "subcategory": "Groceries",
         "note": "Weekly shopping",
+        "user_id": test_user.id,
     }
 
 
 @pytest.fixture
-def sample_transaction(test_db_session: Session) -> Transaction:
+def sample_transaction(test_db_session: Session, test_user: User) -> Transaction:
     """Create a sample transaction in the database with an old timestamp."""
     # Use an old timestamp so soft delete tests work correctly
     old_timestamp = datetime.now(UTC) - timedelta(days=1)
     transaction = Transaction(
+        user_id=test_user.id,
         transaction_id="test123",
         date=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
         amount=Decimal("100.50"),

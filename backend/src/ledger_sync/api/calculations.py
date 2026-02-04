@@ -6,14 +6,18 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from ledger_sync.db.models import Transaction, TransactionType
+from ledger_sync.api.deps import CurrentUser
+from ledger_sync.db.models import Transaction, TransactionType, User
 from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/api/calculations", tags=["calculations"])
 
 
 @router.get("/categories/master")
-def get_master_categories(db: Session = Depends(get_session)) -> dict[str, Any]:
+def get_master_categories(
+    current_user: CurrentUser,
+    db: Session = Depends(get_session),
+) -> dict[str, Any]:
     """Get all unique categories and subcategories organized by transaction type.
 
     Returns a hierarchical structure of all categories used in the system,
@@ -39,8 +43,12 @@ def get_master_categories(db: Session = Depends(get_session)) -> dict[str, Any]:
         "expense": {},
     }
 
-    # Get all transactions
-    transactions = db.query(Transaction).filter(Transaction.is_deleted.is_(False)).all()
+    # Get all transactions for this user
+    transactions = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == current_user.id, Transaction.is_deleted.is_(False))
+        .all()
+    )
 
     # Process transactions to extract categories and subcategories
     for tx in transactions:
@@ -84,11 +92,15 @@ def _format_largest_transaction(largest: Transaction | None) -> dict[str, Any] |
 
 def get_transactions(
     db: Session,
+    user: User,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
 ) -> list[Transaction]:
-    """Get non-deleted transactions, optionally filtered by date range."""
-    query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
+    """Get non-deleted transactions for a user, optionally filtered by date range."""
+    query = db.query(Transaction).filter(
+        Transaction.user_id == user.id,
+        Transaction.is_deleted.is_(False),
+    )
 
     if start_date:
         query = query.filter(Transaction.date >= start_date)
@@ -100,12 +112,13 @@ def get_transactions(
 
 @router.get("/totals")
 def get_totals(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None),
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate total income, expenses, and net savings."""
-    transactions = get_transactions(db, start_date, end_date)
+    transactions = get_transactions(db, current_user, start_date, end_date)
 
     total_income = sum(float(tx.amount) for tx in transactions if tx.type == TransactionType.INCOME)
     total_expenses = sum(
@@ -125,12 +138,13 @@ def get_totals(
 
 @router.get("/monthly-aggregation")
 def get_monthly_aggregation(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None),
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate monthly income and expense aggregation."""
-    transactions = get_transactions(db, start_date, end_date)
+    transactions = get_transactions(db, current_user, start_date, end_date)
 
     monthly_data: dict[str, dict[str, float]] = {}
 
@@ -163,12 +177,13 @@ def get_monthly_aggregation(
 
 @router.get("/yearly-aggregation")
 def get_yearly_aggregation(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None),
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate yearly income and expense aggregation."""
-    transactions = get_transactions(db, start_date, end_date)
+    transactions = get_transactions(db, current_user, start_date, end_date)
 
     yearly_data: dict[str, dict[str, Any]] = {}
 
@@ -205,13 +220,14 @@ def get_yearly_aggregation(
 
 @router.get("/category-breakdown")
 def get_category_breakdown(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None),
     end_date: datetime | None = Query(None),
     transaction_type: str | None = Query(None, description="Filter by type: Income or Expense"),
 ) -> dict[str, Any]:
     """Calculate spending/income breakdown by category and subcategory."""
-    transactions = get_transactions(db, start_date, end_date)
+    transactions = get_transactions(db, current_user, start_date, end_date)
 
     # Filter by type if specified
     if transaction_type:
@@ -259,12 +275,13 @@ def get_category_breakdown(
 
 @router.get("/account-balances")
 def get_account_balances(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None),
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate current balance for each account including transfers."""
-    transactions = get_transactions(db, start_date, end_date)
+    transactions = get_transactions(db, current_user, start_date, end_date)
 
     # Note: Transfers are now stored in transactions table with type='Transfer'
     # No need for separate transfer query
@@ -359,12 +376,13 @@ def get_account_balances(
 
 @router.get("/insights")
 def get_financial_insights(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None),
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate comprehensive financial insights."""
-    transactions = get_transactions(db, start_date, end_date)
+    transactions = get_transactions(db, current_user, start_date, end_date)
 
     expenses = [tx for tx in transactions if tx.type == TransactionType.EXPENSE]
     income = [tx for tx in transactions if tx.type == TransactionType.INCOME]
@@ -422,7 +440,7 @@ def get_financial_insights(
         "top_expense_category": {
             "category": top_category[0],
             "amount": top_category[1],
-            "percentage": (top_category[1] / total_expenses * 100) if total_expenses > 0 else 0,
+            "percentage": ((top_category[1] / total_expenses * 100) if total_expenses > 0 else 0),
         },
         "most_frequent_category": {
             "category": most_frequent[0],
@@ -440,12 +458,13 @@ def get_financial_insights(
 
 @router.get("/daily-net-worth")
 def get_daily_net_worth(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None),
     end_date: datetime | None = Query(None),
 ) -> dict[str, Any]:
     """Calculate daily income and expense data for net worth trends."""
-    transactions = get_transactions(db, start_date, end_date)
+    transactions = get_transactions(db, current_user, start_date, end_date)
 
     daily_data: dict[str, dict[str, float]] = {}
 
@@ -488,6 +507,7 @@ def get_daily_net_worth(
 
 @router.get("/top-categories")
 def get_top_categories(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None),
     end_date: datetime | None = Query(None),
@@ -495,7 +515,7 @@ def get_top_categories(
     transaction_type: str | None = Query(None, description="Filter by type: Income or Expense"),
 ) -> list[dict[str, Any]]:
     """Get top N categories by amount."""
-    transactions = get_transactions(db, start_date, end_date)
+    transactions = get_transactions(db, current_user, start_date, end_date)
 
     # Filter by type if specified
     if transaction_type:

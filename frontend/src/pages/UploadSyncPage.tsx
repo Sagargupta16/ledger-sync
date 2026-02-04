@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner'
 import { useDropzone } from 'react-dropzone'
 import { cn } from '@/lib/cn'
+import { getApiErrorMessage } from '@/lib/errorUtils'
 
 // Sample data to show expected Excel format
 const SAMPLE_EXCEL_DATA = [
@@ -48,8 +49,7 @@ export default function UploadSyncPage() {
         duration: 5000,
       })
     } catch (error) {
-      const err = error as { response?: { data?: { detail?: string } }; message?: string }
-      const errorMessage = err.response?.data?.detail || err.message || 'An error occurred'
+      const errorMessage = getApiErrorMessage(error)
 
       if (errorMessage.includes('already imported') || errorMessage.includes('Use --force')) {
         setConflictError({ file, message: errorMessage })

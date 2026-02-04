@@ -12,9 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from ledger_sync.api.account_classifications import router as account_classifications_router
+from ledger_sync.api.account_classifications import (
+    router as account_classifications_router,
+)
 from ledger_sync.api.analytics import router as analytics_router
 from ledger_sync.api.analytics_v2 import router as analytics_v2_router
+from ledger_sync.api.auth import CurrentUser
+from ledger_sync.api.auth import router as auth_router
 from ledger_sync.api.calculations import router as calculations_router
 from ledger_sync.api.meta import router as meta_router
 from ledger_sync.api.preferences import router as preferences_router
@@ -52,6 +56,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(analytics_router)
 app.include_router(analytics_v2_router)
 app.include_router(calculations_router)
@@ -119,6 +124,7 @@ async def health() -> HealthResponse:
 
 @app.get("/api/transactions", response_model=TransactionsListResponse)
 async def get_transactions(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None, description=START_DATE_DESC),
     end_date: datetime | None = Query(None, description=END_DATE_DESC),
@@ -128,6 +134,7 @@ async def get_transactions(
     """Get all non-deleted transactions (including transfers) with pagination.
 
     Args:
+        current_user: Authenticated user
         db: Database session
         start_date: Optional start date filter (inclusive)
         end_date: Optional end date filter (inclusive)
@@ -138,8 +145,11 @@ async def get_transactions(
         Paginated list of transactions in JSON format
 
     """
-    # Build query
-    query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
+    # Build query - filter by user
+    query = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.is_deleted.is_(False),
+    )
 
     # Apply date filters if provided
     if start_date:
@@ -185,6 +195,7 @@ async def get_transactions(
 
 @app.get("/api/transactions/search")
 async def search_transactions(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     query: str | None = Query(None, description="Search in notes, category, account"),
     category: str | None = Query(None, description="Filter by category"),
@@ -207,6 +218,7 @@ async def search_transactions(
     """Search and filter transactions with pagination.
 
     Args:
+        current_user: Authenticated user
         db: Database session
         query: Text search in notes, category, account (case-insensitive)
         category: Filter by exact category match
@@ -226,8 +238,11 @@ async def search_transactions(
         Dictionary with filtered transactions, total count, and pagination info
 
     """
-    # Start with base query
-    tx_query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
+    # Start with base query - filter by user
+    tx_query = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.is_deleted.is_(False),
+    )
 
     # Apply date filters
     if start_date:
@@ -326,6 +341,7 @@ async def search_transactions(
 
 @app.post("/api/upload", response_model=UploadResponse)
 async def upload_excel(
+    current_user: CurrentUser,
     file: Annotated[UploadFile, File(description="Excel file to import")],
     force: bool = False,
     db: Session = Depends(get_session),
@@ -333,6 +349,7 @@ async def upload_excel(
     """Upload and process Excel file.
 
     Args:
+        current_user: Authenticated user
         file: Excel file to import
         force: Force re-import even if file was previously imported
         db: Database session
@@ -364,10 +381,10 @@ async def upload_excel(
         tmp_path = Path(tmp_file.name)
 
     # Process file after closing the temp file handle
-    logger.info(f"Processing uploaded file: {file.filename}")
+    logger.info(f"Processing uploaded file: {file.filename} for user: {current_user.email}")
 
     try:
-        engine = SyncEngine(db)
+        engine = SyncEngine(db, user_id=current_user.id)
         stats = engine.import_file(tmp_path, force=force)
 
         # Build response
@@ -439,12 +456,16 @@ async def upload_excel(
 # --- CSV Export Endpoint ---
 @app.get("/api/transactions/export")
 async def export_transactions(
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
     start_date: datetime | None = Query(None, description=START_DATE_DESC),
     end_date: datetime | None = Query(None, description=END_DATE_DESC),
 ):
-    """Export all non-deleted transactions as CSV."""
-    query = db.query(Transaction).filter(Transaction.is_deleted.is_(False))
+    """Export all non-deleted transactions as CSV for the current user."""
+    query = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.is_deleted.is_(False),
+    )
     if start_date:
         query = query.filter(Transaction.date >= start_date.date())
     if end_date:

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ledger_sync.api.deps import CurrentUser
 from ledger_sync.db.models import AccountClassification, AccountType
 from ledger_sync.db.session import get_session
 
@@ -13,7 +14,10 @@ router = APIRouter(prefix="/api/account-classifications", tags=["account-classif
 
 
 @router.get("")
-async def get_all_classifications(db: Session = Depends(get_session)) -> dict[str, str]:
+async def get_all_classifications(
+    current_user: CurrentUser,
+    db: Session = Depends(get_session),
+) -> dict[str, str]:
     """Get all account classifications.
 
     Returns:
@@ -29,6 +33,7 @@ async def get_all_classifications(db: Session = Depends(get_session)) -> dict[st
 @router.get("/{account_name}")
 async def get_classification(
     account_name: str,
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """Get classification for a specific account.
@@ -57,6 +62,7 @@ async def get_classification(
 async def create_or_update_classification(
     account_name: str,
     account_type: str,
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """Create or update an account classification.
@@ -106,6 +112,7 @@ async def create_or_update_classification(
 @router.delete("/{account_name}")
 async def delete_classification(
     account_name: str,
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """Delete an account classification (resets to Other).
@@ -125,12 +132,16 @@ async def delete_classification(
         db.delete(classification)
         db.commit()
 
-    return {"status": "success", "message": f"Classification for {account_name} deleted"}
+    return {
+        "status": "success",
+        "message": f"Classification for {account_name} deleted",
+    }
 
 
 @router.get("/type/{account_type}")
 async def get_accounts_by_type(
     account_type: str,
+    current_user: CurrentUser,
     db: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """Get all accounts of a specific type.
