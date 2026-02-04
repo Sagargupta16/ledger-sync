@@ -1,253 +1,496 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
-import { 
-  PiggyBank, 
-  TrendingUp, 
-  BarChart3, 
-  Receipt, 
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  PiggyBank,
+  TrendingUp,
+  BarChart3,
   Upload,
   ArrowRight,
   Sparkles,
   Shield,
   Zap,
-  Target
+  Target,
+  CheckCircle2,
+  FileSpreadsheet,
+  Calculator,
+  Wallet,
 } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
+import { useAuthStore } from '@/store/authStore'
+import { AuthModal, LoginButton } from '@/components/shared/AuthModal'
 
 const features = [
   {
     icon: BarChart3,
     title: 'Smart Analytics',
-    description: '50/30/20 budget tracking, spending patterns, and income analysis',
+    description:
+      '50/30/20 budget tracking, spending patterns, and income analysis with beautiful visualizations',
     color: rawColors.ios.blue,
   },
   {
     icon: TrendingUp,
     title: 'Investment Tracking',
-    description: 'Track FD/Bonds, Mutual Funds, PPF/EPF, and Stocks in one place',
+    description:
+      'Track FD/Bonds, Mutual Funds, PPF/EPF, and Stocks with returns analysis',
     color: rawColors.ios.green,
   },
   {
     icon: Shield,
     title: 'Tax Planning',
-    description: 'India FY-based tax insights and deduction tracking',
+    description:
+      'India FY-based tax insights, deduction tracking, and regime comparison',
     color: rawColors.ios.orange,
   },
   {
     icon: Zap,
     title: 'Instant Sync',
-    description: 'Upload Excel files with automatic duplicate detection',
+    description:
+      'Upload Excel files with automatic duplicate detection and smart reconciliation',
     color: rawColors.ios.purple,
   },
 ]
 
-const quickActions = [
-  { 
-    path: ROUTES.DASHBOARD, 
-    label: 'Dashboard', 
-    icon: BarChart3, 
-    description: 'View your financial overview',
-    gradient: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
-  },
-  { 
-    path: ROUTES.UPLOAD, 
-    label: 'Upload Data', 
-    icon: Upload, 
-    description: 'Import your transactions',
-    gradient: `linear-gradient(135deg, ${rawColors.ios.green}, ${rawColors.ios.teal})`,
-  },
-  { 
-    path: ROUTES.SPENDING_ANALYSIS, 
-    label: 'Spending', 
-    icon: Receipt, 
-    description: 'Analyze your expenses',
-    gradient: `linear-gradient(135deg, ${rawColors.ios.orange}, ${rawColors.ios.red})`,
-  },
-  { 
-    path: ROUTES.NET_WORTH, 
-    label: 'Net Worth', 
-    icon: PiggyBank, 
-    description: 'Track your wealth',
-    gradient: `linear-gradient(135deg, ${rawColors.ios.purple}, ${rawColors.ios.pink})`,
-  },
+const highlights = [
+  'Works with Money Manager Pro exports',
+  'Smart duplicate detection',
+  'Secure, private data storage',
+  'India-focused tax calculations',
+  'Beautiful dark-mode UI',
+  'Multi-account support',
 ]
 
 export default function HomePage() {
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const { isAuthenticated, user } = useAuthStore()
+  const navigate = useNavigate()
+
+  const handleGetStarted = () => {
+    if (isAuthenticated) {
+      navigate(ROUTES.DASHBOARD)
+    } else {
+      setShowAuthModal(true)
+    }
+  }
+
   return (
-    <div className="min-h-screen p-8 flex flex-col">
-      <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col">
-        {/* Hero Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center py-16"
-        >
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-black/50 border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Logo */}
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="flex justify-center mb-8"
-          >
-            <div 
-              className="p-5 rounded-3xl shadow-2xl"
-              style={{ 
+          <Link to="/" className="flex items-center gap-3 group">
+            <div
+              className="p-2 rounded-xl transition-transform group-hover:scale-105"
+              style={{
                 background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
-                boxShadow: `0 20px 60px ${rawColors.ios.blue}40`
               }}
             >
-              <PiggyBank className="w-16 h-16 text-white" />
+              <PiggyBank className="w-6 h-6 text-white" />
             </div>
-          </motion.div>
+            <span className="text-xl font-bold text-white">Ledger Sync</span>
+          </Link>
 
-          {/* Title */}
-          <motion.h1
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-5xl md:text-6xl font-bold mb-4"
-          >
-            <span className="bg-gradient-to-r from-white via-white to-gray-400 bg-clip-text text-transparent">
-              Welcome to{' '}
-            </span>
-            <span 
-              className="bg-clip-text text-transparent"
-              style={{ 
-                backgroundImage: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.purple})` 
-              }}
-            >
-              Ledger Sync
-            </span>
-          </motion.h1>
-
-          {/* Subtitle */}
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-xl text-gray-400 max-w-2xl mx-auto mb-8"
-          >
-            Your personal finance command center. Track expenses, analyze investments, 
-            and take control of your financial future.
-          </motion.p>
-
-          {/* CTA Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="flex flex-wrap justify-center gap-4"
-          >
-            <Link
-              to={ROUTES.DASHBOARD}
-              className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-all duration-300 hover:scale-105 hover:shadow-xl"
-              style={{ 
-                background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
-                boxShadow: `0 10px 30px ${rawColors.ios.blue}30`
-              }}
-            >
-              <Target className="w-5 h-5" />
-              Go to Dashboard
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link
-              to={ROUTES.UPLOAD}
-              className="flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-all duration-300 hover:scale-105 glass-strong border border-white/20"
-            >
-              <Upload className="w-5 h-5" />
-              Upload Data
-            </Link>
-          </motion.div>
-        </motion.div>
-
-        {/* Quick Actions Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mb-16"
-        >
-          <h2 className="text-2xl font-semibold text-white mb-6 text-center">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => (
-              <motion.div
-                key={action.path}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 + index * 0.1 }}
+          {/* Auth Button */}
+          <div>
+            {isAuthenticated ? (
+              <Link
+                to={ROUTES.DASHBOARD}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white transition-all hover:scale-105"
+                style={{
+                  background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
+                }}
               >
-                <Link
-                  to={action.path}
-                  className="group block p-6 rounded-2xl glass border border-white/10 hover:border-white/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl"
-                >
-                  <div 
-                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
-                    style={{ background: action.gradient }}
-                  >
-                    <action.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-1">{action.label}</h3>
-                  <p className="text-sm text-gray-400">{action.description}</p>
-                </Link>
-              </motion.div>
-            ))}
+                <span>Hi, {user?.full_name?.split(' ')[0] || 'there'}!</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            ) : (
+              <LoginButton onClick={() => setShowAuthModal(true)} />
+            )}
           </div>
-        </motion.div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 pt-20">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden">
+          {/* Background Effects */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div
+              className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[120px] opacity-30"
+              style={{ background: rawColors.ios.blue }}
+            />
+            <div
+              className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20"
+              style={{ background: rawColors.ios.purple }}
+            />
+          </div>
+
+          <div className="max-w-6xl mx-auto px-6 py-20 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center"
+            >
+              {/* Badge */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.1 }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-white/10 mb-8"
+              >
+                <Sparkles
+                  className="w-4 h-4"
+                  style={{ color: rawColors.ios.yellow }}
+                />
+                <span className="text-sm text-gray-300">
+                  Personal Finance Made Simple
+                </span>
+              </motion.div>
+
+              {/* Title */}
+              <motion.h1
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-5xl md:text-7xl font-bold mb-6"
+              >
+                <span className="bg-gradient-to-r from-white via-white to-gray-400 bg-clip-text text-transparent">
+                  Take Control of{' '}
+                </span>
+                <br />
+                <span
+                  className="bg-clip-text text-transparent"
+                  style={{
+                    backgroundImage: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.purple})`,
+                  }}
+                >
+                  Your Finances
+                </span>
+              </motion.h1>
+
+              {/* Subtitle */}
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-xl text-gray-400 max-w-2xl mx-auto mb-10"
+              >
+                Ledger Sync is your all-in-one financial dashboard. Import your
+                transactions from Excel, track investments, analyze spending
+                patterns, and plan your taxes — all in one beautiful interface.
+              </motion.p>
+
+              {/* CTA Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="flex flex-wrap justify-center gap-4"
+              >
+                <button
+                  onClick={handleGetStarted}
+                  className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                  style={{
+                    background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
+                    boxShadow: `0 10px 30px ${rawColors.ios.blue}30`,
+                  }}
+                >
+                  <Target className="w-5 h-5" />
+                  {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </button>
+                <a
+                  href="#features"
+                  className="flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-all duration-300 hover:scale-105 glass-strong border border-white/20"
+                >
+                  Learn More
+                </a>
+              </motion.div>
+            </motion.div>
+
+            {/* Highlights */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mt-16 flex flex-wrap justify-center gap-4"
+            >
+              {highlights.map((item, index) => (
+                <motion.div
+                  key={item}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5 + index * 0.05 }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10"
+                >
+                  <CheckCircle2
+                    className="w-4 h-4"
+                    style={{ color: rawColors.ios.green }}
+                  />
+                  <span className="text-sm text-gray-300">{item}</span>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </section>
+
+        {/* What is Ledger Sync Section */}
+        <section className="py-20 border-t border-white/10">
+          <div className="max-w-6xl mx-auto px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="grid md:grid-cols-2 gap-12 items-center"
+            >
+              {/* Text */}
+              <div>
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+                  What is Ledger Sync?
+                </h2>
+                <p className="text-gray-400 mb-6 leading-relaxed">
+                  Ledger Sync is a powerful personal finance management tool
+                  designed for the Indian market. It seamlessly imports your
+                  transaction data from Money Manager Pro Excel exports and
+                  provides comprehensive analytics.
+                </p>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div
+                      className="p-2 rounded-lg flex-shrink-0"
+                      style={{ background: `${rawColors.ios.blue}20` }}
+                    >
+                      <FileSpreadsheet
+                        className="w-5 h-5"
+                        style={{ color: rawColors.ios.blue }}
+                      />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white mb-1">
+                        Excel Import
+                      </h3>
+                      <p className="text-sm text-gray-400">
+                        Upload your Money Manager Pro exports. Smart duplicate
+                        detection ensures no double entries.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div
+                      className="p-2 rounded-lg flex-shrink-0"
+                      style={{ background: `${rawColors.ios.green}20` }}
+                    >
+                      <Calculator
+                        className="w-5 h-5"
+                        style={{ color: rawColors.ios.green }}
+                      />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white mb-1">
+                        Smart Analytics
+                      </h3>
+                      <p className="text-sm text-gray-400">
+                        50/30/20 budget analysis, spending trends, income
+                        patterns, and investment returns.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div
+                      className="p-2 rounded-lg flex-shrink-0"
+                      style={{ background: `${rawColors.ios.orange}20` }}
+                    >
+                      <Wallet
+                        className="w-5 h-5"
+                        style={{ color: rawColors.ios.orange }}
+                      />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white mb-1">
+                        India-Focused
+                      </h3>
+                      <p className="text-sm text-gray-400">
+                        Fiscal year (April-March) support, INR formatting, and
+                        India-specific tax planning tools.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Visual */}
+              <div className="relative">
+                <div className="glass rounded-3xl border border-white/10 p-8">
+                  <div className="space-y-4">
+                    {/* Mock Dashboard Preview */}
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <div className="text-sm text-gray-400">Net Worth</div>
+                        <div className="text-3xl font-bold text-white">
+                          ₹24,85,000
+                        </div>
+                      </div>
+                      <div
+                        className="px-3 py-1 rounded-full text-sm"
+                        style={{
+                          background: `${rawColors.ios.green}20`,
+                          color: rawColors.ios.green,
+                        }}
+                      >
+                        +12.4%
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <div className="text-xs text-gray-400">Income</div>
+                        <div className="text-lg font-semibold text-white">
+                          ₹1,25,000
+                        </div>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <div className="text-xs text-gray-400">Expenses</div>
+                        <div className="text-lg font-semibold text-white">
+                          ₹68,500
+                        </div>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <div className="text-xs text-gray-400">Savings</div>
+                        <div className="text-lg font-semibold text-white">
+                          ₹56,500
+                        </div>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <div className="text-xs text-gray-400">Investments</div>
+                        <div className="text-lg font-semibold text-white">
+                          ₹12,40,000
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Decorative elements */}
+                <div
+                  className="absolute -top-4 -right-4 w-24 h-24 rounded-full blur-2xl opacity-50"
+                  style={{ background: rawColors.ios.blue }}
+                />
+                <div
+                  className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full blur-2xl opacity-40"
+                  style={{ background: rawColors.ios.purple }}
+                />
+              </div>
+            </motion.div>
+          </div>
+        </section>
 
         {/* Features Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="mb-16"
-        >
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5" style={{ color: rawColors.ios.yellow }} />
-              <span className="text-sm font-medium" style={{ color: rawColors.ios.yellow }}>
-                Features
-              </span>
-            </div>
-            <h2 className="text-3xl font-bold text-white">Everything you need</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.8 + index * 0.1 }}
-                className="flex items-start gap-4 p-6 rounded-2xl glass border border-white/10"
-              >
-                <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: `${feature.color}20` }}
+        <section id="features" className="py-20 border-t border-white/10">
+          <div className="max-w-6xl mx-auto px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-12"
+            >
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <Sparkles
+                  className="w-5 h-5"
+                  style={{ color: rawColors.ios.yellow }}
+                />
+                <span
+                  className="text-sm font-medium"
+                  style={{ color: rawColors.ios.yellow }}
                 >
-                  <feature.icon className="w-6 h-6" style={{ color: feature.color }} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-1">{feature.title}</h3>
-                  <p className="text-sm text-gray-400">{feature.description}</p>
-                </div>
-              </motion.div>
-            ))}
+                  Features
+                </span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                Everything You Need
+              </h2>
+              <p className="text-gray-400 max-w-2xl mx-auto">
+                Powerful features designed to give you complete visibility into
+                your finances
+              </p>
+            </motion.div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {features.map((feature, index) => (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-start gap-4 p-6 rounded-2xl glass border border-white/10 hover:border-white/20 transition-colors"
+                >
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: `${feature.color}20` }}
+                  >
+                    <feature.icon
+                      className="w-6 h-6"
+                      style={{ color: feature.color }}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-1">
+                      {feature.title}
+                    </h3>
+                    <p className="text-sm text-gray-400">
+                      {feature.description}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
-        </motion.div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-20 border-t border-white/10">
+          <div className="max-w-4xl mx-auto px-6 text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                Ready to Take Control?
+              </h2>
+              <p className="text-gray-400 mb-8 max-w-xl mx-auto">
+                Start tracking your finances today. It's free, private, and
+                takes just a minute to get started.
+              </p>
+              <button
+                onClick={handleGetStarted}
+                className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                style={{
+                  background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
+                  boxShadow: `0 10px 30px ${rawColors.ios.blue}30`,
+                }}
+              >
+                <Upload className="w-5 h-5" />
+                {isAuthenticated ? 'Upload Your Data' : 'Create Free Account'}
+                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+              </button>
+            </motion.div>
+          </div>
+        </section>
 
         {/* Footer */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="text-center py-8 border-t border-white/10 mt-auto"
-        >
-          <p className="text-sm text-gray-500">
-            Made with ❤️ for better financial management
-          </p>
-        </motion.div>
-      </div>
+        <footer className="py-8 border-t border-white/10">
+          <div className="max-w-6xl mx-auto px-6 text-center">
+            <p className="text-sm text-gray-500">
+              Made with ❤️ for better financial management
+            </p>
+          </div>
+        </footer>
+      </main>
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   )
 }

@@ -13,7 +13,6 @@ import { useEffect } from 'react'
 // Pages
 import {
   HomePage,
-  AuthPage,
   DashboardPage,
   UploadSyncPage,
   TransactionsPage,
@@ -58,13 +57,8 @@ function LandingPage() {
     )
   }
 
-  // If authenticated, redirect to dashboard
-  if (isAuthenticated) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />
-  }
-
-  // Show auth page for unauthenticated users
-  return <AuthPage />
+  // Show HomePage for everyone (it handles auth state internally)
+  return <HomePage />
 }
 
 function App() {
