@@ -49,7 +49,20 @@ function App() {
               </Route>
             </Routes>
           </BrowserRouter>
-          <Toaster position="top-right" richColors />
+          <Toaster 
+            position="bottom-right" 
+            theme="dark"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: 'rgba(20, 20, 25, 0.95)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#ffffff',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+              },
+            }}
+          />
         </PreferencesProvider>
       </QueryClientProvider>
     </ErrorBoundary>

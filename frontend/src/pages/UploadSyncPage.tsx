@@ -1,38 +1,68 @@
 import { useState } from 'react'
 import { useUpload } from '@/hooks/api/useUpload'
-import DropZone from '@/components/upload/DropZone'
-import UploadResults from '@/components/upload/UploadResults'
-import type { UploadResponse } from '@/types'
 import { motion } from 'framer-motion'
-import { FileText, Download, AlertTriangle, RefreshCw } from 'lucide-react'
+import { 
+  Upload, 
+  FileSpreadsheet, 
+  AlertTriangle, 
+  RefreshCw, 
+  CheckCircle2,
+  ArrowRight,
+  Sparkles
+} from 'lucide-react'
 import { toast } from 'sonner'
+import { useDropzone } from 'react-dropzone'
+import { cn } from '@/lib/cn'
+
+// Sample data to show expected Excel format
+const SAMPLE_EXCEL_DATA = [
+  { date: '2024-01-15', account: 'HDFC Bank', category: 'Salary', subcategory: 'Monthly', type: 'Income', amount: 85000, note: 'Jan Salary' },
+  { date: '2024-01-16', account: 'HDFC Bank', category: 'Food', subcategory: 'Groceries', type: 'Expense', amount: 3500, note: 'Big Basket' },
+  { date: '2024-01-18', account: 'ICICI Card', category: 'Shopping', subcategory: 'Electronics', type: 'Expense', amount: 15999, note: 'Headphones' },
+  { date: '2024-01-20', account: 'HDFC Bank', category: 'Investment', subcategory: 'Mutual Fund', type: 'Transfer-Out', amount: 10000, note: 'SIP' },
+]
+
+const TYPE_STYLES: Record<string, string> = {
+  'Income': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  'Expense': 'bg-red-500/20 text-red-400 border-red-500/30',
+  'Transfer-Out': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  'Transfer-In': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+}
 
 export default function UploadSyncPage() {
-  const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null)
-  const [uploadTime, setUploadTime] = useState<Date | null>(null)
   const [conflictError, setConflictError] = useState<{ file: File; message: string } | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const uploadMutation = useUpload()
 
   const handleFileSelect = async (file: File, force: boolean = false) => {
     setConflictError(null)
+    setSelectedFile(file)
     try {
       const result = await uploadMutation.mutateAsync({ file, force })
-      setUploadResult(result)
-      setUploadTime(new Date())
+      setSelectedFile(null)
+      
+      // Show success toast with stats
+      const { inserted, updated, deleted, unchanged } = result.stats
+      toast.success('Upload Successful!', {
+        description: `${inserted} inserted, ${updated} updated, ${deleted} deleted, ${unchanged} unchanged`,
+        duration: 5000,
+      })
     } catch (error) {
       const err = error as { response?: { data?: { detail?: string } }; message?: string }
       const errorMessage = err.response?.data?.detail || err.message || 'An error occurred'
 
-      // Check if it's a conflict error (file already imported)
       if (errorMessage.includes('already imported') || errorMessage.includes('Use --force')) {
         setConflictError({ file, message: errorMessage })
         toast.error('File Already Uploaded', {
           description: 'This file has been uploaded before. Click "Force Reupload" to proceed anyway.',
+          duration: 5000,
         })
       } else {
-        toast.error('Upload failed', {
+        toast.error('Upload Failed', { 
           description: errorMessage,
+          duration: 5000,
         })
+        setSelectedFile(null)
       }
     }
   }
@@ -43,149 +73,216 @@ export default function UploadSyncPage() {
     }
   }
 
-  const downloadTemplate = () => {
-    // TODO: Add template download functionality
-  }
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles.length > 0) {
+        handleFileSelect(acceptedFiles[0], false)
+      }
+    },
+    accept: {
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-excel': ['.xls'],
+    },
+    maxFiles: 1,
+    disabled: uploadMutation.isPending,
+  })
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header */}
+    <div className="min-h-screen flex flex-col justify-center p-6 md:p-8 pb-24">
+      <div className="max-w-5xl mx-auto w-full space-y-6">
+        {/* Hero Section with Upload */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-2"
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-secondary/20 border border-white/10"
         >
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-            Upload & Sync
-          </h1>
-          <p className="text-muted-foreground">
-            Upload your Excel files to sync transactions and tax data with the database
-          </p>
-        </motion.div>
+          {/* Background decoration */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px]" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          
+          <div className="relative p-8 md:p-10">
+            <div className="flex flex-col lg:flex-row gap-8 items-center">
+              {/* Left: Title & Info */}
+              <div className="flex-1 space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-sm">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Smart Sync</span>
+                </div>
+                <h1 className="text-4xl md:text-5xl font-bold text-white">
+                  Upload & Sync
+                </h1>
+                <p className="text-lg text-gray-400 max-w-md">
+                  Import your Excel transactions. We'll automatically detect changes and sync your data.
+                </p>
+                
+                {/* Feature bullets */}
+                <div className="flex flex-wrap gap-4 pt-2">
+                  {[
+                    { icon: CheckCircle2, text: 'Auto-detect duplicates' },
+                    { icon: RefreshCw, text: 'Smart sync' },
+                    { icon: FileSpreadsheet, text: '.xlsx & .xls' },
+                  ].map((feature) => (
+                    <div key={feature.text} className="flex items-center gap-2 text-sm text-gray-300">
+                      <feature.icon className="w-4 h-4 text-primary" />
+                      <span>{feature.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-        {/* Section: Transaction Upload */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="space-y-4"
-        >
-          <h2 className="text-2xl font-semibold flex items-center gap-2">
-            <FileText className="w-6 h-6 text-primary" />
-            Transaction Upload
-          </h2>
-        </motion.div>
-
-        {/* Template Download Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="flex items-center justify-between p-4 glass rounded-xl border border-white/10 shadow-xl hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/20 rounded-lg shadow-lg shadow-primary/30">
-              <FileText className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-medium">Need a template?</h3>
-              <p className="text-sm text-muted-foreground">
-                Download the Excel template to get started
-              </p>
+              {/* Right: Upload Zone */}
+              <div className="w-full lg:w-96 shrink-0">
+                <div
+                  {...getRootProps()}
+                  className={cn(
+                    'relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300',
+                    'bg-black/20 backdrop-blur-sm',
+                    'hover:border-primary hover:bg-primary/10',
+                    isDragActive && 'border-primary bg-primary/20 scale-[1.02]',
+                    uploadMutation.isPending && 'opacity-50 cursor-not-allowed',
+                    selectedFile ? 'border-primary' : 'border-white/20'
+                  )}
+                >
+                  <input {...getInputProps()} />
+                  
+                  {uploadMutation.isPending ? (
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="relative">
+                        <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                          <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">Uploading...</p>
+                        <p className="text-sm text-gray-400">{selectedFile?.name}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-4">
+                      <div className={cn(
+                        'w-16 h-16 rounded-full flex items-center justify-center transition-all',
+                        isDragActive ? 'bg-primary/30 scale-110' : 'bg-primary/20'
+                      )}>
+                        <Upload className={cn(
+                          'w-8 h-8 text-primary transition-transform',
+                          isDragActive && 'scale-110'
+                        )} />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white text-lg">
+                          {isDragActive ? 'Drop your file here' : 'Drop Excel file here'}
+                        </p>
+                        <p className="text-sm text-gray-400 mt-1">
+                          or click to browse
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                        <FileSpreadsheet className="w-4 h-4 text-gray-400" />
+                        <span className="text-xs text-gray-400">.xlsx, .xls supported</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-          <button
-            onClick={downloadTemplate}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 hover:scale-105"
-          >
-            <Download className="w-4 h-4" />
-            <span className="text-sm font-medium">Download Template</span>
-          </button>
         </motion.div>
 
-        {/* Upload Zone */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <DropZone
-            onFileSelect={(file) => handleFileSelect(file, false)}
-            isUploading={uploadMutation.isPending}
-          />
-        </motion.div>
-
-        {/* Conflict Error - Force Reupload */}
+        {/* Conflict Error */}
         {conflictError && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="p-6 glass border-2 border-yellow-500/50 rounded-xl space-y-4 shadow-xl shadow-yellow-500/20"
+            className="p-5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center gap-4"
           >
-            <div className="flex items-start gap-4">
-              <div className="p-2 bg-yellow-500/20 rounded-lg shadow-lg shadow-yellow-500/30">
-                <AlertTriangle className="w-6 h-6 text-yellow-500" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg mb-2">File Already Uploaded</h3>
-                <p className="text-sm text-muted-foreground mb-1">
-                  <span className="font-medium text-foreground">{conflictError.file.name}</span> has been uploaded
-                  previously.
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  If you want to re-import this file and update the database, click the button below.
-                </p>
-              </div>
+            <div className="p-3 rounded-full bg-yellow-500/20">
+              <AlertTriangle className="w-6 h-6 text-yellow-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-yellow-400">File Already Uploaded</h3>
+              <p className="text-sm text-gray-400">
+                <span className="text-white">{conflictError.file.name}</span> was imported before. Re-upload to sync changes.
+              </p>
             </div>
             <button
               onClick={handleForceReupload}
               disabled={uploadMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-black rounded-lg hover:bg-yellow-400 hover:shadow-lg hover:shadow-yellow-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-black rounded-lg hover:bg-yellow-400 transition-all font-medium disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${uploadMutation.isPending ? 'animate-spin' : ''}`} />
-              {uploadMutation.isPending ? 'Re-uploading...' : 'Force Reupload'}
+              <RefreshCw className={cn('w-4 h-4', uploadMutation.isPending && 'animate-spin')} />
+              Force Reupload
             </button>
           </motion.div>
         )}
 
-        {/* Upload Results */}
-        {uploadResult && uploadTime && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <UploadResults
-              stats={uploadResult.stats}
-              fileName={uploadResult.file_name}
-              uploadTime={uploadTime}
-            />
-          </motion.div>
-        )}
-
-        {/* Instructions */}
+        {/* Sample Format Section */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="p-6 glass border border-white/10 rounded-xl space-y-3 shadow-xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-4"
         >
-          <h3 className="font-semibold">How it works:</h3>
-          <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-            <li>Upload your Excel file using the drag-and-drop area above</li>
-            <li>The system will automatically sync transactions using deterministic hashing</li>
-            <li>
-              New transactions will be <span className="text-green-500 font-medium">inserted</span>
-            </li>
-            <li>
-              Modified transactions will be <span className="text-blue-500 font-medium">updated</span>
-            </li>
-            <li>
-              Removed transactions will be <span className="text-red-500 font-medium">soft-deleted</span>
-            </li>
-            <li>View the sync results immediately after upload completes</li>
-          </ol>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/20">
+              <FileSpreadsheet className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-white">Expected Format</h2>
+              <p className="text-sm text-gray-400">Your Excel should look like this</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 overflow-hidden bg-black/20 backdrop-blur-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/5">
+                    <th className="px-4 py-3 text-left font-medium text-primary">Date</th>
+                    <th className="px-4 py-3 text-left font-medium text-primary">Account</th>
+                    <th className="px-4 py-3 text-left font-medium text-primary">Category</th>
+                    <th className="px-4 py-3 text-left font-medium text-primary">Subcategory</th>
+                    <th className="px-4 py-3 text-left font-medium text-primary">Type</th>
+                    <th className="px-4 py-3 text-right font-medium text-primary">Amount</th>
+                    <th className="px-4 py-3 text-left font-medium text-primary">Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SAMPLE_EXCEL_DATA.map((row) => (
+                    <tr 
+                      key={`${row.date}-${row.amount}-${row.note}`} 
+                      className="border-b border-white/5 hover:bg-white/5 transition-colors even:bg-white/[0.02]"
+                    >
+                      <td className="px-4 py-2.5 text-gray-300 font-mono text-xs">{row.date}</td>
+                      <td className="px-4 py-2.5 text-gray-300">{row.account}</td>
+                      <td className="px-4 py-2.5 text-gray-300">{row.category}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{row.subcategory}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={cn(
+                          'px-2 py-0.5 rounded border text-xs font-medium',
+                          TYPE_STYLES[row.type] || 'bg-gray-500/20 text-gray-400'
+                        )}>
+                          {row.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-gray-300">
+                        ₹{row.amount.toLocaleString('en-IN')}
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-500 text-xs">{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Footer tip */}
+            <div className="px-4 py-3 border-t border-white/10 bg-white/[0.02] flex items-center gap-2">
+              <ArrowRight className="w-4 h-4 text-primary shrink-0" />
+              <p className="text-xs text-gray-400">
+                Column names are flexible — <span className="text-gray-300">"Period"</span> or <span className="text-gray-300">"Date"</span> both work. 
+                Export from Money Manager Pro for best results.
+              </p>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>

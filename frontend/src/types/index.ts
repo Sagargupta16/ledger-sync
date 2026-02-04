@@ -8,9 +8,11 @@ export interface ApiResponse<T> {
 
 // Upload response
 export interface UploadStats {
+  processed?: number
   inserted: number
   updated: number
   deleted: number
+  unchanged: number
 }
 
 export interface UploadResponse {

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles } from 'lucide-react'
+import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useMemo, useState } from 'react'
@@ -21,6 +21,9 @@ import {
   RecurringTransactions,
   TopMerchants,
 } from '@/components/analytics'
+
+// Color for Savings
+const SAVINGS_COLOR = '#10b981' // Green
 
 export default function SpendingAnalysisPage() {
   const { data: transactions } = useTransactions()
@@ -55,6 +58,16 @@ export default function SpendingAnalysisPage() {
       .reduce((sum, t) => sum + Math.abs(t.amount), 0)
   }, [filteredTransactions])
 
+  // Calculate total income for filtered period
+  const totalIncome = useMemo(() => {
+    return filteredTransactions
+      .filter((t) => t.type === 'Income')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  }, [filteredTransactions])
+
+  // Calculate savings (Income - Expenses)
+  const savings = Math.max(0, totalIncome - totalSpending)
+
   // Get category breakdown for filtered transactions
   const categoryBreakdown = useMemo(() => {
     const expenses = filteredTransactions.filter((t) => t.type === 'Expense')
@@ -78,32 +91,37 @@ export default function SpendingAnalysisPage() {
     return calculateSpendingBreakdown(filteredTransactions, preferences.essential_categories)
   }, [filteredTransactions, preferences])
 
-  // Prepare spending breakdown chart data
+  // Prepare spending breakdown chart data (50/30/20 rule with income base)
   const spendingChartData = useMemo(() => {
-    if (!spendingBreakdown) return []
+    if (!spendingBreakdown || totalIncome <= 0) return []
     return [
-      { name: 'Essential', value: spendingBreakdown.essential, color: SPENDING_TYPE_COLORS.essential },
-      { name: 'Discretionary', value: spendingBreakdown.discretionary, color: SPENDING_TYPE_COLORS.discretionary },
+      { name: 'Needs', value: spendingBreakdown.essential, color: SPENDING_TYPE_COLORS.essential },
+      { name: 'Wants', value: spendingBreakdown.discretionary, color: SPENDING_TYPE_COLORS.discretionary },
+      { name: 'Savings', value: savings, color: SAVINGS_COLOR },
     ].filter((d) => d.value > 0)
-  }, [spendingBreakdown])
+  }, [spendingBreakdown, savings, totalIncome])
 
-  // Calculate 50/30/20 rule metrics
+  // Calculate 50/30/20 rule metrics (based on income, not just expenses)
   const budgetRuleMetrics = useMemo(() => {
-    if (!spendingBreakdown) return null
-    const total = spendingBreakdown.total
-    const essentialPercent = (spendingBreakdown.essential / total) * 100
-    const discretionaryPercent = (spendingBreakdown.discretionary / total) * 100
+    if (!spendingBreakdown || totalIncome <= 0) return null
     
-    // 50/30/20 rule: 50% needs, 30% wants, 20% savings
+    // 50/30/20 rule is based on income: 50% needs, 30% wants, 20% savings
+    const essentialPercent = (spendingBreakdown.essential / totalIncome) * 100
+    const discretionaryPercent = (spendingBreakdown.discretionary / totalIncome) * 100
+    const savingsPercent = (savings / totalIncome) * 100
+    
     return {
       essentialPercent,
       discretionaryPercent,
+      savingsPercent,
       essentialTarget: 50,
       discretionaryTarget: 30,
+      savingsTarget: 20,
       isOverspendingEssential: essentialPercent > 55, // 5% buffer
       isOverspendingDiscretionary: discretionaryPercent > 35, // 5% buffer
+      isUnderSaving: savingsPercent < 15, // 5% buffer below 20%
     }
-  }, [spendingBreakdown])
+  }, [spendingBreakdown, totalIncome, savings])
 
   const isLoading = !transactions
 
@@ -174,9 +192,9 @@ export default function SpendingAnalysisPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <h3 className="text-lg font-semibold text-white mb-4">Needs vs Wants Analysis</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">50/30/20 Budget Rule Analysis</h3>
           {spendingChartData.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Pie Chart */}
               <div className="flex flex-col items-center">
                 <div className="w-48 h-48">
@@ -222,14 +240,14 @@ export default function SpendingAnalysisPage() {
                 </div>
               </div>
 
-              {/* Essential Spending Card */}
+              {/* Needs Card (50%) */}
               <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2 bg-blue-500/20 rounded-lg">
                     <ShieldCheck className="w-5 h-5 text-blue-400" />
                   </div>
                   <div>
-                    <p className="font-medium text-white">Essential (Needs)</p>
+                    <p className="font-medium text-white">Needs (50%)</p>
                     <p className="text-xs text-gray-400">Housing, Healthcare, Food, etc.</p>
                   </div>
                 </div>
@@ -252,18 +270,18 @@ export default function SpendingAnalysisPage() {
                       }}
                     />
                   </div>
-                  <p className="text-xs text-gray-500">Target: ≤50% of spending (50/30/20 rule)</p>
+                  <p className="text-xs text-gray-500">Target: ≤50% of income</p>
                 </div>
               </div>
 
-              {/* Discretionary Spending Card */}
+              {/* Wants Card (30%) */}
               <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2 bg-orange-500/20 rounded-lg">
                     <Sparkles className="w-5 h-5 text-orange-400" />
                   </div>
                   <div>
-                    <p className="font-medium text-white">Discretionary (Wants)</p>
+                    <p className="font-medium text-white">Wants (30%)</p>
                     <p className="text-xs text-gray-400">Entertainment, Shopping, etc.</p>
                   </div>
                 </div>
@@ -286,7 +304,41 @@ export default function SpendingAnalysisPage() {
                       }}
                     />
                   </div>
-                  <p className="text-xs text-gray-500">Target: ≤30% of spending (50/30/20 rule)</p>
+                  <p className="text-xs text-gray-500">Target: ≤30% of income</p>
+                </div>
+              </div>
+
+              {/* Savings Card (20%) */}
+              <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-emerald-500/20 rounded-lg">
+                    <PiggyBank className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-white">Savings (20%)</p>
+                    <p className="text-xs text-gray-400">Income minus Expenses</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-bold text-emerald-400 mb-2">
+                  {formatCurrency(savings)}
+                </p>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Current</span>
+                    <span className={budgetRuleMetrics?.isUnderSaving ? 'text-red-400' : 'text-green-400'}>
+                      {formatPercent(budgetRuleMetrics?.savingsPercent || 0)}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(budgetRuleMetrics?.savingsPercent || 0, 100)}%`,
+                        backgroundColor: budgetRuleMetrics?.isUnderSaving ? '#ef4444' : SAVINGS_COLOR,
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">Target: ≥20% of income</p>
                 </div>
               </div>
             </div>
