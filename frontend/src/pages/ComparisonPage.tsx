@@ -608,7 +608,6 @@ function KpiCard({
   valueA,
   valueB,
   labelA,
-  labelB,
   color,
   invertChange,
   isPercent,

@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
@@ -79,7 +78,6 @@ const modeAccent: Record<HeatmapMode, string> = {
 // ─── Main Component ─────────────────────────────────────────────────
 export default function YearInReviewPage() {
   const { data: transactions = [] } = useTransactions()
-  const { data: _preferences } = usePreferences()
 
   const [mode, setMode] = useState<HeatmapMode>('expense')
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear())
