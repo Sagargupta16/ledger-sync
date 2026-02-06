@@ -72,14 +72,16 @@ DEFAULT_INVESTMENT_ACCOUNT_PATTERNS = {
 class AnalyticsEngine:
     """Engine for calculating and persisting analytics data."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, user_id: int | None = None):
         """Initialize analytics engine.
 
         Args:
             db: Database session
+            user_id: ID of the authenticated user (required for multi-user scoping)
 
         """
         self.db = db
+        self.user_id = user_id
         self.logger = get_analytics_logger()
         self._preferences: UserPreferences | None = None
         self._load_preferences()
@@ -87,7 +89,11 @@ class AnalyticsEngine:
     def _load_preferences(self) -> None:
         """Load user preferences from database."""
         try:
-            result = self.db.execute(select(UserPreferences).limit(1))
+            stmt = select(UserPreferences)
+            if self.user_id is not None:
+                stmt = stmt.where(UserPreferences.user_id == self.user_id)
+            stmt = stmt.limit(1)
+            result = self.db.execute(stmt)
             self._preferences = result.scalar_one_or_none()
             if self._preferences:
                 self.logger.info("Loaded user preferences from database")
@@ -402,10 +408,17 @@ class AnalyticsEngine:
 
         return results
 
+    def _user_transaction_query(self):
+        """Base query for transactions scoped to current user."""
+        query = self.db.query(Transaction).filter(Transaction.is_deleted.is_(False))
+        if self.user_id is not None:
+            query = query.filter(Transaction.user_id == self.user_id)
+        return query
+
     def _calculate_monthly_summaries(self) -> int:
         """Calculate and persist monthly summary aggregations."""
-        # Get all non-deleted transactions
-        transactions = self.db.query(Transaction).filter(Transaction.is_deleted.is_(False)).all()
+        # Get all non-deleted transactions for this user
+        transactions = self._user_transaction_query().all()
 
         # Group by month
         monthly_data: dict[str, dict[str, Any]] = defaultdict(
@@ -472,8 +485,11 @@ class AnalyticsEngine:
             monthly_data[period_key]["year"] = year
             monthly_data[period_key]["month"] = month
 
-        # Delete existing summaries and insert new ones
-        self.db.execute(delete(MonthlySummary))
+        # Delete existing summaries for this user and insert new ones
+        del_stmt = delete(MonthlySummary)
+        if self.user_id is not None:
+            del_stmt = del_stmt.where(MonthlySummary.user_id == self.user_id)
+        self.db.execute(del_stmt)
 
         count = 0
         sorted_periods = sorted(monthly_data.keys())
@@ -497,6 +513,7 @@ class AnalyticsEngine:
                 expense_change_pct = float((total_expenses - prev_expenses) / prev_expenses * 100)
 
             summary = MonthlySummary(
+                user_id=self.user_id,
                 year=data["year"],
                 month=data["month"],
                 period_key=period_key,
@@ -534,8 +551,7 @@ class AnalyticsEngine:
     def _calculate_category_trends(self) -> int:
         """Calculate category-level trends over time."""
         transactions = (
-            self.db.query(Transaction)
-            .filter(Transaction.is_deleted.is_(False))
+            self._user_transaction_query()
             .filter(Transaction.type != TransactionType.TRANSFER)  # Exclude transfers
             .all()
         )
@@ -562,8 +578,11 @@ class AnalyticsEngine:
             period_key = txn.date.strftime("%Y-%m")
             monthly_totals[period_key][txn.type.value] += Decimal(str(txn.amount))
 
-        # Delete existing and insert new
-        self.db.execute(delete(CategoryTrend))
+        # Delete existing for this user and insert new
+        del_stmt = delete(CategoryTrend)
+        if self.user_id is not None:
+            del_stmt = del_stmt.where(CategoryTrend.user_id == self.user_id)
+        self.db.execute(del_stmt)
 
         count = 0
         prev_amounts: dict[tuple, float] = {}
@@ -583,6 +602,7 @@ class AnalyticsEngine:
                 mom_change_pct = (mom_change / prev_amounts[prev_key]) * 100
 
             trend = CategoryTrend(
+                user_id=self.user_id,
                 period_key=period_key,
                 category=category,
                 subcategory=data["subcategory"],
@@ -606,8 +626,7 @@ class AnalyticsEngine:
     def _calculate_transfer_flows(self) -> int:
         """Calculate aggregated transfer flows between accounts."""
         transfers = (
-            self.db.query(Transaction)
-            .filter(Transaction.is_deleted.is_(False))
+            self._user_transaction_query()
             .filter(Transaction.type == TransactionType.TRANSFER)
             .all()
         )
@@ -637,12 +656,16 @@ class AnalyticsEngine:
                     flows[key]["last_date"] = txn.date
                     flows[key]["last_amount"] = Decimal(str(txn.amount))
 
-        # Delete existing and insert new
-        self.db.execute(delete(TransferFlow))
+        # Delete existing for this user and insert new
+        del_stmt = delete(TransferFlow)
+        if self.user_id is not None:
+            del_stmt = del_stmt.where(TransferFlow.user_id == self.user_id)
+        self.db.execute(del_stmt)
 
         count = 0
         for (from_acc, to_acc), data in flows.items():
             flow = TransferFlow(
+                user_id=self.user_id,
                 from_account=from_acc,
                 to_account=to_acc,
                 total_amount=data["total_amount"],
@@ -664,8 +687,7 @@ class AnalyticsEngine:
     def _extract_merchant_intelligence(self) -> int:
         """Extract and aggregate merchant/vendor data from transaction notes."""
         expenses = (
-            self.db.query(Transaction)
-            .filter(Transaction.is_deleted.is_(False))
+            self._user_transaction_query()
             .filter(Transaction.type == TransactionType.EXPENSE)
             .filter(Transaction.note.isnot(None))
             .all()
@@ -691,8 +713,11 @@ class AnalyticsEngine:
                 if txn.subcategory:
                     merchants[merchant_name]["subcategories"][txn.subcategory] += 1
 
-        # Delete existing and insert new
-        self.db.execute(delete(MerchantIntelligence))
+        # Delete existing for this user and insert new
+        del_stmt = delete(MerchantIntelligence)
+        if self.user_id is not None:
+            del_stmt = del_stmt.where(MerchantIntelligence.user_id == self.user_id)
+        self.db.execute(del_stmt)
 
         count = 0
         for merchant_name, data in merchants.items():
@@ -726,6 +751,7 @@ class AnalyticsEngine:
             is_recurring = len(data["amounts"]) >= 3 and avg_days > 0 and avg_days < 45
 
             merchant = MerchantIntelligence(
+                user_id=self.user_id,
                 merchant_name=merchant_name,
                 primary_category=primary_cat,
                 primary_subcategory=primary_subcat,
@@ -774,8 +800,7 @@ class AnalyticsEngine:
     def _detect_recurring_transactions(self) -> int:
         """Detect recurring transaction patterns."""
         transactions = (
-            self.db.query(Transaction)
-            .filter(Transaction.is_deleted.is_(False))
+            self._user_transaction_query()
             .filter(Transaction.type.in_([TransactionType.INCOME, TransactionType.EXPENSE]))
             .order_by(Transaction.date)
             .all()
@@ -789,8 +814,11 @@ class AnalyticsEngine:
             key = (txn.category, txn.account, amount_bucket, txn.type.value)
             patterns[key].append(txn)
 
-        # Delete existing and insert new
-        self.db.execute(delete(RecurringTransaction))
+        # Delete existing for this user and insert new
+        del_stmt = delete(RecurringTransaction)
+        if self.user_id is not None:
+            del_stmt = del_stmt.where(RecurringTransaction.user_id == self.user_id)
+        self.db.execute(del_stmt)
 
         count = 0
         for (category, account, _amount_bucket, txn_type), txns in patterns.items():
@@ -814,6 +842,7 @@ class AnalyticsEngine:
                 pattern_name = f"{category} - {txns[0].subcategory}"
 
             recurring = RecurringTransaction(
+                user_id=self.user_id,
                 pattern_name=pattern_name,
                 category=category,
                 subcategory=txns[0].subcategory,
@@ -881,8 +910,7 @@ class AnalyticsEngine:
         """Calculate and store a net worth snapshot."""
         # Get account balances (simplified - based on transfers in/out)
         transfers = (
-            self.db.query(Transaction)
-            .filter(Transaction.is_deleted.is_(False))
+            self._user_transaction_query()
             .filter(Transaction.type == TransactionType.TRANSFER)
             .all()
         )
@@ -897,8 +925,7 @@ class AnalyticsEngine:
 
         # Also add income/expense impact on primary accounts
         inc_exp = (
-            self.db.query(Transaction)
-            .filter(Transaction.is_deleted.is_(False))
+            self._user_transaction_query()
             .filter(Transaction.type.in_([TransactionType.INCOME, TransactionType.EXPENSE]))
             .all()
         )
@@ -963,9 +990,10 @@ class AnalyticsEngine:
         net_worth = total_assets - total_liabilities
 
         # Get previous snapshot for comparison
-        prev_snapshot = (
-            self.db.query(NetWorthSnapshot).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
-        )
+        prev_query = self.db.query(NetWorthSnapshot).order_by(NetWorthSnapshot.snapshot_date.desc())
+        if self.user_id is not None:
+            prev_query = prev_query.filter(NetWorthSnapshot.user_id == self.user_id)
+        prev_snapshot = prev_query.first()
 
         net_worth_change = Decimal(0)
         net_worth_change_pct = 0.0
@@ -976,6 +1004,7 @@ class AnalyticsEngine:
 
         # Create snapshot
         snapshot = NetWorthSnapshot(
+            user_id=self.user_id,
             snapshot_date=datetime.now(UTC),
             cash_and_bank=cash_and_bank,
             investments=total_investments,
@@ -1007,7 +1036,7 @@ class AnalyticsEngine:
 
     def _calculate_fy_summaries(self) -> int:
         """Calculate fiscal year summaries using configurable start month."""
-        transactions = self.db.query(Transaction).filter(Transaction.is_deleted.is_(False)).all()
+        transactions = self._user_transaction_query().all()
 
         # Group by fiscal year
         fy_data: dict[str, dict[str, Any]] = defaultdict(
@@ -1058,8 +1087,11 @@ class AnalyticsEngine:
                 if self._is_investment_account(txn.to_account):
                     fy_data[fy]["investments_made"] += amount
 
-        # Delete existing and insert new
-        self.db.execute(delete(FYSummary))
+        # Delete existing for this user and insert new
+        del_stmt = delete(FYSummary)
+        if self.user_id is not None:
+            del_stmt = del_stmt.where(FYSummary.user_id == self.user_id)
+        self.db.execute(del_stmt)
 
         count = 0
         prev_income = None
@@ -1089,6 +1121,7 @@ class AnalyticsEngine:
             is_complete = data["end_date"] < now if data["end_date"] else False
 
             summary = FYSummary(
+                user_id=self.user_id,
                 fiscal_year=fy,
                 start_date=data["start_date"],
                 end_date=data["end_date"],
@@ -1123,16 +1156,17 @@ class AnalyticsEngine:
         threshold_multiplier = self.anomaly_expense_threshold  # From preferences
 
         # 1. Detect high expense months (>threshold x std dev)
-        monthly_expenses = (
+        monthly_query = (
             self.db.query(
                 func.strftime("%Y-%m", Transaction.date).label("period"),
                 func.sum(Transaction.amount).label("total"),
             )
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
-            .group_by(func.strftime("%Y-%m", Transaction.date))
-            .all()
         )
+        if self.user_id is not None:
+            monthly_query = monthly_query.filter(Transaction.user_id == self.user_id)
+        monthly_expenses = monthly_query.group_by(func.strftime("%Y-%m", Transaction.date)).all()
 
         if len(monthly_expenses) > 3:
             expense_values = [float(m.total) for m in monthly_expenses]
@@ -1160,20 +1194,18 @@ class AnalyticsEngine:
                     )
 
         # 2. Detect large individual transactions (>3x category average)
-        category_avgs = (
+        cat_avg_query = (
             self.db.query(Transaction.category, func.avg(Transaction.amount).label("avg_amount"))
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
-            .group_by(Transaction.category)
-            .all()
         )
+        if self.user_id is not None:
+            cat_avg_query = cat_avg_query.filter(Transaction.user_id == self.user_id)
+        category_avgs = cat_avg_query.group_by(Transaction.category).all()
         category_avg_map = {c.category: float(c.avg_amount) for c in category_avgs}
 
         large_txns = (
-            self.db.query(Transaction)
-            .filter(Transaction.is_deleted.is_(False))
-            .filter(Transaction.type == TransactionType.EXPENSE)
-            .all()
+            self._user_transaction_query().filter(Transaction.type == TransactionType.EXPENSE).all()
         )
 
         for txn in large_txns:
@@ -1194,11 +1226,15 @@ class AnalyticsEngine:
                     },
                 )
 
-        # Delete old unreviewed anomalies and insert new
-        self.db.execute(delete(Anomaly).where(Anomaly.is_reviewed.is_(False)))
+        # Delete old unreviewed anomalies for this user and insert new
+        del_stmt = delete(Anomaly).where(Anomaly.is_reviewed.is_(False))
+        if self.user_id is not None:
+            del_stmt = del_stmt.where(Anomaly.user_id == self.user_id)
+        self.db.execute(del_stmt)
 
         for anomaly_data in anomalies_detected[:50]:  # Limit to 50 anomalies
             anomaly = Anomaly(
+                user_id=self.user_id,
                 anomaly_type=anomaly_data["type"],
                 severity=anomaly_data["severity"],
                 description=anomaly_data["description"],
@@ -1215,7 +1251,10 @@ class AnalyticsEngine:
 
     def _update_budget_tracking(self) -> int:
         """Update budget tracking with current month's spending."""
-        budgets = self.db.query(Budget).filter(Budget.is_active.is_(True)).all()
+        budget_query = self.db.query(Budget).filter(Budget.is_active.is_(True))
+        if self.user_id is not None:
+            budget_query = budget_query.filter(Budget.user_id == self.user_id)
+        budgets = budget_query.all()
 
         if not budgets:
             return 0
@@ -1230,8 +1269,10 @@ class AnalyticsEngine:
             .filter(Transaction.type == TransactionType.EXPENSE)
             .filter(func.strftime("%Y-%m", Transaction.date) == current_period)
             .group_by(Transaction.category)
-            .all()
         )
+        if self.user_id is not None:
+            current_spending = current_spending.filter(Transaction.user_id == self.user_id)
+        current_spending = current_spending.all()
         spending_map = {c.category: float(c.total) for c in current_spending}
 
         count = 0
@@ -1247,6 +1288,7 @@ class AnalyticsEngine:
             # Check for budget exceeded anomaly
             if budget.current_month_pct > 100:
                 anomaly = Anomaly(
+                    user_id=self.user_id,
                     anomaly_type=AnomalyType.BUDGET_EXCEEDED,
                     severity="high",
                     description=(

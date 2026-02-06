@@ -3,9 +3,7 @@
 This module provides fast analytics endpoints that read from pre-calculated
 aggregation tables rather than computing on-the-fly.
 
-NOTE: These aggregation tables currently don't support multi-user filtering.
-They will return data for all users until user_id columns are added and
-the aggregation engine is updated.
+All aggregation tables are scoped to user_id for multi-user safety.
 """
 
 from datetime import UTC, datetime
@@ -49,7 +47,11 @@ def get_monthly_summaries(
     - Savings metrics
     - Month-over-month changes
     """
-    query = db.query(MonthlySummary).order_by(desc(MonthlySummary.period_key))
+    query = (
+        db.query(MonthlySummary)
+        .filter(MonthlySummary.user_id == current_user.id)
+        .order_by(desc(MonthlySummary.period_key))
+    )
 
     if start_period:
         query = query.filter(MonthlySummary.period_key >= start_period)
@@ -116,9 +118,13 @@ def get_category_trends(
     - Category growth/decline analysis
     - Spending pattern identification
     """
-    query = db.query(CategoryTrend).order_by(
-        desc(CategoryTrend.period_key),
-        desc(CategoryTrend.total_amount),
+    query = (
+        db.query(CategoryTrend)
+        .filter(CategoryTrend.user_id == current_user.id)
+        .order_by(
+            desc(CategoryTrend.period_key),
+            desc(CategoryTrend.total_amount),
+        )
     )
 
     if category:
@@ -168,7 +174,11 @@ def get_transfer_flows(
     - Money flow analysis
     - Account relationship mapping
     """
-    query = db.query(TransferFlow).order_by(desc(TransferFlow.total_amount))
+    query = (
+        db.query(TransferFlow)
+        .filter(TransferFlow.user_id == current_user.id)
+        .order_by(desc(TransferFlow.total_amount))
+    )
 
     if min_amount:
         query = query.filter(TransferFlow.total_amount >= min_amount)
@@ -216,9 +226,13 @@ def get_recurring_transactions(
     - Salary/income patterns
     - Regular investments
     """
-    query = db.query(RecurringTransaction).order_by(
-        desc(RecurringTransaction.confidence_score),
-        desc(RecurringTransaction.expected_amount),
+    query = (
+        db.query(RecurringTransaction)
+        .filter(RecurringTransaction.user_id == current_user.id)
+        .order_by(
+            desc(RecurringTransaction.confidence_score),
+            desc(RecurringTransaction.expected_amount),
+        )
     )
 
     if active_only:
@@ -276,7 +290,11 @@ def get_merchant_intelligence(
     - Transaction patterns per merchant
     - Recurring merchant detection
     """
-    query = db.query(MerchantIntelligence).order_by(desc(MerchantIntelligence.total_spent))
+    query = (
+        db.query(MerchantIntelligence)
+        .filter(MerchantIntelligence.user_id == current_user.id)
+        .order_by(desc(MerchantIntelligence.total_spent))
+    )
 
     if min_transactions:
         query = query.filter(MerchantIntelligence.transaction_count >= min_transactions)
@@ -325,7 +343,11 @@ def get_net_worth_history(
 
     """
     snapshots = (
-        db.query(NetWorthSnapshot).order_by(desc(NetWorthSnapshot.snapshot_date)).limit(limit).all()
+        db.query(NetWorthSnapshot)
+        .filter(NetWorthSnapshot.user_id == current_user.id)
+        .order_by(desc(NetWorthSnapshot.snapshot_date))
+        .limit(limit)
+        .all()
     )
 
     if not snapshots:
@@ -381,7 +403,12 @@ def get_fy_summaries(
     - Year-over-year comparison
     - Financial year analysis (India FY)
     """
-    summaries = db.query(FYSummary).order_by(desc(FYSummary.fiscal_year)).all()
+    summaries = (
+        db.query(FYSummary)
+        .filter(FYSummary.user_id == current_user.id)
+        .order_by(desc(FYSummary.fiscal_year))
+        .all()
+    )
 
     return {
         "data": [
@@ -433,7 +460,11 @@ def get_anomalies(
     - Large transfers
     - Budget exceeded
     """
-    query = db.query(Anomaly).order_by(desc(Anomaly.detected_at))
+    query = (
+        db.query(Anomaly)
+        .filter(Anomaly.user_id == current_user.id)
+        .order_by(desc(Anomaly.detected_at))
+    )
 
     if severity:
         query = query.filter(Anomaly.severity == severity)
@@ -479,7 +510,14 @@ def review_anomaly(
     db: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """Mark an anomaly as reviewed."""
-    anomaly = db.query(Anomaly).filter(Anomaly.id == anomaly_id).first()
+    anomaly = (
+        db.query(Anomaly)
+        .filter(
+            Anomaly.id == anomaly_id,
+            Anomaly.user_id == current_user.id,
+        )
+        .first()
+    )
 
     if not anomaly:
         return {"success": False, "error": "Anomaly not found"}
@@ -501,7 +539,7 @@ def get_budgets(
     active_only: bool = Query(True),
 ) -> dict[str, Any]:
     """Get budget tracking data."""
-    query = db.query(Budget)
+    query = db.query(Budget).filter(Budget.user_id == current_user.id)
 
     if active_only:
         query = query.filter(Budget.is_active.is_(True))
@@ -540,6 +578,7 @@ def create_budget(
 ) -> dict[str, Any]:
     """Create a new budget."""
     budget = Budget(
+        user_id=current_user.id,
         category=category,
         subcategory=subcategory,
         monthly_limit=monthly_limit,
@@ -561,7 +600,7 @@ def get_financial_goals(
     status: str | None = Query(None, description="Filter by status (active/completed/paused)"),
 ) -> dict[str, Any]:
     """Get financial goals."""
-    query = db.query(FinancialGoal)
+    query = db.query(FinancialGoal).filter(FinancialGoal.user_id == current_user.id)
 
     if status:
         query = query.filter(FinancialGoal.status == status)
@@ -612,6 +651,7 @@ def create_goal(
             monthly_target = target_amount / months_remaining
 
     goal = FinancialGoal(
+        user_id=current_user.id,
         name=name,
         description=description,
         goal_type=goal_type,

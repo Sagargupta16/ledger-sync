@@ -46,8 +46,10 @@ export const transactionsService = {
     const allTransactions: Transaction[] = []
     let offset = 0
     const pageSize = 1000 // Fetch in larger chunks for efficiency
+    const maxPages = 50 // Safety cap: max 50,000 transactions to prevent OOM
+    let page = 0
     
-    while (true) {
+    while (page < maxPages) {
       const response = await apiClient.get<PaginatedResponse<Transaction>>('/api/transactions', {
         params: { ...filters, limit: pageSize, offset },
       })
@@ -59,6 +61,7 @@ export const transactionsService = {
         break
       }
       offset += pageSize
+      page++
     }
     
     return allTransactions

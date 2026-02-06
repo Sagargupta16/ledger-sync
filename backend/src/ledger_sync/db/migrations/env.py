@@ -11,6 +11,7 @@ from ledger_sync.config.settings import settings
 from ledger_sync.db.base import Base
 
 # Import ALL models for autogenerate detection
+from ledger_sync.db import models  # noqa: F401
 
 # this is the Alembic Config object
 config = context.config

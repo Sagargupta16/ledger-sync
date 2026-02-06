@@ -327,6 +327,11 @@ class NetWorthSnapshot(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
+    # User foreign key - scopes snapshot to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+
     # Snapshot date (typically end of month or upload date)
     snapshot_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
 
@@ -363,7 +368,10 @@ class NetWorthSnapshot(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     source: Mapped[str] = mapped_column(String(50), default="upload")  # upload, manual, api
 
-    __table_args__ = (Index("ix_net_worth_date", "snapshot_date"),)
+    __table_args__ = (
+        Index("ix_net_worth_date", "snapshot_date"),
+        Index("ix_net_worth_user", "user_id"),
+    )
 
 
 class InvestmentHolding(Base):
@@ -406,13 +414,17 @@ class MonthlySummary(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
+    # User foreign key - scopes summary to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+
     # Period identification
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     month: Mapped[int] = mapped_column(Integer, nullable=False)
     period_key: Mapped[str] = mapped_column(
         String(7),
         nullable=False,
-        unique=True,
         index=True,
     )  # YYYY-MM
 
@@ -453,7 +465,10 @@ class MonthlySummary(Base):
     # Metadata
     last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
-    __table_args__ = (Index("ix_monthly_summary_year_month", "year", "month"),)
+    __table_args__ = (
+        Index("ix_monthly_summary_year_month", "year", "month"),
+        Index("ix_monthly_summary_user_period", "user_id", "period_key", unique=True),
+    )
 
 
 class CategoryTrend(Base):
@@ -462,6 +477,11 @@ class CategoryTrend(Base):
     __tablename__ = "category_trends"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # User foreign key - scopes trend to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
 
     # Period and category
     period_key: Mapped[str] = mapped_column(String(7), nullable=False, index=True)  # YYYY-MM
@@ -488,6 +508,7 @@ class CategoryTrend(Base):
     __table_args__ = (
         Index("ix_category_trend_period_category", "period_key", "category"),
         Index("ix_category_trend_type", "transaction_type"),
+        Index("ix_category_trend_user", "user_id"),
     )
 
 
@@ -502,6 +523,11 @@ class TransferFlow(Base):
     __tablename__ = "transfer_flows"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # User foreign key - scopes flow to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
 
     # Flow identification
     from_account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -526,7 +552,7 @@ class TransferFlow(Base):
     last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     __table_args__ = (
-        Index("ix_transfer_flow_accounts", "from_account", "to_account", unique=True),
+        Index("ix_transfer_flow_accounts", "user_id", "from_account", "to_account", unique=True),
     )
 
 
@@ -541,6 +567,11 @@ class RecurringTransaction(Base):
     __tablename__ = "recurring_transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # User foreign key - scopes pattern to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
 
     # Pattern identification
     pattern_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -578,7 +609,10 @@ class RecurringTransaction(Base):
     first_detected: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
-    __table_args__ = (Index("ix_recurring_category_account", "category", "account"),)
+    __table_args__ = (
+        Index("ix_recurring_category_account", "category", "account"),
+        Index("ix_recurring_user", "user_id"),
+    )
 
 
 class MerchantIntelligence(Base):
@@ -588,8 +622,13 @@ class MerchantIntelligence(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
+    # User foreign key - scopes merchant data to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+
     # Merchant identification (extracted from notes)
-    merchant_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    merchant_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     merchant_aliases: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
@@ -627,6 +666,11 @@ class Anomaly(Base):
     __tablename__ = "anomalies"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # User foreign key - scopes anomaly to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
 
     # Anomaly details
     anomaly_type: Mapped[AnomalyType] = mapped_column(Enum(AnomalyType), nullable=False, index=True)
@@ -666,6 +710,7 @@ class Anomaly(Base):
     __table_args__ = (
         Index("ix_anomaly_type_severity", "anomaly_type", "severity"),
         Index("ix_anomaly_period", "period_key"),
+        Index("ix_anomaly_user", "user_id"),
     )
 
 
@@ -680,6 +725,11 @@ class Budget(Base):
     __tablename__ = "budgets"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # User foreign key - scopes budget to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
 
     # Budget scope
     category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -716,6 +766,11 @@ class FinancialGoal(Base):
     __tablename__ = "financial_goals"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # User foreign key - scopes goal to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
 
     # Goal details
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -755,8 +810,13 @@ class FYSummary(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
+    # User foreign key - scopes FY summary to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+
     # FY identification (e.g., "FY2024-25" for Apr 2024 - Mar 2025)
-    fiscal_year: Mapped[str] = mapped_column(String(15), nullable=False, unique=True, index=True)
+    fiscal_year: Mapped[str] = mapped_column(String(15), nullable=False, index=True)
     start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 

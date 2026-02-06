@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, Calculator, Percent } from 'lucide-react'
+import { TrendingUp, Calculator, Percent, BarChart3 } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import {
@@ -33,6 +33,47 @@ interface ChartDataPoint {
   invested: number
   value: number
   isHistorical: boolean
+}
+
+// Calculate XIRR using Newton-Raphson method
+const calculateXIRR = (
+  cashFlows: { date: Date; amount: number }[],
+  guess: number = 0.1,
+  maxIterations: number = 100,
+  tolerance: number = 1e-7,
+): number => {
+  if (cashFlows.length < 2) return 0
+
+  const daysBetween = (d1: Date, d2: Date) =>
+    (d2.getTime() - d1.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+
+  const firstDate = cashFlows[0].date
+  let rate = guess
+
+  for (let i = 0; i < maxIterations; i++) {
+    let npv = 0
+    let dnpv = 0
+
+    for (const cf of cashFlows) {
+      const years = daysBetween(firstDate, cf.date)
+      const factor = Math.pow(1 + rate, years)
+      npv += cf.amount / factor
+      if (years !== 0) {
+        dnpv -= (years * cf.amount) / (factor * (1 + rate))
+      }
+    }
+
+    if (Math.abs(dnpv) < 1e-12) break
+
+    const newRate = rate - npv / dnpv
+    if (Math.abs(newRate - rate) < tolerance) return newRate * 100
+    rate = newRate
+
+    // Guard against divergence
+    if (rate < -0.99 || rate > 10) return 0
+  }
+
+  return rate * 100
 }
 
 // Calculate SIP future value with monthly compounding
@@ -75,6 +116,7 @@ export default function MutualFundProjectionPage() {
   const [projectionYears, setProjectionYears] = useState(10)
   const [sipGrowthRate, setSipGrowthRate] = useState(0)
   const [userModifiedSIP, setUserModifiedSIP] = useState(false)
+  const [currentValueInput, setCurrentValueInput] = useState(0)
   const [mutualFundAccounts, setMutualFundAccounts] = useState<{ name: string; balance: number }[]>([])
 
   // Load mutual fund accounts
@@ -149,6 +191,11 @@ export default function MutualFundProjectionPage() {
   // Use detected SIP if user hasn't modified it
   const activeMonthlySIP = userModifiedSIP ? monthlySIP : (detectedMonthlySIP || monthlySIP)
 
+  // Calculate total invested from history
+  const totalHistoricalInvested = sipTransfers.reduce((sum, tx) => sum + tx.amount, 0)
+  // Use override value if entered, otherwise use portfolio balance
+  const effectiveCurrentValue = currentValueInput > 0 ? currentValueInput : currentBalance
+
   // Calculate future projection
   const projection = useMemo(() => {
     return calculateSIPProjection(
@@ -156,9 +203,9 @@ export default function MutualFundProjectionPage() {
       expectedReturn,
       projectionYears,
       sipGrowthRate,
-      currentBalance
+      effectiveCurrentValue
     )
-  }, [activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate, currentBalance])
+  }, [activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate, effectiveCurrentValue])
 
   // Build chart data: historical + projection
   const chartData = useMemo<ChartDataPoint[]>(() => {
@@ -179,8 +226,8 @@ export default function MutualFundProjectionPage() {
     
     // Total amount actually invested
     const totalInvested = cumulativeInvested
-    // Current actual value (includes gains/losses)
-    const currentValue = currentBalance
+    // Current actual value (includes gains/losses) - use override if set
+    const currentValue = effectiveCurrentValue
     // Total gains/losses
     const totalGains = currentValue - totalInvested
     
@@ -243,12 +290,38 @@ export default function MutualFundProjectionPage() {
     }
     
     return data
-  }, [sipTransfers, currentBalance, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate])
+  }, [sipTransfers, effectiveCurrentValue, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate])
 
-  // Calculate total invested from history
-  const totalHistoricalInvested = sipTransfers.reduce((sum, tx) => sum + tx.amount, 0)
-  const totalGains = currentBalance - totalHistoricalInvested
-  const gainsPercent = totalHistoricalInvested > 0 ? (totalGains / totalHistoricalInvested) * 100 : 0
+  // Realized gains: always based on actual portfolio balance (fixed, not affected by override)
+  const realizedGains = currentBalance - totalHistoricalInvested
+  const realizedGainsPercent = totalHistoricalInvested > 0 ? (realizedGains / totalHistoricalInvested) * 100 : 0
+
+  // Unrealized/override gains: based on user-entered current value (for Returns Analysis)
+  const overrideGains = effectiveCurrentValue - totalHistoricalInvested
+  const overrideGainsPercent = totalHistoricalInvested > 0 ? (overrideGains / totalHistoricalInvested) * 100 : 0
+
+  // Compute annualized return (XIRR) from actual SIP cashflows
+  const xirrPercent = useMemo(() => {
+    if (sipTransfers.length === 0 || effectiveCurrentValue <= 0) return 0
+
+    const cashFlows: { date: Date; amount: number }[] = sipTransfers.map((tx) => ({
+      date: new Date(tx.date),
+      amount: -tx.amount, // outflows are negative
+    }))
+
+    // Final inflow: current value today
+    cashFlows.push({ date: new Date(), amount: effectiveCurrentValue })
+
+    return calculateXIRR(cashFlows)
+  }, [sipTransfers, effectiveCurrentValue])
+
+  // Investment duration in years
+  const investmentDurationYears = useMemo(() => {
+    if (sipTransfers.length === 0) return 0
+    const firstDate = new Date(sipTransfers[0].date)
+    const now = new Date()
+    return (now.getTime() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+  }, [sipTransfers])
 
   return (
     <>
@@ -333,16 +406,16 @@ export default function MutualFundProjectionPage() {
               className="glass rounded-xl border border-white/10 p-6 shadow-lg"
             >
               <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl shadow-lg ${totalGains >= 0 ? 'bg-emerald-500/20 shadow-emerald-500/30' : 'bg-red-500/20 shadow-red-500/30'}`}>
-                  <TrendingUp className={`w-6 h-6 ${totalGains >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                <div className={`p-3 rounded-xl shadow-lg ${realizedGains >= 0 ? 'bg-emerald-500/20 shadow-emerald-500/30' : 'bg-red-500/20 shadow-red-500/30'}`}>
+                  <TrendingUp className={`w-6 h-6 ${realizedGains >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Current Gains</p>
-                  <p className={`text-2xl font-bold ${totalGains >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {isLoading ? '...' : formatCurrency(totalGains)}
+                  <p className="text-sm text-muted-foreground">Realized Gain</p>
+                  <p className={`text-2xl font-bold ${realizedGains >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {isLoading ? '...' : formatCurrency(realizedGains)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {gainsPercent >= 0 ? '+' : ''}{gainsPercent.toFixed(2)}% returns
+                    {realizedGainsPercent >= 0 ? '+' : ''}{realizedGainsPercent.toFixed(2)}% returns
                   </p>
                 </div>
               </div>
@@ -427,6 +500,64 @@ export default function MutualFundProjectionPage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   {sipGrowthRate === 0 ? 'No annual increase' : `SIP increases ${sipGrowthRate}% yearly`}
                 </p>
+              </div>
+            </div>
+
+            {/* Returns Analysis Sub-section */}
+            <div className="mt-8 pt-6 border-t border-white/10">
+              <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-amber-500" />
+                Returns Analysis
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div>
+                  <label htmlFor="current-value" className="block text-sm font-medium text-muted-foreground mb-2">
+                    Current Value (₹)
+                  </label>
+                  <input
+                    id="current-value"
+                    type="number"
+                    value={currentValueInput || ''}
+                    placeholder={formatCurrency(currentBalance).replace('₹', '').trim()}
+                    onChange={(e) => setCurrentValueInput(Number(e.target.value))}
+                    className="w-full bg-background border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                    min="0"
+                    step="1000"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {currentValueInput > 0 ? 'Using your entered value' : 'Using portfolio balance'}
+                  </p>
+                </div>
+
+                <div className="flex flex-col justify-center">
+                  <p className="text-sm text-muted-foreground">Total Return</p>
+                  <p className={`text-2xl font-bold ${overrideGainsPercent >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {overrideGainsPercent >= 0 ? '+' : ''}{overrideGainsPercent.toFixed(2)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatCurrency(overrideGains)} on {formatCurrency(totalHistoricalInvested)}
+                  </p>
+                </div>
+
+                <div className="flex flex-col justify-center">
+                  <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
+                  <p className={`text-2xl font-bold ${xirrPercent >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {xirrPercent >= 0 ? '+' : ''}{xirrPercent.toFixed(2)}% p.a.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Over {investmentDurationYears.toFixed(1)} years
+                  </p>
+                </div>
+
+                <div className="flex flex-col justify-center">
+                  <p className="text-sm text-muted-foreground">Effective Value</p>
+                  <p className="text-2xl font-bold text-amber-500">
+                    {formatCurrency(effectiveCurrentValue)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {currentValueInput > 0 ? 'Manual override' : 'From portfolio'}
+                  </p>
+                </div>
               </div>
             </div>
           </motion.div>

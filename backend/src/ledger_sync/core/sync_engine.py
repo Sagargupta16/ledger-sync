@@ -146,7 +146,7 @@ class SyncEngine:
         # Step 6: Run analytics calculations
         logger.info("Running post-import analytics...")
         try:
-            analytics_engine = AnalyticsEngine(self.session)
+            analytics_engine = AnalyticsEngine(self.session, user_id=self.user_id)
             analytics_results = analytics_engine.run_full_analytics(source_file=file_path.name)
             logger.info(f"Analytics completed: {analytics_results}")
         except (ValueError, TypeError, RuntimeError) as e:
