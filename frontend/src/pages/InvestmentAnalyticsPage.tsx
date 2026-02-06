@@ -439,9 +439,10 @@ export default function InvestmentAnalyticsPage() {
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    borderRadius: '8px',
+                    backgroundColor: 'rgba(17,24,39,0.95)',
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    borderRadius: '12px',
+                    backdropFilter: 'blur(12px)',
                     color: '#ffffff',
                   }}
                   labelStyle={{
@@ -506,9 +507,10 @@ export default function InvestmentAnalyticsPage() {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                      border: '1px solid rgba(139, 92, 246, 0.3)',
-                      borderRadius: '8px',
+                      backgroundColor: 'rgba(17,24,39,0.95)',
+                      border: '1px solid rgba(139, 92, 246, 0.2)',
+                      borderRadius: '12px',
+                      backdropFilter: 'blur(12px)',
                       color: '#fff',
                     }}
                     labelStyle={{ color: '#9ca3af' }}

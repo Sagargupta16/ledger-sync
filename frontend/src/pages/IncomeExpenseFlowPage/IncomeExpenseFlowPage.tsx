@@ -350,10 +350,10 @@ const IncomeExpenseFlowPage = () => {
                   </defs>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'rgba(17, 24, 39, 0.98)',
-                      border: '1px solid rgba(139, 92, 246, 0.5)',
+                      backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                      border: '1px solid rgba(139, 92, 246, 0.2)',
                       borderRadius: '12px',
-                      backdropFilter: 'blur(10px)',
+                      backdropFilter: 'blur(12px)',
                       padding: '12px 16px',
                       boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
                     }}

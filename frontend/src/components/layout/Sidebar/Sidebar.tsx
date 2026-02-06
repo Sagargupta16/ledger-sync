@@ -21,6 +21,8 @@ import {
   SlidersHorizontal,
   LogOut,
   GitCompareArrows,
+  CalendarDays,
+  Wallet2,
 } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
@@ -56,6 +58,8 @@ const navigationGroups = [
       { path: ROUTES.INCOME_ANALYSIS, label: 'Income Analysis', icon: CircleDollarSign },
       { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Cash Flow', icon: ArrowRightLeft },
       { path: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows },
+      { path: ROUTES.BUDGETS, label: 'Budget Manager', icon: Wallet2 },
+      { path: ROUTES.YEAR_IN_REVIEW, label: 'Year in Review', icon: CalendarDays },
     ],
   },
   {

@@ -8,10 +8,10 @@ from sqlalchemy import engine_from_config, pool
 
 # Import application config and models
 from ledger_sync.config.settings import settings
-from ledger_sync.db.base import Base
 
 # Import ALL models for autogenerate detection
 from ledger_sync.db import models  # noqa: F401
+from ledger_sync.db.base import Base
 
 # this is the Alembic Config object
 config = context.config

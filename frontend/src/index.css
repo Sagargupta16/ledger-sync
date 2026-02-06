@@ -259,6 +259,27 @@ select {
   -webkit-backdrop-filter: blur(20px);
 }
 
+/* Force dark backgrounds on ALL option elements (critical for dark themes) */
+select option,
+option {
+  background-color: #1c1c1e;
+  color: #ffffff;
+}
+
+/* Global focus ring for selects & inputs in dark mode */
+select:focus,
+input:not([type="checkbox"]):not([type="radio"]):focus {
+  border-color: var(--color-ios-blue, #0a84ff);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15);
+}
+
+/* Chart tooltip global overrides (Recharts injects inline, but this covers any custom tooltip wrappers) */
+.recharts-tooltip-wrapper {
+  pointer-events: none;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5));
+}
+
 /* Skeleton animation for loading states */
 @keyframes shimmer {
   0% { background-position: -200% 0; }

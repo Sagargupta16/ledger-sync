@@ -197,9 +197,10 @@ export default function CashFlowForecast() {
                 return `${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}${isForecast ? ' (Forecast)' : ''}`
               }}
               contentStyle={{
-                backgroundColor: 'rgba(0,0,0,0.9)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '8px',
+                backgroundColor: 'rgba(17,24,39,0.95)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '12px',
+                backdropFilter: 'blur(12px)',
                 color: '#fff',
               }}
               itemStyle={{ color: '#fff' }}

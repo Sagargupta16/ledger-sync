@@ -6,7 +6,7 @@ import QuickInsights from '@/components/shared/QuickInsights'
 import TimeRangeSelector, { type TimeRange } from '@/components/shared/TimeRangeSelector'
 import Sparkline from '@/components/shared/Sparkline'
 import EmptyState from '@/components/shared/EmptyState'
-import { FinancialHealthScore, PeriodComparison, BudgetTracker } from '@/components/analytics'
+import { FinancialHealthScore, PeriodComparison } from '@/components/analytics'
 import { useRecentTransactions } from '@/hooks/api/useAnalytics'
 import { useMonthlyAggregation, useTotals } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -249,9 +249,10 @@ export default function DashboardPage() {
                     <Tooltip
                       formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                       contentStyle={{
-                        background: 'rgba(0,0,0,0.9)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '8px',
+                        backgroundColor: 'rgba(17,24,39,0.95)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        borderRadius: '12px',
+                        backdropFilter: 'blur(12px)',
                         color: '#fff',
                       }}
                       labelStyle={{ color: '#9ca3af' }}
@@ -339,9 +340,10 @@ export default function DashboardPage() {
                     <Tooltip
                       formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                       contentStyle={{
-                        background: 'rgba(0,0,0,0.9)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '8px',
+                        backgroundColor: 'rgba(17,24,39,0.95)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        borderRadius: '12px',
+                        backdropFilter: 'blur(12px)',
                         color: '#fff',
                       }}
                       labelStyle={{ color: '#9ca3af' }}
@@ -411,9 +413,6 @@ export default function DashboardPage() {
         <FinancialHealthScore />
         <PeriodComparison />
       </div>
-
-      {/* Budget Tracker */}
-      <BudgetTracker />
     </div>
   )
 }

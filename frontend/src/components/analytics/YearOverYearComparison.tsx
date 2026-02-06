@@ -175,7 +175,7 @@ export default function YearOverYearComparison() {
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-zinc-800 border border-white/10 text-sm text-white cursor-pointer hover:bg-zinc-700 transition-colors [&>option]:bg-zinc-800 [&>option]:text-white"
+          className="px-3 py-2 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-white/10 text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
         >
           <option value="all">All Categories</option>
           {allCategories.map((cat) => (
@@ -236,9 +236,10 @@ export default function YearOverYearComparison() {
             <Tooltip
               formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
               contentStyle={{
-                backgroundColor: 'rgba(0,0,0,0.9)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '8px',
+                backgroundColor: 'rgba(17,24,39,0.95)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '12px',
+                backdropFilter: 'blur(12px)',
                 color: '#fff',
               }}
               itemStyle={{ color: '#9ca3af' }}

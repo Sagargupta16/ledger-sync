@@ -258,9 +258,10 @@ export default function IncomeAnalysisPage() {
                     <Tooltip
                       formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                       contentStyle={{
-                        background: 'rgba(0,0,0,0.9)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '8px',
+                        backgroundColor: 'rgba(17,24,39,0.95)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        borderRadius: '12px',
+                        backdropFilter: 'blur(12px)',
                         color: '#fff',
                       }}
                       labelStyle={{ color: '#9ca3af' }}
@@ -345,9 +346,10 @@ export default function IncomeAnalysisPage() {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
-                      borderRadius: '8px',
+                      backgroundColor: 'rgba(17,24,39,0.95)',
+                      border: '1px solid rgba(16, 185, 129, 0.2)',
+                      borderRadius: '12px',
+                      backdropFilter: 'blur(12px)',
                       color: '#fff',
                     }}
                     labelStyle={{ color: '#9ca3af' }}

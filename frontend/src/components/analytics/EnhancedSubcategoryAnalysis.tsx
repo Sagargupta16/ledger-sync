@@ -290,8 +290,9 @@ export default function EnhancedSubcategoryAnalysis() {
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                    border: '1px solid rgba(139, 92, 246, 0.3)',
-                    borderRadius: '8px',
+                    border: '1px solid rgba(139, 92, 246, 0.2)',
+                    borderRadius: '12px',
+                    backdropFilter: 'blur(12px)',
                     color: '#fff',
                   }}
                   labelStyle={{ color: '#9ca3af' }}
@@ -330,8 +331,9 @@ export default function EnhancedSubcategoryAnalysis() {
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                    border: '1px solid rgba(139, 92, 246, 0.3)',
-                    borderRadius: '8px',
+                    border: '1px solid rgba(139, 92, 246, 0.2)',
+                    borderRadius: '12px',
+                    backdropFilter: 'blur(12px)',
                     color: '#fff',
                   }}
                   labelStyle={{ color: '#9ca3af' }}
