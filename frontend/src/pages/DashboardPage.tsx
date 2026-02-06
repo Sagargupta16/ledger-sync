@@ -13,7 +13,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useState, useMemo } from 'react'
 import { formatCurrency } from '@/lib/formatters'
-import { getDateKey } from '@/lib/dateUtils'
+import { getTimeRangeDateRange, filterTransactionsByDateRange } from '@/lib/dateUtils'
 import { 
   calculateIncomeByCategoryBreakdown, 
   calculateSpendingBreakdown,
@@ -26,35 +26,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('6M')
 
-  // Calculate date range based on selection
-  const getDateRange = (range: TimeRange): { start_date?: string; end_date?: string } => {
-    const today = new Date()
-    const endDate = today.toISOString().split('T')[0]
-    let startDate = ''
-
-    switch (range) {
-      case '1M':
-        startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        break
-      case '3M':
-        startDate = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        break
-      case '6M':
-        startDate = new Date(today.getTime() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        break
-      case '1Y':
-        startDate = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        break
-      case 'ALL':
-        return {} // No date filters
-      default:
-        startDate = new Date(today.getTime() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    }
-
-    return { start_date: startDate, end_date: endDate }
-  }
-
-  const dateRange = getDateRange(timeRange)
+  const dateRange = useMemo(() => getTimeRangeDateRange(timeRange), [timeRange])
 
   const { data: recentTransactions, isLoading: isLoadingTransactions } = useRecentTransactions(5)
   const { data: filteredTotals, isLoading } = useTotals(dateRange)
@@ -62,32 +34,21 @@ export default function DashboardPage() {
   const { data: allTransactions } = useTransactions()
   const { data: preferences } = usePreferences()
 
+  // Filter transactions once for reuse
+  const filteredTransactions = useMemo(
+    () => (allTransactions ? filterTransactionsByDateRange(allTransactions, dateRange) : []),
+    [allTransactions, dateRange]
+  )
+
   // Calculate income breakdown by actual data category (for display)
   const incomeBreakdown = useMemo(() => {
-    if (!allTransactions) return null
-    
-    // Filter transactions by date range
-    const filtered = allTransactions.filter((t) => {
-      if (!dateRange.start_date) return true
-      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = getDateKey(t.date)
-      return txDate >= dateRange.start_date && (!dateRange.end_date || txDate <= dateRange.end_date)
-    })
-    
-    return calculateIncomeByCategoryBreakdown(filtered)
-  }, [allTransactions, dateRange])
+    if (filteredTransactions.length === 0) return null
+    return calculateIncomeByCategoryBreakdown(filteredTransactions)
+  }, [filteredTransactions])
 
   // Calculate total cashbacks using preferences classification
   const cashbacksTotal = useMemo(() => {
-    if (!allTransactions || !preferences) return 0
-    
-    // Filter transactions by date range
-    const filtered = allTransactions.filter((t) => {
-      if (!dateRange.start_date) return true
-      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = getDateKey(t.date)
-      return txDate >= dateRange.start_date && (!dateRange.end_date || txDate <= dateRange.end_date)
-    })
+    if (filteredTransactions.length === 0 || !preferences) return 0
     
     // Build income classification from preferences
     const incomeClassification = {
@@ -97,23 +58,14 @@ export default function DashboardPage() {
       other: preferences.other_income_categories || [],
     }
     
-    return calculateCashbacksTotal(filtered, incomeClassification)
-  }, [allTransactions, preferences, dateRange])
+    return calculateCashbacksTotal(filteredTransactions, incomeClassification)
+  }, [filteredTransactions, preferences])
 
   // Calculate spending breakdown (essential vs discretionary)
   const spendingBreakdown = useMemo(() => {
-    if (!allTransactions || !preferences) return null
-    
-    // Filter transactions by date range
-    const filtered = allTransactions.filter((t) => {
-      if (!dateRange.start_date) return true
-      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = getDateKey(t.date)
-      return txDate >= dateRange.start_date && (!dateRange.end_date || txDate <= dateRange.end_date)
-    })
-    
-    return calculateSpendingBreakdown(filtered, preferences.essential_categories)
-  }, [allTransactions, preferences, dateRange])
+    if (filteredTransactions.length === 0 || !preferences) return null
+    return calculateSpendingBreakdown(filteredTransactions, preferences.essential_categories)
+  }, [filteredTransactions, preferences])
 
   // Prepare income breakdown for pie chart (using actual data categories)
   const incomeChartData = useMemo(() => {
@@ -149,7 +101,23 @@ export default function DashboardPage() {
     return Object.values(monthlyData).map((m: { expense?: number }) => Math.abs(m.expense || 0))
   }, [monthlyData])
 
-  // Using shared formatCurrency from @/lib/formatters
+  // MoM change %: compare last two months in the monthly data
+  const momChanges = useMemo(() => {
+    if (!monthlyData) return { income: undefined, expense: undefined, savings: undefined, savingsRate: undefined }
+    const months = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
+    if (months.length < 2) return { income: undefined, expense: undefined, savings: undefined, savingsRate: undefined }
+    const curr = monthlyData[months.at(-1)!]
+    const prev = monthlyData[months.at(-2)!]
+    const pct = (c: number, p: number) => (p === 0 ? undefined : Number((((c - p) / Math.abs(p)) * 100).toFixed(1)))
+    const currSavingsRate = curr.income === 0 ? 0 : (curr.net_savings / curr.income) * 100
+    const prevSavingsRate = prev.income === 0 ? 0 : (prev.net_savings / prev.income) * 100
+    return {
+      income: pct(curr.income, prev.income),
+      expense: pct(Math.abs(curr.expense), Math.abs(prev.expense)),
+      savings: pct(curr.net_savings, prev.net_savings),
+      savingsRate: prev.income === 0 ? undefined : Number((currSavingsRate - prevSavingsRate).toFixed(1)),
+    }
+  }, [monthlyData])
 
   return (
     <div className="p-8 space-y-8">
@@ -172,6 +140,7 @@ export default function DashboardPage() {
           icon={TrendingUp}
           color="green"
           isLoading={isLoading}
+          change={momChanges.income}
           trend={incomeSparkline.length > 0 ? <Sparkline data={incomeSparkline} color="#10b981" height={30} /> : undefined}
         />
         <MetricCard
@@ -180,6 +149,8 @@ export default function DashboardPage() {
           icon={TrendingDown}
           color="red"
           isLoading={isLoading}
+          change={momChanges.expense}
+          invertChange
           trend={expenseSparkline.length > 0 ? <Sparkline data={expenseSparkline} color="#ef4444" height={30} /> : undefined}
         />
         <MetricCard
@@ -188,6 +159,7 @@ export default function DashboardPage() {
           icon={DollarSign}
           color="blue"
           isLoading={isLoading}
+          change={momChanges.savings}
         />
         <MetricCard
           title="Savings Rate"
@@ -195,6 +167,8 @@ export default function DashboardPage() {
           icon={Percent}
           color="purple"
           isLoading={isLoading}
+          change={momChanges.savingsRate}
+          changeLabel="pts vs last month"
         />
       </div>
 

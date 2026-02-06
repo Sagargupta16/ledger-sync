@@ -8,13 +8,17 @@ interface MetricCardProps {
   title: string
   value: string | number
   change?: number
+  /** If true, a positive change is bad (e.g. expenses going up = red) */
+  invertChange?: boolean
+  /** Custom label after the percentage, e.g. "pts vs last month" */
+  changeLabel?: string
   icon: LucideIcon
   color?: MetricColor
   isLoading?: boolean
   trend?: ReactNode
 }
 
-export default function MetricCard({ title, value, change, icon: Icon, color = 'blue', isLoading, trend }: MetricCardProps) {
+export default function MetricCard({ title, value, change, invertChange, changeLabel, icon: Icon, color = 'blue', isLoading, trend }: MetricCardProps) {
   const colors = metricColorConfig[color]
 
   if (isLoading) {
@@ -69,18 +73,30 @@ export default function MetricCard({ title, value, change, icon: Icon, color = '
       {/* Change indicator */}
       {change !== undefined && (
         <div className="flex items-center gap-1.5 mt-3 relative z-10">
-          {change >= 0 ? (
-            <TrendingUp className="w-4 h-4" style={{ color: rawColors.ios.green }} />
-          ) : (
-            <TrendingDown className="w-4 h-4" style={{ color: rawColors.ios.red }} />
-          )}
-          <span 
-            className="text-sm font-medium"
-            style={{ color: change >= 0 ? rawColors.ios.green : rawColors.ios.red }}
-          >
-            {Math.abs(change)}%
-          </span>
-          <span className="text-xs ml-1" style={{ color: rawColors.text.tertiary }}>vs last month</span>
+          {(() => {
+            const isPositive = change >= 0
+            const isGood = invertChange ? !isPositive : isPositive
+            const goodColor = rawColors.ios.green
+            const badColor = rawColors.ios.red
+            return (
+              <>
+                {isPositive ? (
+                  <TrendingUp className="w-4 h-4" style={{ color: isGood ? goodColor : badColor }} />
+                ) : (
+                  <TrendingDown className="w-4 h-4" style={{ color: isGood ? goodColor : badColor }} />
+                )}
+                <span
+                  className="text-sm font-medium"
+                  style={{ color: isGood ? goodColor : badColor }}
+                >
+                  {change > 0 ? '+' : ''}{change}%
+                </span>
+                <span className="text-xs ml-1" style={{ color: rawColors.text.tertiary }}>
+                  {changeLabel || 'vs last month'}
+                </span>
+              </>
+            )
+          })()}
         </div>
       )}
     </motion.div>
