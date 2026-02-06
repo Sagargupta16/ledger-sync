@@ -29,6 +29,7 @@ export const ROUTES = {
   SPENDING_ANALYSIS: '/spending',
   INCOME_ANALYSIS: '/income',
   INCOME_EXPENSE_FLOW: '/income-expense-flow',
+  COMPARISON: '/comparison',
   
   // Trends & Forecasts
   TRENDS_FORECASTS: '/forecasts',

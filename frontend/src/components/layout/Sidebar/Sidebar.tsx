@@ -20,6 +20,7 @@ import {
   Target,
   SlidersHorizontal,
   LogOut,
+  GitCompareArrows,
 } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
@@ -54,6 +55,7 @@ const navigationGroups = [
       { path: ROUTES.SPENDING_ANALYSIS, label: 'Expense Analysis', icon: BarChart3 },
       { path: ROUTES.INCOME_ANALYSIS, label: 'Income Analysis', icon: CircleDollarSign },
       { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Cash Flow', icon: ArrowRightLeft },
+      { path: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows },
     ],
   },
   {

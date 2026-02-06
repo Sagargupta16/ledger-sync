@@ -25,6 +25,7 @@ import {
   IncomeAnalysisPage,
   IncomeExpenseFlowPage,
   TrendsForecastsPage,
+  ComparisonPage,
   SettingsPage,
 } from '@/pages'
 
@@ -95,6 +96,7 @@ function App() {
                   <Route path={ROUTES.INCOME_ANALYSIS.slice(1)} element={<IncomeAnalysisPage />} />
                   <Route path={ROUTES.INCOME_EXPENSE_FLOW.slice(1)} element={<IncomeExpenseFlowPage />} />
                   <Route path={ROUTES.TRENDS_FORECASTS.slice(1)} element={<TrendsForecastsPage />} />
+                  <Route path={ROUTES.COMPARISON.slice(1)} element={<ComparisonPage />} />
                 </Route>
               </Routes>
             </BrowserRouter>

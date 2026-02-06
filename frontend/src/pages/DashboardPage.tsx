@@ -101,21 +101,36 @@ export default function DashboardPage() {
     return Object.values(monthlyData).map((m: { expense?: number }) => Math.abs(m.expense || 0))
   }, [monthlyData])
 
-  // MoM change %: compare last two months in the monthly data
+  // MoM change %: compare the last two COMPLETE months (skip current incomplete month)
   const momChanges = useMemo(() => {
-    if (!monthlyData) return { income: undefined, expense: undefined, savings: undefined, savingsRate: undefined }
-    const months = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
-    if (months.length < 2) return { income: undefined, expense: undefined, savings: undefined, savingsRate: undefined }
-    const curr = monthlyData[months.at(-1)!]
-    const prev = monthlyData[months.at(-2)!]
+    const noChange = { income: undefined, expense: undefined, savings: undefined, savingsRate: undefined, label: 'vs prev month' }
+    if (!monthlyData) return noChange
+    const allMonths = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
+
+    // Current month key (YYYY-MM) — this month is still in progress
+    const now = new Date()
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+    // Drop the current month if it's the latest — it's incomplete
+    const completeMonths = allMonths.at(-1) === currentMonthKey ? allMonths.slice(0, -1) : allMonths
+
+    if (completeMonths.length < 2) return noChange
+    const curr = monthlyData[completeMonths.at(-1)!]
+    const prev = monthlyData[completeMonths.at(-2)!]
     const pct = (c: number, p: number) => (p === 0 ? undefined : Number((((c - p) / Math.abs(p)) * 100).toFixed(1)))
     const currSavingsRate = curr.income === 0 ? 0 : (curr.net_savings / curr.income) * 100
     const prevSavingsRate = prev.income === 0 ? 0 : (prev.net_savings / prev.income) * 100
+    // Build a human-readable label like "Jan vs Dec"
+    const fmt = (key: string) => {
+      const [y, m] = key.split('-')
+      return new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'short' })
+    }
     return {
       income: pct(curr.income, prev.income),
       expense: pct(Math.abs(curr.expense), Math.abs(prev.expense)),
       savings: pct(curr.net_savings, prev.net_savings),
       savingsRate: prev.income === 0 ? undefined : Number((currSavingsRate - prevSavingsRate).toFixed(1)),
+      label: `${fmt(completeMonths.at(-1)!)} vs ${fmt(completeMonths.at(-2)!)}`,
     }
   }, [monthlyData])
 
@@ -141,6 +156,7 @@ export default function DashboardPage() {
           color="green"
           isLoading={isLoading}
           change={momChanges.income}
+          changeLabel={momChanges.label}
           trend={incomeSparkline.length > 0 ? <Sparkline data={incomeSparkline} color="#10b981" height={30} /> : undefined}
         />
         <MetricCard
@@ -151,6 +167,7 @@ export default function DashboardPage() {
           isLoading={isLoading}
           change={momChanges.expense}
           invertChange
+          changeLabel={momChanges.label}
           trend={expenseSparkline.length > 0 ? <Sparkline data={expenseSparkline} color="#ef4444" height={30} /> : undefined}
         />
         <MetricCard
@@ -160,6 +177,7 @@ export default function DashboardPage() {
           color="blue"
           isLoading={isLoading}
           change={momChanges.savings}
+          changeLabel={momChanges.label}
         />
         <MetricCard
           title="Savings Rate"
@@ -168,7 +186,7 @@ export default function DashboardPage() {
           color="purple"
           isLoading={isLoading}
           change={momChanges.savingsRate}
-          changeLabel="pts vs last month"
+          changeLabel={momChanges.label ? `pts ${momChanges.label}` : 'pts vs prev month'}
         />
       </div>
 
