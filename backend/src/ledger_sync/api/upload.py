@@ -1,5 +1,6 @@
 """Upload API endpoint for Excel file ingestion."""
 
+import atexit
 import tempfile
 from pathlib import Path
 from typing import Annotated
@@ -118,8 +119,6 @@ async def upload_excel(
                 tmp_path.unlink()
             except PermissionError:
                 # On Windows, file might still be locked, schedule for later cleanup
-                import atexit
-
                 def cleanup_later():
                     try:
                         if tmp_path.exists():

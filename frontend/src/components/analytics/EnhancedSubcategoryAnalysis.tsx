@@ -28,7 +28,7 @@ export default function EnhancedSubcategoryAnalysis() {
         expenseCategories.add(tx.category)
       }
     })
-    return Array.from(expenseCategories).sort()
+    return Array.from(expenseCategories).sort((a, b) => a.localeCompare(b))
   }, [transactions])
 
   // Process subcategory data for selected category
@@ -91,18 +91,19 @@ export default function EnhancedSubcategoryAnalysis() {
       allPeriods = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
     } else {
       // Get all quarters from data for all_time view
-      allPeriods = Object.keys(groupedData).sort()
+      allPeriods = Object.keys(groupedData).sort((a, b) => a.localeCompare(b))
     }
 
     const data = allPeriods.map((period) => {
-      const entry: Record<string, number | string> = { 
-        period,
-        displayPeriod: viewMode === 'monthly'
-          ? period // Day number
-          : viewMode === 'yearly' 
-          ? new Date(currentYear, Number.parseInt(period) - 1).toLocaleDateString('en-US', { month: 'short' })
-          : period // Quarter format (YYYY-Q1)
+      let displayPeriod: string
+      if (viewMode === 'monthly') {
+        displayPeriod = period
+      } else if (viewMode === 'yearly') {
+        displayPeriod = new Date(currentYear, Number.parseInt(period) - 1).toLocaleDateString('en-US', { month: 'short' })
+      } else {
+        displayPeriod = period
       }
+      const entry: Record<string, number | string> = { period, displayPeriod }
       
       Array.from(subcategories).forEach((subcat) => {
         entry[subcat] = groupedData[period]?.[subcat] || 0
@@ -145,7 +146,18 @@ export default function EnhancedSubcategoryAnalysis() {
   }, [chartData])
 
   const handleExport = () => {
-    // TODO: Implement export functionality
+    const csvRows = ['Period,' + subcategories.join(',')]
+    chartData.forEach((entry) => {
+      const values = subcategories.map((s) => entry[s] ?? 0)
+      csvRows.push(entry.displayPeriod + ',' + values.join(','))
+    })
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `subcategory-analysis-${selectedCategory}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const handlePrevYear = () => setCurrentYear((prev) => prev - 1)
@@ -191,7 +203,7 @@ export default function EnhancedSubcategoryAnalysis() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-purple-500/50 min-w-[200px]"
+              className="px-4 py-2 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-purple-500/50 min-w-50"
             >
               {categories.map((category) => (
                 <option key={category} value={category} className="bg-gray-800 text-gray-200">
@@ -232,7 +244,7 @@ export default function EnhancedSubcategoryAnalysis() {
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <span className="text-white font-medium min-w-[120px] text-center">
+              <span className="text-white font-medium min-w-30 text-center">
                 {new Date(currentMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </span>
               <button
@@ -254,7 +266,7 @@ export default function EnhancedSubcategoryAnalysis() {
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <span className="text-white font-medium min-w-[100px] text-center">Year {currentYear}</span>
+              <span className="text-white font-medium min-w-25 text-center">Year {currentYear}</span>
               <button
                 onClick={handleNextYear}
                 className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
@@ -275,76 +287,41 @@ export default function EnhancedSubcategoryAnalysis() {
         {/* Chart */}
         {chartData.length > 0 && subcategories.length > 0 ? (
           <ResponsiveContainer width="100%" height={400}>
-            {cumulative ? (
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
-                <XAxis
-                  dataKey="displayPeriod"
-                  stroke={CHART_AXIS_COLOR}
-                  tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+              <XAxis
+                dataKey="displayPeriod"
+                stroke={CHART_AXIS_COLOR}
+                tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
+              />
+              <YAxis
+                stroke={CHART_AXIS_COLOR}
+                tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
+                tickFormatter={(value) => formatCurrencyShort(value)}
+              />
+              <Tooltip
+                {...chartTooltipProps}
+                formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+              />
+              <Legend
+                wrapperStyle={{ paddingTop: '20px' }}
+                formatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
+              />
+              {subcategories.map((subcat, index) => (
+                <Line
+                  key={subcat}
+                  type="monotone"
+                  dataKey={subcat}
+                  stroke={COLORS[index % COLORS.length]}
+                  strokeWidth={2}
+                  dot={{ r: cumulative ? 4 : 3 }}
+                  connectNulls
                 />
-                <YAxis
-                  stroke={CHART_AXIS_COLOR}
-                  tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-                  tickFormatter={(value) => formatCurrencyShort(value)}
-                />
-                <Tooltip
-                  {...chartTooltipProps}
-                  formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
-                />
-                <Legend
-                  wrapperStyle={{ paddingTop: '20px' }}
-                  formatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
-                />
-                {subcategories.map((subcat, index) => (
-                  <Line
-                    key={subcat}
-                    type="monotone"
-                    dataKey={subcat}
-                    stroke={COLORS[index % COLORS.length]}
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    connectNulls
-                  />
-                ))}
-              </LineChart>
-            ) : (
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
-                <XAxis
-                  dataKey="displayPeriod"
-                  stroke={CHART_AXIS_COLOR}
-                  tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-                />
-                <YAxis
-                  stroke={CHART_AXIS_COLOR}
-                  tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-                  tickFormatter={(value) => formatCurrencyShort(value)}
-                />
-                <Tooltip
-                  {...chartTooltipProps}
-                  formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
-                />
-                <Legend 
-                  wrapperStyle={{ paddingTop: '20px' }}
-                  formatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
-                />
-                {subcategories.map((subcat, index) => (
-                  <Line
-                    key={subcat}
-                    type="monotone"
-                    dataKey={subcat}
-                    stroke={COLORS[index % COLORS.length]}
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    connectNulls
-                  />
-                ))}
-              </LineChart>
-            )}
+              ))}
+            </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+          <div className="h-100 flex items-center justify-center text-muted-foreground">
             No data available for {selectedCategory}
           </div>
         )}

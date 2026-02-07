@@ -12,6 +12,7 @@ This module provides comprehensive post-upload analytics calculations including:
 """
 
 import json
+import math
 import re
 import time
 from collections import defaultdict
@@ -283,7 +284,9 @@ class AnalyticsEngine:
             elif fy_end_month in [4, 6, 9, 11]:
                 fy_end = datetime(fy_end_year, fy_end_month, 30, tzinfo=UTC)
             else:  # February — account for leap years
-                is_leap = fy_end_year % 4 == 0 and (fy_end_year % 100 != 0 or fy_end_year % 400 == 0)
+                is_leap = fy_end_year % 4 == 0 and (
+                    fy_end_year % 100 != 0 or fy_end_year % 400 == 0
+                )
                 fy_end = datetime(fy_end_year, 2, 29 if is_leap else 28, tzinfo=UTC)
             fy_label = f"FY{fy_year}-{str(fy_year + 1)[2:]}"
 
@@ -442,49 +445,10 @@ class AnalyticsEngine:
 
         for txn in transactions:
             period_key = txn.date.strftime("%Y-%m")
-            year = txn.date.year
-            month = txn.date.month
             amount = Decimal(str(txn.amount))
-
-            if txn.type == TransactionType.INCOME:
-                monthly_data[period_key]["total_income"] += amount
-                monthly_data[period_key]["income_count"] += 1
-
-                # Categorize income using preferences
-                if self._is_salary_income(txn):
-                    monthly_data[period_key]["salary_income"] += amount
-                elif self._is_investment_income(txn):
-                    monthly_data[period_key]["investment_income"] += amount
-                else:
-                    monthly_data[period_key]["other_income"] += amount
-
-            elif txn.type == TransactionType.EXPENSE:
-                monthly_data[period_key]["total_expenses"] += amount
-                monthly_data[period_key]["expense_count"] += 1
-
-                # Categorize expenses using preferences
-                if txn.category in self.essential_categories:
-                    monthly_data[period_key]["essential_expenses"] += amount
-                else:
-                    monthly_data[period_key]["discretionary_expenses"] += amount
-
-            elif txn.type == TransactionType.TRANSFER:
-                monthly_data[period_key]["transfer_count"] += 1
-
-                # Track investment flows using preferences
-                if self._is_investment_account(txn.to_account):
-                    monthly_data[period_key][
-                        "net_investment_flow"
-                    ] -= amount  # Money going to investments
-                    monthly_data[period_key]["total_transfers_out"] += amount
-                elif self._is_investment_account(txn.from_account):
-                    monthly_data[period_key][
-                        "net_investment_flow"
-                    ] += amount  # Money coming from investments
-                    monthly_data[period_key]["total_transfers_in"] += amount
-
-            monthly_data[period_key]["year"] = year
-            monthly_data[period_key]["month"] = month
+            self._categorize_transaction_for_summary(txn, monthly_data[period_key], amount)
+            monthly_data[period_key]["year"] = txn.date.year
+            monthly_data[period_key]["month"] = txn.date.month
 
         # Delete existing summaries for this user and insert new ones
         del_stmt = delete(MonthlySummary)
@@ -548,6 +512,47 @@ class AnalyticsEngine:
             prev_expenses = total_expenses
 
         return count
+
+    def _categorize_transaction_for_summary(
+        self,
+        txn: Transaction,
+        data: dict[str, Any],
+        amount: Decimal,
+    ) -> None:
+        """Categorize a single transaction and update monthly summary data.
+
+        Args:
+            txn: The transaction to categorize
+            data: The monthly data dict to update in place
+            amount: Pre-computed Decimal amount
+
+        """
+        if txn.type == TransactionType.INCOME:
+            data["total_income"] += amount
+            data["income_count"] += 1
+            if self._is_salary_income(txn):
+                data["salary_income"] += amount
+            elif self._is_investment_income(txn):
+                data["investment_income"] += amount
+            else:
+                data["other_income"] += amount
+
+        elif txn.type == TransactionType.EXPENSE:
+            data["total_expenses"] += amount
+            data["expense_count"] += 1
+            if txn.category in self.essential_categories:
+                data["essential_expenses"] += amount
+            else:
+                data["discretionary_expenses"] += amount
+
+        elif txn.type == TransactionType.TRANSFER:
+            data["transfer_count"] += 1
+            if self._is_investment_account(txn.to_account):
+                data["net_investment_flow"] -= amount  # Money going to investments
+                data["total_transfers_out"] += amount
+            elif self._is_investment_account(txn.from_account):
+                data["net_investment_flow"] += amount  # Money coming from investments
+                data["total_transfers_in"] += amount
 
     def _calculate_category_trends(self) -> int:
         """Calculate category-level trends over time."""
@@ -725,51 +730,72 @@ class AnalyticsEngine:
             if len(data["amounts"]) < 2:  # Skip one-off merchants
                 continue
 
-            amounts = data["amounts"]
-            dates = sorted(data["dates"])
-
-            # Find primary category
-            primary_cat = max(data["categories"].items(), key=lambda x: x[1])[0]
-            primary_subcat = None
-            if data["subcategories"]:
-                primary_subcat = max(data["subcategories"].items(), key=lambda x: x[1])[0]
-
-            # Calculate months active
-            if len(dates) >= 2:
-                months_active = (
-                    (dates[-1].year - dates[0].year) * 12 + (dates[-1].month - dates[0].month) + 1
-                )
-            else:
-                months_active = 1
-
-            # Calculate average days between transactions
-            avg_days = 0.0
-            if len(dates) >= 2:
-                day_diffs = [(dates[i + 1] - dates[i]).days for i in range(len(dates) - 1)]
-                avg_days = mean(day_diffs) if day_diffs else 0
-
-            # Detect if recurring (regular interval +/- 5 days)
-            is_recurring = len(data["amounts"]) >= 3 and avg_days > 0 and avg_days < 45
-
-            merchant = MerchantIntelligence(
-                user_id=self.user_id,
-                merchant_name=merchant_name,
-                primary_category=primary_cat,
-                primary_subcategory=primary_subcat,
-                total_spent=Decimal(str(sum(amounts))),
-                transaction_count=len(amounts),
-                avg_transaction=Decimal(str(mean(amounts))),
-                first_transaction=dates[0] if dates else None,
-                last_transaction=dates[-1] if dates else None,
-                months_active=months_active,
-                avg_days_between=avg_days,
-                is_recurring=is_recurring,
-                last_calculated=datetime.now(UTC),
-            )
+            merchant = self._build_merchant_record(merchant_name, data)
             self.db.add(merchant)
             count += 1
 
         return count
+
+    def _build_merchant_record(
+        self,
+        merchant_name: str,
+        data: dict[str, Any],
+    ) -> MerchantIntelligence:
+        """Build a MerchantIntelligence record from aggregated merchant data.
+
+        Args:
+            merchant_name: Name of the merchant
+            data: Aggregated data containing amounts, dates, categories, subcategories
+
+        Returns:
+            A MerchantIntelligence ORM instance
+
+        """
+        amounts = data["amounts"]
+        dates = sorted(data["dates"])
+
+        # Find primary category
+        primary_cat = (
+            max(data["categories"].items(), key=lambda x: x[1])[0]
+            if data["categories"]
+            else "Unknown"
+        )
+        primary_subcat = None
+        if data["subcategories"]:
+            primary_subcat = max(data["subcategories"].items(), key=lambda x: x[1])[0]
+
+        # Calculate months active
+        if len(dates) >= 2:
+            months_active = (
+                (dates[-1].year - dates[0].year) * 12 + (dates[-1].month - dates[0].month) + 1
+            )
+        else:
+            months_active = 1
+
+        # Calculate average days between transactions
+        avg_days = 0.0
+        if len(dates) >= 2:
+            day_diffs = [(dates[i + 1] - dates[i]).days for i in range(len(dates) - 1)]
+            avg_days = mean(day_diffs) if day_diffs else 0
+
+        # Detect if recurring (regular interval +/- 5 days)
+        is_recurring = len(amounts) >= 3 and avg_days > 0 and avg_days < 45
+
+        return MerchantIntelligence(
+            user_id=self.user_id,
+            merchant_name=merchant_name,
+            primary_category=primary_cat,
+            primary_subcategory=primary_subcat,
+            total_spent=Decimal(str(sum(amounts))),
+            transaction_count=len(amounts),
+            avg_transaction=Decimal(str(mean(amounts))),
+            first_transaction=dates[0] if dates else None,
+            last_transaction=dates[-1] if dates else None,
+            months_active=months_active,
+            avg_days_between=avg_days,
+            is_recurring=is_recurring,
+            last_calculated=datetime.now(UTC),
+        )
 
     def _extract_merchant_name(self, note: str) -> str | None:
         """Extract merchant name from transaction note."""
@@ -792,7 +818,8 @@ class AnalyticsEngine:
                 return match.group(1).title()
 
         # Default: first word if it looks like a merchant
-        first_word = note.split()[0] if note.split() else None
+        words = note.split()
+        first_word = words[0] if words else None
         if first_word and len(first_word) > 2 and first_word[0].isupper():
             return first_word
 
@@ -879,7 +906,7 @@ class AnalyticsEngine:
         ]
 
         avg_diff = mean(day_diffs)
-        std_diff = stdev(day_diffs) if len(day_diffs) > 1 else float("inf")
+        std_diff = stdev(day_diffs) if len(day_diffs) > 1 else math.inf
 
         # Detect frequency based on average interval
         frequency = None
@@ -944,46 +971,15 @@ class AnalyticsEngine:
         }
 
         # Calculate totals by category
-        cash_and_bank = Decimal(0)
-        stocks = Decimal(0)
-        mutual_funds = Decimal(0)
-        fixed_deposits = Decimal(0)
-        ppf_epf = Decimal(0)
-        other_assets = Decimal(0)
-        credit_card_outstanding = Decimal(0)
-        loans_payable = Decimal(0)
-
-        for account, balance in account_balances.items():
-            account_type = classifications.get(account, "Other Wallets")
-
-            if account_type in ["Bank Accounts", "Cash"]:
-                cash_and_bank += balance
-            elif account_type == "Credit Cards":
-                if balance < 0:  # Outstanding balance
-                    credit_card_outstanding += abs(balance)
-            elif account_type == "Investments":
-                # Further categorize investments using preferences
-                inv_type = self._get_investment_type(account)
-                if inv_type:
-                    if inv_type == "stocks":
-                        stocks += balance
-                    elif inv_type == "mutual_funds":
-                        mutual_funds += balance
-                    elif inv_type == "fixed_deposits":
-                        fixed_deposits += balance
-                    elif inv_type == "ppf_epf":
-                        ppf_epf += balance
-                    else:
-                        other_assets += balance
-                else:
-                    other_assets += balance
-            elif account_type in ("Loans", "Loans/Lended"):
-                if balance < 0:
-                    loans_payable += abs(balance)
-                else:
-                    other_assets += balance
-            else:
-                other_assets += balance
+        totals = self._categorize_account_balances(account_balances, classifications)
+        cash_and_bank = totals["cash_and_bank"]
+        stocks = totals["stocks"]
+        mutual_funds = totals["mutual_funds"]
+        fixed_deposits = totals["fixed_deposits"]
+        ppf_epf = totals["ppf_epf"]
+        other_assets = totals["other_assets"]
+        credit_card_outstanding = totals["credit_card_outstanding"]
+        loans_payable = totals["loans_payable"]
 
         total_investments = stocks + mutual_funds + fixed_deposits + ppf_epf
         total_assets = cash_and_bank + total_investments + other_assets
@@ -1035,6 +1031,98 @@ class AnalyticsEngine:
             "change_pct": net_worth_change_pct,
         }
 
+    def _categorize_account_balances(
+        self,
+        account_balances: dict[str, Decimal],
+        classifications: dict[str, str],
+    ) -> dict[str, Decimal]:
+        """Categorize account balances into asset and liability buckets.
+
+        Args:
+            account_balances: Mapping of account name to net balance
+            classifications: Mapping of account name to account type string
+
+        Returns:
+            Dict with keys: cash_and_bank, stocks, mutual_funds, fixed_deposits,
+            ppf_epf, other_assets, credit_card_outstanding, loans_payable
+
+        """
+        result: dict[str, Decimal] = {
+            "cash_and_bank": Decimal(0),
+            "stocks": Decimal(0),
+            "mutual_funds": Decimal(0),
+            "fixed_deposits": Decimal(0),
+            "ppf_epf": Decimal(0),
+            "other_assets": Decimal(0),
+            "credit_card_outstanding": Decimal(0),
+            "loans_payable": Decimal(0),
+        }
+
+        for account, balance in account_balances.items():
+            account_type = classifications.get(account, "Other Wallets")
+            self._assign_balance_to_bucket(result, account, balance, account_type)
+
+        return result
+
+    def _assign_balance_to_bucket(
+        self,
+        result: dict[str, Decimal],
+        account: str,
+        balance: Decimal,
+        account_type: str,
+    ) -> None:
+        """Assign a single account balance to the appropriate bucket.
+
+        Args:
+            result: The totals dict to update in place
+            account: Account name (used for investment type lookup)
+            balance: Net balance of the account
+            account_type: Classification type string for the account
+
+        """
+        if account_type in ["Bank Accounts", "Cash"]:
+            result["cash_and_bank"] += balance
+        elif account_type == "Credit Cards":
+            if balance < 0:  # Outstanding balance
+                result["credit_card_outstanding"] += abs(balance)
+        elif account_type == "Investments":
+            self._assign_investment_balance(result, account, balance)
+        elif account_type in ("Loans", "Loans/Lended"):
+            if balance < 0:
+                result["loans_payable"] += abs(balance)
+            else:
+                result["other_assets"] += balance
+        else:
+            result["other_assets"] += balance
+
+    def _assign_investment_balance(
+        self,
+        result: dict[str, Decimal],
+        account: str,
+        balance: Decimal,
+    ) -> None:
+        """Assign an investment account balance to the appropriate investment bucket.
+
+        Args:
+            result: The totals dict to update in place
+            account: Account name for investment type lookup
+            balance: Net balance of the account
+
+        """
+        inv_type = self._get_investment_type(account)
+        if not inv_type:
+            result["other_assets"] += balance
+            return
+
+        inv_type_to_key = {
+            "stocks": "stocks",
+            "mutual_funds": "mutual_funds",
+            "fixed_deposits": "fixed_deposits",
+            "ppf_epf": "ppf_epf",
+        }
+        key = inv_type_to_key.get(inv_type, "other_assets")
+        result[key] += balance
+
     def _calculate_fy_summaries(self) -> int:
         """Calculate fiscal year summaries using configurable start month."""
         transactions = self._user_transaction_query().all()
@@ -1056,37 +1144,12 @@ class AnalyticsEngine:
         )
 
         for txn in transactions:
-            # Determine fiscal year using preferences
             fy, fy_start, fy_end = self._get_fiscal_year(txn.date)
-
             if fy_data[fy]["start_date"] is None:
                 fy_data[fy]["start_date"] = fy_start
                 fy_data[fy]["end_date"] = fy_end
-
             amount = Decimal(str(txn.amount))
-
-            if txn.type == TransactionType.INCOME:
-                fy_data[fy]["total_income"] += amount
-                # Use preference-based income categorization
-                if self._is_salary_income(txn):
-                    fy_data[fy]["salary_income"] += amount
-                elif self._is_bonus_income(txn):
-                    fy_data[fy]["bonus_income"] += amount
-                elif self._is_investment_income(txn):
-                    fy_data[fy]["investment_income"] += amount
-                else:
-                    fy_data[fy]["other_income"] += amount
-
-            elif txn.type == TransactionType.EXPENSE:
-                fy_data[fy]["total_expenses"] += amount
-                # Track tax payments
-                if "tax" in (txn.note or "").lower() or txn.category == "Taxes":
-                    fy_data[fy]["tax_paid"] += amount
-
-            elif txn.type == TransactionType.TRANSFER:
-                # Track investments made using preferences
-                if self._is_investment_account(txn.to_account):
-                    fy_data[fy]["investments_made"] += amount
+            self._categorize_transaction_for_fy(txn, fy_data[fy], amount)
 
         # Delete existing for this user and insert new
         del_stmt = delete(FYSummary)
@@ -1151,81 +1214,50 @@ class AnalyticsEngine:
 
         return count
 
+    def _categorize_transaction_for_fy(
+        self,
+        txn: Transaction,
+        data: dict[str, Any],
+        amount: Decimal,
+    ) -> None:
+        """Categorize a single transaction and update fiscal year summary data.
+
+        Args:
+            txn: The transaction to categorize
+            data: The FY data dict to update in place
+            amount: Pre-computed Decimal amount
+
+        """
+        if txn.type == TransactionType.INCOME:
+            data["total_income"] += amount
+            if self._is_salary_income(txn):
+                data["salary_income"] += amount
+            elif self._is_bonus_income(txn):
+                data["bonus_income"] += amount
+            elif self._is_investment_income(txn):
+                data["investment_income"] += amount
+            else:
+                data["other_income"] += amount
+
+        elif txn.type == TransactionType.EXPENSE:
+            data["total_expenses"] += amount
+            if "tax" in (txn.note or "").lower() or txn.category == "Taxes":
+                data["tax_paid"] += amount
+
+        elif txn.type == TransactionType.TRANSFER:
+            if self._is_investment_account(txn.to_account):
+                data["investments_made"] += amount
+
     def _detect_anomalies(self) -> int:
         """Detect anomalies in the data using configurable thresholds."""
-        anomalies_detected = []
+        anomalies_detected: list[dict[str, Any]] = []
         threshold_multiplier = self.anomaly_expense_threshold  # From preferences
 
         # 1. Detect high expense months (>threshold x std dev)
-        monthly_query = (
-            self.db.query(
-                func.strftime("%Y-%m", Transaction.date).label("period"),
-                func.sum(Transaction.amount).label("total"),
-            )
-            .filter(Transaction.is_deleted.is_(False))
-            .filter(Transaction.type == TransactionType.EXPENSE)
-        )
-        if self.user_id is not None:
-            monthly_query = monthly_query.filter(Transaction.user_id == self.user_id)
-        monthly_expenses = monthly_query.group_by(func.strftime("%Y-%m", Transaction.date)).all()
-
-        if len(monthly_expenses) > 3:
-            expense_values = [float(m.total) for m in monthly_expenses]
-            avg_expense = mean(expense_values)
-            std_expense = stdev(expense_values) if len(expense_values) > 1 else 0
-
-            for month in monthly_expenses:
-                if float(month.total) > avg_expense + threshold_multiplier * std_expense:
-                    anomalies_detected.append(
-                        {
-                            "type": AnomalyType.HIGH_EXPENSE,
-                            "severity": (
-                                "high" if float(month.total) > avg_expense * 2.5 else "medium"
-                            ),
-                            "description": (
-                                f"Unusually high expenses in {month.period}: "
-                                f"₹{float(month.total):,.0f} vs avg ₹{avg_expense:,.0f}"
-                            ),
-                            "period_key": month.period,
-                            "expected_value": Decimal(str(avg_expense)),
-                            "actual_value": Decimal(str(month.total)),
-                            "deviation_pct": ((float(month.total) - avg_expense) / avg_expense)
-                            * 100,
-                        },
-                    )
+        self._detect_high_expense_months(anomalies_detected, threshold_multiplier)
 
         # 2. Detect large individual transactions (>3x category average)
-        cat_avg_query = (
-            self.db.query(Transaction.category, func.avg(Transaction.amount).label("avg_amount"))
-            .filter(Transaction.is_deleted.is_(False))
-            .filter(Transaction.type == TransactionType.EXPENSE)
-        )
-        if self.user_id is not None:
-            cat_avg_query = cat_avg_query.filter(Transaction.user_id == self.user_id)
-        category_avgs = cat_avg_query.group_by(Transaction.category).all()
-        category_avg_map = {c.category: float(c.avg_amount) for c in category_avgs}
-
-        large_txns = (
-            self._user_transaction_query().filter(Transaction.type == TransactionType.EXPENSE).all()
-        )
-
-        for txn in large_txns:
-            cat_avg = category_avg_map.get(txn.category, 0)
-            if cat_avg > 0 and float(txn.amount) > cat_avg * 3:
-                anomalies_detected.append(
-                    {
-                        "type": AnomalyType.HIGH_EXPENSE,
-                        "severity": "medium",
-                        "description": (
-                            f"Large {txn.category} expense: "
-                            f"₹{float(txn.amount):,.0f} vs category avg ₹{cat_avg:,.0f}"
-                        ),
-                        "transaction_id": txn.transaction_id,
-                        "expected_value": Decimal(str(cat_avg)),
-                        "actual_value": Decimal(str(txn.amount)),
-                        "deviation_pct": ((float(txn.amount) - cat_avg) / cat_avg) * 100,
-                    },
-                )
+        self._detect_large_transactions(anomalies_detected)
 
         # Delete old unreviewed anomalies for this user and insert new
         del_stmt = delete(Anomaly).where(Anomaly.is_reviewed.is_(False))
@@ -1249,6 +1281,103 @@ class AnalyticsEngine:
             self.db.add(anomaly)
 
         return len(anomalies_detected)
+
+    def _detect_high_expense_months(
+        self,
+        anomalies: list[dict[str, Any]],
+        threshold_multiplier: float,
+    ) -> None:
+        """Detect months with unusually high total expenses.
+
+        Appends anomaly dicts to the provided list for months where total expenses
+        exceed the mean plus threshold_multiplier standard deviations.
+
+        Args:
+            anomalies: List to append detected anomalies to
+            threshold_multiplier: Number of standard deviations above mean to flag
+
+        """
+        monthly_query = (
+            self.db.query(
+                func.strftime("%Y-%m", Transaction.date).label("period"),
+                func.sum(Transaction.amount).label("total"),
+            )
+            .filter(Transaction.is_deleted.is_(False))
+            .filter(Transaction.type == TransactionType.EXPENSE)
+        )
+        if self.user_id is not None:
+            monthly_query = monthly_query.filter(Transaction.user_id == self.user_id)
+        monthly_expenses = monthly_query.group_by(func.strftime("%Y-%m", Transaction.date)).all()
+
+        if len(monthly_expenses) <= 3:
+            return
+
+        expense_values = [float(m.total) for m in monthly_expenses]
+        avg_expense = mean(expense_values)
+        std_expense = stdev(expense_values) if len(expense_values) > 1 else 0
+
+        for month in monthly_expenses:
+            month_total = float(month.total)
+            if month_total > avg_expense + threshold_multiplier * std_expense:
+                anomalies.append(
+                    {
+                        "type": AnomalyType.HIGH_EXPENSE,
+                        "severity": "high" if month_total > avg_expense * 2.5 else "medium",
+                        "description": (
+                            f"Unusually high expenses in {month.period}: "
+                            f"₹{month_total:,.0f} vs avg ₹{avg_expense:,.0f}"
+                        ),
+                        "period_key": month.period,
+                        "expected_value": Decimal(str(avg_expense)),
+                        "actual_value": Decimal(str(month.total)),
+                        "deviation_pct": ((month_total - avg_expense) / avg_expense) * 100,
+                    },
+                )
+
+    def _detect_large_transactions(
+        self,
+        anomalies: list[dict[str, Any]],
+    ) -> None:
+        """Detect individual transactions that are significantly above their category average.
+
+        Appends anomaly dicts to the provided list for transactions exceeding
+        3x the average for their category.
+
+        Args:
+            anomalies: List to append detected anomalies to
+
+        """
+        cat_avg_query = (
+            self.db.query(Transaction.category, func.avg(Transaction.amount).label("avg_amount"))
+            .filter(Transaction.is_deleted.is_(False))
+            .filter(Transaction.type == TransactionType.EXPENSE)
+        )
+        if self.user_id is not None:
+            cat_avg_query = cat_avg_query.filter(Transaction.user_id == self.user_id)
+        category_avgs = cat_avg_query.group_by(Transaction.category).all()
+        category_avg_map = {c.category: float(c.avg_amount) for c in category_avgs}
+
+        large_txns = (
+            self._user_transaction_query().filter(Transaction.type == TransactionType.EXPENSE).all()
+        )
+
+        for txn in large_txns:
+            cat_avg = category_avg_map.get(txn.category, 0)
+            if cat_avg > 0 and float(txn.amount) > cat_avg * 3:
+                anomalies.append(
+                    {
+                        "type": AnomalyType.HIGH_EXPENSE,
+                        "severity": "medium",
+                        "description": (
+                            f"Large {txn.category} expense: "
+                            f"₹{float(txn.amount):,.0f} vs category avg ₹{cat_avg:,.0f}"
+                        ),
+                        "transaction_id": txn.transaction_id,
+                        "expected_value": Decimal(str(cat_avg)),
+                        "actual_value": Decimal(str(txn.amount)),
+                        "deviation_pct": ((float(txn.amount) - cat_avg) / cat_avg) * 100,
+                    },
+                )
 
     def _update_budget_tracking(self) -> int:
         """Update budget tracking with current month's spending."""

@@ -9,6 +9,101 @@ import { chartTooltipProps } from '@/components/ui'
 
 const COLORS = CHART_COLORS
 
+// Treemap cell size thresholds
+const MIN_CELL_WIDTH = 45
+const MIN_CELL_HEIGHT = 32
+const AREA_VERY_LARGE = 25000
+const AREA_LARGE = 12000
+const AREA_MEDIUM = 6000
+
+interface TreemapCellProps {
+  x: number
+  y: number
+  width: number
+  height: number
+  name: string
+  size: number
+  colorIndex: number
+  depth: number
+}
+
+const FONT_CONFIG = {
+  veryLarge: { name: 14, amount: 12, chars: 25 },
+  large:     { name: 12, amount: 11, chars: 18 },
+  medium:    { name: 11, amount: 10, chars: 14 },
+  small:     { name: 10, amount: 9,  chars: 12 },
+} as const
+
+function getSizeCategory(boxArea: number): keyof typeof FONT_CONFIG {
+  if (boxArea > AREA_VERY_LARGE) return 'veryLarge'
+  if (boxArea > AREA_LARGE) return 'large'
+  if (boxArea > AREA_MEDIUM) return 'medium'
+  return 'small'
+}
+
+function TreemapCell(props: Record<string, unknown>) {
+  const { x, y, width, height, name, size, colorIndex } = props as unknown as TreemapCellProps
+
+  if (width < MIN_CELL_WIDTH || height < MIN_CELL_HEIGHT) return <g />
+
+  const boxArea = width * height
+  const config = FONT_CONFIG[getSizeCategory(boxArea)]
+
+  const displayName = name.length > config.chars
+    ? name.substring(0, config.chars) + '...'
+    : name
+
+  const padding = 6
+  const textY = y + padding
+  const nameY = height > 50 ? y + height / 2 - 4 : textY + 10
+  const amountY = height > 50 ? y + height / 2 + config.amount : nameY + config.amount + 4
+
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        style={{
+          fill: COLORS[colorIndex],
+          stroke: CHART_GRID_COLOR,
+          strokeWidth: 1.5,
+          opacity: 0.95,
+        }}
+      />
+      <text
+        x={x + width / 2}
+        y={nameY}
+        textAnchor="middle"
+        fill="#ffffff"
+        fontSize={config.name}
+        fontWeight="600"
+        style={{
+          filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.9))',
+          userSelect: 'none',
+        }}
+      >
+        {displayName}
+      </text>
+      <text
+        x={x + width / 2}
+        y={amountY}
+        textAnchor="middle"
+        fill="#ffffff"
+        fontSize={config.amount}
+        fontWeight="400"
+        style={{
+          filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.9))',
+          userSelect: 'none',
+        }}
+      >
+        {formatCurrency(size ?? 0)}
+      </text>
+    </g>
+  )
+}
+
 export default function ExpenseTreemap() {
   const [treemapView, setTreemapView] = useState<'all_time' | 'yearly' | 'monthly'>('all_time')
   const [showSubcategories, setShowSubcategories] = useState(false)
@@ -199,11 +294,12 @@ export default function ExpenseTreemap() {
 
       {/* Treemap Chart with top margin */}
       <div className="mt-6">
-        {isLoading ? (
+        {isLoading && (
           <div className="h-96 flex items-center justify-center">
             <div className="animate-pulse text-muted-foreground">Loading treemap...</div>
           </div>
-        ) : treemapData.length > 0 ? (
+        )}
+        {!isLoading && treemapData.length > 0 && (
           <ResponsiveContainer width="100%" height={400}>
           <Treemap
             data={treemapData}
@@ -212,79 +308,7 @@ export default function ExpenseTreemap() {
             stroke="#fff"
             fill="#8884d8"
             isAnimationActive={false}
-            content={(props) => {
-              const typedProps = props as unknown as { x: number; y: number; width: number; height: number; name: string; size: number; colorIndex: number; depth: number }
-              const { x, y, width, height, name, size, colorIndex } = typedProps
-              
-              // Hide text in very small boxes
-              if (width < 45 || height < 32) return <g />
-              
-              // Dynamic sizing based on box dimensions
-              const boxArea = width * height
-              const isVeryLarge = boxArea > 25000
-              const isLarge = boxArea > 12000
-              const isMedium = boxArea > 6000
-              
-              const nameFontSize = isVeryLarge ? 14 : isLarge ? 12 : isMedium ? 11 : 10
-              const amountFontSize = isVeryLarge ? 12 : isLarge ? 11 : isMedium ? 10 : 9
-              
-              // Smart truncation
-              const maxChars = isVeryLarge ? 25 : isLarge ? 18 : isMedium ? 14 : 12
-              const displayName = name.length > maxChars ? name.substring(0, maxChars) + '...' : name
-              
-              // Calculate padding from edges
-              const padding = 6
-              const textY = y + padding
-              const nameY = height > 50 ? y + height / 2 - 4 : textY + 10
-              const amountY = height > 50 ? y + height / 2 + amountFontSize : nameY + amountFontSize + 4
-              
-              return (
-                <g>
-                  <rect
-                    x={x}
-                    y={y}
-                    width={width}
-                    height={height}
-                    style={{
-                      fill: COLORS[colorIndex],
-                      stroke: CHART_GRID_COLOR,
-                      strokeWidth: 1.5,
-                      opacity: 0.95,
-                    }}
-                  />
-                  {/* Category/Subcategory Name */}
-                  <text
-                    x={x + width / 2}
-                    y={nameY}
-                    textAnchor="middle"
-                    fill="#ffffff"
-                    fontSize={nameFontSize}
-                    fontWeight="600"
-                    style={{
-                      filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.9))',
-                      userSelect: 'none',
-                    }}
-                  >
-                    {displayName}
-                  </text>
-                  {/* Amount */}
-                  <text
-                    x={x + width / 2}
-                    y={amountY}
-                    textAnchor="middle"
-                    fill="#ffffff"
-                    fontSize={amountFontSize}
-                    fontWeight="400"
-                    style={{
-                      filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.9))',
-                      userSelect: 'none',
-                    }}
-                  >
-                    {formatCurrency(size ?? 0)}
-                  </text>
-                </g>
-              )
-            }}
+            content={TreemapCell}
           >
             <Tooltip
               {...chartTooltipProps}
@@ -292,9 +316,10 @@ export default function ExpenseTreemap() {
             />
           </Treemap>
         </ResponsiveContainer>
-      ) : (
-        <div className="h-96 flex items-center justify-center text-muted-foreground">No data available</div>
-      )}
+        )}
+        {!isLoading && treemapData.length === 0 && (
+          <div className="h-96 flex items-center justify-center text-muted-foreground">No data available</div>
+        )}
       
       {/* Subtitle */}
       <div className="mt-2 text-sm text-muted-foreground">

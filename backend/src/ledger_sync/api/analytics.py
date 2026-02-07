@@ -1,5 +1,6 @@
 """Analytics API endpoints for insights and statistics."""
 
+import calendar
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -24,8 +25,6 @@ def _subtract_months(dt: datetime, months: int) -> datetime:
     year = dt.year + (month - 1) // 12
     month = (month - 1) % 12 + 1
     # Clamp day to last valid day of target month
-    import calendar
-
     max_day = calendar.monthrange(year, month)[1]
     day = min(dt.day, max_day)
     return dt.replace(year=year, month=month, day=day)

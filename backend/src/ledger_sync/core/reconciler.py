@@ -46,6 +46,68 @@ class Reconciler:
         self.user_id = user_id
         self.hasher = TransactionHasher()
 
+    def _detect_and_apply_changes(
+        self,
+        existing: Transaction,
+        normalized_row: dict[str, Any],
+        updateable_fields: list[str],
+    ) -> tuple[bool, list[str]]:
+        """Detect and apply field changes between existing record and normalized data.
+
+        Compares each updateable field between the existing DB record and the
+        incoming normalized row. Enum fields (type) are compared case-insensitively;
+        string fields treat None and empty string as equal. When a difference is
+        found, the new value is applied via setattr.
+
+        Args:
+            existing: The existing Transaction record from the database
+            normalized_row: Normalized data from the import
+            updateable_fields: List of field names to compare and potentially update
+
+        Returns:
+            Tuple of (changed, changes_detected) where changed is True if any
+            field was updated, and changes_detected is a list of human-readable
+            change descriptions.
+
+        """
+        changed = False
+        changes_detected: list[str] = []
+
+        for field in updateable_fields:
+            new_value = normalized_row[field]
+            old_value = getattr(existing, field)
+
+            # Normalize for comparison
+            # - None and empty string are treated as equal
+            # - Enums are compared by their normalized values (case-insensitive)
+            if field == "type":
+                # Compare enum values case-insensitively
+                new_val_str = (
+                    new_value.value
+                    if hasattr(new_value, "value")
+                    else str(new_value) if new_value else None
+                )
+                old_val_str = (
+                    old_value.value
+                    if hasattr(old_value, "value")
+                    else str(old_value) if old_value else None
+                )
+                values_equal = (new_val_str.upper() if new_val_str else None) == (
+                    old_val_str.upper() if old_val_str else None
+                )
+            else:
+                # For strings: treat None and "" as equal
+                new_val_normalized = new_value if new_value else None
+                old_val_normalized = old_value if old_value else None
+                values_equal = new_val_normalized == old_val_normalized
+
+            if not values_equal:
+                changes_detected.append(f"{field}: {old_value!r} -> {new_value!r}")
+                setattr(existing, field, new_value)
+                changed = True
+
+        return changed, changes_detected
+
     def reconcile_transaction(
         self,
         normalized_row: dict[str, Any],
@@ -110,42 +172,10 @@ class Reconciler:
 
         # UPDATE existing transaction
         # Check if anything changed
-        changed = False
-        changes_detected = []
-
         updateable_fields = ["category", "subcategory", "note", "type"]
-        for field in updateable_fields:
-            new_value = normalized_row[field]
-            old_value = getattr(existing, field)
-
-            # Normalize for comparison
-            # - None and empty string are treated as equal
-            # - Enums are compared by their normalized values (case-insensitive)
-            if field == "type":
-                # Compare enum values case-insensitively
-                new_val_str = (
-                    new_value.value
-                    if hasattr(new_value, "value")
-                    else str(new_value) if new_value else None
-                )
-                old_val_str = (
-                    old_value.value
-                    if hasattr(old_value, "value")
-                    else str(old_value) if old_value else None
-                )
-                values_equal = (new_val_str.upper() if new_val_str else None) == (
-                    old_val_str.upper() if old_val_str else None
-                )
-            else:
-                # For strings: treat None and "" as equal
-                new_val_normalized = new_value if new_value else None
-                old_val_normalized = old_value if old_value else None
-                values_equal = new_val_normalized == old_val_normalized
-
-            if not values_equal:
-                changes_detected.append(f"{field}: {old_value!r} -> {new_value!r}")
-                setattr(existing, field, new_value)
-                changed = True
+        changed, changes_detected = self._detect_and_apply_changes(
+            existing, normalized_row, updateable_fields
+        )
 
         # Always update last_seen_at and is_deleted
         existing.last_seen_at = import_time
@@ -340,9 +370,6 @@ class Reconciler:
             return transfer, "inserted"
 
         # UPDATE existing transfer
-        changed = False
-        changes_detected = []
-
         updateable_fields = [
             "category",
             "subcategory",
@@ -351,38 +378,9 @@ class Reconciler:
             "from_account",
             "to_account",
         ]
-        for field in updateable_fields:
-            new_value = normalized_row[field]
-            old_value = getattr(existing, field)
-
-            # Normalize for comparison
-            # - None and empty string are treated as equal
-            # - Enums are compared by their normalized values (case-insensitive)
-            if field == "type":
-                # Compare enum values case-insensitively
-                new_val_str = (
-                    new_value.value
-                    if hasattr(new_value, "value")
-                    else str(new_value) if new_value else None
-                )
-                old_val_str = (
-                    old_value.value
-                    if hasattr(old_value, "value")
-                    else str(old_value) if old_value else None
-                )
-                values_equal = (new_val_str.upper() if new_val_str else None) == (
-                    old_val_str.upper() if old_val_str else None
-                )
-            else:
-                # For strings: treat None and "" as equal
-                new_val_normalized = new_value if new_value else None
-                old_val_normalized = old_value if old_value else None
-                values_equal = new_val_normalized == old_val_normalized
-
-            if not values_equal:
-                changes_detected.append(f"{field}: {old_value!r} -> {new_value!r}")
-                setattr(existing, field, new_value)
-                changed = True
+        changed, changes_detected = self._detect_and_apply_changes(
+            existing, normalized_row, updateable_fields
+        )
 
         # Always update last_seen_at and is_deleted
         existing.last_seen_at = import_time

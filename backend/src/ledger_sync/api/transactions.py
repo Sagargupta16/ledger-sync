@@ -246,7 +246,13 @@ async def search_transactions(
     total = tx_query.count()
 
     # Apply sorting
-    sort_column = getattr(Transaction, sort_by, Transaction.date)
+    sort_column_map = {
+        "date": Transaction.date,
+        "amount": Transaction.amount,
+        "category": Transaction.category,
+        "account": Transaction.account,
+    }
+    sort_column = sort_column_map.get(sort_by, Transaction.date)
     if sort_order == "desc":
         tx_query = tx_query.order_by(sort_column.desc())
     else:

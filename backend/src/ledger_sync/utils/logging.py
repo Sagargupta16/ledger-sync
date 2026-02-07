@@ -42,7 +42,7 @@ def setup_logging(log_level: str | None = None) -> logging.Logger:
     main_logger.handlers = []  # Clear existing handlers
 
     # Console handler with formatting
-    console_format = "%(asctime)s │ %(levelname)-8s │ %(name)s │ %(message)s"
+    console_format = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
     console_handler.setFormatter(logging.Formatter(console_format, datefmt="%H:%M:%S"))
@@ -105,14 +105,14 @@ def log_analytics_calculation(
     """Log an analytics calculation result."""
     logger = get_analytics_logger()
     duration_str = f" ({duration_ms:.1f}ms)" if duration_ms else ""
-    logger.info("  ✓ %s: %s records%s", calculation_name, count, duration_str)
+    logger.info("  + %s: %s records%s", calculation_name, count, duration_str)
 
 
 def log_column_mapping(original: str, mapped: str, source_file: str | None = None) -> None:
     """Log a column name mapping (for tracking Excel format changes)."""
     logger = get_analytics_logger()
     file_str = f" in {source_file}" if source_file else ""
-    logger.debug("Column mapping%s: '%s' → '%s'", file_str, original, mapped)
+    logger.debug("Column mapping%s: '%s' -> '%s'", file_str, original, mapped)
 
 
 def log_warning(message: str, context: dict | None = None) -> None:

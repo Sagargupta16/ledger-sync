@@ -7,6 +7,7 @@ transaction data and return computed metrics.
 Uses Decimal for all financial arithmetic to avoid floating-point precision loss.
 """
 
+import math
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
@@ -150,7 +151,10 @@ class FinancialCalculator:
             elif t.type == TransactionType.EXPENSE:
                 monthly_data[month_key]["expenses"] += _to_decimal(t.amount)
 
-        return {k: {"income": float(v["income"]), "expenses": float(v["expenses"])} for k, v in monthly_data.items()}
+        return {
+            k: {"income": float(v["income"]), "expenses": float(v["expenses"])}
+            for k, v in monthly_data.items()
+        }
 
     @staticmethod
     def group_by_category(
@@ -363,8 +367,8 @@ class FinancialCalculator:
 
         best_month = None
         worst_month = None
-        best_surplus = float("-inf")
-        worst_surplus = float("inf")
+        best_surplus = -math.inf
+        worst_surplus = math.inf
 
         for month, data in monthly_data.items():
             surplus = data["income"] - data["expenses"]
@@ -415,7 +419,11 @@ class FinancialCalculator:
         }
 
         convenience_spending = sum(
-            (_to_decimal(t.amount) for t in expenses if t.category and t.category.lower() in convenience_categories),
+            (
+                _to_decimal(t.amount)
+                for t in expenses
+                if t.category and t.category.lower() in convenience_categories
+            ),
             Decimal(0),
         )
         total_spending = sum(

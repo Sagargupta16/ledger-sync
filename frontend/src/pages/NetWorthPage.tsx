@@ -38,8 +38,8 @@ export default function NetWorthPage() {
       try {
         const data = await accountClassificationsService.getAllClassifications()
         setClassifications(data)
-      } catch (error) {
-        console.error('Failed to load classifications:', error)
+      } catch {
+        // Classifications will use defaults if loading fails
       }
     }
     loadClassifications()

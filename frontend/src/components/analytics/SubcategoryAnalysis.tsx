@@ -91,20 +91,22 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
     } else if (viewMode === 'yearly') {
       allPeriods = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
     } else {
-      allPeriods = Object.keys(periodGroups).sort()
+      allPeriods = Object.keys(periodGroups).sort((a, b) => a.localeCompare(b))
     }
 
     const subcatNames = Object.keys(subcatGroups)
 
     // Create trend data with all periods filled
     let trendData = allPeriods.map((period) => {
-      const entry: Record<string, string | number> = { 
+      let displayPeriod: string
+      if (viewMode === 'yearly') {
+        displayPeriod = new Date(currentYear, Number.parseInt(period) - 1).toLocaleDateString('en-US', { month: 'short' })
+      } else {
+        displayPeriod = period
+      }
+      const entry: Record<string, string | number> = {
         period,
-        displayPeriod: viewMode === 'monthly'
-          ? period
-          : viewMode === 'yearly'
-          ? new Date(currentYear, Number.parseInt(period) - 1).toLocaleDateString('en-US', { month: 'short' })
-          : period
+        displayPeriod,
       }
       subcatNames.forEach((subcat) => {
         entry[subcat] = periodGroups[period]?.[subcat] || 0
@@ -249,7 +251,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                           >
                             <ChevronLeft className="w-4 h-4" />
                           </button>
-                          <span className="text-white text-sm font-medium min-w-[100px] text-center">
+                          <span className="text-white text-sm font-medium min-w-25 text-center">
                             {new Date(currentMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                           </span>
                           <button
@@ -274,7 +276,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                           >
                             <ChevronLeft className="w-4 h-4" />
                           </button>
-                          <span className="text-white text-sm font-medium min-w-[80px] text-center">Year {currentYear}</span>
+                          <span className="text-white text-sm font-medium min-w-20 text-center">Year {currentYear}</span>
                           <button
                             onClick={() => setCurrentYear((prev) => prev + 1)}
                             className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
