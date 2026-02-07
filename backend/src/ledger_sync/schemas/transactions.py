@@ -30,8 +30,8 @@ class TransactionResponse(BaseModel):
     category: str
     subcategory: str
     account: str
-    from_account: str | None
-    to_account: str | None
+    from_account: str | None = None
+    to_account: str | None = None
     note: str
     source_file: str
     last_seen_at: str

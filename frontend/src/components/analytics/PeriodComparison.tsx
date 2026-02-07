@@ -40,7 +40,7 @@ export default function PeriodComparison() {
     if (!monthlyData) return []
     const years = new Set<number>()
     Object.keys(monthlyData).forEach((month) => {
-      years.add(parseInt(month.slice(0, 4)))
+      years.add(Number.parseInt(month.slice(0, 4)))
     })
     return Array.from(years).sort((a, b) => b - a)
   }, [monthlyData])
@@ -57,7 +57,7 @@ export default function PeriodComparison() {
     const yearly: Record<number, { income: number; expense: number; net_savings: number; months: number }> = {}
     
     Object.entries(monthlyData).forEach(([month, data]) => {
-      const year = parseInt(month.slice(0, 4))
+      const year = Number.parseInt(month.slice(0, 4))
       const d = data as { income: number; expense: number; net_savings: number }
       if (!yearly[year]) {
         yearly[year] = { income: 0, expense: 0, net_savings: 0, months: 0 }
@@ -377,7 +377,7 @@ export default function PeriodComparison() {
             <>
               <select
                 value={effectiveYear1 ?? ''}
-                onChange={(e) => setSelectedYear1(parseInt(e.target.value))}
+                onChange={(e) => setSelectedYear1(Number.parseInt(e.target.value))}
                 className="px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] border border-white/[0.08] text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors backdrop-blur-xl"
                 aria-label="First year to compare"
               >
@@ -390,7 +390,7 @@ export default function PeriodComparison() {
               <ArrowLeftRight className="w-4 h-4" style={{ color: rawColors.text.tertiary }} />
               <select
                 value={effectiveYear2 ?? ''}
-                onChange={(e) => setSelectedYear2(parseInt(e.target.value))}
+                onChange={(e) => setSelectedYear2(Number.parseInt(e.target.value))}
                 className="px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] border border-white/[0.08] text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors backdrop-blur-xl"
                 aria-label="Second year to compare"
               >

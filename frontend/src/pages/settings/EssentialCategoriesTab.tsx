@@ -80,6 +80,8 @@ export default function EssentialCategoriesTab({
             Essential Categories ({localPrefs.essential_categories.length})
           </h3>
           <div
+            role="region"
+            aria-label="Drop zone for essential categories"
             onDragOver={onDragOver}
             onDrop={onDropOnEssential}
             className={`bg-white/5 rounded-xl border-2 border-dashed p-4 min-h-[400px] transition-all ${

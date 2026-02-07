@@ -152,12 +152,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                   >
-                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                    <label htmlFor="auth-fullname" className="block text-sm font-medium text-gray-300 mb-1.5">
                       Full Name
                     </label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" />
                       <input
+                        id="auth-fullname"
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
@@ -169,12 +170,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  <label htmlFor="auth-email" className="block text-sm font-medium text-gray-300 mb-1.5">
                     Email
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" />
                     <input
+                      id="auth-email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -186,12 +188,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  <label htmlFor="auth-password" className="block text-sm font-medium text-gray-300 mb-1.5">
                     Password
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" />
                     <input
+                      id="auth-password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}

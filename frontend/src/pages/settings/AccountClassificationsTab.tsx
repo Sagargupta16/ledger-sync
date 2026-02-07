@@ -94,6 +94,8 @@ export default function AccountClassificationsTab({
           {ACCOUNT_TYPES.map((category) => (
             <div
               key={category}
+              role="region"
+              aria-label={`Drop zone for ${category} accounts`}
               onDragOver={onDragOver}
               onDrop={() => onDropOnAccountCategory(category)}
               className={`bg-white/5 rounded-xl border-2 border-dashed p-4 transition-all min-h-[180px] ${

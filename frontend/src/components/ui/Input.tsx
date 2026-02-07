@@ -15,7 +15,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { label, error, icon, className, id, ...props },
   ref
 ) {
-  const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined)
+  const inputId = id || (label ? label.toLowerCase().replaceAll(/\s+/g, '-') : undefined)
 
   return (
     <div className="space-y-1.5">
@@ -72,7 +72,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   { label, error, options, className, id, ...props },
   ref
 ) {
-  const selectId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined)
+  const selectId = id || (label ? label.toLowerCase().replaceAll(/\s+/g, '-') : undefined)
 
   return (
     <div className="space-y-1.5">

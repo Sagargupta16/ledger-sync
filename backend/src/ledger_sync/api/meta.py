@@ -1,12 +1,10 @@
 """Metadata API endpoints for dropdowns and filters."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from sqlalchemy import union_all
-from sqlalchemy.orm import Session
 
-from ledger_sync.api.deps import CurrentUser
+from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import Transaction, TransactionType
-from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/api/meta", tags=["meta"])
 
@@ -22,7 +20,7 @@ def get_types(current_user: CurrentUser) -> dict[str, list[str]]:
 @router.get("/accounts")
 def get_accounts(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
 ) -> dict[str, list[str]]:
     """Return unique accounts from transactions (including transfers)."""
     q1 = (
@@ -59,7 +57,7 @@ def get_accounts(
 @router.get("/filters")
 def get_filter_meta(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
 ) -> dict[str, list[str]]:
     """Return combined filter metadata (types + accounts).
 
@@ -128,7 +126,7 @@ def _classify_account(name: str) -> str:
 @router.get("/buckets")
 def get_buckets(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
 ) -> dict[str, list[str]]:
     """Return dynamic buckets (needs/wants/savings/investment) from existing data."""
     needs: set[str] = set()

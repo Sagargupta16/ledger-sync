@@ -3,15 +3,13 @@
 import csv
 import io
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Query, Response
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
 
-from ledger_sync.api.deps import CurrentUser
+from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import Transaction, TransactionType
-from ledger_sync.db.session import get_session
 from ledger_sync.schemas.transactions import (
     TransactionResponse,
     TransactionsListResponse,
@@ -24,14 +22,14 @@ END_DATE_DESC = "End date (inclusive)"
 router = APIRouter(prefix="", tags=["transactions"])
 
 
-@router.get("/api/transactions", response_model=TransactionsListResponse)
+@router.get("/api/transactions")
 async def get_transactions(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None, description=START_DATE_DESC),
-    end_date: datetime | None = Query(None, description=END_DATE_DESC),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum results to return"),
-    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    db: DatabaseSession,
+    start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None,
+    end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
+    limit: Annotated[int, Query(ge=1, le=1000, description="Maximum results to return")] = 100,
+    offset: Annotated[int, Query(ge=0, description="Number of results to skip")] = 0,
 ) -> TransactionsListResponse:
     """Get all non-deleted transactions (including transfers) with pagination.
 
@@ -95,12 +93,12 @@ async def get_transactions(
     )
 
 
-@router.get("/api/transactions/all", response_model=list[TransactionResponse])
+@router.get("/api/transactions/all")
 async def get_all_transactions(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None, description=START_DATE_DESC),
-    end_date: datetime | None = Query(None, description=END_DATE_DESC),
+    db: DatabaseSession,
+    start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None,
+    end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
 ) -> list[TransactionResponse]:
     """Return every non-deleted transaction in a single JSON array.
 
@@ -143,24 +141,28 @@ async def get_all_transactions(
 @router.get("/api/transactions/search")
 async def search_transactions(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    query: str | None = Query(None, description="Search in notes, category, account"),
-    category: str | None = Query(None, description="Filter by category"),
-    subcategory: str | None = Query(None, description="Filter by subcategory"),
-    account: str | None = Query(None, description="Filter by account"),
-    type: str | None = Query(None, description="Filter by type (Income/Expense/Transfer)"),
-    min_amount: float | None = Query(None, description="Minimum amount"),
-    max_amount: float | None = Query(None, description="Maximum amount"),
-    start_date: datetime | None = Query(None, description=START_DATE_DESC),
-    end_date: datetime | None = Query(None, description=END_DATE_DESC),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum results to return"),
-    offset: int = Query(0, ge=0, description="Number of results to skip"),
-    sort_by: str = Query(
-        "date",
-        pattern="^(date|amount|category|account)$",
-        description="Sort field",
-    ),
-    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
+    db: DatabaseSession,
+    query: Annotated[str | None, Query(description="Search in notes, category, account")] = None,
+    category: Annotated[str | None, Query(description="Filter by category")] = None,
+    subcategory: Annotated[str | None, Query(description="Filter by subcategory")] = None,
+    account: Annotated[str | None, Query(description="Filter by account")] = None,
+    type: Annotated[
+        str | None, Query(description="Filter by type (Income/Expense/Transfer)")
+    ] = None,
+    min_amount: Annotated[float | None, Query(description="Minimum amount")] = None,
+    max_amount: Annotated[float | None, Query(description="Maximum amount")] = None,
+    start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None,
+    end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
+    limit: Annotated[int, Query(ge=1, le=1000, description="Maximum results to return")] = 100,
+    offset: Annotated[int, Query(ge=0, description="Number of results to skip")] = 0,
+    sort_by: Annotated[
+        str,
+        Query(
+            pattern="^(date|amount|category|account)$",
+            description="Sort field",
+        ),
+    ] = "date",
+    sort_order: Annotated[str, Query(pattern="^(asc|desc)$", description="Sort order")] = "desc",
 ) -> dict[str, Any]:
     """Search and filter transactions with pagination.
 
@@ -295,9 +297,9 @@ async def search_transactions(
 @router.get("/api/transactions/export")
 async def export_transactions(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None, description=START_DATE_DESC),
-    end_date: datetime | None = Query(None, description=END_DATE_DESC),
+    db: DatabaseSession,
+    start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None,
+    end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
 ):
     """Export all non-deleted transactions as CSV for the current user."""
     query = db.query(Transaction).filter(

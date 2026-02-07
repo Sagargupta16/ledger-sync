@@ -314,7 +314,7 @@ export default function NetWorthPage() {
                   {allCategories.map((cat) => {
                     const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
                     return (
-                      <linearGradient key={`color-${cat}`} id={`color-${cat.replace(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient key={`color-${cat}`} id={`color-${cat.replaceAll(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={config.color} stopOpacity={0.7} />
                         <stop offset="95%" stopColor={config.color} stopOpacity={0.2} />
                       </linearGradient>
@@ -341,7 +341,7 @@ export default function NetWorthPage() {
                           stackId="1"
                           stroke={config.color}
                           fillOpacity={1}
-                          fill={`url(#color-${cat.replace(/\s+/g, '')})`}
+                          fill={`url(#color-${cat.replaceAll(/\s+/g, '')})`}
                           name={config.label}
                         />
                       )

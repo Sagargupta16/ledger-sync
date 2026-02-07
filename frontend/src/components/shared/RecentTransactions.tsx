@@ -71,7 +71,7 @@ function RecentTransactions({ transactions, isLoading }: RecentTransactionsProps
   if (isLoading) {
     return (
       <div className="space-y-3">
-        {[...Array(5)].map((_, i) => (
+        {[...new Array(5)].map((_, i) => (
           <div key={`skeleton-${i}`} className="flex items-center justify-between p-4 rounded-lg border border-border animate-pulse">
             <div className="flex-1 space-y-2">
               <div className="h-4 bg-muted rounded w-1/3" />

@@ -155,8 +155,9 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Category Filter */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Category</label>
+                <label htmlFor="filter-category" className="text-sm font-medium text-muted-foreground">Category</label>
                 <select
+                  id="filter-category"
                   value={filters.category || ''}
                   onChange={(e) => handleFilterChange('category', e.target.value)}
                   className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-white"
@@ -172,8 +173,9 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Account Filter */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Account</label>
+                <label htmlFor="filter-account" className="text-sm font-medium text-muted-foreground">Account</label>
                 <select
+                  id="filter-account"
                   value={filters.account || ''}
                   onChange={(e) => handleFilterChange('account', e.target.value)}
                   className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-white"

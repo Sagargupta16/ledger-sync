@@ -1,16 +1,16 @@
 """Upload API endpoint for Excel file ingestion."""
 
 import atexit
+import os
 import tempfile
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy.orm import Session
+import anyio
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from ledger_sync.api.deps import CurrentUser
+from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.sync_engine import SyncEngine
-from ledger_sync.db.session import get_session
 from ledger_sync.ingest.normalizer import NormalizationError
 from ledger_sync.ingest.validator import ValidationError
 from ledger_sync.schemas.transactions import UploadResponse
@@ -19,12 +19,12 @@ from ledger_sync.utils.logging import logger
 router = APIRouter(prefix="", tags=["upload"])
 
 
-@router.post("/api/upload", response_model=UploadResponse)
+@router.post("/api/upload")
 async def upload_excel(
     current_user: CurrentUser,
     file: Annotated[UploadFile, File(description="Excel file to import")],
+    db: DatabaseSession,
     force: bool = False,
-    db: Session = Depends(get_session),
 ) -> UploadResponse:
     """Upload and process Excel file.
 
@@ -51,14 +51,12 @@ async def upload_excel(
             detail=f"Invalid file type. Expected .xlsx or .xls, got {file.filename}",
         )
 
-    # Create temporary file
-    tmp_path = None
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_file:
-        # Write uploaded file to temp location
-        content = await file.read()
-        tmp_file.write(content)
-        tmp_file.flush()
-        tmp_path = Path(tmp_file.name)
+    # Create temporary file using async I/O
+    content = await file.read()
+    tmp_fd, tmp_name = tempfile.mkstemp(suffix=".xlsx")
+    os.close(tmp_fd)
+    tmp_path = Path(tmp_name)
+    await anyio.Path(tmp_path).write_bytes(content)
 
     # Process file after closing the temp file handle
     logger.info(f"Processing uploaded file: {file.filename} for user: {current_user.email}")

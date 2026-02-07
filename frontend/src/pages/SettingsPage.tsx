@@ -89,7 +89,7 @@ export default function SettingsPage() {
     if (!masterCategories?.expense) return []
     return Object.keys(masterCategories.expense)
       .filter((cat) => !cat.toLowerCase().startsWith('transfer'))
-      .sort()
+      .sort((a, b) => a.localeCompare(b))
   }, [masterCategories])
 
   // Get all income categories with subcategories from master categories

@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from ledger_sync.db.base import Base
 from ledger_sync.db.models import Transaction, TransactionType, User
 
+# Fake bcrypt hash for test fixtures — not a real credential
+TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"  # noqa: S105
+
 
 @pytest.fixture
 def test_db_session() -> Session:
@@ -31,7 +34,7 @@ def test_user(test_db_session: Session) -> User:
     """Create a test user for transaction ownership."""
     user = User(
         email="test@example.com",
-        hashed_password="$2b$12$dummy_hash_for_testing_purposes",
+        hashed_password=TEST_BCRYPT_HASH,
         full_name="Test User",
         is_active=True,
         is_verified=True,

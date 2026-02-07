@@ -2,13 +2,11 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from ledger_sync.api.deps import CurrentUser
+from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import AccountClassification, AccountType
-from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/api/account-classifications", tags=["account-classifications"])
 
@@ -16,7 +14,7 @@ router = APIRouter(prefix="/api/account-classifications", tags=["account-classif
 @router.get("")
 async def get_all_classifications(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
 ) -> dict[str, str]:
     """Get all account classifications for the current user.
 
@@ -34,7 +32,7 @@ async def get_all_classifications(
 async def get_classification(
     account_name: str,
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
 ) -> dict[str, Any]:
     """Get classification for a specific account.
 
@@ -60,12 +58,12 @@ async def get_classification(
     }
 
 
-@router.post("")
+@router.post("", responses={422: {"description": "Validation error"}})
 async def create_or_update_classification(
     account_name: str,
     account_type: str,
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
 ) -> dict[str, Any]:
     """Create or update an account classification.
 
@@ -117,7 +115,7 @@ async def create_or_update_classification(
 async def delete_classification(
     account_name: str,
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
 ) -> dict[str, Any]:
     """Delete an account classification (resets to Other).
 
@@ -144,11 +142,11 @@ async def delete_classification(
     }
 
 
-@router.get("/type/{account_type}")
+@router.get("/type/{account_type}", responses={422: {"description": "Validation error"}})
 async def get_accounts_by_type(
     account_type: str,
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
 ) -> dict[str, Any]:
     """Get all accounts of a specific type for the current user.
 

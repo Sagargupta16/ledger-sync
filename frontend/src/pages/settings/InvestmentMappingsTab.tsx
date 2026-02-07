@@ -90,6 +90,8 @@ export default function InvestmentMappingsTab({
           {INVESTMENT_TYPES.map((type) => (
             <div
               key={type.value}
+              role="region"
+              aria-label={`Drop zone for ${type.label}`}
               onDragOver={onDragOver}
               onDrop={() => onDropOnInvestmentType(type.value)}
               className={`bg-white/5 rounded-xl border-2 border-dashed p-4 transition-all min-h-[180px] ${

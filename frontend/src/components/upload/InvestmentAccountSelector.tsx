@@ -51,7 +51,10 @@ export default function InvestmentAccountSelector() {
         {accounts.map((account) => (
           <div
             key={account.name}
+            role="button"
+            tabIndex={0}
             onClick={() => handleToggle(account.name)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggle(account.name) } }}
             className="p-4 glass rounded-lg border border-white/10 cursor-pointer hover:border-primary/50 transition-all group"
           >
             <div className="flex items-center justify-between">

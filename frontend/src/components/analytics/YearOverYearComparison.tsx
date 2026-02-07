@@ -75,7 +75,7 @@ export default function YearOverYearComparison() {
     fyData.forEach((fy) => {
       Object.keys(fy.categories).forEach((cat) => cats.add(cat))
     })
-    return Array.from(cats).sort()
+    return Array.from(cats).sort((a, b) => a.localeCompare(b))
   }, [fyData])
 
   // Compare latest two FYs

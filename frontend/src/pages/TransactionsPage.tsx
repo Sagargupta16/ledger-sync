@@ -133,11 +133,11 @@ export default function TransactionsPage() {
 
   // Extract unique categories and accounts for filter dropdowns
   const categories = useMemo(() => {
-    return Array.from(new Set(allTransactions.map((t) => t.category))).sort()
+    return Array.from(new Set(allTransactions.map((t) => t.category))).sort((a, b) => a.localeCompare(b))
   }, [allTransactions])
 
   const accounts = useMemo(() => {
-    return Array.from(new Set(allTransactions.map((t) => t.account))).sort()
+    return Array.from(new Set(allTransactions.map((t) => t.account))).sort((a, b) => a.localeCompare(b))
   }, [allTransactions])
 
   return (

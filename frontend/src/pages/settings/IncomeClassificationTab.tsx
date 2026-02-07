@@ -122,6 +122,8 @@ export default function IncomeClassificationTab({
             return (
               <div
                 key={classType.value}
+                role="region"
+                aria-label={`Drop zone for ${classType.label}`}
                 onDragOver={onDragOver}
                 onDrop={() =>
                   onDropOnIncomeClassification(

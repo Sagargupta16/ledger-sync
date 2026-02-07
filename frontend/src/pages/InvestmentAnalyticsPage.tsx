@@ -23,7 +23,7 @@ const CATEGORY_COLORS: Record<InvestmentCategory, string> = {
 // Map investment types from preferences to our 4 categories
 // Handles both raw values (stocks, mutual_funds) and formatted names (Stocks, Mutual Funds)
 const mapToCategory = (investmentType: string): InvestmentCategory => {
-  const type = investmentType.toLowerCase().replace(/[_\s]/g, '')
+  const type = investmentType.toLowerCase().replaceAll(/[_\s]/g, '')
   
   // Check for stocks (handles: stocks, stock, equity, share, demat, rsu)
   if (type === 'stocks' || type === 'stock' || type.includes('equity') || type.includes('share') || type.includes('demat') || type.includes('rsu')) {
@@ -277,7 +277,7 @@ export default function InvestmentAnalyticsPage() {
     const chartData = allMonths.map(month => {
       const [yearStr, monthNum] = month.split('-')
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-      const displayMonth = `${monthNames[parseInt(monthNum) - 1]} ${yearStr.slice(2)}`
+      const displayMonth = `${monthNames[Number.parseInt(monthNum) - 1]} ${yearStr.slice(2)}`
       
       const dataPoint: Record<string, string | number> = { month: displayMonth, fullMonth: month }
       
@@ -465,7 +465,7 @@ export default function InvestmentAnalyticsPage() {
                 <AreaChart data={monthlyGrowthData}>
                   <defs>
                     {INVESTMENT_CATEGORIES.map((category) => (
-                      <linearGradient key={`gradient-${category}`} id={`color-${category.replace(/[\s/]/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient key={`gradient-${category}`} id={`color-${category.replaceAll(/[\s/]/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.8}/>
                         <stop offset="95%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.2}/>
                       </linearGradient>
@@ -502,7 +502,7 @@ export default function InvestmentAnalyticsPage() {
                       stroke={CATEGORY_COLORS[category]} 
                       strokeWidth={2}
                       fillOpacity={1} 
-                      fill={`url(#color-${category.replace(/[\s/]/g, '-')})`}
+                      fill={`url(#color-${category.replaceAll(/[\s/]/g, '-')})`}
                     />
                   ))}
                 </AreaChart>

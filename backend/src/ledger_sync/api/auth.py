@@ -7,10 +7,8 @@ token refresh, and profile management.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-from ledger_sync.api.deps import CurrentUser
-from ledger_sync.db.session import get_session
+from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.schemas.auth import (
     MessageResponse,
     RefreshTokenRequest,
@@ -31,7 +29,7 @@ router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
 
 def get_auth_service(
-    session: Annotated[Session, Depends(get_session)],
+    session: DatabaseSession,
 ) -> AuthService:
     """Get auth service instance with database session.
 
@@ -54,7 +52,7 @@ AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 # =============================================================================
 
 
-@router.post("/register", response_model=Token, status_code=201)
+@router.post("/register", status_code=201)
 def register(user_data: UserRegister, auth_service: AuthServiceDep) -> Token:
     """Register a new user.
 
@@ -72,7 +70,7 @@ def register(user_data: UserRegister, auth_service: AuthServiceDep) -> Token:
     return auth_service.register(user_data)
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login")
 def login(credentials: UserLogin, auth_service: AuthServiceDep) -> Token:
     """Login with email and password.
 
@@ -90,7 +88,7 @@ def login(credentials: UserLogin, auth_service: AuthServiceDep) -> Token:
     return auth_service.login(credentials)
 
 
-@router.post("/refresh", response_model=Token)
+@router.post("/refresh")
 def refresh_token(request: RefreshTokenRequest, auth_service: AuthServiceDep) -> Token:
     """Refresh access token using refresh token.
 
@@ -108,7 +106,7 @@ def refresh_token(request: RefreshTokenRequest, auth_service: AuthServiceDep) ->
     return auth_service.refresh_tokens(request.refresh_token)
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me")
 def get_me(current_user: CurrentUser, auth_service: AuthServiceDep) -> UserResponse:
     """Get current user profile.
 
@@ -123,7 +121,7 @@ def get_me(current_user: CurrentUser, auth_service: AuthServiceDep) -> UserRespo
     return auth_service.get_user_response(current_user)
 
 
-@router.post("/logout", response_model=MessageResponse)
+@router.post("/logout")
 def logout(current_user: CurrentUser) -> MessageResponse:
     """Logout current user.
 
@@ -140,7 +138,7 @@ def logout(current_user: CurrentUser) -> MessageResponse:
     return MessageResponse(message="Successfully logged out")
 
 
-@router.put("/me", response_model=UserResponse)
+@router.put("/me")
 def update_profile(
     current_user: CurrentUser,
     auth_service: AuthServiceDep,
@@ -161,7 +159,7 @@ def update_profile(
     return auth_service.get_user_response(updated_user)
 
 
-@router.delete("/account", response_model=MessageResponse)
+@router.delete("/account")
 def delete_account(
     current_user: CurrentUser,
     auth_service: AuthServiceDep,
@@ -183,7 +181,7 @@ def delete_account(
     return MessageResponse(message="Account and all data permanently deleted")
 
 
-@router.post("/account/reset", response_model=MessageResponse)
+@router.post("/account/reset")
 def reset_account(
     current_user: CurrentUser,
     auth_service: AuthServiceDep,

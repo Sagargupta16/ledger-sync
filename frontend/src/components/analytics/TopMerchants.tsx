@@ -34,8 +34,8 @@ export default function TopMerchants() {
         // Clean up common patterns
         let merchantName = note
           .split(/[-–—|,/]/)[0] // Split by common separators
-          .replace(/\d{4,}/g, '') // Remove long numbers (card numbers, refs)
-          .replace(/\s+/g, ' ')
+          .replaceAll(/\d{4,}/g, '') // Remove long numbers (card numbers, refs)
+          .replaceAll(/\s+/g, ' ')
           .trim()
 
         // Skip if too short or too generic

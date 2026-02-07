@@ -171,7 +171,7 @@ export default function FinancialHealthScore() {
       // Transfer type that's not investment is ignored (internal transfers)
     })
 
-    const months = Object.keys(monthlyData).sort()
+    const months = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
 
     // Remove current month if it's incomplete (less than 15 days in)
     const today = new Date()

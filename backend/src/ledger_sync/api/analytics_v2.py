@@ -7,13 +7,12 @@ All aggregation tables are scoped to user_id for multi-user safety.
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import desc
-from sqlalchemy.orm import Session
 
-from ledger_sync.api.deps import CurrentUser
+from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import (
     Anomaly,
     Budget,
@@ -26,7 +25,6 @@ from ledger_sync.db.models import (
     RecurringTransaction,
     TransferFlow,
 )
-from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
 
@@ -34,10 +32,10 @@ router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
 @router.get("/monthly-summaries")
 def get_monthly_summaries(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_period: str | None = Query(None, description="Start period (YYYY-MM)"),
-    end_period: str | None = Query(None, description="End period (YYYY-MM)"),
-    limit: int = Query(24, ge=1, le=120, description="Number of months to return"),
+    db: DatabaseSession,
+    start_period: Annotated[str | None, Query(description="Start period (YYYY-MM)")] = None,
+    end_period: Annotated[str | None, Query(description="End period (YYYY-MM)")] = None,
+    limit: Annotated[int, Query(ge=1, le=120, description="Number of months to return")] = 24,
 ) -> dict[str, Any]:
     """Get pre-calculated monthly summaries.
 
@@ -104,12 +102,14 @@ def get_monthly_summaries(
 @router.get("/category-trends")
 def get_category_trends(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    category: str | None = Query(None, description="Filter by category"),
-    transaction_type: str | None = Query(None, description="Filter by type (Income/Expense)"),
-    start_period: str | None = Query(None, description="Start period (YYYY-MM)"),
-    end_period: str | None = Query(None, description="End period (YYYY-MM)"),
-    limit: int = Query(100, ge=1, le=500),
+    db: DatabaseSession,
+    category: Annotated[str | None, Query(description="Filter by category")] = None,
+    transaction_type: Annotated[
+        str | None, Query(description="Filter by type (Income/Expense)")
+    ] = None,
+    start_period: Annotated[str | None, Query(description="Start period (YYYY-MM)")] = None,
+    end_period: Annotated[str | None, Query(description="End period (YYYY-MM)")] = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> dict[str, Any]:
     """Get category-level trends over time.
 
@@ -163,9 +163,9 @@ def get_category_trends(
 @router.get("/transfer-flows")
 def get_transfer_flows(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    min_amount: float | None = Query(None, description="Minimum total amount"),
-    min_count: int | None = Query(None, description="Minimum transaction count"),
+    db: DatabaseSession,
+    min_amount: Annotated[float | None, Query(description="Minimum total amount")] = None,
+    min_count: Annotated[int | None, Query(description="Minimum transaction count")] = None,
 ) -> dict[str, Any]:
     """Get aggregated transfer flows between accounts.
 
@@ -214,9 +214,11 @@ def get_transfer_flows(
 @router.get("/recurring-transactions")
 def get_recurring_transactions(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    active_only: bool = Query(True, description="Only show active recurring patterns"),
-    min_confidence: float = Query(50, ge=0, le=100, description="Minimum confidence score"),
+    db: DatabaseSession,
+    active_only: Annotated[bool, Query(description="Only show active recurring patterns")] = True,
+    min_confidence: Annotated[
+        float, Query(ge=0, le=100, description="Minimum confidence score")
+    ] = 50,
 ) -> dict[str, Any]:
     """Get detected recurring transaction patterns.
 
@@ -278,10 +280,10 @@ def get_recurring_transactions(
 @router.get("/merchant-intelligence")
 def get_merchant_intelligence(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    min_transactions: int = Query(3, ge=1, description="Minimum transaction count"),
-    recurring_only: bool = Query(False, description="Only show recurring merchants"),
-    limit: int = Query(50, ge=1, le=200),
+    db: DatabaseSession,
+    min_transactions: Annotated[int, Query(ge=1, description="Minimum transaction count")] = 3,
+    recurring_only: Annotated[bool, Query(description="Only show recurring merchants")] = False,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> dict[str, Any]:
     """Get merchant/vendor intelligence.
 
@@ -331,8 +333,8 @@ def get_merchant_intelligence(
 @router.get("/net-worth")
 def get_net_worth_history(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    limit: int = Query(12, ge=1, le=120, description="Number of snapshots"),
+    db: DatabaseSession,
+    limit: Annotated[int, Query(ge=1, le=120, description="Number of snapshots")] = 12,
 ) -> dict[str, Any]:
     """Get net worth history and current snapshot.
 
@@ -394,7 +396,7 @@ def get_net_worth_history(
 @router.get("/fy-summaries")
 def get_fy_summaries(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
 ) -> dict[str, Any]:
     """Get fiscal year summaries (April - March).
 
@@ -447,10 +449,12 @@ def get_fy_summaries(
 @router.get("/anomalies")
 def get_anomalies(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    severity: str | None = Query(None, description="Filter by severity (low/medium/high/critical)"),
-    unreviewed_only: bool = Query(True, description="Only show unreviewed anomalies"),
-    limit: int = Query(50, ge=1, le=200),
+    db: DatabaseSession,
+    severity: Annotated[
+        str | None, Query(description="Filter by severity (low/medium/high/critical)")
+    ] = None,
+    unreviewed_only: Annotated[bool, Query(description="Only show unreviewed anomalies")] = True,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> dict[str, Any]:
     """Get detected anomalies and unusual patterns.
 
@@ -505,9 +509,9 @@ def get_anomalies(
 def review_anomaly(
     anomaly_id: int,
     current_user: CurrentUser,
-    dismiss: bool = Query(False, description="Dismiss the anomaly"),
-    notes: str | None = Query(None, description="Review notes"),
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
+    dismiss: Annotated[bool, Query(description="Dismiss the anomaly")] = False,
+    notes: Annotated[str | None, Query(description="Review notes")] = None,
 ) -> dict[str, Any]:
     """Mark an anomaly as reviewed."""
     anomaly = (
@@ -535,8 +539,8 @@ def review_anomaly(
 @router.get("/budgets")
 def get_budgets(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    active_only: bool = Query(True),
+    db: DatabaseSession,
+    active_only: Annotated[bool, Query()] = True,
 ) -> dict[str, Any]:
     """Get budget tracking data."""
     query = db.query(Budget).filter(Budget.user_id == current_user.id)
@@ -572,9 +576,9 @@ def create_budget(
     category: str,
     monthly_limit: float,
     current_user: CurrentUser,
+    db: DatabaseSession,
     subcategory: str | None = None,
     alert_threshold: float = 80,
-    db: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """Create a new budget."""
     budget = Budget(
@@ -596,8 +600,10 @@ def create_budget(
 @router.get("/goals")
 def get_financial_goals(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    status: str | None = Query(None, description="Filter by status (active/completed/paused)"),
+    db: DatabaseSession,
+    status: Annotated[
+        str | None, Query(description="Filter by status (active/completed/paused)")
+    ] = None,
 ) -> dict[str, Any]:
     """Get financial goals."""
     query = db.query(FinancialGoal).filter(FinancialGoal.user_id == current_user.id)
@@ -633,10 +639,10 @@ def create_goal(
     name: str,
     target_amount: float,
     current_user: CurrentUser,
+    db: DatabaseSession,
     goal_type: str = "savings",
     description: str | None = None,
     target_date: datetime | None = None,
-    db: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """Create a new financial goal."""
     from ledger_sync.db.models import GoalStatus

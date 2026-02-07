@@ -15,14 +15,13 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ledger_sync.api.deps import CurrentUser
+from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import User, UserPreferences
-from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/preferences", tags=["preferences"])
 
@@ -170,8 +169,8 @@ class UserPreferencesResponse(BaseModel):
     recurring_auto_confirm_occurrences: int
 
     # Metadata
-    created_at: datetime | None
-    updated_at: datetime | None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     class Config:
         """Pydantic model configuration."""
@@ -279,21 +278,21 @@ def _get_or_create_preferences(session: Session, user: User) -> UserPreferences:
 # ----- API Endpoints -----
 
 
-@router.get("", response_model=UserPreferencesResponse)
+@router.get("")
 def get_preferences(
     current_user: CurrentUser,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Get current user preferences."""
     prefs = _get_or_create_preferences(session, current_user)
     return _model_to_response(prefs)
 
 
-@router.put("", response_model=UserPreferencesResponse)
+@router.put("")
 def update_preferences(
     current_user: CurrentUser,
     updates: UserPreferencesUpdate,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update user preferences (partial update supported)."""
     prefs = _get_or_create_preferences(session, current_user)
@@ -314,10 +313,10 @@ def update_preferences(
     return _model_to_response(prefs)
 
 
-@router.post("/reset", response_model=UserPreferencesResponse)
+@router.post("/reset")
 def reset_preferences(
     current_user: CurrentUser,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Reset all preferences to defaults (empty values for data-dependent fields)."""
     prefs = _get_or_create_preferences(session, current_user)
@@ -355,11 +354,11 @@ def reset_preferences(
 # ----- Section-specific endpoints for granular updates -----
 
 
-@router.put("/fiscal-year", response_model=UserPreferencesResponse)
+@router.put("/fiscal-year")
 def update_fiscal_year(
     current_user: CurrentUser,
     config: FiscalYearConfig,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update fiscal year configuration."""
     prefs = _get_or_create_preferences(session, current_user)
@@ -370,11 +369,11 @@ def update_fiscal_year(
     return _model_to_response(prefs)
 
 
-@router.put("/essential-categories", response_model=UserPreferencesResponse)
+@router.put("/essential-categories")
 def update_essential_categories(
     current_user: CurrentUser,
     config: EssentialCategoriesConfig,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update essential categories list."""
     prefs = _get_or_create_preferences(session, current_user)
@@ -385,11 +384,11 @@ def update_essential_categories(
     return _model_to_response(prefs)
 
 
-@router.put("/investment-mappings", response_model=UserPreferencesResponse)
+@router.put("/investment-mappings")
 def update_investment_mappings(
     current_user: CurrentUser,
     config: InvestmentMappingsConfig,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update investment account mappings."""
     prefs = _get_or_create_preferences(session, current_user)
@@ -400,11 +399,11 @@ def update_investment_mappings(
     return _model_to_response(prefs)
 
 
-@router.put("/income-sources", response_model=UserPreferencesResponse)
+@router.put("/income-sources")
 def update_income_sources(
     current_user: CurrentUser,
     config: IncomeSourcesConfig,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update income source category mappings."""
     prefs = _get_or_create_preferences(session, current_user)
@@ -418,11 +417,11 @@ def update_income_sources(
     return _model_to_response(prefs)
 
 
-@router.put("/budget-defaults", response_model=UserPreferencesResponse)
+@router.put("/budget-defaults")
 def update_budget_defaults(
     current_user: CurrentUser,
     config: BudgetDefaultsConfig,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update budget default settings."""
     prefs = _get_or_create_preferences(session, current_user)
@@ -435,11 +434,11 @@ def update_budget_defaults(
     return _model_to_response(prefs)
 
 
-@router.put("/display", response_model=UserPreferencesResponse)
+@router.put("/display")
 def update_display_preferences(
     current_user: CurrentUser,
     config: DisplayPreferencesConfig,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update display and format preferences."""
     prefs = _get_or_create_preferences(session, current_user)
@@ -453,11 +452,11 @@ def update_display_preferences(
     return _model_to_response(prefs)
 
 
-@router.put("/anomaly-settings", response_model=UserPreferencesResponse)
+@router.put("/anomaly-settings")
 def update_anomaly_settings(
     current_user: CurrentUser,
     config: AnomalySettingsConfig,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update anomaly detection settings."""
     prefs = _get_or_create_preferences(session, current_user)
@@ -470,11 +469,11 @@ def update_anomaly_settings(
     return _model_to_response(prefs)
 
 
-@router.put("/recurring-settings", response_model=UserPreferencesResponse)
+@router.put("/recurring-settings")
 def update_recurring_settings(
     current_user: CurrentUser,
     config: RecurringSettingsConfig,
-    session: Session = Depends(get_session),
+    session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update recurring transaction detection settings."""
     prefs = _get_or_create_preferences(session, current_user)

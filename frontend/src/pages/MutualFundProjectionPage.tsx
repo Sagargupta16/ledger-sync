@@ -237,7 +237,7 @@ export default function MutualFundProjectionPage() {
       .sort((a, b) => a[0].localeCompare(b[0]))
       .forEach(([monthKey, invested]) => {
         const [year, month] = monthKey.split('-')
-        const date = new Date(parseInt(year), parseInt(month) - 1)
+        const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1)
         const monthLabel = date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
         
         // Distribute gains proportionally based on invested amount

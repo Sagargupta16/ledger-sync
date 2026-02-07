@@ -152,7 +152,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
           <table className="w-full">
             <thead className="bg-muted/20 border-b border-white/10">
               <tr>
-                {[...Array(6)].map((_, i) => (
+                {[...new Array(6)].map((_, i) => (
                   <th key={i} className="px-6 py-3 text-left">
                     <div className="h-4 bg-muted rounded w-20 animate-pulse" />
                   </th>
@@ -160,9 +160,9 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
               </tr>
             </thead>
             <tbody>
-              {[...Array(10)].map((_, i) => (
+              {[...new Array(10)].map((_, i) => (
                 <tr key={i} className="border-b border-white/5">
-                  {[...Array(6)].map((_, j) => (
+                  {[...new Array(6)].map((_, j) => (
                     <td key={j} className="px-6 py-4">
                       <div className="h-4 bg-muted rounded w-full animate-pulse" />
                     </td>

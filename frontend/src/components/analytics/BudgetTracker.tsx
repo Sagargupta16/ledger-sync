@@ -45,7 +45,7 @@ export default function BudgetTracker() {
         cats.add(tx.category)
       }
     })
-    return Array.from(cats).sort()
+    return Array.from(cats).sort((a, b) => a.localeCompare(b))
   }, [categoryData, transactions])
 
   // Budget status
@@ -77,7 +77,7 @@ export default function BudgetTracker() {
 
   const handleAddBudget = () => {
     if (newCategory && newLimit) {
-      setBudget(newCategory, parseFloat(newLimit))
+      setBudget(newCategory, Number.parseFloat(newLimit))
       setNewCategory('')
       setNewLimit('')
       setIsAdding(false)
@@ -242,10 +242,10 @@ export default function BudgetTracker() {
                     <input
                       type="number"
                       defaultValue={budget.limit}
-                      onBlur={(e) => handleEditBudget(budget.category, parseFloat(e.target.value))}
+                      onBlur={(e) => handleEditBudget(budget.category, Number.parseFloat(e.target.value))}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                          handleEditBudget(budget.category, parseFloat((e.target as HTMLInputElement).value))
+                          handleEditBudget(budget.category, Number.parseFloat((e.target as HTMLInputElement).value))
                         }
                       }}
                       className="w-24 px-2 py-1 rounded bg-background/50 border border-white/20 text-sm"

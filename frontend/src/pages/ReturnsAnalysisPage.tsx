@@ -246,7 +246,7 @@ export default function ReturnsAnalysisPage() {
     })
     
     // Sort by month and calculate cumulative
-    const sortedMonths = Object.keys(monthlyData).sort()
+    const sortedMonths = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
     
     return sortedMonths.reduce<Array<{ month: string; cumulative: number; monthlyNet: number }>>((acc, month) => {
       const net = monthlyData[month].income - monthlyData[month].expenses

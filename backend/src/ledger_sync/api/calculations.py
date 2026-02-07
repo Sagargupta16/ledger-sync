@@ -1,22 +1,28 @@
 """Calculation API endpoints - All financial calculations."""
 
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from sqlalchemy.orm import Session
 
-from ledger_sync.api.deps import CurrentUser
+from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import Transaction, TransactionType, User
-from ledger_sync.db.session import get_session
 
 router = APIRouter(prefix="/api/calculations", tags=["calculations"])
+
+# Annotated type aliases for common query parameters
+OptionalStartDate = Annotated[datetime | None, Query()]
+OptionalEndDate = Annotated[datetime | None, Query()]
+OptionalTransactionType = Annotated[
+    str | None, Query(description="Filter by type: Income or Expense")
+]
 
 
 @router.get("/categories/master")
 def get_master_categories(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
+    db: DatabaseSession,
 ) -> dict[str, Any]:
     """Get all unique categories and subcategories organized by transaction type.
 
@@ -113,9 +119,9 @@ def get_transactions(
 @router.get("/totals")
 def get_totals(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None),
-    end_date: datetime | None = Query(None),
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate total income, expenses, and net savings."""
     transactions = get_transactions(db, current_user, start_date, end_date)
@@ -145,9 +151,9 @@ def get_totals(
 @router.get("/monthly-aggregation")
 def get_monthly_aggregation(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None),
-    end_date: datetime | None = Query(None),
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate monthly income and expense aggregation."""
     transactions = get_transactions(db, current_user, start_date, end_date)
@@ -191,9 +197,9 @@ def get_monthly_aggregation(
 @router.get("/yearly-aggregation")
 def get_yearly_aggregation(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None),
-    end_date: datetime | None = Query(None),
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate yearly income and expense aggregation."""
     transactions = get_transactions(db, current_user, start_date, end_date)
@@ -241,10 +247,10 @@ def get_yearly_aggregation(
 @router.get("/category-breakdown")
 def get_category_breakdown(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None),
-    end_date: datetime | None = Query(None),
-    transaction_type: str | None = Query(None, description="Filter by type: Income or Expense"),
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
+    transaction_type: OptionalTransactionType = None,
 ) -> dict[str, Any]:
     """Calculate spending/income breakdown by category and subcategory."""
     transactions = get_transactions(db, current_user, start_date, end_date)
@@ -293,87 +299,75 @@ def get_category_breakdown(
     }
 
 
-@router.get("/account-balances")
-def get_account_balances(
-    current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None),
-    end_date: datetime | None = Query(None),
-) -> dict[str, Any]:
-    """Calculate current balance for each account including transfers."""
-    transactions = get_transactions(db, current_user, start_date, end_date)
+def _ensure_account(balances: dict[str, dict[str, Any]], account: str) -> None:
+    """Initialize an account entry in the balances dict if it does not exist."""
+    if account not in balances:
+        balances[account] = {
+            "balance": 0,
+            "transactions": 0,
+            "last_transaction": None,
+        }
 
-    # Note: Transfers are now stored in transactions table with type='Transfer'
-    # No need for separate transfer query
 
-    account_balances: dict[str, dict[str, Any]] = {}
+def _update_last_transaction_date(account_info: dict[str, Any], tx_date: datetime) -> None:
+    """Update last_transaction date if the given date is more recent."""
+    if account_info["last_transaction"] is None or tx_date > account_info["last_transaction"]:
+        account_info["last_transaction"] = tx_date
 
-    # Process regular transactions
+
+def _process_regular_transactions(
+    transactions: list[Transaction],
+    balances: dict[str, dict[str, Any]],
+) -> None:
+    """Accumulate balances for income and expense transactions."""
     for tx in transactions:
         account = tx.account or "Unknown"
-
-        if account not in account_balances:
-            account_balances[account] = {
-                "balance": 0,
-                "transactions": 0,
-                "last_transaction": None,
-            }
+        _ensure_account(balances, account)
 
         amount = abs(float(tx.amount))
         if tx.type == TransactionType.INCOME:
-            account_balances[account]["balance"] += amount
+            balances[account]["balance"] += amount
         elif tx.type == TransactionType.EXPENSE:
-            account_balances[account]["balance"] -= amount
+            balances[account]["balance"] -= amount
 
-        account_balances[account]["transactions"] += 1
+        balances[account]["transactions"] += 1
+        _update_last_transaction_date(balances[account], tx.date)
 
-        # Update last transaction date
-        if (
-            account_balances[account]["last_transaction"] is None
-            or tx.date > account_balances[account]["last_transaction"]
-        ):
-            account_balances[account]["last_transaction"] = tx.date
 
-    # Process transfers from transactions table (type='Transfer')
-    # Transfers now have from_account and to_account fields
+def _process_transfer_transactions(
+    transactions: list[Transaction],
+    balances: dict[str, dict[str, Any]],
+) -> None:
+    """Apply transfer transactions: debit source, credit destination."""
     transfer_txs = [tx for tx in transactions if tx.type == TransactionType.TRANSFER]
     for tx in transfer_txs:
         amount = abs(float(tx.amount))
         src = tx.from_account or "Unknown"
         dst = tx.to_account or "Unknown"
 
-        # Initialize accounts if needed
         for acc in (src, dst):
-            if acc not in account_balances:
-                account_balances[acc] = {
-                    "balance": 0,
-                    "transactions": 0,
-                    "last_transaction": None,
-                }
+            _ensure_account(balances, acc)
 
-        # Apply formula: +to_account, -from_account
-        account_balances[src]["balance"] -= amount
-        account_balances[dst]["balance"] += amount
+        balances[src]["balance"] -= amount
+        balances[dst]["balance"] += amount
 
-        # Update transaction counts and dates
         for acc in (src, dst):
-            account_balances[acc]["transactions"] += 1
-            if (
-                account_balances[acc]["last_transaction"] is None
-                or tx.date > account_balances[acc]["last_transaction"]
-            ):
-                account_balances[acc]["last_transaction"] = tx.date
+            balances[acc]["transactions"] += 1
+            _update_last_transaction_date(balances[acc], tx.date)
 
-    # Calculate statistics
-    total_balance = sum(acc["balance"] for acc in account_balances.values())
-    total_accounts = len(account_balances)
+
+def _compute_account_statistics(
+    balances: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Compute summary statistics and serialize account data for the response."""
+    total_balance = sum(acc["balance"] for acc in balances.values())
+    total_accounts = len(balances)
     average_balance = total_balance / total_accounts if total_accounts > 0 else 0
-    positive_accounts = sum(1 for acc in account_balances.values() if acc["balance"] > 0)
-    negative_accounts = sum(1 for acc in account_balances.values() if acc["balance"] < 0)
+    positive_accounts = sum(1 for acc in balances.values() if acc["balance"] > 0)
+    negative_accounts = sum(1 for acc in balances.values() if acc["balance"] < 0)
 
-    # Convert last_transaction datetimes to isoformat for response
     serialized_accounts: dict[str, dict[str, Any]] = {}
-    for acc, info in account_balances.items():
+    for acc, info in balances.items():
         serialized_accounts[acc] = {
             "balance": info["balance"],
             "transactions": info["transactions"],
@@ -394,12 +388,83 @@ def get_account_balances(
     }
 
 
+@router.get("/account-balances")
+def get_account_balances(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
+) -> dict[str, Any]:
+    """Calculate current balance for each account including transfers."""
+    transactions = get_transactions(db, current_user, start_date, end_date)
+
+    account_balances: dict[str, dict[str, Any]] = {}
+    _process_regular_transactions(transactions, account_balances)
+    _process_transfer_transactions(transactions, account_balances)
+
+    return _compute_account_statistics(account_balances)
+
+
+def _build_category_analysis(
+    expenses: list[Transaction],
+) -> tuple[dict[str, float], dict[str, int]]:
+    """Accumulate expense totals and counts per category."""
+    category_totals: dict[str, float] = {}
+    category_counts: dict[str, int] = {}
+    for tx in expenses:
+        cat = tx.category or "Uncategorized"
+        category_totals[cat] = category_totals.get(cat, 0) + float(tx.amount)
+        category_counts[cat] = category_counts.get(cat, 0) + 1
+    return category_totals, category_counts
+
+
+def _find_unusual_spending(
+    expenses: list[Transaction],
+    category_totals: dict[str, float],
+    category_counts: dict[str, int],
+) -> list[dict[str, Any]]:
+    """Identify transactions exceeding 2x their category average, returning top 5."""
+    unusual: list[dict[str, Any]] = []
+    for category, total in category_totals.items():
+        avg_amount = total / category_counts[category]
+        threshold = avg_amount * 2
+
+        for tx in expenses:
+            if (tx.category or "Uncategorized") != category:
+                continue
+            tx_amount = float(tx.amount)
+            if tx_amount > threshold:
+                unusual.append(
+                    {
+                        "category": category,
+                        "amount": tx_amount,
+                        "average_amount": avg_amount,
+                        "deviation": ((tx_amount - avg_amount) / avg_amount * 100),
+                        "date": tx.date.isoformat(),
+                    },
+                )
+    return unusual[:5]
+
+
+def _calculate_expense_averages(
+    total_expenses: float,
+    start_date: datetime | None,
+    end_date: datetime | None,
+) -> tuple[float, float]:
+    """Return (average_daily_expense, average_monthly_expense)."""
+    day_count = (end_date - start_date).days if start_date and end_date else 30
+    month_count = max(day_count / 30.44, 1)  # 365.25/12 avg days per month
+    average_daily = total_expenses / day_count if day_count > 0 else 0
+    average_monthly = total_expenses / month_count if month_count > 0 else 0
+    return average_daily, average_monthly
+
+
 @router.get("/insights")
 def get_financial_insights(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None),
-    end_date: datetime | None = Query(None),
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate comprehensive financial insights."""
     transactions = get_transactions(db, current_user, start_date, end_date)
@@ -410,51 +475,17 @@ def get_financial_insights(
     total_income = sum(float(tx.amount) for tx in income)
     total_expenses = sum(float(tx.amount) for tx in expenses)
 
-    # Category analysis
-    category_totals: dict[str, float] = {}
-    category_counts: dict[str, int] = {}
+    category_totals, category_counts = _build_category_analysis(expenses)
 
-    for tx in expenses:
-        cat = tx.category or "Uncategorized"
-        category_totals[cat] = category_totals.get(cat, 0) + float(tx.amount)
-        category_counts[cat] = category_counts.get(cat, 0) + 1
-
-    # Top expense category
     top_category = max(category_totals.items(), key=lambda x: x[1]) if category_totals else ("", 0)
-
-    # Most frequent category
     most_frequent = max(category_counts.items(), key=lambda x: x[1]) if category_counts else ("", 0)
 
-    # Calculate averages
-    day_count = (end_date - start_date).days if start_date and end_date else 30
-    month_count = max(day_count / 30.44, 1)  # 365.25/12 avg days per month
-
-    average_daily_expense = total_expenses / day_count if day_count > 0 else 0
-    average_monthly_expense = total_expenses / month_count if month_count > 0 else 0
-
-    # Savings rate
+    average_daily_expense, average_monthly_expense = _calculate_expense_averages(
+        total_expenses, start_date, end_date
+    )
     savings_rate = ((total_income - total_expenses) / total_income * 100) if total_income > 0 else 0
-
-    # Largest transaction
     largest = max(expenses, key=lambda tx: float(tx.amount)) if expenses else None
-
-    # Unusual spending (transactions > 2x category average)
-    unusual_spending = []
-    for category, total in category_totals.items():
-        count = category_counts[category]
-        avg_amount = total / count
-
-        for tx in [t for t in expenses if (t.category or "Uncategorized") == category]:
-            if float(tx.amount) > avg_amount * 2:
-                unusual_spending.append(
-                    {
-                        "category": category,
-                        "amount": float(tx.amount),
-                        "average_amount": avg_amount,
-                        "deviation": ((float(tx.amount) - avg_amount) / avg_amount * 100),
-                        "date": tx.date.isoformat(),
-                    },
-                )
+    unusual_spending = _find_unusual_spending(expenses, category_totals, category_counts)
 
     return {
         "top_expense_category": {
@@ -470,7 +501,7 @@ def get_financial_insights(
         "average_monthly_expense": average_monthly_expense,
         "savings_rate": savings_rate,
         "largest_transaction": _format_largest_transaction(largest),
-        "unusual_spending": unusual_spending[:5],  # Top 5
+        "unusual_spending": unusual_spending,
         "total_income": total_income,
         "total_expenses": total_expenses,
     }
@@ -479,9 +510,9 @@ def get_financial_insights(
 @router.get("/daily-net-worth")
 def get_daily_net_worth(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None),
-    end_date: datetime | None = Query(None),
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate daily income and expense data for net worth trends."""
     transactions = get_transactions(db, current_user, start_date, end_date)
@@ -529,11 +560,11 @@ def get_daily_net_worth(
 @router.get("/top-categories")
 def get_top_categories(
     current_user: CurrentUser,
-    db: Session = Depends(get_session),
-    start_date: datetime | None = Query(None),
-    end_date: datetime | None = Query(None),
-    limit: int = Query(10, ge=1, le=50),
-    transaction_type: str | None = Query(None, description="Filter by type: Income or Expense"),
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    transaction_type: OptionalTransactionType = None,
 ) -> list[dict[str, Any]]:
     """Get top N categories by amount."""
     transactions = get_transactions(db, current_user, start_date, end_date)

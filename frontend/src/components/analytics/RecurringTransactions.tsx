@@ -97,7 +97,7 @@ export default function RecurringTransactions() {
       if (data.amounts.length < 2) return null // Need at least 2 occurrences for recurring
 
       // Sort dates
-      const sortedDates = [...data.dates].sort()
+      const sortedDates = [...data.dates].sort((a, b) => a.localeCompare(b))
 
       // Calculate intervals between transactions
       const intervals: number[] = []

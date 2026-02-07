@@ -67,11 +67,11 @@ class UserResponse(BaseModel):
 
     id: int
     email: str
-    full_name: str | None
+    full_name: str | None = None
     is_active: bool
     is_verified: bool
     created_at: str
-    last_login: str | None
+    last_login: str | None = None
 
     class Config:
         """Pydantic config."""
