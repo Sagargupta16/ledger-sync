@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Query as SAQuery
+from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import Transaction, TransactionType
@@ -132,6 +133,45 @@ def _apply_sorting(tx_query: SAQuery, sort_by: str, sort_order: str) -> SAQuery:
     return tx_query.order_by(sort_column.asc())
 
 
+def _to_transaction_response(tx: Transaction) -> TransactionResponse:
+    """Convert a Transaction model to a TransactionResponse."""
+    return TransactionResponse(
+        id=tx.transaction_id,
+        date=tx.date.isoformat(),
+        amount=float(tx.amount),
+        currency=tx.currency,
+        type=tx.type.value,
+        category=tx.category,
+        subcategory=tx.subcategory or "",
+        account=tx.account,
+        from_account=tx.from_account,
+        to_account=tx.to_account,
+        note=tx.note or "",
+        source_file=tx.source_file,
+        last_seen_at=tx.last_seen_at.isoformat(),
+        is_transfer=tx.type.value == "Transfer",
+    )
+
+
+def _base_transaction_query(db: Session, user_id: int) -> SAQuery:
+    """Create base query for non-deleted transactions filtered by user."""
+    return db.query(Transaction).filter(
+        Transaction.user_id == user_id,
+        Transaction.is_deleted.is_(False),
+    )
+
+
+def _apply_date_range(
+    query: SAQuery, start_date: datetime | None, end_date: datetime | None
+) -> SAQuery:
+    """Apply date range filters (converting datetime to date)."""
+    if start_date:
+        query = query.filter(Transaction.date >= start_date.date())
+    if end_date:
+        query = query.filter(Transaction.date <= end_date.date())
+    return query
+
+
 router = APIRouter(prefix="", tags=["transactions"])
 
 
@@ -158,17 +198,9 @@ async def get_transactions(
         Paginated list of transactions in JSON format
 
     """
-    # Build query - filter by user
-    query = db.query(Transaction).filter(
-        Transaction.user_id == current_user.id,
-        Transaction.is_deleted.is_(False),
-    )
-
-    # Apply date filters if provided
-    if start_date:
-        query = query.filter(Transaction.date >= start_date.date())
-    if end_date:
-        query = query.filter(Transaction.date <= end_date.date())
+    # Build query - filter by user and date range
+    query = _base_transaction_query(db, current_user.id)
+    query = _apply_date_range(query, start_date, end_date)
 
     # Get total count before pagination
     total = query.count()
@@ -176,29 +208,8 @@ async def get_transactions(
     # Apply sorting and pagination
     transactions = query.order_by(Transaction.date.desc()).offset(offset).limit(limit).all()
 
-    # Convert transactions to response objects
-    result = [
-        TransactionResponse(
-            id=tx.transaction_id,
-            date=tx.date.isoformat(),
-            amount=float(tx.amount),
-            currency=tx.currency,
-            type=tx.type.value,
-            category=tx.category,
-            subcategory=tx.subcategory or "",
-            account=tx.account,
-            from_account=tx.from_account,
-            to_account=tx.to_account,
-            note=tx.note or "",
-            source_file=tx.source_file,
-            last_seen_at=tx.last_seen_at.isoformat(),
-            is_transfer=tx.type.value == "Transfer",
-        )
-        for tx in transactions
-    ]
-
     return TransactionsListResponse(
-        data=result,
+        data=[_to_transaction_response(tx) for tx in transactions],
         total=total,
         limit=limit,
         offset=offset,
@@ -219,36 +230,12 @@ async def get_all_transactions(
     for client-side aggregation. No pagination overhead — one request, one
     response.
     """
-    query = db.query(Transaction).filter(
-        Transaction.user_id == current_user.id,
-        Transaction.is_deleted.is_(False),
-    )
-    if start_date:
-        query = query.filter(Transaction.date >= start_date.date())
-    if end_date:
-        query = query.filter(Transaction.date <= end_date.date())
+    query = _base_transaction_query(db, current_user.id)
+    query = _apply_date_range(query, start_date, end_date)
 
     transactions = query.order_by(Transaction.date.desc()).all()
 
-    return [
-        TransactionResponse(
-            id=tx.transaction_id,
-            date=tx.date.isoformat(),
-            amount=float(tx.amount),
-            currency=tx.currency,
-            type=tx.type.value,
-            category=tx.category,
-            subcategory=tx.subcategory or "",
-            account=tx.account,
-            from_account=tx.from_account,
-            to_account=tx.to_account,
-            note=tx.note or "",
-            source_file=tx.source_file,
-            last_seen_at=tx.last_seen_at.isoformat(),
-            is_transfer=tx.type.value == "Transfer",
-        )
-        for tx in transactions
-    ]
+    return [_to_transaction_response(tx) for tx in transactions]
 
 
 @router.get("/api/transactions/search")
@@ -283,10 +270,7 @@ async def search_transactions(
 
     """
     # Start with base query - filter by user
-    tx_query = db.query(Transaction).filter(
-        Transaction.user_id == current_user.id,
-        Transaction.is_deleted.is_(False),
-    )
+    tx_query = _base_transaction_query(db, current_user.id)
 
     # Apply all search filters
     tx_query = _apply_search_filters(tx_query, filters)
@@ -298,29 +282,8 @@ async def search_transactions(
     tx_query = _apply_sorting(tx_query, sort_by, sort_order)
     transactions = tx_query.offset(offset).limit(limit).all()
 
-    # Convert to result format
-    result = [
-        {
-            "id": tx.transaction_id,
-            "date": tx.date.isoformat(),
-            "amount": float(tx.amount),
-            "currency": tx.currency,
-            "type": tx.type.value,
-            "category": tx.category,
-            "subcategory": tx.subcategory or "",
-            "account": tx.account,
-            "from_account": tx.from_account,
-            "to_account": tx.to_account,
-            "note": tx.note or "",
-            "source_file": tx.source_file,
-            "last_seen_at": tx.last_seen_at.isoformat(),
-            "is_transfer": tx.type.value == "Transfer",
-        }
-        for tx in transactions
-    ]
-
     return {
-        "data": result,
+        "data": [_to_transaction_response(tx).model_dump() for tx in transactions],
         "total": total,
         "limit": limit,
         "offset": offset,
@@ -337,14 +300,8 @@ async def export_transactions(
     end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
 ):
     """Export all non-deleted transactions as CSV for the current user."""
-    query = db.query(Transaction).filter(
-        Transaction.user_id == current_user.id,
-        Transaction.is_deleted.is_(False),
-    )
-    if start_date:
-        query = query.filter(Transaction.date >= start_date.date())
-    if end_date:
-        query = query.filter(Transaction.date <= end_date.date())
+    query = _base_transaction_query(db, current_user.id)
+    query = _apply_date_range(query, start_date, end_date)
     transactions = query.all()
 
     output = io.StringIO()

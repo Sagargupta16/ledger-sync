@@ -1,27 +1,30 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { CHART_COLORS_WARM, CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
-import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 import { chartTooltipProps } from '@/components/ui'
+import { useTimeNavigation } from '@/hooks/useTimeNavigation'
+import { generateAllPeriods, formatDisplayPeriod, calculateCumulativeData } from '@/lib/chartPeriodUtils'
+import TimeNavigationControls from '@/components/analytics/TimeNavigationControls'
 
 const COLORS = CHART_COLORS_WARM.slice(0, 8) // Use first 8 colors
 
 export default function MultiCategoryTimeAnalysis() {
-  const [viewMode, setViewMode] = useState<'monthly' | 'yearly' | 'all_time'>('yearly')
+  const {
+    viewMode, setViewMode, currentYear, currentMonth,
+    handlePrevYear, handleNextYear, handlePrevMonth, handleNextMonth,
+  } = useTimeNavigation()
   const [cumulative, setCumulative] = useState(true)
-  const [currentYear, setCurrentYear] = useState(getCurrentYear())
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
 
   const { data: transactions } = useTransactions()
 
   // Process data for multi-category time analysis
   const { chartData, totalTransactions } = useMemo(() => {
     if (!transactions) return { chartData: [], totalTransactions: 0 }
-    
+
     const expenseTransactions = transactions.filter((t) => {
       if (t.type !== 'Expense') return false
       if (viewMode === 'yearly') {
@@ -33,9 +36,9 @@ export default function MultiCategoryTimeAnalysis() {
       }
       return true // all_time
     })
-    
+
     const groupedData: Record<string, Record<string, number>> = {}
-    
+
     expenseTransactions.forEach((tx) => {
       let period: string
       if (viewMode === 'monthly') {
@@ -49,13 +52,13 @@ export default function MultiCategoryTimeAnalysis() {
         const quarter = Math.ceil(month / 3)
         period = `${year}-Q${quarter}`
       }
-      
+
       if (!groupedData[period]) groupedData[period] = {}
       if (!groupedData[period][tx.category]) groupedData[period][tx.category] = 0
-      
+
       groupedData[period][tx.category] += Math.abs(tx.amount)
     })
-    
+
     // Get top 6 categories by total spending
     const categoryTotals: Record<string, number> = {}
     Object.values(groupedData).forEach((periodData) => {
@@ -63,65 +66,27 @@ export default function MultiCategoryTimeAnalysis() {
         categoryTotals[category] = (categoryTotals[category] || 0) + amount
       })
     })
-    
+
     const topCategories = Object.entries(categoryTotals)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 6)
       .map(([category]) => category)
-    
+
     // Convert to array format with all periods
-    let allPeriods: string[] = []
-    if (viewMode === 'monthly') {
-      // Show all days in the current month
-      const year = Number.parseInt(currentMonth.substring(0, 4))
-      const month = Number.parseInt(currentMonth.substring(5, 7))
-      const daysInMonth = new Date(year, month, 0).getDate()
-      allPeriods = Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'))
-    } else if (viewMode === 'yearly') {
-      // Show all 12 months for yearly view
-      allPeriods = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
-    } else {
-      // Get all quarters from data for all_time view
-      allPeriods = Object.keys(groupedData).sort((a, b) => a.localeCompare(b))
-    }
+    const allPeriods = generateAllPeriods(viewMode, currentMonth, groupedData)
 
     const data = allPeriods.map((period) => {
-      let displayPeriod: string
-      if (viewMode === 'monthly') {
-        displayPeriod = period
-      } else if (viewMode === 'yearly') {
-        displayPeriod = new Date(currentYear, Number.parseInt(period) - 1).toLocaleDateString('en-US', { month: 'short' })
-      } else {
-        displayPeriod = period
-      }
+      const displayPeriod = formatDisplayPeriod(period, viewMode, currentYear)
       const entry: Record<string, number | string> = { period, displayPeriod }
       topCategories.forEach((category) => {
         entry[category] = groupedData[period]?.[category] || 0
       })
       return entry
     })
-    
+
     // Calculate cumulative if needed
-    let finalData = data
-    if (cumulative) {
-      const cumulativeData: Record<string, number> = {}
-      topCategories.forEach((category) => {
-        cumulativeData[category] = 0
-      })
-      
-      finalData = data.map((entry) => {
-        const newEntry: Record<string, number | string> = { 
-          period: entry.period,
-          displayPeriod: entry.displayPeriod
-        }
-        topCategories.forEach((category) => {
-          cumulativeData[category] += (entry[category] as number) || 0
-          newEntry[category] = cumulativeData[category]
-        })
-        return newEntry
-      })
-    }
-    
+    const finalData = cumulative ? calculateCumulativeData(data, topCategories) : data
+
     return {
       chartData: finalData,
       totalTransactions: expenseTransactions.length,
@@ -147,21 +112,6 @@ export default function MultiCategoryTimeAnalysis() {
     a.download = 'multi-category-analysis.csv'
     a.click()
     URL.revokeObjectURL(url)
-  }
-
-  const handlePrevYear = () => setCurrentYear((prev) => prev - 1)
-  const handleNextYear = () => setCurrentYear((prev) => prev + 1)
-
-  const handlePrevMonth = () => {
-    const date = new Date(currentMonth + '-01')
-    date.setMonth(date.getMonth() - 1)
-    setCurrentMonth(date.toISOString().substring(0, 7))
-  }
-  
-  const handleNextMonth = () => {
-    const date = new Date(currentMonth + '-01')
-    date.setMonth(date.getMonth() + 1)
-    setCurrentMonth(date.toISOString().substring(0, 7))
   }
 
   return (
@@ -211,53 +161,17 @@ export default function MultiCategoryTimeAnalysis() {
           </div>
 
           {/* Navigation */}
-          {viewMode === 'monthly' && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handlePrevMonth}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
-                type="button"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="text-white font-medium min-w-30 text-center">
-                {new Date(currentMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </span>
-              <button
-                onClick={handleNextMonth}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
-                type="button"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              <span className="text-muted-foreground text-sm ml-2">{totalTransactions} expense transactions</span>
-            </div>
-          )}
-          {viewMode === 'yearly' && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handlePrevYear}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
-                type="button"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="text-white font-medium min-w-25 text-center">Year {currentYear}</span>
-              <button
-                onClick={handleNextYear}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
-                type="button"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              <span className="text-muted-foreground text-sm ml-2">{totalTransactions} expense transactions</span>
-            </div>
-          )}
-          {viewMode === 'all_time' && (
-            <div className="flex items-center gap-3">
-              <span className="text-muted-foreground text-sm">{totalTransactions} expense transactions</span>
-            </div>
-          )}
+          <TimeNavigationControls
+            viewMode={viewMode}
+            currentYear={currentYear}
+            currentMonth={currentMonth}
+            totalTransactions={totalTransactions}
+            transactionLabel="expense transactions"
+            handlePrevYear={handlePrevYear}
+            handleNextYear={handleNextYear}
+            handlePrevMonth={handlePrevMonth}
+            handleNextMonth={handleNextMonth}
+          />
         </div>
 
         {/* Chart */}

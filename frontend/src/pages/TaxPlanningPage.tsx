@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { formatCurrency } from '@/lib/formatters'
 import { classifyIncomeType } from '@/lib/preferencesUtils'
 import {
   FY_START_MONTH,
@@ -280,29 +279,6 @@ export default function TaxPlanningPage() {
         <PageHeader
           title="Tax Planning"
           subtitle="Estimate your tax liability and plan ahead"
-          action={
-            isCurrentFY && hasEmploymentIncome ? (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowProjection(!showProjection)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    showProjection
-                      ? 'bg-primary text-white shadow-lg shadow-primary/50'
-                      : 'bg-white/5 text-muted-foreground hover:bg-white/10'
-                  }`}
-                >
-                  {showProjection ? 'Showing Projection' : 'Show Year-End Projection'}
-                </button>
-                {showProjection && remainingMonths > 0 && (
-                  <span className="text-sm text-muted-foreground">
-                    Projecting {remainingMonths} more{' '}
-                    {remainingMonths === 1 ? 'month' : 'months'} @{' '}
-                    {formatCurrency(avgMonthlySalary)}/month (avg of last 3 months)
-                  </span>
-                )}
-              </div>
-            ) : undefined
-          }
         />
 
         {/* FY Selector */}

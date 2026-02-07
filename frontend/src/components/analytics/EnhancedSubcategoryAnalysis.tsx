@@ -1,21 +1,24 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { CHART_COLORS_WARM, CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
-import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 import { chartTooltipProps } from '@/components/ui'
+import { useTimeNavigation } from '@/hooks/useTimeNavigation'
+import { generateAllPeriods, formatDisplayPeriod, calculateCumulativeData } from '@/lib/chartPeriodUtils'
+import TimeNavigationControls from '@/components/analytics/TimeNavigationControls'
 
 const COLORS = CHART_COLORS_WARM
 
 export default function EnhancedSubcategoryAnalysis() {
   const [selectedCategory, setSelectedCategory] = useState<string>('Food & Dining')
-  const [viewMode, setViewMode] = useState<'monthly' | 'yearly' | 'all_time'>('yearly')
+  const {
+    viewMode, setViewMode, currentYear, currentMonth,
+    handlePrevYear, handleNextYear, handlePrevMonth, handleNextMonth,
+  } = useTimeNavigation()
   const [cumulative, setCumulative] = useState(true)
-  const [currentYear, setCurrentYear] = useState(getCurrentYear())
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
 
   const { data: transactions } = useTransactions()
 
@@ -63,12 +66,12 @@ export default function EnhancedSubcategoryAnalysis() {
         const quarter = Math.ceil(month / 3)
         period = `${year}-Q${quarter}`
       }
-      
+
       const subcategory = tx.subcategory || 'Uncategorized'
-      
+
       if (!groupedData[period]) groupedData[period] = {}
       if (!groupedData[period][subcategory]) groupedData[period][subcategory] = 0
-      
+
       groupedData[period][subcategory] += Math.abs(tx.amount)
     })
 
@@ -79,59 +82,23 @@ export default function EnhancedSubcategoryAnalysis() {
     })
 
     // Convert to array format with all periods
-    let allPeriods: string[] = []
-    if (viewMode === 'monthly') {
-      // Show all days in the current month
-      const year = Number.parseInt(currentMonth.substring(0, 4))
-      const month = Number.parseInt(currentMonth.substring(5, 7))
-      const daysInMonth = new Date(year, month, 0).getDate()
-      allPeriods = Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'))
-    } else if (viewMode === 'yearly') {
-      // Show all 12 months for yearly view
-      allPeriods = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
-    } else {
-      // Get all quarters from data for all_time view
-      allPeriods = Object.keys(groupedData).sort((a, b) => a.localeCompare(b))
-    }
+    const allPeriods = generateAllPeriods(viewMode, currentMonth, groupedData)
 
     const data = allPeriods.map((period) => {
-      let displayPeriod: string
-      if (viewMode === 'monthly') {
-        displayPeriod = period
-      } else if (viewMode === 'yearly') {
-        displayPeriod = new Date(currentYear, Number.parseInt(period) - 1).toLocaleDateString('en-US', { month: 'short' })
-      } else {
-        displayPeriod = period
-      }
+      const displayPeriod = formatDisplayPeriod(period, viewMode, currentYear)
       const entry: Record<string, number | string> = { period, displayPeriod }
-      
+
       Array.from(subcategories).forEach((subcat) => {
         entry[subcat] = groupedData[period]?.[subcat] || 0
       })
-      
+
       return entry
     })
 
     // Calculate cumulative if needed
-    let finalData = data
-    if (cumulative) {
-      const cumulativeData: Record<string, number> = {}
-      Array.from(subcategories).forEach((subcat) => {
-        cumulativeData[subcat] = 0
-      })
-
-      finalData = data.map((entry) => {
-        const newEntry: Record<string, number | string> = { 
-          period: entry.period,
-          displayPeriod: entry.displayPeriod
-        }
-        Array.from(subcategories).forEach((subcat) => {
-          cumulativeData[subcat] += (entry[subcat] as number) || 0
-          newEntry[subcat] = cumulativeData[subcat]
-        })
-        return newEntry
-      })
-    }
+    const finalData = cumulative
+      ? calculateCumulativeData(data, Array.from(subcategories))
+      : data
 
     return {
       chartData: finalData,
@@ -158,21 +125,6 @@ export default function EnhancedSubcategoryAnalysis() {
     a.download = `subcategory-analysis-${selectedCategory}.csv`
     a.click()
     URL.revokeObjectURL(url)
-  }
-
-  const handlePrevYear = () => setCurrentYear((prev) => prev - 1)
-  const handleNextYear = () => setCurrentYear((prev) => prev + 1)
-
-  const handlePrevMonth = () => {
-    const date = new Date(currentMonth + '-01')
-    date.setMonth(date.getMonth() - 1)
-    setCurrentMonth(date.toISOString().substring(0, 7))
-  }
-  
-  const handleNextMonth = () => {
-    const date = new Date(currentMonth + '-01')
-    date.setMonth(date.getMonth() + 1)
-    setCurrentMonth(date.toISOString().substring(0, 7))
   }
 
   return (
@@ -235,53 +187,17 @@ export default function EnhancedSubcategoryAnalysis() {
           </div>
 
           {/* Navigation */}
-          {viewMode === 'monthly' && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handlePrevMonth}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
-                type="button"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="text-white font-medium min-w-30 text-center">
-                {new Date(currentMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </span>
-              <button
-                onClick={handleNextMonth}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
-                type="button"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              <span className="text-muted-foreground text-sm ml-2">{totalTransactions} transactions</span>
-            </div>
-          )}
-          {viewMode === 'yearly' && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handlePrevYear}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
-                type="button"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="text-white font-medium min-w-25 text-center">Year {currentYear}</span>
-              <button
-                onClick={handleNextYear}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
-                type="button"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              <span className="text-muted-foreground text-sm ml-2">{totalTransactions} transactions</span>
-            </div>
-          )}
-          {viewMode === 'all_time' && (
-            <div className="flex items-center gap-3">
-              <span className="text-muted-foreground text-sm">{totalTransactions} transactions</span>
-            </div>
-          )}
+          <TimeNavigationControls
+            viewMode={viewMode}
+            currentYear={currentYear}
+            currentMonth={currentMonth}
+            totalTransactions={totalTransactions}
+            transactionLabel="transactions"
+            handlePrevYear={handlePrevYear}
+            handleNextYear={handleNextYear}
+            handlePrevMonth={handlePrevMonth}
+            handleNextMonth={handleNextMonth}
+          />
         </div>
 
         {/* Chart */}

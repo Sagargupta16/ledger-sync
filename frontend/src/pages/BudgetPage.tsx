@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useState, useMemo, useCallback } from 'react'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
+import StatCard from '@/pages/year-in-review/StatCard'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useBudgetStore } from '@/store/budgetStore'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
@@ -283,15 +284,15 @@ export default function BudgetPage() {
       {/* Summary KPIs */}
       {summary.count > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          <SummaryCard label="Total Budget" value={formatCurrency(summary.totalBudget)} icon={Target} color={rawColors.ios.blue} />
-          <SummaryCard
+          <StatCard label="Total Budget" value={formatCurrency(summary.totalBudget)} icon={Target} color={rawColors.ios.blue} />
+          <StatCard
             label="Total Spent"
             value={formatCurrency(summary.totalSpent)}
             icon={TrendingDown}
             color={summary.totalSpent > summary.totalBudget ? rawColors.ios.red : rawColors.ios.green}
           />
-          <SummaryCard label="On Track" value={String(summary.onTrack)} icon={CheckCircle} color={rawColors.ios.green} />
-          <SummaryCard label="Exceeded" value={String(summary.exceeded)} icon={AlertTriangle} color={rawColors.ios.red} />
+          <StatCard label="On Track" value={String(summary.onTrack)} icon={CheckCircle} color={rawColors.ios.green} />
+          <StatCard label="Exceeded" value={String(summary.exceeded)} icon={AlertTriangle} color={rawColors.ios.red} />
         </div>
       )}
 
@@ -583,28 +584,3 @@ export default function BudgetPage() {
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────
-
-function SummaryCard({ label, value, icon: Icon, color }: Readonly<{
-  label: string
-  value: string
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-  color: string
-}>) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-white/10 p-5"
-    >
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl" style={{ backgroundColor: `${color}22` }}>
-          <Icon className="w-5 h-5" style={{ color }} />
-        </div>
-        <div>
-          <p className="text-xs text-gray-400">{label}</p>
-          <p className="text-xl font-bold" style={{ color }}>{value}</p>
-        </div>
-      </div>
-    </motion.div>
-  )
-}
