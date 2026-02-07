@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,13 +18,13 @@ async def get_all_classifications(
     current_user: CurrentUser,
     db: Session = Depends(get_session),
 ) -> dict[str, str]:
-    """Get all account classifications.
+    """Get all account classifications for the current user.
 
     Returns:
         Dictionary mapping account names to their account types
 
     """
-    stmt = select(AccountClassification)
+    stmt = select(AccountClassification).where(AccountClassification.user_id == current_user.id)
     classifications = db.execute(stmt).scalars().all()
 
     return {clf.account_name: clf.account_type.value for clf in classifications}
@@ -40,13 +40,15 @@ async def get_classification(
 
     Args:
         account_name: Name of the account
-        db: Database session
 
     Returns:
-        Account classification details or 404 if not found
+        Account classification details or default "Other" if not found
 
     """
-    stmt = select(AccountClassification).where(AccountClassification.account_name == account_name)
+    stmt = select(AccountClassification).where(
+        AccountClassification.account_name == account_name,
+        AccountClassification.user_id == current_user.id,
+    )
     classification = db.execute(stmt).scalar()
 
     if not classification:
@@ -69,9 +71,7 @@ async def create_or_update_classification(
 
     Args:
         account_name: Name of the account
-        account_type: Type of account (Investment, Debt, Loan, Savings,
-            Checking, Credit Card, Other)
-        db: Database session
+        account_type: Type of account (Cash, Bank Accounts, Credit Cards, etc.)
 
     Returns:
         Created/updated classification
@@ -82,12 +82,15 @@ async def create_or_update_classification(
         acc_type = AccountType(account_type)
     except ValueError:
         valid_types = ", ".join([t.value for t in AccountType])
-        return {
-            "error": f"Invalid account type. Must be one of: {valid_types}",
-            "status": "error",
-        }
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid account type. Must be one of: {valid_types}",
+        )
 
-    stmt = select(AccountClassification).where(AccountClassification.account_name == account_name)
+    stmt = select(AccountClassification).where(
+        AccountClassification.account_name == account_name,
+        AccountClassification.user_id == current_user.id,
+    )
     classification = db.execute(stmt).scalar()
 
     if classification:
@@ -96,6 +99,7 @@ async def create_or_update_classification(
         classification = AccountClassification(
             account_name=account_name,
             account_type=acc_type,
+            user_id=current_user.id,
         )
         db.add(classification)
 
@@ -119,13 +123,15 @@ async def delete_classification(
 
     Args:
         account_name: Name of the account
-        db: Database session
 
     Returns:
         Success status
 
     """
-    stmt = select(AccountClassification).where(AccountClassification.account_name == account_name)
+    stmt = select(AccountClassification).where(
+        AccountClassification.account_name == account_name,
+        AccountClassification.user_id == current_user.id,
+    )
     classification = db.execute(stmt).scalar()
 
     if classification:
@@ -144,11 +150,10 @@ async def get_accounts_by_type(
     current_user: CurrentUser,
     db: Session = Depends(get_session),
 ) -> dict[str, Any]:
-    """Get all accounts of a specific type.
+    """Get all accounts of a specific type for the current user.
 
     Args:
         account_type: Type of account to filter by
-        db: Database session
 
     Returns:
         List of account names with the specified type
@@ -158,12 +163,15 @@ async def get_accounts_by_type(
         acc_type = AccountType(account_type)
     except ValueError:
         valid_types = ", ".join([t.value for t in AccountType])
-        return {
-            "error": f"Invalid account type. Must be one of: {valid_types}",
-            "status": "error",
-        }
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid account type. Must be one of: {valid_types}",
+        )
 
-    stmt = select(AccountClassification).where(AccountClassification.account_type == acc_type)
+    stmt = select(AccountClassification).where(
+        AccountClassification.account_type == acc_type,
+        AccountClassification.user_id == current_user.id,
+    )
     classifications = db.execute(stmt).scalars().all()
 
     return {

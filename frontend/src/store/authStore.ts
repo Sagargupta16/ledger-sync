@@ -110,7 +110,12 @@ export const useAuthStore = create<AuthState>()(
   )
 )
 
-// Utility functions
+// Utility functions for non-React contexts (e.g., Axios interceptors)
 export const getAccessToken = () => useAuthStore.getState().accessToken
 export const getRefreshToken = () => useAuthStore.getState().refreshToken
 export const isAuthenticated = () => useAuthStore.getState().isAuthenticated
+
+// Selectors for React components (enable Zustand render optimization)
+export const selectAccessToken = (state: AuthState) => state.accessToken
+export const selectUser = (state: AuthState) => state.user
+export const selectIsAuthenticated = (state: AuthState) => state.isAuthenticated

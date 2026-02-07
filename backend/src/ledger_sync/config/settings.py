@@ -126,7 +126,3 @@ if os.environ.get("LEDGER_SYNC_ENVIRONMENT") == "production":
     issues = settings.validate_production_settings()
     for issue in issues:
         warnings.warn(issue, UserWarning, stacklevel=1)
-
-
-# Global settings instance
-settings = Settings()

@@ -221,10 +221,15 @@ class UserPreferencesUpdate(BaseModel):
 # ----- Helper Functions -----
 
 
-def _parse_json_field(value: str | list | dict) -> Any:
+def _parse_json_field(value: str | list | dict, default: Any = None) -> Any:
     """Parse JSON field if it's a string."""
+    if default is None:
+        default = []
     if isinstance(value, str):
-        return json.loads(value)
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return default
     return value
 
 
@@ -403,13 +408,10 @@ def update_income_sources(
 ) -> UserPreferencesResponse:
     """Update income source category mappings."""
     prefs = _get_or_create_preferences(session, current_user)
-    prefs.salary_categories = json.dumps(config.salary_categories)
-    prefs.bonus_categories = json.dumps(config.bonus_categories)
-    prefs.investment_income_categories = json.dumps(config.investment_income_categories)
-    prefs.cashback_categories = json.dumps(config.cashback_categories)
-    prefs.employment_benefits_categories = json.dumps(config.employment_benefits_categories)
-    prefs.freelance_categories = json.dumps(config.freelance_categories)
-    prefs.gifts_categories = json.dumps(config.gifts_categories)
+    prefs.taxable_income_categories = json.dumps(config.taxable_income_categories)
+    prefs.investment_returns_categories = json.dumps(config.investment_returns_categories)
+    prefs.non_taxable_income_categories = json.dumps(config.non_taxable_income_categories)
+    prefs.other_income_categories = json.dumps(config.other_income_categories)
     prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)

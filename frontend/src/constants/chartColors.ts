@@ -54,6 +54,7 @@ export const SEMANTIC_COLORS = {
   positive: '#22c55e',    // green-500
   negative: '#ef4444',    // red-500
   neutral: '#9ca3af',     // gray-400
+  muted: '#6b7280',       // gray-500
 } as const
 
 // Get color by index with wrap-around

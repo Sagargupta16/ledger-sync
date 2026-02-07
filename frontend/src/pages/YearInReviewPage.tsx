@@ -16,21 +16,12 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import StatCard from '@/pages/year-in-review/StatCard'
+import InsightRow from '@/pages/year-in-review/InsightRow'
+import DayOfWeekChart, { type DayCell } from '@/pages/year-in-review/DayOfWeekChart'
 
 // ─── Types ──────────────────────────────────────────────────────────
 type HeatmapMode = 'expense' | 'income' | 'net'
-
-interface DayCell {
-  date: string        // YYYY-MM-DD
-  expense: number
-  income: number
-  net: number
-  dayOfWeek: number   // 0-6 (Sun-Sat)
-  weekIndex: number
-  month: number
-  isToday: boolean
-  hasTx: boolean
-}
 
 // ─── Helpers ────────────────────────────────────────────────────────
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -541,90 +532,3 @@ export default function YearInReviewPage() {
   )
 }
 
-// ─── Sub-components ─────────────────────────────────────────────────
-
-function StatCard({ label, value, icon: Icon, color }: Readonly<{
-  label: string
-  value: string
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-  color: string
-}>) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-white/10 p-5"
-    >
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl" style={{ backgroundColor: `${color}22` }}>
-          <Icon className="w-5 h-5" style={{ color }} />
-        </div>
-        <div>
-          <p className="text-xs text-gray-400">{label}</p>
-          <p className="text-xl font-bold" style={{ color }}>{value}</p>
-        </div>
-      </div>
-    </motion.div>
-  )
-}
-
-function InsightRow({ icon: Icon, label, value, subtitle, color }: Readonly<{
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-  label: string
-  value: string
-  subtitle?: string
-  color: string
-}>) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="p-2 rounded-lg" style={{ backgroundColor: `${color}15` }}>
-        <Icon className="w-4 h-4" style={{ color }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-gray-500">{label}</p>
-        <div className="flex items-baseline gap-1.5">
-          <p className="text-sm font-semibold text-white">{value}</p>
-          {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function DayOfWeekChart({ grid }: Readonly<{ grid: DayCell[] }>) {
-  const data = useMemo(() => {
-    const totals: Record<number, { expense: number; income: number; count: number }> = {}
-    for (let i = 0; i < 7; i++) totals[i] = { expense: 0, income: 0, count: 0 }
-
-    for (const cell of grid) {
-      totals[cell.dayOfWeek].expense += cell.expense
-      totals[cell.dayOfWeek].income += cell.income
-      totals[cell.dayOfWeek].count++
-    }
-
-    return DAYS.map((d, i) => ({
-      name: d,
-      'Avg Expense': totals[i].count > 0 ? totals[i].expense / totals[i].count : 0,
-      'Avg Income': totals[i].count > 0 ? totals[i].income / totals[i].count : 0,
-    }))
-  }, [grid])
-
-  return (
-    <div className="h-48">
-      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-        <BarChart data={data} barGap={4}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-          <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
-          <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: '#9ca3af', fontSize: 11 }} />
-          <RechartsTooltip
-            formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
-            contentStyle={{ backgroundColor: 'rgba(17,24,39,0.95)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', backdropFilter: 'blur(12px)', color: '#fff' }}
-            labelStyle={{ color: '#fff', fontWeight: 'bold' }}
-          />
-          <Bar dataKey="Avg Expense" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} opacity={0.8} />
-          <Bar dataKey="Avg Income" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} opacity={0.8} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  )
-}

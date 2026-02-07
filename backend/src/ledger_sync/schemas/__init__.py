@@ -15,13 +15,23 @@ from ledger_sync.schemas.auth import (
     UserResponse,
     UserUpdate,
 )
+from ledger_sync.schemas.transactions import (
+    HealthResponse,
+    TransactionResponse,
+    TransactionsListResponse,
+    UploadResponse,
+)
 
 __all__ = [
+    "HealthResponse",
     "MessageResponse",
     "RefreshTokenRequest",
     "Token",
     "TokenData",
     "TokenPayload",
+    "TransactionResponse",
+    "TransactionsListResponse",
+    "UploadResponse",
     "UserLogin",
     "UserRegister",
     "UserResponse",

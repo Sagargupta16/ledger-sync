@@ -387,7 +387,9 @@ class FinancialCalculator:
         }
 
         convenience_spending = sum(
-            float(t.amount) for t in expenses if t.category.lower() in convenience_categories
+            float(t.amount)
+            for t in expenses
+            if t.category and t.category.lower() in convenience_categories
         )
         total_spending = sum(float(t.amount) for t in expenses)
 

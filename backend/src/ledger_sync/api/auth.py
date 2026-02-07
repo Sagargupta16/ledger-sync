@@ -18,6 +18,7 @@ from ledger_sync.schemas.auth import (
     UserLogin,
     UserRegister,
     UserResponse,
+    UserUpdate,
 )
 from ledger_sync.services.auth_service import AuthService
 
@@ -143,20 +144,20 @@ def logout(current_user: CurrentUser) -> MessageResponse:
 def update_profile(
     current_user: CurrentUser,
     auth_service: AuthServiceDep,
-    full_name: str | None = None,
+    updates: UserUpdate,
 ) -> UserResponse:
     """Update current user profile.
 
     Args:
         current_user: Current authenticated user
         auth_service: Authentication service
-        full_name: Optional new full name
+        updates: Profile update data
 
     Returns:
         Updated user profile
 
     """
-    updated_user = auth_service.update_profile(current_user, full_name)
+    updated_user = auth_service.update_profile(current_user, updates.full_name)
     return auth_service.get_user_response(updated_user)
 
 

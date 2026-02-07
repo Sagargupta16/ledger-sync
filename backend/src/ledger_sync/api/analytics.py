@@ -1,5 +1,6 @@
 """Analytics API endpoints for insights and statistics."""
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser
 from ledger_sync.core.calculator import FinancialCalculator
-from ledger_sync.core.time_filter import TimeFilter, TimeRange
+from ledger_sync.core.time_filter import TimeRange
 from ledger_sync.db.models import Transaction, TransactionType, User
 from ledger_sync.db.session import get_session
 
@@ -17,18 +18,74 @@ router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 TIME_RANGE_FILTER_DESC = "Time range filter"
 
 
+def _get_time_range_dates(
+    db: Session,
+    user: User,
+    time_range: TimeRange,
+) -> tuple[datetime | None, datetime | None]:
+    """Calculate start/end dates from a TimeRange enum using the DB-level max date.
+
+    Returns (start_date, end_date) or (None, None) for ALL_TIME.
+    """
+    if time_range == TimeRange.ALL_TIME:
+        return None, None
+
+    latest = (
+        db.query(Transaction.date)
+        .filter(Transaction.user_id == user.id, Transaction.is_deleted.is_(False))
+        .order_by(Transaction.date.desc())
+        .first()
+    )
+    if not latest:
+        return None, None
+
+    latest_date = latest[0]
+    end_date = None
+
+    if time_range == TimeRange.THIS_MONTH:
+        start_date = latest_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif time_range == TimeRange.LAST_MONTH:
+        first_of_month = latest_date.replace(day=1)
+        last_month_end = first_of_month - timedelta(days=1)
+        start_date = last_month_end.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_date = last_month_end
+    elif time_range == TimeRange.LAST_3_MONTHS:
+        start_date = latest_date - timedelta(days=90)
+    elif time_range == TimeRange.LAST_6_MONTHS:
+        start_date = latest_date - timedelta(days=180)
+    elif time_range == TimeRange.LAST_12_MONTHS:
+        start_date = latest_date - timedelta(days=365)
+    elif time_range == TimeRange.THIS_YEAR:
+        start_date = latest_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif time_range == TimeRange.LAST_YEAR:
+        year = latest_date.year - 1
+        start_date = datetime(year, 1, 1, tzinfo=UTC)
+        end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=UTC)
+    elif time_range == TimeRange.LAST_DECADE:
+        start_date = latest_date - timedelta(days=3650)
+    else:
+        return None, None
+
+    return start_date, end_date
+
+
 def get_filtered_transactions(
     db: Session,
     user: User,
     time_range: TimeRange = TimeRange.ALL_TIME,
 ) -> list[Transaction]:
-    """Get non-deleted transactions filtered by time range for a specific user."""
-    all_txns = (
-        db.query(Transaction)
-        .filter(Transaction.user_id == user.id, Transaction.is_deleted.is_(False))
-        .all()
+    """Get non-deleted transactions filtered by time range at the DB level."""
+    query = db.query(Transaction).filter(
+        Transaction.user_id == user.id, Transaction.is_deleted.is_(False)
     )
-    return TimeFilter.filter_by_range(all_txns, time_range)
+
+    start_date, end_date = _get_time_range_dates(db, user, time_range)
+    if start_date:
+        query = query.filter(Transaction.date >= start_date)
+    if end_date:
+        query = query.filter(Transaction.date <= end_date)
+
+    return query.all()
 
 
 @router.get("/overview")

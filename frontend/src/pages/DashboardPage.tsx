@@ -22,6 +22,7 @@ import {
   SPENDING_TYPE_COLORS,
 } from '@/lib/preferencesUtils'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('6M')
@@ -70,7 +71,7 @@ export default function DashboardPage() {
   // Prepare income breakdown for pie chart (using actual data categories)
   const incomeChartData = useMemo(() => {
     if (!incomeBreakdown) return []
-    const defaultColor = '#6b7280' // gray for unknown categories
+    const defaultColor = SEMANTIC_COLORS.muted
     return Object.entries(incomeBreakdown)
       .filter(([, value]) => value > 0)
       .map(([category, value]) => ({
@@ -157,7 +158,7 @@ export default function DashboardPage() {
           isLoading={isLoading}
           change={momChanges.income}
           changeLabel={momChanges.label}
-          trend={incomeSparkline.length > 0 ? <Sparkline data={incomeSparkline} color="#10b981" height={30} /> : undefined}
+          trend={incomeSparkline.length > 0 ? <Sparkline data={incomeSparkline} color={SEMANTIC_COLORS.income} height={30} /> : undefined}
         />
         <MetricCard
           title="Total Expenses"
@@ -168,7 +169,7 @@ export default function DashboardPage() {
           change={momChanges.expense}
           invertChange
           changeLabel={momChanges.label}
-          trend={expenseSparkline.length > 0 ? <Sparkline data={expenseSparkline} color="#ef4444" height={30} /> : undefined}
+          trend={expenseSparkline.length > 0 ? <Sparkline data={expenseSparkline} color={SEMANTIC_COLORS.expense} height={30} /> : undefined}
         />
         <MetricCard
           title="Net Savings"
@@ -255,7 +256,7 @@ export default function DashboardPage() {
                         backdropFilter: 'blur(12px)',
                         color: '#fff',
                       }}
-                      labelStyle={{ color: '#9ca3af' }}
+                      labelStyle={{ color: SEMANTIC_COLORS.neutral }}
                       itemStyle={{ color: '#fff' }}
                     />
                   </PieChart>
@@ -346,7 +347,7 @@ export default function DashboardPage() {
                         backdropFilter: 'blur(12px)',
                         color: '#fff',
                       }}
-                      labelStyle={{ color: '#9ca3af' }}
+                      labelStyle={{ color: SEMANTIC_COLORS.neutral }}
                       itemStyle={{ color: '#fff' }}
                     />
                   </PieChart>

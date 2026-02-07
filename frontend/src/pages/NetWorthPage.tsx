@@ -4,28 +4,10 @@ import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { formatCurrency, formatPercent, formatAccountType } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
-
-// Investment type colors - now using display names as keys
-const INVESTMENT_TYPE_COLORS: Record<string, string> = {
-  'Stocks': '#10b981',
-  'Mutual Funds': '#8b5cf6',
-  'PPF / EPF': '#f59e0b',
-  'PPF': '#f59e0b',
-  'NPS': '#06b6d4',
-  'Fixed Deposits': '#ec4899',
-  'FD': '#ec4899',
-  'EPF': '#14b8a6',
-  'Gold': '#eab308',
-  'Bonds': '#6366f1',
-  'Real Estate': '#84cc16',
-  'Crypto': '#f97316',
-  'Other Investments': '#6b7280',
-  'Other': '#6b7280',
-}
 
 // Category display configuration
 const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
@@ -149,28 +131,6 @@ export default function NetWorthPage() {
     
     return 'Other'
   }, [classifications, investmentMappings])
-
-  // Calculate investment breakdown by type from user preferences - remove unused variable
-  useMemo(() => {
-    const breakdown: Record<string, number> = {}
-    
-    Object.entries(accounts).forEach(([accountName, data]: [string, { balance: number }]) => {
-      if (investmentMappings[accountName]) {
-        // Format the investment type for display
-        const investmentType = formatAccountType(investmentMappings[accountName])
-        breakdown[investmentType] = (breakdown[investmentType] || 0) + Math.abs(data.balance)
-      }
-    })
-    
-    return Object.entries(breakdown)
-      .filter(([, value]) => value > 0)
-      .map(([name, value]) => ({
-        name,
-        value,
-        color: INVESTMENT_TYPE_COLORS[name] || INVESTMENT_TYPE_COLORS['Other'],
-      }))
-      .sort((a, b) => b.value - a.value)
-  }, [accounts, investmentMappings])
 
   // Calculate category totals from current balances using classifications
   const categoryTotals = useMemo(() => {

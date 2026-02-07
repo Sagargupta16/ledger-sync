@@ -17,9 +17,10 @@ import {
   RecurringTransactions,
   TopMerchants,
 } from '@/components/analytics'
+import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
 // Color for Savings
-const SAVINGS_COLOR = '#10b981' // Green
+const SAVINGS_COLOR = SEMANTIC_COLORS.income
 
 export default function SpendingAnalysisPage() {
   const { data: transactions } = useTransactions()
@@ -220,7 +221,7 @@ export default function SpendingAnalysisPage() {
                           backdropFilter: 'blur(12px)',
                           color: '#fff',
                         }}
-                        labelStyle={{ color: '#9ca3af' }}
+                        labelStyle={{ color: SEMANTIC_COLORS.neutral }}
                         itemStyle={{ color: '#fff' }}
                       />
                     </RechartsPie>
@@ -265,7 +266,7 @@ export default function SpendingAnalysisPage() {
                       className="h-full rounded-full transition-all"
                       style={{
                         width: `${Math.min(budgetRuleMetrics?.essentialPercent || 0, 100)}%`,
-                        backgroundColor: budgetRuleMetrics?.isOverspendingEssential ? '#ef4444' : SPENDING_TYPE_COLORS.essential,
+                        backgroundColor: budgetRuleMetrics?.isOverspendingEssential ? SEMANTIC_COLORS.expense : SPENDING_TYPE_COLORS.essential,
                       }}
                     />
                   </div>
@@ -299,7 +300,7 @@ export default function SpendingAnalysisPage() {
                       className="h-full rounded-full transition-all"
                       style={{
                         width: `${Math.min(budgetRuleMetrics?.discretionaryPercent || 0, 100)}%`,
-                        backgroundColor: budgetRuleMetrics?.isOverspendingDiscretionary ? '#ef4444' : SPENDING_TYPE_COLORS.discretionary,
+                        backgroundColor: budgetRuleMetrics?.isOverspendingDiscretionary ? SEMANTIC_COLORS.expense : SPENDING_TYPE_COLORS.discretionary,
                       }}
                     />
                   </div>
@@ -333,7 +334,7 @@ export default function SpendingAnalysisPage() {
                       className="h-full rounded-full transition-all"
                       style={{
                         width: `${Math.min(budgetRuleMetrics?.savingsPercent || 0, 100)}%`,
-                        backgroundColor: budgetRuleMetrics?.isUnderSaving ? '#ef4444' : SAVINGS_COLOR,
+                        backgroundColor: budgetRuleMetrics?.isUnderSaving ? SEMANTIC_COLORS.expense : SAVINGS_COLOR,
                       }}
                     />
                   </div>

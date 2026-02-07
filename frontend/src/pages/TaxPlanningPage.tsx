@@ -1,123 +1,23 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Calculator, TrendingUp, ChevronLeft, ChevronRight, IndianRupee } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { formatCurrency } from '@/lib/formatters'
 import { classifyIncomeType } from '@/lib/preferencesUtils'
-
-// Tax slabs before FY 2025-26
-const TAX_SLABS_OLD = [
-  { lower: 0, upper: 300000, rate: 0 },
-  { lower: 300000, upper: 700000, rate: 5 },
-  { lower: 700000, upper: 1000000, rate: 10 },
-  { lower: 1000000, upper: 1200000, rate: 15 },
-  { lower: 1200000, upper: 1500000, rate: 20 },
-  { lower: 1500000, upper: Infinity, rate: 30 },
-]
-
-// Tax slabs from FY 2025-26 onwards
-const TAX_SLABS_NEW = [
-  { lower: 0, upper: 400000, rate: 0 },
-  { lower: 400000, upper: 800000, rate: 5 },
-  { lower: 800000, upper: 1200000, rate: 10 },
-  { lower: 1200000, upper: 1600000, rate: 15 },
-  { lower: 1600000, upper: 2000000, rate: 20 },
-  { lower: 2000000, upper: 2400000, rate: 25 },
-  { lower: 2400000, upper: Infinity, rate: 30 },
-]
-
-interface TaxSlab {
-  lower: number
-  upper: number
-  rate: number
-}
-
-function calculateTax(
-  income: number, 
-  slabs: TaxSlab[], 
-  standardDeduction: number = 0,
-  applyProfessionalTax: boolean = true,
-  salaryMonthsCount: number = 12
-): { 
-  tax: number
-  slabBreakdown: { slab: TaxSlab; taxAmount: number }[]
-  cess: number
-  professionalTax: number
-  totalTax: number
-} {
-  // Apply standard deduction only
-  const taxableIncome = Math.max(0, income - standardDeduction)
-  
-  let tax = 0
-  const slabBreakdown: { slab: TaxSlab; taxAmount: number }[] = []
-
-  for (const slab of slabs) {
-    if (taxableIncome > slab.lower) {
-      const taxableInSlab = Math.min(taxableIncome, slab.upper) - slab.lower
-      const taxAmount = (taxableInSlab * slab.rate) / 100
-      tax += taxAmount
-      slabBreakdown.push({ slab, taxAmount })
-    }
-  }
-
-  // Add 4% Health & Education Cess
-  const cess = tax * 0.04
-  
-  // Professional Tax (₹200/month, capped at 12 months maximum)
-  const professionalTax = applyProfessionalTax ? (200 * Math.min(salaryMonthsCount, 12)) : 0
-  
-  // Total tax including cess and professional tax
-  const totalTax = tax + cess + professionalTax
-
-  return { tax, slabBreakdown, cess, professionalTax, totalTax }
-}
-
-// Reverse calculate gross income from net income (after tax)
-function calculateGrossFromNet(
-  netIncome: number, 
-  slabs: TaxSlab[], 
-  standardDeduction: number = 0,
-  applyProfessionalTax: boolean = true,
-  salaryMonthsCount: number = 12,
-  maxIterations: number = 10
-): number {
-  // If no income, return 0 immediately
-  if (netIncome <= 0) {
-    return 0
-  }
-  
-  // Use iterative approach to find gross income
-  let grossIncome = netIncome
-  
-  for (let i = 0; i < maxIterations; i++) {
-    const { totalTax } = calculateTax(grossIncome, slabs, standardDeduction, applyProfessionalTax, salaryMonthsCount)
-    const calculatedNet = grossIncome - totalTax
-    
-    // If we're close enough, return
-    if (Math.abs(calculatedNet - netIncome) < 1) {
-      return grossIncome
-    }
-    
-    // Adjust gross income for next iteration
-    const error = netIncome - calculatedNet
-    grossIncome += error
-  }
-  
-  return grossIncome
-}
-
-function getFYFromDate(date: string, fiscalYearStartMonth: number = 4): string {
-  const d = new Date(date)
-  const year = d.getFullYear()
-  const month = d.getMonth() + 1 // 0-indexed
-
-  // FY runs from fiscalYearStartMonth to fiscalYearStartMonth - 1 next year
-  if (month >= fiscalYearStartMonth) {
-    return `FY ${year}-${(year + 1).toString().slice(-2)}`
-  }
-  return `FY ${year - 1}-${year.toString().slice(-2)}`
-}
+import {
+  FY_START_MONTH,
+  calculateTax,
+  calculateGrossFromNet,
+  getFYFromDate,
+  getTaxSlabsForFY,
+  getStandardDeduction,
+  parseFYStartYear,
+} from '@/lib/taxCalculator'
+import FYNavigator from '@/components/analytics/FYNavigator'
+import TaxSummaryCards from '@/components/analytics/TaxSummaryCards'
+import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
+import TaxSummaryGrid from '@/components/analytics/TaxSummaryGrid'
+import TaxableIncomeTable from '@/components/analytics/TaxableIncomeTable'
 
 export default function TaxPlanningPage() {
   const { data: allTransactions = [], isLoading } = useTransactions()
@@ -125,16 +25,19 @@ export default function TaxPlanningPage() {
   const [selectedFY, setSelectedFY] = useState<string>('')
   const [showProjection, setShowProjection] = useState(false)
 
-  // Get fiscal year start month from preferences (default to 4 for April)
-  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
+  // Get fiscal year start month from preferences (default to April)
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || FY_START_MONTH
 
   // Get income classification from preferences for tax categorization
-  const incomeClassification = useMemo(() => ({
-    taxable: preferences?.taxable_income_categories || [],
-    investmentReturns: preferences?.investment_returns_categories || [],
-    nonTaxable: preferences?.non_taxable_income_categories || [],
-    other: preferences?.other_income_categories || [],
-  }), [preferences])
+  const incomeClassification = useMemo(
+    () => ({
+      taxable: preferences?.taxable_income_categories || [],
+      investmentReturns: preferences?.investment_returns_categories || [],
+      nonTaxable: preferences?.non_taxable_income_categories || [],
+      other: preferences?.other_income_categories || [],
+    }),
+    [preferences],
+  )
 
   // Group transactions by Financial Year
   const transactionsByFY = useMemo(() => {
@@ -166,7 +69,7 @@ export default function TaxPlanningPage() {
           transactions: [],
           incomeGroups: {
             'Salary & Stipend': { total: 0, transactions: [] },
-            'Bonus': { total: 0, transactions: [] },
+            Bonus: { total: 0, transactions: [] },
             EPF: { total: 0, transactions: [] },
             'Other Taxable Income': { total: 0, transactions: [] },
           },
@@ -181,15 +84,17 @@ export default function TaxPlanningPage() {
         const incomeType = classifyIncomeType(tx, incomeClassification)
         const note = tx.note?.toLowerCase() || ''
         const subcategory = (tx.subcategory || '').toLowerCase()
-        
+
         // EPF handling (special case - half taxable)
-        const isEPF = note.includes('aws epf') || note.includes('epf withdrawal') || 
-                      (tx.category === 'Employment Income' && tx.subcategory === 'EPF Contribution')
-        
+        const isEPF =
+          note.includes('aws epf') ||
+          note.includes('epf withdrawal') ||
+          (tx.category === 'Employment Income' && tx.subcategory === 'EPF Contribution')
+
         // Check if it's salary or stipend specifically (subset of taxable)
         const isSalaryOrStipend = subcategory === 'salary' || subcategory === 'stipend'
         const isBonus = subcategory === 'bonuses' || subcategory === 'rsus'
-        
+
         // Handle EPF separately (50% taxable rule)
         if (isEPF) {
           const epfTaxablePortion = tx.amount / 2
@@ -222,7 +127,9 @@ export default function TaxPlanningPage() {
 
   // Get sorted FY list
   const fyList = useMemo(() => {
-    return Object.keys(transactionsByFY).sort().reverse()
+    return Object.keys(transactionsByFY)
+      .sort((a, b) => a.localeCompare(b))
+      .reverse()
   }, [transactionsByFY])
 
   // Set initial FY
@@ -230,35 +137,53 @@ export default function TaxPlanningPage() {
     setSelectedFY(fyList[0])
   }
 
-  // Get data for selected FY from transactions
+  // ── Derived values for selected FY ──────────────────────────────────
+
   const currentFYData = selectedFY ? transactionsByFY[selectedFY] : null
-  const income = currentFYData?.income || 0  // Total income (all types)
+  const income = currentFYData?.income || 0
   const expense = currentFYData?.expense || 0
-  const netTaxableIncome = currentFYData?.taxableIncome || 0  // Net received after TDS (Salary + Stipend + RSU only)
-  const salaryMonthsCount = currentFYData?.salaryMonths?.size || 0  // Unique months with Salary/Stipend
+  const netTaxableIncome = currentFYData?.taxableIncome || 0
+  const salaryMonthsCount = currentFYData?.salaryMonths?.size || 0
 
   // Determine which tax slabs to use
-  const fyYear = selectedFY ? parseInt(selectedFY.split(' ')[1].split('-')[0]) : 0
+  const fyYear = selectedFY ? parseFYStartYear(selectedFY) : 0
   const isNewRegime = fyYear >= 2025
-  const taxSlabs = isNewRegime ? TAX_SLABS_NEW : TAX_SLABS_OLD
-
-  // Standard deduction based on FY
-  const standardDeduction = fyYear >= 2024 ? 75000 : 50000
+  const taxSlabs = getTaxSlabsForFY(fyYear)
+  const standardDeduction = getStandardDeduction(fyYear)
 
   // Calculate gross income from net received (reverse calculation)
-  // netTaxableIncome = what you actually received (after TDS)
-  // grossTaxableIncome = what you earned before tax (before std deduction)
   const hasEmploymentIncome = netTaxableIncome > 0
-  
-  const grossTaxableIncome = calculateGrossFromNet(netTaxableIncome, taxSlabs, standardDeduction, hasEmploymentIncome, salaryMonthsCount)
-  const {tax: baseTax, slabBreakdown, cess, professionalTax, totalTax: taxAlreadyPaid} = calculateTax(grossTaxableIncome, taxSlabs, standardDeduction, hasEmploymentIncome, salaryMonthsCount)
 
-  // Projection calculations for remaining months
-  // Determine current FY based on today's date and fiscal year start month
+  const grossTaxableIncome = calculateGrossFromNet(
+    netTaxableIncome,
+    taxSlabs,
+    standardDeduction,
+    hasEmploymentIncome,
+    salaryMonthsCount,
+  )
+  const {
+    tax: baseTax,
+    slabBreakdown,
+    cess,
+    professionalTax,
+    totalTax: taxAlreadyPaid,
+  } = calculateTax(
+    grossTaxableIncome,
+    taxSlabs,
+    standardDeduction,
+    hasEmploymentIncome,
+    salaryMonthsCount,
+  )
+
+  // ── Projection for remaining months ─────────────────────────────────
+
   const today = new Date()
-  const currentFYLabel = getFYFromDate(today.toISOString().split('T')[0], fiscalYearStartMonth)
+  const currentFYLabel = getFYFromDate(
+    today.toISOString().split('T')[0],
+    fiscalYearStartMonth,
+  )
   const isCurrentFY = selectedFY === currentFYLabel
-  
+
   let projectedGrossTaxableIncome = grossTaxableIncome
   let projectedTaxAlreadyPaid = taxAlreadyPaid
   let projectedBaseTax = baseTax
@@ -268,41 +193,48 @@ export default function TaxPlanningPage() {
   let remainingMonths = 0
   let avgMonthlySalary = 0
   let projectedAdditionalIncome = 0
-  
+
   if (showProjection && isCurrentFY && hasEmploymentIncome) {
-    // Get current month (0-11)
-    const now = new Date()
-    const currentMonth = now.getMonth() // 0 = Jan, 3 = Apr
-    
+    const currentMonth = today.getMonth() // 0 = Jan, 3 = Apr
+
     // Financial year runs Apr (3) to Mar (2)
-    // Calculate remaining months INCLUDING current month (since salary not received yet in current month)
-    // If current month is Apr-Dec (3-11), remaining = 12 - (month - 3)
-    // If current month is Jan-Mar (0-2), remaining = 3 - month
     if (currentMonth >= 3) {
       remainingMonths = 12 - (currentMonth - 3)
     } else {
       remainingMonths = 3 - currentMonth
     }
-    
+
     // Get average of last 3 months salary from Salary & Stipend group
-    const salaryStipendTxs = currentFYData?.incomeGroups?.['Salary & Stipend']?.transactions || []
-    
+    const salaryStipendTxs =
+      currentFYData?.incomeGroups?.['Salary & Stipend']?.transactions || []
+
     if (salaryStipendTxs.length > 0 && remainingMonths > 0) {
-      // Sort by date descending and take last 3 months
-      const recentSalaries = salaryStipendTxs
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, Math.min(3, salaryStipendTxs.length))
-      
-      // Calculate average
+      const sorted = [...salaryStipendTxs].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      )
+      const recentSalaries = sorted.slice(0, Math.min(3, sorted.length))
+
       const totalRecentSalary = recentSalaries.reduce((sum, tx) => sum + tx.amount, 0)
       avgMonthlySalary = totalRecentSalary / recentSalaries.length
-      
+
       projectedAdditionalIncome = avgMonthlySalary * remainingMonths
       const projectedNetTotal = netTaxableIncome + projectedAdditionalIncome
       const projectedSalaryMonthsCount = salaryMonthsCount + remainingMonths
-      
-      projectedGrossTaxableIncome = calculateGrossFromNet(projectedNetTotal, taxSlabs, standardDeduction, true, projectedSalaryMonthsCount)
-      const projectedCalc = calculateTax(projectedGrossTaxableIncome, taxSlabs, standardDeduction, true, projectedSalaryMonthsCount)
+
+      projectedGrossTaxableIncome = calculateGrossFromNet(
+        projectedNetTotal,
+        taxSlabs,
+        standardDeduction,
+        true,
+        projectedSalaryMonthsCount,
+      )
+      const projectedCalc = calculateTax(
+        projectedGrossTaxableIncome,
+        taxSlabs,
+        standardDeduction,
+        true,
+        projectedSalaryMonthsCount,
+      )
       projectedBaseTax = projectedCalc.tax
       projectedSlabBreakdown = projectedCalc.slabBreakdown
       projectedCess = projectedCalc.cess
@@ -311,22 +243,40 @@ export default function TaxPlanningPage() {
     }
   }
 
-  // Navigate FY
+  // ── Resolve "actual vs projected" display values ────────────────────
+
+  const useProjected = showProjection && isCurrentFY && hasEmploymentIncome
+
+  const displayGross = useProjected ? projectedGrossTaxableIncome : grossTaxableIncome
+  const displayNet = useProjected
+    ? netTaxableIncome + projectedAdditionalIncome
+    : netTaxableIncome
+  const displayTotalTax = useProjected ? projectedTaxAlreadyPaid : taxAlreadyPaid
+  const displayBaseTax = useProjected ? projectedBaseTax : baseTax
+  const displayCess = useProjected ? projectedCess : cess
+  const displayProfessionalTax = useProjected ? projectedProfessionalTax : professionalTax
+  const displaySlabBreakdown = useProjected ? projectedSlabBreakdown : slabBreakdown
+  const displayIncome = useProjected ? income + projectedAdditionalIncome : income
+
+  // ── FY navigation ───────────────────────────────────────────────────
+
   const currentIndex = fyList.indexOf(selectedFY)
+  const canGoBack = currentIndex < fyList.length - 1
+  const canGoForward = currentIndex > 0
+
   const goToPreviousFY = () => {
-    if (currentIndex < fyList.length - 1) {
-      setSelectedFY(fyList[currentIndex + 1])
-    }
+    if (canGoBack) setSelectedFY(fyList[currentIndex + 1])
   }
   const goToNextFY = () => {
-    if (currentIndex > 0) {
-      setSelectedFY(fyList[currentIndex - 1])
-    }
+    if (canGoForward) setSelectedFY(fyList[currentIndex - 1])
   }
+
+  // ── Render ──────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
             Tax Planning & Calculation
@@ -334,8 +284,8 @@ export default function TaxPlanningPage() {
           <p className="text-muted-foreground mt-2">
             Track income tax by Financial Year
           </p>
-          
-          {/* Projection Toggle */}
+
+          {/* Top-level Projection Toggle */}
           {isCurrentFY && hasEmploymentIncome && (
             <div className="mt-4 flex items-center gap-3">
               <button
@@ -346,11 +296,13 @@ export default function TaxPlanningPage() {
                     : 'bg-white/5 text-muted-foreground hover:bg-white/10'
                 }`}
               >
-                {showProjection ? '📊 Showing Projection' : '📈 Show Year-End Projection'}
+                {showProjection ? 'Showing Projection' : 'Show Year-End Projection'}
               </button>
               {showProjection && remainingMonths > 0 && (
                 <span className="text-sm text-muted-foreground">
-                  Projecting {remainingMonths} more {remainingMonths === 1 ? 'month' : 'months'} @ {formatCurrency(avgMonthlySalary)}/month (avg of last 3 months)
+                  Projecting {remainingMonths} more{' '}
+                  {remainingMonths === 1 ? 'month' : 'months'} @{' '}
+                  {formatCurrency(avgMonthlySalary)}/month (avg of last 3 months)
                 </span>
               )}
             </div>
@@ -358,312 +310,59 @@ export default function TaxPlanningPage() {
         </motion.div>
 
         {/* FY Selector */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-        >
-          <div className="flex items-center justify-between">
-            <button
-              onClick={goToPreviousFY}
-              disabled={currentIndex >= fyList.length - 1}
-              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all border border-white/10"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-
-            <div className="text-center flex-1">
-              <div className="flex items-center justify-center gap-4">
-                <div>
-                  <h2 className="text-3xl font-bold text-white">{selectedFY || 'Select FY'}</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {isNewRegime ? 'New Tax Regime (2025-26 onwards)' : 'Old Tax Regime (Before 2025-26)'}
-                  </p>
-                </div>
-                
-                {/* Projection Toggle - only for current FY */}
-                {isCurrentFY && hasEmploymentIncome && selectedFY === 'FY2025-26' && (
-                  <div className="flex flex-col items-start gap-1">
-                    <button
-                      onClick={() => setShowProjection(!showProjection)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                        showProjection
-                          ? 'bg-primary text-white shadow-lg shadow-primary/50'
-                          : 'bg-white/5 text-muted-foreground hover:bg-white/10'
-                      }`}
-                    >
-                      {showProjection ? '📊 Showing Projection' : '📈 Show Year-End Projection'}
-                    </button>
-                    {showProjection && remainingMonths > 0 && (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        Projecting {remainingMonths} more {remainingMonths === 1 ? 'month' : 'months'} @ {formatCurrency(avgMonthlySalary)}/month (avg 3mo)
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={goToNextFY}
-              disabled={currentIndex <= 0}
-              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all border border-white/10"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        </motion.div>
+        <FYNavigator
+          selectedFY={selectedFY}
+          isNewRegime={isNewRegime}
+          isCurrentFY={isCurrentFY}
+          hasEmploymentIncome={hasEmploymentIncome}
+          showProjection={showProjection}
+          onToggleProjection={() => setShowProjection(!showProjection)}
+          remainingMonths={remainingMonths}
+          avgMonthlySalary={avgMonthlySalary}
+          canGoBack={canGoBack}
+          canGoForward={canGoForward}
+          onGoBack={goToPreviousFY}
+          onGoForward={goToNextFY}
+        />
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-500/20 rounded-xl shadow-lg shadow-green-500/30">
-                <TrendingUp className="w-6 h-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Salaried Income</p>
-                <p className="text-2xl font-bold">
-                  {isLoading ? '...' : formatCurrency(showProjection && isCurrentFY && hasEmploymentIncome ? netTaxableIncome + projectedAdditionalIncome : netTaxableIncome)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Received after TDS</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
-                <IndianRupee className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Taxable Income</p>
-                <p className="text-2xl font-bold">
-                  {isLoading ? '...' : formatCurrency(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Before standard deduction</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">
-                <Calculator className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Tax Already Paid</p>
-                <p className="text-2xl font-bold">
-                  {isLoading ? '...' : formatCurrency(showProjection && isCurrentFY && hasEmploymentIncome ? projectedTaxAlreadyPaid : taxAlreadyPaid)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Deducted at source</p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
+        <TaxSummaryCards
+          isLoading={isLoading}
+          netTaxableIncome={displayNet}
+          grossTaxableIncome={displayGross}
+          taxAlreadyPaid={displayTotalTax}
+        />
 
         {/* Tax Slab Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-        >
-          <h3 className="text-xl font-semibold text-white mb-4">
-            {isNewRegime ? 'Tax Slabs (FY 2025-26 Onwards)' : 'Tax Slabs (Before FY 2025-26)'}
-          </h3>
-          
-          {/* Standard Deduction Info */}
-          <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-            <p className="text-sm text-blue-400">
-              ℹ️ Standard Deduction: <span className="font-semibold">{formatCurrency(standardDeduction)}</span>
-              {fyYear >= 2024 ? ' (from FY 2024-25)' : ' (before FY 2024-25)'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Tax calculated on: {formatCurrency(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome)} (After standard deduction)
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Lower Limit</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Upper Limit</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-300">Tax %</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-300">Tax Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {taxSlabs.map((slab, index) => {
-                  const breakdown = (showProjection && isCurrentFY && hasEmploymentIncome ? projectedSlabBreakdown : slabBreakdown).find(b => b.slab === slab)
-                  const taxAmount = breakdown?.taxAmount || 0
-                  const relevantGrossIncome = showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome
-                  const isApplicable = relevantGrossIncome > slab.lower
-
-                  return (
-                    <tr
-                      key={index}
-                      className={`border-b border-white/5 ${isApplicable ? 'bg-primary/5' : ''}`}
-                    >
-                      <td className="py-3 px-4 text-white">
-                        {formatCurrency(slab.lower)}
-                      </td>
-                      <td className="py-3 px-4 text-white">
-                        {slab.upper === Infinity
-                          ? 'Above'
-                          : formatCurrency(slab.upper)}
-                      </td>
-                      <td className="py-3 px-4 text-right text-white font-semibold">{slab.rate.toFixed(2)}%</td>
-                      <td className="py-3 px-4 text-right font-bold text-primary">
-                        {isApplicable ? formatCurrency(taxAmount) : formatCurrency(0)}
-                      </td>
-                    </tr>
-                  )
-                })}
-                <tr className="border-t border-white/10">
-                  <td colSpan={3} className="py-3 px-4 text-right font-semibold text-white">
-                    Tax on Base:
-                  </td>
-                  <td className="py-3 px-4 text-right font-bold text-white">
-                    {formatCurrency(showProjection && isCurrentFY && hasEmploymentIncome ? projectedBaseTax : baseTax)}
-                  </td>
-                </tr>
-                <tr className="border-b border-white/5">
-                  <td colSpan={3} className="py-3 px-4 text-right text-sm text-gray-400">
-                    + Health & Education Cess (4%):
-                  </td>
-                  <td className="py-3 px-4 text-right text-sm text-gray-300">
-                    {formatCurrency(showProjection && isCurrentFY && hasEmploymentIncome ? projectedCess : cess)}
-                  </td>
-                </tr>
-                <tr className="border-b border-white/5">
-                  <td colSpan={3} className="py-3 px-4 text-right text-sm text-gray-400">
-                    + Professional Tax:
-                  </td>
-                  <td className="py-3 px-4 text-right text-sm text-gray-300">
-                    {formatCurrency(showProjection && isCurrentFY && hasEmploymentIncome ? projectedProfessionalTax : professionalTax)}
-                  </td>
-                </tr>
-                <tr className="border-t-2 border-primary/30">
-                  <td colSpan={3} className="py-4 px-4 text-right text-lg font-bold text-white">
-                    Total Tax Already Paid:
-                  </td>
-                  <td className="py-4 px-4 text-right text-2xl font-bold text-primary">
-                    {formatCurrency(showProjection && isCurrentFY && hasEmploymentIncome ? projectedTaxAlreadyPaid : taxAlreadyPaid)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </motion.div>
+        <TaxSlabBreakdown
+          isNewRegime={isNewRegime}
+          taxSlabs={taxSlabs}
+          slabBreakdown={displaySlabBreakdown}
+          grossTaxableIncome={displayGross}
+          standardDeduction={standardDeduction}
+          fyYear={fyYear}
+          baseTax={displayBaseTax}
+          cess={displayCess}
+          professionalTax={displayProfessionalTax}
+          totalTax={displayTotalTax}
+        />
 
         {/* Tax Summary */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-        >
-          <h3 className="text-lg font-semibold text-white mb-6">Tax Summary for {selectedFY}</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <p className="text-sm text-gray-400 mb-2">Effective Tax Rate</p>
-              <p className="text-2xl font-bold text-primary">
-                {formatPercent((showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome) > 0 ? ((showProjection && isCurrentFY && hasEmploymentIncome ? projectedTaxAlreadyPaid : taxAlreadyPaid) / (showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome)) * 100 : 0)}
-              </p>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <p className="text-sm text-gray-400 mb-2">Gross Taxable Income</p>
-              <p className="text-2xl font-bold text-blue-400">
-                {formatCurrency(showProjection && isCurrentFY && hasEmploymentIncome ? projectedGrossTaxableIncome : grossTaxableIncome)}
-              </p>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <p className="text-sm text-gray-400 mb-2">Net Received (After Tax)</p>
-              <p className="text-2xl font-bold text-green-400">
-                {formatCurrency(showProjection && isCurrentFY && hasEmploymentIncome ? netTaxableIncome + projectedAdditionalIncome : netTaxableIncome)}
-              </p>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <p className="text-sm text-gray-400 mb-2">Net Savings</p>
-              <p className="text-2xl font-bold text-purple-400">
-                {formatCurrency((showProjection && isCurrentFY && hasEmploymentIncome ? income + projectedAdditionalIncome : income) - expense)}
-              </p>
-            </div>
-          </div>
-        </motion.div>
+        <TaxSummaryGrid
+          selectedFY={selectedFY}
+          grossTaxableIncome={displayGross}
+          taxAlreadyPaid={displayTotalTax}
+          netTaxableIncome={displayNet}
+          totalIncome={displayIncome}
+          totalExpense={expense}
+        />
 
         {/* Salaried Taxable Income Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-        >
-          <h3 className="text-lg font-semibold text-white mb-6">Salaried Taxable Income for {selectedFY}</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Date</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-300">Amount</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Type</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Note</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentFYData?.incomeGroups && Object.entries(currentFYData.incomeGroups).map(([group, data]) => (
-                  data.transactions.length > 0 && (
-                    <React.Fragment key={group}>
-                      <tr className="border-b border-white/10 bg-white/5">
-                        <td colSpan={2} className="py-3 px-4 text-left font-bold text-white">{group}</td>
-                        <td className="py-3 px-4 text-right font-bold text-white">
-                          {formatCurrency(data.total)}
-                        </td>
-                        <td className="py-3 px-4 text-right font-bold text-white">
-                          {netTaxableIncome > 0 ? formatPercent((data.total / netTaxableIncome) * 100) : '0%'}
-                        </td>
-                      </tr>
-                      {data.transactions.map((tx, index) => (
-                        <tr key={index} className="border-b border-white/5">
-                          <td className="py-3 px-4 text-white">{new Date(tx.date).toLocaleDateString()}</td>
-                          <td className="py-3 px-4 text-right">
-                            {group === 'EPF' ? (
-                              <div>
-                                <div className="font-bold text-green-400">{formatCurrency(tx.amount / 2)}</div>
-                                <div className="text-xs text-gray-400">(50% of {formatCurrency(tx.amount)})</div>
-                              </div>
-                            ) : (
-                              <span className="font-bold text-green-400">{formatCurrency(tx.amount)}</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-white">{tx.type}</td>
-                          <td className="py-3 px-4 text-white">{tx.note}</td>
-                        </tr>
-                      ))}
-                    </React.Fragment>
-                  )
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </motion.div>
+        <TaxableIncomeTable
+          selectedFY={selectedFY}
+          incomeGroups={currentFYData?.incomeGroups}
+          netTaxableIncome={netTaxableIncome}
+        />
       </div>
     </div>
   )

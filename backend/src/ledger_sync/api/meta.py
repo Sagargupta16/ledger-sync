@@ -1,6 +1,7 @@
 """Metadata API endpoints for dropdowns and filters."""
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import union_all
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser
@@ -24,44 +25,35 @@ def get_accounts(
     db: Session = Depends(get_session),
 ) -> dict[str, list[str]]:
     """Return unique accounts from transactions (including transfers)."""
-    accounts: set[str] = set()
-
-    # From transactions (account field)
-    for (acct,) in (
-        db.query(Transaction.account)
+    q1 = (
+        db.query(Transaction.account.label("acct"))
         .filter(Transaction.user_id == current_user.id, Transaction.is_deleted.is_(False))
         .distinct()
-    ):
-        if acct:
-            accounts.add(acct)
-
-    # From transfers (from_account field)
-    for (from_acct,) in (
-        db.query(Transaction.from_account)
+    )
+    q2 = (
+        db.query(Transaction.from_account.label("acct"))
         .filter(
             Transaction.user_id == current_user.id,
             Transaction.is_deleted.is_(False),
             Transaction.from_account.isnot(None),
         )
         .distinct()
-    ):
-        if from_acct:
-            accounts.add(from_acct)
-
-    # From transfers (to_account field)
-    for (to_acct,) in (
-        db.query(Transaction.to_account)
+    )
+    q3 = (
+        db.query(Transaction.to_account.label("acct"))
         .filter(
             Transaction.user_id == current_user.id,
             Transaction.is_deleted.is_(False),
             Transaction.to_account.isnot(None),
         )
         .distinct()
-    ):
-        if to_acct:
-            accounts.add(to_acct)
+    )
 
-    return {"accounts": sorted(accounts)}
+    combined = union_all(q1, q2, q3).subquery()
+    results = db.query(combined.c.acct).distinct().all()
+    accounts = sorted({row[0] for row in results if row[0]})
+
+    return {"accounts": accounts}
 
 
 @router.get("/filters")

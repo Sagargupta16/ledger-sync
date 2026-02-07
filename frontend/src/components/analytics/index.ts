@@ -13,3 +13,10 @@ export { default as PeriodComparison } from './PeriodComparison'
 export { default as CashFlowForecast } from './CashFlowForecast'
 export { default as CreditCardHealth } from './CreditCardHealth'
 export { default as BudgetTracker } from './BudgetTracker'
+
+// Tax planning components
+export { default as FYNavigator } from './FYNavigator'
+export { default as TaxSlabBreakdown } from './TaxSlabBreakdown'
+export { default as TaxSummaryCards } from './TaxSummaryCards'
+export { default as TaxSummaryGrid } from './TaxSummaryGrid'
+export { default as TaxableIncomeTable } from './TaxableIncomeTable'

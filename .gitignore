@@ -210,3 +210,5 @@ local.properties
 connect.lock
 typings/
 .angular/
+
+.claude

@@ -150,11 +150,13 @@ class Transaction(Base):
     # Relationship back to user
     user: Mapped["User"] = relationship("User", back_populates="transactions")
 
-    # Create composite index for common queries
+    # Create composite indexes for common queries
     __table_args__ = (
         Index("ix_transactions_date_type", "date", "type"),
         Index("ix_transactions_category_subcategory", "category", "subcategory"),
         Index("ix_transactions_user_date", "user_id", "date"),
+        Index("ix_transactions_user_deleted", "user_id", "is_deleted"),
+        Index("ix_transactions_user_type_deleted", "user_id", "type", "is_deleted"),
     )
 
     def __repr__(self) -> str:
@@ -227,8 +229,13 @@ class AccountClassification(Base):
     # Primary key
     id: Mapped[int] = mapped_column(primary_key=True)
 
+    # User foreign key - scopes classification to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+
     # Account name and classification
-    account_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    account_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     account_type: Mapped[AccountType] = mapped_column(
         Enum(AccountType),
         nullable=False,
@@ -236,12 +243,18 @@ class AccountClassification(Base):
     )
 
     # Metadata
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
-        default=datetime.now,
-        onupdate=datetime.now,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    __table_args__ = (
+        Index("ix_account_classification_user_account", "user_id", "account_name", unique=True),
     )
 
     def __repr__(self) -> str:
