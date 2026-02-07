@@ -1,13 +1,12 @@
 import { motion } from 'framer-motion'
 import { ShoppingBag, TrendingUp, Zap, Activity, Gift, Receipt, Flame, ArrowLeftRight } from 'lucide-react'
-import { useCategoryBreakdown } from '@/hooks/useAnalytics'
+import { useCategoryBreakdown, useTotals } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { useTotals } from '@/hooks/useAnalytics'
 import LoadingSkeleton from './LoadingSkeleton'
 import { formatCurrency } from '@/lib/formatters'
 
 interface QuickInsightsProps {
-  dateRange?: { start_date?: string; end_date?: string }
+  readonly dateRange?: { start_date?: string; end_date?: string }
 }
 
 export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {

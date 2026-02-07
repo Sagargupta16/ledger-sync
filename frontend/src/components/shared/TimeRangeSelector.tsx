@@ -10,7 +10,7 @@ interface TimeRangeSelectorProps {
 
 const ranges: TimeRange[] = ['1M', '3M', '6M', '1Y', 'ALL']
 
-export default function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
+export default function TimeRangeSelector({ value, onChange }: Readonly<TimeRangeSelectorProps>) {
   return (
     <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist" aria-label="Time range selector">
       {ranges.map((range) => (
@@ -24,7 +24,7 @@ export default function TimeRangeSelector({ value, onChange }: TimeRangeSelector
               ? 'text-white'
               : 'hover:text-white hover:bg-white/[0.06]'
           }`}
-          style={{ color: value !== range ? rawColors.text.secondary : undefined }}
+          style={{ color: value === range ? undefined : rawColors.text.secondary }}
           whileTap={{ scale: 0.97 }}
         >
           {value === range && (

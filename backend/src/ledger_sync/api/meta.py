@@ -123,69 +123,67 @@ def _classify_account(name: str) -> str:
     return "investment" if any(k in n for k in investment_kw) else "general"
 
 
+def _classify_categories_into_buckets(
+    db: DatabaseSession, user_id: int
+) -> tuple[set[str], set[str], set[str], set[str]]:
+    """Classify transaction categories into needs/wants/savings/investment buckets."""
+    needs: set[str] = set()
+    wants: set[str] = set()
+    savings: set[str] = set()
+    investment_categories: set[str] = set()
+
+    bucket_map: dict[str, set[str]] = {
+        "investment": investment_categories,
+        "needs": needs,
+        "savings": savings,
+        "wants": wants,
+    }
+
+    for (category,) in (
+        db.query(Transaction.category)
+        .filter(Transaction.user_id == user_id, Transaction.is_deleted.is_(False))
+        .distinct()
+    ):
+        if not category:
+            continue
+        bucket = _classify_category(category)
+        bucket_map[bucket].add(category)
+
+    return needs, wants, savings, investment_categories
+
+
+def _collect_investment_accounts(db: DatabaseSession, user_id: int) -> set[str]:
+    """Collect investment accounts from account, from_account, and to_account columns."""
+    investment_accounts: set[str] = set()
+    active_filter = (Transaction.user_id == user_id, Transaction.is_deleted.is_(False))
+
+    account_columns = [
+        (Transaction.account, None),
+        (Transaction.from_account, Transaction.from_account.isnot(None)),
+        (Transaction.to_account, Transaction.to_account.isnot(None)),
+    ]
+
+    for column, extra_filter in account_columns:
+        query = db.query(column).filter(*active_filter).distinct()
+        if extra_filter is not None:
+            query = query.filter(extra_filter)
+        for (acct,) in query:
+            if acct and _classify_account(acct) == "investment":
+                investment_accounts.add(acct)
+
+    return investment_accounts
+
+
 @router.get("/buckets")
 def get_buckets(
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> dict[str, list[str]]:
     """Return dynamic buckets (needs/wants/savings/investment) from existing data."""
-    needs: set[str] = set()
-    wants: set[str] = set()
-    savings: set[str] = set()
-    investment_categories: set[str] = set()
-    investment_accounts: set[str] = set()
-
-    # Classify categories from transactions
-    for (category,) in (
-        db.query(Transaction.category)
-        .filter(Transaction.user_id == current_user.id, Transaction.is_deleted.is_(False))
-        .distinct()
-    ):
-        if not category:
-            continue
-        bucket = _classify_category(category)
-        if bucket == "investment":
-            investment_categories.add(category)
-        elif bucket == "needs":
-            needs.add(category)
-        elif bucket == "savings":
-            savings.add(category)
-        else:
-            wants.add(category)
-
-    # Classify accounts
-    for (acct,) in (
-        db.query(Transaction.account)
-        .filter(Transaction.user_id == current_user.id, Transaction.is_deleted.is_(False))
-        .distinct()
-    ):
-        if acct and _classify_account(acct) == "investment":
-            investment_accounts.add(acct)
-
-    # Check from_account and to_account in transactions (for transfers)
-    for (from_acct,) in (
-        db.query(Transaction.from_account)
-        .filter(
-            Transaction.user_id == current_user.id,
-            Transaction.is_deleted.is_(False),
-            Transaction.from_account.isnot(None),
-        )
-        .distinct()
-    ):
-        if from_acct and _classify_account(from_acct) == "investment":
-            investment_accounts.add(from_acct)
-
-    for (to_acct,) in (
-        db.query(Transaction.to_account)
-        .filter(
-            Transaction.user_id == current_user.id,
-            Transaction.is_deleted.is_(False),
-            Transaction.to_account.isnot(None),
-        )
-        .distinct()
-    ):
-        if to_acct and _classify_account(to_acct) == "investment":
-            investment_accounts.add(to_acct)
+    needs, wants, savings, investment_categories = _classify_categories_into_buckets(
+        db, current_user.id
+    )
+    investment_accounts = _collect_investment_accounts(db, current_user.id)
 
     return {
         "needs": sorted(needs),

@@ -26,7 +26,7 @@ export default function TaxSlabBreakdown({
   cess,
   professionalTax,
   totalTax,
-}: TaxSlabBreakdownProps) {
+}: Readonly<TaxSlabBreakdownProps>) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -67,14 +67,14 @@ export default function TaxSlabBreakdown({
             </tr>
           </thead>
           <tbody>
-            {taxSlabs.map((slab, index) => {
+            {taxSlabs.map((slab) => {
               const breakdown = slabBreakdown.find((b) => b.slab === slab)
               const taxAmount = breakdown?.taxAmount || 0
               const isApplicable = grossTaxableIncome > slab.lower
 
               return (
                 <tr
-                  key={index}
+                  key={`${slab.lower}-${slab.upper}`}
                   className={`border-b border-white/5 ${isApplicable ? 'bg-primary/5' : ''}`}
                 >
                   <td className="py-3 px-4 text-white">{formatCurrency(slab.lower)}</td>

@@ -26,7 +26,7 @@ interface AuthModalProps {
   onClose: () => void
 }
 
-export function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
   const navigate = useNavigate()
   const [mode, setMode] = useState<AuthMode>('login')
   const [email, setEmail] = useState('')
@@ -264,7 +264,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 }
 
 // Export the LoginButton component for use in HomePage
-export function LoginButton({ onClick }: { onClick: () => void }) {
+export function LoginButton({ onClick }: Readonly<{ onClick: () => void }>) {
   return (
     <button
       onClick={onClick}

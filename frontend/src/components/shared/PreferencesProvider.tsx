@@ -8,16 +8,14 @@
 import { usePreferences } from '@/hooks/api/usePreferences'
 
 interface PreferencesProviderProps {
-  children: React.ReactNode
+  readonly children: React.ReactNode
 }
 
 export function PreferencesProvider({ children }: PreferencesProviderProps) {
   // This hook automatically loads preferences and hydrates the store
-  const { isLoading, isError } = usePreferences()
-
-  // Render children regardless of loading/error state — the store has defaults
-  void isLoading
-  void isError
+  // We call the hook to trigger loading/hydration, but render children
+  // regardless of loading/error state — the store has defaults
+  usePreferences()
 
   return <>{children}</>
 }

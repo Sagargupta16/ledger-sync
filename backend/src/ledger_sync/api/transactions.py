@@ -5,8 +5,10 @@ import io
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
+from pydantic import BaseModel
 from sqlalchemy import or_
+from sqlalchemy.orm import Query as SAQuery
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import Transaction, TransactionType
@@ -18,6 +20,117 @@ from ledger_sync.schemas.transactions import (
 # Query description constants
 START_DATE_DESC = "Start date (inclusive)"
 END_DATE_DESC = "End date (inclusive)"
+
+# Map of transaction type strings to TransactionType enum values
+_TRANSACTION_TYPE_MAP: dict[str, TransactionType] = {
+    "income": TransactionType.INCOME,
+    "expense": TransactionType.EXPENSE,
+    "transfer": TransactionType.TRANSFER,
+}
+
+
+class SearchFilters(BaseModel):
+    """Query parameters for filtering transactions in the search endpoint."""
+
+    model_config = {"extra": "forbid"}
+
+    query: Annotated[str | None, Query(description="Search in notes, category, account")] = None
+    category: Annotated[str | None, Query(description="Filter by category")] = None
+    subcategory: Annotated[str | None, Query(description="Filter by subcategory")] = None
+    account: Annotated[str | None, Query(description="Filter by account")] = None
+    type: Annotated[str | None, Query(description="Filter by type (Income/Expense/Transfer)")] = (
+        None
+    )
+    min_amount: Annotated[float | None, Query(description="Minimum amount")] = None
+    max_amount: Annotated[float | None, Query(description="Maximum amount")] = None
+    start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None
+    end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None
+
+
+def _apply_search_filters(tx_query: SAQuery, filters: SearchFilters) -> SAQuery:
+    """Apply all search filters from a SearchFilters instance to a SQLAlchemy query.
+
+    Handles date range, amount range, category, subcategory, account,
+    transaction type, and free-text search filters.
+
+    Args:
+        tx_query: Base SQLAlchemy query to filter
+        filters: Validated search filter parameters
+
+    Returns:
+        Filtered SQLAlchemy query
+
+    """
+    tx_query = _apply_date_and_amount_filters(tx_query, filters)
+    tx_query = _apply_field_filters(tx_query, filters)
+    return tx_query
+
+
+def _apply_date_and_amount_filters(tx_query: SAQuery, filters: SearchFilters) -> SAQuery:
+    """Apply date range and amount range filters."""
+    if filters.start_date:
+        tx_query = tx_query.filter(Transaction.date >= filters.start_date)
+    if filters.end_date:
+        tx_query = tx_query.filter(Transaction.date <= filters.end_date)
+    if filters.min_amount is not None:
+        tx_query = tx_query.filter(Transaction.amount >= filters.min_amount)
+    if filters.max_amount is not None:
+        tx_query = tx_query.filter(Transaction.amount <= filters.max_amount)
+    return tx_query
+
+
+def _apply_field_filters(tx_query: SAQuery, filters: SearchFilters) -> SAQuery:
+    """Apply category, subcategory, account, type, and text search filters."""
+    if filters.category:
+        tx_query = tx_query.filter(Transaction.category == filters.category)
+    if filters.subcategory:
+        tx_query = tx_query.filter(Transaction.subcategory == filters.subcategory)
+    if filters.account:
+        tx_query = tx_query.filter(
+            (Transaction.account == filters.account)
+            | (Transaction.from_account == filters.account)
+            | (Transaction.to_account == filters.account),
+        )
+    if filters.type:
+        tx_type = _TRANSACTION_TYPE_MAP.get(filters.type.lower())
+        if tx_type is not None:
+            tx_query = tx_query.filter(Transaction.type == tx_type)
+    if filters.query:
+        search_term = f"%{filters.query}%"
+        tx_query = tx_query.filter(
+            or_(
+                Transaction.note.ilike(search_term),
+                Transaction.category.ilike(search_term),
+                Transaction.account.ilike(search_term),
+                Transaction.subcategory.ilike(search_term),
+            )
+        )
+    return tx_query
+
+
+def _apply_sorting(tx_query: SAQuery, sort_by: str, sort_order: str) -> SAQuery:
+    """Apply column sorting to a SQLAlchemy query.
+
+    Args:
+        tx_query: SQLAlchemy query to sort
+        sort_by: Column name to sort by (date, amount, category, account)
+        sort_order: Sort direction ('asc' or 'desc')
+
+    Returns:
+        Sorted SQLAlchemy query
+
+    """
+    sort_column_map = {
+        "date": Transaction.date,
+        "amount": Transaction.amount,
+        "category": Transaction.category,
+        "account": Transaction.account,
+    }
+    sort_column = sort_column_map.get(sort_by, Transaction.date)
+    if sort_order == "desc":
+        return tx_query.order_by(sort_column.desc())
+    return tx_query.order_by(sort_column.asc())
+
 
 router = APIRouter(prefix="", tags=["transactions"])
 
@@ -142,17 +255,7 @@ async def get_all_transactions(
 async def search_transactions(
     current_user: CurrentUser,
     db: DatabaseSession,
-    query: Annotated[str | None, Query(description="Search in notes, category, account")] = None,
-    category: Annotated[str | None, Query(description="Filter by category")] = None,
-    subcategory: Annotated[str | None, Query(description="Filter by subcategory")] = None,
-    account: Annotated[str | None, Query(description="Filter by account")] = None,
-    type: Annotated[
-        str | None, Query(description="Filter by type (Income/Expense/Transfer)")
-    ] = None,
-    min_amount: Annotated[float | None, Query(description="Minimum amount")] = None,
-    max_amount: Annotated[float | None, Query(description="Maximum amount")] = None,
-    start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None,
-    end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
+    filters: Annotated[SearchFilters, Depends()],
     limit: Annotated[int, Query(ge=1, le=1000, description="Maximum results to return")] = 100,
     offset: Annotated[int, Query(ge=0, description="Number of results to skip")] = 0,
     sort_by: Annotated[
@@ -169,15 +272,7 @@ async def search_transactions(
     Args:
         current_user: Authenticated user
         db: Database session
-        query: Text search in notes, category, account (case-insensitive)
-        category: Filter by exact category match
-        subcategory: Filter by exact subcategory match
-        account: Filter by exact account match
-        type: Filter by transaction type
-        min_amount: Minimum transaction amount
-        max_amount: Maximum transaction amount
-        start_date: Filter transactions from this date onwards
-        end_date: Filter transactions up to this date
+        filters: Search filter parameters (query, category, subcategory, etc.)
         limit: Maximum number of results to return
         offset: Number of results to skip (for pagination)
         sort_by: Field to sort by
@@ -193,74 +288,14 @@ async def search_transactions(
         Transaction.is_deleted.is_(False),
     )
 
-    # Apply date filters
-    if start_date:
-        tx_query = tx_query.filter(Transaction.date >= start_date)
-    if end_date:
-        tx_query = tx_query.filter(Transaction.date <= end_date)
-
-    # Apply amount filters
-    if min_amount is not None:
-        tx_query = tx_query.filter(Transaction.amount >= min_amount)
-    if max_amount is not None:
-        tx_query = tx_query.filter(Transaction.amount <= max_amount)
-
-    # Apply category filter
-    if category:
-        tx_query = tx_query.filter(Transaction.category == category)
-
-    # Apply subcategory filter
-    if subcategory:
-        tx_query = tx_query.filter(Transaction.subcategory == subcategory)
-
-    # Apply account filter (for transactions: account, for transfers: from_account or to_account)
-    if account:
-        tx_query = tx_query.filter(
-            (Transaction.account == account)
-            | (Transaction.from_account == account)
-            | (Transaction.to_account == account),
-        )
-
-    # Apply type filter
-    if type:
-        type_lower = type.lower()
-
-        if type_lower == "income":
-            tx_query = tx_query.filter(Transaction.type == TransactionType.INCOME)
-        elif type_lower == "expense":
-            tx_query = tx_query.filter(Transaction.type == TransactionType.EXPENSE)
-        elif type_lower == "transfer":
-            tx_query = tx_query.filter(Transaction.type == TransactionType.TRANSFER)
-
-    # Apply text search filter at DB level
-    if query:
-        search_term = f"%{query}%"
-        tx_query = tx_query.filter(
-            or_(
-                Transaction.note.ilike(search_term),
-                Transaction.category.ilike(search_term),
-                Transaction.account.ilike(search_term),
-                Transaction.subcategory.ilike(search_term),
-            )
-        )
+    # Apply all search filters
+    tx_query = _apply_search_filters(tx_query, filters)
 
     # Get total count before pagination
     total = tx_query.count()
 
-    # Apply sorting
-    sort_column_map = {
-        "date": Transaction.date,
-        "amount": Transaction.amount,
-        "category": Transaction.category,
-        "account": Transaction.account,
-    }
-    sort_column = sort_column_map.get(sort_by, Transaction.date)
-    if sort_order == "desc":
-        tx_query = tx_query.order_by(sort_column.desc())
-    else:
-        tx_query = tx_query.order_by(sort_column.asc())
-
-    # Apply pagination
+    # Apply sorting and pagination
+    tx_query = _apply_sorting(tx_query, sort_by, sort_order)
     transactions = tx_query.offset(offset).limit(limit).all()
 
     # Convert to result format

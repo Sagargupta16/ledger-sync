@@ -10,7 +10,7 @@ interface SidebarItemProps {
   isCollapsed?: boolean
 }
 
-export default function SidebarItem({ to, icon: Icon, label, isCollapsed }: SidebarItemProps) {
+export default function SidebarItem({ to, icon: Icon, label, isCollapsed }: Readonly<SidebarItemProps>) {
   return (
     <NavLink
       to={to}

@@ -20,6 +20,42 @@ const PRESET_ICONS: Record<string, LucideIcon> = {
   default: FileQuestion,
 }
 
+type Variant = 'default' | 'compact' | 'card'
+
+const paddingClasses: Record<Variant, string> = {
+  compact: 'py-6 px-4',
+  card: 'py-8 px-6',
+  default: 'py-12 px-6',
+}
+
+function getSizeClass(isCompact: boolean, compact: string, normal: string): string {
+  return isCompact ? compact : normal
+}
+
+function ActionButton({ actionLabel, actionHref, onAction, isCompact }: {
+  actionLabel: string
+  actionHref?: string
+  onAction?: () => void
+  isCompact: boolean
+}) {
+  const sizeClass = getSizeClass(isCompact, 'text-xs', 'text-sm')
+  const baseClass = `inline-flex items-center gap-2 px-5 py-2.5 bg-ios-blue-vibrant text-white rounded-xl font-medium hover:bg-ios-blue active:scale-[0.98] transition-all shadow-lg shadow-ios-blue-vibrant/30 ${sizeClass}`
+
+  if (actionHref) {
+    return (
+      <Link to={actionHref} className={baseClass}>
+        {actionLabel}
+      </Link>
+    )
+  }
+
+  return (
+    <button onClick={onAction} className={baseClass}>
+      {actionLabel}
+    </button>
+  )
+}
+
 export default function EmptyState({
   icon: Icon = FileQuestion,
   title,
@@ -30,74 +66,51 @@ export default function EmptyState({
   variant = 'default',
 }: EmptyStateProps) {
   const isCompact = variant === 'compact'
-  const isCard = variant === 'card'
+  const hasAction = actionLabel && (actionHref || onAction)
 
   const content = (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex flex-col items-center justify-center text-center ${
-        isCompact ? 'py-6 px-4' : isCard ? 'py-8 px-6' : 'py-12 px-6'
-      }`}
+      className={`flex flex-col items-center justify-center text-center ${paddingClasses[variant]}`}
     >
       {/* Icon - iOS style */}
       <div
         className={`rounded-2xl bg-ios-blue-vibrant/15 flex items-center justify-center mb-4 ${
-          isCompact ? 'w-12 h-12' : 'w-16 h-16'
+          getSizeClass(isCompact, 'w-12 h-12', 'w-16 h-16')
         }`}
         style={{ boxShadow: '0 8px 32px rgba(10, 132, 255, 0.15)' }}
       >
-        <Icon className={`text-ios-blue-vibrant ${isCompact ? 'w-6 h-6' : 'w-8 h-8'}`} />
+        <Icon className={`text-ios-blue-vibrant ${getSizeClass(isCompact, 'w-6 h-6', 'w-8 h-8')}`} />
       </div>
 
       {/* Title */}
-      <h3
-        className={`font-semibold text-white mb-1 ${
-          isCompact ? 'text-sm' : 'text-lg'
-        }`}
-      >
+      <h3 className={`font-semibold text-white mb-1 ${getSizeClass(isCompact, 'text-sm', 'text-lg')}`}>
         {title}
       </h3>
 
       {/* Description */}
       {description && (
-        <p
-          className={`text-muted-foreground max-w-xs ${
-            isCompact ? 'text-xs' : 'text-sm'
-          }`}
-        >
+        <p className={`text-muted-foreground max-w-xs ${getSizeClass(isCompact, 'text-xs', 'text-sm')}`}>
           {description}
         </p>
       )}
 
       {/* Action Button - iOS style */}
-      {(actionLabel && (actionHref || onAction)) && (
+      {hasAction && (
         <div className={isCompact ? 'mt-3' : 'mt-5'}>
-          {actionHref ? (
-            <Link
-              to={actionHref}
-              className={`inline-flex items-center gap-2 px-5 py-2.5 bg-ios-blue-vibrant text-white rounded-xl font-medium hover:bg-ios-blue active:scale-[0.98] transition-all shadow-lg shadow-ios-blue-vibrant/30 ${
-                isCompact ? 'text-xs' : 'text-sm'
-              }`}
-            >
-              {actionLabel}
-            </Link>
-          ) : (
-            <button
-              onClick={onAction}
-              className={`inline-flex items-center gap-2 px-5 py-2.5 bg-ios-blue-vibrant text-white rounded-xl font-medium hover:bg-ios-blue active:scale-[0.98] transition-all shadow-lg shadow-ios-blue-vibrant/30 ${
-                isCompact ? 'text-xs' : 'text-sm'
-              }`}
-            >
-              {actionLabel}
-            </button>
-          )}
+          <ActionButton
+            actionLabel={actionLabel}
+            actionHref={actionHref}
+            onAction={onAction}
+            isCompact={isCompact}
+          />
         </div>
       )}
     </motion.div>
   )
 
-  if (isCard) {
+  if (variant === 'card') {
     return (
       <div className="glass rounded-2xl border border-white/[0.08] shadow-lg shadow-black/20">
         {content}

@@ -1170,40 +1170,26 @@ class AnalyticsEngine:
             net_savings = total_income - total_expenses
             savings_rate = float(net_savings / total_income * 100) if total_income > 0 else 0
 
-            # YoY changes
-            yoy_income = 0.0
-            yoy_expense = 0.0
-            yoy_savings = 0.0
-            if prev_income and prev_income > 0:
-                yoy_income = float((total_income - prev_income) / prev_income * 100)
-            if prev_expenses and prev_expenses > 0:
-                yoy_expense = float((total_expenses - prev_expenses) / prev_expenses * 100)
-            if prev_savings and prev_savings != 0:
-                yoy_savings = float((net_savings - prev_savings) / abs(prev_savings) * 100)
+            yoy_income, yoy_expense, yoy_savings = self._calculate_yoy_changes(
+                total_income,
+                total_expenses,
+                net_savings,
+                prev_income,
+                prev_expenses,
+                prev_savings,
+            )
 
-            # Check if FY is complete
-            is_complete = data["end_date"] < now if data["end_date"] else False
-
-            summary = FYSummary(
-                user_id=self.user_id,
-                fiscal_year=fy,
-                start_date=data["start_date"],
-                end_date=data["end_date"],
-                total_income=total_income,
-                salary_income=data["salary_income"],
-                bonus_income=data["bonus_income"],
-                investment_income=data["investment_income"],
-                other_income=data["other_income"],
-                total_expenses=total_expenses,
-                tax_paid=data["tax_paid"],
-                investments_made=data["investments_made"],
-                net_savings=net_savings,
-                savings_rate=savings_rate,
-                yoy_income_change=yoy_income,
-                yoy_expense_change=yoy_expense,
-                yoy_savings_change=yoy_savings,
-                last_calculated=now,
-                is_complete=is_complete,
+            summary = self._build_fy_summary_record(
+                fy,
+                data,
+                total_income,
+                total_expenses,
+                net_savings,
+                savings_rate,
+                yoy_income,
+                yoy_expense,
+                yoy_savings,
+                now,
             )
             self.db.add(summary)
             count += 1
@@ -1213,6 +1199,95 @@ class AnalyticsEngine:
             prev_savings = net_savings
 
         return count
+
+    def _calculate_yoy_changes(
+        self,
+        total_income: Decimal,
+        total_expenses: Decimal,
+        net_savings: Decimal,
+        prev_income: Decimal | None,
+        prev_expenses: Decimal | None,
+        prev_savings: Decimal | None,
+    ) -> tuple[float, float, float]:
+        """Calculate year-over-year percentage changes.
+
+        Args:
+            total_income: Current FY total income
+            total_expenses: Current FY total expenses
+            net_savings: Current FY net savings
+            prev_income: Previous FY total income (None if first FY)
+            prev_expenses: Previous FY total expenses (None if first FY)
+            prev_savings: Previous FY net savings (None if first FY)
+
+        Returns:
+            Tuple of (yoy_income_pct, yoy_expense_pct, yoy_savings_pct)
+
+        """
+        yoy_income = 0.0
+        yoy_expense = 0.0
+        yoy_savings = 0.0
+        if prev_income and prev_income > 0:
+            yoy_income = float((total_income - prev_income) / prev_income * 100)
+        if prev_expenses and prev_expenses > 0:
+            yoy_expense = float((total_expenses - prev_expenses) / prev_expenses * 100)
+        if prev_savings and prev_savings != 0:
+            yoy_savings = float((net_savings - prev_savings) / abs(prev_savings) * 100)
+        return yoy_income, yoy_expense, yoy_savings
+
+    def _build_fy_summary_record(
+        self,
+        fy: str,
+        data: dict[str, Any],
+        total_income: Decimal,
+        total_expenses: Decimal,
+        net_savings: Decimal,
+        savings_rate: float,
+        yoy_income: float,
+        yoy_expense: float,
+        yoy_savings: float,
+        now: datetime,
+    ) -> FYSummary:
+        """Build a FYSummary ORM record from calculated data.
+
+        Args:
+            fy: Fiscal year label (e.g., "FY2024-25")
+            data: Aggregated FY data dict
+            total_income: Calculated total income
+            total_expenses: Calculated total expenses
+            net_savings: Calculated net savings
+            savings_rate: Savings rate percentage
+            yoy_income: YoY income change percentage
+            yoy_expense: YoY expense change percentage
+            yoy_savings: YoY savings change percentage
+            now: Current timestamp
+
+        Returns:
+            A FYSummary ORM instance
+
+        """
+        is_complete = data["end_date"] < now if data["end_date"] else False
+
+        return FYSummary(
+            user_id=self.user_id,
+            fiscal_year=fy,
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+            total_income=total_income,
+            salary_income=data["salary_income"],
+            bonus_income=data["bonus_income"],
+            investment_income=data["investment_income"],
+            other_income=data["other_income"],
+            total_expenses=total_expenses,
+            tax_paid=data["tax_paid"],
+            investments_made=data["investments_made"],
+            net_savings=net_savings,
+            savings_rate=savings_rate,
+            yoy_income_change=yoy_income,
+            yoy_expense_change=yoy_expense,
+            yoy_savings_change=yoy_savings,
+            last_calculated=now,
+            is_complete=is_complete,
+        )
 
     def _categorize_transaction_for_fy(
         self,

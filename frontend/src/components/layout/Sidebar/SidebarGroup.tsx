@@ -4,7 +4,7 @@ interface SidebarGroupProps {
   children: React.ReactNode
 }
 
-export default function SidebarGroup({ title, isCollapsed, children }: SidebarGroupProps) {
+export default function SidebarGroup({ title, isCollapsed, children }: Readonly<SidebarGroupProps>) {
   if (isCollapsed) {
     return (
       <div className="py-2 border-b border-white/[0.06] last:border-b-0">

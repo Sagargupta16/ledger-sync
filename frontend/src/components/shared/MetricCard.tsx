@@ -18,7 +18,7 @@ interface MetricCardProps {
   trend?: ReactNode
 }
 
-export default function MetricCard({ title, value, change, invertChange, changeLabel, icon: Icon, color = 'blue', isLoading, trend }: MetricCardProps) {
+export default function MetricCard({ title, value, change, invertChange, changeLabel, icon: Icon, color = 'blue', isLoading, trend }: Readonly<MetricCardProps>) {
   const colors = metricColorConfig[color]
 
   if (isLoading) {

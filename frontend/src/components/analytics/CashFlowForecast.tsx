@@ -29,14 +29,14 @@ export default function CashFlowForecast() {
 
     // Exclude current month from historical data if it's incomplete (< 25 days)
     const isCurrentMonthIncomplete = dayOfMonth < 25
-    const lastMonth = months[months.length - 1]
+    const lastMonth = months.at(-1)!
 
     let historicalMonths = months
     let lastCompleteMonth = lastMonth
 
     if (lastMonth.month === currentMonth && isCurrentMonthIncomplete) {
       historicalMonths = months.slice(0, -1)
-      lastCompleteMonth = historicalMonths[historicalMonths.length - 1]
+      lastCompleteMonth = historicalMonths.at(-1)!
     }
 
     if (historicalMonths.length < 3) return { historical: [], forecast: [], combined: [], insights: null }
@@ -51,13 +51,13 @@ export default function CashFlowForecast() {
     // Calculate growth rates
     const incomeGrowth =
       recentMonths.length > 1 && recentMonths[0].income > 0
-        ? (recentMonths[recentMonths.length - 1].income - recentMonths[0].income) /
+        ? (recentMonths.at(-1)!.income - recentMonths[0].income) /
           recentMonths[0].income /
           (recentMonths.length - 1)
         : 0
     const expenseGrowth =
       recentMonths.length > 1 && recentMonths[0].expense > 0
-        ? (recentMonths[recentMonths.length - 1].expense - recentMonths[0].expense) /
+        ? (recentMonths.at(-1)!.expense - recentMonths[0].expense) /
           recentMonths[0].expense /
           (recentMonths.length - 1)
         : 0
@@ -191,7 +191,7 @@ export default function CashFlowForecast() {
             <Tooltip
               {...chartTooltipProps}
               formatter={(value: number | undefined, name: string | undefined) => [
-                value !== undefined ? formatCurrency(value) : '',
+                value === undefined ? '' : formatCurrency(value),
                 name === 'income' ? 'Income' : 'Expenses',
               ]}
               labelFormatter={(label) => {
@@ -201,7 +201,7 @@ export default function CashFlowForecast() {
               }}
             />
             <ReferenceLine
-              x={forecastData.historical[forecastData.historical.length - 1]?.month}
+              x={forecastData.historical.at(-1)?.month}
               stroke="rgba(255,255,255,0.3)"
               strokeDasharray="3 3"
               label={{ value: 'Forecast →', position: 'top', fill: CHART_AXIS_COLOR, fontSize: 10 }}

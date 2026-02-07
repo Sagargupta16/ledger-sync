@@ -24,17 +24,21 @@ class NormalizationError(Exception):
     """Raised when normalization fails."""
 
 
+FOOD_AND_DINING = "Food & Dining"
+ENTERTAINMENT_AND_RECREATIONS = "Entertainment & Recreations"
+
+
 class DataNormalizer:
     """Normalizes and cleans raw Excel data into consistent format."""
 
     # Common category name corrections (typos, inconsistencies)
     CATEGORY_CORRECTIONS: ClassVar[dict[str, str]] = {
-        "food & dinning": "Food & Dining",
-        "food and dining": "Food & Dining",
-        "food&dining": "Food & Dining",
-        "entertianment": "Entertainment & Recreations",
-        "entertainment": "Entertainment & Recreations",
-        "entertainments": "Entertainment & Recreations",
+        "food & dinning": FOOD_AND_DINING,
+        "food and dining": FOOD_AND_DINING,
+        "food&dining": FOOD_AND_DINING,
+        "entertianment": ENTERTAINMENT_AND_RECREATIONS,
+        "entertainment": ENTERTAINMENT_AND_RECREATIONS,
+        "entertainments": ENTERTAINMENT_AND_RECREATIONS,
         "transportation": "Transportation",
         "transport": "Transportation",
         "healthcare": "Healthcare",
@@ -290,6 +294,104 @@ class DataNormalizer:
 
         return transaction_type
 
+    def _extract_currency(self, row: pd.Series) -> str:
+        """Extract and clean currency from row, defaulting to INR.
+
+        Args:
+            row: DataFrame row
+
+        Returns:
+            Uppercase currency string
+
+        """
+        for col in ["Currency", "currency"]:
+            if col in row.index and not pd.isna(row[col]):
+                return self._clean_text(str(row[col])).upper()
+        return "INR"
+
+    def _extract_subcategory(self, row: pd.Series) -> str | None:
+        """Extract and clean subcategory from row.
+
+        Args:
+            row: DataFrame row
+
+        Returns:
+            Cleaned subcategory string or None
+
+        """
+        for col in ["Subcategory", "subcategory", "Sub Category"]:
+            if col in row.index and not pd.isna(row[col]):
+                return self._clean_text(str(row[col]))
+        return None
+
+    def _extract_note(self, row: pd.Series, column_mapping: dict[str, str]) -> str | None:
+        """Extract and clean note from row with URL shortening.
+
+        Args:
+            row: DataFrame row
+            column_mapping: Mapping of standard names to actual column names
+
+        Returns:
+            Cleaned note string or None
+
+        """
+        note_col = column_mapping.get("note")
+        if note_col and note_col in row.index and not pd.isna(row[note_col]):
+            return self._clean_note(str(row[note_col]))
+        return None
+
+    def _build_transfer_normalized(
+        self,
+        row: pd.Series,
+        column_mapping: dict[str, str],
+        raw_type: str,
+        account: str,
+        category: str,
+        tx_type: TransactionType,
+        currency: str,
+        subcategory: str | None,
+        note: str | None,
+    ) -> dict[str, Any]:
+        """Build normalized dict for a transfer transaction.
+
+        Args:
+            row: DataFrame row
+            column_mapping: Mapping of standard names to actual column names
+            raw_type: Lowercased raw type string
+            account: Standardized account name
+            category: Standardized category name
+            tx_type: Normalized transaction type
+            currency: Currency string
+            subcategory: Optional subcategory
+            note: Optional note
+
+        Returns:
+            Normalized transfer dict
+
+        """
+        if "transfer-in" in raw_type or "transfer in" in raw_type:
+            # Money coming IN: category is source (from), account is destination (to)
+            from_account = self._standardize_account(category)
+            to_account = self._standardize_account(account)
+        else:
+            # Money going OUT (default): account is source (from), category is destination (to)
+            from_account = self._standardize_account(account)
+            to_account = self._standardize_account(category)
+
+        return {
+            "date": self.normalize_date(row[column_mapping["date"]]),
+            "amount": self.normalize_amount(row[column_mapping["amount"]]),
+            "currency": currency,
+            "type": tx_type,
+            "account": from_account,
+            "from_account": from_account,
+            "to_account": to_account,
+            "category": f"Transfer: {from_account} → {to_account}",
+            "subcategory": subcategory,
+            "note": note,
+            "is_transfer": True,
+        }
+
     def normalize_row(self, row: pd.Series, column_mapping: dict[str, str]) -> dict[str, Any]:
         """Normalize a single row from Excel with full preprocessing.
 
@@ -311,30 +413,9 @@ class DataNormalizer:
 
         """
         try:
-            # Get currency (optional, defaults to INR)
-            currency_col = None
-            for col in ["Currency", "currency"]:
-                if col in row.index:
-                    currency_col = col
-                    break
-
-            currency = "INR"
-            if currency_col and not pd.isna(row[currency_col]):
-                currency = self._clean_text(str(row[currency_col])).upper()
-
-            # Get optional fields with cleaning
-            subcategory = None
-            for col in ["Subcategory", "subcategory", "Sub Category"]:
-                if col in row.index and not pd.isna(row[col]):
-                    # Clean but preserve original formatting
-                    subcategory = self._clean_text(str(row[col]))
-                    break
-
-            # Clean note with URL shortening
-            note = None
-            note_col = column_mapping.get("note")
-            if note_col and note_col in row.index and not pd.isna(row[note_col]):
-                note = self._clean_note(str(row[note_col]))
+            currency = self._extract_currency(row)
+            subcategory = self._extract_subcategory(row)
+            note = self._extract_note(row, column_mapping)
 
             # Check if this is a transfer or regular transaction
             raw_type = str(row[column_mapping["type"]]).strip().lower()
@@ -348,32 +429,17 @@ class DataNormalizer:
             tx_type = self.normalize_transaction_type(row[column_mapping["type"]])
 
             if is_transfer:
-                # Handle transfers - determine from/to accounts based on raw type
-                # Also standardize the account names in transfers
-                if "transfer-in" in raw_type or "transfer in" in raw_type:
-                    # Money coming IN: category is source (from),
-                    # account is destination (to)
-                    from_account = self._standardize_account(category)
-                    to_account = self._standardize_account(account)
-                else:
-                    # Money going OUT (default): account is source (from),
-                    # category is destination (to)
-                    from_account = self._standardize_account(account)
-                    to_account = self._standardize_account(category)
-
-                normalized = {
-                    "date": self.normalize_date(row[column_mapping["date"]]),
-                    "amount": self.normalize_amount(row[column_mapping["amount"]]),
-                    "currency": currency,
-                    "type": tx_type,  # Will be TransactionType.TRANSFER
-                    "account": from_account,  # Store from_account as account for consistency
-                    "from_account": from_account,
-                    "to_account": to_account,
-                    "category": f"Transfer: {from_account} → {to_account}",
-                    "subcategory": subcategory,
-                    "note": note,
-                    "is_transfer": True,
-                }
+                normalized = self._build_transfer_normalized(
+                    row,
+                    column_mapping,
+                    raw_type,
+                    account,
+                    category,
+                    tx_type,
+                    currency,
+                    subcategory,
+                    note,
+                )
             else:
                 # Handle regular transactions (Income/Expense)
                 normalized = {

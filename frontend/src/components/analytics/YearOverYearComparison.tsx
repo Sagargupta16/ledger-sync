@@ -86,7 +86,7 @@ export default function YearOverYearComparison() {
 
     const incomeChange = previous.income > 0 ? ((current.income - previous.income) / previous.income) * 100 : 0
     const expenseChange = previous.expense > 0 ? ((current.expense - previous.expense) / previous.expense) * 100 : 0
-    const savingsChange = previous.savings !== 0 ? ((current.savings - previous.savings) / previous.savings) * 100 : 0
+    const savingsChange = previous.savings === 0 ? 0 : ((current.savings - previous.savings) / previous.savings) * 100
 
     // Category comparison
     const categoryChanges: Array<{ category: string; current: number; previous: number; change: number }> = []
@@ -94,7 +94,14 @@ export default function YearOverYearComparison() {
     allCats.forEach((cat) => {
       const curr = current.categories[cat] || 0
       const prev = previous.categories[cat] || 0
-      const change = prev > 0 ? ((curr - prev) / prev) * 100 : curr > 0 ? 100 : 0
+      let change: number
+      if (prev > 0) {
+        change = ((curr - prev) / prev) * 100
+      } else if (curr > 0) {
+        change = 100
+      } else {
+        change = 0
+      }
       categoryChanges.push({ category: cat, current: curr, previous: prev, change })
     })
 
@@ -104,7 +111,7 @@ export default function YearOverYearComparison() {
       incomeChange,
       expenseChange,
       savingsChange,
-      categoryChanges: categoryChanges.sort((a, b) => Math.abs(b.change) - Math.abs(a.change)),
+      categoryChanges: [...categoryChanges].sort((a, b) => Math.abs(b.change) - Math.abs(a.change)),
     }
   }, [fyData])
 
@@ -237,7 +244,7 @@ export default function YearOverYearComparison() {
             <YAxis tickFormatter={(v) => formatCurrencyShort(v)} tick={{ fontSize: 12 }} />
             <Tooltip
               {...chartTooltipProps}
-              formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+              formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
             />
             <Legend />
             {selectedCategory === 'all' ? (

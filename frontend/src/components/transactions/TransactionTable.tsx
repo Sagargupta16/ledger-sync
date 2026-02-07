@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react'
+import { useCallback } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -22,107 +22,105 @@ interface TransactionTableProps {
   onSortingChange: (sorting: SortingState) => void
 }
 
-export default function TransactionTable({ transactions, isLoading, sorting, onSortingChange }: TransactionTableProps) {
-  const columns = useMemo<ColumnDef<Transaction>[]>(
-    () => [
-      {
-        accessorKey: 'date',
-        header: ({ column }) => (
-          <button
-            onClick={() => column.toggleSorting()}
-            className="flex items-center gap-2 hover:text-primary transition-colors"
-          >
-            Date
-            <ArrowUpDown className="w-4 h-4" />
-          </button>
-        ),
-        cell: ({ row }) => (
-          <span className="text-sm">{format(new Date(row.original.date), 'MMM dd, yyyy')}</span>
-        ),
-      },
-      {
-        accessorKey: 'type',
-        header: 'Type',
-        cell: ({ row }) => {
-          const type = row.original.type
-          const isIncome = type === 'Income'
-          const isTransfer = type === 'Transfer'
-          return (
-            <div className="flex items-center gap-2">
-              {isIncome ? (
-                <TrendingUp className="w-4 h-4 text-green-500" />
-              ) : isTransfer ? (
-                <span className="text-blue-500">→</span>
-              ) : (
-                <TrendingDown className="w-4 h-4 text-red-500" />
-              )}
-              <span className="text-sm">{type}</span>
-            </div>
-          )
-        },
-      },
-      {
-        accessorKey: 'category',
-        header: 'Category',
-        cell: ({ row }) => (
-          <div className="space-y-0.5">
-            <div className="text-sm font-medium">{row.original.category}</div>
-            {row.original.subcategory && (
-              <div className="text-xs text-muted-foreground">{row.original.subcategory}</div>
-            )}
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'account',
-        header: 'Account',
-        cell: ({ row }) => <span className="text-sm">{row.original.account}</span>,
-      },
-      {
-        accessorKey: 'amount',
-        header: ({ column }) => (
-          <button
-            onClick={() => column.toggleSorting()}
-            className="flex items-center gap-2 hover:text-primary transition-colors"
-          >
-            Amount
-            <ArrowUpDown className="w-4 h-4" />
-          </button>
-        ),
-        cell: ({ row }) => {
-          const amount = row.original.amount
-          const type = row.original.type
-          const isIncome = type === 'Income'
-          const isTransfer = type === 'Transfer'
-          
-          const colorClass = isTransfer 
-            ? 'text-blue-400' 
-            : isIncome 
-            ? 'text-green-500' 
-            : 'text-red-500'
-          
-          const prefix = isTransfer ? '' : isIncome ? '+' : '-'
-          
-          return (
-            <span className={`text-sm font-semibold ${colorClass}`}>
-              {prefix}
-              {formatCurrency(Math.abs(amount))}
-            </span>
-          )
-        },
-      },
-      {
-        accessorKey: 'note',
-        header: 'Note',
-        cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
-            {row.original.note || '-'}
-          </span>
-        ),
-      },
-    ],
-    []
-  )
+const columns: ColumnDef<Transaction>[] = [
+  {
+    accessorKey: 'date',
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting()}
+        className="flex items-center gap-2 hover:text-primary transition-colors"
+      >
+        Date
+        <ArrowUpDown className="w-4 h-4" />
+      </button>
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm">{format(new Date(row.original.date), 'MMM dd, yyyy')}</span>
+    ),
+  },
+  {
+    accessorKey: 'type',
+    header: 'Type',
+    cell: ({ row }) => {
+      const type = row.original.type
+      const isIncome = type === 'Income'
+      const isTransfer = type === 'Transfer'
+      return (
+        <div className="flex items-center gap-2">
+          {isIncome ? (
+            <TrendingUp className="w-4 h-4 text-green-500" />
+          ) : isTransfer ? (
+            <span className="text-blue-500">→</span>
+          ) : (
+            <TrendingDown className="w-4 h-4 text-red-500" />
+          )}
+          <span className="text-sm">{type}</span>
+        </div>
+      )
+    },
+  },
+  {
+    accessorKey: 'category',
+    header: 'Category',
+    cell: ({ row }) => (
+      <div className="space-y-0.5">
+        <div className="text-sm font-medium">{row.original.category}</div>
+        {row.original.subcategory && (
+          <div className="text-xs text-muted-foreground">{row.original.subcategory}</div>
+        )}
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'account',
+    header: 'Account',
+    cell: ({ row }) => <span className="text-sm">{row.original.account}</span>,
+  },
+  {
+    accessorKey: 'amount',
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting()}
+        className="flex items-center gap-2 hover:text-primary transition-colors"
+      >
+        Amount
+        <ArrowUpDown className="w-4 h-4" />
+      </button>
+    ),
+    cell: ({ row }) => {
+      const amount = row.original.amount
+      const type = row.original.type
+      const isIncome = type === 'Income'
+      const isTransfer = type === 'Transfer'
+
+      const colorClass = isTransfer
+        ? 'text-blue-400'
+        : isIncome
+        ? 'text-green-500'
+        : 'text-red-500'
+
+      const prefix = isTransfer ? '' : isIncome ? '+' : '-'
+
+      return (
+        <span className={`text-sm font-semibold ${colorClass}`}>
+          {prefix}
+          {formatCurrency(Math.abs(amount))}
+        </span>
+      )
+    },
+  },
+  {
+    accessorKey: 'note',
+    header: 'Note',
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
+        {row.original.note || '-'}
+      </span>
+    ),
+  },
+]
+
+export default function TransactionTable({ transactions, isLoading, sorting, onSortingChange }: Readonly<TransactionTableProps>) {
 
   // Wrapper to handle TanStack Table's updater pattern
   const handleSortingChange = useCallback((updaterOrValue: Updater<SortingState>) => {
@@ -152,18 +150,18 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
           <table className="w-full">
             <thead className="bg-muted/20 border-b border-white/10">
               <tr>
-                {[...new Array(6)].map((_, i) => (
-                  <th key={i} className="px-6 py-3 text-left">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <th key={`skeleton-header-${i}`} className="px-6 py-3 text-left">
                     <div className="h-4 bg-muted rounded w-20 animate-pulse" />
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {[...new Array(10)].map((_, i) => (
-                <tr key={i} className="border-b border-white/5">
-                  {[...new Array(6)].map((_, j) => (
-                    <td key={j} className="px-6 py-4">
+              {Array.from({ length: 10 }, (_, i) => (
+                <tr key={`skeleton-row-${i}`} className="border-b border-white/5">
+                  {Array.from({ length: 6 }, (_, j) => (
+                    <td key={`skeleton-cell-${i}-${j}`} className="px-6 py-4">
                       <div className="h-4 bg-muted rounded w-full animate-pulse" />
                     </td>
                   ))}

@@ -14,7 +14,7 @@ export default function Pagination({
   itemsPerPage,
   onPageChange,
   onItemsPerPageChange,
-}: PaginationProps) {
+}: Readonly<PaginationProps>) {
   const totalPages = Math.ceil(totalItems / itemsPerPage)
   const startItem = (currentPage - 1) * itemsPerPage + 1
   const endItem = Math.min(currentPage * itemsPerPage, totalItems)

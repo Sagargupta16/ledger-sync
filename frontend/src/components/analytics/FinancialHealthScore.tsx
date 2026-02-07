@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
 import { formatCurrencyCompact } from '@/lib/formatters'
+import type { Transaction } from '@/types'
 
 interface HealthMetric {
   name: string
@@ -12,6 +13,44 @@ interface HealthMetric {
   status: 'excellent' | 'good' | 'fair' | 'poor'
   description: string
   details?: string[]
+}
+
+interface MonthlyBucket {
+  income: number
+  expense: number
+  debt: number
+  investmentInflow: number
+  investmentOutflow: number
+  discretionary: number
+  essential: number
+  categories: Record<string, number>
+}
+
+interface AnalysisResult {
+  monthsAnalyzed: number
+  cashflowMargin: number
+  surplusRatio: number
+  avgMonthlyIncome: number
+  avgMonthlyExpense: number
+  avgSavingsRate: number
+  savingsConsistency: number
+  savingsTrendPositive: boolean
+  debtToIncomeRatio: number
+  overspendingFrequency: number
+  avgMonthlyDebt: number
+  discretionaryRatio: number
+  spendingVolatility: number
+  lifestyleInflation: number
+  positiveSavingsRatio: number
+  avgPositiveSavingsRate: number
+  investmentRegularity: number
+  netInvestmentToIncomeRatio: number
+  investmentConsistency: number
+  totalNetInvestment: number
+  totalInvestmentInflow: number
+  totalInvestmentOutflow: number
+  incomeStability: number
+  incomeGrowth: number
 }
 
 // Categories that indicate debt/EMI payments
@@ -29,582 +68,740 @@ const INVESTMENT_ACCOUNT_PATTERNS = ['mutual fund', 'mf', 'grow', 'zerodha', 'ku
 // Investment note/category keywords
 const INVESTMENT_NOTE_KEYWORDS = ['sip', 'mutual fund', 'investment', 'ppf', 'nps', 'elss', 'epf']
 
+// ---------- Pure helper functions ----------
+
+function deriveStatus(score: number): HealthMetric['status'] {
+  if (score >= 80) return 'excellent'
+  if (score >= 60) return 'good'
+  if (score >= 40) return 'fair'
+  return 'poor'
+}
+
+function clampScore(score: number): number {
+  return Math.max(0, Math.min(100, score))
+}
+
+function scoreCashflowMargin(margin: number): number {
+  if (margin >= 30) return 50
+  if (margin >= 20) return 40
+  if (margin >= 10) return 30
+  if (margin >= 0) return 15
+  return 0
+}
+
+function describeCashflow(margin: number): string {
+  if (margin >= 20) return 'Healthy surplus'
+  if (margin >= 0) return 'Breaking even'
+  return 'Deficit spending'
+}
+
+function scoreSavingsRate(rate: number): number {
+  if (rate >= 30) return 50
+  if (rate >= 20) return 40
+  if (rate >= 10) return 25
+  if (rate >= 0) return 10
+  return 0
+}
+
+function describeDebt(ratio: number): string {
+  if (ratio < 20) return 'Low debt burden'
+  if (ratio < 40) return 'Moderate debt'
+  return 'High debt burden'
+}
+
+function debtRatioPenalty(ratio: number): number {
+  if (ratio > 50) return 60
+  if (ratio > 40) return 45
+  if (ratio > 30) return 30
+  if (ratio > 20) return 15
+  if (ratio > 10) return 5
+  return 0
+}
+
+function describeDiscipline(score: number): string {
+  if (score >= 70) return 'Well controlled'
+  if (score >= 50) return 'Moderate control'
+  return 'Needs attention'
+}
+
+function discretionaryPenalty(ratio: number): number {
+  if (ratio > 40) return 25
+  if (ratio > 30) return 15
+  if (ratio > 20) return 5
+  return 0
+}
+
+function volatilityPenalty(volatility: number): number {
+  if (volatility > 50) return 25
+  if (volatility > 30) return 15
+  if (volatility > 20) return 5
+  return 0
+}
+
+function lifestyleInflationAdjustment(inflation: number): number {
+  if (inflation > 30) return -30
+  if (inflation > 15) return -15
+  if (inflation > 5) return -5
+  if (inflation < -5) return 10
+  return 0
+}
+
+function describeSavingsBuffer(score: number): string {
+  if (score >= 70) return 'Building reserves'
+  if (score >= 40) return 'Some savings'
+  return 'Improve savings habit'
+}
+
+function scoreAvgPositiveSavingsRate(rate: number): number {
+  if (rate >= 25) return 50
+  if (rate >= 20) return 40
+  if (rate >= 15) return 30
+  if (rate >= 10) return 20
+  if (rate >= 5) return 10
+  return 0
+}
+
+function scoreNetInvestmentRatio(ratio: number): number {
+  if (ratio >= 20) return 40
+  if (ratio >= 15) return 30
+  if (ratio >= 10) return 20
+  if (ratio >= 5) return 10
+  if (ratio >= 0) return 5
+  return 0
+}
+
+function describeInvestment(netRatio: number): string {
+  if (netRatio >= 15) return 'Strong investor'
+  if (netRatio >= 5) return 'Regular investing'
+  if (netRatio >= 0) return 'Some investing'
+  return 'Net withdrawal'
+}
+
+function createEmptyBucket(): MonthlyBucket {
+  return {
+    income: 0,
+    expense: 0,
+    debt: 0,
+    investmentInflow: 0,
+    investmentOutflow: 0,
+    discretionary: 0,
+    essential: 0,
+    categories: {},
+  }
+}
+
+function matchesCategoryList(category: string, list: string[]): boolean {
+  const lower = category.toLowerCase()
+  return list.some((c) => lower.includes(c.toLowerCase()))
+}
+
+function matchesPatterns(value: string, patterns: string[]): boolean {
+  const lower = value.toLowerCase()
+  return patterns.some((p) => lower.includes(p))
+}
+
+function halfAverage(values: number[]): number {
+  if (values.length === 0) return 0
+  return values.reduce((a, b) => a + b, 0) / values.length
+}
+
+// ---------- Investment detection ----------
+
+function checkIsInvestmentTransaction(
+  tx: Transaction,
+  isInvestmentAccount: (name: string) => boolean,
+): boolean {
+  if (tx.type !== 'Transfer' || !tx.to_account) return false
+
+  const toAccount = tx.to_account.toLowerCase()
+  const note = (tx.note || '').toLowerCase()
+  const category = (tx.category || '').toLowerCase()
+
+  if (isInvestmentAccount(tx.to_account)) return true
+  if (matchesPatterns(toAccount, INVESTMENT_ACCOUNT_PATTERNS)) return true
+  if (matchesPatterns(note, INVESTMENT_NOTE_KEYWORDS)) return true
+  if (matchesPatterns(category, INVESTMENT_NOTE_KEYWORDS)) return true
+
+  return false
+}
+
+function isToAccountInvestment(
+  toAccount: string | undefined,
+  isInvestmentAccount: (name: string) => boolean,
+): boolean {
+  if (!toAccount) return false
+  if (isInvestmentAccount(toAccount)) return true
+  return matchesPatterns(toAccount.toLowerCase(), INVESTMENT_ACCOUNT_PATTERNS)
+}
+
+function checkIsInvestmentWithdrawal(
+  tx: Transaction,
+  isInvestmentAccount: (name: string) => boolean,
+): boolean {
+  if (tx.type !== 'Transfer' || !tx.from_account) return false
+
+  const fromAccount = tx.from_account.toLowerCase()
+  const toIsInvestment = isToAccountInvestment(tx.to_account, isInvestmentAccount)
+
+  if (isInvestmentAccount(tx.from_account) && !toIsInvestment) return true
+  if (matchesPatterns(fromAccount, INVESTMENT_ACCOUNT_PATTERNS) && !toIsInvestment) return true
+
+  return false
+}
+
+// ---------- Monthly data classification ----------
+
+function classifyTransaction(
+  tx: Transaction,
+  bucket: MonthlyBucket,
+  isInvestmentAccount: (name: string) => boolean,
+): void {
+  const amount = Math.abs(tx.amount)
+  const category = tx.category || 'Other'
+
+  if (checkIsInvestmentTransaction(tx, isInvestmentAccount)) {
+    bucket.investmentInflow += amount
+    return
+  }
+  if (checkIsInvestmentWithdrawal(tx, isInvestmentAccount)) {
+    bucket.investmentOutflow += amount
+    return
+  }
+  if (tx.type === 'Income') {
+    bucket.income += amount
+    return
+  }
+  if (tx.type === 'Expense') {
+    bucket.expense += amount
+    bucket.categories[category] = (bucket.categories[category] || 0) + amount
+    if (matchesCategoryList(category, DEBT_CATEGORIES)) bucket.debt += amount
+    if (matchesCategoryList(category, DISCRETIONARY_CATEGORIES)) bucket.discretionary += amount
+    if (matchesCategoryList(category, ESSENTIAL_CATEGORIES)) bucket.essential += amount
+  }
+}
+
+// ---------- Metric builders ----------
+
+function buildCashflowMetric(data: AnalysisResult): HealthMetric {
+  const marginPoints = scoreCashflowMargin(data.cashflowMargin)
+  const surplusPoints = data.surplusRatio * 50
+  const score = marginPoints + surplusPoints
+
+  return {
+    name: 'Cashflow Strength',
+    score,
+    weight: 25,
+    status: deriveStatus(score),
+    description: describeCashflow(data.cashflowMargin),
+    details: [
+      `Avg margin: ${data.cashflowMargin.toFixed(1)}%`,
+      `${Math.round(data.surplusRatio * 100)}% months with surplus`,
+    ],
+  }
+}
+
+function buildSavingsMetric(data: AnalysisResult): HealthMetric {
+  const ratePoints = scoreSavingsRate(data.avgSavingsRate)
+  const consistencyPoints = (data.savingsConsistency / 100) * 30
+  const trendPoints = data.savingsTrendPositive ? 20 : 5
+  const score = ratePoints + consistencyPoints + trendPoints
+
+  return {
+    name: 'Savings Trend',
+    score,
+    weight: 20,
+    status: deriveStatus(score),
+    description: `${data.avgSavingsRate.toFixed(1)}% avg savings rate`,
+    details: [
+      `Avg savings rate: ${data.avgSavingsRate.toFixed(1)}%`,
+      `Trend: ${data.savingsTrendPositive ? 'Improving' : 'Declining'}`,
+    ],
+  }
+}
+
+function buildDebtMetric(data: AnalysisResult): HealthMetric {
+  const penalty = debtRatioPenalty(data.debtToIncomeRatio)
+  const overspendPenalty = data.overspendingFrequency * 40
+  const score = clampScore(100 - penalty - overspendPenalty)
+
+  return {
+    name: 'Debt Management',
+    score,
+    weight: 20,
+    status: deriveStatus(score),
+    description: describeDebt(data.debtToIncomeRatio),
+    details: [
+      `Debt-to-income: ${data.debtToIncomeRatio.toFixed(1)}%`,
+      `Overspending: ${Math.round(data.overspendingFrequency * 100)}% of months`,
+    ],
+  }
+}
+
+function buildDisciplineMetric(data: AnalysisResult): HealthMetric {
+  const discPenalty = discretionaryPenalty(data.discretionaryRatio)
+  const volPenalty = volatilityPenalty(data.spendingVolatility)
+  const inflationAdj = lifestyleInflationAdjustment(data.lifestyleInflation)
+  const score = clampScore(100 - discPenalty - volPenalty + inflationAdj)
+
+  const inflationSign = data.lifestyleInflation > 0 ? '+' : ''
+
+  return {
+    name: 'Expense Discipline',
+    score,
+    weight: 15,
+    status: deriveStatus(score),
+    description: describeDiscipline(score),
+    details: [
+      `Discretionary: ${data.discretionaryRatio.toFixed(1)}% of expenses`,
+      `Lifestyle change: ${inflationSign}${data.lifestyleInflation.toFixed(1)}%`,
+    ],
+  }
+}
+
+function buildSavingsBufferMetric(data: AnalysisResult): HealthMetric {
+  const frequencyPoints = data.positiveSavingsRatio * 50
+  const ratePoints = scoreAvgPositiveSavingsRate(data.avgPositiveSavingsRate)
+  const score = Math.min(100, frequencyPoints + ratePoints)
+
+  return {
+    name: 'Savings Buffer',
+    score,
+    weight: 10,
+    status: deriveStatus(score),
+    description: describeSavingsBuffer(score),
+    details: [
+      `${Math.round(data.positiveSavingsRatio * 100)}% months with positive savings`,
+      `Avg savings rate: ${data.avgPositiveSavingsRate.toFixed(1)}% when saving`,
+    ],
+  }
+}
+
+function buildInvestmentMetric(data: AnalysisResult): HealthMetric {
+  const netRatio = data.netInvestmentToIncomeRatio
+  const regularityPoints = data.investmentRegularity * 40
+  const ratioPoints = scoreNetInvestmentRatio(netRatio)
+  const consistencyPoints = (data.investmentConsistency / 100) * 20
+  const score = Math.min(100, regularityPoints + ratioPoints + consistencyPoints)
+
+  const details = [
+    `${Math.round(data.investmentRegularity * 100)}% months with net investments`,
+    `${netRatio.toFixed(1)}% of income (net invested)`,
+  ]
+  if (data.totalInvestmentOutflow > 0) {
+    details.push(`Withdrawals: ${formatCurrencyCompact(data.totalInvestmentOutflow)}`)
+  }
+
+  return {
+    name: 'Investment Behavior',
+    score,
+    weight: 10,
+    status: deriveStatus(score),
+    description: describeInvestment(netRatio),
+    details,
+  }
+}
+
+function calculateMetrics(data: AnalysisResult): HealthMetric[] {
+  return [
+    buildCashflowMetric(data),
+    buildSavingsMetric(data),
+    buildDebtMetric(data),
+    buildDisciplineMetric(data),
+    buildSavingsBufferMetric(data),
+    buildInvestmentMetric(data),
+  ]
+}
+
+// ---------- Analysis computation ----------
+
+function computeMonthlyData(
+  transactions: Transaction[],
+  isInvestmentAccount: (name: string) => boolean,
+): { months: string[]; monthlyData: Record<string, MonthlyBucket> } | null {
+  const now = new Date()
+  const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), 1)
+
+  const recentTransactions = transactions.filter((tx) => new Date(tx.date) >= twoYearsAgo)
+  if (recentTransactions.length < 10) return null
+
+  const monthlyData: Record<string, MonthlyBucket> = {}
+
+  for (const tx of recentTransactions) {
+    const month = tx.date.slice(0, 7)
+    if (!monthlyData[month]) {
+      monthlyData[month] = createEmptyBucket()
+    }
+    classifyTransaction(tx, monthlyData[month], isInvestmentAccount)
+  }
+
+  const months = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
+
+  // Remove current month if incomplete (less than 15 days in)
+  const today = new Date()
+  const currentMonth = today.toISOString().slice(0, 7)
+  if (today.getDate() < 15 && months.includes(currentMonth)) {
+    months.pop()
+    delete monthlyData[currentMonth]
+  }
+
+  if (months.length < 3) return null
+  return { months, monthlyData }
+}
+
+function computeAnalysis(
+  months: string[],
+  monthlyData: Record<string, MonthlyBucket>,
+): AnalysisResult {
+  const monthlyValues = months.map((m) => monthlyData[m])
+  const count = months.length
+  const halfPoint = Math.floor(count / 2)
+
+  // Cashflow
+  const surplusMonths = monthlyValues.filter((m) => m.income > m.expense).length
+  const surplusRatio = surplusMonths / count
+  const totalIncome = monthlyValues.reduce((s, m) => s + m.income, 0)
+  const totalExpense = monthlyValues.reduce((s, m) => s + m.expense, 0)
+  const avgMonthlyIncome = totalIncome / count
+  const avgMonthlyExpense = totalExpense / count
+  const cashflowMargin =
+    avgMonthlyIncome > 0 ? ((avgMonthlyIncome - avgMonthlyExpense) / avgMonthlyIncome) * 100 : 0
+
+  // Savings
+  const monthlySavingsRates = monthlyValues.map((m) =>
+    m.income > 0 ? ((m.income - m.expense) / m.income) * 100 : 0,
+  )
+  const avgSavingsRate = monthlySavingsRates.reduce((a, b) => a + b, 0) / count
+  const savingsVariance =
+    monthlySavingsRates.reduce((s, r) => s + Math.pow(r - avgSavingsRate, 2), 0) / count
+  const savingsStdDev = Math.sqrt(savingsVariance)
+  const savingsConsistency =
+    Math.abs(avgSavingsRate) > 0
+      ? Math.max(0, 100 - (savingsStdDev / Math.abs(avgSavingsRate)) * 50)
+      : 0
+
+  const firstHalfAvgSavings = halfAverage(monthlySavingsRates.slice(0, halfPoint))
+  const secondHalfAvgSavings = halfAverage(monthlySavingsRates.slice(halfPoint))
+  const savingsTrendPositive = secondHalfAvgSavings >= firstHalfAvgSavings
+
+  // Debt
+  const totalDebt = monthlyValues.reduce((s, m) => s + m.debt, 0)
+  const avgMonthlyDebt = totalDebt / count
+  const debtToIncomeRatio =
+    avgMonthlyIncome > 0 ? (avgMonthlyDebt / avgMonthlyIncome) * 100 : 0
+  const monthsWithHighSpending = monthlyValues.filter((m) => m.expense > m.income * 1.2).length
+  const overspendingFrequency = monthsWithHighSpending / count
+
+  // Expense discipline
+  const totalDiscretionary = monthlyValues.reduce((s, m) => s + m.discretionary, 0)
+  const discretionaryRatio = totalExpense > 0 ? (totalDiscretionary / totalExpense) * 100 : 0
+  const monthlyExpenses = monthlyValues.map((m) => m.expense)
+  const expenseVariance =
+    monthlyExpenses.reduce((s, e) => s + Math.pow(e - avgMonthlyExpense, 2), 0) / count
+  const spendingVolatility =
+    avgMonthlyExpense > 0 ? (Math.sqrt(expenseVariance) / avgMonthlyExpense) * 100 : 0
+  const firstHalfAvgExpense = halfAverage(monthlyExpenses.slice(0, halfPoint))
+  const secondHalfAvgExpense = halfAverage(monthlyExpenses.slice(halfPoint))
+  const lifestyleInflation =
+    firstHalfAvgExpense > 0
+      ? ((secondHalfAvgExpense - firstHalfAvgExpense) / firstHalfAvgExpense) * 100
+      : 0
+
+  // Savings buffer
+  const positiveSavingsMonths = monthlySavingsRates.filter((r) => r > 0).length
+  const positiveSavingsRatio = positiveSavingsMonths / count
+  const avgPositiveSavingsRate =
+    monthlySavingsRates.filter((r) => r > 0).reduce((a, b) => a + b, 0) /
+    (positiveSavingsMonths || 1)
+
+  // Investment
+  const monthlyNetInvestments = monthlyValues.map((m) => m.investmentInflow - m.investmentOutflow)
+  const totalInvestmentInflow = monthlyValues.reduce((s, m) => s + m.investmentInflow, 0)
+  const totalInvestmentOutflow = monthlyValues.reduce((s, m) => s + m.investmentOutflow, 0)
+  const totalNetInvestment = totalInvestmentInflow - totalInvestmentOutflow
+  const monthsWithNetInvestments = monthlyNetInvestments.filter((n) => n > 0).length
+  const investmentRegularity = monthsWithNetInvestments / count
+  const netInvestmentToIncomeRatio =
+    totalIncome > 0 ? (totalNetInvestment / totalIncome) * 100 : 0
+  const avgMonthlyInflow = totalInvestmentInflow / count
+  const inflowVariance =
+    avgMonthlyInflow > 0
+      ? monthlyValues
+          .map((m) => m.investmentInflow)
+          .reduce((s, i) => s + Math.pow(i - avgMonthlyInflow, 2), 0) / count
+      : 0
+  const investmentConsistency =
+    avgMonthlyInflow > 0
+      ? Math.max(0, 100 - (Math.sqrt(inflowVariance) / avgMonthlyInflow) * 50)
+      : 0
+
+  // Income quality
+  const incomeVariance =
+    monthlyValues.reduce((s, m) => s + Math.pow(m.income - avgMonthlyIncome, 2), 0) / count
+  const incomeStability =
+    avgMonthlyIncome > 0
+      ? Math.max(0, 100 - (Math.sqrt(incomeVariance) / avgMonthlyIncome) * 50)
+      : 0
+  const firstHalfAvgIncome = halfAverage(
+    monthlyValues.slice(0, halfPoint).map((m) => m.income),
+  )
+  const secondHalfAvgIncome = halfAverage(
+    monthlyValues.slice(halfPoint).map((m) => m.income),
+  )
+  const incomeGrowth =
+    firstHalfAvgIncome > 0
+      ? ((secondHalfAvgIncome - firstHalfAvgIncome) / firstHalfAvgIncome) * 100
+      : 0
+
+  return {
+    monthsAnalyzed: count,
+    cashflowMargin,
+    surplusRatio,
+    avgMonthlyIncome,
+    avgMonthlyExpense,
+    avgSavingsRate,
+    savingsConsistency,
+    savingsTrendPositive,
+    debtToIncomeRatio,
+    overspendingFrequency,
+    avgMonthlyDebt,
+    discretionaryRatio,
+    spendingVolatility,
+    lifestyleInflation,
+    positiveSavingsRatio,
+    avgPositiveSavingsRate,
+    investmentRegularity,
+    netInvestmentToIncomeRatio,
+    investmentConsistency,
+    totalNetInvestment,
+    totalInvestmentInflow,
+    totalInvestmentOutflow,
+    incomeStability,
+    incomeGrowth,
+  }
+}
+
+// ---------- UI helpers ----------
+
+function getOverallStatus(score: number) {
+  if (score >= 80) return { label: 'Excellent', color: 'text-green-500', bgColor: 'bg-green-500' }
+  if (score >= 60) return { label: 'Good', color: 'text-blue-500', bgColor: 'bg-blue-500' }
+  if (score >= 40) return { label: 'Fair', color: 'text-yellow-500', bgColor: 'bg-yellow-500' }
+  return { label: 'Needs Work', color: 'text-red-500', bgColor: 'bg-red-500' }
+}
+
+function getSummary(score: number): string {
+  if (score >= 80)
+    return 'Excellent financial health! Strong cashflow, good savings, and disciplined spending.'
+  if (score >= 65)
+    return 'Good financial health with room for improvement in savings or expense management.'
+  if (score >= 50)
+    return 'Fair financial health. Focus on building emergency fund and reducing discretionary spending.'
+  if (score >= 35)
+    return 'Financial health needs attention. Prioritize debt management and expense control.'
+  return 'Financial health requires immediate action. Create a budget and reduce non-essential expenses.'
+}
+
+function getStatusIcon(metricStatus: HealthMetric['status']) {
+  switch (metricStatus) {
+    case 'excellent':
+      return <CheckCircle className="w-4 h-4 text-green-500" />
+    case 'good':
+      return <TrendingUp className="w-4 h-4 text-blue-500" />
+    case 'fair':
+      return <Info className="w-4 h-4 text-yellow-500" />
+    case 'poor':
+      return <AlertTriangle className="w-4 h-4 text-red-500" />
+  }
+}
+
+function getStatusColor(metricStatus: HealthMetric['status']) {
+  switch (metricStatus) {
+    case 'excellent':
+      return 'bg-green-500'
+    case 'good':
+      return 'bg-blue-500'
+    case 'fair':
+      return 'bg-yellow-500'
+    case 'poor':
+      return 'bg-red-500'
+  }
+}
+
+// ---------- Sub-components ----------
+
+function LoadingSkeleton() {
+  return (
+    <div className="glass rounded-2xl border border-white/10 p-6 animate-pulse">
+      <div className="h-8 bg-muted rounded w-1/3 mb-4" />
+      <div className="h-32 bg-muted rounded" />
+    </div>
+  )
+}
+
+function EmptyState() {
+  return (
+    <div className="glass rounded-2xl border border-white/10 p-6">
+      <h3 className="text-lg font-semibold mb-2">Financial Health Score</h3>
+      <p className="text-muted-foreground">Need more transaction data to calculate health score.</p>
+    </div>
+  )
+}
+
+function ScoreHeader({
+  status,
+  monthsAnalyzed,
+  overallScore,
+}: {
+  status: { label: string; color: string; bgColor: string }
+  monthsAnalyzed: number
+  overallScore: number
+}) {
+  return (
+    <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center gap-3">
+        <div className={`p-3 rounded-xl ${status.bgColor}/20`}>
+          <Shield className={`w-6 h-6 ${status.color}`} />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold">Financial Health Score</h3>
+          <p className="text-sm text-muted-foreground">Based on last {monthsAnalyzed} months</p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className={`text-3xl font-bold ${status.color}`}>{Math.round(overallScore)}</p>
+        <p className={`text-sm ${status.color}`}>{status.label}</p>
+      </div>
+    </div>
+  )
+}
+
+function CircularProgress({
+  overallScore,
+  statusColor,
+}: {
+  overallScore: number
+  statusColor: string
+}) {
+  return (
+    <div className="flex justify-center mb-4">
+      <div className="relative w-28 h-28">
+        <svg className="w-full h-full transform -rotate-90">
+          <circle
+            cx="56"
+            cy="56"
+            r="48"
+            stroke="currentColor"
+            strokeWidth="8"
+            fill="none"
+            className="text-muted/20"
+          />
+          <circle
+            cx="56"
+            cy="56"
+            r="48"
+            stroke="currentColor"
+            strokeWidth="8"
+            fill="none"
+            strokeDasharray={`${(overallScore / 100) * 301} 301`}
+            strokeLinecap="round"
+            className={statusColor}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`text-2xl font-bold ${statusColor}`}>{Math.round(overallScore)}</span>
+          <span className="text-xs text-muted-foreground">/ 100</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MetricRow({
+  metric,
+  showDetails,
+}: {
+  metric: HealthMetric
+  showDetails: boolean
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2">
+          {getStatusIcon(metric.status)}
+          <span>{metric.name}</span>
+          <span className="text-xs text-muted-foreground">({metric.weight}%)</span>
+        </div>
+        <span className="text-muted-foreground">{metric.description}</span>
+      </div>
+      <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${getStatusColor(metric.status)} rounded-full transition-all`}
+          style={{ width: `${metric.score}%` }}
+        />
+      </div>
+      {showDetails && metric.details && (
+        <div className="pl-6 pt-1 text-xs text-muted-foreground space-y-0.5">
+          {metric.details.map((detail) => (
+            <p key={detail}>{'\u2022'} {detail}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DetailsToggle({
+  showDetails,
+  onToggle,
+}: {
+  showDetails: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className="w-full mt-4 pt-4 border-t border-white/10 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
+    >
+      {showDetails ? (
+        <>
+          <ChevronUp className="w-4 h-4" />
+          Hide Details
+        </>
+      ) : (
+        <>
+          <ChevronDown className="w-4 h-4" />
+          Show Details
+        </>
+      )}
+    </button>
+  )
+}
+
+// ---------- Main component ----------
+
 export default function FinancialHealthScore() {
   const { data: transactions = [], isLoading } = useTransactions()
   const [showDetails, setShowDetails] = useState(false)
   const isInvestmentAccount = useInvestmentAccountStore((state) => state.isInvestmentAccount)
 
-  // Comprehensive analysis from transaction data for last 24 months
   const analysisData = useMemo(() => {
     if (!transactions.length) return null
 
-    const now = new Date()
-    const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), 1)
+    const result = computeMonthlyData(transactions, isInvestmentAccount)
+    if (!result) return null
 
-    // Filter transactions from last 24 months
-    const recentTransactions = transactions.filter((tx) => new Date(tx.date) >= twoYearsAgo)
-
-    if (recentTransactions.length < 10) return null
-
-    // Helper to check if transaction is investment-related
-    // ONLY count transfers TO investment accounts, not FROM them (withdrawals)
-    const isInvestmentTransaction = (tx: typeof transactions[0]): boolean => {
-      // Must be a Transfer type
-      if (tx.type !== 'Transfer') return false
-      
-      // Must have a to_account (where money is going)
-      if (!tx.to_account) return false
-      
-      const toAccount = tx.to_account.toLowerCase()
-      const note = (tx.note || '').toLowerCase()
-      const category = (tx.category || '').toLowerCase()
-      
-      // Check if to_account is marked as investment in settings
-      if (isInvestmentAccount(tx.to_account)) {
-        return true
-      }
-      
-      // Check if to_account name matches investment patterns
-      if (INVESTMENT_ACCOUNT_PATTERNS.some(pattern => toAccount.includes(pattern))) {
-        return true
-      }
-      
-      // Check if note contains investment keywords (like "SIP", "mutual fund")
-      if (INVESTMENT_NOTE_KEYWORDS.some(keyword => note.includes(keyword))) {
-        return true
-      }
-      
-      // Check category for investment keywords
-      if (INVESTMENT_NOTE_KEYWORDS.some(keyword => category.includes(keyword))) {
-        return true
-      }
-      
-      return false
-    }
-
-    // Helper to check if this is a WITHDRAWAL from an investment account
-    const isInvestmentWithdrawal = (tx: typeof transactions[0]): boolean => {
-      // Must be a Transfer type with a from_account
-      if (tx.type !== 'Transfer') return false
-      if (!tx.from_account) return false
-      
-      const fromAccount = tx.from_account.toLowerCase()
-      
-      // Check if from_account is marked as investment in settings
-      if (isInvestmentAccount(tx.from_account)) {
-        // But make sure to_account is NOT also an investment account (internal rebalancing)
-        if (tx.to_account && (isInvestmentAccount(tx.to_account) || 
-            INVESTMENT_ACCOUNT_PATTERNS.some(pattern => tx.to_account!.toLowerCase().includes(pattern)))) {
-          return false // This is rebalancing between investment accounts, not withdrawal
-        }
-        return true
-      }
-      
-      // Check if from_account name matches investment patterns
-      if (INVESTMENT_ACCOUNT_PATTERNS.some(pattern => fromAccount.includes(pattern))) {
-        // But make sure to_account is NOT also an investment account
-        if (tx.to_account && (isInvestmentAccount(tx.to_account) || 
-            INVESTMENT_ACCOUNT_PATTERNS.some(pattern => tx.to_account!.toLowerCase().includes(pattern)))) {
-          return false
-        }
-        return true
-      }
-      
-      return false
-    }
-
-    // Group by month
-    const monthlyData: Record<string, { 
-      income: number
-      expense: number
-      debt: number
-      investmentInflow: number
-      investmentOutflow: number
-      discretionary: number
-      essential: number
-      categories: Record<string, number>
-    }> = {}
-    
-    recentTransactions.forEach((tx) => {
-      const month = tx.date.slice(0, 7)
-      if (!monthlyData[month]) {
-        monthlyData[month] = { 
-          income: 0, 
-          expense: 0, 
-          debt: 0, 
-          investmentInflow: 0,
-          investmentOutflow: 0,
-          discretionary: 0,
-          essential: 0,
-          categories: {}
-        }
-      }
-      
-      const amount = Math.abs(tx.amount)
-      const category = tx.category || 'Other'
-      
-      // Check for investment inflow (money going TO investment accounts)
-      if (isInvestmentTransaction(tx)) {
-        monthlyData[month].investmentInflow += amount
-      } 
-      // Check for investment outflow (money coming FROM investment accounts)
-      else if (isInvestmentWithdrawal(tx)) {
-        monthlyData[month].investmentOutflow += amount
-      }
-      else if (tx.type === 'Income') {
-        monthlyData[month].income += amount
-      } else if (tx.type === 'Expense') {
-        monthlyData[month].expense += amount
-        monthlyData[month].categories[category] = (monthlyData[month].categories[category] || 0) + amount
-        
-        // Categorize spending
-        if (DEBT_CATEGORIES.some(c => category.toLowerCase().includes(c.toLowerCase()))) {
-          monthlyData[month].debt += amount
-        }
-        if (DISCRETIONARY_CATEGORIES.some(c => category.toLowerCase().includes(c.toLowerCase()))) {
-          monthlyData[month].discretionary += amount
-        }
-        if (ESSENTIAL_CATEGORIES.some(c => category.toLowerCase().includes(c.toLowerCase()))) {
-          monthlyData[month].essential += amount
-        }
-      }
-      // Transfer type that's not investment is ignored (internal transfers)
-    })
-
-    const months = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
-
-    // Remove current month if it's incomplete (less than 15 days in)
-    const today = new Date()
-    const currentMonth = today.toISOString().slice(0, 7)
-    if (today.getDate() < 15 && months.includes(currentMonth)) {
-      months.pop()
-      delete monthlyData[currentMonth]
-    }
-
-    if (months.length < 3) return null
-
-    const monthlyValues = months.map(m => monthlyData[m])
-    
-    // ===== CASHFLOW STRENGTH (25%) =====
-    // Measures: income vs expenses, surplus months
-    const surplusMonths = monthlyValues.filter(m => m.income > m.expense).length
-    const surplusRatio = surplusMonths / months.length
-    const totalIncome = monthlyValues.reduce((sum, m) => sum + m.income, 0)
-    const totalExpense = monthlyValues.reduce((sum, m) => sum + m.expense, 0)
-    const avgMonthlyIncome = totalIncome / months.length
-    const avgMonthlyExpense = totalExpense / months.length
-    const cashflowMargin = avgMonthlyIncome > 0 ? ((avgMonthlyIncome - avgMonthlyExpense) / avgMonthlyIncome) * 100 : 0
-    
-    // ===== SAVINGS TREND (20%) =====
-    // Measures: monthly savings percentage, consistency, trend direction
-    const monthlySavingsRates = monthlyValues.map(m => m.income > 0 ? ((m.income - m.expense) / m.income) * 100 : 0)
-    const avgSavingsRate = monthlySavingsRates.reduce((a, b) => a + b, 0) / monthlySavingsRates.length
-    
-    // Savings consistency (coefficient of variation inverted)
-    const savingsVariance = monthlySavingsRates.reduce((sum, r) => sum + Math.pow(r - avgSavingsRate, 2), 0) / monthlySavingsRates.length
-    const savingsStdDev = Math.sqrt(savingsVariance)
-    const savingsConsistency = Math.abs(avgSavingsRate) > 0 ? Math.max(0, 100 - (savingsStdDev / Math.abs(avgSavingsRate)) * 50) : 0
-    
-    // Savings trend (compare first half vs second half)
-    const halfPoint = Math.floor(months.length / 2)
-    const firstHalfSavings = monthlySavingsRates.slice(0, halfPoint)
-    const secondHalfSavings = monthlySavingsRates.slice(halfPoint)
-    const firstHalfAvgSavings = firstHalfSavings.reduce((a, b) => a + b, 0) / (firstHalfSavings.length || 1)
-    const secondHalfAvgSavings = secondHalfSavings.reduce((a, b) => a + b, 0) / (secondHalfSavings.length || 1)
-    const savingsTrendPositive = secondHalfAvgSavings >= firstHalfAvgSavings
-    
-    // ===== DEBT STRESS (20%) =====
-    // Measures: EMI-to-income ratio, debt payment consistency
-    const totalDebt = monthlyValues.reduce((sum, m) => sum + m.debt, 0)
-    const avgMonthlyDebt = totalDebt / months.length
-    const debtToIncomeRatio = avgMonthlyIncome > 0 ? (avgMonthlyDebt / avgMonthlyIncome) * 100 : 0
-    
-    // Credit card behavior (if expenses spike vs income)
-    const monthsWithHighSpending = monthlyValues.filter(m => m.expense > m.income * 1.2).length
-    const overspendingFrequency = monthsWithHighSpending / months.length
-    
-    // ===== EXPENSE DISCIPLINE (15%) =====
-    // Measures: fixed vs discretionary, lifestyle creep, spending volatility
-    const totalDiscretionary = monthlyValues.reduce((sum, m) => sum + m.discretionary, 0)
-    const discretionaryRatio = totalExpense > 0 ? (totalDiscretionary / totalExpense) * 100 : 0
-    
-    // Spending consistency (lower volatility = better)
-    const monthlyExpenses = monthlyValues.map(m => m.expense)
-    const expenseVariance = monthlyExpenses.reduce((sum, e) => sum + Math.pow(e - avgMonthlyExpense, 2), 0) / months.length
-    const expenseStdDev = Math.sqrt(expenseVariance)
-    const spendingVolatility = avgMonthlyExpense > 0 ? (expenseStdDev / avgMonthlyExpense) * 100 : 0
-    
-    // Lifestyle inflation (expense growth over time)
-    const firstHalfExpenses = monthlyExpenses.slice(0, halfPoint)
-    const secondHalfExpenses = monthlyExpenses.slice(halfPoint)
-    const firstHalfAvgExpense = firstHalfExpenses.reduce((a, b) => a + b, 0) / (firstHalfExpenses.length || 1)
-    const secondHalfAvgExpense = secondHalfExpenses.reduce((a, b) => a + b, 0) / (secondHalfExpenses.length || 1)
-    const lifestyleInflation = firstHalfAvgExpense > 0 ? ((secondHalfAvgExpense - firstHalfAvgExpense) / firstHalfAvgExpense) * 100 : 0
-    
-    // ===== SAVINGS BUFFER (10%) =====
-    // Measures: consistent positive savings (we can't know actual account balances from transactions)
-    // Focus on savings behavior rather than claiming a specific fund amount
-    const positiveSavingsMonths = monthlySavingsRates.filter(r => r > 0).length
-    const positiveSavingsRatio = positiveSavingsMonths / months.length
-    const avgPositiveSavingsRate = monthlySavingsRates.filter(r => r > 0).reduce((a, b) => a + b, 0) / (positiveSavingsMonths || 1)
-    
-    // ===== INVESTMENT BEHAVIOR (10%) =====
-    // Calculate NET investment = Inflows - Outflows (so withdrawals reduce the ratio)
-    const monthlyNetInvestments = monthlyValues.map(m => m.investmentInflow - m.investmentOutflow)
-    const totalInvestmentInflow = monthlyValues.reduce((sum, m) => sum + m.investmentInflow, 0)
-    const totalInvestmentOutflow = monthlyValues.reduce((sum, m) => sum + m.investmentOutflow, 0)
-    const totalNetInvestment = totalInvestmentInflow - totalInvestmentOutflow
-    
-    // Investment regularity (months with positive NET investment)
-    const monthsWithNetInvestments = monthlyNetInvestments.filter(net => net > 0).length
-    const investmentRegularity = monthsWithNetInvestments / months.length
-    
-    // Net investment to income ratio
-    const netInvestmentToIncomeRatio = totalIncome > 0 ? (totalNetInvestment / totalIncome) * 100 : 0
-    
-    // Investment consistency (based on inflows, as that shows discipline)
-    const avgMonthlyInflow = totalInvestmentInflow / months.length
-    const inflowVariance = avgMonthlyInflow > 0 
-      ? monthlyValues.map(m => m.investmentInflow).reduce((sum, i) => sum + Math.pow(i - avgMonthlyInflow, 2), 0) / months.length
-      : 0
-    const investmentConsistency = avgMonthlyInflow > 0 ? Math.max(0, 100 - (Math.sqrt(inflowVariance) / avgMonthlyInflow) * 50) : 0
-    
-    // ===== INCOME QUALITY =====
-    // Multiple income sources, income stability
-    const incomeVariance = monthlyValues.reduce((sum, m) => sum + Math.pow(m.income - avgMonthlyIncome, 2), 0) / months.length
-    const incomeStdDev = Math.sqrt(incomeVariance)
-    const incomeStability = avgMonthlyIncome > 0 ? Math.max(0, 100 - (incomeStdDev / avgMonthlyIncome) * 50) : 0
-    
-    // Income growth
-    const firstHalfIncomes = monthlyValues.slice(0, halfPoint).map(m => m.income)
-    const secondHalfIncomes = monthlyValues.slice(halfPoint).map(m => m.income)
-    const firstHalfAvgIncome = firstHalfIncomes.reduce((a, b) => a + b, 0) / (firstHalfIncomes.length || 1)
-    const secondHalfAvgIncome = secondHalfIncomes.reduce((a, b) => a + b, 0) / (secondHalfIncomes.length || 1)
-    const incomeGrowth = firstHalfAvgIncome > 0 ? ((secondHalfAvgIncome - firstHalfAvgIncome) / firstHalfAvgIncome) * 100 : 0
-
-    return {
-      monthsAnalyzed: months.length,
-      // Cashflow
-      cashflowMargin,
-      surplusRatio,
-      avgMonthlyIncome,
-      avgMonthlyExpense,
-      // Savings
-      avgSavingsRate,
-      savingsConsistency,
-      savingsTrendPositive,
-      // Debt
-      debtToIncomeRatio,
-      overspendingFrequency,
-      avgMonthlyDebt,
-      // Expense Discipline
-      discretionaryRatio,
-      spendingVolatility,
-      lifestyleInflation,
-      // Savings Buffer
-      positiveSavingsRatio,
-      avgPositiveSavingsRate,
-      // Investment
-      investmentRegularity,
-      netInvestmentToIncomeRatio,
-      investmentConsistency,
-      totalNetInvestment,
-      totalInvestmentInflow,
-      totalInvestmentOutflow,
-      // Income Quality
-      incomeStability,
-      incomeGrowth,
-    }
+    return computeAnalysis(result.months, result.monthlyData)
   }, [transactions, isInvestmentAccount])
 
-  // Calculate individual health metrics with comprehensive factors
-  const calculateMetrics = (): HealthMetric[] => {
-    if (!analysisData) return []
+  if (isLoading) return <LoadingSkeleton />
 
-    const metrics: HealthMetric[] = []
+  if (!analysisData) return <EmptyState />
 
-    // 1. CASHFLOW STRENGTH (25%)
-    let cashflowScore = 0
-    let cashflowStatus: HealthMetric['status'] = 'poor'
-    const cashflowDetails: string[] = []
-    
-    // Score based on cashflow margin (0-50 points)
-    if (analysisData.cashflowMargin >= 30) cashflowScore += 50
-    else if (analysisData.cashflowMargin >= 20) cashflowScore += 40
-    else if (analysisData.cashflowMargin >= 10) cashflowScore += 30
-    else if (analysisData.cashflowMargin >= 0) cashflowScore += 15
-    else cashflowScore += 0
-    
-    // Score based on surplus months (0-50 points)
-    cashflowScore += analysisData.surplusRatio * 50
-    
-    if (cashflowScore >= 80) cashflowStatus = 'excellent'
-    else if (cashflowScore >= 60) cashflowStatus = 'good'
-    else if (cashflowScore >= 40) cashflowStatus = 'fair'
-    
-    cashflowDetails.push(`Avg margin: ${analysisData.cashflowMargin.toFixed(1)}%`)
-    cashflowDetails.push(`${Math.round(analysisData.surplusRatio * 100)}% months with surplus`)
-    
-    metrics.push({
-      name: 'Cashflow Strength',
-      score: cashflowScore,
-      weight: 25,
-      status: cashflowStatus,
-      description: analysisData.cashflowMargin >= 20 ? 'Healthy surplus' : analysisData.cashflowMargin >= 0 ? 'Breaking even' : 'Deficit spending',
-      details: cashflowDetails,
-    })
+  const metrics = calculateMetrics(analysisData)
+  if (metrics.length === 0) return <EmptyState />
 
-    // 2. SAVINGS TREND (20%)
-    let savingsScore = 0
-    let savingsStatus: HealthMetric['status'] = 'poor'
-    const savingsDetails: string[] = []
-    
-    // Score based on savings rate (0-50 points)
-    if (analysisData.avgSavingsRate >= 30) savingsScore += 50
-    else if (analysisData.avgSavingsRate >= 20) savingsScore += 40
-    else if (analysisData.avgSavingsRate >= 10) savingsScore += 25
-    else if (analysisData.avgSavingsRate >= 0) savingsScore += 10
-    else savingsScore += 0
-    
-    // Score based on consistency (0-30 points)
-    savingsScore += (analysisData.savingsConsistency / 100) * 30
-    
-    // Score based on trend (0-20 points)
-    if (analysisData.savingsTrendPositive) savingsScore += 20
-    else savingsScore += 5
-    
-    if (savingsScore >= 80) savingsStatus = 'excellent'
-    else if (savingsScore >= 60) savingsStatus = 'good'
-    else if (savingsScore >= 40) savingsStatus = 'fair'
-    
-    savingsDetails.push(`Avg savings rate: ${analysisData.avgSavingsRate.toFixed(1)}%`)
-    savingsDetails.push(`Trend: ${analysisData.savingsTrendPositive ? 'Improving' : 'Declining'}`)
-    
-    metrics.push({
-      name: 'Savings Trend',
-      score: savingsScore,
-      weight: 20,
-      status: savingsStatus,
-      description: `${analysisData.avgSavingsRate.toFixed(1)}% avg savings rate`,
-      details: savingsDetails,
-    })
-
-    // 3. DEBT STRESS (20%) - Lower debt = higher score
-    let debtScore = 100
-    let debtStatus: HealthMetric['status'] = 'excellent'
-    const debtDetails: string[] = []
-    
-    // Penalty based on debt-to-income ratio
-    if (analysisData.debtToIncomeRatio > 50) debtScore -= 60
-    else if (analysisData.debtToIncomeRatio > 40) debtScore -= 45
-    else if (analysisData.debtToIncomeRatio > 30) debtScore -= 30
-    else if (analysisData.debtToIncomeRatio > 20) debtScore -= 15
-    else if (analysisData.debtToIncomeRatio > 10) debtScore -= 5
-    
-    // Penalty for overspending frequency
-    debtScore -= analysisData.overspendingFrequency * 40
-    
-    debtScore = Math.max(0, Math.min(100, debtScore))
-    
-    if (debtScore >= 80) debtStatus = 'excellent'
-    else if (debtScore >= 60) debtStatus = 'good'
-    else if (debtScore >= 40) debtStatus = 'fair'
-    else debtStatus = 'poor'
-    
-    debtDetails.push(`Debt-to-income: ${analysisData.debtToIncomeRatio.toFixed(1)}%`)
-    debtDetails.push(`Overspending: ${Math.round(analysisData.overspendingFrequency * 100)}% of months`)
-    
-    metrics.push({
-      name: 'Debt Management',
-      score: debtScore,
-      weight: 20,
-      status: debtStatus,
-      description: analysisData.debtToIncomeRatio < 20 ? 'Low debt burden' : analysisData.debtToIncomeRatio < 40 ? 'Moderate debt' : 'High debt burden',
-      details: debtDetails,
-    })
-
-    // 4. EXPENSE DISCIPLINE (15%)
-    let disciplineScore = 100
-    let disciplineStatus: HealthMetric['status'] = 'excellent'
-    const disciplineDetails: string[] = []
-    
-    // Penalty for high discretionary spending
-    if (analysisData.discretionaryRatio > 40) disciplineScore -= 25
-    else if (analysisData.discretionaryRatio > 30) disciplineScore -= 15
-    else if (analysisData.discretionaryRatio > 20) disciplineScore -= 5
-    
-    // Penalty for spending volatility
-    if (analysisData.spendingVolatility > 50) disciplineScore -= 25
-    else if (analysisData.spendingVolatility > 30) disciplineScore -= 15
-    else if (analysisData.spendingVolatility > 20) disciplineScore -= 5
-    
-    // Penalty for lifestyle inflation
-    if (analysisData.lifestyleInflation > 30) disciplineScore -= 30
-    else if (analysisData.lifestyleInflation > 15) disciplineScore -= 15
-    else if (analysisData.lifestyleInflation > 5) disciplineScore -= 5
-    else if (analysisData.lifestyleInflation < -5) disciplineScore += 10 // Bonus for reducing expenses
-    
-    disciplineScore = Math.max(0, Math.min(100, disciplineScore))
-    
-    if (disciplineScore >= 80) disciplineStatus = 'excellent'
-    else if (disciplineScore >= 60) disciplineStatus = 'good'
-    else if (disciplineScore >= 40) disciplineStatus = 'fair'
-    else disciplineStatus = 'poor'
-    
-    disciplineDetails.push(`Discretionary: ${analysisData.discretionaryRatio.toFixed(1)}% of expenses`)
-    disciplineDetails.push(`Lifestyle change: ${analysisData.lifestyleInflation > 0 ? '+' : ''}${analysisData.lifestyleInflation.toFixed(1)}%`)
-    
-    metrics.push({
-      name: 'Expense Discipline',
-      score: disciplineScore,
-      weight: 15,
-      status: disciplineStatus,
-      description: disciplineScore >= 70 ? 'Well controlled' : disciplineScore >= 50 ? 'Moderate control' : 'Needs attention',
-      details: disciplineDetails,
-    })
-
-    // 5. SAVINGS BUFFER (10%)
-    let savingsBufferScore = 0
-    let savingsBufferStatus: HealthMetric['status'] = 'poor'
-    const savingsBufferDetails: string[] = []
-    
-    // Score based on how consistently you're saving (positive savings months)
-    // 50 points for frequency of positive savings months
-    savingsBufferScore += analysisData.positiveSavingsRatio * 50
-    
-    // 50 points for average savings rate when saving
-    if (analysisData.avgPositiveSavingsRate >= 25) savingsBufferScore += 50
-    else if (analysisData.avgPositiveSavingsRate >= 20) savingsBufferScore += 40
-    else if (analysisData.avgPositiveSavingsRate >= 15) savingsBufferScore += 30
-    else if (analysisData.avgPositiveSavingsRate >= 10) savingsBufferScore += 20
-    else if (analysisData.avgPositiveSavingsRate >= 5) savingsBufferScore += 10
-    
-    savingsBufferScore = Math.min(100, savingsBufferScore)
-    
-    if (savingsBufferScore >= 80) savingsBufferStatus = 'excellent'
-    else if (savingsBufferScore >= 60) savingsBufferStatus = 'good'
-    else if (savingsBufferScore >= 40) savingsBufferStatus = 'fair'
-    
-    savingsBufferDetails.push(`${Math.round(analysisData.positiveSavingsRatio * 100)}% months with positive savings`)
-    savingsBufferDetails.push(`Avg savings rate: ${analysisData.avgPositiveSavingsRate.toFixed(1)}% when saving`)
-    
-    metrics.push({
-      name: 'Savings Buffer',
-      score: savingsBufferScore,
-      weight: 10,
-      status: savingsBufferStatus,
-      description: savingsBufferScore >= 70 ? 'Building reserves' : savingsBufferScore >= 40 ? 'Some savings' : 'Improve savings habit',
-      details: savingsBufferDetails,
-    })
-
-    // 6. INVESTMENT BEHAVIOR (10%)
-    let investmentScore = 0
-    let investmentStatus: HealthMetric['status'] = 'poor'
-    const investmentDetails: string[] = []
-    
-    // Score based on investment regularity (0-40 points)
-    investmentScore += analysisData.investmentRegularity * 40
-    
-    // Score based on NET investment-to-income ratio (0-40 points)
-    // This is net = inflows - outflows, so withdrawals reduce the ratio
-    const netRatio = analysisData.netInvestmentToIncomeRatio
-    if (netRatio >= 20) investmentScore += 40
-    else if (netRatio >= 15) investmentScore += 30
-    else if (netRatio >= 10) investmentScore += 20
-    else if (netRatio >= 5) investmentScore += 10
-    else if (netRatio >= 0) investmentScore += 5 // At least not negative
-    
-    // Score based on consistency (0-20 points)
-    investmentScore += (analysisData.investmentConsistency / 100) * 20
-    
-    investmentScore = Math.min(100, investmentScore)
-    
-    if (investmentScore >= 80) investmentStatus = 'excellent'
-    else if (investmentScore >= 60) investmentStatus = 'good'
-    else if (investmentScore >= 40) investmentStatus = 'fair'
-    
-    investmentDetails.push(`${Math.round(analysisData.investmentRegularity * 100)}% months with net investments`)
-    investmentDetails.push(`${netRatio.toFixed(1)}% of income (net invested)`)
-    if (analysisData.totalInvestmentOutflow > 0) {
-      investmentDetails.push(`Withdrawals: ${formatCurrencyCompact(analysisData.totalInvestmentOutflow)}`)
-    }
-    
-    metrics.push({
-      name: 'Investment Behavior',
-      score: investmentScore,
-      weight: 10,
-      status: investmentStatus,
-      description: netRatio >= 15 ? 'Strong investor' : netRatio >= 5 ? 'Regular investing' : netRatio >= 0 ? 'Some investing' : 'Net withdrawal',
-      details: investmentDetails,
-    })
-
-    return metrics
-  }
-
-  const metrics = calculateMetrics()
   const overallScore = metrics.reduce((sum, m) => sum + (m.score * m.weight) / 100, 0)
-
-  const getOverallStatus = (score: number) => {
-    if (score >= 80) return { label: 'Excellent', color: 'text-green-500', bgColor: 'bg-green-500' }
-    if (score >= 60) return { label: 'Good', color: 'text-blue-500', bgColor: 'bg-blue-500' }
-    if (score >= 40) return { label: 'Fair', color: 'text-yellow-500', bgColor: 'bg-yellow-500' }
-    return { label: 'Needs Work', color: 'text-red-500', bgColor: 'bg-red-500' }
-  }
-
   const status = getOverallStatus(overallScore)
-
-  // Generate one-line summary
-  const getSummary = () => {
-    if (overallScore >= 80) return "Excellent financial health! Strong cashflow, good savings, and disciplined spending."
-    if (overallScore >= 65) return "Good financial health with room for improvement in savings or expense management."
-    if (overallScore >= 50) return "Fair financial health. Focus on building emergency fund and reducing discretionary spending."
-    if (overallScore >= 35) return "Financial health needs attention. Prioritize debt management and expense control."
-    return "Financial health requires immediate action. Create a budget and reduce non-essential expenses."
-  }
-
-  const getStatusIcon = (metricStatus: HealthMetric['status']) => {
-    switch (metricStatus) {
-      case 'excellent':
-        return <CheckCircle className="w-4 h-4 text-green-500" />
-      case 'good':
-        return <TrendingUp className="w-4 h-4 text-blue-500" />
-      case 'fair':
-        return <Info className="w-4 h-4 text-yellow-500" />
-      case 'poor':
-        return <AlertTriangle className="w-4 h-4 text-red-500" />
-    }
-  }
-
-  const getStatusColor = (metricStatus: HealthMetric['status']) => {
-    switch (metricStatus) {
-      case 'excellent':
-        return 'bg-green-500'
-      case 'good':
-        return 'bg-blue-500'
-      case 'fair':
-        return 'bg-yellow-500'
-      case 'poor':
-        return 'bg-red-500'
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="glass rounded-2xl border border-white/10 p-6 animate-pulse">
-        <div className="h-8 bg-muted rounded w-1/3 mb-4" />
-        <div className="h-32 bg-muted rounded" />
-      </div>
-    )
-  }
-
-  if (!analysisData || metrics.length === 0) {
-    return (
-      <div className="glass rounded-2xl border border-white/10 p-6">
-        <h3 className="text-lg font-semibold mb-2">Financial Health Score</h3>
-        <p className="text-muted-foreground">Need more transaction data to calculate health score.</p>
-      </div>
-    )
-  }
 
   return (
     <motion.div
@@ -612,96 +809,27 @@ export default function FinancialHealthScore() {
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
     >
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl ${status.bgColor}/20`}>
-            <Shield className={`w-6 h-6 ${status.color}`} />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold">Financial Health Score</h3>
-            <p className="text-sm text-muted-foreground">Based on last {analysisData.monthsAnalyzed} months</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className={`text-3xl font-bold ${status.color}`}>{Math.round(overallScore)}</p>
-          <p className={`text-sm ${status.color}`}>{status.label}</p>
-        </div>
-      </div>
+      <ScoreHeader
+        status={status}
+        monthsAnalyzed={analysisData.monthsAnalyzed}
+        overallScore={overallScore}
+      />
 
-      {/* Circular Progress */}
-      <div className="flex justify-center mb-4">
-        <div className="relative w-28 h-28">
-          <svg className="w-full h-full transform -rotate-90">
-            <circle cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted/20" />
-            <circle
-              cx="56"
-              cy="56"
-              r="48"
-              stroke="currentColor"
-              strokeWidth="8"
-              fill="none"
-              strokeDasharray={`${(overallScore / 100) * 301} 301`}
-              strokeLinecap="round"
-              className={status.color}
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`text-2xl font-bold ${status.color}`}>{Math.round(overallScore)}</span>
-            <span className="text-xs text-muted-foreground">/ 100</span>
-          </div>
-        </div>
-      </div>
+      <CircularProgress overallScore={overallScore} statusColor={status.color} />
 
       {/* Summary */}
-      <p className="text-sm text-center text-muted-foreground mb-6 px-4">{getSummary()}</p>
+      <p className="text-sm text-center text-muted-foreground mb-6 px-4">
+        {getSummary(overallScore)}
+      </p>
 
       {/* Metrics Breakdown */}
       <div className="space-y-3">
         {metrics.map((metric) => (
-          <div key={metric.name} className="space-y-1">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                {getStatusIcon(metric.status)}
-                <span>{metric.name}</span>
-                <span className="text-xs text-muted-foreground">({metric.weight}%)</span>
-              </div>
-              <span className="text-muted-foreground">{metric.description}</span>
-            </div>
-            <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
-              <div
-                className={`h-full ${getStatusColor(metric.status)} rounded-full transition-all`}
-                style={{ width: `${metric.score}%` }}
-              />
-            </div>
-            {/* Details (collapsible) */}
-            {showDetails && metric.details && (
-              <div className="pl-6 pt-1 text-xs text-muted-foreground space-y-0.5">
-                {metric.details.map((detail, i) => (
-                  <p key={i}>• {detail}</p>
-                ))}
-              </div>
-            )}
-          </div>
+          <MetricRow key={metric.name} metric={metric} showDetails={showDetails} />
         ))}
       </div>
 
-      {/* Show Details Toggle */}
-      <button 
-        onClick={() => setShowDetails(!showDetails)}
-        className="w-full mt-4 pt-4 border-t border-white/10 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
-      >
-        {showDetails ? (
-          <>
-            <ChevronUp className="w-4 h-4" />
-            Hide Details
-          </>
-        ) : (
-          <>
-            <ChevronDown className="w-4 h-4" />
-            Show Details
-          </>
-        )}
-      </button>
+      <DetailsToggle showDetails={showDetails} onToggle={() => setShowDetails(!showDetails)} />
     </motion.div>
   )
 }

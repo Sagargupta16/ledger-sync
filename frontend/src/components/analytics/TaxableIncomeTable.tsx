@@ -18,7 +18,7 @@ export default function TaxableIncomeTable({
   selectedFY,
   incomeGroups,
   netTaxableIncome,
-}: TaxableIncomeTableProps) {
+}: Readonly<TaxableIncomeTableProps>) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -58,8 +58,8 @@ export default function TaxableIncomeTable({
                             : '0%'}
                         </td>
                       </tr>
-                      {data.transactions.map((tx, index) => (
-                        <tr key={index} className="border-b border-white/5">
+                      {data.transactions.map((tx) => (
+                        <tr key={tx.id} className="border-b border-white/5">
                           <td className="py-3 px-4 text-white">
                             {new Date(tx.date).toLocaleDateString()}
                           </td>

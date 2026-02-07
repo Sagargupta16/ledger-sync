@@ -30,7 +30,7 @@ export default function FYNavigator({
   canGoForward,
   onGoBack,
   onGoForward,
-}: FYNavigatorProps) {
+}: Readonly<FYNavigatorProps>) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

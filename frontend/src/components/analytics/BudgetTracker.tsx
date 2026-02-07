@@ -72,7 +72,7 @@ export default function BudgetTracker() {
 
   // Categories without budgets
   const categoriesWithoutBudget = allCategories.filter(
-    (c) => !budgets.find((b) => b.category === c)
+    (c) => !budgets.some((b) => b.category === c)
   )
 
   const handleAddBudget = () => {

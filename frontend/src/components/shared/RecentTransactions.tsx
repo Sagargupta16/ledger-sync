@@ -67,7 +67,7 @@ const TransactionRow = memo(function TransactionRow({
   )
 })
 
-function RecentTransactions({ transactions, isLoading }: RecentTransactionsProps) {
+function RecentTransactions({ transactions, isLoading }: Readonly<RecentTransactionsProps>) {
   if (isLoading) {
     return (
       <div className="space-y-3">

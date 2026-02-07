@@ -52,13 +52,13 @@ app.include_router(transactions_router)
 app.include_router(upload_router)
 
 
-@app.get("/", response_model=HealthResponse)
+@app.get("/")
 async def root() -> HealthResponse:
     """Root endpoint - health check."""
     return HealthResponse(status="healthy", version="1.0.0")
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 async def health() -> HealthResponse:
     """Health check endpoint."""
     return HealthResponse(status="healthy", version="1.0.0")

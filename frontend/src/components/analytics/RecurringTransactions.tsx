@@ -17,6 +17,60 @@ interface RecurringTransaction {
   expectedNextDate: string
 }
 
+type Frequency = 'monthly' | 'quarterly' | 'yearly'
+
+function computeIntervals(sortedDates: string[]): number[] {
+  const intervals: number[] = []
+  for (let i = 1; i < sortedDates.length; i++) {
+    const prev = new Date(sortedDates[i - 1])
+    const curr = new Date(sortedDates[i])
+    const daysDiff = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24))
+    intervals.push(daysDiff)
+  }
+  return intervals
+}
+
+function classifyFrequency(avgInterval: number): Frequency | null {
+  if (avgInterval >= 25 && avgInterval <= 38) return 'monthly'
+  if (avgInterval >= 80 && avgInterval <= 105) return 'quarterly'
+  if (avgInterval >= 345 && avgInterval <= 385) return 'yearly'
+  return null
+}
+
+function isConsistentTiming(intervals: number[], avgInterval: number, occurrenceCount: number): boolean {
+  if (intervals.length <= 1) return true
+  const variance = intervals.reduce((sum, i) => sum + Math.pow(i - avgInterval, 2), 0) / intervals.length
+  const stdDev = Math.sqrt(variance)
+  const coefficientOfVariation = avgInterval > 0 ? stdDev / avgInterval : 0
+  const maxCV = occurrenceCount <= 3 ? 0.6 : 0.4
+  return coefficientOfVariation <= maxCV
+}
+
+function isConsistentAmount(amounts: number[]): boolean {
+  const avgAmount = amounts.reduce((a, b) => a + b, 0) / amounts.length
+  const consistentAmounts = amounts.filter((a) => avgAmount > 0 && Math.abs(a - avgAmount) / avgAmount < 0.3)
+  return consistentAmounts.length >= amounts.length * 0.5
+}
+
+function computeExpectedNextDate(lastDate: Date, frequency: Frequency): Date {
+  const expectedNext = new Date(lastDate)
+  if (frequency === 'monthly') {
+    expectedNext.setMonth(expectedNext.getMonth() + 1)
+  } else if (frequency === 'quarterly') {
+    expectedNext.setMonth(expectedNext.getMonth() + 3)
+  } else {
+    expectedNext.setFullYear(expectedNext.getFullYear() + 1)
+  }
+  return expectedNext
+}
+
+function checkIsActive(lastDate: Date, frequency: Frequency): boolean {
+  const today = new Date()
+  const daysSinceLast = Math.round((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+  const maxDaysMap: Record<Frequency, number> = { monthly: 45, quarterly: 120, yearly: 400 }
+  return daysSinceLast < maxDaysMap[frequency]
+}
+
 export default function RecurringTransactions() {
   const { data: transactions = [], isLoading } = useTransactions()
 
@@ -100,71 +154,23 @@ export default function RecurringTransactions() {
       const sortedDates = [...data.dates].sort((a, b) => a.localeCompare(b))
 
       // Calculate intervals between transactions
-      const intervals: number[] = []
-      for (let i = 1; i < sortedDates.length; i++) {
-        const prev = new Date(sortedDates[i - 1])
-        const curr = new Date(sortedDates[i])
-        const daysDiff = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24))
-        intervals.push(daysDiff)
-      }
-
+      const intervals = computeIntervals(sortedDates)
       if (intervals.length < 1) return null
 
-      // Calculate average interval
       const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length
-
-      // For 2 occurrences, be more lenient with variance check
-      let coefficientOfVariation = 0
-      if (intervals.length > 1) {
-        const variance = intervals.reduce((sum, i) => sum + Math.pow(i - avgInterval, 2), 0) / intervals.length
-        const stdDev = Math.sqrt(variance)
-        coefficientOfVariation = avgInterval > 0 ? stdDev / avgInterval : 0
-      }
-
-      // Determine frequency based on average interval
-      let frequency: 'monthly' | 'quarterly' | 'yearly' | null = null
-
-      if (avgInterval >= 25 && avgInterval <= 38) {
-        frequency = 'monthly'
-      } else if (avgInterval >= 80 && avgInterval <= 105) {
-        frequency = 'quarterly'
-      } else if (avgInterval >= 345 && avgInterval <= 385) {
-        frequency = 'yearly'
-      }
-
-      // If interval doesn't match standard patterns, skip
+      const frequency = classifyFrequency(avgInterval)
       if (!frequency) return null
 
-      // For patterns with few occurrences (2-3), allow higher variance
-      const maxCV = data.amounts.length <= 3 ? 0.6 : 0.4
-      if (intervals.length > 1 && coefficientOfVariation > maxCV) return null
+      if (!isConsistentTiming(intervals, avgInterval, data.amounts.length)) return null
+      if (!isConsistentAmount(data.amounts)) return null
 
-      // Calculate average amount
       const avgAmount = data.amounts.reduce((a, b) => a + b, 0) / data.amounts.length
-
-      // Check if amounts are reasonably consistent (within 30% of average)
-      const consistentAmounts = data.amounts.filter((a) => avgAmount > 0 && Math.abs(a - avgAmount) / avgAmount < 0.3)
-      if (consistentAmounts.length < data.amounts.length * 0.5) return null
-
-      // Calculate expected next date
-      const lastDate = new Date(sortedDates[sortedDates.length - 1])
-      const expectedNext = new Date(lastDate)
-      if (frequency === 'monthly') {
-        expectedNext.setMonth(expectedNext.getMonth() + 1)
-      } else if (frequency === 'quarterly') {
-        expectedNext.setMonth(expectedNext.getMonth() + 3)
-      } else {
-        expectedNext.setFullYear(expectedNext.getFullYear() + 1)
-      }
-
-      // Check if it's still active (last transaction within expected interval + buffer)
-      const today = new Date()
-      const daysSinceLast = Math.round((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
-      const maxDaysSinceLast = frequency === 'monthly' ? 45 : frequency === 'quarterly' ? 120 : 400
-      const isActive = daysSinceLast < maxDaysSinceLast
-
-      const patternName =
-        data.note || `${data.category}${data.subcategory ? ` - ${data.subcategory}` : ''}`
+      const lastDateStr = sortedDates.at(-1)!
+      const lastDate = new Date(lastDateStr)
+      const expectedNext = computeExpectedNextDate(lastDate, frequency)
+      const isActive = checkIsActive(lastDate, frequency)
+      const subcategorySuffix = data.subcategory ? ` - ${data.subcategory}` : ''
+      const patternName = data.note || `${data.category}${subcategorySuffix}`
 
       return {
         pattern: patternName,
@@ -172,7 +178,7 @@ export default function RecurringTransactions() {
         subcategory: data.subcategory,
         avgAmount,
         frequency,
-        lastDate: sortedDates[sortedDates.length - 1],
+        lastDate: lastDateStr,
         occurrences: data.amounts.length,
         totalSpent: data.amounts.reduce((a, b) => a + b, 0),
         isActive,

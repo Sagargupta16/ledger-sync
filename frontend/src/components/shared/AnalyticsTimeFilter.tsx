@@ -2,9 +2,8 @@ import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { rawColors } from '@/constants/colors'
 import { useMemo } from 'react'
+export type { AnalyticsViewMode } from '@/lib/dateUtils'
 import { type AnalyticsViewMode } from '@/lib/dateUtils'
-
-export type { AnalyticsViewMode }
 
 interface AnalyticsTimeFilterProps {
   readonly viewMode: AnalyticsViewMode

@@ -162,15 +162,16 @@ export default function TopMerchants() {
                   paddingAngle={2}
                   dataKey="value"
                 >
-                  {pieData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {pieData.map((entry, index) => (
+                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip
                   {...chartTooltipProps}
-                  formatter={(value: number | undefined) =>
-                    value !== undefined ? (viewMode === 'amount' ? formatCurrency(value) : `${value} visits`) : ''
-                  }
+                  formatter={(value: number | undefined) => {
+                    if (value === undefined) return ''
+                    return viewMode === 'amount' ? formatCurrency(value) : `${value} visits`
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>

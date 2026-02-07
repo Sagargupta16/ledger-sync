@@ -14,7 +14,7 @@ export default function TaxSummaryCards({
   netTaxableIncome,
   grossTaxableIncome,
   taxAlreadyPaid,
-}: TaxSummaryCardsProps) {
+}: Readonly<TaxSummaryCardsProps>) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <motion.div

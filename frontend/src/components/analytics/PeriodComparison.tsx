@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 
 type CompareMode = 'months' | 'years'
+type MetricFormat = 'currency' | 'percent' | 'number' | 'days'
 
 interface MetricRow {
   label: string
@@ -15,8 +16,203 @@ interface MetricRow {
   change: number
   changePercent: number
   isExpense?: boolean
-  format?: 'currency' | 'percent' | 'number' | 'days'
+  format?: MetricFormat
 }
+
+// Moved to outer scope per SonarCloud recommendation
+function createMetricRow(
+  label: string,
+  value1: number,
+  value2: number,
+  format: MetricFormat = 'currency',
+  isExpense = false
+): MetricRow {
+  const change = value1 - value2
+  const changePercent = value2 === 0 ? 0 : (change / value2) * 100
+  return { label, period1Value: value1, period2Value: value2, change, changePercent, isExpense, format }
+}
+
+function formatValue(value: number, format?: string) {
+  switch (format) {
+    case 'percent':
+      return `${value.toFixed(1)}%`
+    case 'number':
+      return value.toLocaleString()
+    case 'days':
+      return `${value.toFixed(0)} days`
+    default:
+      return formatCurrency(value)
+  }
+}
+
+function getChangeIcon(changePercent: number, isExpense = false) {
+  if (Math.abs(changePercent) < 1) return <Minus className="w-4 h-4 text-muted-foreground" />
+  if (isExpense) {
+    return changePercent > 0 ? (
+      <TrendingUp className="w-4 h-4" style={{ color: rawColors.ios.red }} />
+    ) : (
+      <TrendingDown className="w-4 h-4" style={{ color: rawColors.ios.green }} />
+    )
+  }
+  return changePercent > 0 ? (
+    <TrendingUp className="w-4 h-4" style={{ color: rawColors.ios.green }} />
+  ) : (
+    <TrendingDown className="w-4 h-4" style={{ color: rawColors.ios.red }} />
+  )
+}
+
+function getChangeColor(changePercent: number, isExpense = false) {
+  if (Math.abs(changePercent) < 1) return rawColors.text.secondary
+  if (isExpense) {
+    return changePercent > 0 ? rawColors.ios.red : rawColors.ios.green
+  }
+  return changePercent > 0 ? rawColors.ios.green : rawColors.ios.red
+}
+
+function formatMonthLabel(month: string) {
+  return new Date(month + '-01').toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function safeDivide(numerator: number, denominator: number): number {
+  return denominator > 0 ? numerator / denominator : 0
+}
+
+function calcSavingsRate(netSavings: number, income: number): number {
+  return income > 0 ? (netSavings / income) * 100 : 0
+}
+
+interface MonthData {
+  month: string
+  income: number
+  expense: number
+  net_savings: number
+}
+
+function buildMonthlyMetrics(
+  m1: MonthData,
+  m2: MonthData,
+  effectiveMonth1: string,
+  effectiveMonth2: string,
+  availableMonths: MonthData[],
+  getTransactionCount: (period: string | number, type?: 'total' | 'income' | 'expense') => number,
+): MetricRow[] {
+  const avgIncome = availableMonths.reduce((sum, m) => sum + m.income, 0) / availableMonths.length
+  const avgExpense = availableMonths.reduce((sum, m) => sum + m.expense, 0) / availableMonths.length
+
+  const daysInMonth1 = new Date(Number(effectiveMonth1.split('-')[0]), Number(effectiveMonth1.split('-')[1]), 0).getDate()
+  const daysInMonth2 = new Date(Number(effectiveMonth2.split('-')[0]), Number(effectiveMonth2.split('-')[1]), 0).getDate()
+
+  const txCount1 = getTransactionCount(effectiveMonth1)
+  const txCount2 = getTransactionCount(effectiveMonth2)
+  const expenseTxCount1 = getTransactionCount(effectiveMonth1, 'expense')
+  const expenseTxCount2 = getTransactionCount(effectiveMonth2, 'expense')
+
+  return [
+    createMetricRow('Total Income', m1.income, m2.income, 'currency'),
+    createMetricRow('Total Expenses', m1.expense, m2.expense, 'currency', true),
+    createMetricRow('Net Savings', m1.net_savings, m2.net_savings, 'currency'),
+    createMetricRow('Savings Rate', calcSavingsRate(m1.net_savings, m1.income), calcSavingsRate(m2.net_savings, m2.income), 'percent'),
+    createMetricRow('Daily Avg Spending', m1.expense / daysInMonth1, m2.expense / daysInMonth2, 'currency', true),
+    createMetricRow('Daily Avg Income', m1.income / daysInMonth1, m2.income / daysInMonth2, 'currency'),
+    createMetricRow('Transaction Count', txCount1, txCount2, 'number'),
+    createMetricRow('Avg Transaction Size', safeDivide(m1.expense, expenseTxCount1), safeDivide(m2.expense, expenseTxCount2), 'currency', true),
+    createMetricRow('vs Average Income', m1.income, avgIncome, 'currency'),
+    createMetricRow('vs Average Expense', m1.expense, avgExpense, 'currency', true),
+  ]
+}
+
+interface YearData {
+  income: number
+  expense: number
+  net_savings: number
+  months: number
+}
+
+function buildYearlyMetrics(
+  y1: YearData,
+  y2: YearData,
+  effectiveYear1: number,
+  effectiveYear2: number,
+  getTransactionCount: (period: string | number, type?: 'total' | 'income' | 'expense') => number,
+): MetricRow[] {
+  const txCount1 = getTransactionCount(effectiveYear1)
+  const txCount2 = getTransactionCount(effectiveYear2)
+  const expenseTxCount1 = getTransactionCount(effectiveYear1, 'expense')
+  const expenseTxCount2 = getTransactionCount(effectiveYear2, 'expense')
+
+  return [
+    createMetricRow('Total Income', y1.income, y2.income, 'currency'),
+    createMetricRow('Total Expenses', y1.expense, y2.expense, 'currency', true),
+    createMetricRow('Net Savings', y1.net_savings, y2.net_savings, 'currency'),
+    createMetricRow('Savings Rate', calcSavingsRate(y1.net_savings, y1.income), calcSavingsRate(y2.net_savings, y2.income), 'percent'),
+    createMetricRow('Monthly Avg Income', safeDivide(y1.income, y1.months), safeDivide(y2.income, y2.months), 'currency'),
+    createMetricRow('Monthly Avg Expense', safeDivide(y1.expense, y1.months), safeDivide(y2.expense, y2.months), 'currency', true),
+    createMetricRow('Total Transactions', txCount1, txCount2, 'number'),
+    createMetricRow('Avg Transaction Size', safeDivide(y1.expense, expenseTxCount1), safeDivide(y2.expense, expenseTxCount2), 'currency', true),
+    createMetricRow('Months with Data', y1.months, y2.months, 'number'),
+  ]
+}
+
+function ChangeDisplay({ changePercent, isExpense }: { changePercent: number; isExpense?: boolean }) {
+  const prefix = changePercent > 0 ? '+' : ''
+  return (
+    <div className="flex items-center justify-end gap-2">
+      {getChangeIcon(changePercent, isExpense)}
+      <span
+        className="font-semibold"
+        style={{ color: getChangeColor(changePercent, isExpense) }}
+      >
+        {prefix}
+        {changePercent.toFixed(1)}%
+      </span>
+    </div>
+  )
+}
+
+interface SummaryCardProps {
+  label: string
+  color: string
+  changePercent: number
+  isExpense?: boolean
+  showRate?: boolean
+  rateValue?: number
+}
+
+function SummaryCard({ label, color, changePercent, isExpense, showRate, rateValue }: SummaryCardProps) {
+  return (
+    <div
+      className="p-4 rounded-2xl"
+      style={{
+        backgroundColor: `${color}14`,
+        borderWidth: 1,
+        borderColor: `${color}26`,
+      }}
+    >
+      <p className="text-xs mb-1" style={{ color: rawColors.text.secondary }}>{label}</p>
+      {showRate ? (
+        <span className="text-lg font-semibold" style={{ color }}>
+          {rateValue?.toFixed(1)}%
+        </span>
+      ) : (
+        <div className="flex items-center gap-1">
+          {getChangeIcon(changePercent, isExpense)}
+          <span
+            className="text-lg font-semibold"
+            style={{ color: getChangeColor(changePercent, isExpense) }}
+          >
+            {changePercent > 0 ? '+' : ''}
+            {changePercent.toFixed(1)}%
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const selectClass = 'px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] border border-white/[0.08] text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors backdrop-blur-xl'
 
 export default function PeriodComparison() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
@@ -55,7 +251,7 @@ export default function PeriodComparison() {
   const yearlyData = useMemo(() => {
     if (!monthlyData) return {}
     const yearly: Record<number, { income: number; expense: number; net_savings: number; months: number }> = {}
-    
+
     Object.entries(monthlyData).forEach(([month, data]) => {
       const year = Number.parseInt(month.slice(0, 4))
       const d = data as { income: number; expense: number; net_savings: number }
@@ -67,14 +263,14 @@ export default function PeriodComparison() {
       yearly[year].net_savings += d.net_savings
       yearly[year].months += 1
     })
-    
+
     return yearly
   }, [monthlyData])
 
   // Calculate transaction counts per period
   const transactionCounts = useMemo(() => {
     const counts: Record<string, { total: number; income: number; expense: number }> = {}
-    
+
     transactions.forEach((tx) => {
       const month = tx.date.slice(0, 7)
       if (!counts[month]) {
@@ -84,7 +280,7 @@ export default function PeriodComparison() {
       if (tx.type === 'Income') counts[month].income += 1
       else if (tx.type === 'Expense') counts[month].expense += 1
     })
-    
+
     return counts
   }, [transactions])
 
@@ -99,153 +295,29 @@ export default function PeriodComparison() {
     return transactionCounts[period]?.[type] ?? 0
   }, [transactionCounts])
 
-  // Helper to create metric row
-  function createMetricRow(
-    label: string,
-    value1: number,
-    value2: number,
-    format: 'currency' | 'percent' | 'number' | 'days' = 'currency',
-    isExpense = false
-  ): MetricRow {
-    const change = value1 - value2
-    const changePercent = value2 !== 0 ? (change / value2) * 100 : 0
-    return { label, period1Value: value1, period2Value: value2, change, changePercent, isExpense, format }
-  }
-
   // Calculate comparison metrics
   const comparisonMetrics = useMemo((): MetricRow[] | null => {
     if (compareMode === 'months') {
       if (!effectiveMonth1 || !effectiveMonth2 || !monthlyData) return null
-      
+
       const m1 = availableMonths.find((m) => m.month === effectiveMonth1)
       const m2 = availableMonths.find((m) => m.month === effectiveMonth2)
-      
+
       if (!m1 || !m2) return null
 
-      // Calculate averages
-      const avgIncome = availableMonths.reduce((sum, m) => sum + m.income, 0) / availableMonths.length
-      const avgExpense = availableMonths.reduce((sum, m) => sum + m.expense, 0) / availableMonths.length
-
-      // Daily rates (using actual days in each month)
-      const daysInMonth1 = new Date(Number(effectiveMonth1.split('-')[0]), Number(effectiveMonth1.split('-')[1]), 0).getDate()
-      const daysInMonth2 = new Date(Number(effectiveMonth2.split('-')[0]), Number(effectiveMonth2.split('-')[1]), 0).getDate()
-      const dailyExpense1 = m1.expense / daysInMonth1
-      const dailyExpense2 = m2.expense / daysInMonth2
-      const dailyIncome1 = m1.income / daysInMonth1
-      const dailyIncome2 = m2.income / daysInMonth2
-
-      // Savings rate
-      const savingsRate1 = m1.income > 0 ? (m1.net_savings / m1.income) * 100 : 0
-      const savingsRate2 = m2.income > 0 ? (m2.net_savings / m2.income) * 100 : 0
-
-      // Transaction counts
-      const txCount1 = getTransactionCount(effectiveMonth1)
-      const txCount2 = getTransactionCount(effectiveMonth2)
-      const expenseTxCount1 = getTransactionCount(effectiveMonth1, 'expense')
-      const expenseTxCount2 = getTransactionCount(effectiveMonth2, 'expense')
-
-      // Avg transaction amount
-      const avgTxAmount1 = expenseTxCount1 > 0 ? m1.expense / expenseTxCount1 : 0
-      const avgTxAmount2 = expenseTxCount2 > 0 ? m2.expense / expenseTxCount2 : 0
-
-      return [
-        createMetricRow('Total Income', m1.income, m2.income, 'currency'),
-        createMetricRow('Total Expenses', m1.expense, m2.expense, 'currency', true),
-        createMetricRow('Net Savings', m1.net_savings, m2.net_savings, 'currency'),
-        createMetricRow('Savings Rate', savingsRate1, savingsRate2, 'percent'),
-        createMetricRow('Daily Avg Spending', dailyExpense1, dailyExpense2, 'currency', true),
-        createMetricRow('Daily Avg Income', dailyIncome1, dailyIncome2, 'currency'),
-        createMetricRow('Transaction Count', txCount1, txCount2, 'number'),
-        createMetricRow('Avg Transaction Size', avgTxAmount1, avgTxAmount2, 'currency', true),
-        createMetricRow('vs Average Income', m1.income, avgIncome, 'currency'),
-        createMetricRow('vs Average Expense', m1.expense, avgExpense, 'currency', true),
-      ]
-    } else {
-      // Year comparison
-      if (!effectiveYear1 || !effectiveYear2) return null
-      
-      const y1 = yearlyData[effectiveYear1]
-      const y2 = yearlyData[effectiveYear2]
-      
-      if (!y1 || !y2) return null
-
-      // Monthly averages
-      const monthlyIncomeAvg1 = y1.months > 0 ? y1.income / y1.months : 0
-      const monthlyIncomeAvg2 = y2.months > 0 ? y2.income / y2.months : 0
-      const monthlyExpenseAvg1 = y1.months > 0 ? y1.expense / y1.months : 0
-      const monthlyExpenseAvg2 = y2.months > 0 ? y2.expense / y2.months : 0
-
-      // Savings rate
-      const savingsRate1 = y1.income > 0 ? (y1.net_savings / y1.income) * 100 : 0
-      const savingsRate2 = y2.income > 0 ? (y2.net_savings / y2.income) * 100 : 0
-
-      // Transaction counts
-      const txCount1 = getTransactionCount(effectiveYear1)
-      const txCount2 = getTransactionCount(effectiveYear2)
-      const expenseTxCount1 = getTransactionCount(effectiveYear1, 'expense')
-      const expenseTxCount2 = getTransactionCount(effectiveYear2, 'expense')
-
-      // Avg transaction amount
-      const avgTxAmount1 = expenseTxCount1 > 0 ? y1.expense / expenseTxCount1 : 0
-      const avgTxAmount2 = expenseTxCount2 > 0 ? y2.expense / expenseTxCount2 : 0
-
-      return [
-        createMetricRow('Total Income', y1.income, y2.income, 'currency'),
-        createMetricRow('Total Expenses', y1.expense, y2.expense, 'currency', true),
-        createMetricRow('Net Savings', y1.net_savings, y2.net_savings, 'currency'),
-        createMetricRow('Savings Rate', savingsRate1, savingsRate2, 'percent'),
-        createMetricRow('Monthly Avg Income', monthlyIncomeAvg1, monthlyIncomeAvg2, 'currency'),
-        createMetricRow('Monthly Avg Expense', monthlyExpenseAvg1, monthlyExpenseAvg2, 'currency', true),
-        createMetricRow('Total Transactions', txCount1, txCount2, 'number'),
-        createMetricRow('Avg Transaction Size', avgTxAmount1, avgTxAmount2, 'currency', true),
-        createMetricRow('Months with Data', y1.months, y2.months, 'number'),
-      ]
+      return buildMonthlyMetrics(m1, m2, effectiveMonth1, effectiveMonth2, availableMonths, getTransactionCount)
     }
+
+    // Year comparison
+    if (!effectiveYear1 || !effectiveYear2) return null
+
+    const y1 = yearlyData[effectiveYear1]
+    const y2 = yearlyData[effectiveYear2]
+
+    if (!y1 || !y2) return null
+
+    return buildYearlyMetrics(y1, y2, effectiveYear1, effectiveYear2, getTransactionCount)
   }, [compareMode, effectiveMonth1, effectiveMonth2, effectiveYear1, effectiveYear2, monthlyData, availableMonths, yearlyData, getTransactionCount])
-
-  const formatValue = (value: number, format?: string) => {
-    switch (format) {
-      case 'percent':
-        return `${value.toFixed(1)}%`
-      case 'number':
-        return value.toLocaleString()
-      case 'days':
-        return `${value.toFixed(0)} days`
-      default:
-        return formatCurrency(value)
-    }
-  }
-
-  const getChangeIcon = (changePercent: number, isExpense = false) => {
-    if (Math.abs(changePercent) < 1) return <Minus className="w-4 h-4 text-muted-foreground" />
-    if (isExpense) {
-      return changePercent > 0 ? (
-        <TrendingUp className="w-4 h-4" style={{ color: rawColors.ios.red }} />
-      ) : (
-        <TrendingDown className="w-4 h-4" style={{ color: rawColors.ios.green }} />
-      )
-    }
-    return changePercent > 0 ? (
-      <TrendingUp className="w-4 h-4" style={{ color: rawColors.ios.green }} />
-    ) : (
-      <TrendingDown className="w-4 h-4" style={{ color: rawColors.ios.red }} />
-    )
-  }
-
-  const getChangeColor = (changePercent: number, isExpense = false) => {
-    if (Math.abs(changePercent) < 1) return rawColors.text.secondary
-    if (isExpense) {
-      return changePercent > 0 ? rawColors.ios.red : rawColors.ios.green
-    }
-    return changePercent > 0 ? rawColors.ios.green : rawColors.ios.red
-  }
-
-  const formatMonthLabel = (month: string) => {
-    return new Date(month + '-01').toLocaleDateString('en-US', {
-      month: 'short',
-      year: 'numeric',
-    })
-  }
 
   const getPeriod1Label = () => {
     if (compareMode === 'months' && effectiveMonth1) {
@@ -289,9 +361,9 @@ export default function PeriodComparison() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div 
-            className="p-3 rounded-2xl" 
-            style={{ 
+          <div
+            className="p-3 rounded-2xl"
+            style={{
               backgroundColor: `${rawColors.ios.indigo}26`,
               boxShadow: `0 8px 24px ${rawColors.ios.indigo}26`
             }}
@@ -317,7 +389,7 @@ export default function PeriodComparison() {
             aria-selected={compareMode === 'months'}
             onClick={() => setCompareMode('months')}
             className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
-            style={{ 
+            style={{
               backgroundColor: compareMode === 'months' ? rawColors.ios.blue : 'transparent',
               color: compareMode === 'months' ? '#fff' : rawColors.text.secondary
             }}
@@ -330,7 +402,7 @@ export default function PeriodComparison() {
             aria-selected={compareMode === 'years'}
             onClick={() => setCompareMode('years')}
             className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
-            style={{ 
+            style={{
               backgroundColor: compareMode === 'years' ? rawColors.ios.blue : 'transparent',
               color: compareMode === 'years' ? '#fff' : rawColors.text.secondary
             }}
@@ -344,13 +416,13 @@ export default function PeriodComparison() {
         {/* Period Selectors - iOS style */}
         <div className="flex items-center gap-2 flex-wrap">
           <Calendar className="w-4 h-4" style={{ color: rawColors.text.tertiary }} />
-          
+
           {compareMode === 'months' ? (
             <>
               <select
                 value={effectiveMonth1 ?? ''}
                 onChange={(e) => setSelectedMonth1(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] border border-white/[0.08] text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors backdrop-blur-xl"
+                className={selectClass}
                 aria-label="First month to compare"
               >
                 {availableMonths.map((m) => (
@@ -363,7 +435,7 @@ export default function PeriodComparison() {
               <select
                 value={effectiveMonth2 ?? ''}
                 onChange={(e) => setSelectedMonth2(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] border border-white/[0.08] text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors backdrop-blur-xl"
+                className={selectClass}
                 aria-label="Second month to compare"
               >
                 {availableMonths.map((m) => (
@@ -378,7 +450,7 @@ export default function PeriodComparison() {
               <select
                 value={effectiveYear1 ?? ''}
                 onChange={(e) => setSelectedYear1(Number.parseInt(e.target.value))}
-                className="px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] border border-white/[0.08] text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors backdrop-blur-xl"
+                className={selectClass}
                 aria-label="First year to compare"
               >
                 {availableYears.map((year) => (
@@ -391,7 +463,7 @@ export default function PeriodComparison() {
               <select
                 value={effectiveYear2 ?? ''}
                 onChange={(e) => setSelectedYear2(Number.parseInt(e.target.value))}
-                className="px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] border border-white/[0.08] text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors backdrop-blur-xl"
+                className={selectClass}
                 aria-label="Second year to compare"
               >
                 {availableYears.map((year) => (
@@ -440,16 +512,7 @@ export default function PeriodComparison() {
                     {formatValue(metric.period2Value, metric.format)}
                   </td>
                   <td className="py-3 px-4 text-sm text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {getChangeIcon(metric.changePercent, metric.isExpense)}
-                      <span 
-                        className="font-semibold"
-                        style={{ color: getChangeColor(metric.changePercent, metric.isExpense) }}
-                      >
-                        {metric.changePercent > 0 ? '+' : ''}
-                        {metric.changePercent.toFixed(1)}%
-                      </span>
-                    </div>
+                    <ChangeDisplay changePercent={metric.changePercent} isExpense={metric.isExpense} />
                   </td>
                 </motion.tr>
               ))}
@@ -465,86 +528,10 @@ export default function PeriodComparison() {
       {/* Summary Cards - iOS style */}
       {comparisonMetrics && comparisonMetrics.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
-          {/* Income Change */}
-          <div 
-            className="p-4 rounded-2xl"
-            style={{ 
-              backgroundColor: `${rawColors.ios.green}14`,
-              borderWidth: 1,
-              borderColor: `${rawColors.ios.green}26`
-            }}
-          >
-            <p className="text-xs mb-1" style={{ color: rawColors.text.secondary }}>Income</p>
-            <div className="flex items-center gap-1">
-              {getChangeIcon(comparisonMetrics[0].changePercent)}
-              <span 
-                className="text-lg font-semibold"
-                style={{ color: getChangeColor(comparisonMetrics[0].changePercent) }}
-              >
-                {comparisonMetrics[0].changePercent > 0 ? '+' : ''}
-                {comparisonMetrics[0].changePercent.toFixed(1)}%
-              </span>
-            </div>
-          </div>
-
-          {/* Expense Change */}
-          <div 
-            className="p-4 rounded-2xl"
-            style={{ 
-              backgroundColor: `${rawColors.ios.red}14`,
-              borderWidth: 1,
-              borderColor: `${rawColors.ios.red}26`
-            }}
-          >
-            <p className="text-xs mb-1" style={{ color: rawColors.text.secondary }}>Expenses</p>
-            <div className="flex items-center gap-1">
-              {getChangeIcon(comparisonMetrics[1].changePercent, true)}
-              <span 
-                className="text-lg font-semibold"
-                style={{ color: getChangeColor(comparisonMetrics[1].changePercent, true) }}
-              >
-                {comparisonMetrics[1].changePercent > 0 ? '+' : ''}
-                {comparisonMetrics[1].changePercent.toFixed(1)}%
-              </span>
-            </div>
-          </div>
-
-          {/* Savings Change */}
-          <div 
-            className="p-4 rounded-2xl"
-            style={{ 
-              backgroundColor: `${rawColors.ios.blue}14`,
-              borderWidth: 1,
-              borderColor: `${rawColors.ios.blue}26`
-            }}
-          >
-            <p className="text-xs mb-1" style={{ color: rawColors.text.secondary }}>Savings</p>
-            <div className="flex items-center gap-1">
-              {getChangeIcon(comparisonMetrics[2].changePercent)}
-              <span 
-                className="text-lg font-semibold"
-                style={{ color: getChangeColor(comparisonMetrics[2].changePercent) }}
-              >
-                {comparisonMetrics[2].changePercent > 0 ? '+' : ''}
-                {comparisonMetrics[2].changePercent.toFixed(1)}%
-              </span>
-            </div>
-          </div>
-
-          {/* Savings Rate */}
-          <div 
-            className="p-4 rounded-2xl"
-            style={{ 
-              backgroundColor: `${rawColors.ios.purple}14`,
-              borderWidth: 1,
-              borderColor: `${rawColors.ios.purple}26`
-            }}
-          >
-            <p className="text-xs mb-1" style={{ color: rawColors.text.secondary }}>Savings Rate</p>
-            <span className="text-lg font-semibold" style={{ color: rawColors.ios.purple }}>
-              {comparisonMetrics[3].period1Value.toFixed(1)}%
-            </span>
-          </div>
+          <SummaryCard label="Income" color={rawColors.ios.green} changePercent={comparisonMetrics[0].changePercent} />
+          <SummaryCard label="Expenses" color={rawColors.ios.red} changePercent={comparisonMetrics[1].changePercent} isExpense />
+          <SummaryCard label="Savings" color={rawColors.ios.blue} changePercent={comparisonMetrics[2].changePercent} />
+          <SummaryCard label="Savings Rate" color={rawColors.ios.purple} changePercent={comparisonMetrics[3].changePercent} showRate rateValue={comparisonMetrics[3].period1Value} />
         </div>
       )}
     </motion.div>

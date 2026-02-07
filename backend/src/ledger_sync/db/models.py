@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum as PyEnum
-from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -21,9 +20,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ledger_sync.db.base import Base
 
-if TYPE_CHECKING:
-    pass
-
+# Foreign key reference constant for user relationships
+USER_FK = "users.id"
 
 # =============================================================================
 # USER AUTHENTICATION
@@ -115,9 +113,7 @@ class Transaction(Base):
     transaction_id: Mapped[str] = mapped_column(String(64), primary_key=True)
 
     # User foreign key - links transaction to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Core transaction fields
     date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
@@ -169,13 +165,6 @@ class Transaction(Base):
         )
 
 
-# Note: Transfer model deprecated - transfers now stored in transactions table with type='Transfer'
-# Keeping class definition for backwards compatibility with migrations
-# class Transfer(Base):
-#     """Transfer model - represents money movement between accounts."""
-#     # ... (removed to avoid TransferType reference errors)
-
-
 class AccountType(str, PyEnum):
     """Account type enumeration."""
 
@@ -195,9 +184,7 @@ class ImportLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - links import to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     file_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     file_name: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -230,9 +217,7 @@ class AccountClassification(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # User foreign key - scopes classification to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Account name and classification
     account_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -341,9 +326,7 @@ class NetWorthSnapshot(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes snapshot to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Snapshot date (typically end of month or upload date)
     snapshot_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
@@ -428,9 +411,7 @@ class MonthlySummary(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes summary to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Period identification
     year: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -492,9 +473,7 @@ class CategoryTrend(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes trend to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Period and category
     period_key: Mapped[str] = mapped_column(String(7), nullable=False, index=True)  # YYYY-MM
@@ -538,9 +517,7 @@ class TransferFlow(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes flow to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Flow identification
     from_account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -582,9 +559,7 @@ class RecurringTransaction(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes pattern to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Pattern identification
     pattern_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -636,9 +611,7 @@ class MerchantIntelligence(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes merchant data to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Merchant identification (extracted from notes)
     merchant_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -681,9 +654,7 @@ class Anomaly(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes anomaly to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Anomaly details
     anomaly_type: Mapped[AnomalyType] = mapped_column(Enum(AnomalyType), nullable=False, index=True)
@@ -740,9 +711,7 @@ class Budget(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes budget to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Budget scope
     category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -781,9 +750,7 @@ class FinancialGoal(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes goal to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Goal details
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -824,9 +791,7 @@ class FYSummary(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes FY summary to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # FY identification (e.g., "FY2024-25" for Apr 2024 - Mar 2025)
     fiscal_year: Mapped[str] = mapped_column(String(15), nullable=False, index=True)
@@ -971,7 +936,7 @@ class UserPreferences(Base):
 
     # User foreign key - links preferences to owner
     user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True
+        Integer, ForeignKey(USER_FK), nullable=False, unique=True, index=True
     )
 
     # Relationship back to user
@@ -982,7 +947,7 @@ class UserPreferences(Base):
         Integer,
         nullable=False,
         default=4,  # April (India FY)
-    )  # 1=Jan, 4=Apr, 7=Jul, 10=Oct
+    )
 
     # ===== 2. Essential vs Discretionary Categories =====
     # JSON array of category names

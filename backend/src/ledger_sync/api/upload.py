@@ -19,7 +19,84 @@ from ledger_sync.utils.logging import logger
 router = APIRouter(prefix="", tags=["upload"])
 
 
-@router.post("/api/upload")
+def _validate_upload_file(filename: str | None) -> str:
+    """Validate the uploaded file has a filename and an accepted extension.
+
+    Args:
+        filename: The filename from the uploaded file.
+
+    Returns:
+        The validated filename.
+
+    Raises:
+        HTTPException: If the filename is missing or has an invalid extension.
+
+    """
+    if not filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    if not filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Expected .xlsx or .xls, got {filename}",
+        )
+
+    return filename
+
+
+async def _create_temp_file(file: UploadFile) -> Path:
+    """Read uploaded file content and write it to a temporary file.
+
+    Args:
+        file: The uploaded file object.
+
+    Returns:
+        Path to the created temporary file.
+
+    """
+    content = await file.read()
+    tmp_fd, tmp_name = tempfile.mkstemp(suffix=".xlsx")
+    os.close(tmp_fd)
+    tmp_path = Path(tmp_name)
+    await anyio.Path(tmp_path).write_bytes(content)
+    return tmp_path
+
+
+def _cleanup_temp_file(tmp_path: Path) -> None:
+    """Remove the temporary file, scheduling deferred cleanup on Windows lock errors.
+
+    Args:
+        tmp_path: Path to the temporary file to remove.
+
+    """
+    if not tmp_path.exists():
+        return
+
+    try:
+        tmp_path.unlink()
+    except PermissionError:
+        # On Windows, file might still be locked, schedule for later cleanup
+        def cleanup_later() -> None:
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
+
+        atexit.register(cleanup_later)
+    except OSError as cleanup_error:
+        logger.warning(f"Failed to clean up temp file {tmp_path}: {cleanup_error}")
+
+
+@router.post(
+    "/api/upload",
+    responses={
+        400: {"description": "Invalid file type, no file provided, or data format issue"},
+        409: {"description": "File already imported"},
+        422: {"description": "Invalid Excel file"},
+        500: {"description": "Processing failed"},
+    },
+)
 async def upload_excel(
     current_user: CurrentUser,
     file: Annotated[UploadFile, File(description="Excel file to import")],
@@ -41,34 +118,18 @@ async def upload_excel(
         HTTPException: If upload fails
 
     """
-    # Validate file type
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
+    filename = _validate_upload_file(file.filename)
+    tmp_path = await _create_temp_file(file)
 
-    if not file.filename.endswith((".xlsx", ".xls")):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid file type. Expected .xlsx or .xls, got {file.filename}",
-        )
-
-    # Create temporary file using async I/O
-    content = await file.read()
-    tmp_fd, tmp_name = tempfile.mkstemp(suffix=".xlsx")
-    os.close(tmp_fd)
-    tmp_path = Path(tmp_name)
-    await anyio.Path(tmp_path).write_bytes(content)
-
-    # Process file after closing the temp file handle
-    logger.info(f"Processing uploaded file: {file.filename} for user: {current_user.email}")
+    logger.info(f"Processing uploaded file: {filename} for user: {current_user.email}")
 
     try:
         engine = SyncEngine(db, user_id=current_user.id)
         stats = engine.import_file(tmp_path, force=force)
 
-        # Build response
         return UploadResponse(
             success=True,
-            message=f"Successfully processed {file.filename}",
+            message=f"Successfully processed {filename}",
             stats={
                 "processed": stats.processed,
                 "inserted": stats.inserted,
@@ -76,11 +137,10 @@ async def upload_excel(
                 "deleted": stats.deleted,
                 "unchanged": stats.skipped,
             },
-            file_name=file.filename,
+            file_name=filename,
         )
 
     except ValueError as e:
-        # File already imported
         logger.warning(f"File already imported: {e}")
         raise HTTPException(
             status_code=409,
@@ -88,7 +148,6 @@ async def upload_excel(
         ) from e
 
     except ValidationError as e:
-        # Excel validation failed
         logger.warning(f"Invalid Excel file: {e}")
         raise HTTPException(
             status_code=422,
@@ -96,7 +155,6 @@ async def upload_excel(
         ) from e
 
     except NormalizationError as e:
-        # Data normalization failed
         logger.warning(f"Data format issue: {e}")
         raise HTTPException(
             status_code=400,
@@ -111,19 +169,4 @@ async def upload_excel(
         ) from e
 
     finally:
-        # Clean up temporary file
-        if tmp_path and tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except PermissionError:
-                # On Windows, file might still be locked, schedule for later cleanup
-                def cleanup_later():
-                    try:
-                        if tmp_path.exists():
-                            tmp_path.unlink()
-                    except OSError:
-                        pass
-
-                atexit.register(cleanup_later)
-            except OSError as cleanup_error:
-                logger.warning(f"Failed to clean up temp file {tmp_path}: {cleanup_error}")
+        _cleanup_temp_file(tmp_path)

@@ -34,7 +34,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
-export default function TransactionFilters({ onFilterChange, categories, accounts }: TransactionFiltersProps) {
+export default function TransactionFilters({ onFilterChange, categories, accounts }: Readonly<TransactionFiltersProps>) {
   const [filters, setFilters] = useState<FilterValues>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)

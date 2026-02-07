@@ -17,7 +17,7 @@ export default function TaxSummaryGrid({
   netTaxableIncome,
   totalIncome,
   totalExpense,
-}: TaxSummaryGridProps) {
+}: Readonly<TaxSummaryGridProps>) {
   const effectiveTaxRate =
     grossTaxableIncome > 0 ? (taxAlreadyPaid / grossTaxableIncome) * 100 : 0
 
