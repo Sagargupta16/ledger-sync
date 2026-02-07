@@ -15,6 +15,7 @@ import {
 import { useState, useMemo, useEffect } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { chartTooltipProps, PageHeader } from '@/components/ui'
 
 // Hide number input spinners
 const hideSpinnersStyle = `
@@ -329,12 +330,7 @@ export default function MutualFundProjectionPage() {
       <div className="min-h-screen p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-              SIP Projection Calculator
-            </h1>
-            <p className="text-muted-foreground mt-2">Analyze your mutual fund investment journey</p>
-          </motion.div>
+          <PageHeader title="SIP Projection" subtitle="Project your systematic investment plan returns" />
 
           {/* Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -662,16 +658,8 @@ export default function MutualFundProjectionPage() {
                     tickFormatter={(v) => formatCurrencyShort(v)} 
                   />
                   <Tooltip
+                    {...chartTooltipProps}
                     formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
-                    contentStyle={{
-                      backgroundColor: 'rgba(17,24,39,0.95)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: '12px',
-                      backdropFilter: 'blur(12px)',
-                      color: '#fff',
-                    }}
-                    labelStyle={{ color: '#9ca3af' }}
-                    itemStyle={{ color: '#fff' }}
                   />
                   <Legend />
                   <Area

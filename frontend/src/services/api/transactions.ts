@@ -28,10 +28,10 @@ export interface PaginatedResponse<T> {
 export const transactionsService = {
   /**
    * Get ALL transactions (for charts and analytics that need complete data).
-   * This fetches all pages from the API.
+   * Uses the dedicated /all endpoint — single request, no pagination loop.
    */
   getTransactions: async (filters?: TransactionFilters): Promise<Transaction[]> => {
-    // If a specific limit is provided, use single request
+    // If a specific limit is provided, use the paginated endpoint
     if (filters?.limit) {
       const response = await apiClient.get<PaginatedResponse<Transaction> | Transaction[]>('/api/transactions', {
         params: filters,
@@ -41,30 +41,15 @@ export const transactionsService = {
       }
       return response.data?.data || []
     }
-    
-    // Otherwise fetch ALL transactions (for charts/analytics)
-    const allTransactions: Transaction[] = []
-    let offset = 0
-    const pageSize = 1000 // Fetch in larger chunks for efficiency
-    const maxPages = 50 // Safety cap: max 50,000 transactions to prevent OOM
-    let page = 0
-    
-    while (page < maxPages) {
-      const response = await apiClient.get<PaginatedResponse<Transaction>>('/api/transactions', {
-        params: { ...filters, limit: pageSize, offset },
-      })
-      
-      const pageData = response.data?.data || []
-      allTransactions.push(...pageData)
-      
-      if (!response.data?.has_more || pageData.length === 0) {
-        break
-      }
-      offset += pageSize
-      page++
-    }
-    
-    return allTransactions
+
+    // Fetch ALL transactions in a single request via dedicated endpoint
+    const response = await apiClient.get<Transaction[]>('/api/transactions/all', {
+      params: {
+        start_date: filters?.start_date,
+        end_date: filters?.end_date,
+      },
+    })
+    return response.data || []
   },
 
   getTransactionsPaginated: async (filters?: TransactionFilters): Promise<PaginatedResponse<Transaction>> => {

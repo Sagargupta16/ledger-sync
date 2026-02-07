@@ -95,6 +95,51 @@ async def get_transactions(
     )
 
 
+@router.get("/api/transactions/all", response_model=list[TransactionResponse])
+async def get_all_transactions(
+    current_user: CurrentUser,
+    db: Session = Depends(get_session),
+    start_date: datetime | None = Query(None, description=START_DATE_DESC),
+    end_date: datetime | None = Query(None, description=END_DATE_DESC),
+) -> list[TransactionResponse]:
+    """Return every non-deleted transaction in a single JSON array.
+
+    Designed for the frontend analytics layer which needs the full dataset
+    for client-side aggregation. No pagination overhead — one request, one
+    response.
+    """
+    query = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.is_deleted.is_(False),
+    )
+    if start_date:
+        query = query.filter(Transaction.date >= start_date.date())
+    if end_date:
+        query = query.filter(Transaction.date <= end_date.date())
+
+    transactions = query.order_by(Transaction.date.desc()).all()
+
+    return [
+        TransactionResponse(
+            id=tx.transaction_id,
+            date=tx.date.isoformat(),
+            amount=float(tx.amount),
+            currency=tx.currency,
+            type=tx.type.value,
+            category=tx.category,
+            subcategory=tx.subcategory or "",
+            account=tx.account,
+            from_account=tx.from_account,
+            to_account=tx.to_account,
+            note=tx.note or "",
+            source_file=tx.source_file,
+            last_seen_at=tx.last_seen_at.isoformat(),
+            is_transfer=tx.type.value == "Transfer",
+        )
+        for tx in transactions
+    ]
+
+
 @router.get("/api/transactions/search")
 async def search_transactions(
     current_user: CurrentUser,

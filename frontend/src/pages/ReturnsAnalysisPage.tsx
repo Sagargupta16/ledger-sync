@@ -4,6 +4,7 @@ import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useMemo, useState } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import EmptyState from '@/components/shared/EmptyState'
@@ -265,12 +266,7 @@ export default function ReturnsAnalysisPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-            Returns Analysis
-          </h1>
-          <p className="text-muted-foreground mt-2">Analyze returns across your investment accounts</p>
-        </motion.div>
+        <PageHeader title="Returns Analysis" subtitle="Analyze your investment returns over time" />
 
         {/* Analytics Time Filter */}
         <AnalyticsTimeFilter
@@ -380,15 +376,7 @@ export default function ReturnsAnalysisPage() {
                   tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(17,24,39,0.95)',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                    borderRadius: '12px',
-                    backdropFilter: 'blur(12px)',
-                    color: '#fff',
-                  }}
-                  labelStyle={{ color: '#9ca3af' }}
-                  itemStyle={{ color: '#fff' }}
+                  {...chartTooltipProps}
                   formatter={(value: number | undefined, name: string | undefined) => {
                     if (value === undefined) return ''
                     if (name === 'cumulative') return [formatCurrency(value), 'Cumulative Returns']

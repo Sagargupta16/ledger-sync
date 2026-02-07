@@ -22,6 +22,7 @@ import {
   SPENDING_TYPE_COLORS,
 } from '@/lib/preferencesUtils'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
 export default function DashboardPage() {
@@ -138,15 +139,11 @@ export default function DashboardPage() {
   return (
     <div className="p-8 space-y-8">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground mt-2">Your financial overview at a glance</p>
-          </div>
-          <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
-        </div>
-      </motion.div>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Your financial overview at a glance"
+        action={<TimeRangeSelector value={timeRange} onChange={setTimeRange} />}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -248,16 +245,8 @@ export default function DashboardPage() {
                       ))}
                     </Pie>
                     <Tooltip
+                      {...chartTooltipProps}
                       formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
-                      contentStyle={{
-                        backgroundColor: 'rgba(17,24,39,0.95)',
-                        border: '1px solid rgba(255,255,255,0.12)',
-                        borderRadius: '12px',
-                        backdropFilter: 'blur(12px)',
-                        color: '#fff',
-                      }}
-                      labelStyle={{ color: SEMANTIC_COLORS.neutral }}
-                      itemStyle={{ color: '#fff' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -339,16 +328,8 @@ export default function DashboardPage() {
                       ))}
                     </Pie>
                     <Tooltip
+                      {...chartTooltipProps}
                       formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
-                      contentStyle={{
-                        backgroundColor: 'rgba(17,24,39,0.95)',
-                        border: '1px solid rgba(255,255,255,0.12)',
-                        borderRadius: '12px',
-                        backdropFilter: 'blur(12px)',
-                        color: '#fff',
-                      }}
-                      labelStyle={{ color: SEMANTIC_COLORS.neutral }}
-                      itemStyle={{ color: '#fff' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>

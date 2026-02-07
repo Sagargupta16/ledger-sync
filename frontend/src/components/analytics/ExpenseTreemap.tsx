@@ -5,6 +5,7 @@ import { ResponsiveContainer, Treemap, Tooltip } from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
 import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
+import { chartTooltipProps } from '@/components/ui'
 
 const COLORS = CHART_COLORS
 
@@ -286,15 +287,7 @@ export default function ExpenseTreemap() {
             }}
           >
             <Tooltip
-              contentStyle={{
-                backgroundColor: 'rgba(17,24,39,0.95)',
-                border: '1px solid rgba(139, 92, 246, 0.2)',
-                borderRadius: '12px',
-                backdropFilter: 'blur(12px)',
-                color: '#fff',
-              }}
-              labelStyle={{ color: '#9ca3af' }}
-              itemStyle={{ color: '#fff' }}
+              {...chartTooltipProps}
               formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
             />
           </Treemap>

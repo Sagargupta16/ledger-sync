@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
 import {
-  Calendar,
   Flame,
   TrendingDown,
   TrendingUp,
@@ -16,6 +15,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { chartTooltipProps, PageHeader } from '@/components/ui'
 import StatCard from '@/pages/year-in-review/StatCard'
 import InsightRow from '@/pages/year-in-review/InsightRow'
 import DayOfWeekChart, { type DayCell } from '@/pages/year-in-review/DayOfWeekChart'
@@ -233,20 +233,10 @@ export default function YearInReviewPage() {
   return (
     <div className="p-8 space-y-8">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl" style={{ backgroundColor: `${rawColors.ios.purple}22` }}>
-              <Calendar className="w-7 h-7" style={{ color: rawColors.ios.purple }} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Year in Review</h1>
-              <p className="text-sm text-gray-400">
-                {selectedYear} financial activity — every day at a glance
-              </p>
-            </div>
-          </div>
-
+      <PageHeader
+        title="Year in Review"
+        subtitle="Your annual financial highlights and insights"
+        action={
           <div className="flex items-center gap-3">
             {/* Year selector */}
             <select
@@ -291,8 +281,8 @@ export default function YearInReviewPage() {
               ))}
             </div>
           </div>
-        </div>
-      </motion.div>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -453,9 +443,8 @@ export default function YearInReviewPage() {
                 <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 11 }} />
                 <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: '#9ca3af', fontSize: 11 }} />
                 <RechartsTooltip
+                  {...chartTooltipProps}
                   formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
-                  contentStyle={{ backgroundColor: 'rgba(17,24,39,0.95)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', backdropFilter: 'blur(12px)', color: '#fff' }}
-                  labelStyle={{ color: '#fff', fontWeight: 'bold' }}
                 />
                 <Bar dataKey="Expense" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} opacity={0.8} />
                 <Bar dataKey="Income" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} opacity={0.8} />

@@ -30,6 +30,8 @@ export function usePreferences() {
   const query = useQuery<UserPreferences>({
     queryKey: PREFERENCES_KEY,
     queryFn: () => preferencesService.getPreferences(),
+    // Preferences only change on explicit save (mutations invalidate this key).
+    staleTime: Infinity,
   })
 
   // Hydrate the store when preferences load

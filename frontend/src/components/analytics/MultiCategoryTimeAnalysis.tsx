@@ -6,6 +6,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
 import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
+import { chartTooltipProps } from '@/components/ui'
 
 const COLORS = CHART_COLORS_WARM.slice(0, 8) // Use first 8 colors
 
@@ -264,15 +265,7 @@ export default function MultiCategoryTimeAnalysis() {
                   tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(17,24,39,0.95)',
-                    border: '1px solid rgba(139, 92, 246, 0.2)',
-                    borderRadius: '12px',
-                    backdropFilter: 'blur(12px)',
-                    color: '#fff',
-                  }}
-                  labelStyle={{ color: '#9ca3af' }}
-                  itemStyle={{ color: '#fff' }}
+                  {...chartTooltipProps}
                   formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
                 />
                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
@@ -302,15 +295,7 @@ export default function MultiCategoryTimeAnalysis() {
                   tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(17,24,39,0.95)',
-                    border: '1px solid rgba(139, 92, 246, 0.2)',
-                    borderRadius: '12px',
-                    backdropFilter: 'blur(12px)',
-                    color: '#fff',
-                  }}
-                  labelStyle={{ color: '#9ca3af' }}
-                  itemStyle={{ color: '#fff' }}
+                  {...chartTooltipProps}
                   formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
                 />
                 <Legend wrapperStyle={{ paddingTop: '20px' }} />

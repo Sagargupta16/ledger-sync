@@ -5,6 +5,7 @@ import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import EmptyState from '@/components/shared/EmptyState'
 
@@ -317,12 +318,7 @@ export default function InvestmentAnalyticsPage() {
     return (
       <div className="min-h-screen p-8">
         <div className="max-w-7xl mx-auto space-y-6">
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-              Investment Analytics
-            </h1>
-            <p className="text-muted-foreground mt-2">Track your investment portfolio and returns</p>
-          </motion.div>
+          <PageHeader title="Investment Analytics" subtitle="Monitor your investment portfolio performance" />
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -342,12 +338,7 @@ export default function InvestmentAnalyticsPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-            Investment Analytics
-          </h1>
-          <p className="text-muted-foreground mt-2">Track your collective investment portfolio</p>
-        </motion.div>
+        <PageHeader title="Investment Analytics" subtitle="Monitor your investment portfolio performance" />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <motion.div
@@ -438,19 +429,7 @@ export default function InvestmentAnalyticsPage() {
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(17,24,39,0.95)',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                    borderRadius: '12px',
-                    backdropFilter: 'blur(12px)',
-                    color: '#ffffff',
-                  }}
-                  labelStyle={{
-                    color: '#ffffff',
-                  }}
-                  itemStyle={{
-                    color: '#ffffff',
-                  }}
+                  {...chartTooltipProps}
                   formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
                 />
                 <Legend />
@@ -506,15 +485,7 @@ export default function InvestmentAnalyticsPage() {
                     tickFormatter={(value) => formatCurrencyShort(value)}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'rgba(17,24,39,0.95)',
-                      border: '1px solid rgba(139, 92, 246, 0.2)',
-                      borderRadius: '12px',
-                      backdropFilter: 'blur(12px)',
-                      color: '#fff',
-                    }}
-                    labelStyle={{ color: '#9ca3af' }}
-                    itemStyle={{ color: '#fff' }}
+                    {...chartTooltipProps}
                     formatter={(value: number | undefined, name: string | undefined) => [
                       value !== undefined ? formatCurrency(value) : '',
                       name || ''

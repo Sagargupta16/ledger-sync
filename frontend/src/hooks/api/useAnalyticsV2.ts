@@ -6,9 +6,10 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  analyticsV2Service,
-} from '../../services/api/analyticsV2'
+import { analyticsV2Service } from '../../services/api/analyticsV2'
+
+// Data only changes on upload. Keep cached indefinitely for instant navigations.
+const STABLE_STALE_TIME = Infinity
 import type {
   Anomaly,
   Budget,
@@ -48,6 +49,7 @@ export function useMonthlySummaries(params?: { limit?: number; offset?: number }
   return useQuery<MonthlySummary[], Error>({
     queryKey: analyticsV2Keys.monthlySummaries(),
     queryFn: () => analyticsV2Service.getMonthlySummaries(params),
+    staleTime: STABLE_STALE_TIME,
   })
 }
 
@@ -61,6 +63,7 @@ export function useCategoryTrends(params?: {
   return useQuery<CategoryTrend[], Error>({
     queryKey: analyticsV2Keys.categoryTrends({ category: params?.category, subcategory: params?.subcategory }),
     queryFn: () => analyticsV2Service.getCategoryTrends(params),
+    staleTime: STABLE_STALE_TIME,
   })
 }
 
@@ -69,6 +72,7 @@ export function useTransferFlows(params?: { limit?: number; offset?: number }) {
   return useQuery<TransferFlow[], Error>({
     queryKey: analyticsV2Keys.transferFlows(),
     queryFn: () => analyticsV2Service.getTransferFlows(params),
+    staleTime: STABLE_STALE_TIME,
   })
 }
 
@@ -85,6 +89,7 @@ export function useRecurringTransactions(params?: {
       active_only: params?.active_only,
     }),
     queryFn: () => analyticsV2Service.getRecurringTransactions(params),
+    staleTime: STABLE_STALE_TIME,
   })
 }
 
@@ -101,6 +106,7 @@ export function useMerchantIntelligence(params?: {
       min_transactions: params?.min_transactions,
     }),
     queryFn: () => analyticsV2Service.getMerchantIntelligence(params),
+    staleTime: STABLE_STALE_TIME,
   })
 }
 
@@ -109,6 +115,7 @@ export function useNetWorthSnapshots(params?: { limit?: number; offset?: number 
   return useQuery<NetWorthSnapshot[], Error>({
     queryKey: analyticsV2Keys.netWorth(),
     queryFn: () => analyticsV2Service.getNetWorthSnapshots(params),
+    staleTime: STABLE_STALE_TIME,
   })
 }
 
@@ -117,6 +124,7 @@ export function useFYSummaries(params?: { limit?: number; offset?: number }) {
   return useQuery<FYSummary[], Error>({
     queryKey: analyticsV2Keys.fySummaries(),
     queryFn: () => analyticsV2Service.getFYSummaries(params),
+    staleTime: STABLE_STALE_TIME,
   })
 }
 
@@ -135,6 +143,7 @@ export function useAnomalies(params?: {
       include_reviewed: params?.include_reviewed,
     }),
     queryFn: () => analyticsV2Service.getAnomalies(params),
+    staleTime: STABLE_STALE_TIME,
   })
 }
 
@@ -155,6 +164,7 @@ export function useBudgets(params?: { year?: number; month?: number; category?: 
   return useQuery<Budget[], Error>({
     queryKey: analyticsV2Keys.budgets(params),
     queryFn: () => analyticsV2Service.getBudgets(params),
+    staleTime: STABLE_STALE_TIME,
   })
 }
 
@@ -182,6 +192,7 @@ export function useGoals(params?: { goal_type?: string; include_achieved?: boole
   return useQuery<FinancialGoal[], Error>({
     queryKey: analyticsV2Keys.goals(params),
     queryFn: () => analyticsV2Service.getGoals(params),
+    staleTime: STABLE_STALE_TIME,
   })
 }
 

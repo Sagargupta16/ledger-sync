@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { chartTooltipProps } from '@/components/ui'
 
 // Get Financial Year from date (April to March)
 const getFY = (date: string): string => {
@@ -234,16 +235,8 @@ export default function YearOverYearComparison() {
             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
             <YAxis tickFormatter={(v) => formatCurrencyShort(v)} tick={{ fontSize: 12 }} />
             <Tooltip
+              {...chartTooltipProps}
               formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
-              contentStyle={{
-                backgroundColor: 'rgba(17,24,39,0.95)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '12px',
-                backdropFilter: 'blur(12px)',
-                color: '#fff',
-              }}
-              itemStyle={{ color: '#9ca3af' }}
-              labelStyle={{ color: '#fff', fontWeight: 'bold' }}
             />
             <Legend />
             {selectedCategory === 'all' ? (

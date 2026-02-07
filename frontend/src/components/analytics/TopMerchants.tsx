@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { chartTooltipProps } from '@/components/ui'
 
 interface MerchantData {
   name: string
@@ -165,18 +166,10 @@ export default function TopMerchants() {
                   ))}
                 </Pie>
                 <Tooltip
+                  {...chartTooltipProps}
                   formatter={(value: number | undefined) =>
                     value !== undefined ? (viewMode === 'amount' ? formatCurrency(value) : `${value} visits`) : ''
                   }
-                  contentStyle={{
-                    backgroundColor: 'rgba(17,24,39,0.95)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: '12px',
-                    backdropFilter: 'blur(12px)',
-                    color: '#fff',
-                  }}
-                  labelStyle={{ color: '#9ca3af' }}
-                  itemStyle={{ color: '#fff' }}
                 />
               </PieChart>
             </ResponsiveContainer>

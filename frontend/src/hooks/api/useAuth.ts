@@ -7,6 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import * as authApi from '@/services/api/auth'
+import { prefetchCoreData } from '@/lib/prefetch'
 import type { LoginCredentials, RegisterCredentials } from '@/types'
 
 export const AUTH_QUERY_KEY = ['auth', 'user']
@@ -30,6 +31,8 @@ export const useLogin = () => {
     onSuccess: ({ tokens, user }) => {
       login(user, tokens)
       queryClient.invalidateQueries()
+      // Prefetch all core data into cache so pages load instantly
+      prefetchCoreData()
     },
   })
 }
@@ -53,6 +56,7 @@ export const useRegister = () => {
     onSuccess: ({ tokens, user }) => {
       login(user, tokens)
       queryClient.invalidateQueries()
+      prefetchCoreData()
     },
   })
 }
@@ -116,6 +120,8 @@ export const useAuthInit = () => {
         const user = await authApi.getMe()
         setUser(user)
         setLoading(false)
+        // Returning user with valid token — prefetch all data
+        prefetchCoreData()
         return user
       } catch {
         // Token invalid - logout

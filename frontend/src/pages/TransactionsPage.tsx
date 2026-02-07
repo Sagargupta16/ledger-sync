@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Download, Receipt } from 'lucide-react'
+import { PageHeader } from '@/components/ui'
 import type { SortingState } from '@tanstack/react-table'
 import TransactionTable from '@/components/transactions/TransactionTable'
 import TransactionFilters, { type FilterValues } from '@/components/transactions/TransactionFilters'
@@ -143,26 +144,20 @@ export default function TransactionsPage() {
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
-        >
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-              Transactions
-            </h1>
-            <p className="text-muted-foreground mt-2">View and manage all your financial transactions</p>
-          </div>
-          <button
-            onClick={handleExportCSV}
-            disabled={isExporting || paginatedTransactions.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-          >
-            <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} />
-            <span className="text-sm font-medium">{isExporting ? 'Exporting...' : 'Export CSV'}</span>
-          </button>
-        </motion.div>
+        <PageHeader
+          title="Transactions"
+          subtitle="Browse and search your transaction history"
+          action={
+            <button
+              onClick={handleExportCSV}
+              disabled={isExporting || paginatedTransactions.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} />
+              <span className="text-sm font-medium">{isExporting ? 'Exporting...' : 'Export CSV'}</span>
+            </button>
+          }
+        />
 
         {/* Stats Card */}
         <motion.div

@@ -173,7 +173,9 @@ export default function Sidebar() {
           </div>
 
           {/* Navigation - iOS style grouped list */}
-          <nav className={cn(
+          <nav
+            aria-label="Main navigation"
+            className={cn(
             "flex-1 py-2",
             isCollapsed ? "px-2 overflow-visible" : "px-3 overflow-y-auto"
           )}>

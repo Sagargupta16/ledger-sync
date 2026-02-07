@@ -4,6 +4,7 @@ import { useTrends } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, ComposedChart, Line, Bar, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
 
@@ -144,12 +145,7 @@ export default function TrendsForecastsPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-            Trends & Forecasts
-          </h1>
-          <p className="text-muted-foreground mt-2">Track your spending, income, and savings trends over time</p>
-        </motion.div>
+        <PageHeader title="Trends & Forecasts" subtitle="Analyze patterns and predict future trends" />
 
         {/* Time Range Filter */}
         <motion.div className="flex gap-2 flex-wrap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
@@ -356,15 +352,7 @@ export default function TrendsForecastsPage() {
                 <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} />
                 <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatCurrencyShort(v)} />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(17,24,39,0.95)',
-                    border: '1px solid rgba(139, 92, 246, 0.2)',
-                    borderRadius: '12px',
-                    backdropFilter: 'blur(12px)',
-                    color: '#fff',
-                  }}
-                  labelStyle={{ color: '#9ca3af' }}
-                  itemStyle={{ color: '#fff' }}
+                  {...chartTooltipProps}
                   formatter={(value: number | undefined, name: string | undefined) => [
                     value !== undefined ? formatCurrency(value) : '',
                     name === 'income' ? 'Income' : name === 'expenses' ? 'Spending' : 'Savings'
@@ -412,15 +400,7 @@ export default function TrendsForecastsPage() {
                 <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} />
                 <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => `${Math.round(v)}%`} domain={[0, 'auto']} />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(17,24,39,0.95)',
-                    border: '1px solid rgba(139, 92, 246, 0.2)',
-                    borderRadius: '12px',
-                    backdropFilter: 'blur(12px)',
-                    color: '#fff',
-                  }}
-                  labelStyle={{ color: '#9ca3af' }}
-                  itemStyle={{ color: '#fff' }}
+                  {...chartTooltipProps}
                   formatter={(_value: number | undefined, _name: string | undefined, props: { payload?: { rawSavingsRate?: number } }) => {
                     const actual = props.payload?.rawSavingsRate ?? 0
                     const label = actual < 0 ? `${actual.toFixed(1)}% (deficit)` : `${actual.toFixed(1)}%`

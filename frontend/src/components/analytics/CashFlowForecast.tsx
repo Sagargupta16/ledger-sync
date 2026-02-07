@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { chartTooltipProps } from '@/components/ui'
 
 export default function CashFlowForecast() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
@@ -187,6 +188,7 @@ export default function CashFlowForecast() {
             />
             <YAxis tickFormatter={(v) => formatCurrencyShort(v)} tick={{ fontSize: 10, fill: '#9ca3af' }} />
             <Tooltip
+              {...chartTooltipProps}
               formatter={(value: number | undefined, name: string | undefined) => [
                 value !== undefined ? formatCurrency(value) : '',
                 name === 'income' ? 'Income' : 'Expenses',
@@ -196,15 +198,6 @@ export default function CashFlowForecast() {
                 const isForecast = forecastData.forecast.some((f) => f.month === label)
                 return `${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}${isForecast ? ' (Forecast)' : ''}`
               }}
-              contentStyle={{
-                backgroundColor: 'rgba(17,24,39,0.95)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '12px',
-                backdropFilter: 'blur(12px)',
-                color: '#fff',
-              }}
-              itemStyle={{ color: '#fff' }}
-              labelStyle={{ color: '#fff', fontWeight: 'bold' }}
             />
             <ReferenceLine
               x={forecastData.historical[forecastData.historical.length - 1]?.month}

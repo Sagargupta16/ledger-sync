@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency } from '@/lib/formatters'
@@ -13,6 +12,7 @@ import {
   getStandardDeduction,
   parseFYStartYear,
 } from '@/lib/taxCalculator'
+import { PageHeader } from '@/components/ui'
 import FYNavigator from '@/components/analytics/FYNavigator'
 import TaxSummaryCards from '@/components/analytics/TaxSummaryCards'
 import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
@@ -277,37 +277,33 @@ export default function TaxPlanningPage() {
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-            Tax Planning & Calculation
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Track income tax by Financial Year
-          </p>
-
-          {/* Top-level Projection Toggle */}
-          {isCurrentFY && hasEmploymentIncome && (
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                onClick={() => setShowProjection(!showProjection)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  showProjection
-                    ? 'bg-primary text-white shadow-lg shadow-primary/50'
-                    : 'bg-white/5 text-muted-foreground hover:bg-white/10'
-                }`}
-              >
-                {showProjection ? 'Showing Projection' : 'Show Year-End Projection'}
-              </button>
-              {showProjection && remainingMonths > 0 && (
-                <span className="text-sm text-muted-foreground">
-                  Projecting {remainingMonths} more{' '}
-                  {remainingMonths === 1 ? 'month' : 'months'} @{' '}
-                  {formatCurrency(avgMonthlySalary)}/month (avg of last 3 months)
-                </span>
-              )}
-            </div>
-          )}
-        </motion.div>
+        <PageHeader
+          title="Tax Planning"
+          subtitle="Estimate your tax liability and plan ahead"
+          action={
+            isCurrentFY && hasEmploymentIncome ? (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowProjection(!showProjection)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    showProjection
+                      ? 'bg-primary text-white shadow-lg shadow-primary/50'
+                      : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                  }`}
+                >
+                  {showProjection ? 'Showing Projection' : 'Show Year-End Projection'}
+                </button>
+                {showProjection && remainingMonths > 0 && (
+                  <span className="text-sm text-muted-foreground">
+                    Projecting {remainingMonths} more{' '}
+                    {remainingMonths === 1 ? 'month' : 'months'} @{' '}
+                    {formatCurrency(avgMonthlySalary)}/month (avg of last 3 months)
+                  </span>
+                )}
+              </div>
+            ) : undefined
+          }
+        />
 
         {/* FY Selector */}
         <FYNavigator

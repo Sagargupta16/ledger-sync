@@ -3,6 +3,7 @@ import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank } from '
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
+import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
@@ -160,24 +161,22 @@ export default function IncomeAnalysisPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-              Income Analysis
-            </h1>
-            <p className="text-muted-foreground mt-2">Track income sources and trends</p>
-          </div>
-          <AnalyticsTimeFilter
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            currentYear={currentYear}
-            currentMonth={currentMonth}
-            currentFY={currentFY}
-            onYearChange={setCurrentYear}
-            onMonthChange={setCurrentMonth}
-            onFYChange={setCurrentFY}
-          />
-        </motion.div>
+        <PageHeader
+          title="Income Analysis"
+          subtitle="Track your income sources and trends"
+          action={
+            <AnalyticsTimeFilter
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              currentYear={currentYear}
+              currentMonth={currentMonth}
+              currentFY={currentFY}
+              onYearChange={setCurrentYear}
+              onMonthChange={setCurrentMonth}
+              onFYChange={setCurrentFY}
+            />
+          }
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
@@ -256,16 +255,8 @@ export default function IncomeAnalysisPage() {
                       ))}
                     </Pie>
                     <Tooltip
+                      {...chartTooltipProps}
                       formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
-                      contentStyle={{
-                        backgroundColor: 'rgba(17,24,39,0.95)',
-                        border: '1px solid rgba(255,255,255,0.12)',
-                        borderRadius: '12px',
-                        backdropFilter: 'blur(12px)',
-                        color: '#fff',
-                      }}
-                      labelStyle={{ color: '#9ca3af' }}
-                      itemStyle={{ color: '#fff' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -345,15 +336,7 @@ export default function IncomeAnalysisPage() {
                     tickFormatter={(value) => formatCurrencyShort(value)}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'rgba(17,24,39,0.95)',
-                      border: '1px solid rgba(16, 185, 129, 0.2)',
-                      borderRadius: '12px',
-                      backdropFilter: 'blur(12px)',
-                      color: '#fff',
-                    }}
-                    labelStyle={{ color: '#9ca3af' }}
-                    itemStyle={{ color: '#fff' }}
+                    {...chartTooltipProps}
                     formatter={(value: number | undefined) => value !== undefined ? [formatCurrency(value), 'Income'] : ''}
                   />
                   <Line

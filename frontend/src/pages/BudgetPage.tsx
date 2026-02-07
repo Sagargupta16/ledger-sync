@@ -29,6 +29,7 @@ import {
   Tooltip,
   Cell,
 } from 'recharts'
+import { chartTooltipProps, PageHeader } from '@/components/ui'
 
 // ─── Types ──────────────────────────────────────────────────────────
 type BudgetPeriod = 'monthly' | 'yearly'
@@ -236,20 +237,10 @@ export default function BudgetPage() {
   return (
     <div className="p-8 space-y-8">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl" style={{ backgroundColor: `${rawColors.ios.green}22` }}>
-              <Target className="w-7 h-7" style={{ color: rawColors.ios.green }} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Budget Manager</h1>
-              <p className="text-sm text-gray-400">
-                Set spending limits per category &amp; subcategory, track progress monthly or yearly
-              </p>
-            </div>
-          </div>
-
+      <PageHeader
+        title="Budget Tracker"
+        subtitle="Set limits and track spending by category"
+        action={
           <div className="flex items-center gap-3">
             {/* View Mode Toggle */}
             <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">
@@ -286,8 +277,8 @@ export default function BudgetPage() {
               <Plus className="w-4 h-4" /> Add Budget
             </button>
           </div>
-        </div>
-      </motion.div>
+        }
+      />
 
       {/* Summary KPIs */}
       {summary.count > 0 && (
@@ -421,9 +412,8 @@ export default function BudgetPage() {
                   <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={50} />
                   <YAxis tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`} tick={{ fill: '#9ca3af', fontSize: 12 }} />
                   <Tooltip
+                    {...chartTooltipProps}
                     formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
-                    contentStyle={{ backgroundColor: 'rgba(17,24,39,0.95)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', backdropFilter: 'blur(12px)', color: '#fff' }}
-                    labelStyle={{ color: '#fff', fontWeight: 'bold' }}
                   />
                   <Bar dataKey="Budget" fill={rawColors.ios.blue} radius={[4, 4, 0, 0]} opacity={0.5} />
                   <Bar dataKey="Spent" radius={[4, 4, 0, 0]}>
