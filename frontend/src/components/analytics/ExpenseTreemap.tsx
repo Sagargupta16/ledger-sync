@@ -3,7 +3,7 @@ import { LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, Treemap, Tooltip } from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
-import { CHART_COLORS } from '@/constants/chartColors'
+import { CHART_COLORS, CHART_GRID_COLOR } from '@/constants/chartColors'
 import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 import { chartTooltipProps } from '@/components/ui'
 
@@ -122,7 +122,7 @@ export default function ExpenseTreemap() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <LayoutGrid className="w-5 h-5 text-purple-400" />
+            <LayoutGrid className="w-5 h-5 text-ios-purple" />
             <h3 className="text-lg font-semibold text-white">Expense Breakdown Treemap</h3>
           </div>
         </div>
@@ -158,7 +158,7 @@ export default function ExpenseTreemap() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePrevMonth}
-                className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                 type="button"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -168,7 +168,7 @@ export default function ExpenseTreemap() {
               </span>
               <button
                 onClick={handleNextMonth}
-                className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                 type="button"
               >
                 <ChevronRight className="w-5 h-5" />
@@ -179,7 +179,7 @@ export default function ExpenseTreemap() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePrevYear}
-                className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                 type="button"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -187,7 +187,7 @@ export default function ExpenseTreemap() {
               <span className="text-white font-medium min-w-[100px] text-center">Year {currentYear}</span>
               <button
                 onClick={handleNextYear}
-                className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                 type="button"
               >
                 <ChevronRight className="w-5 h-5" />
@@ -201,7 +201,7 @@ export default function ExpenseTreemap() {
       <div className="mt-6">
         {isLoading ? (
           <div className="h-96 flex items-center justify-center">
-            <div className="animate-pulse text-gray-400">Loading treemap...</div>
+            <div className="animate-pulse text-muted-foreground">Loading treemap...</div>
           </div>
         ) : treemapData.length > 0 ? (
           <ResponsiveContainer width="100%" height={400}>
@@ -247,7 +247,7 @@ export default function ExpenseTreemap() {
                     height={height}
                     style={{
                       fill: COLORS[colorIndex],
-                      stroke: '#2d3748',
+                      stroke: CHART_GRID_COLOR,
                       strokeWidth: 1.5,
                       opacity: 0.95,
                     }}
@@ -293,11 +293,11 @@ export default function ExpenseTreemap() {
           </Treemap>
         </ResponsiveContainer>
       ) : (
-        <div className="h-96 flex items-center justify-center text-gray-400">No data available</div>
+        <div className="h-96 flex items-center justify-center text-muted-foreground">No data available</div>
       )}
       
       {/* Subtitle */}
-      <div className="mt-2 text-sm text-gray-500">
+      <div className="mt-2 text-sm text-muted-foreground">
         <p>Rectangle size = expense amount. Hover for details.</p>
         <p>{showSubcategories ? 'Showing expense categories with subcategory breakdown' : 'Showing main expense categories only'}</p>
       </div>

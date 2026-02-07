@@ -120,17 +120,23 @@ def get_totals(
     """Calculate total income, expenses, and net savings."""
     transactions = get_transactions(db, current_user, start_date, end_date)
 
-    total_income = sum(float(tx.amount) for tx in transactions if tx.type == TransactionType.INCOME)
+    from decimal import Decimal
+
+    total_income = sum(
+        (Decimal(str(tx.amount)) for tx in transactions if tx.type == TransactionType.INCOME),
+        Decimal(0),
+    )
     total_expenses = sum(
-        float(tx.amount) for tx in transactions if tx.type == TransactionType.EXPENSE
+        (Decimal(str(tx.amount)) for tx in transactions if tx.type == TransactionType.EXPENSE),
+        Decimal(0),
     )
     net_savings = total_income - total_expenses
-    savings_rate = (net_savings / total_income * 100) if total_income > 0 else 0
+    savings_rate = float(net_savings / total_income * 100) if total_income > 0 else 0
 
     return {
-        "total_income": total_income,
-        "total_expenses": total_expenses,
-        "net_savings": net_savings,
+        "total_income": float(total_income),
+        "total_expenses": float(total_expenses),
+        "net_savings": float(net_savings),
         "savings_rate": savings_rate,
         "transaction_count": len(transactions),
     }
@@ -146,31 +152,38 @@ def get_monthly_aggregation(
     """Calculate monthly income and expense aggregation."""
     transactions = get_transactions(db, current_user, start_date, end_date)
 
-    monthly_data: dict[str, dict[str, float]] = {}
+    from decimal import Decimal
+
+    monthly_accum: dict[str, dict[str, Any]] = {}
 
     for tx in transactions:
         month_key = tx.date.strftime("%Y-%m")
 
-        if month_key not in monthly_data:
-            monthly_data[month_key] = {
-                "income": 0,
-                "expense": 0,
-                "net_savings": 0,
+        if month_key not in monthly_accum:
+            monthly_accum[month_key] = {
+                "income": Decimal(0),
+                "expense": Decimal(0),
                 "transactions": 0,
             }
 
         if tx.type == TransactionType.INCOME:
-            monthly_data[month_key]["income"] += float(tx.amount)
+            monthly_accum[month_key]["income"] += Decimal(str(tx.amount))
         elif tx.type == TransactionType.EXPENSE:
-            monthly_data[month_key]["expense"] += float(tx.amount)
+            monthly_accum[month_key]["expense"] += Decimal(str(tx.amount))
 
-        monthly_data[month_key]["transactions"] += 1
+        monthly_accum[month_key]["transactions"] += 1
 
-    # Calculate net savings for each month
-    for month_key in monthly_data:
-        monthly_data[month_key]["net_savings"] = (
-            monthly_data[month_key]["income"] - monthly_data[month_key]["expense"]
-        )
+    # Convert to float for JSON response and calculate net savings
+    monthly_data: dict[str, dict[str, float]] = {}
+    for month_key, data in monthly_accum.items():
+        income = float(data["income"])
+        expense = float(data["expense"])
+        monthly_data[month_key] = {
+            "income": income,
+            "expense": expense,
+            "net_savings": income - expense,
+            "transactions": data["transactions"],
+        }
 
     return monthly_data
 
@@ -185,35 +198,42 @@ def get_yearly_aggregation(
     """Calculate yearly income and expense aggregation."""
     transactions = get_transactions(db, current_user, start_date, end_date)
 
-    yearly_data: dict[str, dict[str, Any]] = {}
+    from decimal import Decimal
+
+    yearly_accum: dict[str, dict[str, Any]] = {}
 
     for tx in transactions:
         year = str(tx.date.year)
         month = tx.date.month
 
-        if year not in yearly_data:
-            yearly_data[year] = {
-                "income": 0,
-                "expense": 0,
-                "net_savings": 0,
+        if year not in yearly_accum:
+            yearly_accum[year] = {
+                "income": Decimal(0),
+                "expense": Decimal(0),
                 "transactions": 0,
                 "months": set(),
             }
 
         if tx.type == TransactionType.INCOME:
-            yearly_data[year]["income"] += float(tx.amount)
+            yearly_accum[year]["income"] += Decimal(str(tx.amount))
         elif tx.type == TransactionType.EXPENSE:
-            yearly_data[year]["expense"] += float(tx.amount)
+            yearly_accum[year]["expense"] += Decimal(str(tx.amount))
 
-        yearly_data[year]["transactions"] += 1
-        yearly_data[year]["months"].add(month)
+        yearly_accum[year]["transactions"] += 1
+        yearly_accum[year]["months"].add(month)
 
-    # Calculate net savings and convert months set to list
-    for year in yearly_data:
-        yearly_data[year]["net_savings"] = (
-            yearly_data[year]["income"] - yearly_data[year]["expense"]
-        )
-        yearly_data[year]["months"] = sorted(list(yearly_data[year]["months"]))
+    # Convert to float for JSON response
+    yearly_data: dict[str, dict[str, Any]] = {}
+    for year, data in yearly_accum.items():
+        income = float(data["income"])
+        expense = float(data["expense"])
+        yearly_data[year] = {
+            "income": income,
+            "expense": expense,
+            "net_savings": income - expense,
+            "transactions": data["transactions"],
+            "months": sorted(data["months"]),
+        }
 
     return yearly_data
 
@@ -251,11 +271,11 @@ def get_category_breakdown(
                 "subcategories": {},
             }
 
-        category_data[category]["total"] += float(tx.amount)
+        category_data[category]["total"] += float(tx.amount)  # Already float from DB Numeric
         category_data[category]["count"] += 1
 
         if subcategory not in category_data[category]["subcategories"]:
-            category_data[category]["subcategories"][subcategory] = 0
+            category_data[category]["subcategories"][subcategory] = 0.0
 
         category_data[category]["subcategories"][subcategory] += float(tx.amount)
 
@@ -407,7 +427,7 @@ def get_financial_insights(
 
     # Calculate averages
     day_count = (end_date - start_date).days if start_date and end_date else 30
-    month_count = day_count / 30
+    month_count = max(day_count / 30.44, 1)  # 365.25/12 avg days per month
 
     average_daily_expense = total_expenses / day_count if day_count > 0 else 0
     average_monthly_expense = total_expenses / month_count if month_count > 0 else 0
@@ -482,6 +502,7 @@ def get_daily_net_worth(
             daily_data[date_key]["income"] += float(tx.amount)
         elif tx.type == TransactionType.EXPENSE:
             daily_data[date_key]["expense"] += float(tx.amount)
+        # Transfers don't affect net worth (money moves between own accounts)
 
     # Calculate cumulative net worth
     sorted_dates = sorted(daily_data.keys())

@@ -5,6 +5,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps } from '@/components/ui'
+import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
 // Get Financial Year from date (April to March)
 const getFY = (date: string): string => {
@@ -85,7 +86,7 @@ export default function YearOverYearComparison() {
 
     const incomeChange = previous.income > 0 ? ((current.income - previous.income) / previous.income) * 100 : 0
     const expenseChange = previous.expense > 0 ? ((current.expense - previous.expense) / previous.expense) * 100 : 0
-    const savingsChange = previous.savings !== 0 ? ((current.savings - previous.savings) / Math.abs(previous.savings)) * 100 : 0
+    const savingsChange = previous.savings !== 0 ? ((current.savings - previous.savings) / previous.savings) * 100 : 0
 
     // Category comparison
     const categoryChanges: Array<{ category: string; current: number; previous: number; change: number }> = []
@@ -125,16 +126,16 @@ export default function YearOverYearComparison() {
 
   const getChangeIcon = (change: number) => {
     if (Math.abs(change) < 2) return <Minus className="w-4 h-4 text-muted-foreground" />
-    if (change > 0) return <ArrowUpRight className="w-4 h-4 text-green-500" />
-    return <ArrowDownRight className="w-4 h-4 text-red-500" />
+    if (change > 0) return <ArrowUpRight className="w-4 h-4 text-ios-green" />
+    return <ArrowDownRight className="w-4 h-4 text-ios-red" />
   }
 
   const getChangeColor = (change: number, isExpense = false) => {
     if (Math.abs(change) < 2) return 'text-muted-foreground'
     if (isExpense) {
-      return change > 0 ? 'text-red-500' : 'text-green-500'
+      return change > 0 ? 'text-ios-red' : 'text-ios-green'
     }
-    return change > 0 ? 'text-green-500' : 'text-red-500'
+    return change > 0 ? 'text-ios-green' : 'text-ios-red'
   }
 
   if (isLoading) {
@@ -163,8 +164,8 @@ export default function YearOverYearComparison() {
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-purple-500/20 rounded-xl">
-            <Calendar className="w-6 h-6 text-purple-500" />
+          <div className="p-3 bg-ios-purple/20 rounded-xl">
+            <Calendar className="w-6 h-6 text-ios-purple" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Year-over-Year Comparison</h3>
@@ -188,7 +189,7 @@ export default function YearOverYearComparison() {
       {/* Key Metrics Comparison */}
       {comparison && selectedCategory === 'all' && (
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+          <div className="p-4 rounded-xl bg-ios-green/10 border border-ios-green/20">
             <p className="text-sm text-muted-foreground mb-1">Income Change</p>
             <div className="flex items-center gap-2">
               {getChangeIcon(comparison.incomeChange)}
@@ -200,7 +201,7 @@ export default function YearOverYearComparison() {
               {formatCurrencyShort(comparison.previous.income)} → {formatCurrencyShort(comparison.current.income)}
             </p>
           </div>
-          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+          <div className="p-4 rounded-xl bg-ios-red/10 border border-ios-red/20">
             <p className="text-sm text-muted-foreground mb-1">Expense Change</p>
             <div className="flex items-center gap-2">
               {getChangeIcon(comparison.expenseChange)}
@@ -212,7 +213,7 @@ export default function YearOverYearComparison() {
               {formatCurrencyShort(comparison.previous.expense)} → {formatCurrencyShort(comparison.current.expense)}
             </p>
           </div>
-          <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+          <div className="p-4 rounded-xl bg-ios-blue/10 border border-ios-blue/20">
             <p className="text-sm text-muted-foreground mb-1">Savings Change</p>
             <div className="flex items-center gap-2">
               {getChangeIcon(comparison.savingsChange)}
@@ -241,12 +242,12 @@ export default function YearOverYearComparison() {
             <Legend />
             {selectedCategory === 'all' ? (
               <>
-                <Bar dataKey="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Savings" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Income" fill={SEMANTIC_COLORS.income} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Expenses" fill={SEMANTIC_COLORS.expense} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Savings" fill={SEMANTIC_COLORS.investment} radius={[4, 4, 0, 0]} />
               </>
             ) : (
-              <Bar dataKey={selectedCategory} fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey={selectedCategory} fill={SEMANTIC_COLORS.savings} radius={[4, 4, 0, 0]} />
             )}
           </BarChart>
         </ResponsiveContainer>

@@ -77,7 +77,7 @@ class InsightEngine:
 
         # Daily spending rate
         daily_rate = calculator.calculate_daily_spending_rate(expenses)
-        monthly_rate = daily_rate * 30
+        monthly_rate = daily_rate * 30.44  # Average days per month (365.25/12)
 
         insights.append(
             {

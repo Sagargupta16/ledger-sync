@@ -5,6 +5,7 @@ import { useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps } from '@/components/ui'
+import { SEMANTIC_COLORS, CHART_AXIS_COLOR } from '@/constants/chartColors'
 
 export default function CashFlowForecast() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
@@ -49,16 +50,16 @@ export default function CashFlowForecast() {
 
     // Calculate growth rates
     const incomeGrowth =
-      recentMonths.length > 1
+      recentMonths.length > 1 && recentMonths[0].income > 0
         ? (recentMonths[recentMonths.length - 1].income - recentMonths[0].income) /
           recentMonths[0].income /
-          recentMonths.length
+          (recentMonths.length - 1)
         : 0
     const expenseGrowth =
-      recentMonths.length > 1
+      recentMonths.length > 1 && recentMonths[0].expense > 0
         ? (recentMonths[recentMonths.length - 1].expense - recentMonths[0].expense) /
           recentMonths[0].expense /
-          recentMonths.length
+          (recentMonths.length - 1)
         : 0
 
     // Generate 6-month forecast starting from the month AFTER the last complete month
@@ -143,11 +144,11 @@ export default function CashFlowForecast() {
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl ${insights?.trend === 'positive' ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+          <div className={`p-3 rounded-xl ${insights?.trend === 'positive' ? 'bg-ios-green/20' : 'bg-ios-red/20'}`}>
             {insights?.trend === 'positive' ? (
-              <TrendingUp className="w-6 h-6 text-green-500" />
+              <TrendingUp className="w-6 h-6 text-ios-green" />
             ) : (
-              <TrendingDown className="w-6 h-6 text-red-500" />
+              <TrendingDown className="w-6 h-6 text-ios-red" />
             )}
           </div>
           <div>
@@ -156,7 +157,7 @@ export default function CashFlowForecast() {
           </div>
         </div>
         {insights?.monthsUntilNegative && (
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-500 text-sm">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-ios-yellow/20 text-ios-yellow text-sm">
             <AlertTriangle className="w-4 h-4" />
             <span>Deficit in {insights.monthsUntilNegative} months</span>
           </div>
@@ -169,24 +170,24 @@ export default function CashFlowForecast() {
           <AreaChart data={forecastData.combined}>
             <defs>
               <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                <stop offset="5%" stopColor={SEMANTIC_COLORS.income} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={SEMANTIC_COLORS.income} stopOpacity={0} />
               </linearGradient>
               <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                <stop offset="5%" stopColor={SEMANTIC_COLORS.expense} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={SEMANTIC_COLORS.expense} stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
             <XAxis
               dataKey="month"
-              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              tick={{ fontSize: 10, fill: CHART_AXIS_COLOR }}
               tickFormatter={(v) => {
                 const d = new Date(v + '-01')
                 return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
               }}
             />
-            <YAxis tickFormatter={(v) => formatCurrencyShort(v)} tick={{ fontSize: 10, fill: '#9ca3af' }} />
+            <YAxis tickFormatter={(v) => formatCurrencyShort(v)} tick={{ fontSize: 10, fill: CHART_AXIS_COLOR }} />
             <Tooltip
               {...chartTooltipProps}
               formatter={(value: number | undefined, name: string | undefined) => [
@@ -203,10 +204,10 @@ export default function CashFlowForecast() {
               x={forecastData.historical[forecastData.historical.length - 1]?.month}
               stroke="rgba(255,255,255,0.3)"
               strokeDasharray="3 3"
-              label={{ value: 'Forecast →', position: 'top', fill: '#9ca3af', fontSize: 10 }}
+              label={{ value: 'Forecast →', position: 'top', fill: CHART_AXIS_COLOR, fontSize: 10 }}
             />
-            <Area type="monotone" dataKey="income" stroke="#10b981" fill="url(#incomeGradient)" strokeWidth={2} />
-            <Area type="monotone" dataKey="expense" stroke="#ef4444" fill="url(#expenseGradient)" strokeWidth={2} />
+            <Area type="monotone" dataKey="income" stroke={SEMANTIC_COLORS.income} fill="url(#incomeGradient)" strokeWidth={2} />
+            <Area type="monotone" dataKey="expense" stroke={SEMANTIC_COLORS.expense} fill="url(#expenseGradient)" strokeWidth={2} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -214,23 +215,23 @@ export default function CashFlowForecast() {
       {/* Insights */}
       {insights && (
         <div className="grid grid-cols-3 gap-4">
-          <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+          <div className="p-3 rounded-xl bg-ios-green/10 border border-ios-green/20">
             <p className="text-xs text-muted-foreground mb-1">Avg Monthly Income</p>
-            <p className="text-lg font-bold text-green-500">{formatCurrencyShort(insights.avgIncome)}</p>
+            <p className="text-lg font-bold text-ios-green">{formatCurrencyShort(insights.avgIncome)}</p>
             <p className="text-xs text-muted-foreground">
               {insights.incomeGrowth > 0 ? '↑' : '↓'} {Math.abs(insights.incomeGrowth).toFixed(1)}% trend
             </p>
           </div>
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <div className="p-3 rounded-xl bg-ios-red/10 border border-ios-red/20">
             <p className="text-xs text-muted-foreground mb-1">Avg Monthly Expenses</p>
-            <p className="text-lg font-bold text-red-500">{formatCurrencyShort(insights.avgExpense)}</p>
+            <p className="text-lg font-bold text-ios-red">{formatCurrencyShort(insights.avgExpense)}</p>
             <p className="text-xs text-muted-foreground">
               {insights.expenseGrowth > 0 ? '↑' : '↓'} {Math.abs(insights.expenseGrowth).toFixed(1)}% trend
             </p>
           </div>
-          <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+          <div className="p-3 rounded-xl bg-ios-blue/10 border border-ios-blue/20">
             <p className="text-xs text-muted-foreground mb-1">6-Month Projected Savings</p>
-            <p className={`text-lg font-bold ${insights.projectedSavings6m >= 0 ? 'text-blue-500' : 'text-red-500'}`}>
+            <p className={`text-lg font-bold ${insights.projectedSavings6m >= 0 ? 'text-ios-blue' : 'text-ios-red'}`}>
               {formatCurrencyShort(insights.projectedSavings6m)}
             </p>
             <p className="text-xs text-muted-foreground">Based on current trends</p>

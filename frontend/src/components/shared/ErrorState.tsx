@@ -48,14 +48,14 @@ export default function ErrorState({
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex items-center gap-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg"
+        className="flex items-center gap-3 px-4 py-3 bg-ios-red/10 border border-ios-red/20 rounded-lg"
       >
-        <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-        <p className="text-sm text-red-300 flex-1">{displayMessage}</p>
+        <AlertCircle className="w-5 h-5 text-ios-red shrink-0" />
+        <p className="text-sm text-ios-red flex-1">{displayMessage}</p>
         {onRetry && (
           <button
             onClick={onRetry}
-            className="shrink-0 text-sm text-red-400 hover:text-red-300 underline underline-offset-2 transition-colors"
+            className="shrink-0 text-sm text-ios-red hover:text-ios-red underline underline-offset-2 transition-colors"
             aria-label="Retry"
           >
             Retry
@@ -75,11 +75,11 @@ export default function ErrorState({
     >
       {/* Icon */}
       <div
-        className={`rounded-full bg-red-500/10 flex items-center justify-center mb-4 ${
+        className={`rounded-full bg-ios-red/10 flex items-center justify-center mb-4 ${
           isCompact ? 'w-12 h-12' : 'w-16 h-16'
         }`}
       >
-        <Icon className={`text-red-400 ${isCompact ? 'w-6 h-6' : 'w-8 h-8'}`} />
+        <Icon className={`text-ios-red ${isCompact ? 'w-6 h-6' : 'w-8 h-8'}`} />
       </div>
 
       {/* Title */}
@@ -104,7 +104,7 @@ export default function ErrorState({
       {onRetry && (
         <button
           onClick={onRetry}
-          className={`mt-4 inline-flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-all ${
+          className={`mt-4 inline-flex items-center gap-2 px-4 py-2 bg-ios-red/20 text-ios-red rounded-lg hover:bg-ios-red/30 transition-all ${
             isCompact ? 'text-xs' : 'text-sm'
           }`}
           aria-label="Retry loading"
@@ -118,7 +118,7 @@ export default function ErrorState({
 
   if (isCard) {
     return (
-      <div className="glass rounded-xl border border-red-500/20 shadow-lg">
+      <div className="glass rounded-xl border border-ios-red/20 shadow-lg">
         {content}
       </div>
     )

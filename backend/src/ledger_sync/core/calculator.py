@@ -3,13 +3,23 @@
 This module provides all calculation logic in one place for consistency
 and maintainability. All calculations are pure functions that take
 transaction data and return computed metrics.
+
+Uses Decimal for all financial arithmetic to avoid floating-point precision loss.
 """
 
 from collections import defaultdict
 from datetime import timedelta
+from decimal import Decimal
 from typing import Any
 
 from ledger_sync.db.models import Transaction, TransactionType
+
+
+def _to_decimal(amount: Any) -> Decimal:
+    """Safely convert a transaction amount to Decimal."""
+    if isinstance(amount, Decimal):
+        return amount
+    return Decimal(str(amount))
 
 
 class FinancialCalculator:
@@ -29,16 +39,18 @@ class FinancialCalculator:
 
         """
         total_income = sum(
-            float(t.amount) for t in transactions if t.type == TransactionType.INCOME
+            (_to_decimal(t.amount) for t in transactions if t.type == TransactionType.INCOME),
+            Decimal(0),
         )
         total_expenses = sum(
-            float(t.amount) for t in transactions if t.type == TransactionType.EXPENSE
+            (_to_decimal(t.amount) for t in transactions if t.type == TransactionType.EXPENSE),
+            Decimal(0),
         )
 
         return {
-            "total_income": total_income,
-            "total_expenses": total_expenses,
-            "net_change": total_income - total_expenses,
+            "total_income": float(total_income),
+            "total_expenses": float(total_expenses),
+            "net_change": float(total_income - total_expenses),
         }
 
     @staticmethod
@@ -79,8 +91,11 @@ class FinancialCalculator:
         max_date = max(dates)
         days_span = (max_date - min_date).days + 1
 
-        total_spent = sum(float(t.amount) for t in expenses)
-        return total_spent / days_span if days_span > 0 else 0.0
+        total_spent = sum(
+            (_to_decimal(t.amount) for t in expenses),
+            Decimal(0),
+        )
+        return float(total_spent / days_span) if days_span > 0 else 0.0
 
     @staticmethod
     def calculate_monthly_burn_rate(
@@ -104,8 +119,11 @@ class FinancialCalculator:
         max_date = max(dates)
         months_span = (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month) + 1
 
-        total_spent = sum(float(t.amount) for t in expenses)
-        return total_spent / months_span if months_span > 0 else 0.0
+        total_spent = sum(
+            (_to_decimal(t.amount) for t in expenses),
+            Decimal(0),
+        )
+        return float(total_spent / months_span) if months_span > 0 else 0.0
 
     @staticmethod
     def group_by_month(
@@ -120,19 +138,19 @@ class FinancialCalculator:
             Dictionary mapping month (YYYY-MM) to income/expense amounts
 
         """
-        monthly_data: dict[str, dict[str, float]] = defaultdict(
-            lambda: {"income": 0.0, "expenses": 0.0},
+        monthly_data: dict[str, dict[str, Decimal]] = defaultdict(
+            lambda: {"income": Decimal(0), "expenses": Decimal(0)},
         )
 
         for t in transactions:
             month_key = t.date.strftime("%Y-%m")
 
             if t.type == TransactionType.INCOME:
-                monthly_data[month_key]["income"] += float(t.amount)
+                monthly_data[month_key]["income"] += _to_decimal(t.amount)
             elif t.type == TransactionType.EXPENSE:
-                monthly_data[month_key]["expenses"] += float(t.amount)
+                monthly_data[month_key]["expenses"] += _to_decimal(t.amount)
 
-        return dict(monthly_data)
+        return {k: {"income": float(v["income"]), "expenses": float(v["expenses"])} for k, v in monthly_data.items()}
 
     @staticmethod
     def group_by_category(
@@ -147,12 +165,12 @@ class FinancialCalculator:
             Dictionary mapping category to total amount
 
         """
-        category_totals: dict[str, float] = defaultdict(float)
+        category_totals: dict[str, Decimal] = defaultdict(Decimal)
 
         for t in transactions:
-            category_totals[t.category] += float(t.amount)
+            category_totals[t.category] += _to_decimal(t.amount)
 
-        return dict(category_totals)
+        return {k: float(v) for k, v in category_totals.items()}
 
     @staticmethod
     def group_by_account(
@@ -167,12 +185,12 @@ class FinancialCalculator:
             Dictionary mapping account to total transaction volume
 
         """
-        account_totals: dict[str, float] = defaultdict(float)
+        account_totals: dict[str, Decimal] = defaultdict(Decimal)
 
         for t in transactions:
-            account_totals[t.account] += float(t.amount)
+            account_totals[t.account] += _to_decimal(t.amount)
 
-        return dict(account_totals)
+        return {k: float(v) for k, v in account_totals.items()}
 
     @staticmethod
     def calculate_consistency_score(monthly_expenses: list[float]) -> float:
@@ -242,8 +260,12 @@ class FinancialCalculator:
         if not first_3_months or not last_3_months:
             return 0.0
 
-        avg_first = sum(float(t.amount) for t in first_3_months) / len(first_3_months)
-        avg_last = sum(float(t.amount) for t in last_3_months) / len(last_3_months)
+        avg_first = float(
+            sum((_to_decimal(t.amount) for t in first_3_months), Decimal(0)) / len(first_3_months)
+        )
+        avg_last = float(
+            sum((_to_decimal(t.amount) for t in last_3_months), Decimal(0)) / len(last_3_months)
+        )
 
         if avg_first == 0:
             return 0.0
@@ -298,14 +320,20 @@ class FinancialCalculator:
         recent_expenses = [t for t in expenses if t.date >= recent_cutoff]
         historical_expenses = [t for t in expenses if t.date < recent_cutoff]
 
-        recent_total = sum(float(t.amount) for t in recent_expenses)
-        recent_daily = recent_total / recent_days if recent_days > 0 else 0.0
+        recent_total = sum(
+            (_to_decimal(t.amount) for t in recent_expenses),
+            Decimal(0),
+        )
+        recent_daily = float(recent_total / recent_days) if recent_days > 0 else 0.0
 
         if historical_expenses:
             hist_dates = [t.date for t in historical_expenses]
             hist_days = (max(hist_dates) - min(hist_dates)).days + 1
-            hist_total = sum(float(t.amount) for t in historical_expenses)
-            historical_daily = hist_total / hist_days if hist_days > 0 else 0.0
+            hist_total = sum(
+                (_to_decimal(t.amount) for t in historical_expenses),
+                Decimal(0),
+            )
+            historical_daily = float(hist_total / hist_days) if hist_days > 0 else 0.0
         else:
             historical_daily = 0.0
 
@@ -387,19 +415,21 @@ class FinancialCalculator:
         }
 
         convenience_spending = sum(
-            float(t.amount)
-            for t in expenses
-            if t.category and t.category.lower() in convenience_categories
+            (_to_decimal(t.amount) for t in expenses if t.category and t.category.lower() in convenience_categories),
+            Decimal(0),
         )
-        total_spending = sum(float(t.amount) for t in expenses)
+        total_spending = sum(
+            (_to_decimal(t.amount) for t in expenses),
+            Decimal(0),
+        )
 
         convenience_pct = (
-            (convenience_spending / total_spending * 100) if total_spending > 0 else 0.0
+            float(convenience_spending / total_spending * 100) if total_spending > 0 else 0.0
         )
 
         return {
-            "convenience_amount": convenience_spending,
-            "total_amount": total_spending,
+            "convenience_amount": float(convenience_spending),
+            "total_amount": float(total_spending),
             "convenience_pct": convenience_pct,
         }
 

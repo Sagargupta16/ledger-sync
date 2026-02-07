@@ -25,7 +25,7 @@ export const CHART_TOOLTIP_STYLE: CSSProperties = {
 }
 
 export const CHART_TOOLTIP_LABEL_STYLE: CSSProperties = {
-  color: '#9ca3af',
+  color: '#8e8e93',
   marginBottom: '4px',
   fontWeight: 500,
 }

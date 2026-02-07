@@ -119,7 +119,7 @@ export default function DashboardPage() {
     if (completeMonths.length < 2) return noChange
     const curr = monthlyData[completeMonths.at(-1)!]
     const prev = monthlyData[completeMonths.at(-2)!]
-    const pct = (c: number, p: number) => (p === 0 ? undefined : Number((((c - p) / Math.abs(p)) * 100).toFixed(1)))
+    const pct = (c: number, p: number) => (p === 0 ? undefined : Number((((c - p) / p) * 100).toFixed(1)))
     const currSavingsRate = curr.income === 0 ? 0 : (curr.net_savings / curr.income) * 100
     const prevSavingsRate = prev.income === 0 ? 0 : (prev.net_savings / prev.income) * 100
     // Build a human-readable label like "Jan vs Dec"

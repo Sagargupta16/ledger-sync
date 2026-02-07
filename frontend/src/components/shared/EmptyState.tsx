@@ -42,12 +42,12 @@ export default function EmptyState({
     >
       {/* Icon - iOS style */}
       <div
-        className={`rounded-2xl bg-[#0a84ff]/15 flex items-center justify-center mb-4 ${
+        className={`rounded-2xl bg-ios-blue-vibrant/15 flex items-center justify-center mb-4 ${
           isCompact ? 'w-12 h-12' : 'w-16 h-16'
         }`}
         style={{ boxShadow: '0 8px 32px rgba(10, 132, 255, 0.15)' }}
       >
-        <Icon className={`text-[#0a84ff] ${isCompact ? 'w-6 h-6' : 'w-8 h-8'}`} />
+        <Icon className={`text-ios-blue-vibrant ${isCompact ? 'w-6 h-6' : 'w-8 h-8'}`} />
       </div>
 
       {/* Title */}
@@ -76,7 +76,7 @@ export default function EmptyState({
           {actionHref ? (
             <Link
               to={actionHref}
-              className={`inline-flex items-center gap-2 px-5 py-2.5 bg-[#0a84ff] text-white rounded-xl font-medium hover:bg-[#0077ed] active:scale-[0.98] transition-all shadow-lg shadow-[#0a84ff]/30 ${
+              className={`inline-flex items-center gap-2 px-5 py-2.5 bg-ios-blue-vibrant text-white rounded-xl font-medium hover:bg-ios-blue active:scale-[0.98] transition-all shadow-lg shadow-ios-blue-vibrant/30 ${
                 isCompact ? 'text-xs' : 'text-sm'
               }`}
             >
@@ -85,7 +85,7 @@ export default function EmptyState({
           ) : (
             <button
               onClick={onAction}
-              className={`inline-flex items-center gap-2 px-5 py-2.5 bg-[#0a84ff] text-white rounded-xl font-medium hover:bg-[#0077ed] active:scale-[0.98] transition-all shadow-lg shadow-[#0a84ff]/30 ${
+              className={`inline-flex items-center gap-2 px-5 py-2.5 bg-ios-blue-vibrant text-white rounded-xl font-medium hover:bg-ios-blue active:scale-[0.98] transition-all shadow-lg shadow-ios-blue-vibrant/30 ${
                 isCompact ? 'text-xs' : 'text-sm'
               }`}
             >

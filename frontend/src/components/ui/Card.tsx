@@ -67,14 +67,14 @@ export const CardHeader = memo(function CardHeader({
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-3">
         {icon && (
-          <div className="p-2.5 bg-[#0a84ff]/20 rounded-xl">
+          <div className="p-2.5 bg-ios-blue-vibrant/20 rounded-xl">
             {icon}
           </div>
         )}
         <div>
           <h3 className="text-lg font-semibold text-white">{title}</h3>
           {subtitle && (
-            <p className="text-sm text-[#98989f]">{subtitle}</p>
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
           )}
         </div>
       </div>
@@ -123,15 +123,15 @@ export const StatCard = memo(function StatCard({
           </div>
         )}
         <div className="flex-1">
-          <p className="text-sm text-[#98989f]">{title}</p>
+          <p className="text-sm text-muted-foreground">{title}</p>
           <p className="text-2xl font-semibold text-white">{value}</p>
           {subtitle && (
-            <p className="text-xs text-[#636366] mt-1">{subtitle}</p>
+            <p className="text-xs text-text-tertiary mt-1">{subtitle}</p>
           )}
           {trend && (
             <p className={cn(
               'text-xs mt-1 font-medium',
-              trend.isPositive ? 'text-[#30d158]' : 'text-[#ff453a]'
+              trend.isPositive ? 'text-ios-green-vibrant' : 'text-ios-red-vibrant'
             )}>
               {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
             </p>

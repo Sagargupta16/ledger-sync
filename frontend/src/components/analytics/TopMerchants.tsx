@@ -5,6 +5,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps } from '@/components/ui'
+import { CHART_COLORS } from '@/constants/chartColors'
 
 interface MerchantData {
   name: string
@@ -16,7 +17,7 @@ interface MerchantData {
   firstTransaction: string
 }
 
-const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#14b8a6']
+const COLORS = CHART_COLORS
 
 export default function TopMerchants() {
   const { data: transactions = [], isLoading } = useTransactions()
@@ -110,8 +111,8 @@ export default function TopMerchants() {
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-orange-500/20 rounded-xl">
-            <Store className="w-6 h-6 text-orange-500" />
+          <div className="p-3 bg-ios-orange/20 rounded-xl">
+            <Store className="w-6 h-6 text-ios-orange" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Top Merchants</h3>
@@ -207,7 +208,7 @@ export default function TopMerchants() {
       {merchantData.length > 0 && (
         <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-3 gap-4 text-center">
           <div>
-            <p className="text-2xl font-bold text-orange-500">{merchantData.length}</p>
+            <p className="text-2xl font-bold text-ios-orange">{merchantData.length}</p>
             <p className="text-xs text-muted-foreground">Top Merchants</p>
           </div>
           <div>

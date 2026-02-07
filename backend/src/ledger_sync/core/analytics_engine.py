@@ -282,8 +282,9 @@ class AnalyticsEngine:
                 fy_end = datetime(fy_end_year, fy_end_month, 31, tzinfo=UTC)
             elif fy_end_month in [4, 6, 9, 11]:
                 fy_end = datetime(fy_end_year, fy_end_month, 30, tzinfo=UTC)
-            else:  # February
-                fy_end = datetime(fy_end_year, 2, 28, tzinfo=UTC)
+            else:  # February — account for leap years
+                is_leap = fy_end_year % 4 == 0 and (fy_end_year % 100 != 0 or fy_end_year % 400 == 0)
+                fy_end = datetime(fy_end_year, 2, 29 if is_leap else 28, tzinfo=UTC)
             fy_label = f"FY{fy_year}-{str(fy_year + 1)[2:]}"
 
         return fy_label, fy_start, fy_end
@@ -590,7 +591,7 @@ class AnalyticsEngine:
         for (period_key, category, txn_type), data in sorted(category_data.items()):
             amounts = data["amounts"]
             total = sum(amounts)
-            monthly_type_total = float(monthly_totals[period_key].get(txn_type, 1))
+            monthly_type_total = float(monthly_totals[period_key].get(txn_type, Decimal(0)))
             pct = (total / monthly_type_total * 100) if monthly_type_total > 0 else 0
 
             # MoM change
@@ -999,7 +1000,7 @@ class AnalyticsEngine:
         net_worth_change_pct = 0.0
         if prev_snapshot:
             net_worth_change = net_worth - prev_snapshot.net_worth
-            if prev_snapshot.net_worth != 0:
+            if prev_snapshot.net_worth is not None and prev_snapshot.net_worth != 0:
                 net_worth_change_pct = float(net_worth_change / prev_snapshot.net_worth * 100)
 
         # Create snapshot

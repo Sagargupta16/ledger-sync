@@ -134,14 +134,14 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
         const earliest = Math.min(...dates)
         const latest = Math.max(...dates)
         const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24))
-        return Math.max(days / 30, 1) // Convert days to months
+        return Math.max(days / 30.44, 1) // Convert days to months (365.25/12)
       }
       return 1
     }
     const start = new Date(dateRange.start_date)
     const end = new Date(dateRange.end_date)
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-    return Math.max(days / 30, 1) // Convert days to months
+    return Math.max(days / 30.44, 1) // Convert days to months (365.25/12)
   }
   const monthsInRange = getMonthsInRange()
   const monthlyBurnRate = totalSpending / monthsInRange
@@ -155,8 +155,8 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
   const insights = [
     {
       icon: ShoppingBag,
-      color: 'text-purple-400',
-      bg: 'bg-purple-500/20',
+      color: 'text-ios-purple',
+      bg: 'bg-ios-purple/20',
       title: 'Top Spending Category',
       value: topCategory ? topCategory[0] : 'N/A',
       subtitle: topCategory
@@ -165,56 +165,56 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     },
     {
       icon: Gift,
-      color: 'text-green-400',
-      bg: 'bg-green-500/20',
+      color: 'text-ios-green',
+      bg: 'bg-ios-green/20',
       title: 'Net Cashback Earned',
       value: formatCurrency(netCashback),
       subtitle: `From ${cashbackTransactions.length} cashback transactions`,
     },
     {
       icon: Activity,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/20',
+      color: 'text-ios-blue',
+      bg: 'bg-ios-blue/20',
       title: 'Total Transactions',
       value: totalTransactions.toLocaleString('en-IN'),
       subtitle: mostFrequentCategory ? `Most frequent: ${mostFrequentCategory[0]}` : '',
     },
     {
       icon: TrendingUp,
-      color: 'text-red-400',
-      bg: 'bg-red-500/20',
+      color: 'text-ios-red',
+      bg: 'bg-ios-red/20',
       title: 'Biggest Transaction',
       value: formatCurrency(Math.abs(biggestTransaction?.amount || 0)),
       subtitle: biggestTransaction?.category || '',
     },
     {
       icon: Receipt,
-      color: 'text-cyan-400',
-      bg: 'bg-cyan-500/20',
+      color: 'text-ios-teal',
+      bg: 'bg-ios-teal/20',
       title: 'Avg Transaction Amount',
       value: formatCurrency(avgTransactionAmount),
       subtitle: `Per transaction`,
     },
     {
       icon: Zap,
-      color: 'text-amber-400',
-      bg: 'bg-amber-500/20',
+      color: 'text-ios-yellow',
+      bg: 'bg-ios-yellow/20',
       title: 'Average Daily Spending',
       value: formatCurrency(avgDailySpending),
       subtitle: `Over ${daysInRange} days`,
     },
     {
       icon: Flame,
-      color: 'text-orange-400',
-      bg: 'bg-orange-500/20',
+      color: 'text-ios-orange',
+      bg: 'bg-ios-orange/20',
       title: 'Monthly Burn Rate',
       value: formatCurrency(monthlyBurnRate),
       subtitle: `Avg per month over ${monthsInRange.toFixed(1)} months`,
     },
     {
       icon: ArrowLeftRight,
-      color: 'text-indigo-400',
-      bg: 'bg-indigo-500/20',
+      color: 'text-ios-indigo',
+      bg: 'bg-ios-indigo/20',
       title: 'Total Internal Transfers',
       value: formatCurrency(totalTransfers),
       subtitle: `${transferTransactions.length} transfer transactions`,
@@ -235,10 +235,10 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
             <insight.icon className={`w-5 h-5 ${insight.color}`} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-gray-400">{insight.title}</p>
+            <p className="text-xs text-muted-foreground">{insight.title}</p>
             <p className="text-lg font-semibold text-white truncate">{insight.value}</p>
             {insight.subtitle && (
-              <p className="text-xs text-gray-500 truncate">{insight.subtitle}</p>
+              <p className="text-xs text-text-tertiary truncate">{insight.subtitle}</p>
             )}
           </div>
         </motion.div>

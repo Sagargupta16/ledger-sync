@@ -124,11 +124,11 @@ export default function RecurringTransactions() {
       // Determine frequency based on average interval
       let frequency: 'monthly' | 'quarterly' | 'yearly' | null = null
 
-      if (avgInterval >= 25 && avgInterval <= 35) {
+      if (avgInterval >= 25 && avgInterval <= 38) {
         frequency = 'monthly'
-      } else if (avgInterval >= 85 && avgInterval <= 100) {
+      } else if (avgInterval >= 80 && avgInterval <= 105) {
         frequency = 'quarterly'
-      } else if (avgInterval >= 350 && avgInterval <= 380) {
+      } else if (avgInterval >= 345 && avgInterval <= 385) {
         frequency = 'yearly'
       }
 
@@ -143,7 +143,7 @@ export default function RecurringTransactions() {
       const avgAmount = data.amounts.reduce((a, b) => a + b, 0) / data.amounts.length
 
       // Check if amounts are reasonably consistent (within 30% of average)
-      const consistentAmounts = data.amounts.filter((a) => Math.abs(a - avgAmount) / avgAmount < 0.3)
+      const consistentAmounts = data.amounts.filter((a) => avgAmount > 0 && Math.abs(a - avgAmount) / avgAmount < 0.3)
       if (consistentAmounts.length < data.amounts.length * 0.5) return null
 
       // Calculate expected next date

@@ -18,6 +18,19 @@ router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 TIME_RANGE_FILTER_DESC = "Time range filter"
 
 
+def _subtract_months(dt: datetime, months: int) -> datetime:
+    """Subtract N calendar months from a datetime, clamping to valid day."""
+    month = dt.month - months
+    year = dt.year + (month - 1) // 12
+    month = (month - 1) % 12 + 1
+    # Clamp day to last valid day of target month
+    import calendar
+
+    max_day = calendar.monthrange(year, month)[1]
+    day = min(dt.day, max_day)
+    return dt.replace(year=year, month=month, day=day)
+
+
 def _get_time_range_dates(
     db: Session,
     user: User,
@@ -50,11 +63,11 @@ def _get_time_range_dates(
         start_date = last_month_end.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         end_date = last_month_end
     elif time_range == TimeRange.LAST_3_MONTHS:
-        start_date = latest_date - timedelta(days=90)
+        start_date = _subtract_months(latest_date, 3)
     elif time_range == TimeRange.LAST_6_MONTHS:
-        start_date = latest_date - timedelta(days=180)
+        start_date = _subtract_months(latest_date, 6)
     elif time_range == TimeRange.LAST_12_MONTHS:
-        start_date = latest_date - timedelta(days=365)
+        start_date = _subtract_months(latest_date, 12)
     elif time_range == TimeRange.THIS_YEAR:
         start_date = latest_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     elif time_range == TimeRange.LAST_YEAR:
@@ -62,7 +75,7 @@ def _get_time_range_dates(
         start_date = datetime(year, 1, 1, tzinfo=UTC)
         end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=UTC)
     elif time_range == TimeRange.LAST_DECADE:
-        start_date = latest_date - timedelta(days=3650)
+        start_date = _subtract_months(latest_date, 120)
     else:
         return None, None
 

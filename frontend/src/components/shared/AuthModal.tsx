@@ -137,7 +137,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 <h2 className="text-2xl font-bold text-white">
                   {mode === 'login' ? 'Welcome Back' : 'Create Account'}
                 </h2>
-                <p className="text-gray-400 text-sm mt-1">
+                <p className="text-muted-foreground text-sm mt-1">
                   {mode === 'login'
                     ? 'Sign in to continue to Ledger Sync'
                     : 'Get started with your financial journey'}
@@ -156,13 +156,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       Full Name
                     </label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" />
                       <input
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="John Doe"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors text-sm"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-input border border-white/10 text-white placeholder-text-quaternary focus:outline-none focus:border-ios-blue focus:ring-1 focus:ring-ios-blue transition-colors text-sm"
                       />
                     </div>
                   </motion.div>
@@ -173,14 +173,14 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     Email
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" />
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
                       required
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-input border border-white/10 text-white placeholder-text-quaternary focus:outline-none focus:border-ios-blue focus:ring-1 focus:ring-ios-blue transition-colors text-sm"
                     />
                   </div>
                 </div>
@@ -190,7 +190,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     Password
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
@@ -198,12 +198,12 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       placeholder="••••••••"
                       required
                       minLength={mode === 'register' ? 8 : undefined}
-                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors text-sm"
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-input border border-white/10 text-white placeholder-text-quaternary focus:outline-none focus:border-ios-blue focus:ring-1 focus:ring-ios-blue transition-colors text-sm"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-muted-foreground transition-colors"
                     >
                       {showPassword ? (
                         <EyeOff className="w-4 h-4" />
@@ -213,7 +213,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     </button>
                   </div>
                   {mode === 'register' && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-text-tertiary mt-1">
                       Must be at least 8 characters
                     </p>
                   )}
@@ -240,13 +240,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
               {/* Toggle */}
               <div className="mt-5 text-center">
-                <p className="text-gray-400 text-sm">
+                <p className="text-muted-foreground text-sm">
                   {mode === 'login'
                     ? "Don't have an account?"
                     : 'Already have an account?'}
                   <button
                     onClick={toggleMode}
-                    className="ml-2 text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                    className="ml-2 text-ios-blue hover:text-ios-blue-vibrant font-medium transition-colors"
                   >
                     {mode === 'login' ? 'Sign Up' : 'Sign In'}
                   </button>

@@ -57,6 +57,10 @@ export const SEMANTIC_COLORS = {
   muted: '#6b7280',       // gray-500
 } as const
 
+// Standardized chart axis and grid colors
+export const CHART_AXIS_COLOR = '#9ca3af'
+export const CHART_GRID_COLOR = '#374151'
+
 // Get color by index with wrap-around
 export const getChartColor = (index: number): string => {
   return CHART_COLORS[index % CHART_COLORS.length]

@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
-import { CHART_COLORS } from '@/constants/chartColors'
+import { CHART_COLORS, CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
 import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 import { chartTooltipProps } from '@/components/ui'
 
@@ -167,7 +167,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
           <div key={item.category}>
             <motion.button
               onClick={() => setSelectedCategory(selectedCategory === item.category ? null : item.category)}
-              className="w-full flex items-center justify-between p-4 rounded-lg bg-gray-800/50 hover:bg-gray-800/70 transition-all border border-white/5"
+              className="w-full flex items-center justify-between p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all border border-white/5"
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
             >
@@ -178,7 +178,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                 />
                 <div className="flex-1 text-left">
                   <div className="font-medium text-white">{item.category}</div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-muted-foreground">
                     {item.subcategories && Object.keys(item.subcategories).length > 0
                       ? `${Object.keys(item.subcategories).length} subcategories`
                       : 'No subcategories'}
@@ -190,12 +190,12 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                   <div className="font-semibold text-white">
                     {formatCurrency(item.amount)}
                   </div>
-                  <div className="text-sm text-gray-400">{formatPercent(item.percentage)}</div>
+                  <div className="text-sm text-muted-foreground">{formatPercent(item.percentage)}</div>
                 </div>
                 {selectedCategory === item.category ? (
-                  <ChevronUp className="w-5 h-5 text-gray-400" />
+                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
                 )}
               </div>
             </motion.button>
@@ -209,7 +209,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                   transition={{ duration: 0.3 }}
                   className="overflow-hidden"
                 >
-                  <div className="mt-2 p-4 bg-gray-900/50 rounded-lg border border-white/5">
+                  <div className="mt-2 p-4 bg-white/[0.03] rounded-lg border border-white/5">
                     {/* Filters and Navigation */}
                     <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
                       <div className="flex items-center gap-2">
@@ -244,7 +244,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                               date.setMonth(date.getMonth() - 1)
                               setCurrentMonth(date.toISOString().substring(0, 7))
                             }}
-                            className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                            className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                             type="button"
                           >
                             <ChevronLeft className="w-4 h-4" />
@@ -258,7 +258,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                               date.setMonth(date.getMonth() + 1)
                               setCurrentMonth(date.toISOString().substring(0, 7))
                             }}
-                            className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                            className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                             type="button"
                           >
                             <ChevronRight className="w-4 h-4" />
@@ -269,7 +269,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => setCurrentYear((prev) => prev - 1)}
-                            className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                            className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                             type="button"
                           >
                             <ChevronLeft className="w-4 h-4" />
@@ -277,7 +277,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                           <span className="text-white text-sm font-medium min-w-[80px] text-center">Year {currentYear}</span>
                           <button
                             onClick={() => setCurrentYear((prev) => prev + 1)}
-                            className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                            className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                             type="button"
                           >
                             <ChevronRight className="w-4 h-4" />
@@ -287,14 +287,14 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="p-3 bg-gray-800/30 rounded-lg">
-                        <div className="text-sm text-gray-400 mb-1">Total Spending</div>
+                      <div className="p-3 bg-white/[0.04] rounded-lg">
+                        <div className="text-sm text-muted-foreground mb-1">Total Spending</div>
                         <div className="text-lg font-semibold text-white">
                           {formatCurrency(subcategoryDetails.totalAmount)}
                         </div>
                       </div>
-                      <div className="p-3 bg-gray-800/30 rounded-lg">
-                        <div className="text-sm text-gray-400 mb-1">Transactions</div>
+                      <div className="p-3 bg-white/[0.04] rounded-lg">
+                        <div className="text-sm text-muted-foreground mb-1">Transactions</div>
                         <div className="text-lg font-semibold text-white">
                           {subcategoryDetails.totalCount}
                         </div>
@@ -307,7 +307,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                         {subcategoryDetails.subcategories.map((subcat, idx) => (
                           <div
                             key={subcat.name}
-                            className="flex items-center justify-between p-2 bg-gray-800/20 rounded"
+                            className="flex items-center justify-between p-2 bg-white/[0.03] rounded"
                           >
                             <div className="flex items-center gap-2 flex-1">
                               <div
@@ -315,13 +315,13 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                                 style={{ backgroundColor: COLORS[(index + idx) % COLORS.length] }}
                               />
                               <span className="text-sm text-gray-300">{subcat.name}</span>
-                              <span className="text-xs text-gray-500">({subcat.count} txns)</span>
+                              <span className="text-xs text-text-tertiary">({subcat.count} txns)</span>
                             </div>
                             <div className="text-right">
                               <div className="text-sm font-medium text-white">
                                 {formatCurrency(subcat.amount)}
                               </div>
-                              <div className="text-xs text-gray-400">{formatPercent(subcat.percentage)}</div>
+                              <div className="text-xs text-muted-foreground">{formatPercent(subcat.percentage)}</div>
                             </div>
                           </div>
                         ))}
@@ -333,15 +333,15 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                         <h4 className="text-sm font-semibold text-gray-300 mb-2">Monthly Trend</h4>
                         <ResponsiveContainer width="100%" height={200}>
                           <LineChart data={subcategoryDetails.trendData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                            <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
                             <XAxis
                               dataKey="displayPeriod"
-                              stroke="#9ca3af"
-                              tick={{ fill: '#9ca3af', fontSize: 11 }}
+                              stroke={CHART_AXIS_COLOR}
+                              tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
                             />
                             <YAxis
-                              stroke="#9ca3af"
-                              tick={{ fill: '#9ca3af', fontSize: 11 }}
+                              stroke={CHART_AXIS_COLOR}
+                              tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
                               tickFormatter={(value) => formatCurrencyShort(value)}
                             />
                             <Tooltip

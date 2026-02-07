@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { CHART_COLORS_WARM } from '@/constants/chartColors'
+import { CHART_COLORS_WARM, CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
 import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 import { chartTooltipProps } from '@/components/ui'
 
@@ -165,7 +165,7 @@ export default function MultiCategoryTimeAnalysis() {
           <h3 className="text-xl font-semibold text-white">Multi-Category Time Analysis</h3>
           <button
             onClick={handleExport}
-            className="p-2 bg-gray-800/50 hover:bg-gray-700/50 border border-white/10 rounded-lg text-gray-300 transition-colors"
+            className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 transition-colors"
             type="button"
             title="Export chart"
           >
@@ -203,7 +203,7 @@ export default function MultiCategoryTimeAnalysis() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePrevMonth}
-                className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                 type="button"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -213,19 +213,19 @@ export default function MultiCategoryTimeAnalysis() {
               </span>
               <button
                 onClick={handleNextMonth}
-                className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                 type="button"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
-              <span className="text-gray-400 text-sm ml-2">{totalTransactions} expense transactions</span>
+              <span className="text-muted-foreground text-sm ml-2">{totalTransactions} expense transactions</span>
             </div>
           )}
           {viewMode === 'yearly' && (
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePrevYear}
-                className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                 type="button"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -233,17 +233,17 @@ export default function MultiCategoryTimeAnalysis() {
               <span className="text-white font-medium min-w-[100px] text-center">Year {currentYear}</span>
               <button
                 onClick={handleNextYear}
-                className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
                 type="button"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
-              <span className="text-gray-400 text-sm ml-2">{totalTransactions} expense transactions</span>
+              <span className="text-muted-foreground text-sm ml-2">{totalTransactions} expense transactions</span>
             </div>
           )}
           {viewMode === 'all_time' && (
             <div className="flex items-center gap-3">
-              <span className="text-gray-400 text-sm">{totalTransactions} expense transactions</span>
+              <span className="text-muted-foreground text-sm">{totalTransactions} expense transactions</span>
             </div>
           )}
         </div>
@@ -253,15 +253,15 @@ export default function MultiCategoryTimeAnalysis() {
           <ResponsiveContainer width="100%" height={400}>
             {cumulative ? (
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
                 <XAxis
                   dataKey="displayPeriod"
-                  stroke="#9ca3af"
-                  tick={{ fill: '#9ca3af', fontSize: 11 }}
+                  stroke={CHART_AXIS_COLOR}
+                  tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
                 />
                 <YAxis
-                  stroke="#9ca3af"
-                  tick={{ fill: '#9ca3af', fontSize: 11 }}
+                  stroke={CHART_AXIS_COLOR}
+                  tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
                   tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
@@ -283,15 +283,15 @@ export default function MultiCategoryTimeAnalysis() {
               </LineChart>
             ) : (
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
                 <XAxis
                   dataKey="displayPeriod"
-                  stroke="#9ca3af"
-                  tick={{ fill: '#9ca3af', fontSize: 11 }}
+                  stroke={CHART_AXIS_COLOR}
+                  tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
                 />
                 <YAxis
-                  stroke="#9ca3af"
-                  tick={{ fill: '#9ca3af', fontSize: 11 }}
+                  stroke={CHART_AXIS_COLOR}
+                  tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
                   tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
@@ -314,7 +314,7 @@ export default function MultiCategoryTimeAnalysis() {
             )}
           </ResponsiveContainer>
         ) : (
-          <div className="h-[400px] flex items-center justify-center text-gray-400">No data available</div>
+          <div className="h-[400px] flex items-center justify-center text-muted-foreground">No data available</div>
         )}
       </div>
     </motion.div>

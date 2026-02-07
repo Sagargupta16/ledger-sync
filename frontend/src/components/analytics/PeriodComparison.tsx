@@ -126,11 +126,13 @@ export default function PeriodComparison() {
       const avgIncome = availableMonths.reduce((sum, m) => sum + m.income, 0) / availableMonths.length
       const avgExpense = availableMonths.reduce((sum, m) => sum + m.expense, 0) / availableMonths.length
 
-      // Daily rates (assuming 30 days)
-      const dailyExpense1 = m1.expense / 30
-      const dailyExpense2 = m2.expense / 30
-      const dailyIncome1 = m1.income / 30
-      const dailyIncome2 = m2.income / 30
+      // Daily rates (using actual days in each month)
+      const daysInMonth1 = new Date(Number(effectiveMonth1.split('-')[0]), Number(effectiveMonth1.split('-')[1]), 0).getDate()
+      const daysInMonth2 = new Date(Number(effectiveMonth2.split('-')[0]), Number(effectiveMonth2.split('-')[1]), 0).getDate()
+      const dailyExpense1 = m1.expense / daysInMonth1
+      const dailyExpense2 = m2.expense / daysInMonth2
+      const dailyIncome1 = m1.income / daysInMonth1
+      const dailyIncome2 = m2.income / daysInMonth2
 
       // Savings rate
       const savingsRate1 = m1.income > 0 ? (m1.net_savings / m1.income) * 100 : 0
