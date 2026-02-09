@@ -241,6 +241,8 @@ class Reconciler:
         normalized_row: dict[str, Any],
         source_file: str,
         import_time: datetime,
+        *,
+        occurrence: int = 0,
     ) -> tuple[Transaction, str]:
         """Reconcile a single transaction.
 
@@ -248,6 +250,7 @@ class Reconciler:
             normalized_row: Normalized transaction data
             source_file: Source file name
             import_time: Import timestamp
+            occurrence: Zero-based duplicate index for hash disambiguation
 
         Returns:
             Tuple of (Transaction, action) where action is "inserted", "updated", or "skipped"
@@ -268,6 +271,7 @@ class Reconciler:
             subcategory=normalized_row["subcategory"],
             tx_type=normalized_row["type"],
             user_id=user_id,
+            occurrence=occurrence,
         )
 
         existing = self._find_existing_record(transaction_id, user_id)
@@ -334,35 +338,32 @@ class Reconciler:
 
         return count
 
-    def _process_batch_row(
+    def _process_transaction_row(
         self,
         row: dict[str, Any],
-        account_field: str,
-        seen_in_batch: set[str],
+        seen_in_batch: dict[str, int],
         stats: ReconciliationStats,
         source_file: str,
         import_time: datetime,
-        is_transfer: bool,
     ) -> None:
-        """Process a single row in a batch reconciliation.
+        """Process a single income/expense row in a batch reconciliation.
 
-        Generates the hash ID, checks for in-batch duplicates, and delegates to
-        the appropriate single-record reconciler. Updates stats in-place.
+        Uses an occurrence counter so that genuinely duplicate rows (identical
+        date, amount, account, note, category, subcategory, type) each get a
+        unique hash instead of being silently dropped.
 
         Args:
             row: Normalized row data.
-            account_field: The field name to use as the account for hashing.
-            seen_in_batch: Set of IDs already processed in this batch.
+            seen_in_batch: Dict mapping base hash IDs to occurrence counts.
             stats: Stats object to update.
             source_file: Source file name.
             import_time: Import timestamp.
-            is_transfer: Whether this row is a transfer.
 
         """
-        record_id = self.hasher.generate_transaction_id(
+        base_id = self.hasher.generate_transaction_id(
             date=row["date"],
             amount=row["amount"],
-            account=row[account_field],
+            account=row["account"],
             note=row["note"],
             category=row["category"],
             subcategory=row["subcategory"],
@@ -370,17 +371,62 @@ class Reconciler:
             user_id=self.user_id,
         )
 
-        # Skip duplicates within the same batch
+        # Track how many times we've seen this base hash in the current batch.
+        # The first occurrence (0) keeps the original hash for backward compat.
+        # Subsequent occurrences get a new hash with the occurrence index.
+        occurrence = seen_in_batch.get(base_id, 0)
+        seen_in_batch[base_id] = occurrence + 1
+
+        _, action = self.reconcile_transaction(
+            row, source_file, import_time, occurrence=occurrence,
+        )
+
+        stats.processed += 1
+        self._update_stats_for_action(stats, action)
+
+    def _process_transfer_row(
+        self,
+        row: dict[str, Any],
+        seen_in_batch: set[str],
+        stats: ReconciliationStats,
+        source_file: str,
+        import_time: datetime,
+    ) -> None:
+        """Process a single transfer row in a batch reconciliation.
+
+        Transfers in the Excel appear as dual entries (Transfer-In and
+        Transfer-Out) for the same real transfer. Both produce the same hash
+        since the normalizer maps them to identical from/to accounts. The
+        second entry is skipped to avoid double-counting.
+
+        Args:
+            row: Normalized row data.
+            seen_in_batch: Set of hash IDs already seen in this batch.
+            stats: Stats object to update.
+            source_file: Source file name.
+            import_time: Import timestamp.
+
+        """
+        record_id = self.hasher.generate_transaction_id(
+            date=row["date"],
+            amount=row["amount"],
+            account=row["from_account"],
+            note=row["note"],
+            category=row["category"],
+            subcategory=row["subcategory"],
+            tx_type=row["type"],
+            user_id=self.user_id,
+        )
+
         if record_id in seen_in_batch:
-            self._log_batch_duplicate(row, record_id, is_transfer)
+            self._log_batch_duplicate(row, record_id, is_transfer=True)
             stats.processed += 1
             stats.skipped += 1
             return
 
         seen_in_batch.add(record_id)
 
-        reconcile_fn = self.reconcile_transfer if is_transfer else self.reconcile_transaction
-        _, action = reconcile_fn(row, source_file, import_time)
+        _, action = self.reconcile_transfer(row, source_file, import_time)
 
         stats.processed += 1
         self._update_stats_for_action(stats, action)
@@ -432,18 +478,16 @@ class Reconciler:
         self._ensure_user_id()
 
         stats = ReconciliationStats()
-        seen_in_batch: set[str] = set()
+        seen_in_batch: dict[str, int] = {}
 
         for row in normalized_rows:
             try:
-                self._process_batch_row(
+                self._process_transaction_row(
                     row,
-                    "account",
                     seen_in_batch,
                     stats,
                     source_file,
                     import_time,
-                    is_transfer=False,
                 )
             except (ValueError, TypeError, KeyError) as e:
                 logger.error("Error reconciling transaction: %s", e)
@@ -593,14 +637,12 @@ class Reconciler:
 
         for row in normalized_rows:
             try:
-                self._process_batch_row(
+                self._process_transfer_row(
                     row,
-                    "from_account",
                     seen_in_batch,
                     stats,
                     source_file,
                     import_time,
-                    is_transfer=True,
                 )
             except (ValueError, TypeError, KeyError) as e:
                 logger.error("Error reconciling transfer: %s", e)

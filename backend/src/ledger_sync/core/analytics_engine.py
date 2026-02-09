@@ -220,12 +220,11 @@ class AnalyticsEngine:
     def _is_salary_income(self, txn: Transaction) -> bool:
         """Check if transaction is salary income (subset of taxable)."""
         item = f"{txn.category}::{txn.subcategory}"
-        # Check if it's in taxable and specifically salary/stipend
         salary_items = [
             "Employment Income::Salary",
             "Employment Income::Stipend",
         ]
-        return item in salary_items or item in self.taxable_income_categories
+        return item in salary_items
 
     def _is_bonus_income(self, txn: Transaction) -> bool:
         """Check if transaction is bonus income (subset of taxable)."""
@@ -547,12 +546,12 @@ class AnalyticsEngine:
 
         elif txn.type == TransactionType.TRANSFER:
             data["transfer_count"] += 1
+            data["total_transfers_out"] += amount
+            data["total_transfers_in"] += amount
             if self._is_investment_account(txn.to_account):
                 data["net_investment_flow"] -= amount  # Money going to investments
-                data["total_transfers_out"] += amount
             elif self._is_investment_account(txn.from_account):
                 data["net_investment_flow"] += amount  # Money coming from investments
-                data["total_transfers_in"] += amount
 
     def _calculate_category_trends(self) -> int:
         """Calculate category-level trends over time."""

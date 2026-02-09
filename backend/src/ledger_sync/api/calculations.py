@@ -319,8 +319,14 @@ def _process_regular_transactions(
     transactions: list[Transaction],
     balances: dict[str, dict[str, Any]],
 ) -> None:
-    """Accumulate balances for income and expense transactions."""
+    """Accumulate balances for income and expense transactions.
+
+    Skips transfer transactions — those are handled by _process_transfer_transactions.
+    """
     for tx in transactions:
+        if tx.type == TransactionType.TRANSFER:
+            continue
+
         account = tx.account or "Unknown"
         _ensure_account(balances, account)
 

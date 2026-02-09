@@ -47,12 +47,16 @@ class TransactionHasher:
         subcategory: str | None = None,
         tx_type: str | None = None,
         user_id: int | None = None,
+        occurrence: int = 0,
     ) -> str:
         """Generate deterministic transaction ID.
 
         Uses SHA-256 hash of normalized core fields including category, type,
         and user_id to ensure uniqueness for transactions that occur at the same time
         with the same amount, while keeping each user's data separate.
+
+        An occurrence counter disambiguates rows that are otherwise identical
+        (same date, amount, account, note, category, subcategory, type).
 
         Args:
             date: Transaction date
@@ -63,6 +67,7 @@ class TransactionHasher:
             subcategory: Transaction subcategory (optional)
             tx_type: Transaction type (optional)
             user_id: User ID for multi-user mode (optional)
+            occurrence: Zero-based index for duplicate rows (default 0)
 
         Returns:
             64-character hex-encoded transaction ID
@@ -83,6 +88,11 @@ class TransactionHasher:
             f"{norm_user}|{norm_date}|{norm_amount}|{norm_account}|{norm_note}|"
             f"{norm_category}|{norm_subcategory}|{norm_type}"
         )
+
+        # Append occurrence suffix for duplicate rows (only when > 0
+        # to preserve backward compatibility with existing IDs)
+        if occurrence > 0:
+            hash_input += f"|{occurrence}"
 
         # Generate SHA-256 hash
         hash_bytes = hashlib.sha256(hash_input.encode("utf-8")).digest()

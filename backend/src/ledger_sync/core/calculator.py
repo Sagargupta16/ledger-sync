@@ -160,19 +160,23 @@ class FinancialCalculator:
     def group_by_category(
         transactions: list[Transaction],
     ) -> dict[str, float]:
-        """Group transactions by category.
+        """Group expense transactions by category.
+
+        Only includes expense transactions for spending analysis.
+        Income and transfer transactions are excluded.
 
         Args:
-            transactions: List of transactions
+            transactions: List of transactions (will be filtered to expenses)
 
         Returns:
-            Dictionary mapping category to total amount
+            Dictionary mapping category to total expense amount
 
         """
         category_totals: dict[str, Decimal] = defaultdict(Decimal)
 
         for t in transactions:
-            category_totals[t.category] += _to_decimal(t.amount)
+            if t.type == TransactionType.EXPENSE:
+                category_totals[t.category] += _to_decimal(t.amount)
 
         return {k: float(v) for k, v in category_totals.items()}
 
@@ -180,19 +184,31 @@ class FinancialCalculator:
     def group_by_account(
         transactions: list[Transaction],
     ) -> dict[str, float]:
-        """Group transactions by account.
+        """Group transactions by account and calculate net balance.
+
+        Income adds to the account balance, expenses subtract from it.
+        Transfers debit the source account and credit the destination account.
 
         Args:
             transactions: List of transactions
 
         Returns:
-            Dictionary mapping account to total transaction volume
+            Dictionary mapping account to net balance
 
         """
         account_totals: dict[str, Decimal] = defaultdict(Decimal)
 
         for t in transactions:
-            account_totals[t.account] += _to_decimal(t.amount)
+            amount = _to_decimal(t.amount)
+            if t.type == TransactionType.INCOME:
+                account_totals[t.account] += amount
+            elif t.type == TransactionType.EXPENSE:
+                account_totals[t.account] -= amount
+            elif t.type == TransactionType.TRANSFER:
+                if t.from_account:
+                    account_totals[t.from_account] -= amount
+                if t.to_account:
+                    account_totals[t.to_account] += amount
 
         return {k: float(v) for k, v in account_totals.items()}
 
