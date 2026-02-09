@@ -66,7 +66,7 @@ export const useCategoriesChart = (timeRange: TimeRange = 'all_time', limit = 10
   })
 }
 
-export const useMonthlyTrends = (timeRange: TimeRange = 'last_12_months') => {
+export const useMonthlyTrends = (timeRange: TimeRange = 'all_time') => {
   return useQuery({
     queryKey: ['analytics', 'monthly-trends', timeRange],
     queryFn: () => analyticsService.getMonthlyTrendsChart(timeRange),

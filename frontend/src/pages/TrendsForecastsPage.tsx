@@ -22,7 +22,7 @@ interface TrendMetrics {
 }
 
 export default function TrendsForecastsPage() {
-  const [timeRange, setTimeRange] = useState<TimeRange>('last_12_months')
+  const [timeRange, setTimeRange] = useState<TimeRange>('all_time')
   const { data: trendsData, isLoading } = useTrends(timeRange)
 
   // Calculate comprehensive trend metrics
@@ -153,7 +153,7 @@ export default function TrendsForecastsPage() {
             'last_3_months',
             'last_6_months',
             'last_12_months',
-            'current_year',
+            'this_year',
             'last_year',
             'all_time',
           ] as TimeRange[]).map((range) => (
@@ -170,7 +170,7 @@ export default function TrendsForecastsPage() {
               {range === 'last_3_months' && 'Last 3 Months'}
               {range === 'last_6_months' && 'Last 6 Months'}
               {range === 'last_12_months' && 'Last 12 Months'}
-              {range === 'current_year' && 'Current Year'}
+              {range === 'this_year' && 'This Year'}
               {range === 'last_year' && 'Last Year'}
               {range === 'all_time' && 'All Time'}
             </button>

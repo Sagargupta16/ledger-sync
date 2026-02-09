@@ -80,7 +80,8 @@ export const TIME_RANGE_OPTIONS = [
   { value: 'last_3_months', label: 'Last 3 Months' },
   { value: 'last_6_months', label: 'Last 6 Months' },
   { value: 'last_12_months', label: 'Last 12 Months' },
-  { value: 'current_fy', label: 'Current Fiscal Year' },
+  { value: 'this_year', label: 'This Year' },
+  { value: 'last_year', label: 'Last Year' },
   { value: 'all_time', label: 'All Time' },
 ]
 

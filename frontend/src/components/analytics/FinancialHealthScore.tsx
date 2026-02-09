@@ -418,11 +418,9 @@ function computeMonthlyData(
   transactions: Transaction[],
   isInvestmentAccount: (name: string) => boolean,
 ): { months: string[]; monthlyData: Record<string, MonthlyBucket> } | null {
-  const now = new Date()
-  const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), 1)
+  if (transactions.length < 10) return null
 
-  const recentTransactions = transactions.filter((tx) => new Date(tx.date) >= twoYearsAgo)
-  if (recentTransactions.length < 10) return null
+  const recentTransactions = transactions
 
   const monthlyData: Record<string, MonthlyBucket> = {}
 

@@ -468,7 +468,7 @@ def get_monthly_trends_chart(
     db: DatabaseSession,
     time_range: Annotated[
         TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
-    ] = TimeRange.LAST_12_MONTHS,
+    ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
     """Get data for monthly trends line chart."""
     transactions = get_filtered_transactions(db, current_user, time_range)

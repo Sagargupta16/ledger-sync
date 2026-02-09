@@ -123,7 +123,7 @@ export const analyticsService = {
     return response.data
   },
 
-  getMonthlyTrendsChart: async (timeRange: TimeRange = 'last_12_months') => {
+  getMonthlyTrendsChart: async (timeRange: TimeRange = 'all_time') => {
     const response = await apiClient.get<ChartData>('/api/analytics/charts/monthly-trends', {
       params: { time_range: timeRange },
     })

@@ -87,15 +87,17 @@ export interface AccountClassification {
 }
 
 // Time range for analytics
+// Values must match backend TimeRange enum (ledger_sync.core.time_filter)
 export type TimeRange =
   | 'all_time'
-  | 'current_month'
+  | 'this_month'
   | 'last_month'
   | 'last_3_months'
   | 'last_6_months'
   | 'last_12_months'
-  | 'current_year'
+  | 'this_year'
   | 'last_year'
+  | 'last_decade'
 
 // Authentication types
 export interface User {

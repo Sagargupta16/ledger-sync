@@ -35,7 +35,7 @@ def get_monthly_summaries(
     db: DatabaseSession,
     start_period: Annotated[str | None, Query(description="Start period (YYYY-MM)")] = None,
     end_period: Annotated[str | None, Query(description="End period (YYYY-MM)")] = None,
-    limit: Annotated[int, Query(ge=1, le=120, description="Number of months to return")] = 24,
+    limit: Annotated[int, Query(ge=1, le=600, description="Number of months to return")] = 120,
 ) -> dict[str, Any]:
     """Get pre-calculated monthly summaries.
 
@@ -109,7 +109,7 @@ def get_category_trends(
     ] = None,
     start_period: Annotated[str | None, Query(description="Start period (YYYY-MM)")] = None,
     end_period: Annotated[str | None, Query(description="End period (YYYY-MM)")] = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    limit: Annotated[int, Query(ge=1, le=5000)] = 1000,
 ) -> dict[str, Any]:
     """Get category-level trends over time.
 
@@ -334,7 +334,7 @@ def get_merchant_intelligence(
 def get_net_worth_history(
     current_user: CurrentUser,
     db: DatabaseSession,
-    limit: Annotated[int, Query(ge=1, le=120, description="Number of snapshots")] = 12,
+    limit: Annotated[int, Query(ge=1, le=600, description="Number of snapshots")] = 120,
 ) -> dict[str, Any]:
     """Get net worth history and current snapshot.
 

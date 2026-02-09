@@ -1019,7 +1019,7 @@ class UserPreferences(Base):
     default_time_range: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        default="last_12_months",
+        default="all_time",
     )
 
     # ===== 7. Anomaly Detection Settings =====

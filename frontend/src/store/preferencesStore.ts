@@ -71,7 +71,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         numberFormat: 'indian',
         currencySymbol: '₹',
         currencySymbolPosition: 'before',
-        defaultTimeRange: 'last_12_months',
+        defaultTimeRange: 'all_time',
       },
 
       fiscalYearStartMonth: 4,

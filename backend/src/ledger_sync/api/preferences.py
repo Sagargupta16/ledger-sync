@@ -335,7 +335,7 @@ def reset_preferences(
     prefs.number_format = "indian"
     prefs.currency_symbol = "₹"
     prefs.currency_symbol_position = "before"
-    prefs.default_time_range = "last_12_months"
+    prefs.default_time_range = "all_time"
     prefs.anomaly_expense_threshold = 2.0
     prefs.anomaly_types_enabled = json.dumps(
         ["high_expense", "unusual_category", "large_transfer", "budget_exceeded"],
