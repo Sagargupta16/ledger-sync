@@ -6,7 +6,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useMemo, useState } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, formatPeriod } from '@/lib/formatters'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
@@ -366,10 +366,11 @@ export default function ReturnsAnalysisPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis 
-                  dataKey="month" 
+                <XAxis
+                  dataKey="month"
                   stroke="#9ca3af"
                   tick={{ fontSize: 12 }}
+                  tickFormatter={(v) => formatPeriod(v)}
                 />
                 <YAxis 
                   stroke="#9ca3af"

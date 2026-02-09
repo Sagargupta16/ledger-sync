@@ -3,7 +3,7 @@ import { TrendingUp, TrendingDown, Minus, Wallet, PiggyBank, CreditCard, LineCha
 import { useTrends } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, ComposedChart, Line, Bar, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useState, useMemo } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, formatPeriod } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
@@ -349,7 +349,7 @@ export default function TrendsForecastsPage() {
             <ResponsiveContainer width="100%" height={350}>
               <ComposedChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} />
+                <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatPeriod(v)} />
                 <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatCurrencyShort(v)} />
                 <Tooltip
                   {...chartTooltipProps}
@@ -397,7 +397,7 @@ export default function TrendsForecastsPage() {
             <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} />
+                <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatPeriod(v)} />
                 <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => `${Math.round(v)}%`} domain={[0, 'auto']} />
                 <Tooltip
                   {...chartTooltipProps}

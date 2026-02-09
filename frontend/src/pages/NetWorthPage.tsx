@@ -1,13 +1,15 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, PiggyBank, CreditCard, BarChart3 } from 'lucide-react'
+import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatPercent, formatPeriod } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
+import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 
 // Category display configuration
@@ -31,6 +33,19 @@ export default function NetWorthPage() {
   const { data: preferences } = usePreferences()
   const [showStacked, setShowStacked] = useState(false)
   const [classifications, setClassifications] = useState<Record<string, string>>({})
+  const [expandedAssetCategories, setExpandedAssetCategories] = useState<Set<string>>(new Set())
+  const [expandedLiabilityCategories, setExpandedLiabilityCategories] = useState<Set<string>>(new Set())
+
+  // Time filter state
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('all_time')
+  const [currentYear, setCurrentYear] = useState(getCurrentYear())
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
+  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
+
+  const dateRange = useMemo(() => {
+    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
+  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
 
   // Load account classifications
   useEffect(() => {
@@ -201,12 +216,49 @@ export default function NetWorthPage() {
     }, [] as Array<typeof monthlyNetWorth[number] & { netWorth: number; cumulativeIncome: number; cumulativeExpenses: number; [key: string]: number | string }>)
   }, [monthlyNetWorth, allCategories, categoryProportions])
 
+  // Filter chart data to selected time range (slice the cumulative array)
+  const filteredNetWorthData = useMemo(() => {
+    if (!dateRange.start_date) return netWorthData
+    return netWorthData.filter((item) => {
+      const monthStart = `${item.month}-01`
+      return monthStart >= dateRange.start_date! &&
+             (!dateRange.end_date || monthStart <= dateRange.end_date)
+    })
+  }, [netWorthData, dateRange])
+
+  const toggleCategory = (
+    setter: React.Dispatch<React.SetStateAction<Set<string>>>,
+    category: string,
+  ) => {
+    setter(prev => {
+      const next = new Set(prev)
+      if (next.has(category)) {
+        next.delete(category)
+      } else {
+        next.add(category)
+      }
+      return next
+    })
+  }
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Net Worth"
           subtitle="Track your total assets and liabilities"
+          action={
+            <AnalyticsTimeFilter
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              currentYear={currentYear}
+              currentMonth={currentMonth}
+              currentFY={currentFY}
+              onYearChange={setCurrentYear}
+              onMonthChange={setCurrentMonth}
+              onFYChange={setCurrentFY}
+            />
+          }
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -277,7 +329,7 @@ export default function NetWorthPage() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <BarChart3 className="w-5 h-5 text-blue-400" />
-              <h3 className="text-lg font-semibold text-white">Net Worth Trend (All Time)</h3>
+              <h3 className="text-lg font-semibold text-white">Net Worth Trend</h3>
             </div>
             <button
               onClick={() => setShowStacked(!showStacked)}
@@ -294,9 +346,9 @@ export default function NetWorthPage() {
             <div className="h-80 flex items-center justify-center">
               <div className="animate-pulse text-gray-400">Loading chart...</div>
             </div>
-          ) : netWorthData.length > 0 ? (
+          ) : filteredNetWorthData.length > 0 ? (
             <ResponsiveContainer width="100%" height={320}>
-              <AreaChart data={netWorthData}>
+              <AreaChart data={filteredNetWorthData}>
                 <defs>
                   <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
@@ -322,7 +374,7 @@ export default function NetWorthPage() {
                   })}
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="month" stroke="#9ca3af" />
+                <XAxis dataKey="month" stroke="#9ca3af" tickFormatter={(v) => formatPeriod(v)} angle={-45} textAnchor="end" height={80} interval="preserveStartEnd" />
                 <YAxis stroke="#9ca3af" />
                 <Tooltip
                   {...chartTooltipProps}
@@ -421,41 +473,55 @@ export default function NetWorthPage() {
                         const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
                         
                         acc.elements.push(
-                          <tr key={`header-${currentCategory}`} className="bg-white/5">
-                            <td className="py-2 px-4 text-sm font-semibold text-primary">{currentCategory}</td>
+                          <tr
+                            key={`header-${currentCategory}`}
+                            className="bg-white/5 cursor-pointer hover:bg-white/8 transition-colors"
+                            onClick={() => toggleCategory(setExpandedAssetCategories, currentCategory)}
+                          >
+                            <td className="py-2 px-4 text-sm font-semibold text-primary">
+                              <span className="flex items-center gap-2">
+                                {expandedAssetCategories.has(currentCategory)
+                                  ? <ChevronDown className="w-4 h-4" />
+                                  : <ChevronRight className="w-4 h-4" />}
+                                {currentCategory}
+                                <span className="text-xs text-gray-500 font-normal">({categoryAccounts.length})</span>
+                              </span>
+                            </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-green-400/70">
                               {formatCurrency(catBalance)}
                             </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
-                              {formatPercent(catBalance / totalAssets)}
+                              {formatPercent((catBalance / totalAssets) * 100)}
                             </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">—</td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">{catTransactions}</td>
                           </tr>
                         )
                       }
-                      
-                      // Add account row
-                      acc.elements.push(
-                        <motion.tr
-                          key={accountName}
-                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                        >
-                          <td className="py-3 px-4 text-white font-medium">{accountName}</td>
-                          <td className="py-3 px-4 text-right font-bold text-green-400">
-                            {formatCurrency(accountData.balance)}
-                          </td>
-                          <td className="py-3 px-4 text-right text-gray-400">
-                            {formatPercent(accountData.balance / totalAssets)}
-                          </td>
-                          <td className="py-3 px-4 text-right text-gray-400">
-                            {getAccountType(accountName)}
-                          </td>
-                          <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
-                        </motion.tr>
-                      )
+
+                      // Add account row (only if category is expanded)
+                      if (expandedAssetCategories.has(currentCategory)) {
+                        acc.elements.push(
+                          <motion.tr
+                            key={accountName}
+                            className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                          >
+                            <td className="py-3 pl-10 pr-4 text-white font-medium">{accountName}</td>
+                            <td className="py-3 px-4 text-right font-bold text-green-400">
+                              {formatCurrency(accountData.balance)}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400">
+                              {formatPercent((accountData.balance / totalAssets) * 100)}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400">
+                              {getAccountType(accountName)}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
+                          </motion.tr>
+                        )
+                      }
                       
                       return acc
                     }, { elements: [] as React.ReactNode[], categoryTotals: {} as Record<string, { balance: number; transactions: number }> }).elements}
@@ -523,41 +589,55 @@ export default function NetWorthPage() {
                         const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
                         
                         acc.elements.push(
-                          <tr key={`header-${currentCategory}`} className="bg-white/5">
-                            <td className="py-2 px-4 text-sm font-semibold text-primary">{currentCategory}</td>
+                          <tr
+                            key={`header-${currentCategory}`}
+                            className="bg-white/5 cursor-pointer hover:bg-white/8 transition-colors"
+                            onClick={() => toggleCategory(setExpandedLiabilityCategories, currentCategory)}
+                          >
+                            <td className="py-2 px-4 text-sm font-semibold text-primary">
+                              <span className="flex items-center gap-2">
+                                {expandedLiabilityCategories.has(currentCategory)
+                                  ? <ChevronDown className="w-4 h-4" />
+                                  : <ChevronRight className="w-4 h-4" />}
+                                {currentCategory}
+                                <span className="text-xs text-gray-500 font-normal">({categoryAccounts.length})</span>
+                              </span>
+                            </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-red-400/70">
                               {formatCurrency(catBalance)}
                             </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
-                              {formatPercent(catBalance / totalLiabilities)}
+                              {formatPercent((catBalance / totalLiabilities) * 100)}
                             </td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">—</td>
                             <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">{catTransactions}</td>
                           </tr>
                         )
                       }
-                      
-                      // Add account row
-                      acc.elements.push(
-                        <motion.tr
-                          key={accountName}
-                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                        >
-                          <td className="py-3 px-4 text-white font-medium">{accountName}</td>
-                          <td className="py-3 px-4 text-right font-bold text-red-400">
-                            {formatCurrency(Math.abs(accountData.balance))}
-                          </td>
-                          <td className="py-3 px-4 text-right text-gray-400">
-                            {formatPercent(Math.abs(accountData.balance) / totalLiabilities)}
-                          </td>
-                          <td className="py-3 px-4 text-right text-gray-400">
-                            {getAccountType(accountName)}
-                          </td>
-                          <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
-                        </motion.tr>
-                      )
+
+                      // Add account row (only if category is expanded)
+                      if (expandedLiabilityCategories.has(currentCategory)) {
+                        acc.elements.push(
+                          <motion.tr
+                            key={accountName}
+                            className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                          >
+                            <td className="py-3 pl-10 pr-4 text-white font-medium">{accountName}</td>
+                            <td className="py-3 px-4 text-right font-bold text-red-400">
+                              {formatCurrency(Math.abs(accountData.balance))}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400">
+                              {formatPercent((Math.abs(accountData.balance) / totalLiabilities) * 100)}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400">
+                              {getAccountType(accountName)}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
+                          </motion.tr>
+                        )
+                      }
                       
                       return acc
                     }, { elements: [] as React.ReactNode[], categoryTotals: {} as Record<string, { balance: number; transactions: number }> }).elements}

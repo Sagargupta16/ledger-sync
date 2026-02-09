@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, PieChart, DollarSign, LineChart } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+import { type AnalyticsViewMode, getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
 
 // 4 Investment Categories with colors
@@ -314,6 +316,26 @@ export default function InvestmentAnalyticsPage() {
     return chartData
   }, [transactions, investmentAccounts, accountToCategory])
 
+  // Time filter state for growth chart
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month ?? 4
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('all_time')
+  const [currentYear, setCurrentYear] = useState(getCurrentYear)
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth)
+  const [currentFY, setCurrentFY] = useState(() => getCurrentFY(fiscalYearStartMonth))
+
+  const dateRange = useMemo(
+    () => getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth),
+    [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth]
+  )
+
+  const filteredGrowthData = useMemo(() => {
+    if (!dateRange.start_date || !dateRange.end_date) return monthlyGrowthData
+    return monthlyGrowthData.filter((item) => {
+      const monthDate = item.fullMonth as string
+      return monthDate >= dateRange.start_date!.substring(0, 7) && monthDate <= dateRange.end_date!.substring(0, 7)
+    })
+  }, [monthlyGrowthData, dateRange])
+
   if (totalInvestmentValue === 0) {
     return (
       <div className="min-h-screen p-8">
@@ -338,7 +360,22 @@ export default function InvestmentAnalyticsPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <PageHeader title="Investment Analytics" subtitle="Monitor your investment portfolio performance" />
+        <PageHeader
+          title="Investment Analytics"
+          subtitle="Monitor your investment portfolio performance"
+          action={
+            <AnalyticsTimeFilter
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              currentYear={currentYear}
+              currentMonth={currentMonth}
+              currentFY={currentFY}
+              onYearChange={setCurrentYear}
+              onMonthChange={setCurrentMonth}
+              onFYChange={setCurrentFY}
+            />
+          }
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <motion.div
@@ -460,9 +497,9 @@ export default function InvestmentAnalyticsPage() {
             <div className="h-80 flex items-center justify-center">
               <div className="animate-pulse text-gray-400">Loading chart...</div>
             </div>
-          ) : monthlyGrowthData.length > 0 ? (
+          ) : filteredGrowthData.length > 0 ? (
             <ResponsiveContainer width="100%" height={400}>
-                <AreaChart data={monthlyGrowthData}>
+                <AreaChart data={filteredGrowthData}>
                   <defs>
                     {INVESTMENT_CATEGORIES.map((category) => (
                       <linearGradient key={`gradient-${category}`} id={`color-${category.replaceAll(/[\s/]/g, '-')}`} x1="0" y1="0" x2="0" y2="1">

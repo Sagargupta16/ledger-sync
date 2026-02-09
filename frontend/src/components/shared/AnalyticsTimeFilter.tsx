@@ -65,11 +65,11 @@ export default function AnalyticsTimeFilter({
       }
       case 'fy': {
         // Parse current FY and go to previous
-        const fyRegex = /FY(\d{4})-(\d{2})/
+        const fyRegex = /FY\s?(\d{4})-(\d{2})/
         const match = fyRegex.exec(currentFY)
         if (match) {
           const prevStartYear = Number.parseInt(match[1]) - 1
-          onFYChange(`FY${prevStartYear}-${String(prevStartYear + 1).slice(-2)}`)
+          onFYChange(`FY ${prevStartYear}-${String(prevStartYear + 1).slice(-2)}`)
         }
         break
       }
@@ -89,11 +89,11 @@ export default function AnalyticsTimeFilter({
       }
       case 'fy': {
         // Parse current FY and go to next
-        const fyRegex = /FY(\d{4})-(\d{2})/
+        const fyRegex = /FY\s?(\d{4})-(\d{2})/
         const match = fyRegex.exec(currentFY)
         if (match) {
           const nextStartYear = Number.parseInt(match[1]) + 1
-          onFYChange(`FY${nextStartYear}-${String(nextStartYear + 1).slice(-2)}`)
+          onFYChange(`FY ${nextStartYear}-${String(nextStartYear + 1).slice(-2)}`)
         }
         break
       }
