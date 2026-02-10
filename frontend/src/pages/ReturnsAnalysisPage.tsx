@@ -268,21 +268,24 @@ export default function ReturnsAnalysisPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <PageHeader title="Returns Analysis" subtitle="Analyze your investment returns over time" />
-
-        {/* Analytics Time Filter */}
-        <AnalyticsTimeFilter
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          currentYear={currentYear}
-          currentMonth={currentMonth}
-          currentFY={currentFY}
-          onYearChange={setCurrentYear}
-          onMonthChange={setCurrentMonth}
-          onFYChange={setCurrentFY}
-          minDate={dataDateRange.minDate}
-          maxDate={dataDateRange.maxDate}
-          fiscalYearStartMonth={fiscalYearStartMonth}
+        <PageHeader
+          title="Returns Analysis"
+          subtitle="Analyze your investment returns over time"
+          action={
+            <AnalyticsTimeFilter
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              currentYear={currentYear}
+              currentMonth={currentMonth}
+              currentFY={currentFY}
+              onYearChange={setCurrentYear}
+              onMonthChange={setCurrentMonth}
+              onFYChange={setCurrentFY}
+              minDate={dataDateRange.minDate}
+              maxDate={dataDateRange.maxDate}
+              fiscalYearStartMonth={fiscalYearStartMonth}
+            />
+          }
         />
 
         {/* P&L Stats Section */}

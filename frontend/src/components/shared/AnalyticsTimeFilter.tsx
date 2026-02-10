@@ -167,6 +167,35 @@ export default function AnalyticsTimeFilter({
 
   return (
     <div className="flex flex-col sm:flex-row items-center gap-4">
+      {/* Period Navigation — LEFT of the mode selector */}
+      {showNavigation && (
+        <div className="flex items-center gap-2">
+          <motion.button
+            onClick={handlePrevious}
+            disabled={!canGoPrev}
+            className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            whileTap={canGoPrev ? { scale: 0.95 } : undefined}
+            aria-label="Previous period"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </motion.button>
+
+          <span className="text-white font-medium min-w-36 text-center">
+            {periodLabel}
+          </span>
+
+          <motion.button
+            onClick={handleNext}
+            disabled={!canGoNext}
+            className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            whileTap={canGoNext ? { scale: 0.95 } : undefined}
+            aria-label="Next period"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </motion.button>
+        </div>
+      )}
+
       {/* View Mode Selector */}
       <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">
         {viewModes.map((mode) => (
@@ -195,35 +224,6 @@ export default function AnalyticsTimeFilter({
           </motion.button>
         ))}
       </div>
-
-      {/* Period Navigation */}
-      {showNavigation && (
-        <div className="flex items-center gap-2">
-          <motion.button
-            onClick={handlePrevious}
-            disabled={!canGoPrev}
-            className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-            whileTap={canGoPrev ? { scale: 0.95 } : undefined}
-            aria-label="Previous period"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </motion.button>
-
-          <span className="text-white font-medium min-w-36 text-center">
-            {periodLabel}
-          </span>
-
-          <motion.button
-            onClick={handleNext}
-            disabled={!canGoNext}
-            className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-            whileTap={canGoNext ? { scale: 0.95 } : undefined}
-            aria-label="Next period"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </motion.button>
-        </div>
-      )}
     </div>
   )
 }

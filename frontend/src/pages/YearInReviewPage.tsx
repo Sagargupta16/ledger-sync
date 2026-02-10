@@ -12,10 +12,14 @@ import {
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
+import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { usePreferencesStore } from '@/store/preferencesStore'
 import StatCard from '@/pages/year-in-review/StatCard'
 import InsightRow from '@/pages/year-in-review/InsightRow'
 import DayOfWeekChart, { type DayCell } from '@/pages/year-in-review/DayOfWeekChart'
@@ -69,24 +73,52 @@ const modeAccent: Record<HeatmapMode, string> = {
 // ─── Main Component ─────────────────────────────────────────────────
 export default function YearInReviewPage() {
   const { data: transactions = [] } = useTransactions()
+  const { data: preferences } = usePreferences()
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
+  const { displayPreferences } = usePreferencesStore()
 
   const [mode, setMode] = useState<HeatmapMode>('expense')
-  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear())
   const [hoveredDay, setHoveredDay] = useState<DayCell | null>(null)
 
-  // ── Available years ──────────────────────────────────────────
-  const availableYears = useMemo(() => {
-    const years = new Set<number>()
-    for (const tx of transactions) {
-      years.add(new Date(tx.date).getFullYear())
-    }
-    if (years.size === 0) years.add(new Date().getFullYear())
-    return Array.from(years).sort((a, b) => b - a)
+  // Time filter state — same as all other analytics pages
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
+    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'yearly'
+  )
+  const [currentYear, setCurrentYear] = useState(getCurrentYear())
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
+  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
+
+  // Get date range based on current filter
+  const dateRange = useMemo(() => {
+    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
+  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
+
+  const dataDateRange = useMemo(() => {
+    if (transactions.length === 0) return { minDate: undefined, maxDate: undefined }
+    const dates = transactions.map(t => t.date.substring(0, 10)).sort()
+    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
   }, [transactions])
+
+  // Derive the year to render the heatmap grid for
+  const selectedYear = useMemo(() => {
+    switch (viewMode) {
+      case 'yearly':
+        return currentYear
+      case 'fy': {
+        // Use the FY start year for the grid
+        const match = /FY\s?(\d{4})-(\d{2})/.exec(currentFY)
+        return match ? Number.parseInt(match[1]) : currentYear
+      }
+      case 'monthly':
+        return Number.parseInt(currentMonth.substring(0, 4))
+      default:
+        return currentYear
+    }
+  }, [viewMode, currentYear, currentFY, currentMonth])
 
   // ── Build 365-day grid ───────────────────────────────────────
   const { grid, maxExpense, maxIncome, maxNet, monthLabels } = useMemo(() => {
-    // Aggregate spending and income per day
+    // Aggregate spending and income per day (filtered by date range)
     const dayExpenses: Record<string, number> = {}
     const dayIncomes: Record<string, number> = {}
 
@@ -94,6 +126,12 @@ export default function YearInReviewPage() {
       const d = tx.date.substring(0, 10)
       const year = Number.parseInt(d.substring(0, 4))
       if (year !== selectedYear) continue
+
+      // Apply date range filter for FY/monthly modes
+      if (dateRange.start_date) {
+        const txDate = getDateKey(tx.date)
+        if (txDate < dateRange.start_date || (dateRange.end_date && txDate > dateRange.end_date)) continue
+      }
 
       if (tx.type === 'Expense') {
         dayExpenses[d] = (dayExpenses[d] || 0) + Math.abs(tx.amount)
@@ -156,7 +194,7 @@ export default function YearInReviewPage() {
     }
 
     return { grid: cells, maxExpense: mxE, maxIncome: mxI, maxNet: mxN, monthLabels: labels }
-  }, [transactions, selectedYear])
+  }, [transactions, selectedYear, dateRange])
 
   // Resolve the correct max based on mode
   const modeMaxMap: Record<HeatmapMode, number> = { expense: maxExpense, income: maxIncome, net: maxNet }
@@ -238,16 +276,19 @@ export default function YearInReviewPage() {
         subtitle="Your annual financial highlights and insights"
         action={
           <div className="flex items-center gap-3">
-            {/* Year selector */}
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-white/10 text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
-            >
-              {availableYears.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+            <AnalyticsTimeFilter
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              currentYear={currentYear}
+              currentMonth={currentMonth}
+              currentFY={currentFY}
+              onYearChange={setCurrentYear}
+              onMonthChange={setCurrentMonth}
+              onFYChange={setCurrentFY}
+              minDate={dataDateRange.minDate}
+              maxDate={dataDateRange.maxDate}
+              fiscalYearStartMonth={fiscalYearStartMonth}
+            />
 
             {/* Mode Toggle */}
             <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">

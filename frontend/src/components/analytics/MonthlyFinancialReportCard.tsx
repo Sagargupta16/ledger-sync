@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { ClipboardCheck } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 
 type Grade = 'A' | 'B' | 'C' | 'D' | 'F'

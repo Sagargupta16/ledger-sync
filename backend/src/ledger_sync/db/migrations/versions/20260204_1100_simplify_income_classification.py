@@ -104,16 +104,14 @@ def upgrade() -> None:
 
         # Update with migrated data
         connection.execute(
-            sa.text(
-                """
+            sa.text("""
                 UPDATE user_preferences
                 SET taxable_income_categories = :taxable,
                     investment_returns_categories = :investment,
                     non_taxable_income_categories = :non_taxable,
                     other_income_categories = :other
                 WHERE id = :id
-            """
-            ),
+            """),
             {
                 "id": row.id,
                 "taxable": (

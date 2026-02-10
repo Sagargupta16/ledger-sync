@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from enum import Enum as PyEnum
+from enum import StrEnum as PyEnum
 
 from sqlalchemy import (
     Boolean,
@@ -71,7 +71,7 @@ class User(Base):
 # is intentional legacy and must be preserved for backwards compatibility.
 
 
-class TransactionType(str, PyEnum):
+class TransactionType(PyEnum):
     """Transaction type enumeration."""
 
     EXPENSE = "Expense"
@@ -79,7 +79,7 @@ class TransactionType(str, PyEnum):
     TRANSFER = "Transfer"
 
 
-class AnomalyType(str, PyEnum):
+class AnomalyType(PyEnum):
     """Anomaly type enumeration."""
 
     HIGH_EXPENSE = "high_expense"
@@ -90,7 +90,7 @@ class AnomalyType(str, PyEnum):
     BUDGET_EXCEEDED = "budget_exceeded"
 
 
-class RecurrenceFrequency(str, PyEnum):
+class RecurrenceFrequency(PyEnum):
     """Recurring transaction frequency."""
 
     DAILY = "daily"
@@ -101,7 +101,7 @@ class RecurrenceFrequency(str, PyEnum):
     YEARLY = "yearly"
 
 
-class GoalStatus(str, PyEnum):
+class GoalStatus(PyEnum):
     """Goal status enumeration."""
 
     ACTIVE = "active"
@@ -171,7 +171,7 @@ class Transaction(Base):
         )
 
 
-class AccountType(str, PyEnum):
+class AccountType(PyEnum):
     """Account type enumeration."""
 
     CASH = "Cash"
@@ -1058,21 +1058,13 @@ class UserPreferences(Base):
     )
 
     # ===== 9. Spending Rule Targets (Needs/Wants/Savings) =====
-    needs_target_percent: Mapped[float] = mapped_column(
-        Float, nullable=False, default=50.0
-    )
-    wants_target_percent: Mapped[float] = mapped_column(
-        Float, nullable=False, default=30.0
-    )
-    savings_target_percent: Mapped[float] = mapped_column(
-        Float, nullable=False, default=20.0
-    )
+    needs_target_percent: Mapped[float] = mapped_column(Float, nullable=False, default=50.0)
+    wants_target_percent: Mapped[float] = mapped_column(Float, nullable=False, default=30.0)
+    savings_target_percent: Mapped[float] = mapped_column(Float, nullable=False, default=20.0)
 
     # ===== 10. Credit Card Limits =====
     # JSON object: { "card_name": limit_amount }
-    credit_card_limits: Mapped[str] = mapped_column(
-        Text, nullable=False, default="{}"
-    )
+    credit_card_limits: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
 
     # ===== 11. Earning Start Date =====
     earning_start_date: Mapped[str | None] = mapped_column(String(10), nullable=True, default=None)

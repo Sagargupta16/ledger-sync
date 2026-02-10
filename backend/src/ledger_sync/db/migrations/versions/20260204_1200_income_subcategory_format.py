@@ -58,15 +58,13 @@ def upgrade() -> None:
 
     # Update existing data to new subcategory format
     connection.execute(
-        sa.text(
-            """
+        sa.text("""
             UPDATE user_preferences
             SET taxable_income_categories = :taxable,
                 investment_returns_categories = :investment,
                 non_taxable_income_categories = :non_taxable,
                 other_income_categories = :other
-        """
-        ),
+        """),
         {
             "taxable": json.dumps(TAXABLE_DEFAULTS),
             "investment": json.dumps(INVESTMENT_DEFAULTS),
@@ -82,15 +80,13 @@ def downgrade() -> None:
 
     # Revert to category-level format
     connection.execute(
-        sa.text(
-            """
+        sa.text("""
             UPDATE user_preferences
             SET taxable_income_categories = :taxable,
                 investment_returns_categories = :investment,
                 non_taxable_income_categories = :non_taxable,
                 other_income_categories = :other
-        """
-        ),
+        """),
         {
             "taxable": '["Employment Income", "Business/Self Employment Income"]',
             "investment": '["Investment Income"]',

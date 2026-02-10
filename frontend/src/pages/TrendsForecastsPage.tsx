@@ -1,16 +1,17 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus, Wallet, PiggyBank, CreditCard, LineChart, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useTrends } from '@/hooks/useAnalytics'
-import { ResponsiveContainer, ComposedChart, Line, Bar, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
-import { getApiTimeRangeDateBounds, filterTransactionsByDateRange } from '@/lib/dateUtils'
+import { ResponsiveContainer, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { useState, useMemo } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent, formatPeriod, formatDateTick } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
+import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { useTransactions } from '@/hooks/api/useTransactions'
-
-import type { TimeRange } from '@/types'
+import { usePreferences } from '@/hooks/api/usePreferences'
+import { usePreferencesStore } from '@/store/preferencesStore'
 
 interface TrendMetrics {
   current: number
@@ -24,9 +25,46 @@ interface TrendMetrics {
 }
 
 export default function TrendsForecastsPage() {
-  const [timeRange, setTimeRange] = useState<TimeRange>('all_time')
-  const { data: trendsData, isLoading } = useTrends(timeRange)
+  const { data: preferences } = usePreferences()
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
+  const { displayPreferences } = usePreferencesStore()
+
+  // Time filter state — same as all other analytics pages
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
+    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'fy'
+  )
+  const [currentYear, setCurrentYear] = useState(getCurrentYear())
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
+  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
+
+  // Fetch all trends data; filter client-side by date range
+  const { data: trendsData, isLoading } = useTrends('all_time')
   const { data: allTransactions = [] } = useTransactions()
+
+  // Get date range based on current filter
+  const dateRange = useMemo(() => {
+    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
+  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
+
+  const dataDateRange = useMemo(() => {
+    if (!allTransactions || allTransactions.length === 0) return { minDate: undefined, maxDate: undefined }
+    const dates = allTransactions.map(t => t.date.substring(0, 10)).sort()
+    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
+  }, [allTransactions])
+
+  // Filter monthly trends by the selected date range
+  const filteredMonthlyTrends = useMemo(() => {
+    if (!trendsData?.monthly_trends) return []
+    if (!dateRange.start_date) return trendsData.monthly_trends
+
+    return trendsData.monthly_trends.filter((t) => {
+      // monthly_trends have a 'month' field like "2024-01" — compare as YYYY-MM
+      const monthStart = `${t.month}-01`
+      if (dateRange.start_date && monthStart < dateRange.start_date.substring(0, 10)) return false
+      if (dateRange.end_date && monthStart > dateRange.end_date.substring(0, 10)) return false
+      return true
+    })
+  }, [trendsData, dateRange])
 
   // Calculate comprehensive trend metrics
   const metrics = useMemo(() => {
@@ -41,7 +79,7 @@ export default function TrendsForecastsPage() {
       lowest: 0,
     }
 
-    if (!trendsData?.monthly_trends || trendsData.monthly_trends.length < 1) {
+    if (!filteredMonthlyTrends || filteredMonthlyTrends.length < 1) {
       return {
         spending: defaultMetrics,
         income: defaultMetrics,
@@ -49,7 +87,7 @@ export default function TrendsForecastsPage() {
       }
     }
 
-    const trends = trendsData.monthly_trends
+    const trends = filteredMonthlyTrends
     const latest = trends.at(-1)!
     const previous = trends.length > 1 ? trends.at(-2)! : latest
 
@@ -105,13 +143,13 @@ export default function TrendsForecastsPage() {
         lowest: Math.min(...surpluses),
       },
     }
-  }, [trendsData])
+  }, [filteredMonthlyTrends])
 
   // Prepare chart data for individual trend lines
   const chartData = useMemo(() => {
-    if (!trendsData?.monthly_trends) return []
-    
-    const rawData = trendsData.monthly_trends.map((t, index, arr) => {
+    if (!filteredMonthlyTrends.length) return []
+
+    const rawData = filteredMonthlyTrends.map((t, index, arr) => {
       const prev = index > 0 ? arr[index - 1] : t
       const rawSavingsRate = t.income > 0 ? (t.surplus / t.income) * 100 : 0
       return {
@@ -125,17 +163,25 @@ export default function TrendsForecastsPage() {
     })
 
     return rawData
-  }, [trendsData])
+  }, [filteredMonthlyTrends])
+
+  // Filter transactions by the selected date range
+  const filteredTransactions = useMemo(() => {
+    if (!allTransactions.length) return []
+    if (!dateRange.start_date) return allTransactions
+
+    return allTransactions.filter((t) => {
+      const txDate = getDateKey(t.date)
+      return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
+    })
+  }, [allTransactions, dateRange])
 
   // Daily cumulative savings rate data
   const dailySavingsData = useMemo(() => {
-    if (!allTransactions.length) return []
-
-    const bounds = getApiTimeRangeDateBounds(timeRange)
-    const filtered = filterTransactionsByDateRange(allTransactions, bounds)
+    if (!filteredTransactions.length) return []
 
     const dailyMap: Record<string, { income: number; expense: number }> = {}
-    for (const tx of filtered) {
+    for (const tx of filteredTransactions) {
       const day = tx.date.substring(0, 10)
       if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
       if (tx.type === 'Income') dailyMap[day].income += tx.amount
@@ -156,16 +202,14 @@ export default function TrendsForecastsPage() {
         rawSavingsRate: savingsRate,
       }
     })
-  }, [allTransactions, timeRange])
+  }, [filteredTransactions])
 
   // Daily income/expense/savings data for the overview chart
   const dailyTrendData = useMemo(() => {
-    if (!allTransactions.length) return []
-    const bounds = getApiTimeRangeDateBounds(timeRange)
-    const filtered = filterTransactionsByDateRange(allTransactions, bounds)
+    if (!filteredTransactions.length) return []
 
     const dailyMap: Record<string, { income: number; expense: number }> = {}
-    for (const tx of filtered) {
+    for (const tx of filteredTransactions) {
       const day = tx.date.substring(0, 10)
       if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
       if (tx.type === 'Income') dailyMap[day].income += tx.amount
@@ -180,7 +224,7 @@ export default function TrendsForecastsPage() {
         expenses: expense,
         savings: income - expense,
       }))
-  }, [allTransactions, timeRange])
+  }, [filteredTransactions])
 
   const getTrendIcon = (direction: 'up' | 'down' | 'stable', isPositiveGood: boolean) => {
     if (direction === 'stable') return <Minus className="w-5 h-5 text-gray-400" />
@@ -203,37 +247,25 @@ export default function TrendsForecastsPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <PageHeader title="Trends & Forecasts" subtitle="Analyze patterns and predict future trends" />
-
-        {/* Time Range Filter */}
-        <motion.div className="flex gap-2 flex-wrap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-          {([
-            'last_3_months',
-            'last_6_months',
-            'last_12_months',
-            'this_year',
-            'last_year',
-            'all_time',
-          ] as TimeRange[]).map((range) => (
-            <button
-              key={range}
-              onClick={() => setTimeRange(range)}
-              type="button"
-              className={`px-4 py-2 rounded-lg transition-all ${
-                timeRange === range
-                  ? 'glass-strong text-purple-400 border border-purple-500/30'
-                  : 'glass text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              {range === 'last_3_months' && 'Last 3 Months'}
-              {range === 'last_6_months' && 'Last 6 Months'}
-              {range === 'last_12_months' && 'Last 12 Months'}
-              {range === 'this_year' && 'This Year'}
-              {range === 'last_year' && 'Last Year'}
-              {range === 'all_time' && 'All Time'}
-            </button>
-          ))}
-        </motion.div>
+        <PageHeader
+          title="Trends & Forecasts"
+          subtitle="Analyze patterns and predict future trends"
+          action={
+            <AnalyticsTimeFilter
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              currentYear={currentYear}
+              currentMonth={currentMonth}
+              currentFY={currentFY}
+              onYearChange={setCurrentYear}
+              onMonthChange={setCurrentMonth}
+              onFYChange={setCurrentFY}
+              minDate={dataDateRange.minDate}
+              maxDate={dataDateRange.maxDate}
+              fiscalYearStartMonth={fiscalYearStartMonth}
+            />
+          }
+        />
 
         {/* Trend Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

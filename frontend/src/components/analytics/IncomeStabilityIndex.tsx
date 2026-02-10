@@ -114,9 +114,9 @@ export default function IncomeStabilityIndex() {
               />
               <Tooltip
                 {...chartTooltipProps}
-                formatter={(value: number, _name: string, entry: { payload: { name: string; mean: number } }) => [
-                  `${value}/100 — Avg: ${formatCurrency(entry.payload.mean)}/mo`,
-                  entry.payload.name,
+                formatter={(value: number | undefined, _name: string | undefined, entry: { payload?: { name: string; mean: number } }) => [
+                  `${value ?? 0}/100 — Avg: ${formatCurrency(entry.payload?.mean ?? 0)}/mo`,
+                  entry.payload?.name ?? '',
                 ]}
               />
               <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={20}>

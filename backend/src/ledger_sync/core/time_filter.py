@@ -1,12 +1,12 @@
 """Time filtering utilities for transaction data."""
 
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 
 from ledger_sync.db.models import Transaction
 
 
-class TimeRange(str, Enum):
+class TimeRange(StrEnum):
     """Time range filter options."""
 
     ALL_TIME = "all_time"

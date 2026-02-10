@@ -378,7 +378,10 @@ class Reconciler:
         seen_in_batch[base_id] = occurrence + 1
 
         _, action = self.reconcile_transaction(
-            row, source_file, import_time, occurrence=occurrence,
+            row,
+            source_file,
+            import_time,
+            occurrence=occurrence,
         )
 
         stats.processed += 1

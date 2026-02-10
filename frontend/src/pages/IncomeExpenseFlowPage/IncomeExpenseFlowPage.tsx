@@ -8,6 +8,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { usePreferencesStore } from '@/store/preferencesStore'
+import { PageHeader } from '@/components/ui'
 
 const IncomeExpenseFlowPage = () => {
   const { data: allTransactions = [], isLoading } = useTransactions()
@@ -167,32 +168,24 @@ const IncomeExpenseFlowPage = () => {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
-            Income-Expense Flow
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Visualize how your income flows into savings and expenses
-          </p>
-        </motion.div>
-
-        {/* Analytics Time Filter */}
-        <AnalyticsTimeFilter
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          currentYear={currentYear}
-          currentMonth={currentMonth}
-          currentFY={currentFY}
-          onYearChange={setCurrentYear}
-          onMonthChange={setCurrentMonth}
-          onFYChange={setCurrentFY}
-          minDate={dataDateRange.minDate}
-          maxDate={dataDateRange.maxDate}
-          fiscalYearStartMonth={fiscalYearStartMonth}
+        <PageHeader
+          title="Income-Expense Flow"
+          subtitle="Visualize how your income flows into savings and expenses"
+          action={
+            <AnalyticsTimeFilter
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              currentYear={currentYear}
+              currentMonth={currentMonth}
+              currentFY={currentFY}
+              onYearChange={setCurrentYear}
+              onMonthChange={setCurrentMonth}
+              onFYChange={setCurrentFY}
+              minDate={dataDateRange.minDate}
+              maxDate={dataDateRange.maxDate}
+              fiscalYearStartMonth={fiscalYearStartMonth}
+            />
+          }
         />
 
       {/* Summary Cards */}

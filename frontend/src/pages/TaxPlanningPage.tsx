@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { classifyIncomeType } from '@/lib/preferencesUtils'
+import { formatCurrency } from '@/lib/formatters'
 import {
   FY_START_MONTH,
   calculateTax,
@@ -14,7 +16,6 @@ import {
   parseFYStartYear,
 } from '@/lib/taxCalculator'
 import { PageHeader } from '@/components/ui'
-import FYNavigator from '@/components/analytics/FYNavigator'
 import TaxSummaryCards from '@/components/analytics/TaxSummaryCards'
 import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
 import TaxSummaryGrid from '@/components/analytics/TaxSummaryGrid'
@@ -285,24 +286,59 @@ export default function TaxPlanningPage() {
         <motion.div variants={fadeUpItem}>
           <PageHeader
             title="Tax Planning"
-            subtitle="Estimate your tax liability and plan ahead"
-          />
-        </motion.div>
+            subtitle={`Estimate your tax liability and plan ahead${isNewRegime ? ' — New Tax Regime (2025-26 onwards)' : ' — Old Tax Regime (Before 2025-26)'}`}
+            action={
+              <div className="flex items-center gap-4">
+                {/* Year-End Projection Toggle — LEFT */}
+                {isCurrentFY && hasEmploymentIncome && (
+                  <div className="flex flex-col items-end gap-1">
+                    <button
+                      onClick={() => setShowProjection(!showProjection)}
+                      type="button"
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                        showProjection
+                          ? 'bg-primary text-white shadow-lg shadow-primary/50'
+                          : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-white/10'
+                      }`}
+                    >
+                      {showProjection ? 'Showing Projection' : 'Year-End Projection'}
+                    </button>
+                    {showProjection && remainingMonths > 0 && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        +{remainingMonths} mo @ {formatCurrency(avgMonthlySalary)}/mo
+                      </span>
+                    )}
+                  </div>
+                )}
 
-        <motion.div variants={fadeUpItem}>
-          <FYNavigator
-            selectedFY={selectedFY}
-            isNewRegime={isNewRegime}
-            isCurrentFY={isCurrentFY}
-            hasEmploymentIncome={hasEmploymentIncome}
-            showProjection={showProjection}
-            onToggleProjection={() => setShowProjection(!showProjection)}
-            remainingMonths={remainingMonths}
-            avgMonthlySalary={avgMonthlySalary}
-            canGoBack={canGoBack}
-            canGoForward={canGoForward}
-            onGoBack={goToPreviousFY}
-            onGoForward={goToNextFY}
+                {/* FY Navigation — RIGHT */}
+                <div className="flex items-center gap-2">
+                  <motion.button
+                    onClick={goToPreviousFY}
+                    disabled={!canGoBack}
+                    className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                    whileTap={canGoBack ? { scale: 0.95 } : undefined}
+                    aria-label="Previous FY"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </motion.button>
+
+                  <span className="text-white font-medium min-w-28 text-center">
+                    {selectedFY || 'Select FY'}
+                  </span>
+
+                  <motion.button
+                    onClick={goToNextFY}
+                    disabled={!canGoForward}
+                    className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                    whileTap={canGoForward ? { scale: 0.95 } : undefined}
+                    aria-label="Next FY"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </motion.button>
+                </div>
+              </div>
+            }
           />
         </motion.div>
 

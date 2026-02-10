@@ -100,7 +100,7 @@ export default function SavingsMilestonesTimeline() {
                 labelFormatter={(label) =>
                   new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
                 }
-                formatter={(value: number) => [formatCurrency(value), 'Cumulative Savings']}
+                formatter={(value: number | undefined) => [formatCurrency(value ?? 0), 'Cumulative Savings']}
               />
               {/* Milestone reference lines */}
               {relevantMilestones.map((m) => (

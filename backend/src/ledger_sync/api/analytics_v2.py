@@ -14,7 +14,6 @@ from sqlalchemy import desc
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import (
-    User,
     Anomaly,
     Budget,
     CategoryTrend,
@@ -25,6 +24,7 @@ from ledger_sync.db.models import (
     NetWorthSnapshot,
     RecurringTransaction,
     TransferFlow,
+    User,
 )
 
 router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
@@ -473,12 +473,19 @@ def get_anomalies(
     current_user: CurrentUser,
     db: DatabaseSession,
     anomaly_type: Annotated[
-        str | None, Query(alias="type", description="Filter by anomaly type (high_expense/unusual_category/large_transfer/budget_exceeded)")
+        str | None,
+        Query(
+            alias="type",
+            description="Filter by anomaly type "
+            "(high_expense/unusual_category/large_transfer/budget_exceeded)",
+        ),
     ] = None,
     severity: Annotated[
         str | None, Query(description="Filter by severity (low/medium/high/critical)")
     ] = None,
-    include_reviewed: Annotated[bool, Query(description="Include reviewed/dismissed anomalies")] = False,
+    include_reviewed: Annotated[
+        bool, Query(description="Include reviewed/dismissed anomalies")
+    ] = False,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> dict[str, Any]:
     """Get detected anomalies and unusual patterns.
