@@ -30,15 +30,15 @@ export const analyticsV2Keys = {
   categoryTrends: (filters?: { category?: string; subcategory?: string }) =>
     [...analyticsV2Keys.all, 'category-trends', filters] as const,
   transferFlows: () => [...analyticsV2Keys.all, 'transfer-flows'] as const,
-  recurringTransactions: (filters?: { confirmed_only?: boolean; active_only?: boolean }) =>
+  recurringTransactions: (filters?: { active_only?: boolean; min_confidence?: number }) =>
     [...analyticsV2Keys.all, 'recurring-transactions', filters] as const,
-  merchantIntelligence: (filters?: { category?: string; min_transactions?: number }) =>
+  merchantIntelligence: (filters?: { min_transactions?: number; recurring_only?: boolean }) =>
     [...analyticsV2Keys.all, 'merchant-intelligence', filters] as const,
   netWorth: () => [...analyticsV2Keys.all, 'net-worth'] as const,
   fySummaries: () => [...analyticsV2Keys.all, 'fy-summaries'] as const,
   anomalies: (filters?: { type?: string; severity?: string; include_reviewed?: boolean }) =>
     [...analyticsV2Keys.all, 'anomalies', filters] as const,
-  budgets: (filters?: { year?: number; month?: number; category?: string }) =>
+  budgets: (filters?: { active_only?: boolean }) =>
     [...analyticsV2Keys.all, 'budgets', filters] as const,
   goals: (filters?: { goal_type?: string; include_achieved?: boolean }) =>
     [...analyticsV2Keys.all, 'goals', filters] as const,
@@ -78,15 +78,15 @@ export function useTransferFlows(params?: { limit?: number; offset?: number }) {
 
 // Recurring Transactions
 export function useRecurringTransactions(params?: {
-  confirmed_only?: boolean
   active_only?: boolean
+  min_confidence?: number
   limit?: number
   offset?: number
 }) {
   return useQuery<RecurringTransaction[], Error>({
     queryKey: analyticsV2Keys.recurringTransactions({
-      confirmed_only: params?.confirmed_only,
       active_only: params?.active_only,
+      min_confidence: params?.min_confidence,
     }),
     queryFn: () => analyticsV2Service.getRecurringTransactions(params),
     staleTime: STABLE_STALE_TIME,
@@ -95,15 +95,15 @@ export function useRecurringTransactions(params?: {
 
 // Merchant Intelligence
 export function useMerchantIntelligence(params?: {
-  category?: string
   min_transactions?: number
+  recurring_only?: boolean
   limit?: number
   offset?: number
 }) {
   return useQuery<MerchantIntelligence[], Error>({
     queryKey: analyticsV2Keys.merchantIntelligence({
-      category: params?.category,
       min_transactions: params?.min_transactions,
+      recurring_only: params?.recurring_only,
     }),
     queryFn: () => analyticsV2Service.getMerchantIntelligence(params),
     staleTime: STABLE_STALE_TIME,
@@ -160,7 +160,7 @@ export function useReviewAnomaly() {
 }
 
 // Budgets
-export function useBudgets(params?: { year?: number; month?: number; category?: string }) {
+export function useBudgets(params?: { active_only?: boolean }) {
   return useQuery<Budget[], Error>({
     queryKey: analyticsV2Keys.budgets(params),
     queryFn: () => analyticsV2Service.getBudgets(params),
@@ -175,11 +175,8 @@ export function useCreateBudget() {
     mutationFn: (data: {
       category: string
       subcategory?: string
-      year: number
-      month: number
-      budgeted_amount: number
+      monthly_limit: number
       alert_threshold?: number
-      notes?: string
     }) => analyticsV2Service.createBudget(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: analyticsV2Keys.budgets() })

@@ -472,8 +472,8 @@ def get_fy_summaries(
 def get_anomalies(
     current_user: CurrentUser,
     db: DatabaseSession,
-    type: Annotated[
-        str | None, Query(description="Filter by anomaly type (high_expense/unusual_category/large_transfer/budget_exceeded)")
+    anomaly_type: Annotated[
+        str | None, Query(alias="type", description="Filter by anomaly type (high_expense/unusual_category/large_transfer/budget_exceeded)")
     ] = None,
     severity: Annotated[
         str | None, Query(description="Filter by severity (low/medium/high/critical)")
@@ -495,8 +495,8 @@ def get_anomalies(
         .order_by(desc(Anomaly.detected_at))
     )
 
-    if type:
-        query = query.filter(Anomaly.anomaly_type == type)
+    if anomaly_type:
+        query = query.filter(Anomaly.anomaly_type == anomaly_type)
     if severity:
         query = query.filter(Anomaly.severity == severity)
     if not include_reviewed:
@@ -522,7 +522,6 @@ def get_anomalies(
                 "is_dismissed": a.is_dismissed,
                 "review_notes": a.review_notes,
                 "reviewed_at": a.reviewed_at.isoformat() if a.reviewed_at else None,
-                "created_at": a.created_at.isoformat() if a.created_at else None,
             }
             for a in anomalies
         ],

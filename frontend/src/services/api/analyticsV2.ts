@@ -16,145 +16,150 @@
 
 import { apiClient } from './client'
 
-// Types
+// Types — these match the actual JSON shapes returned by the backend API
 
 export interface MonthlySummary {
-  id: number
+  period: string
   year: number
   month: number
-  period_key: string
-  total_income: number
-  salary_income: number
-  investment_income: number
-  other_income: number
-  total_expenses: number
-  essential_expenses: number
-  discretionary_expenses: number
-  net_savings: number
-  savings_rate: number
-  total_transfers_out: number
-  total_transfers_in: number
-  net_investment_flow: number
-  income_count: number
-  expense_count: number
-  transfer_count: number
-  mom_income_change: number | null
-  mom_expense_change: number | null
-  created_at: string
+  income: {
+    total: number
+    salary: number
+    investment: number
+    other: number
+    count: number
+    change_pct: number | null
+  }
+  expenses: {
+    total: number
+    essential: number
+    discretionary: number
+    count: number
+    change_pct: number | null
+  }
+  transfers: {
+    out: number
+    in: number
+    net_investment: number
+    count: number
+  }
+  savings: {
+    net: number
+    rate: number
+  }
+  expense_ratio: number
+  total_transactions: number
+  last_calculated: string | null
 }
 
 export interface CategoryTrend {
-  id: number
+  period: string
   category: string
   subcategory: string | null
-  year: number
-  month: number
-  period_key: string
-  total_amount: number
-  transaction_count: number
-  avg_transaction: number
-  mom_change: number | null
-  yoy_change: number | null
-  pct_of_total: number | null
-  created_at: string
+  type: string | null
+  total: number
+  count: number
+  avg: number
+  max: number
+  min: number
+  pct_of_monthly: number | null
+  mom_change: number
+  mom_change_pct: number | null
 }
 
 export interface TransferFlow {
-  id: number
-  from_account: string
-  to_account: string
-  year: number
-  month: number
-  period_key: string
-  total_amount: number
-  transfer_count: number
-  avg_transfer: number
-  created_at: string
+  from: string
+  to: string
+  total: number
+  count: number
+  avg: number
+  last_date: string | null
+  last_amount: number | null
+  from_type: string | null
+  to_type: string | null
 }
 
 export interface RecurringTransaction {
   id: number
-  pattern_hash: string
-  description: string
-  amount: number
-  amount_variance: number
-  frequency: 'weekly' | 'bi_weekly' | 'monthly' | 'quarterly' | 'yearly'
+  name: string
   category: string
   subcategory: string | null
   account: string
-  first_occurrence: string
-  last_occurrence: string
-  occurrence_count: number
-  expected_next: string | null
-  confidence_score: number
+  type: string | null
+  frequency: string | null
+  expected_amount: number
+  variance: number
+  expected_day: number | null
+  confidence: number
+  occurrences: number
+  last_occurrence: string | null
+  next_expected: string | null
+  times_missed: number
   is_confirmed: boolean
-  is_active: boolean
-  notes: string | null
-  created_at: string
-  updated_at: string | null
 }
 
 export interface MerchantIntelligence {
-  id: number
-  merchant_name: string
-  normalized_name: string
+  merchant: string
   category: string
   subcategory: string | null
   total_spent: number
   transaction_count: number
   avg_transaction: number
-  first_transaction: string
-  last_transaction: string
-  frequency_days: number | null
-  is_subscription: boolean
-  typical_amount: number | null
-  created_at: string
-  updated_at: string | null
+  first_transaction: string | null
+  last_transaction: string | null
+  months_active: number | null
+  avg_days_between: number | null
+  is_recurring: boolean
 }
 
 export interface NetWorthSnapshot {
-  id: number
-  snapshot_date: string
-  cash_and_bank: number
-  investments: number
-  mutual_funds: number
-  stocks: number
-  fixed_deposits: number
-  ppf_epf: number
-  other_assets: number
-  credit_card_outstanding: number
-  loans_payable: number
-  other_liabilities: number
-  total_assets: number
-  total_liabilities: number
+  date: string
+  assets: {
+    cash_and_bank: number
+    investments: number
+    mutual_funds: number
+    stocks: number
+    fixed_deposits: number
+    ppf_epf: number
+    other: number
+    total: number
+  }
+  liabilities: {
+    credit_cards: number
+    loans: number
+    other: number
+    total: number
+  }
   net_worth: number
-  net_worth_change: number
-  net_worth_change_pct: number
-  source: string
-  created_at: string
+  change: number
+  change_pct: number | null
 }
 
 export interface FYSummary {
-  id: number
   fiscal_year: string
-  start_date: string
-  end_date: string
-  total_income: number
-  salary_income: number
-  bonus_income: number
-  investment_income: number
-  other_income: number
-  total_expenses: number
-  tax_paid: number
+  period: string
+  income: {
+    total: number
+    salary: number
+    bonus: number
+    investment: number
+    other: number
+  }
+  expenses: {
+    total: number
+    tax_paid: number
+  }
   investments_made: number
-  net_savings: number
-  savings_rate: number
-  effective_tax_rate: number | null
-  yoy_income_change: number | null
-  yoy_expense_change: number | null
-  yoy_savings_change: number | null
+  savings: {
+    net: number
+    rate: number
+  }
+  yoy: {
+    income: number | null
+    expenses: number | null
+    savings: number | null
+  }
   is_complete: boolean
-  created_at: string
 }
 
 export interface Anomaly {
@@ -172,25 +177,20 @@ export interface Anomaly {
   is_dismissed: boolean
   review_notes: string | null
   reviewed_at: string | null
-  created_at: string
 }
 
 export interface Budget {
   id: number
   category: string
   subcategory: string | null
-  year: number
-  month: number
-  period_key: string
-  budgeted_amount: number
-  spent_amount: number
-  remaining_amount: number
+  monthly_limit: number
+  current_spent: number
+  remaining: number
   usage_pct: number
-  is_exceeded: boolean
   alert_threshold: number
-  notes: string | null
-  created_at: string
-  updated_at: string | null
+  avg_actual: number
+  months_over: number
+  months_under: number
 }
 
 export interface FinancialGoal {
@@ -202,8 +202,6 @@ export interface FinancialGoal {
   progress_pct: number
   start_date: string
   target_date: string
-  category: string | null
-  account: string | null
   is_achieved: boolean
   achieved_date: string | null
   notes: string | null
@@ -222,7 +220,9 @@ interface WrappedResponse<T> {
 export const analyticsV2Service = {
   // Monthly Summaries
   async getMonthlySummaries(params?: { limit?: number; offset?: number }) {
-    const response = await apiClient.get<WrappedResponse<MonthlySummary>>('/analytics/v2/monthly-summaries', { params })
+    const response = await apiClient.get<WrappedResponse<MonthlySummary>>('/api/analytics/v2/monthly-summaries', {
+      params,
+    })
     return response.data.data
   },
 
@@ -233,51 +233,55 @@ export const analyticsV2Service = {
     limit?: number
     offset?: number
   }) {
-    const response = await apiClient.get<WrappedResponse<CategoryTrend>>('/analytics/v2/category-trends', { params })
+    const response = await apiClient.get<WrappedResponse<CategoryTrend>>('/api/analytics/v2/category-trends', {
+      params,
+    })
     return response.data.data
   },
 
   // Transfer Flows
   async getTransferFlows(params?: { limit?: number; offset?: number }) {
-    const response = await apiClient.get<WrappedResponse<TransferFlow>>('/analytics/v2/transfer-flows', { params })
+    const response = await apiClient.get<WrappedResponse<TransferFlow>>('/api/analytics/v2/transfer-flows', { params })
     return response.data.data
   },
 
   // Recurring Transactions
   async getRecurringTransactions(params?: {
-    confirmed_only?: boolean
     active_only?: boolean
+    min_confidence?: number
     limit?: number
     offset?: number
   }) {
-    const response = await apiClient.get<WrappedResponse<RecurringTransaction>>('/analytics/v2/recurring-transactions', {
-      params,
-    })
+    const response = await apiClient.get<WrappedResponse<RecurringTransaction>>(
+      '/api/analytics/v2/recurring-transactions',
+      { params },
+    )
     return response.data.data
   },
 
   // Merchant Intelligence
   async getMerchantIntelligence(params?: {
-    category?: string
     min_transactions?: number
+    recurring_only?: boolean
     limit?: number
     offset?: number
   }) {
-    const response = await apiClient.get<WrappedResponse<MerchantIntelligence>>('/analytics/v2/merchant-intelligence', {
-      params,
-    })
+    const response = await apiClient.get<WrappedResponse<MerchantIntelligence>>(
+      '/api/analytics/v2/merchant-intelligence',
+      { params },
+    )
     return response.data.data
   },
 
   // Net Worth
   async getNetWorthSnapshots(params?: { limit?: number; offset?: number }) {
-    const response = await apiClient.get<WrappedResponse<NetWorthSnapshot>>('/analytics/v2/net-worth', { params })
+    const response = await apiClient.get<WrappedResponse<NetWorthSnapshot>>('/api/analytics/v2/net-worth', { params })
     return response.data.data
   },
 
   // Fiscal Year Summaries
   async getFYSummaries(params?: { limit?: number; offset?: number }) {
-    const response = await apiClient.get<WrappedResponse<FYSummary>>('/analytics/v2/fy-summaries', { params })
+    const response = await apiClient.get<WrappedResponse<FYSummary>>('/api/analytics/v2/fy-summaries', { params })
     return response.data.data
   },
 
@@ -289,37 +293,36 @@ export const analyticsV2Service = {
     limit?: number
     offset?: number
   }) {
-    const response = await apiClient.get<WrappedResponse<Anomaly>>('/analytics/v2/anomalies', { params })
+    const response = await apiClient.get<WrappedResponse<Anomaly>>('/api/analytics/v2/anomalies', { params })
     return response.data.data
   },
 
   async reviewAnomaly(anomalyId: number, data: { dismiss: boolean; notes?: string }) {
-    const response = await apiClient.post<Anomaly>(`/analytics/v2/anomalies/${anomalyId}/review`, data)
+    const response = await apiClient.post(`/api/analytics/v2/anomalies/${anomalyId}/review`, null, {
+      params: data,
+    })
     return response.data
   },
 
   // Budgets
-  async getBudgets(params?: { year?: number; month?: number; category?: string }) {
-    const response = await apiClient.get<WrappedResponse<Budget>>('/analytics/v2/budgets', { params })
+  async getBudgets(params?: { active_only?: boolean }) {
+    const response = await apiClient.get<WrappedResponse<Budget>>('/api/analytics/v2/budgets', { params })
     return response.data.data
   },
 
   async createBudget(data: {
     category: string
     subcategory?: string
-    year: number
-    month: number
-    budgeted_amount: number
+    monthly_limit: number
     alert_threshold?: number
-    notes?: string
   }) {
-    const response = await apiClient.post<Budget>('/analytics/v2/budgets', data)
+    const response = await apiClient.post('/api/analytics/v2/budgets', null, { params: data })
     return response.data
   },
 
   // Goals
   async getGoals(params?: { goal_type?: string; include_achieved?: boolean }) {
-    const response = await apiClient.get<WrappedResponse<FinancialGoal>>('/analytics/v2/goals', { params })
+    const response = await apiClient.get<WrappedResponse<FinancialGoal>>('/api/analytics/v2/goals', { params })
     return response.data.data
   },
 
@@ -330,7 +333,7 @@ export const analyticsV2Service = {
     target_date: string
     notes?: string
   }) {
-    const response = await apiClient.post<FinancialGoal>('/analytics/v2/goals', data)
+    const response = await apiClient.post('/api/analytics/v2/goals', null, { params: data })
     return response.data
   },
 }

@@ -65,6 +65,12 @@ class User(Base):
         return f"<User(id={self.id}, email={self.email})>"
 
 
+# NOTE: Enum string values below are stored directly in the database.
+# Renaming any value requires a data migration. The mixed casing
+# (PascalCase for TransactionType, snake_case for AnomalyType, etc.)
+# is intentional legacy and must be preserved for backwards compatibility.
+
+
 class TransactionType(str, PyEnum):
     """Transaction type enumeration."""
 
