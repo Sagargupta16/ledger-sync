@@ -103,6 +103,11 @@ export default function SettingsPage() {
     return accounts.filter((acc) => classifications[acc] === 'Investments')
   }, [accounts, classifications])
 
+  // Get credit card accounts (accounts classified as 'Credit Cards')
+  const creditCardAccounts = useMemo(() => {
+    return accounts.filter((acc) => classifications[acc] === 'Credit Cards')
+  }, [accounts, classifications])
+
   // Initialize local prefs when preferences load
   useEffect(() => {
     if (preferences && !localPrefs) {
@@ -126,6 +131,12 @@ export default function SettingsPage() {
         auto_dismiss_recurring_anomalies: preferences.auto_dismiss_recurring_anomalies,
         recurring_min_confidence: preferences.recurring_min_confidence,
         recurring_auto_confirm_occurrences: preferences.recurring_auto_confirm_occurrences,
+        needs_target_percent: preferences.needs_target_percent ?? 50,
+        wants_target_percent: preferences.wants_target_percent ?? 30,
+        savings_target_percent: preferences.savings_target_percent ?? 20,
+        credit_card_limits: { ...preferences.credit_card_limits },
+        earning_start_date: preferences.earning_start_date ?? null,
+        use_earning_start_date: preferences.use_earning_start_date ?? false,
       })
     }
   }, [preferences, localPrefs])
@@ -420,7 +431,7 @@ export default function SettingsPage() {
             )}
 
             {activeTab === 'others' && localPrefs && (
-              <OtherSettingsTab localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
+              <OtherSettingsTab localPrefs={localPrefs} updateLocalPref={updateLocalPref} creditCardAccounts={creditCardAccounts} />
             )}
 
             {activeTab === 'account-management' && <AccountManagementTab />}

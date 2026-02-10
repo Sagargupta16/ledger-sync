@@ -12,6 +12,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
+import { usePreferencesStore } from '@/store/preferencesStore'
 
 // Category display configuration
 const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
@@ -39,7 +40,10 @@ export default function NetWorthPage() {
 
   // Time filter state
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
-  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('all_time')
+  const { displayPreferences } = usePreferencesStore()
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
+    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'all_time'
+  )
   const [currentYear, setCurrentYear] = useState(getCurrentYear())
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
@@ -47,6 +51,12 @@ export default function NetWorthPage() {
   const dateRange = useMemo(() => {
     return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
   }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
+
+  const dataDateRange = useMemo(() => {
+    if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
+    const dates = transactions.map(t => t.date.substring(0, 10)).sort()
+    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
+  }, [transactions])
 
   // Load account classifications
   useEffect(() => {
@@ -259,6 +269,9 @@ export default function NetWorthPage() {
               onYearChange={setCurrentYear}
               onMonthChange={setCurrentMonth}
               onFYChange={setCurrentFY}
+              minDate={dataDateRange.minDate}
+              maxDate={dataDateRange.maxDate}
+              fiscalYearStartMonth={fiscalYearStartMonth}
             />
           }
         />

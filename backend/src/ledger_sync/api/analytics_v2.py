@@ -14,6 +14,7 @@ from sqlalchemy import desc
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import (
+    User,
     Anomaly,
     Budget,
     CategoryTrend,
@@ -27,6 +28,17 @@ from ledger_sync.db.models import (
 )
 
 router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
+
+
+def _get_earning_start_period(user: User) -> str | None:
+    """Return the earning start date as a YYYY-MM period key, or None."""
+    prefs = user.preferences
+    if prefs is None:
+        return None
+    if not prefs.use_earning_start_date or not prefs.earning_start_date:
+        return None
+    # earning_start_date is YYYY-MM-DD; take first 7 chars for YYYY-MM
+    return prefs.earning_start_date[:7]
 
 
 @router.get("/monthly-summaries")
@@ -45,6 +57,11 @@ def get_monthly_summaries(
     - Savings metrics
     - Month-over-month changes
     """
+    # Clamp start_period to earning start date if enabled
+    earning_period = _get_earning_start_period(current_user)
+    if earning_period:
+        start_period = max(start_period, earning_period) if start_period else earning_period
+
     query = (
         db.query(MonthlySummary)
         .filter(MonthlySummary.user_id == current_user.id)
@@ -118,6 +135,11 @@ def get_category_trends(
     - Category growth/decline analysis
     - Spending pattern identification
     """
+    # Clamp start_period to earning start date if enabled
+    earning_period = _get_earning_start_period(current_user)
+    if earning_period:
+        start_period = max(start_period, earning_period) if start_period else earning_period
+
     query = (
         db.query(CategoryTrend)
         .filter(CategoryTrend.user_id == current_user.id)

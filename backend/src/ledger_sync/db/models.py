@@ -1051,6 +1051,27 @@ class UserPreferences(Base):
         default=6,  # Auto-confirm after 6 occurrences
     )
 
+    # ===== 9. Spending Rule Targets (Needs/Wants/Savings) =====
+    needs_target_percent: Mapped[float] = mapped_column(
+        Float, nullable=False, default=50.0
+    )
+    wants_target_percent: Mapped[float] = mapped_column(
+        Float, nullable=False, default=30.0
+    )
+    savings_target_percent: Mapped[float] = mapped_column(
+        Float, nullable=False, default=20.0
+    )
+
+    # ===== 10. Credit Card Limits =====
+    # JSON object: { "card_name": limit_amount }
+    credit_card_limits: Mapped[str] = mapped_column(
+        Text, nullable=False, default="{}"
+    )
+
+    # ===== 11. Earning Start Date =====
+    earning_start_date: Mapped[str | None] = mapped_column(String(10), nullable=True, default=None)
+    use_earning_start_date: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(

@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus, Wallet, PiggyBank, CreditCard, LineChart, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useTrends } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, ComposedChart, Line, Bar, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { getApiTimeRangeDateBounds, filterTransactionsByDateRange } from '@/lib/dateUtils'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatPeriod, formatDateTick } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
@@ -153,6 +154,30 @@ export default function TrendsForecastsPage() {
       }
     })
   }, [allTransactions])
+
+  // Daily income/expense/savings data for the overview chart
+  const dailyTrendData = useMemo(() => {
+    if (!allTransactions.length) return []
+    const bounds = getApiTimeRangeDateBounds(timeRange)
+    const filtered = filterTransactionsByDateRange(allTransactions, bounds)
+
+    const dailyMap: Record<string, { income: number; expense: number }> = {}
+    for (const tx of filtered) {
+      const day = tx.date.substring(0, 10)
+      if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
+      if (tx.type === 'Income') dailyMap[day].income += tx.amount
+      else if (tx.type === 'Expense') dailyMap[day].expense += tx.amount
+    }
+
+    return Object.entries(dailyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, { income, expense }]) => ({
+        date,
+        income,
+        expenses: expense,
+        savings: income - expense,
+      }))
+  }, [allTransactions, timeRange])
 
   const getTrendIcon = (direction: 'up' | 'down' | 'stable', isPositiveGood: boolean) => {
     if (direction === 'stable') return <Minus className="w-5 h-5 text-gray-400" />
@@ -368,34 +393,49 @@ export default function TrendsForecastsPage() {
         >
           <div className="flex items-center gap-3 mb-6">
             <LineChart className="w-5 h-5 text-blue-400" />
-            <h3 className="text-lg font-semibold text-white">Monthly Trends Overview</h3>
+            <h3 className="text-lg font-semibold text-white">Income & Expense Trends</h3>
           </div>
           {isLoading && (
             <div className="h-80 flex items-center justify-center">
               <div className="animate-pulse text-gray-400">Loading chart...</div>
             </div>
           )}
-          {!isLoading && chartData.length > 0 && (
+          {!isLoading && dailyTrendData.length > 0 && (
             <ResponsiveContainer width="100%" height={350}>
-              <ComposedChart data={chartData}>
+              <AreaChart data={dailyTrendData}>
+                <defs>
+                  <linearGradient id="trendIncomeGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="trendExpenseGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="trendSavingsGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatPeriod(v)} />
+                <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatDateTick(v, dailyTrendData.length)} angle={-45} textAnchor="end" height={80} interval={Math.max(1, Math.floor(dailyTrendData.length / 20))} />
                 <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatCurrencyShort(v)} />
                 <Tooltip
                   {...chartTooltipProps}
+                  labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   formatter={(value: number | undefined, name: string | undefined) => [
                     value !== undefined ? formatCurrency(value) : '',
                     name === 'income' ? 'Income' : name === 'expenses' ? 'Spending' : 'Savings'
                   ]}
                 />
                 <Legend />
-                <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} opacity={0.8} />
-                <Bar dataKey="expenses" name="Spending" fill="#ef4444" radius={[4, 4, 0, 0]} opacity={0.8} />
-                <Line type="natural" dataKey="surplus" name="Savings" stroke="#a855f7" strokeWidth={3} dot={{ fill: '#a855f7', r: 4 }} />
-              </ComposedChart>
+                <Area type="natural" dataKey="income" name="Income" stroke="#10b981" fill="url(#trendIncomeGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < 500} />
+                <Area type="natural" dataKey="expenses" name="Spending" stroke="#ef4444" fill="url(#trendExpenseGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < 500} />
+                <Area type="natural" dataKey="savings" name="Savings" stroke="#a855f7" fill="url(#trendSavingsGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < 500} />
+              </AreaChart>
             </ResponsiveContainer>
           )}
-          {!isLoading && chartData.length === 0 && (
+          {!isLoading && dailyTrendData.length === 0 && (
             <EmptyState
               icon={LineChart}
               title="No data available"

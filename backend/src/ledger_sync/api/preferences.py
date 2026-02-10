@@ -128,6 +128,48 @@ class RecurringSettingsConfig(BaseModel):
     )
 
 
+class SpendingRuleConfig(BaseModel):
+    """Spending rule target percentages (Needs/Wants/Savings)."""
+
+    needs_target_percent: float = Field(
+        ge=0,
+        le=100,
+        description="Target percentage of income for needs/essentials",
+    )
+    wants_target_percent: float = Field(
+        ge=0,
+        le=100,
+        description="Target percentage of income for wants/discretionary",
+    )
+    savings_target_percent: float = Field(
+        ge=0,
+        le=100,
+        description="Target percentage of income for savings",
+    )
+
+
+class CreditCardLimitsConfig(BaseModel):
+    """Credit card limit settings."""
+
+    credit_card_limits: dict[str, float] = Field(
+        description="Map of credit card name to credit limit amount",
+    )
+
+
+class EarningStartDateConfig(BaseModel):
+    """Earning start date configuration."""
+
+    earning_start_date: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}-\d{2}$",
+        description="Earning start date in YYYY-MM-DD format",
+    )
+    use_earning_start_date: bool = Field(
+        default=False,
+        description="Whether to use earning start date as global analytics filter",
+    )
+
+
 class UserPreferencesResponse(BaseModel):
     """Full user preferences response."""
 
@@ -167,6 +209,18 @@ class UserPreferencesResponse(BaseModel):
     # 8. Recurring Settings
     recurring_min_confidence: float
     recurring_auto_confirm_occurrences: int
+
+    # 9. Spending Rule Targets
+    needs_target_percent: float
+    wants_target_percent: float
+    savings_target_percent: float
+
+    # 10. Credit Card Limits
+    credit_card_limits: dict[str, float]
+
+    # 11. Earning Start Date
+    earning_start_date: str | None = None
+    use_earning_start_date: bool = False
 
     # Metadata
     created_at: datetime | None = None
@@ -216,6 +270,18 @@ class UserPreferencesUpdate(BaseModel):
     recurring_min_confidence: float | None = None
     recurring_auto_confirm_occurrences: int | None = None
 
+    # 9. Spending Rule Targets
+    needs_target_percent: float | None = None
+    wants_target_percent: float | None = None
+    savings_target_percent: float | None = None
+
+    # 10. Credit Card Limits
+    credit_card_limits: dict[str, float] | None = None
+
+    # 11. Earning Start Date
+    earning_start_date: str | None = None
+    use_earning_start_date: bool | None = None
+
 
 # ----- Helper Functions -----
 
@@ -255,6 +321,12 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
         auto_dismiss_recurring_anomalies=prefs.auto_dismiss_recurring_anomalies,
         recurring_min_confidence=prefs.recurring_min_confidence,
         recurring_auto_confirm_occurrences=prefs.recurring_auto_confirm_occurrences,
+        needs_target_percent=prefs.needs_target_percent,
+        wants_target_percent=prefs.wants_target_percent,
+        savings_target_percent=prefs.savings_target_percent,
+        credit_card_limits=_parse_json_field(prefs.credit_card_limits, {}),
+        earning_start_date=prefs.earning_start_date,
+        use_earning_start_date=prefs.use_earning_start_date,
         created_at=prefs.created_at,
         updated_at=prefs.updated_at,
     )
@@ -343,6 +415,12 @@ def reset_preferences(
     prefs.auto_dismiss_recurring_anomalies = True
     prefs.recurring_min_confidence = 50.0
     prefs.recurring_auto_confirm_occurrences = 6
+    prefs.needs_target_percent = 50.0
+    prefs.wants_target_percent = 30.0
+    prefs.savings_target_percent = 20.0
+    prefs.credit_card_limits = json.dumps({})
+    prefs.earning_start_date = None
+    prefs.use_earning_start_date = False
     prefs.updated_at = datetime.now(UTC)
 
     session.commit()
@@ -479,6 +557,54 @@ def update_recurring_settings(
     prefs = _get_or_create_preferences(session, current_user)
     prefs.recurring_min_confidence = config.recurring_min_confidence
     prefs.recurring_auto_confirm_occurrences = config.recurring_auto_confirm_occurrences
+    prefs.updated_at = datetime.now(UTC)
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
+@router.put("/spending-rule")
+def update_spending_rule(
+    current_user: CurrentUser,
+    config: SpendingRuleConfig,
+    session: DatabaseSession,
+) -> UserPreferencesResponse:
+    """Update spending rule target percentages."""
+    prefs = _get_or_create_preferences(session, current_user)
+    prefs.needs_target_percent = config.needs_target_percent
+    prefs.wants_target_percent = config.wants_target_percent
+    prefs.savings_target_percent = config.savings_target_percent
+    prefs.updated_at = datetime.now(UTC)
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
+@router.put("/credit-card-limits")
+def update_credit_card_limits(
+    current_user: CurrentUser,
+    config: CreditCardLimitsConfig,
+    session: DatabaseSession,
+) -> UserPreferencesResponse:
+    """Update credit card limit settings."""
+    prefs = _get_or_create_preferences(session, current_user)
+    prefs.credit_card_limits = json.dumps(config.credit_card_limits)
+    prefs.updated_at = datetime.now(UTC)
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
+@router.put("/earning-start-date")
+def update_earning_start_date(
+    current_user: CurrentUser,
+    config: EarningStartDateConfig,
+    session: DatabaseSession,
+) -> UserPreferencesResponse:
+    """Update earning start date configuration."""
+    prefs = _get_or_create_preferences(session, current_user)
+    prefs.earning_start_date = config.earning_start_date
+    prefs.use_earning_start_date = config.use_earning_start_date
     prefs.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(prefs)

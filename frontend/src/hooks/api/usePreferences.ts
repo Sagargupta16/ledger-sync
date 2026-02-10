@@ -55,6 +55,12 @@ export function useUpdatePreferences() {
     mutationFn: (updates: UserPreferencesUpdate) => preferencesService.updatePreferences(updates),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY })
+      // Preferences (especially earning start date) affect all data — invalidate broadly
+      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['calculations'] })
+      queryClient.invalidateQueries({ queryKey: ['kpis'] })
       hydrateFromApi(data)
     },
   })
@@ -71,6 +77,11 @@ export function useResetPreferences() {
     mutationFn: () => preferencesService.resetPreferences(),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY })
+      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['calculations'] })
+      queryClient.invalidateQueries({ queryKey: ['kpis'] })
       hydrateFromApi(data)
     },
   })

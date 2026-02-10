@@ -53,6 +53,18 @@ export interface UserPreferences {
   recurring_min_confidence: number
   recurring_auto_confirm_occurrences: number
 
+  // 9. Spending Rule Targets
+  needs_target_percent: number
+  wants_target_percent: number
+  savings_target_percent: number
+
+  // 10. Credit Card Limits
+  credit_card_limits: Record<string, number>
+
+  // 11. Earning Start Date
+  earning_start_date: string | null
+  use_earning_start_date: boolean
+
   // Metadata
   created_at: string | null
   updated_at: string | null
@@ -103,6 +115,21 @@ export interface AnomalySettingsConfig {
 export interface RecurringSettingsConfig {
   recurring_min_confidence: number
   recurring_auto_confirm_occurrences: number
+}
+
+export interface SpendingRuleConfig {
+  needs_target_percent: number
+  wants_target_percent: number
+  savings_target_percent: number
+}
+
+export interface CreditCardLimitsConfig {
+  credit_card_limits: Record<string, number>
+}
+
+export interface EarningStartDateConfig {
+  earning_start_date: string | null
+  use_earning_start_date: boolean
 }
 
 // Service
@@ -169,6 +196,21 @@ export const preferencesService = {
 
   async updateRecurringSettings(config: RecurringSettingsConfig): Promise<UserPreferences> {
     const response = await apiClient.put<UserPreferences>('/preferences/recurring-settings', config)
+    return response.data
+  },
+
+  async updateSpendingRule(config: SpendingRuleConfig): Promise<UserPreferences> {
+    const response = await apiClient.put<UserPreferences>('/preferences/spending-rule', config)
+    return response.data
+  },
+
+  async updateCreditCardLimits(config: CreditCardLimitsConfig): Promise<UserPreferences> {
+    const response = await apiClient.put<UserPreferences>('/preferences/credit-card-limits', config)
+    return response.data
+  },
+
+  async updateEarningStartDate(config: EarningStartDateConfig): Promise<UserPreferences> {
+    const response = await apiClient.put<UserPreferences>('/preferences/earning-start-date', config)
     return response.data
   },
 }

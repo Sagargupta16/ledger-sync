@@ -6,24 +6,30 @@
  */
 
 import {
+  Briefcase,
   Calendar,
   Settings2,
   PiggyBank,
   AlertTriangle,
   RefreshCw,
   Check,
+  CreditCard,
+  Target,
 } from 'lucide-react'
 import type { LocalPrefs, LocalPrefKey } from './types'
 import { MONTHS, TIME_RANGE_OPTIONS, ANOMALY_TYPES } from './types'
+import { formatCurrency } from '@/lib/formatters'
 
 interface OtherSettingsTabProps {
   localPrefs: LocalPrefs
   updateLocalPref: <K extends LocalPrefKey>(key: K, value: LocalPrefs[K]) => void
+  creditCardAccounts: string[]
 }
 
 export default function OtherSettingsTab({
   localPrefs,
   updateLocalPref,
+  creditCardAccounts,
 }: OtherSettingsTabProps) {
   const toggleAnomalyType = (type: string) => {
     const enabled = localPrefs.anomaly_types_enabled.includes(type)
@@ -38,6 +44,49 @@ export default function OtherSettingsTab({
   return (
     <div className="space-y-8">
       <h2 className="text-xl font-semibold text-white">Other Settings</h2>
+
+      {/* Earning Start Date Section */}
+      <div className="glass rounded-lg p-5 border border-white/10">
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <Briefcase className="w-5 h-5 text-primary" />
+          Earning Start Date
+        </h3>
+        <p className="text-sm text-gray-400 mb-4">
+          Set the date when you started earning. When enabled, all analytics and stats will only
+          include transactions from this date onwards.
+        </p>
+        <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+          <div>
+            <label htmlFor="earning-start-date" className="block text-sm font-medium text-gray-300 mb-2">
+              Start Date
+            </label>
+            <input
+              id="earning-start-date"
+              type="date"
+              value={localPrefs.earning_start_date ?? ''}
+              onChange={(e) =>
+                updateLocalPref('earning_start_date', e.target.value || null)
+              }
+              className="w-56 px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:border-primary"
+            />
+          </div>
+          <label className="flex items-center gap-3 cursor-pointer pb-0.5">
+            <input
+              type="checkbox"
+              checked={localPrefs.use_earning_start_date}
+              disabled={!localPrefs.earning_start_date}
+              onChange={(e) => updateLocalPref('use_earning_start_date', e.target.checked)}
+              className="w-4 h-4 rounded bg-white/5 border-white/20 text-primary focus:ring-primary disabled:opacity-40"
+            />
+            <span className="text-sm text-white">Use as analytics start date</span>
+          </label>
+        </div>
+        {localPrefs.use_earning_start_date && localPrefs.earning_start_date && (
+          <p className="mt-3 text-xs text-green-400">
+            All analytics will show data from {new Date(localPrefs.earning_start_date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} onwards.
+          </p>
+        )}
+      </div>
 
       {/* Fiscal Year Section */}
       <div className="glass rounded-lg p-5 border border-white/10">
@@ -257,6 +306,116 @@ export default function OtherSettingsTab({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Spending Rule Targets Section */}
+      <div className="glass rounded-lg p-5 border border-white/10">
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <Target className="w-5 h-5 text-primary" />
+          Spending Rule (Needs / Wants / Savings)
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="needs-target" className="block text-sm font-medium text-gray-300 mb-2">
+              Needs Target (%)
+            </label>
+            <input
+              id="needs-target"
+              type="number"
+              min="0"
+              max="100"
+              value={localPrefs.needs_target_percent}
+              onChange={(e) =>
+                updateLocalPref('needs_target_percent', Number(e.target.value))
+              }
+              className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:border-primary"
+            />
+          </div>
+          <div>
+            <label htmlFor="wants-target" className="block text-sm font-medium text-gray-300 mb-2">
+              Wants Target (%)
+            </label>
+            <input
+              id="wants-target"
+              type="number"
+              min="0"
+              max="100"
+              value={localPrefs.wants_target_percent}
+              onChange={(e) =>
+                updateLocalPref('wants_target_percent', Number(e.target.value))
+              }
+              className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:border-primary"
+            />
+          </div>
+          <div>
+            <label htmlFor="savings-target" className="block text-sm font-medium text-gray-300 mb-2">
+              Savings Target (%)
+            </label>
+            <input
+              id="savings-target"
+              type="number"
+              min="0"
+              max="100"
+              value={localPrefs.savings_target_percent}
+              onChange={(e) =>
+                updateLocalPref('savings_target_percent', Number(e.target.value))
+              }
+              className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:border-primary"
+            />
+          </div>
+        </div>
+        {(() => {
+          const sum = localPrefs.needs_target_percent + localPrefs.wants_target_percent + localPrefs.savings_target_percent
+          if (sum !== 100) {
+            return (
+              <p className="mt-3 text-xs text-yellow-400">
+                Targets sum to {sum}% — they should add up to 100%.
+              </p>
+            )
+          }
+          return <p className="mt-3 text-xs text-gray-400">Default: 50% Needs / 30% Wants / 20% Savings</p>
+        })()}
+      </div>
+
+      {/* Credit Card Limits Section */}
+      <div className="glass rounded-lg p-5 border border-white/10">
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <CreditCard className="w-5 h-5 text-primary" />
+          Credit Card Limits
+        </h3>
+        {creditCardAccounts.length === 0 ? (
+          <p className="text-sm text-gray-400">
+            No credit card accounts found. Classify accounts as "Credit Cards" in the Account Types tab to set limits.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {creditCardAccounts.map((card) => (
+              <div key={card} className="flex items-center gap-4">
+                <span className="text-sm text-white min-w-48 truncate" title={card}>
+                  {card.replace(' Credit Card', '')}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">Limit:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="10000"
+                    value={localPrefs.credit_card_limits[card] ?? 100000}
+                    onChange={(e) => {
+                      const newLimits = { ...localPrefs.credit_card_limits, [card]: Number(e.target.value) }
+                      updateLocalPref('credit_card_limits', newLimits)
+                    }}
+                    className="w-36 px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:border-primary"
+                  />
+                  <span className="text-xs text-gray-400">
+                    ({formatCurrency(localPrefs.credit_card_limits[card] ?? 100000)})
+                  </span>
+                </div>
+              </div>
+            ))}
+            <p className="mt-2 text-xs text-gray-400">Default: {formatCurrency(100000)} per card</p>
+          </div>
+        )}
       </div>
 
       {/* Recurring Transaction Settings Section */}

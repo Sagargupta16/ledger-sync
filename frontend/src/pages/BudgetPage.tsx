@@ -56,19 +56,20 @@ const statusConfig = {
   exceeded: { color: rawColors.ios.red, bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-400' },
 }
 
-const getStatus = (pct: number): BudgetRow['status'] => {
-  if (pct >= 100) return 'exceeded'
-  if (pct >= 80) return 'danger'
-  if (pct >= 60) return 'warning'
-  return 'safe'
-}
-
 // ─── Component ──────────────────────────────────────────────────────
 export default function BudgetPage() {
   const { data: transactions = [] } = useTransactions()
   const { data: categoryData } = useCategoryBreakdown({ transaction_type: 'expense' })
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
+  const alertThreshold = preferences?.default_budget_alert_threshold ?? 80
+
+  const getStatus = (pct: number): BudgetRow['status'] => {
+    if (pct >= 100) return 'exceeded'
+    if (pct >= alertThreshold) return 'danger'
+    if (pct >= alertThreshold * 0.75) return 'warning'
+    return 'safe'
+  }
   const { budgets, setBudget, removeBudget } = useBudgetStore()
 
   const [viewMode, setViewMode] = useState<ViewMode>('category')

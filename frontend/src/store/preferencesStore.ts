@@ -42,6 +42,18 @@ export interface PreferencesState {
   // Investment account mappings (account name -> investment type)
   investmentAccountMappings: Record<string, string>
 
+  // Spending rule targets (Needs/Wants/Savings)
+  needsTargetPercent: number
+  wantsTargetPercent: number
+  savingsTargetPercent: number
+
+  // Credit card limits (card name -> limit amount)
+  creditCardLimits: Record<string, number>
+
+  // Earning start date
+  earningStartDate: string | null
+  useEarningStartDate: boolean
+
   // Actions
   setDisplayPreferences: (prefs: Partial<DisplayPreferences>) => void
   setFiscalYearStartMonth: (month: number) => void
@@ -60,6 +72,12 @@ export interface PreferencesState {
     non_taxable_income_categories: string[]
     other_income_categories: string[]
     investment_account_mappings: Record<string, string>
+    needs_target_percent: number
+    wants_target_percent: number
+    savings_target_percent: number
+    credit_card_limits: Record<string, number>
+    earning_start_date: string | null
+    use_earning_start_date: boolean
   }) => void
 }
 
@@ -120,6 +138,18 @@ export const usePreferencesStore = create<PreferencesState>()(
       // Default investment mappings
       investmentAccountMappings: {},
 
+      // Default spending rule targets (50/30/20)
+      needsTargetPercent: 50,
+      wantsTargetPercent: 30,
+      savingsTargetPercent: 20,
+
+      // Default credit card limits
+      creditCardLimits: {},
+
+      // Default earning start date
+      earningStartDate: null,
+      useEarningStartDate: false,
+
       // Actions
       setDisplayPreferences: (prefs) =>
         set((state) => ({
@@ -156,6 +186,12 @@ export const usePreferencesStore = create<PreferencesState>()(
             other: apiPrefs.other_income_categories || [],
           },
           investmentAccountMappings: apiPrefs.investment_account_mappings || {},
+          needsTargetPercent: apiPrefs.needs_target_percent ?? 50,
+          wantsTargetPercent: apiPrefs.wants_target_percent ?? 30,
+          savingsTargetPercent: apiPrefs.savings_target_percent ?? 20,
+          creditCardLimits: apiPrefs.credit_card_limits || {},
+          earningStartDate: apiPrefs.earning_start_date ?? null,
+          useEarningStartDate: apiPrefs.use_earning_start_date ?? false,
         }),
     }),
     {
@@ -166,6 +202,12 @@ export const usePreferencesStore = create<PreferencesState>()(
         essentialCategories: state.essentialCategories,
         incomeClassification: state.incomeClassification,
         investmentAccountMappings: state.investmentAccountMappings,
+        needsTargetPercent: state.needsTargetPercent,
+        wantsTargetPercent: state.wantsTargetPercent,
+        savingsTargetPercent: state.savingsTargetPercent,
+        creditCardLimits: state.creditCardLimits,
+        earningStartDate: state.earningStartDate,
+        useEarningStartDate: state.useEarningStartDate,
       }),
     }
   )
@@ -192,3 +234,18 @@ export const selectEssentialCategories = (state: PreferencesState) =>
 
 export const selectFiscalYearStartMonth = (state: PreferencesState) =>
   state.fiscalYearStartMonth
+
+export const selectSpendingTargets = (state: PreferencesState) => ({
+  needsTargetPercent: state.needsTargetPercent,
+  wantsTargetPercent: state.wantsTargetPercent,
+  savingsTargetPercent: state.savingsTargetPercent,
+})
+
+export const selectCreditCardLimits = (state: PreferencesState) =>
+  state.creditCardLimits
+
+export const selectEarningStartDate = (state: PreferencesState) =>
+  state.earningStartDate
+
+export const selectUseEarningStartDate = (state: PreferencesState) =>
+  state.useEarningStartDate

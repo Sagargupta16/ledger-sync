@@ -80,6 +80,27 @@ def _get_time_range_dates(
     return start_date, end_date
 
 
+def _apply_earning_start_date(user: User, current_start: datetime | None) -> datetime | None:
+    """Clamp start_date to earning_start_date if the preference is enabled.
+
+    If the user has configured an earning start date and enabled it,
+    ensures the returned start date is never earlier than that date.
+    Returns ``current_start`` unchanged when the preference is off.
+    """
+    prefs = user.preferences
+    if prefs is None:
+        return current_start
+
+    if not prefs.use_earning_start_date or not prefs.earning_start_date:
+        return current_start
+
+    earning_dt = datetime.strptime(prefs.earning_start_date, "%Y-%m-%d").replace(tzinfo=UTC)
+
+    if current_start is None:
+        return earning_dt
+    return max(current_start, earning_dt)
+
+
 def get_filtered_transactions(
     db: Session,
     user: User,
@@ -91,6 +112,7 @@ def get_filtered_transactions(
     )
 
     start_date, end_date = _get_time_range_dates(db, user, time_range)
+    start_date = _apply_earning_start_date(user, start_date)
     if start_date:
         query = query.filter(Transaction.date >= start_date)
     if end_date:

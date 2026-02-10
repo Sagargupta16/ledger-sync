@@ -7,6 +7,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { usePreferencesStore } from '@/store/preferencesStore'
 
 const IncomeExpenseFlowPage = () => {
   const { data: allTransactions = [], isLoading } = useTransactions()
@@ -14,7 +15,10 @@ const IncomeExpenseFlowPage = () => {
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
   // Time filter state
-  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('fy')
+  const { displayPreferences } = usePreferencesStore()
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
+    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'fy'
+  )
   const [currentYear, setCurrentYear] = useState(getCurrentYear())
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
@@ -23,6 +27,12 @@ const IncomeExpenseFlowPage = () => {
   const dateRange = useMemo(() => {
     return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
   }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
+
+  const dataDateRange = useMemo(() => {
+    if (allTransactions.length === 0) return { minDate: undefined, maxDate: undefined }
+    const dates = allTransactions.map(t => t.date.substring(0, 10)).sort()
+    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
+  }, [allTransactions])
 
   // Filter transactions based on selected time range
   const fyTransactions = useMemo(() => {
@@ -180,6 +190,9 @@ const IncomeExpenseFlowPage = () => {
           onYearChange={setCurrentYear}
           onMonthChange={setCurrentMonth}
           onFYChange={setCurrentFY}
+          minDate={dataDateRange.minDate}
+          maxDate={dataDateRange.maxDate}
+          fiscalYearStartMonth={fiscalYearStartMonth}
         />
 
       {/* Summary Cards */}

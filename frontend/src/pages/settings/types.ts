@@ -23,6 +23,12 @@ export interface LocalPrefs {
   auto_dismiss_recurring_anomalies: boolean
   recurring_min_confidence: number
   recurring_auto_confirm_occurrences: number
+  needs_target_percent: number
+  wants_target_percent: number
+  savings_target_percent: number
+  credit_card_limits: Record<string, number>
+  earning_start_date: string | null
+  use_earning_start_date: boolean
 }
 
 // Typed key for updating local prefs generically
@@ -75,14 +81,12 @@ export const INVESTMENT_TYPES = [
   { value: 'other', label: 'Other', color: 'from-gray-500 to-gray-600' },
 ]
 
-// Time range options
+// Time range options (aligned with AnalyticsViewMode)
 export const TIME_RANGE_OPTIONS = [
-  { value: 'last_3_months', label: 'Last 3 Months' },
-  { value: 'last_6_months', label: 'Last 6 Months' },
-  { value: 'last_12_months', label: 'Last 12 Months' },
-  { value: 'this_year', label: 'This Year' },
-  { value: 'last_year', label: 'Last Year' },
   { value: 'all_time', label: 'All Time' },
+  { value: 'fy', label: 'Financial Year' },
+  { value: 'yearly', label: 'Calendar Year' },
+  { value: 'monthly', label: 'Monthly' },
 ]
 
 // Anomaly types

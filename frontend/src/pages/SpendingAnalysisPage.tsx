@@ -19,6 +19,7 @@ import {
 } from '@/components/analytics'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
+import { usePreferencesStore } from '@/store/preferencesStore'
 
 // Color for Savings
 const SAVINGS_COLOR = SEMANTIC_COLORS.income
@@ -29,7 +30,10 @@ export default function SpendingAnalysisPage() {
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
   // Time filter state
-  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('fy')
+  const { displayPreferences } = usePreferencesStore()
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
+    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'fy'
+  )
   const [currentYear, setCurrentYear] = useState(getCurrentYear())
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
@@ -38,6 +42,12 @@ export default function SpendingAnalysisPage() {
   const dateRange = useMemo(() => {
     return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
   }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
+
+  const dataDateRange = useMemo(() => {
+    if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
+    const dates = transactions.map(t => t.date.substring(0, 10)).sort()
+    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
+  }, [transactions])
 
   // Filter transactions by date range
   const filteredTransactions = useMemo(() => {
@@ -101,27 +111,31 @@ export default function SpendingAnalysisPage() {
     ].filter((d) => d.value > 0)
   }, [spendingBreakdown, savings, totalIncome])
 
-  // Calculate 50/30/20 rule metrics (based on income, not just expenses)
+  // Spending rule targets from preferences (configurable Needs/Wants/Savings)
+  const needsTarget = preferences?.needs_target_percent ?? 50
+  const wantsTarget = preferences?.wants_target_percent ?? 30
+  const savingsTarget = preferences?.savings_target_percent ?? 20
+
+  // Calculate spending rule metrics (based on income)
   const budgetRuleMetrics = useMemo(() => {
     if (!spendingBreakdown || totalIncome <= 0) return null
-    
-    // 50/30/20 rule is based on income: 50% needs, 30% wants, 20% savings
+
     const essentialPercent = (spendingBreakdown.essential / totalIncome) * 100
     const discretionaryPercent = (spendingBreakdown.discretionary / totalIncome) * 100
     const savingsPercent = (savings / totalIncome) * 100
-    
+
     return {
       essentialPercent,
       discretionaryPercent,
       savingsPercent,
-      essentialTarget: 50,
-      discretionaryTarget: 30,
-      savingsTarget: 20,
-      isOverspendingEssential: essentialPercent > 55, // 5% buffer
-      isOverspendingDiscretionary: discretionaryPercent > 35, // 5% buffer
-      isUnderSaving: savingsPercent < 15, // 5% buffer below 20%
+      essentialTarget: needsTarget,
+      discretionaryTarget: wantsTarget,
+      savingsTarget,
+      isOverspendingEssential: essentialPercent > needsTarget + 5,
+      isOverspendingDiscretionary: discretionaryPercent > wantsTarget + 5,
+      isUnderSaving: savingsPercent < savingsTarget - 5,
     }
-  }, [spendingBreakdown, totalIncome, savings])
+  }, [spendingBreakdown, totalIncome, savings, needsTarget, wantsTarget, savingsTarget])
 
   const isLoading = !transactions
 
@@ -141,6 +155,9 @@ export default function SpendingAnalysisPage() {
               onYearChange={setCurrentYear}
               onMonthChange={setCurrentMonth}
               onFYChange={setCurrentFY}
+              minDate={dataDateRange.minDate}
+              maxDate={dataDateRange.maxDate}
+              fiscalYearStartMonth={fiscalYearStartMonth}
             />
           }
         />

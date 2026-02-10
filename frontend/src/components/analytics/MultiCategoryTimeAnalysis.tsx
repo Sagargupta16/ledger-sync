@@ -3,11 +3,11 @@ import { motion } from 'framer-motion'
 import { Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
 import { CHART_COLORS_WARM, CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
 import { chartTooltipProps } from '@/components/ui'
 import { useTimeNavigation } from '@/hooks/useTimeNavigation'
-import { generateAllPeriods, formatDisplayPeriod, calculateCumulativeData } from '@/lib/chartPeriodUtils'
+import { calculateCumulativeData } from '@/lib/chartPeriodUtils'
 import TimeNavigationControls from '@/components/analytics/TimeNavigationControls'
 
 const COLORS = CHART_COLORS_WARM.slice(0, 8) // Use first 8 colors
@@ -40,18 +40,7 @@ export default function MultiCategoryTimeAnalysis() {
     const groupedData: Record<string, Record<string, number>> = {}
 
     expenseTransactions.forEach((tx) => {
-      let period: string
-      if (viewMode === 'monthly') {
-        period = tx.date.substring(8, 10) // DD (day of month)
-      } else if (viewMode === 'yearly') {
-        period = tx.date.substring(5, 7) // MM (month)
-      } else {
-        // all_time: use quarterly format YYYY-Q1, YYYY-Q2, etc.
-        const year = tx.date.substring(0, 4)
-        const month = Number.parseInt(tx.date.substring(5, 7))
-        const quarter = Math.ceil(month / 3)
-        period = `${year}-Q${quarter}`
-      }
+      const period = tx.date.substring(0, 10) // YYYY-MM-DD (always daily)
 
       if (!groupedData[period]) groupedData[period] = {}
       if (!groupedData[period][tx.category]) groupedData[period][tx.category] = 0
@@ -72,12 +61,11 @@ export default function MultiCategoryTimeAnalysis() {
       .slice(0, 6)
       .map(([category]) => category)
 
-    // Convert to array format with all periods
-    const allPeriods = generateAllPeriods(viewMode, currentMonth, groupedData)
+    // Sort all dates chronologically
+    const allPeriods = Object.keys(groupedData).sort((a, b) => a.localeCompare(b))
 
     const data = allPeriods.map((period) => {
-      const displayPeriod = formatDisplayPeriod(period, viewMode, currentYear)
-      const entry: Record<string, number | string> = { period, displayPeriod }
+      const entry: Record<string, number | string> = { period, displayPeriod: period }
       topCategories.forEach((category) => {
         entry[category] = groupedData[period]?.[category] || 0
       })
@@ -141,12 +129,11 @@ export default function MultiCategoryTimeAnalysis() {
             {/* View Mode Toggle */}
             <select
               value={viewMode}
-              onChange={(e) => setViewMode(e.target.value as 'monthly' | 'yearly' | 'all_time')}
+              onChange={(e) => setViewMode(e.target.value as 'monthly' | 'yearly')}
               className="px-3 py-1.5 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-300 text-sm focus:outline-none"
             >
               <option value="monthly" className="bg-gray-800 text-gray-200">Monthly View</option>
               <option value="yearly" className="bg-gray-800 text-gray-200">Yearly View</option>
-              <option value="all_time" className="bg-gray-800 text-gray-200">All Time</option>
             </select>
 
             {/* Cumulative Toggle */}
@@ -183,6 +170,11 @@ export default function MultiCategoryTimeAnalysis() {
                 dataKey="displayPeriod"
                 stroke={CHART_AXIS_COLOR}
                 tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
+                tickFormatter={(v) => formatDateTick(v, chartData.length)}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={Math.max(1, Math.floor(chartData.length / 20))}
               />
               <YAxis
                 stroke={CHART_AXIS_COLOR}
@@ -191,6 +183,7 @@ export default function MultiCategoryTimeAnalysis() {
               />
               <Tooltip
                 {...chartTooltipProps}
+                labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                 formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
               />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
@@ -201,8 +194,9 @@ export default function MultiCategoryTimeAnalysis() {
                   dataKey={category}
                   stroke={COLORS[index % COLORS.length]}
                   strokeWidth={2}
-                  dot={{ r: cumulative ? 4 : 3 }}
+                  dot={false}
                   connectNulls
+                  isAnimationActive={chartData.length < 500}
                 />
               ))}
             </LineChart>

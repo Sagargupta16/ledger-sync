@@ -6,6 +6,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query
 from sqlalchemy.orm import Session
 
+from ledger_sync.api.analytics import _apply_earning_start_date
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import Transaction, TransactionType, User
 
@@ -103,6 +104,8 @@ def get_transactions(
     end_date: datetime | None = None,
 ) -> list[Transaction]:
     """Get non-deleted transactions for a user, optionally filtered by date range."""
+    start_date = _apply_earning_start_date(user, start_date)
+
     query = db.query(Transaction).filter(
         Transaction.user_id == user.id,
         Transaction.is_deleted.is_(False),

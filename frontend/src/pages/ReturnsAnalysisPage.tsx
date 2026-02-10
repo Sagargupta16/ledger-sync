@@ -7,10 +7,11 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useMemo, useState } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent, formatPeriod } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { usePreferencesStore } from '@/store/preferencesStore'
 
 const INVESTMENT_KEYWORDS = ['invest', 'mutual', 'stock', 'equity', 'sip', 'portfolio', 'fund', 'demat']
 
@@ -30,7 +31,10 @@ export default function ReturnsAnalysisPage() {
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
   // Time filter state
-  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('fy')
+  const { displayPreferences } = usePreferencesStore()
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
+    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'fy'
+  )
   const [currentYear, setCurrentYear] = useState(getCurrentYear())
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
@@ -45,6 +49,12 @@ export default function ReturnsAnalysisPage() {
   const dateRange = useMemo(() => {
     return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
   }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
+
+  const dataDateRange = useMemo(() => {
+    if (allTransactions.length === 0) return { minDate: undefined, maxDate: undefined }
+    const dates = allTransactions.map(t => t.date.substring(0, 10)).sort()
+    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
+  }, [allTransactions])
 
   // Filter transactions based on selected time range
   const transactions = useMemo(() => {
@@ -196,66 +206,57 @@ export default function ReturnsAnalysisPage() {
   //   value: acc.balance,
   // }))
 
-  // Calculate cumulative P&L over time from transactions
+  // Calculate cumulative P&L over time from transactions (daily)
   const cumulativeReturnsData = useMemo(() => {
-    // Group transactions by month
-    const monthlyData: Record<string, { income: number; expenses: number }> = {}
-    
+    // Group transactions by day
+    const dailyData: Record<string, { income: number; expenses: number }> = {}
+
     transactions.forEach((tx) => {
-      const date = new Date(tx.date)
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { income: 0, expenses: 0 }
+      const dayKey = tx.date.substring(0, 10) // YYYY-MM-DD
+
+      if (!dailyData[dayKey]) {
+        dailyData[dayKey] = { income: 0, expenses: 0 }
       }
-      
+
       const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
       const categoryLower = tx.category.toLowerCase()
       const amount = Math.abs(tx.amount)
-      
-      // Income: dividends, interest, investment profit (EXACT same as individual calculations)
+
+      // Income: dividends, interest, investment profit
       if (tx.type === 'Income') {
-        // Dividends
         if (lower.includes('dividend') || lower.includes('divid')) {
-          monthlyData[monthKey].income += amount
-        }
-        // Interest
-        else if (lower.includes('interest') || lower.includes('int.') || lower.includes('int cr') || lower.includes('int credit')) {
-          monthlyData[monthKey].income += amount
-        }
-        // Investment Profit
-        else if (lower.includes('profit') || lower.includes('gain') || lower.includes('realized')) {
-          monthlyData[monthKey].income += amount
+          dailyData[dayKey].income += amount
+        } else if (lower.includes('interest') || lower.includes('int.') || lower.includes('int cr') || lower.includes('int credit')) {
+          dailyData[dayKey].income += amount
+        } else if (lower.includes('profit') || lower.includes('gain') || lower.includes('realized')) {
+          dailyData[dayKey].income += amount
         }
       }
-      
+
       // Expenses: broker fees and investment loss - ONLY from investment categories
       if (tx.type === 'Expense' && (categoryLower.includes('investment') || categoryLower.includes('stock') || categoryLower.includes('trading'))) {
-        // Broker Fees (check first - more specific)
         if ((lower.includes('broker') && (lower.includes('charge') || lower.includes('fee'))) ||
             lower.includes('brokerage') ||
             (lower.includes('demat') && lower.includes('charge')) ||
             (lower.includes('trading') && (lower.includes('charge') || lower.includes('fee'))) ||
             (lower.includes('transaction') && lower.includes('charge'))) {
-          monthlyData[monthKey].expenses += amount
-        }
-        // Investment Loss (exclude broker/brokerage to prevent double counting)
-        else if (!lower.includes('broker') && !lower.includes('brokerage') && (lower.includes('loss') || lower.includes('write'))) {
-          monthlyData[monthKey].expenses += amount
+          dailyData[dayKey].expenses += amount
+        } else if (!lower.includes('broker') && !lower.includes('brokerage') && (lower.includes('loss') || lower.includes('write'))) {
+          dailyData[dayKey].expenses += amount
         }
       }
     })
-    
-    // Sort by month and calculate cumulative
-    const sortedMonths = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
-    
-    return sortedMonths.reduce<Array<{ month: string; cumulative: number; monthlyNet: number }>>((acc, month) => {
-      const net = monthlyData[month].income - monthlyData[month].expenses
+
+    // Sort by date and calculate cumulative
+    const sortedDays = Object.keys(dailyData).sort((a, b) => a.localeCompare(b))
+
+    return sortedDays.reduce<Array<{ date: string; cumulative: number; dailyNet: number }>>((acc, day) => {
+      const net = dailyData[day].income - dailyData[day].expenses
       const prevCumulative = acc.length > 0 ? acc[acc.length - 1].cumulative : 0
       acc.push({
-        month: month,
+        date: day,
         cumulative: Math.round(prevCumulative + net),
-        monthlyNet: Math.round(net)
+        dailyNet: Math.round(net)
       })
       return acc
     }, [])
@@ -279,6 +280,9 @@ export default function ReturnsAnalysisPage() {
           onYearChange={setCurrentYear}
           onMonthChange={setCurrentMonth}
           onFYChange={setCurrentFY}
+          minDate={dataDateRange.minDate}
+          maxDate={dataDateRange.maxDate}
+          fiscalYearStartMonth={fiscalYearStartMonth}
         />
 
         {/* P&L Stats Section */}
@@ -368,30 +372,36 @@ export default function ReturnsAnalysisPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis
-                  dataKey="month"
+                  dataKey="date"
                   stroke="#9ca3af"
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(v) => formatPeriod(v)}
+                  fontSize={12}
+                  tickFormatter={(v) => formatDateTick(v, cumulativeReturnsData.length)}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={Math.max(1, Math.floor(cumulativeReturnsData.length / 20))}
                 />
-                <YAxis 
+                <YAxis
                   stroke="#9ca3af"
                   tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
                   {...chartTooltipProps}
+                  labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   formatter={(value: number | undefined, name: string | undefined) => {
                     if (value === undefined) return ''
                     if (name === 'cumulative') return [formatCurrency(value), 'Cumulative Returns']
-                    if (name === 'monthlyNet') return [formatCurrency(value), 'Monthly Net']
+                    if (name === 'dailyNet') return [formatCurrency(value), 'Daily Net']
                     return value
                   }}
                 />
                 <Area
                   type="natural"
-                  dataKey="cumulative" 
+                  dataKey="cumulative"
                   stroke={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? "#10b981" : "#ef4444"}
                   strokeWidth={2}
                   fill={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? "url(#positiveGradient)" : "url(#negativeGradient)"}
+                  isAnimationActive={cumulativeReturnsData.length < 500}
                 />
               </AreaChart>
             </ResponsiveContainer>

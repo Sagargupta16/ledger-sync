@@ -3,6 +3,7 @@ import { CreditCard, AlertTriangle, CheckCircle } from 'lucide-react'
 import { useMemo } from 'react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { usePreferencesStore, selectCreditCardLimits } from '@/store/preferencesStore'
 
 interface CreditCardAccount {
   name: string
@@ -13,20 +14,11 @@ interface CreditCardAccount {
   transactions: number
 }
 
-// Estimated credit limits based on common Indian credit cards
-const CREDIT_LIMITS: Record<string, number> = {
-  'Amazon Pay ICICI Credit Card': 200000,
-  'All Other ICICI Credit Cards': 150000,
-  'Swiggy HDFC Credit Card': 100000,
-  'Pixel Play HDFC Credit Card': 150000,
-  'Tata Neu Rupay HDFC Credit Card': 100000,
-  'Jupiter CSB Credit Card': 50000,
-}
-
 const DEFAULT_CREDIT_LIMIT = 100000
 
 export default function CreditCardHealth() {
   const { data: balanceData, isLoading } = useAccountBalances()
+  const creditCardLimits = usePreferencesStore(selectCreditCardLimits)
 
   const creditCards = useMemo((): CreditCardAccount[] => {
     if (!balanceData?.accounts) return []
@@ -37,7 +29,7 @@ export default function CreditCardHealth() {
       // Check if it's a credit card account
       if (name.toLowerCase().includes('credit')) {
         const balance = Math.abs((data as { balance: number; transactions: number }).balance)
-        const creditLimit = CREDIT_LIMITS[name] || DEFAULT_CREDIT_LIMIT
+        const creditLimit = creditCardLimits[name] || DEFAULT_CREDIT_LIMIT
         const utilization = (balance / creditLimit) * 100
 
         let status: CreditCardAccount['status'] = 'low'
@@ -57,7 +49,7 @@ export default function CreditCardHealth() {
     })
 
     return cards.sort((a, b) => b.utilization - a.utilization)
-  }, [balanceData])
+  }, [balanceData, creditCardLimits])
 
   const totalBalance = creditCards.reduce((sum, c) => sum + c.balance, 0)
   const totalLimit = creditCards.reduce((sum, c) => sum + c.creditLimit, 0)

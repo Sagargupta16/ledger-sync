@@ -14,6 +14,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { useState, useMemo } from 'react'
 import { formatCurrency } from '@/lib/formatters'
 import { getTimeRangeDateRange, filterTransactionsByDateRange } from '@/lib/dateUtils'
+import { usePreferencesStore } from '@/store/preferencesStore'
 import { 
   calculateIncomeByCategoryBreakdown, 
   calculateSpendingBreakdown,
@@ -25,8 +26,19 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
+// Map AnalyticsViewMode preference to the closest TimeRange for the dashboard
+const viewModeToTimeRange: Record<string, TimeRange> = {
+  all_time: 'ALL',
+  fy: '1Y',
+  yearly: '1Y',
+  monthly: '1M',
+}
+
 export default function DashboardPage() {
-  const [timeRange, setTimeRange] = useState<TimeRange>('6M')
+  const { displayPreferences } = usePreferencesStore()
+  const [timeRange, setTimeRange] = useState<TimeRange>(
+    viewModeToTimeRange[displayPreferences.defaultTimeRange] || '6M'
+  )
 
   const dateRange = useMemo(() => getTimeRangeDateRange(timeRange), [timeRange])
 

@@ -2,13 +2,14 @@ import { motion } from 'framer-motion'
 import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useState, useMemo } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+import { usePreferencesStore } from '@/store/preferencesStore'
 import { 
   calculateIncomeByCategoryBreakdown,
   calculateCashbacksTotal,
@@ -30,7 +31,10 @@ export default function IncomeAnalysisPage() {
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
   // Time filter state
-  const [viewMode, setViewMode] = useState<AnalyticsViewMode>('fy')
+  const { displayPreferences } = usePreferencesStore()
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
+    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'fy'
+  )
   const [currentYear, setCurrentYear] = useState(getCurrentYear())
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
@@ -41,6 +45,12 @@ export default function IncomeAnalysisPage() {
   const dateRange = useMemo(() => {
     return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
   }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
+
+  const dataDateRange = useMemo(() => {
+    if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
+    const dates = transactions.map(t => t.date.substring(0, 10)).sort()
+    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
+  }, [transactions])
 
   // Filter transactions by date range
   const filteredTransactions = useMemo(() => {
@@ -98,54 +108,20 @@ export default function IncomeAnalysisPage() {
   // Get primary income type
   const primaryIncomeType = incomeTypeChartData[0]?.name || 'N/A'
 
-  // Process income trend data
+  // Process daily income trend data
   const trendData = useMemo(() => {
     const incomeTransactions = filteredTransactions.filter((t) => t.type === 'Income')
-    
-    const periodGroups: Record<string, number> = {}
-    
-    incomeTransactions.forEach((tx) => {
-      let period: string
-      if (viewMode === 'monthly') {
-        period = tx.date.substring(8, 10) // DD
-      } else if (viewMode === 'yearly' || viewMode === 'fy') {
-        period = tx.date.substring(5, 7) // MM
-      } else {
-        // all_time: quarterly
-        const year = tx.date.substring(0, 4)
-        const month = Number.parseInt(tx.date.substring(5, 7))
-        const quarter = Math.ceil(month / 3)
-        period = `${year}-Q${quarter}`
-      }
-      
-      periodGroups[period] = (periodGroups[period] || 0) + Math.abs(tx.amount)
-    })
-    
-    // Generate all periods
-    let allPeriods: string[] = []
-    if (viewMode === 'monthly') {
-      const year = Number.parseInt(currentMonth.substring(0, 4))
-      const month = Number.parseInt(currentMonth.substring(5, 7))
-      const daysInMonth = new Date(year, month, 0).getDate()
-      allPeriods = Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'))
-    } else if (viewMode === 'yearly' || viewMode === 'fy') {
-      allPeriods = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
-    } else {
-      allPeriods = Object.keys(periodGroups).sort((a, b) => a.localeCompare(b))
+
+    const dailyMap: Record<string, number> = {}
+    for (const tx of incomeTransactions) {
+      const day = tx.date.substring(0, 10)
+      dailyMap[day] = (dailyMap[day] || 0) + Math.abs(tx.amount)
     }
-    
-    return allPeriods.map((period) => {
-      let displayPeriod = period
-      if (viewMode === 'yearly' || viewMode === 'fy') {
-        displayPeriod = new Date(currentYear, Number.parseInt(period) - 1).toLocaleDateString('en-US', { month: 'short' })
-      }
-      return {
-        period,
-        displayPeriod,
-        income: periodGroups[period] || 0
-      }
-    })
-  }, [filteredTransactions, viewMode, currentYear, currentMonth])
+
+    return Object.entries(dailyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, income]) => ({ date, income }))
+  }, [filteredTransactions])
 
   const growthRate = useMemo(() => {
     if (trendData.length < 2) return 0
@@ -174,6 +150,9 @@ export default function IncomeAnalysisPage() {
               onYearChange={setCurrentYear}
               onMonthChange={setCurrentMonth}
               onFYChange={setCurrentFY}
+              minDate={dataDateRange.minDate}
+              maxDate={dataDateRange.maxDate}
+              fiscalYearStartMonth={fiscalYearStartMonth}
             />
           }
         />
@@ -323,31 +302,43 @@ export default function IncomeAnalysisPage() {
               </div>
             ) : trendData.length > 0 ? (
               <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={trendData}>
+                <AreaChart data={trendData}>
+                  <defs>
+                    <linearGradient id="incomeTrendGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis
-                    dataKey="displayPeriod"
+                    dataKey="date"
                     stroke="#9ca3af"
-                    tick={{ fill: '#9ca3af', fontSize: 11 }}
+                    fontSize={12}
+                    tickFormatter={(v) => formatDateTick(v, trendData.length)}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={Math.max(1, Math.floor(trendData.length / 20))}
                   />
                   <YAxis
                     stroke="#9ca3af"
-                    tick={{ fill: '#9ca3af', fontSize: 11 }}
+                    fontSize={12}
                     tickFormatter={(value) => formatCurrencyShort(value)}
                   />
                   <Tooltip
                     {...chartTooltipProps}
+                    labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                     formatter={(value: number | undefined) => value !== undefined ? [formatCurrency(value), 'Income'] : ''}
                   />
-                  <Line
+                  <Area
                     type="natural"
                     dataKey="income"
                     stroke="#10b981"
+                    fill="url(#incomeTrendGradient)"
                     strokeWidth={2}
-                    dot={{ r: 4, fill: '#10b981' }}
-                    connectNulls
+                    isAnimationActive={trendData.length < 500}
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             ) : (
               <EmptyState
