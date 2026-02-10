@@ -35,9 +35,13 @@ export const CHART_TOOLTIP_ITEM_STYLE: CSSProperties = {
   padding: '2px 0',
 }
 
+/** Cursor style for BarChart hover highlight (subtle instead of default white) */
+export const CHART_CURSOR_STYLE = { fill: 'rgba(255, 255, 255, 0.06)' }
+
 /** Spread-friendly object for Recharts <Tooltip {...chartTooltipProps} /> */
 export const chartTooltipProps = {
   contentStyle: CHART_TOOLTIP_STYLE,
   labelStyle: CHART_TOOLTIP_LABEL_STYLE,
   itemStyle: CHART_TOOLTIP_ITEM_STYLE,
+  cursor: CHART_CURSOR_STYLE,
 } as const

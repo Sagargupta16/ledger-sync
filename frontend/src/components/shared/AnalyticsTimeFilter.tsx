@@ -17,6 +17,7 @@ interface AnalyticsTimeFilterProps {
   readonly minDate?: string // YYYY-MM-DD earliest transaction date
   readonly maxDate?: string // YYYY-MM-DD latest transaction date
   readonly fiscalYearStartMonth?: number
+  readonly availableModes?: AnalyticsViewMode[]
 }
 
 const viewModes: { value: AnalyticsViewMode; label: string }[] = [
@@ -44,7 +45,12 @@ export default function AnalyticsTimeFilter({
   minDate,
   maxDate,
   fiscalYearStartMonth = 4,
+  availableModes,
 }: AnalyticsTimeFilterProps) {
+  // Filter view modes if availableModes is specified
+  const filteredViewModes = availableModes
+    ? viewModes.filter((m) => availableModes.includes(m.value))
+    : viewModes
   // Compute boundaries from minDate/maxDate
   const boundaries = useMemo(() => {
     if (!minDate || !maxDate) return null
@@ -198,7 +204,7 @@ export default function AnalyticsTimeFilter({
 
       {/* View Mode Selector */}
       <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">
-        {viewModes.map((mode) => (
+        {filteredViewModes.map((mode) => (
           <motion.button
             key={mode.value}
             role="tab"

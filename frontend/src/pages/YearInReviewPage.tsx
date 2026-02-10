@@ -18,7 +18,7 @@ import { rawColors } from '@/constants/colors'
 import { Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import StatCard from '@/pages/year-in-review/StatCard'
 import InsightRow from '@/pages/year-in-review/InsightRow'
@@ -80,18 +80,14 @@ export default function YearInReviewPage() {
   const [mode, setMode] = useState<HeatmapMode>('expense')
   const [hoveredDay, setHoveredDay] = useState<DayCell | null>(null)
 
-  // Time filter state — same as all other analytics pages
+  // Time filter state — only Yearly and FY modes for this page
+  const prefMode = displayPreferences.defaultTimeRange as AnalyticsViewMode
   const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
-    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'yearly'
+    prefMode === 'fy' ? 'fy' : 'yearly'
   )
   const [currentYear, setCurrentYear] = useState(getCurrentYear())
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
-
-  // Get date range based on current filter
-  const dateRange = useMemo(() => {
-    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
-  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
 
   const dataDateRange = useMemo(() => {
     if (transactions.length === 0) return { minDate: undefined, maxDate: undefined }
@@ -99,39 +95,36 @@ export default function YearInReviewPage() {
     return { minDate: dates[0], maxDate: dates[dates.length - 1] }
   }, [transactions])
 
-  // Derive the year to render the heatmap grid for
+  // Derive the start year for the heatmap grid
   const selectedYear = useMemo(() => {
-    switch (viewMode) {
-      case 'yearly':
-        return currentYear
-      case 'fy': {
-        // Use the FY start year for the grid
-        const match = /FY\s?(\d{4})-(\d{2})/.exec(currentFY)
-        return match ? Number.parseInt(match[1]) : currentYear
-      }
-      case 'monthly':
-        return Number.parseInt(currentMonth.substring(0, 4))
-      default:
-        return currentYear
+    if (viewMode === 'fy') {
+      const match = /FY\s?(\d{4})-(\d{2})/.exec(currentFY)
+      return match ? Number.parseInt(match[1]) : currentYear
     }
-  }, [viewMode, currentYear, currentFY, currentMonth])
+    return currentYear
+  }, [viewMode, currentYear, currentFY])
+  const isFYMode = viewMode === 'fy'
 
-  // ── Build 365-day grid ───────────────────────────────────────
+  // ── Build day grid (Jan–Dec for Yearly, Apr–Mar for FY) ─────
   const { grid, maxExpense, maxIncome, maxNet, monthLabels } = useMemo(() => {
-    // Aggregate spending and income per day (filtered by date range)
+    // Determine date range for the grid
+    const startDate = isFYMode
+      ? new Date(selectedYear, fiscalYearStartMonth - 1, 1) // e.g. Apr 1
+      : new Date(selectedYear, 0, 1)                         // Jan 1
+    const endDate = isFYMode
+      ? new Date(selectedYear + 1, fiscalYearStartMonth - 1, 0) // e.g. Mar 31
+      : new Date(selectedYear, 11, 31)                           // Dec 31
+
+    // Aggregate spending and income per day within range
+    const startStr = startDate.toISOString().substring(0, 10)
+    const endStr = endDate.toISOString().substring(0, 10)
+
     const dayExpenses: Record<string, number> = {}
     const dayIncomes: Record<string, number> = {}
 
     for (const tx of transactions) {
       const d = tx.date.substring(0, 10)
-      const year = Number.parseInt(d.substring(0, 4))
-      if (year !== selectedYear) continue
-
-      // Apply date range filter for FY/monthly modes
-      if (dateRange.start_date) {
-        const txDate = getDateKey(tx.date)
-        if (txDate < dateRange.start_date || (dateRange.end_date && txDate > dateRange.end_date)) continue
-      }
+      if (d < startStr || d > endStr) continue
 
       if (tx.type === 'Expense') {
         dayExpenses[d] = (dayExpenses[d] || 0) + Math.abs(tx.amount)
@@ -140,22 +133,19 @@ export default function YearInReviewPage() {
       }
     }
 
-    // Generate all days of the year
-    const jan1 = new Date(selectedYear, 0, 1)
-    const dec31 = new Date(selectedYear, 11, 31)
     const todayStr = new Date().toISOString().substring(0, 10)
-    const startDow = jan1.getDay()
+    const startDow = startDate.getDay()
 
     const cells: DayCell[] = []
     let mxE = 0
     let mxI = 0
     let mxN = 0
 
-    const current = new Date(jan1)
-    while (current <= dec31) {
+    const current = new Date(startDate)
+    while (current <= endDate) {
       const dateStr = current.toISOString().substring(0, 10)
-      const dayOfYear = Math.floor((current.getTime() - jan1.getTime()) / 86400000)
-      const weekIndex = Math.floor((dayOfYear + startDow) / 7)
+      const dayOffset = Math.floor((current.getTime() - startDate.getTime()) / 86400000)
+      const weekIndex = Math.floor((dayOffset + startDow) / 7)
       const exp = dayExpenses[dateStr] || 0
       const inc = dayIncomes[dateStr] || 0
       const net = inc - exp
@@ -188,13 +178,14 @@ export default function YearInReviewPage() {
         prevMonth = cell.month
       }
     }
-    // Ensure Jan is included
-    if (labels.length === 0 || labels[0].month !== 'Jan') {
-      labels.unshift({ month: 'Jan', weekIndex: 0 })
+    // Ensure the first month label is present
+    const firstMonth = cells.length > 0 ? MONTHS_SHORT[cells[0].month] : 'Jan'
+    if (labels.length === 0 || labels[0].month !== firstMonth) {
+      labels.unshift({ month: firstMonth, weekIndex: 0 })
     }
 
     return { grid: cells, maxExpense: mxE, maxIncome: mxI, maxNet: mxN, monthLabels: labels }
-  }, [transactions, selectedYear, dateRange])
+  }, [transactions, selectedYear, isFYMode, fiscalYearStartMonth])
 
   // Resolve the correct max based on mode
   const modeMaxMap: Record<HeatmapMode, number> = { expense: maxExpense, income: maxIncome, net: maxNet }
@@ -262,8 +253,8 @@ export default function YearInReviewPage() {
   const monthlyBarData = useMemo(() => {
     return MONTHS_SHORT.map((m, i) => ({
       name: m,
-      Expense: stats.monthlyExpense[i],
-      Income: stats.monthlyIncome[i],
+      Spending: stats.monthlyExpense[i],
+      Earning: stats.monthlyIncome[i],
     }))
   }, [stats])
 
@@ -288,14 +279,15 @@ export default function YearInReviewPage() {
               minDate={dataDateRange.minDate}
               maxDate={dataDateRange.maxDate}
               fiscalYearStartMonth={fiscalYearStartMonth}
+              availableModes={['yearly', 'fy']}
             />
 
             {/* Mode Toggle */}
             <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">
               {([
                 ['expense', 'Spending', TrendingDown],
-                ['income', 'Income', TrendingUp],
-                ['net', 'Net', DollarSign],
+                ['income', 'Earning', TrendingUp],
+                ['net', 'Savings', DollarSign],
               ] as const).map(([val, label, Icon]) => (
                 <motion.button
                   key={val}
@@ -328,7 +320,7 @@ export default function YearInReviewPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
         <StatCard label="Total Spending" value={formatCurrencyCompact(stats.totalExpense)} icon={TrendingDown} color={rawColors.ios.red} />
-        <StatCard label="Total Income" value={formatCurrencyCompact(stats.totalIncome)} icon={TrendingUp} color={rawColors.ios.green} />
+        <StatCard label="Total Earning" value={formatCurrencyCompact(stats.totalIncome)} icon={TrendingUp} color={rawColors.ios.green} />
         <StatCard
           label="Savings Rate"
           value={`${stats.savingsRate.toFixed(1)}%`}
@@ -347,7 +339,7 @@ export default function YearInReviewPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Flame className="w-5 h-5" style={{ color: modeAccent[mode] }} />
-            {{ expense: 'Spending', income: 'Income', net: 'Net' }[mode]} Heatmap — {selectedYear}
+            {{ expense: 'Spending', income: 'Earning', net: 'Savings' }[mode]} Heatmap — {isFYMode ? currentFY : selectedYear}
           </h2>
           {/* Legend */}
           <div className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -420,10 +412,14 @@ export default function YearInReviewPage() {
                               key={dow}
                               role="presentation"
                               tabIndex={-1}
-                              className="w-[13px] h-[13px] rounded-sm cursor-pointer transition-transform hover:scale-125"
+                              className="w-[13px] h-[13px] rounded-sm cursor-pointer transition-[outline-color] duration-150"
                               style={{
                                 backgroundColor: bgColor,
-                                outline: cell.isToday ? `2px solid ${modeAccent[mode]}` : 'none',
+                                outline: cell.isToday
+                                  ? `2px solid ${modeAccent[mode]}`
+                                  : hoveredDay?.date === cell.date
+                                    ? '1.5px solid rgba(255,255,255,0.7)'
+                                    : '1.5px solid transparent',
                                 outlineOffset: '-1px',
                               }}
                               onMouseEnter={() => setHoveredDay(cell)}
@@ -441,30 +437,28 @@ export default function YearInReviewPage() {
           </div>
         </div>
 
-        {/* Tooltip for hovered day */}
-        {hoveredDay && (
-          <motion.div
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 p-4 rounded-xl bg-[rgba(17,24,39,0.95)] backdrop-blur-xl border border-white/10 max-w-xs shadow-xl shadow-black/30"
-          >
-            <p className="text-sm font-medium text-white mb-2">
-              {new Date(hoveredDay.date + 'T00:00:00').toLocaleDateString('en-IN', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </p>
-            <div className="flex flex-col gap-1 text-xs">
-              <span className="text-red-400">Expense: {formatCurrency(hoveredDay.expense)}</span>
-              <span className="text-green-400">Income: {formatCurrency(hoveredDay.income)}</span>
-              <span className={hoveredDay.net >= 0 ? 'text-blue-400' : 'text-orange-400'}>
-                Net: {hoveredDay.net >= 0 ? '+' : ''}{formatCurrency(hoveredDay.net)}
+        {/* Inline day summary — always visible, no layout shift */}
+        <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-6 text-xs min-h-[28px]">
+          {hoveredDay ? (
+            <>
+              <span className="text-white font-medium">
+                {new Date(hoveredDay.date + 'T00:00:00').toLocaleDateString('en-IN', {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
               </span>
-            </div>
-          </motion.div>
-        )}
+              <span className="text-red-400">Spending: {formatCurrency(hoveredDay.expense)}</span>
+              <span className="text-green-400">Earning: {formatCurrency(hoveredDay.income)}</span>
+              <span className={hoveredDay.net >= 0 ? 'text-blue-400' : 'text-orange-400'}>
+                Savings: {hoveredDay.net >= 0 ? '+' : ''}{formatCurrency(hoveredDay.net)}
+              </span>
+            </>
+          ) : (
+            <span className="text-gray-500">Hover over a day to see details</span>
+          )}
+        </div>
       </motion.div>
 
       {/* Monthly Breakdown + Insights Grid */}
@@ -487,8 +481,8 @@ export default function YearInReviewPage() {
                   {...chartTooltipProps}
                   formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
                 />
-                <Bar dataKey="Expense" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} opacity={0.8} />
-                <Bar dataKey="Income" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} opacity={0.8} />
+                <Bar dataKey="Spending" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} opacity={0.8} />
+                <Bar dataKey="Earning" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} opacity={0.8} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -525,7 +519,7 @@ export default function YearInReviewPage() {
           />
           <InsightRow
             icon={TrendingUp}
-            label="Biggest income day"
+            label="Biggest earning day"
             value={stats.biggestIncomeDay.date ? `${formatCurrencyCompact(stats.biggestIncomeDay.amount)}` : 'N/A'}
             subtitle={stats.biggestIncomeDay.date
               ? new Date(stats.biggestIncomeDay.date + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
@@ -540,7 +534,7 @@ export default function YearInReviewPage() {
           />
 
           <div className="pt-3 mt-3 border-t border-white/10">
-            <p className="text-xs text-gray-500 mb-1">Total Saved</p>
+            <p className="text-xs text-gray-500 mb-1">Total Savings</p>
             <p className={`text-xl font-bold ${stats.totalSavings >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {stats.totalSavings >= 0 ? '+' : ''}{formatCurrencyCompact(stats.totalSavings)}
             </p>

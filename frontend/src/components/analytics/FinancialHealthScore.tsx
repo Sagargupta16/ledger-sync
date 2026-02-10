@@ -777,8 +777,14 @@ function DetailsToggle({
 
 // ---------- Main component ----------
 
-export default function FinancialHealthScore() {
-  const { data: transactions = [], isLoading } = useTransactions()
+interface FinancialHealthScoreProps {
+  transactions?: Transaction[]
+}
+
+export default function FinancialHealthScore({ transactions: propTransactions }: Readonly<FinancialHealthScoreProps>) {
+  const { data: fetchedTransactions = [], isLoading: isFetching } = useTransactions()
+  const transactions = propTransactions ?? fetchedTransactions
+  const isLoading = !propTransactions && isFetching
   const [showDetails, setShowDetails] = useState(false)
   const isInvestmentAccount = useInvestmentAccountStore((state) => state.isInvestmentAccount)
 

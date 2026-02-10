@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { chartTooltipProps } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -34,8 +35,8 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
 
     return DAYS.map((d, i) => ({
       name: d,
-      'Avg Expense': totals[i].count > 0 ? totals[i].expense / totals[i].count : 0,
-      'Avg Income': totals[i].count > 0 ? totals[i].income / totals[i].count : 0,
+      'Avg Spending': totals[i].count > 0 ? totals[i].expense / totals[i].count : 0,
+      'Avg Earning': totals[i].count > 0 ? totals[i].income / totals[i].count : 0,
     }))
   }, [grid])
 
@@ -47,12 +48,11 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
           <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
           <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: '#9ca3af', fontSize: 11 }} />
           <RechartsTooltip
+            {...chartTooltipProps}
             formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
-            contentStyle={{ backgroundColor: 'rgba(17,24,39,0.95)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', backdropFilter: 'blur(12px)', color: '#fff' }}
-            labelStyle={{ color: '#fff', fontWeight: 'bold' }}
           />
-          <Bar dataKey="Avg Expense" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} opacity={0.8} />
-          <Bar dataKey="Avg Income" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} opacity={0.8} />
+          <Bar dataKey="Avg Spending" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} opacity={0.8} />
+          <Bar dataKey="Avg Earning" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} opacity={0.8} />
         </BarChart>
       </ResponsiveContainer>
     </div>

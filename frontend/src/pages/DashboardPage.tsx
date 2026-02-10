@@ -3,7 +3,7 @@ import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard } fro
 import MetricCard from '@/components/shared/MetricCard'
 import RecentTransactions from '@/components/shared/RecentTransactions'
 import QuickInsights from '@/components/shared/QuickInsights'
-import TimeRangeSelector, { type TimeRange } from '@/components/shared/TimeRangeSelector'
+import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import Sparkline from '@/components/shared/Sparkline'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore, PeriodComparison } from '@/components/analytics'
@@ -13,7 +13,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useState, useMemo } from 'react'
 import { formatCurrency } from '@/lib/formatters'
-import { getTimeRangeDateRange, filterTransactionsByDateRange } from '@/lib/dateUtils'
+import { type AnalyticsViewMode, getAnalyticsDateRange, getCurrentYear, getCurrentMonth, getCurrentFY, getDateKey } from '@/lib/dateUtils'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { 
   calculateIncomeByCategoryBreakdown, 
@@ -26,33 +26,53 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
-// Map AnalyticsViewMode preference to the closest TimeRange for the dashboard
-const viewModeToTimeRange: Record<string, TimeRange> = {
-  all_time: 'ALL',
-  fy: '1Y',
-  yearly: '1Y',
-  monthly: '1M',
-}
-
 export default function DashboardPage() {
   const { displayPreferences } = usePreferencesStore()
-  const [timeRange, setTimeRange] = useState<TimeRange>(
-    viewModeToTimeRange[displayPreferences.defaultTimeRange] || '6M'
+  const { data: preferences } = usePreferences()
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month ?? 4
+
+  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
+    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'all_time'
+  )
+  const [currentYear, setCurrentYear] = useState(getCurrentYear)
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth)
+  const [currentFY, setCurrentFY] = useState(() => getCurrentFY(fiscalYearStartMonth))
+
+  const analyticsDateRange = useMemo(
+    () => getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth),
+    [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth],
   )
 
-  const dateRange = useMemo(() => getTimeRangeDateRange(timeRange), [timeRange])
+  // Convert for hooks that expect optional (not null) date params
+  const dateRange = useMemo(
+    () => ({
+      start_date: analyticsDateRange.start_date ?? undefined,
+      end_date: analyticsDateRange.end_date ?? undefined,
+    }),
+    [analyticsDateRange],
+  )
 
   const { data: recentTransactions, isLoading: isLoadingTransactions } = useRecentTransactions(5)
   const { data: filteredTotals, isLoading } = useTotals(dateRange)
   const { data: monthlyData } = useMonthlyAggregation(dateRange)
   const { data: allTransactions } = useTransactions()
-  const { data: preferences } = usePreferences()
 
-  // Filter transactions once for reuse
-  const filteredTransactions = useMemo(
-    () => (allTransactions ? filterTransactionsByDateRange(allTransactions, dateRange) : []),
-    [allTransactions, dateRange]
-  )
+  // Boundary dates for AnalyticsTimeFilter navigation
+  const dataDateRange = useMemo(() => {
+    if (!allTransactions?.length) return { minDate: undefined, maxDate: undefined }
+    const dates = allTransactions.map((t) => t.date.substring(0, 10)).sort()
+    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
+  }, [allTransactions])
+
+  // Filter transactions by selected time range
+  const filteredTransactions = useMemo(() => {
+    if (!allTransactions?.length) return []
+    if (!analyticsDateRange.start_date) return allTransactions
+    return allTransactions.filter((t) => {
+      const txDate = getDateKey(t.date)
+      return txDate >= analyticsDateRange.start_date! && (!analyticsDateRange.end_date || txDate <= analyticsDateRange.end_date)
+    })
+  }, [allTransactions, analyticsDateRange])
 
   // Calculate income breakdown by actual data category (for display)
   const incomeBreakdown = useMemo(() => {
@@ -154,7 +174,21 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         subtitle="Your financial overview at a glance"
-        action={<TimeRangeSelector value={timeRange} onChange={setTimeRange} />}
+        action={
+          <AnalyticsTimeFilter
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            currentYear={currentYear}
+            currentMonth={currentMonth}
+            currentFY={currentFY}
+            onYearChange={setCurrentYear}
+            onMonthChange={setCurrentMonth}
+            onFYChange={setCurrentFY}
+            minDate={dataDateRange.minDate}
+            maxDate={dataDateRange.maxDate}
+            fiscalYearStartMonth={fiscalYearStartMonth}
+          />
+        }
       />
 
       {/* KPI Cards */}
@@ -200,24 +234,15 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Recent Activity & Insights */}
+      {/* Financial Health & Quick Insights — react to time filter */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Transactions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
-        >
-          <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-          <RecentTransactions transactions={recentTransactions || []} isLoading={isLoadingTransactions} />
-        </motion.div>
+        <FinancialHealthScore transactions={filteredTransactions} />
 
         {/* Quick Insights */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
@@ -402,9 +427,17 @@ export default function DashboardPage() {
         </motion.div>
       </div>
 
-      {/* Financial Health & Period Comparison */}
+      {/* Recent Activity & Period Comparison — filter-independent */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FinancialHealthScore />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
+        >
+          <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
+          <RecentTransactions transactions={recentTransactions || []} isLoading={isLoadingTransactions} />
+        </motion.div>
         <PeriodComparison />
       </div>
     </div>
