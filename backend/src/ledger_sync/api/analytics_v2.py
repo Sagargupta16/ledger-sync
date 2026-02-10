@@ -472,10 +472,13 @@ def get_fy_summaries(
 def get_anomalies(
     current_user: CurrentUser,
     db: DatabaseSession,
+    type: Annotated[
+        str | None, Query(description="Filter by anomaly type (high_expense/unusual_category/large_transfer/budget_exceeded)")
+    ] = None,
     severity: Annotated[
         str | None, Query(description="Filter by severity (low/medium/high/critical)")
     ] = None,
-    unreviewed_only: Annotated[bool, Query(description="Only show unreviewed anomalies")] = True,
+    include_reviewed: Annotated[bool, Query(description="Include reviewed/dismissed anomalies")] = False,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> dict[str, Any]:
     """Get detected anomalies and unusual patterns.
@@ -492,9 +495,11 @@ def get_anomalies(
         .order_by(desc(Anomaly.detected_at))
     )
 
+    if type:
+        query = query.filter(Anomaly.anomaly_type == type)
     if severity:
         query = query.filter(Anomaly.severity == severity)
-    if unreviewed_only:
+    if not include_reviewed:
         query = query.filter(Anomaly.is_reviewed.is_(False))
         query = query.filter(Anomaly.is_dismissed.is_(False))
 
@@ -504,17 +509,20 @@ def get_anomalies(
         "data": [
             {
                 "id": a.id,
-                "type": a.anomaly_type.value if a.anomaly_type else None,
+                "anomaly_type": a.anomaly_type.value if a.anomaly_type else None,
                 "severity": a.severity,
                 "description": a.description,
                 "transaction_id": a.transaction_id,
-                "period": a.period_key,
-                "expected": float(a.expected_value) if a.expected_value else None,
-                "actual": float(a.actual_value) if a.actual_value else None,
+                "period_key": a.period_key,
+                "expected_value": float(a.expected_value) if a.expected_value else None,
+                "actual_value": float(a.actual_value) if a.actual_value else None,
                 "deviation_pct": a.deviation_pct,
                 "detected_at": a.detected_at.isoformat() if a.detected_at else None,
                 "is_reviewed": a.is_reviewed,
                 "is_dismissed": a.is_dismissed,
+                "review_notes": a.review_notes,
+                "reviewed_at": a.reviewed_at.isoformat() if a.reviewed_at else None,
+                "created_at": a.created_at.isoformat() if a.created_at else None,
             }
             for a in anomalies
         ],
@@ -623,15 +631,20 @@ def create_budget(
 def get_financial_goals(
     current_user: CurrentUser,
     db: DatabaseSession,
-    status: Annotated[
-        str | None, Query(description="Filter by status (active/completed/paused)")
+    goal_type: Annotated[
+        str | None, Query(description="Filter by goal type (savings/debt_payoff/investment/etc.)")
     ] = None,
+    include_achieved: Annotated[bool, Query(description="Include achieved goals")] = True,
 ) -> dict[str, Any]:
     """Get financial goals."""
+    from ledger_sync.db.models import GoalStatus
+
     query = db.query(FinancialGoal).filter(FinancialGoal.user_id == current_user.id)
 
-    if status:
-        query = query.filter(FinancialGoal.status == status)
+    if goal_type:
+        query = query.filter(FinancialGoal.goal_type == goal_type)
+    if not include_achieved:
+        query = query.filter(FinancialGoal.status != GoalStatus.COMPLETED)
 
     goals = query.order_by(desc(FinancialGoal.created_at)).all()
 
@@ -640,15 +653,17 @@ def get_financial_goals(
             {
                 "id": g.id,
                 "name": g.name,
-                "description": g.description,
-                "type": g.goal_type,
-                "target": float(g.target_amount),
-                "current": float(g.current_amount),
-                "target_date": g.target_date.isoformat() if g.target_date else None,
+                "goal_type": g.goal_type,
+                "target_amount": float(g.target_amount),
+                "current_amount": float(g.current_amount),
                 "progress_pct": g.progress_pct,
-                "monthly_target": float(g.monthly_target),
-                "on_track": g.on_track,
-                "status": g.status.value if g.status else None,
+                "start_date": g.created_at.isoformat() if g.created_at else None,
+                "target_date": g.target_date.isoformat() if g.target_date else None,
+                "is_achieved": g.status == GoalStatus.COMPLETED if g.status else False,
+                "achieved_date": g.completed_at.isoformat() if g.completed_at else None,
+                "notes": g.description,
+                "created_at": g.created_at.isoformat() if g.created_at else None,
+                "updated_at": None,
             }
             for g in goals
         ],
@@ -663,7 +678,7 @@ def create_goal(
     current_user: CurrentUser,
     db: DatabaseSession,
     goal_type: str = "savings",
-    description: str | None = None,
+    notes: str | None = None,
     target_date: datetime | None = None,
 ) -> dict[str, Any]:
     """Create a new financial goal."""
@@ -681,7 +696,7 @@ def create_goal(
     goal = FinancialGoal(
         user_id=current_user.id,
         name=name,
-        description=description,
+        description=notes,
         goal_type=goal_type,
         target_amount=target_amount,
         target_date=target_date,

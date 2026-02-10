@@ -14,6 +14,14 @@ export { default as CashFlowForecast } from './CashFlowForecast'
 export { default as CreditCardHealth } from './CreditCardHealth'
 export { default as BudgetTracker } from './BudgetTracker'
 
+// Financial insights components
+export { default as SpendingVelocityGauge } from './SpendingVelocityGauge'
+export { default as IncomeStabilityIndex } from './IncomeStabilityIndex'
+export { default as SavingsMilestonesTimeline } from './SavingsMilestonesTimeline'
+export { default as CategoryCorrelationAnalysis } from './CategoryCorrelationAnalysis'
+export { default as AccountActivityScore } from './AccountActivityScore'
+export { default as MonthlyFinancialReportCard } from './MonthlyFinancialReportCard'
+
 // Tax planning components
 export { default as FYNavigator } from './FYNavigator'
 export { default as TaxSlabBreakdown } from './TaxSlabBreakdown'

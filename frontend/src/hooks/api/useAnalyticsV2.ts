@@ -204,11 +204,7 @@ export function useCreateGoal() {
       name: string
       goal_type: string
       target_amount: number
-      current_amount?: number
-      start_date: string
       target_date: string
-      category?: string
-      account?: string
       notes?: string
     }) => analyticsV2Service.createGoal(data),
     onSuccess: () => {

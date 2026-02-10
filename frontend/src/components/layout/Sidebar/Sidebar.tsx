@@ -23,6 +23,9 @@ import {
   GitCompareArrows,
   CalendarDays,
   Wallet2,
+  AlertTriangle,
+  Goal,
+  Lightbulb,
 } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
@@ -60,6 +63,9 @@ const navigationGroups = [
       { path: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows },
       { path: ROUTES.BUDGETS, label: 'Budget Manager', icon: Wallet2 },
       { path: ROUTES.YEAR_IN_REVIEW, label: 'Year in Review', icon: CalendarDays },
+      { path: ROUTES.ANOMALIES, label: 'Anomaly Review', icon: AlertTriangle },
+      { path: ROUTES.GOALS, label: 'Financial Goals', icon: Goal },
+      { path: ROUTES.INSIGHTS, label: 'Financial Insights', icon: Lightbulb },
     ],
   },
   {

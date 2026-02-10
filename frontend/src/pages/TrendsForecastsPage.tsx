@@ -131,8 +131,11 @@ export default function TrendsForecastsPage() {
   const dailySavingsData = useMemo(() => {
     if (!allTransactions.length) return []
 
+    const bounds = getApiTimeRangeDateBounds(timeRange)
+    const filtered = filterTransactionsByDateRange(allTransactions, bounds)
+
     const dailyMap: Record<string, { income: number; expense: number }> = {}
-    for (const tx of allTransactions) {
+    for (const tx of filtered) {
       const day = tx.date.substring(0, 10)
       if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
       if (tx.type === 'Income') dailyMap[day].income += tx.amount
@@ -153,7 +156,7 @@ export default function TrendsForecastsPage() {
         rawSavingsRate: savingsRate,
       }
     })
-  }, [allTransactions])
+  }, [allTransactions, timeRange])
 
   // Daily income/expense/savings data for the overview chart
   const dailyTrendData = useMemo(() => {

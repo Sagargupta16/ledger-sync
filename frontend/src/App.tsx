@@ -31,6 +31,9 @@ const pageImports = {
   BudgetPage: () => import('@/pages/BudgetPage'),
   YearInReviewPage: () => import('@/pages/YearInReviewPage'),
   SettingsPage: () => import('@/pages/SettingsPage'),
+  AnomalyReviewPage: () => import('@/pages/AnomalyReviewPage'),
+  GoalsPage: () => import('@/pages/GoalsPage'),
+  InsightsPage: () => import('@/pages/InsightsPage'),
 }
 
 const UploadSyncPage = lazy(pageImports.UploadSyncPage)
@@ -48,6 +51,9 @@ const ComparisonPage = lazy(pageImports.ComparisonPage)
 const BudgetPage = lazy(pageImports.BudgetPage)
 const YearInReviewPage = lazy(pageImports.YearInReviewPage)
 const SettingsPage = lazy(pageImports.SettingsPage)
+const AnomalyReviewPage = lazy(pageImports.AnomalyReviewPage)
+const GoalsPage = lazy(pageImports.GoalsPage)
+const InsightsPage = lazy(pageImports.InsightsPage)
 
 /**
  * Prefetch all lazy page chunks in the background after initial load.
@@ -167,6 +173,9 @@ function App() {
                     <Route path={ROUTES.COMPARISON.slice(1)} element={<ComparisonPage />} />
                     <Route path={ROUTES.BUDGETS.slice(1)} element={<BudgetPage />} />
                     <Route path={ROUTES.YEAR_IN_REVIEW.slice(1)} element={<YearInReviewPage />} />
+                    <Route path={ROUTES.ANOMALIES.slice(1)} element={<AnomalyReviewPage />} />
+                    <Route path={ROUTES.GOALS.slice(1)} element={<GoalsPage />} />
+                    <Route path={ROUTES.INSIGHTS.slice(1)} element={<InsightsPage />} />
                   </Route>
                 </Routes>
               </Suspense>
