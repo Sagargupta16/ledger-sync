@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { TrendingUp, TrendingDown, Banknote, Receipt } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -385,8 +386,8 @@ export default function ReturnsAnalysisPage() {
                     return value
                   }}
                 />
-                <Area 
-                  type="monotone" 
+                <Area
+                  type="natural"
                   dataKey="cumulative" 
                   stroke={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? "#10b981" : "#ef4444"}
                   strokeWidth={2}
@@ -412,34 +413,34 @@ export default function ReturnsAnalysisPage() {
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Returns Metrics</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+          <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">CAGR</p>
               <p className="text-2xl font-bold text-green-400">{isLoading ? '...' : formatPercent(estimatedCAGR)}</p>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+            </motion.div>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">Monthly ROI</p>
               <p className="text-2xl font-bold text-blue-400">{isLoading ? '...' : formatPercent(roi)}</p>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+            </motion.div>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">Net P&L</p>
               <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {formatCurrency(Math.abs(netProfitLoss))}
               </p>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+            </motion.div>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">Dividends</p>
               <p className="text-2xl font-bold text-emerald-400">{formatCurrency(dividendIncome)}</p>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+            </motion.div>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">Fees Paid</p>
               <p className="text-2xl font-bold text-orange-400">{formatCurrency(brokerFees)}</p>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+            </motion.div>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
               <p className="text-xs text-gray-400 mb-2">Interest Income</p>
               <p className="text-2xl font-bold text-teal-400">{formatCurrency(interestIncome)}</p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </motion.div>
 
         {investmentAccounts.length > 0 && (
@@ -450,8 +451,8 @@ export default function ReturnsAnalysisPage() {
             className="glass rounded-xl border border-white/10 p-6 shadow-lg"
           >
             <h3 className="text-lg font-semibold text-white mb-6">Profit & Loss Breakdown</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+            <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
+              <motion.div variants={fadeUpItem} className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
                 <p className="text-sm text-gray-400 mb-2">Total Income</p>
                 <div className="space-y-2">
                   <div className="flex justify-between">
@@ -471,8 +472,8 @@ export default function ReturnsAnalysisPage() {
                     <span className="text-lg font-bold text-green-400">{formatCurrency(investmentProfit + dividendIncome + interestIncome)}</span>
                   </div>
                 </div>
-              </div>
-              <div className="p-4 bg-red-500/10 rounded-lg border border-red-500/20">
+              </motion.div>
+              <motion.div variants={fadeUpItem} className="p-4 bg-red-500/10 rounded-lg border border-red-500/20">
                 <p className="text-sm text-gray-400 mb-2">Total Expenses</p>
                 <div className="space-y-2">
                   <div className="flex justify-between">
@@ -488,8 +489,8 @@ export default function ReturnsAnalysisPage() {
                     <span className="text-lg font-bold text-red-400">{formatCurrency(investmentLoss + brokerFees)}</span>
                   </div>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
             <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-white">Net Profit/Loss</span>

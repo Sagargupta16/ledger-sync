@@ -197,7 +197,7 @@ export default function MultiCategoryTimeAnalysis() {
               {topCategories.map((category, index) => (
                 <Line
                   key={category}
-                  type="monotone"
+                  type="natural"
                   dataKey={category}
                   stroke={COLORS[index % COLORS.length]}
                   strokeWidth={2}

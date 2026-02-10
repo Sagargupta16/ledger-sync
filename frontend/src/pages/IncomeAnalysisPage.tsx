@@ -340,7 +340,7 @@ export default function IncomeAnalysisPage() {
                     formatter={(value: number | undefined) => value !== undefined ? [formatCurrency(value), 'Income'] : ''}
                   />
                   <Line
-                    type="monotone"
+                    type="natural"
                     dataKey="income"
                     stroke="#10b981"
                     strokeWidth={2}

@@ -206,8 +206,8 @@ export default function CashFlowForecast() {
               strokeDasharray="3 3"
               label={{ value: 'Forecast →', position: 'top', fill: CHART_AXIS_COLOR, fontSize: 10 }}
             />
-            <Area type="monotone" dataKey="income" stroke={SEMANTIC_COLORS.income} fill="url(#incomeGradient)" strokeWidth={2} />
-            <Area type="monotone" dataKey="expense" stroke={SEMANTIC_COLORS.expense} fill="url(#expenseGradient)" strokeWidth={2} />
+            <Area type="natural" dataKey="income" stroke={SEMANTIC_COLORS.income} fill="url(#incomeGradient)" strokeWidth={2} />
+            <Area type="natural" dataKey="expense" stroke={SEMANTIC_COLORS.expense} fill="url(#expenseGradient)" strokeWidth={2} />
           </AreaChart>
         </ResponsiveContainer>
       </div>

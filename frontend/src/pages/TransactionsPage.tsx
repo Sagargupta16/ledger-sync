@@ -148,14 +148,15 @@ export default function TransactionsPage() {
           title="Transactions"
           subtitle="Browse and search your transaction history"
           action={
-            <button
+            <motion.button
               onClick={handleExportCSV}
+              whileTap={{ scale: 0.97 }}
               disabled={isExporting || paginatedTransactions.length === 0}
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} />
               <span className="text-sm font-medium">{isExporting ? 'Exporting...' : 'Export CSV'}</span>
-            </button>
+            </motion.button>
           }
         />
 

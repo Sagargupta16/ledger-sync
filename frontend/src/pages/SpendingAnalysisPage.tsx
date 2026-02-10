@@ -253,10 +253,12 @@ export default function SpendingAnalysisPage() {
                     </span>
                   </div>
                   <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
+                    <motion.div
+                      className="h-full rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(budgetRuleMetrics?.essentialPercent || 0, 100)}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
                       style={{
-                        width: `${Math.min(budgetRuleMetrics?.essentialPercent || 0, 100)}%`,
                         backgroundColor: budgetRuleMetrics?.isOverspendingEssential ? SEMANTIC_COLORS.expense : SPENDING_TYPE_COLORS.essential,
                       }}
                     />
@@ -287,10 +289,12 @@ export default function SpendingAnalysisPage() {
                     </span>
                   </div>
                   <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
+                    <motion.div
+                      className="h-full rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(budgetRuleMetrics?.discretionaryPercent || 0, 100)}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.4 }}
                       style={{
-                        width: `${Math.min(budgetRuleMetrics?.discretionaryPercent || 0, 100)}%`,
                         backgroundColor: budgetRuleMetrics?.isOverspendingDiscretionary ? SEMANTIC_COLORS.expense : SPENDING_TYPE_COLORS.discretionary,
                       }}
                     />
@@ -321,10 +325,12 @@ export default function SpendingAnalysisPage() {
                     </span>
                   </div>
                   <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
+                    <motion.div
+                      className="h-full rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(budgetRuleMetrics?.savingsPercent || 0, 100)}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.5 }}
                       style={{
-                        width: `${Math.min(budgetRuleMetrics?.savingsPercent || 0, 100)}%`,
                         backgroundColor: budgetRuleMetrics?.isUnderSaving ? SEMANTIC_COLORS.expense : SAVINGS_COLOR,
                       }}
                     />

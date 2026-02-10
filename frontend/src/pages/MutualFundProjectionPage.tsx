@@ -663,7 +663,7 @@ export default function MutualFundProjectionPage() {
                   />
                   <Legend />
                   <Area
-                    type="monotone"
+                    type="natural"
                     dataKey="invested"
                     name="Invested Amount"
                     stroke="#60a5fa"
@@ -671,7 +671,7 @@ export default function MutualFundProjectionPage() {
                     strokeWidth={2}
                   />
                   <Area
-                    type="monotone"
+                    type="natural"
                     dataKey="value"
                     name="Portfolio Value"
                     stroke="#34d399"

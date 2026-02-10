@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
-import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
+import { useAccountBalances } from '@/hooks/useAnalytics'
+import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { formatCurrency, formatPercent, formatPeriod } from '@/lib/formatters'
+import { formatCurrency, formatPercent, formatDateTick } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
@@ -29,7 +30,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
 
 export default function NetWorthPage() {
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
-  const { data: aggregationData, isLoading: aggregationLoading } = useMonthlyAggregation()
+  const { data: transactions = [], isLoading: transactionsLoading } = useTransactions()
   const { data: preferences } = usePreferences()
   const [showStacked, setShowStacked] = useState(false)
   const [classifications, setClassifications] = useState<Record<string, string>>({})
@@ -60,7 +61,7 @@ export default function NetWorthPage() {
     loadClassifications()
   }, [])
 
-  const isLoading = balancesLoading || aggregationLoading
+  const isLoading = balancesLoading || transactionsLoading
 
   // Calculate totals from balance data - memoized to avoid changing on every render
   const accounts = useMemo(() => balanceData?.accounts || {}, [balanceData?.accounts])
@@ -177,52 +178,53 @@ export default function NetWorthPage() {
     return props
   }, [categoryTotals, allCategories, totalPositive])
 
-  // Format monthly data for area chart with cumulative net worth
-  const monthlyNetWorth = Object.entries(aggregationData || {})
-    .map(([month, data]: [string, { income: number; expense: number }]) => ({
-      month,
-      monthlyFlow: data.income - data.expense,
-      income: data.income,
-      expenses: data.expense,
-    }))
-    .sort((a, b) => a.month.localeCompare(b.month))
-  
-  // Calculate cumulative values for net worth, income, and expenses
+  // Compute daily cumulative net worth from transactions
   const netWorthData = useMemo(() => {
-    return monthlyNetWorth.reduce((acc, item) => {
-      const prevItem = acc[acc.length - 1]
-      const cumulativeNetWorth = (prevItem?.netWorth || 0) + item.monthlyFlow
-      const cumulativeIncome = (prevItem?.cumulativeIncome || 0) + item.income
-      const cumulativeExpenses = (prevItem?.cumulativeExpenses || 0) + item.expenses
-      
-      // Calculate category breakdowns based on current proportions
-      const positiveNetWorth = Math.max(cumulativeNetWorth, 0)
-      
-      // Build the data point with all category proportions
-      const dataPoint: Record<string, number | string> = {
-        ...item,
-        netWorth: cumulativeNetWorth,
-        cumulativeIncome,
-        cumulativeExpenses,
-      }
-      
-      // Add each category's proportion
-      allCategories.forEach(cat => {
-        dataPoint[cat] = positiveNetWorth * (categoryProportions[cat] || 0)
-      })
-      
-      acc.push(dataPoint as typeof monthlyNetWorth[number] & { netWorth: number; cumulativeIncome: number; cumulativeExpenses: number; [key: string]: number | string })
-      return acc
-    }, [] as Array<typeof monthlyNetWorth[number] & { netWorth: number; cumulativeIncome: number; cumulativeExpenses: number; [key: string]: number | string }>)
-  }, [monthlyNetWorth, allCategories, categoryProportions])
+    if (!transactions.length) return []
 
-  // Filter chart data to selected time range (slice the cumulative array)
+    const dailyMap: Record<string, { income: number; expense: number }> = {}
+    for (const tx of transactions) {
+      const day = tx.date.substring(0, 10)
+      if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
+      if (tx.type === 'Income') dailyMap[day].income += tx.amount
+      else if (tx.type === 'Expense') dailyMap[day].expense += tx.amount
+    }
+
+    const sortedDays = Object.entries(dailyMap).sort(([a], [b]) => a.localeCompare(b))
+    let cumNW = 0
+    let cumIncome = 0
+    let cumExpense = 0
+
+    return sortedDays.map(([date, { income, expense }]) => {
+      const flow = income - expense
+      cumNW += flow
+      cumIncome += income
+      cumExpense += expense
+      const positiveNW = Math.max(cumNW, 0)
+
+      const point: Record<string, number | string> = {
+        date,
+        netWorth: cumNW,
+        dailyFlow: flow,
+        cumulativeIncome: cumIncome,
+        cumulativeExpenses: cumExpense,
+      }
+
+      allCategories.forEach(cat => {
+        point[cat] = positiveNW * (categoryProportions[cat] || 0)
+      })
+
+      return point
+    })
+  }, [transactions, allCategories, categoryProportions])
+
+  // Filter chart data to selected time range
   const filteredNetWorthData = useMemo(() => {
     if (!dateRange.start_date) return netWorthData
     return netWorthData.filter((item) => {
-      const monthStart = `${item.month}-01`
-      return monthStart >= dateRange.start_date! &&
-             (!dateRange.end_date || monthStart <= dateRange.end_date)
+      const d = item.date as string
+      return d >= dateRange.start_date! &&
+             (!dateRange.end_date || d <= dateRange.end_date)
     })
   }, [netWorthData, dateRange])
 
@@ -374,11 +376,12 @@ export default function NetWorthPage() {
                   })}
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="month" stroke="#9ca3af" tickFormatter={(v) => formatPeriod(v)} angle={-45} textAnchor="end" height={80} interval="preserveStartEnd" />
+                <XAxis dataKey="date" stroke="#9ca3af" tickFormatter={(v) => formatDateTick(v, filteredNetWorthData.length)} angle={-45} textAnchor="end" height={80} interval={Math.max(1, Math.floor(filteredNetWorthData.length / 20))} />
                 <YAxis stroke="#9ca3af" />
                 <Tooltip
                   {...chartTooltipProps}
                   formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+                  labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                 />
                 <Legend />
                 {showStacked ? (
@@ -388,25 +391,27 @@ export default function NetWorthPage() {
                       return (
                         <Area
                           key={cat}
-                          type="monotone"
+                          type="natural"
                           dataKey={cat}
                           stackId="1"
                           stroke={config.color}
                           fillOpacity={1}
                           fill={`url(#color-${cat.replaceAll(/\s+/g, '')})`}
                           name={config.label}
+                          isAnimationActive={filteredNetWorthData.length < 500}
                         />
                       )
                     })}
                   </>
                 ) : (
                   <Area
-                    type="monotone"
+                    type="natural"
                     dataKey="netWorth"
                     stroke="#8b5cf6"
                     fillOpacity={1}
                     fill="url(#colorNetWorth)"
                     name="Net Worth"
+                    isAnimationActive={filteredNetWorthData.length < 500}
                   />
                 )}
               </AreaChart>

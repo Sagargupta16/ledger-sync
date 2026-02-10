@@ -13,7 +13,7 @@ export default function Sparkline({ data, color = '#8b5cf6', height = 40 }: Read
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={chartData}>
         <Line
-          type="monotone"
+          type="natural"
           dataKey="value"
           stroke={color}
           strokeWidth={2}

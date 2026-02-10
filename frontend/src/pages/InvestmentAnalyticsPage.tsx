@@ -6,7 +6,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
-import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { type AnalyticsViewMode, getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
@@ -165,155 +165,101 @@ export default function InvestmentAnalyticsPage() {
   // Asset allocation based on filtered data
   const assetAllocation = investmentTypeBreakdown
 
-  // Calculate monthly portfolio value growth by category
-  // This shows NET INVESTMENTS (IN - OUT) over time
-  const monthlyGrowthData = useMemo(() => {
+  // Calculate daily portfolio value growth by category
+  // This shows NET INVESTMENTS (IN - OUT) over time with daily granularity
+  const dailyGrowthData = useMemo(() => {
     if (!transactions.length || !investmentAccounts.length) return []
-    
+
     // Filter for all investment transactions (both IN and OUT)
     const investmentTransactions = transactions
       .filter(tx => {
-        // Transfers TO investment accounts (SIP, deposits, purchases)
-        if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
-          return true
-        }
-        // Transfers FROM investment accounts (withdrawals, sales)
-        if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) {
-          return true
-        }
-        // Income on investment accounts (dividends, interest)
-        if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) {
-          return true
-        }
-        // Expenses on investment accounts
-        if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) {
-          return true
-        }
+        if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) return true
+        if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) return true
+        if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) return true
+        if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) return true
         return false
       })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    
+      .sort((a, b) => a.date.localeCompare(b.date))
+
     if (investmentTransactions.length === 0) return []
-    
+
     // Track NET investment per account
     const accountInvestments: Record<string, number> = {}
-    investmentAccounts.forEach(acc => {
-      accountInvestments[acc] = 0
-    })
-    
-    // Track at end of each month
-    const monthlySnapshots: Array<{ month: string, investments: Record<string, number> }> = []
-    let currentMonth = ''
-    
+    investmentAccounts.forEach(acc => { accountInvestments[acc] = 0 })
+
+    // Track snapshots per day
+    const dailySnapshots: Array<{ date: string, investments: Record<string, number> }> = []
+    let currentDay = ''
+
     investmentTransactions.forEach(tx => {
-      const date = new Date(tx.date)
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      
+      const dayKey = tx.date.substring(0, 10)
       const amount = tx.amount
-      
-      // Save previous month before processing new month's first transaction
-      if (monthKey !== currentMonth && currentMonth !== '') {
-        monthlySnapshots.push({
-          month: currentMonth,
-          investments: { ...accountInvestments }
-        })
+
+      // Save previous day before processing new day's first transaction
+      if (dayKey !== currentDay && currentDay !== '') {
+        dailySnapshots.push({ date: currentDay, investments: { ...accountInvestments } })
       }
-      currentMonth = monthKey
-      
-      // Add inflows
+      currentDay = dayKey
+
       if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
-        const toAccount = tx.to_account || 'Unknown'
-        accountInvestments[toAccount] += amount
+        accountInvestments[tx.to_account || 'Unknown'] += amount
       }
-      // Subtract outflows
       if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) {
-        const fromAccount = tx.from_account || 'Unknown'
-        accountInvestments[fromAccount] -= amount
+        accountInvestments[tx.from_account || 'Unknown'] -= amount
       }
-      // Add income
       if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) {
-        const account = tx.account || 'Unknown'
-        accountInvestments[account] += amount
+        accountInvestments[tx.account || 'Unknown'] += amount
       }
-      // Subtract expenses
       if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) {
-        const account = tx.account || 'Unknown'
-        accountInvestments[account] -= amount
+        accountInvestments[tx.account || 'Unknown'] -= amount
       }
     })
-    
-    // Add final month
-    if (currentMonth) {
-      monthlySnapshots.push({
-        month: currentMonth,
-        investments: { ...accountInvestments }
-      })
+
+    // Add final day
+    if (currentDay) {
+      dailySnapshots.push({ date: currentDay, investments: { ...accountInvestments } })
     }
-    
-    if (monthlySnapshots.length === 0) return []
-    
-    const firstMonth = monthlySnapshots[0].month
-    const lastMonth = monthlySnapshots[monthlySnapshots.length - 1].month
-    
-    // Generate all months in range
-    const allMonths: string[] = []
-    let [year, month] = firstMonth.split('-').map(Number)
-    const [endYear, endMonth] = lastMonth.split('-').map(Number)
-    
-    while (year < endYear || (year === endYear && month <= endMonth)) {
-      allMonths.push(`${year}-${String(month).padStart(2, '0')}`)
-      month++
-      if (month > 12) {
-        month = 1
-        year++
-      }
+
+    if (dailySnapshots.length === 0) return []
+
+    // Generate all days between first and last snapshot
+    const firstDate = new Date(dailySnapshots[0].date)
+    const lastDate = new Date(dailySnapshots[dailySnapshots.length - 1].date)
+    const allDays: string[] = []
+    for (const d = new Date(firstDate); d <= lastDate; d.setDate(d.getDate() + 1)) {
+      allDays.push(d.toISOString().substring(0, 10))
     }
-    
+
     // Build chart data grouped by category
-    const snapshotMap = new Map(monthlySnapshots.map(s => [s.month, s.investments]))
+    const snapshotMap = new Map(dailySnapshots.map(s => [s.date, s.investments]))
     const lastKnown: Record<string, number> = {}
-    investmentAccounts.forEach(acc => {
-      lastKnown[acc] = 0
-    })
-    
-    const chartData = allMonths.map(month => {
-      const [yearStr, monthNum] = month.split('-')
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-      const displayMonth = `${monthNames[Number.parseInt(monthNum) - 1]} ${yearStr.slice(2)}`
-      
-      const dataPoint: Record<string, string | number> = { month: displayMonth, fullMonth: month }
-      
-      const snapshot = snapshotMap.get(month)
-      
-      // Update lastKnown from snapshot if available
+    investmentAccounts.forEach(acc => { lastKnown[acc] = 0 })
+
+    return allDays.map(date => {
+      const dataPoint: Record<string, string | number> = { date, fullDate: date }
+      const snapshot = snapshotMap.get(date)
+
       if (snapshot) {
         investmentAccounts.forEach(account => {
           lastKnown[account] = snapshot[account] || lastKnown[account]
         })
       }
-      
-      // Aggregate by category
+
       const categoryTotals: Record<InvestmentCategory, number> = {
-        'FD/Bonds': 0,
-        'Mutual Funds': 0,
-        'PPF/EPF': 0,
-        'Stocks': 0,
+        'FD/Bonds': 0, 'Mutual Funds': 0, 'PPF/EPF': 0, 'Stocks': 0,
       }
-      
+
       investmentAccounts.forEach(account => {
         const category = accountToCategory[account] || 'Mutual Funds'
         categoryTotals[category] += lastKnown[account]
       })
-      
-      // Add each category to the data point (always >= 0)
+
       INVESTMENT_CATEGORIES.forEach(cat => {
         dataPoint[cat] = Math.max(0, categoryTotals[cat])
       })
-      
+
       return dataPoint
     })
-    
-    return chartData
   }, [transactions, investmentAccounts, accountToCategory])
 
   // Time filter state for growth chart
@@ -329,12 +275,12 @@ export default function InvestmentAnalyticsPage() {
   )
 
   const filteredGrowthData = useMemo(() => {
-    if (!dateRange.start_date || !dateRange.end_date) return monthlyGrowthData
-    return monthlyGrowthData.filter((item) => {
-      const monthDate = item.fullMonth as string
-      return monthDate >= dateRange.start_date!.substring(0, 7) && monthDate <= dateRange.end_date!.substring(0, 7)
+    if (!dateRange.start_date || !dateRange.end_date) return dailyGrowthData
+    return dailyGrowthData.filter((item) => {
+      const d = item.fullDate as string
+      return d >= dateRange.start_date! && d <= dateRange.end_date!
     })
-  }, [monthlyGrowthData, dateRange])
+  }, [dailyGrowthData, dateRange])
 
   if (totalInvestmentValue === 0) {
     return (
@@ -509,13 +455,14 @@ export default function InvestmentAnalyticsPage() {
                     ))}
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis 
-                    dataKey="month" 
-                    stroke="#9ca3af" 
-                    angle={-45} 
-                    textAnchor="end" 
+                  <XAxis
+                    dataKey="date"
+                    stroke="#9ca3af"
+                    angle={-45}
+                    textAnchor="end"
                     height={80}
-                    interval="preserveStartEnd"
+                    tickFormatter={(v) => formatDateTick(v, filteredGrowthData.length)}
+                    interval={Math.max(1, Math.floor(filteredGrowthData.length / 20))}
                   />
                   <YAxis 
                     stroke="#9ca3af"
@@ -527,19 +474,20 @@ export default function InvestmentAnalyticsPage() {
                       value !== undefined ? formatCurrency(value) : '',
                       name || ''
                     ]}
-                    labelFormatter={(label) => `Month: ${label}`}
+                    labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   />
                   <Legend />
                   {INVESTMENT_CATEGORIES.map((category) => (
-                    <Area 
+                    <Area
                       key={category}
-                      type="monotone" 
+                      type="natural"
                       dataKey={category}
                       stackId="1"
-                      stroke={CATEGORY_COLORS[category]} 
+                      stroke={CATEGORY_COLORS[category]}
                       strokeWidth={2}
-                      fillOpacity={1} 
+                      fillOpacity={1}
                       fill={`url(#color-${category.replaceAll(/[\s/]/g, '-')})`}
+                      isAnimationActive={filteredGrowthData.length < 500}
                     />
                   ))}
                 </AreaChart>

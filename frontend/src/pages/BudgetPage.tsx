@@ -18,6 +18,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { useBudgetStore } from '@/store/budgetStore'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
+import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { getCurrentFY, getFYDateRange } from '@/lib/dateUtils'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import {
@@ -270,30 +271,39 @@ export default function BudgetPage() {
               ))}
             </div>
 
-            <button
+            <motion.button
               onClick={() => setIsAdding(true)}
+              whileTap={{ scale: 0.97 }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
               style={{ backgroundColor: `${rawColors.ios.green}22`, color: rawColors.ios.green }}
             >
               <Plus className="w-4 h-4" /> Add Budget
-            </button>
+            </motion.button>
           </div>
         }
       />
 
       {/* Summary KPIs */}
       {summary.count > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          <StatCard label="Total Budget" value={formatCurrency(summary.totalBudget)} icon={Target} color={rawColors.ios.blue} />
-          <StatCard
-            label="Total Spent"
-            value={formatCurrency(summary.totalSpent)}
-            icon={TrendingDown}
-            color={summary.totalSpent > summary.totalBudget ? rawColors.ios.red : rawColors.ios.green}
-          />
-          <StatCard label="On Track" value={String(summary.onTrack)} icon={CheckCircle} color={rawColors.ios.green} />
-          <StatCard label="Exceeded" value={String(summary.exceeded)} icon={AlertTriangle} color={rawColors.ios.red} />
-        </div>
+        <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-5" initial="hidden" animate="visible" variants={staggerContainer}>
+          <motion.div variants={fadeUpItem}>
+            <StatCard label="Total Budget" value={formatCurrency(summary.totalBudget)} icon={Target} color={rawColors.ios.blue} />
+          </motion.div>
+          <motion.div variants={fadeUpItem}>
+            <StatCard
+              label="Total Spent"
+              value={formatCurrency(summary.totalSpent)}
+              icon={TrendingDown}
+              color={summary.totalSpent > summary.totalBudget ? rawColors.ios.red : rawColors.ios.green}
+            />
+          </motion.div>
+          <motion.div variants={fadeUpItem}>
+            <StatCard label="On Track" value={String(summary.onTrack)} icon={CheckCircle} color={rawColors.ios.green} />
+          </motion.div>
+          <motion.div variants={fadeUpItem}>
+            <StatCard label="Exceeded" value={String(summary.exceeded)} icon={AlertTriangle} color={rawColors.ios.red} />
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Add Budget Form */}
@@ -566,14 +576,15 @@ export default function BudgetPage() {
                 const spent = spendingData.byCategory[cat] || spendingData.bySubcategory[cat] || 0
                 const displayName = cat.includes('::') ? cat.split('::')[1] : cat
                 return (
-                  <button
+                  <motion.button
                     key={cat}
                     onClick={() => handleQuickAdd(cat, spent)}
+                    whileTap={{ scale: 0.95 }}
                     className="px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:scale-105"
                     style={{ backgroundColor: `${rawColors.ios.green}15`, color: rawColors.ios.green }}
                   >
                     + {displayName} ({formatCurrency(spent)}/mo)
-                  </button>
+                  </motion.button>
                 )
               })}
           </div>

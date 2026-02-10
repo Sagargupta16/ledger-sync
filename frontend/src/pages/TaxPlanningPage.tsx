@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { motion } from 'framer-motion'
+import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { classifyIncomeType } from '@/lib/preferencesUtils'
@@ -274,68 +276,79 @@ export default function TaxPlanningPage() {
 
   return (
     <div className="min-h-screen p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <PageHeader
-          title="Tax Planning"
-          subtitle="Estimate your tax liability and plan ahead"
-        />
+      <motion.div
+        className="max-w-7xl mx-auto space-y-6"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+      >
+        <motion.div variants={fadeUpItem}>
+          <PageHeader
+            title="Tax Planning"
+            subtitle="Estimate your tax liability and plan ahead"
+          />
+        </motion.div>
 
-        {/* FY Selector */}
-        <FYNavigator
-          selectedFY={selectedFY}
-          isNewRegime={isNewRegime}
-          isCurrentFY={isCurrentFY}
-          hasEmploymentIncome={hasEmploymentIncome}
-          showProjection={showProjection}
-          onToggleProjection={() => setShowProjection(!showProjection)}
-          remainingMonths={remainingMonths}
-          avgMonthlySalary={avgMonthlySalary}
-          canGoBack={canGoBack}
-          canGoForward={canGoForward}
-          onGoBack={goToPreviousFY}
-          onGoForward={goToNextFY}
-        />
+        <motion.div variants={fadeUpItem}>
+          <FYNavigator
+            selectedFY={selectedFY}
+            isNewRegime={isNewRegime}
+            isCurrentFY={isCurrentFY}
+            hasEmploymentIncome={hasEmploymentIncome}
+            showProjection={showProjection}
+            onToggleProjection={() => setShowProjection(!showProjection)}
+            remainingMonths={remainingMonths}
+            avgMonthlySalary={avgMonthlySalary}
+            canGoBack={canGoBack}
+            canGoForward={canGoForward}
+            onGoBack={goToPreviousFY}
+            onGoForward={goToNextFY}
+          />
+        </motion.div>
 
-        {/* Summary Cards */}
-        <TaxSummaryCards
-          isLoading={isLoading}
-          netTaxableIncome={displayNet}
-          grossTaxableIncome={displayGross}
-          taxAlreadyPaid={displayTotalTax}
-        />
+        <motion.div variants={fadeUpItem}>
+          <TaxSummaryCards
+            isLoading={isLoading}
+            netTaxableIncome={displayNet}
+            grossTaxableIncome={displayGross}
+            taxAlreadyPaid={displayTotalTax}
+          />
+        </motion.div>
 
-        {/* Tax Slab Table */}
-        <TaxSlabBreakdown
-          isNewRegime={isNewRegime}
-          taxSlabs={taxSlabs}
-          slabBreakdown={displaySlabBreakdown}
-          grossTaxableIncome={displayGross}
-          standardDeduction={standardDeduction}
-          fyYear={fyYear}
-          baseTax={displayBaseTax}
-          cess={displayCess}
-          professionalTax={displayProfessionalTax}
-          totalTax={displayTotalTax}
-        />
+        <motion.div variants={fadeUpItem}>
+          <TaxSlabBreakdown
+            isNewRegime={isNewRegime}
+            taxSlabs={taxSlabs}
+            slabBreakdown={displaySlabBreakdown}
+            grossTaxableIncome={displayGross}
+            standardDeduction={standardDeduction}
+            fyYear={fyYear}
+            baseTax={displayBaseTax}
+            cess={displayCess}
+            professionalTax={displayProfessionalTax}
+            totalTax={displayTotalTax}
+          />
+        </motion.div>
 
-        {/* Tax Summary */}
-        <TaxSummaryGrid
-          selectedFY={selectedFY}
-          grossTaxableIncome={displayGross}
-          taxAlreadyPaid={displayTotalTax}
-          netTaxableIncome={displayNet}
-          totalIncome={displayIncome}
-          totalExpense={expense}
-        />
+        <motion.div variants={fadeUpItem}>
+          <TaxSummaryGrid
+            selectedFY={selectedFY}
+            grossTaxableIncome={displayGross}
+            taxAlreadyPaid={displayTotalTax}
+            netTaxableIncome={displayNet}
+            totalIncome={displayIncome}
+            totalExpense={expense}
+          />
+        </motion.div>
 
-        {/* Salaried Taxable Income Table */}
-        <TaxableIncomeTable
-          selectedFY={selectedFY}
-          incomeGroups={currentFYData?.incomeGroups}
-          netTaxableIncome={netTaxableIncome}
-        />
-      </div>
+        <motion.div variants={fadeUpItem}>
+          <TaxableIncomeTable
+            selectedFY={selectedFY}
+            incomeGroups={currentFYData?.incomeGroups}
+            netTaxableIncome={netTaxableIncome}
+          />
+        </motion.div>
+      </motion.div>
     </div>
   )
 }

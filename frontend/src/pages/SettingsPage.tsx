@@ -434,21 +434,23 @@ export default function SettingsPage() {
           className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent p-8 border-t border-white/10"
         >
           <div className="max-w-7xl mx-auto flex gap-3 justify-end">
-            <button
+            <motion.button
               onClick={handleReset}
+              whileTap={{ scale: 0.97 }}
               className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all"
             >
               <RotateCcw className="w-4 h-4" />
               <span>Reset to Defaults</span>
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={handleSave}
+              whileTap={{ scale: 0.97 }}
               disabled={!hasChanges || isSaving}
               className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />
               <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
-            </button>
+            </motion.button>
           </div>
         </motion.div>
       </div>

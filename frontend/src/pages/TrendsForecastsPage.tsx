@@ -3,10 +3,11 @@ import { TrendingUp, TrendingDown, Minus, Wallet, PiggyBank, CreditCard, LineCha
 import { useTrends } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, ComposedChart, Line, Bar, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useState, useMemo } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent, formatPeriod } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, formatPeriod, formatDateTick } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
+import { useTransactions } from '@/hooks/api/useTransactions'
 
 import type { TimeRange } from '@/types'
 
@@ -24,6 +25,7 @@ interface TrendMetrics {
 export default function TrendsForecastsPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('all_time')
   const { data: trendsData, isLoading } = useTrends(timeRange)
+  const { data: allTransactions = [] } = useTransactions()
 
   // Calculate comprehensive trend metrics
   const metrics = useMemo(() => {
@@ -123,6 +125,34 @@ export default function TrendsForecastsPage() {
 
     return rawData
   }, [trendsData])
+
+  // Daily cumulative savings rate data
+  const dailySavingsData = useMemo(() => {
+    if (!allTransactions.length) return []
+
+    const dailyMap: Record<string, { income: number; expense: number }> = {}
+    for (const tx of allTransactions) {
+      const day = tx.date.substring(0, 10)
+      if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
+      if (tx.type === 'Income') dailyMap[day].income += tx.amount
+      else if (tx.type === 'Expense') dailyMap[day].expense += tx.amount
+    }
+
+    const sortedDays = Object.entries(dailyMap).sort(([a], [b]) => a.localeCompare(b))
+    let cumIncome = 0
+    let cumExpense = 0
+
+    return sortedDays.map(([date, { income, expense }]) => {
+      cumIncome += income
+      cumExpense += expense
+      const savingsRate = cumIncome > 0 ? ((cumIncome - cumExpense) / cumIncome) * 100 : 0
+      return {
+        date,
+        savingsRate: Math.max(0, savingsRate),
+        rawSavingsRate: savingsRate,
+      }
+    })
+  }, [allTransactions])
 
   const getTrendIcon = (direction: 'up' | 'down' | 'stable', isPositiveGood: boolean) => {
     if (direction === 'stable') return <Minus className="w-5 h-5 text-gray-400" />
@@ -361,7 +391,7 @@ export default function TrendsForecastsPage() {
                 <Legend />
                 <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} opacity={0.8} />
                 <Bar dataKey="expenses" name="Spending" fill="#ef4444" radius={[4, 4, 0, 0]} opacity={0.8} />
-                <Line type="monotone" dataKey="surplus" name="Savings" stroke="#a855f7" strokeWidth={3} dot={{ fill: '#a855f7', r: 4 }} />
+                <Line type="natural" dataKey="surplus" name="Savings" stroke="#a855f7" strokeWidth={3} dot={{ fill: '#a855f7', r: 4 }} />
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -393,18 +423,19 @@ export default function TrendsForecastsPage() {
               <div className="animate-pulse text-gray-400">Loading chart...</div>
             </div>
           )}
-          {!isLoading && chartData.length > 0 && (
+          {!isLoading && dailySavingsData.length > 0 && (
             <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={chartData}>
+              <AreaChart data={dailySavingsData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatPeriod(v)} />
+                <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatDateTick(v, dailySavingsData.length)} angle={-45} textAnchor="end" height={70} interval={Math.max(1, Math.floor(dailySavingsData.length / 15))} />
                 <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => `${Math.round(v)}%`} domain={[0, 'auto']} />
                 <Tooltip
                   {...chartTooltipProps}
+                  labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   formatter={(_value: number | undefined, _name: string | undefined, props: { payload?: { rawSavingsRate?: number } }) => {
                     const actual = props.payload?.rawSavingsRate ?? 0
                     const label = actual < 0 ? `${actual.toFixed(1)}% (deficit)` : `${actual.toFixed(1)}%`
-                    return [label, 'Savings Rate']
+                    return [label, 'Cumulative Savings Rate']
                   }}
                 />
                 <defs>
@@ -413,17 +444,18 @@ export default function TrendsForecastsPage() {
                     <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <Area 
-                  type="monotone" 
-                  dataKey="savingsRate" 
-                  stroke="#a855f7" 
-                  fill="url(#savingsGradient)" 
+                <Area
+                  type="natural"
+                  dataKey="savingsRate"
+                  stroke="#a855f7"
+                  fill="url(#savingsGradient)"
                   strokeWidth={2}
+                  isAnimationActive={dailySavingsData.length < 500}
                 />
               </AreaChart>
             </ResponsiveContainer>
           )}
-          {!isLoading && chartData.length === 0 && (
+          {!isLoading && dailySavingsData.length === 0 && (
             <EmptyState
               icon={PiggyBank}
               title="No data available"
@@ -457,12 +489,13 @@ export default function TrendsForecastsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {chartData.slice(-8).map((trend) => (
+                  {chartData.slice(-8).map((trend, index) => (
                     <motion.tr
                       key={trend.month}
                       className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.03 }}
                     >
                       <td className="py-3 px-4 text-white font-medium">{trend.month}</td>
                       <td className="py-3 px-4 text-right text-green-400">{formatCurrency(trend.income)}</td>

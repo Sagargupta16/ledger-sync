@@ -226,7 +226,7 @@ export default function EnhancedSubcategoryAnalysis() {
               {subcategories.map((subcat, index) => (
                 <Line
                   key={subcat}
-                  type="monotone"
+                  type="natural"
                   dataKey={subcat}
                   stroke={COLORS[index % COLORS.length]}
                   strokeWidth={2}
