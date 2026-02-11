@@ -1,5 +1,9 @@
 import { motion } from 'framer-motion'
-import { ShoppingBag, TrendingUp, Zap, Activity, Gift, Receipt, Flame, ArrowLeftRight } from 'lucide-react'
+import {
+  ShoppingBag, TrendingUp, Zap, Activity, Gift, Receipt,
+  Flame, ArrowLeftRight, PiggyBank, Landmark, Calendar, BarChart3,
+  Clock, Layers,
+} from 'lucide-react'
 import { useCategoryBreakdown, useTotals } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import LoadingSkeleton from './LoadingSkeleton'
@@ -8,6 +12,105 @@ import { formatCurrency } from '@/lib/formatters'
 interface QuickInsightsProps {
   readonly dateRange?: { start_date?: string; end_date?: string }
 }
+
+interface CategoryData {
+  total: number
+  count: number
+  percentage: number
+  subcategories: Record<string, number>
+}
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+// ─── Computation helpers (extracted to reduce component complexity) ────
+
+interface DateRange {
+  start_date?: string
+  end_date?: string
+}
+
+interface Transaction {
+  date: string
+  amount: number
+  type: string
+  category?: string
+  subcategory?: string
+  to_account?: string
+}
+
+function computeDaysInRange(dateRange: DateRange, transactions: Transaction[]): number {
+  if (!dateRange.start_date || !dateRange.end_date) {
+    if (transactions.length > 0) {
+      const dates = transactions.map(t => new Date(t.date).getTime())
+      const earliest = Math.min(...dates)
+      const latest = Math.max(...dates)
+      return Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) || 1
+    }
+    return 30
+  }
+  const start = new Date(dateRange.start_date)
+  const end = new Date(dateRange.end_date)
+  return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) || 1
+}
+
+function computeMonthsInRange(dateRange: DateRange, transactions: Transaction[]): number {
+  if (!dateRange.start_date || !dateRange.end_date) {
+    if (transactions.length > 0) {
+      const dates = transactions.map(t => new Date(t.date).getTime())
+      const earliest = Math.min(...dates)
+      const latest = Math.max(...dates)
+      const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24))
+      return Math.max(days / 30.44, 1)
+    }
+    return 1
+  }
+  const start = new Date(dateRange.start_date)
+  const end = new Date(dateRange.end_date)
+  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+  return Math.max(days / 30.44, 1)
+}
+
+function computeMedian(values: number[]): number {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2
+  }
+  return sorted[mid]
+}
+
+function computeWeekendSplit(transactions: Transaction[]) {
+  let weekend = 0
+  let weekday = 0
+  for (const t of transactions) {
+    const day = new Date(t.date).getDay()
+    const amount = Math.abs(t.amount)
+    if (day === 0 || day === 6) weekend += amount
+    else weekday += amount
+  }
+  return { weekend, weekday }
+}
+
+function computePeakDay(transactions: Transaction[]) {
+  const spendingByDay = [0, 0, 0, 0, 0, 0, 0]
+  for (const t of transactions) {
+    spendingByDay[new Date(t.date).getDay()] += Math.abs(t.amount)
+  }
+  const peakIndex = spendingByDay.indexOf(Math.max(...spendingByDay))
+  return { name: DAY_NAMES[peakIndex], total: spendingByDay[peakIndex] }
+}
+
+function computeTopByCategory(transactions: Transaction[]) {
+  const byCat: Record<string, number> = {}
+  for (const t of transactions) {
+    const cat = t.category || 'Other'
+    byCat[cat] = (byCat[cat] || 0) + Math.abs(t.amount)
+  }
+  return Object.entries(byCat).sort(([, a], [, b]) => b - a)[0]
+}
+
+// ─── Main component ─────────────────────────────────────────────────────
 
 export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
   const { data: categoryData, isLoading: categoryLoading } = useCategoryBreakdown({
@@ -18,49 +121,26 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     start_date: dateRange.start_date,
     end_date: dateRange.end_date,
   })
-  const { isLoading: totalsLoading } = useTotals(dateRange)
+  const { data: totalsData, isLoading: totalsLoading } = useTotals(dateRange)
 
-  // Filter for expense transactions
-  const transactionsData = {
-    transactions: allTransactions.filter(
-      (t) => t.type === 'Expense'
-    ),
-  }
-
+  const transactions = allTransactions.filter((t) => t.type === 'Expense')
   const isLoading = categoryLoading || transactionsLoading || totalsLoading
 
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <LoadingSkeleton className="h-16 w-full" />
-        <LoadingSkeleton className="h-16 w-full" />
-        <LoadingSkeleton className="h-16 w-full" />
-        <LoadingSkeleton className="h-16 w-full" />
-        <LoadingSkeleton className="h-16 w-full" />
-        <LoadingSkeleton className="h-16 w-full" />
-        <LoadingSkeleton className="h-16 w-full" />
-        <LoadingSkeleton className="h-16 w-full" />
+        {Array.from({ length: 14 }, (_, i) => (
+          <LoadingSkeleton key={`skeleton-${i}`} className="h-16 w-full" />
+        ))}
       </div>
     )
   }
 
-  // Find top spending category
   const categories = categoryData?.categories || {}
-  interface CategoryData {
-    total: number
-    count: number
-    percentage: number
-    subcategories: Record<string, number>
-  }
-  const topCategory = Object.entries(categories)
-    .sort(([, a], [, b]) => {
-      const aTotal = (a as CategoryData).total
-      const bTotal = (b as CategoryData).total
-      return bTotal - aTotal
-    })[0]
 
-  // Find biggest transaction
-  const transactions = transactionsData?.transactions || []
+  const topCategory = Object.entries(categories)
+    .sort(([, a], [, b]) => (b as CategoryData).total - (a as CategoryData).total)[0]
+
   const biggestTransaction = transactions.length > 0
     ? transactions.reduce(
         (max, t) => (Math.abs(t.amount) > Math.abs(max.amount) ? t : max),
@@ -68,47 +148,23 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       )
     : { amount: 0, category: 'N/A', date: '' }
 
-  // Calculate days in range
-  const getDaysInRange = () => {
-    if (!dateRange.start_date || !dateRange.end_date) {
-      // For ALL time, calculate from earliest transaction to today
-      if (transactions.length > 0) {
-        const dates = transactions.map(t => new Date(t.date).getTime())
-        const earliest = Math.min(...dates)
-        const latest = Math.max(...dates)
-        return Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) || 1
-      }
-      return 30
-    }
-    const start = new Date(dateRange.start_date)
-    const end = new Date(dateRange.end_date)
-    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) || 1
-  }
-  const daysInRange = getDaysInRange()
+  const daysInRange = computeDaysInRange(dateRange, transactions)
+  const monthsInRange = computeMonthsInRange(dateRange, transactions)
 
-  // Calculate average daily spending
   const totalSpending = Object.values(categories).reduce(
-    (sum, cat) => sum + (cat as CategoryData).total,
-    0,
+    (sum, cat) => sum + (cat as CategoryData).total, 0,
   )
   const avgDailySpending = totalSpending / daysInRange
-
-  // Calculate total transactions count
   const totalTransactions = transactions.length
+  const monthlyBurnRate = totalSpending / monthsInRange
 
-  // Find most frequent spending category
   const mostFrequentCategory = Object.entries(categories)
-    .sort(([, a], [, b]) => {
-      const aCount = (a as CategoryData).count
-      const bCount = (b as CategoryData).count
-      return bCount - aCount
-    })[0]
+    .sort(([, a], [, b]) => (b as CategoryData).count - (a as CategoryData).count)[0]
 
-  // Calculate net cashback earned (Refund & Cashbacks - Cashback Shared transfers)
-  // Only count Credit Card Cashbacks and Other Cashbacks, exclude refunds
+  // Cashback
   const cashbackTransactions = allTransactions.filter(
-    (t) => 
-      t.category === 'Refund & Cashbacks' && 
+    (t) =>
+      t.category === 'Refund & Cashbacks' &&
       t.type === 'Income' &&
       (t.subcategory === 'Credit Card Cashbacks' || t.subcategory === 'Other Cashbacks')
   )
@@ -119,39 +175,41 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
   const totalCashbackShared = cashbackSharedTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
   const netCashback = totalCashback - totalCashbackShared
 
-  // Calculate average transaction amount
-  const avgTransactionAmount = transactions.length > 0 
-    ? totalSpending / transactions.length 
-    : 0
+  const avgTransactionAmount = transactions.length > 0 ? totalSpending / transactions.length : 0
 
-  // Calculate monthly burn rate (average spending per month)
-  const getMonthsInRange = () => {
-    if (!dateRange.start_date || !dateRange.end_date) {
-      // For ALL time, calculate from earliest transaction
-      if (transactions.length > 0) {
-        const dates = transactions.map(t => new Date(t.date).getTime())
-        const earliest = Math.min(...dates)
-        const latest = Math.max(...dates)
-        const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24))
-        return Math.max(days / 30.44, 1) // Convert days to months (365.25/12)
-      }
-      return 1
-    }
-    const start = new Date(dateRange.start_date)
-    const end = new Date(dateRange.end_date)
-    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-    return Math.max(days / 30.44, 1) // Convert days to months (365.25/12)
-  }
-  const monthsInRange = getMonthsInRange()
-  const monthlyBurnRate = totalSpending / monthsInRange
-
-  // Calculate total internal transfers
-  const transferTransactions = allTransactions.filter(
-    (t) => t.type === 'Transfer'
-  )
+  const transferTransactions = allTransactions.filter((t) => t.type === 'Transfer')
   const totalTransfers = transferTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
 
+  // New insights data
+  const savingsRate = totalsData?.savings_rate ?? 0
+  const totalIncome = totalsData?.total_income ?? 0
+  const netSavings = totalsData?.net_savings ?? 0
+
+  const topIncomeSource = computeTopByCategory(allTransactions.filter((t) => t.type === 'Income'))
+  const { weekend: weekendSpending, weekday: weekdaySpending } = computeWeekendSplit(transactions)
+  const weekendPercent = totalSpending > 0 ? (weekendSpending / totalSpending) * 100 : 0
+  const peakDay = computePeakDay(transactions)
+
+  const uniqueCategories = Object.keys(categories).length
+  const uniqueSubcategories = Object.values(categories).reduce(
+    (sum, cat) => sum + Object.keys((cat as CategoryData).subcategories || {}).length, 0,
+  )
+
+  const medianTransaction = computeMedian(transactions.map((t) => Math.abs(t.amount)))
+
+  // ─── Build insights array ─────────────────────────────────────────────
+
   const insights = [
+    {
+      icon: PiggyBank,
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-500/20',
+      title: 'Savings Rate',
+      value: `${savingsRate.toFixed(1)}%`,
+      subtitle: totalIncome > 0
+        ? `${formatCurrency(netSavings)} saved of ${formatCurrency(totalIncome)}`
+        : 'No income recorded',
+    },
     {
       icon: ShoppingBag,
       color: 'text-ios-purple',
@@ -161,6 +219,14 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       subtitle: topCategory
         ? formatCurrency(Math.abs((topCategory[1] as CategoryData).total))
         : '',
+    },
+    {
+      icon: Landmark,
+      color: 'text-sky-400',
+      bg: 'bg-sky-500/20',
+      title: 'Top Income Source',
+      value: topIncomeSource ? topIncomeSource[0] : 'N/A',
+      subtitle: topIncomeSource ? formatCurrency(topIncomeSource[1]) : '',
     },
     {
       icon: Gift,
@@ -187,12 +253,14 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       subtitle: biggestTransaction?.category || '',
     },
     {
-      icon: Receipt,
-      color: 'text-ios-teal',
-      bg: 'bg-ios-teal/20',
-      title: 'Avg Transaction Amount',
-      value: formatCurrency(avgTransactionAmount),
-      subtitle: `Per transaction`,
+      icon: BarChart3,
+      color: 'text-violet-400',
+      bg: 'bg-violet-500/20',
+      title: 'Median Transaction',
+      value: formatCurrency(medianTransaction),
+      subtitle: avgTransactionAmount > medianTransaction
+        ? 'Below average — few large purchases skew up'
+        : 'Close to average — spending is even',
     },
     {
       icon: Zap,
@@ -203,12 +271,44 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       subtitle: `Over ${daysInRange} days`,
     },
     {
+      icon: Calendar,
+      color: 'text-rose-400',
+      bg: 'bg-rose-500/20',
+      title: 'Weekend Spending',
+      value: `${weekendPercent.toFixed(0)}%`,
+      subtitle: `${formatCurrency(weekendSpending)} on weekends vs ${formatCurrency(weekdaySpending)} weekdays`,
+    },
+    {
+      icon: Clock,
+      color: 'text-amber-400',
+      bg: 'bg-amber-500/20',
+      title: 'Peak Spending Day',
+      value: peakDay.name,
+      subtitle: `${formatCurrency(peakDay.total)} total on ${peakDay.name}s`,
+    },
+    {
       icon: Flame,
       color: 'text-ios-orange',
       bg: 'bg-ios-orange/20',
       title: 'Monthly Burn Rate',
       value: formatCurrency(monthlyBurnRate),
       subtitle: `Avg per month over ${monthsInRange.toFixed(1)} months`,
+    },
+    {
+      icon: Layers,
+      color: 'text-cyan-400',
+      bg: 'bg-cyan-500/20',
+      title: 'Spending Diversity',
+      value: `${uniqueCategories} categories`,
+      subtitle: `Across ${uniqueSubcategories} subcategories`,
+    },
+    {
+      icon: Receipt,
+      color: 'text-ios-teal',
+      bg: 'bg-ios-teal/20',
+      title: 'Avg Transaction Amount',
+      value: formatCurrency(avgTransactionAmount),
+      subtitle: `Per transaction`,
     },
     {
       icon: ArrowLeftRight,
@@ -227,7 +327,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
           key={insight.title}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: index * 0.1 }}
+          transition={{ delay: index * 0.05 }}
           className="flex items-center gap-4 p-4 glass rounded-lg border border-white/10 hover:border-primary/30 transition-all"
         >
           <div className={`p-3 ${insight.bg} rounded-lg`}>
