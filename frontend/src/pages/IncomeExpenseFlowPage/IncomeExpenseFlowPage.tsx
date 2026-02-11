@@ -277,7 +277,7 @@ const IncomeExpenseFlowPage = () => {
                     const percentage = totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0'
                     
                     // Determine color based on position
-                    let fillColor = '#8b5cf6'
+                    let fillColor: string
                     if (index < Object.keys(incomeByCategory).length) {
                       // Income nodes - green gradient
                       const greenColors = ['#10b981', '#22c55e', '#84cc16', '#a3e635', '#6ee7b7']

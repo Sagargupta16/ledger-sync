@@ -82,7 +82,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
     })
 
     // Get all periods
-    let allPeriods: string[] = []
+    let allPeriods: string[]
     if (viewMode === 'monthly') {
       const year = Number.parseInt(currentMonth.substring(0, 4))
       const month = Number.parseInt(currentMonth.substring(5, 7))

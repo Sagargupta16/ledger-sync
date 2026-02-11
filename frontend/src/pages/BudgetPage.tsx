@@ -64,12 +64,12 @@ export default function BudgetPage() {
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
   const alertThreshold = preferences?.default_budget_alert_threshold ?? 80
 
-  const getStatus = (pct: number): BudgetRow['status'] => {
+  const getStatus = useCallback((pct: number): BudgetRow['status'] => {
     if (pct >= 100) return 'exceeded'
     if (pct >= alertThreshold) return 'danger'
     if (pct >= alertThreshold * 0.75) return 'warning'
     return 'safe'
-  }
+  }, [alertThreshold])
   const { budgets, setBudget, removeBudget } = useBudgetStore()
 
   const [viewMode, setViewMode] = useState<ViewMode>('category')
@@ -168,7 +168,7 @@ export default function BudgetPage() {
         status: getStatus(percentage),
       }
     })
-  }, [budgets, spendingData])
+  }, [budgets, spendingData, getStatus])
 
   // Filter rows by view mode and period
   const filteredRows = useMemo(() => {

@@ -131,6 +131,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     }
   }, [onSortingChange, sorting])
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: transactions,
     columns,
