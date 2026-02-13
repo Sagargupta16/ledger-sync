@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { motion } from 'framer-motion'
+import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { TrendingUp, TrendingDown, Calendar, Tag } from 'lucide-react'
 import type { Transaction } from '@/types'
 import { format } from 'date-fns'
@@ -11,18 +12,14 @@ interface RecentTransactionsProps {
 }
 
 // Memoized transaction row component
-const TransactionRow = memo(function TransactionRow({ 
-  transaction, 
-  index 
-}: { 
+const TransactionRow = memo(function TransactionRow({
+  transaction,
+}: {
   transaction: Transaction
-  index: number 
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.05 }}
+      variants={fadeUpItem}
       className="flex items-center justify-between p-4 rounded-lg glass border border-white/10 hover:border-white/20 hover:shadow-lg transition-all duration-300 group"
     >
       <div className="flex items-center gap-4 flex-1">
@@ -93,11 +90,16 @@ function RecentTransactions({ transactions, isLoading }: Readonly<RecentTransact
   }
 
   return (
-    <div className="space-y-2">
-      {transactions.map((transaction, index) => (
-        <TransactionRow key={transaction.id} transaction={transaction} index={index} />
+    <motion.div
+      className="space-y-2"
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+    >
+      {transactions.map((transaction) => (
+        <TransactionRow key={transaction.id} transaction={transaction} />
       ))}
-    </div>
+    </motion.div>
   )
 }
 

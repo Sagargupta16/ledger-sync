@@ -9,6 +9,8 @@ import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 import { chartTooltipProps } from '@/components/ui'
 
 const COLORS = CHART_COLORS
+const COLOR_STYLES = COLORS.map(c => ({ backgroundColor: c }))
+const LINE_DOT = { r: 3 }
 
 interface SubcategoryAnalysisProps {
   categoryData: Array<{
@@ -176,7 +178,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
               <div className="flex items-center gap-4 flex-1">
                 <div
                   className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  style={COLOR_STYLES[index % COLOR_STYLES.length]}
                 />
                 <div className="flex-1 text-left">
                   <div className="font-medium text-white">{item.category}</div>
@@ -314,7 +316,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                             <div className="flex items-center gap-2 flex-1">
                               <div
                                 className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: COLORS[(index + idx) % COLORS.length] }}
+                                style={COLOR_STYLES[(index + idx) % COLOR_STYLES.length]}
                               />
                               <span className="text-sm text-gray-300">{subcat.name}</span>
                               <span className="text-xs text-text-tertiary">({subcat.count} txns)</span>
@@ -357,7 +359,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                                 dataKey={name}
                                 stroke={COLORS[(index + idx) % COLORS.length]}
                                 strokeWidth={2}
-                                dot={{ r: 3 }}
+                                dot={LINE_DOT}
                                 connectNulls
                               />
                             ))}

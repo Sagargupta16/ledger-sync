@@ -495,13 +495,14 @@ export default function PeriodComparison() {
                 <th className="text-right py-3 px-4 text-sm font-semibold" style={{ color: rawColors.text.secondary }}>Change</th>
               </tr>
             </thead>
-            <tbody>
-              {comparisonMetrics.map((metric, index) => (
-                <motion.tr
+            <motion.tbody
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              {comparisonMetrics.map((metric) => (
+                <tr
                   key={metric.label}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.03 }}
                   className="border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors"
                 >
                   <td className="py-3 px-4 text-sm font-medium text-white/90">
@@ -516,9 +517,9 @@ export default function PeriodComparison() {
                   <td className="py-3 px-4 text-sm text-right">
                     <ChangeDisplay changePercent={metric.changePercent} isExpense={metric.isExpense} />
                   </td>
-                </motion.tr>
+                </tr>
               ))}
-            </tbody>
+            </motion.tbody>
           </table>
         </div>
       ) : (

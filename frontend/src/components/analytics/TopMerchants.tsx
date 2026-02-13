@@ -18,6 +18,7 @@ interface MerchantData {
 }
 
 const COLORS = CHART_COLORS
+const COLOR_STYLES = COLORS.map(c => ({ backgroundColor: c }))
 
 export default function TopMerchants() {
   const { data: transactions = [], isLoading } = useTransactions()
@@ -186,7 +187,7 @@ export default function TopMerchants() {
               >
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  style={COLOR_STYLES[index % COLOR_STYLES.length]}
                 >
                   {index + 1}
                 </div>

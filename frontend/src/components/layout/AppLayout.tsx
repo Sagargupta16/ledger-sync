@@ -12,11 +12,19 @@ export default function AppLayout() {
         Skip to main content
       </a>
 
-      {/* iOS-style animated gradient orbs */}
-      <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#5e5ce6]/20 rounded-full blur-[120px] animate-float" aria-hidden="true" />
-      <div className="fixed top-[60%] right-[-10%] w-[500px] h-[500px] bg-[#0a84ff]/15 rounded-full blur-[100px] animate-float" style={{ animationDelay: '2s' }} aria-hidden="true" />
-      <div className="fixed top-[30%] left-[50%] w-[400px] h-[400px] bg-[#bf5af2]/10 rounded-full blur-[80px] animate-glow" style={{ animationDelay: '4s' }} aria-hidden="true" />
-      <div className="fixed bottom-[-10%] left-[20%] w-[450px] h-[450px] bg-[#30d158]/10 rounded-full blur-[100px] animate-float" style={{ animationDelay: '3s' }} aria-hidden="true" />
+      {/* Static gradient orbs — no blur compositing, painted once */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        aria-hidden="true"
+        style={{
+          background: [
+            'radial-gradient(600px circle at -10% -20%, rgba(94,92,230,0.20), transparent 70%)',
+            'radial-gradient(500px circle at 110% 60%, rgba(10,132,255,0.15), transparent 70%)',
+            'radial-gradient(400px circle at 50% 30%, rgba(191,90,242,0.10), transparent 70%)',
+            'radial-gradient(450px circle at 20% 110%, rgba(48,209,88,0.10), transparent 70%)',
+          ].join(', '),
+        }}
+      />
 
       <Sidebar />
       <main id="main-content" className="flex-1 overflow-auto relative z-10">

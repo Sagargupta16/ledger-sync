@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { fadeUpWithDelay } from '@/constants/animations'
 import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import RecentTransactions from '@/components/shared/RecentTransactions'
@@ -124,6 +125,27 @@ export default function DashboardPage() {
     ].filter((d) => d.value > 0)
   }, [spendingBreakdown])
 
+  // Precomputed style objects for chart legends (stable references across renders)
+  const incomeColorStyles = useMemo(
+    () => incomeChartData.map((item) => ({ backgroundColor: item.color })),
+    [incomeChartData]
+  )
+
+  const spendingColorStyles = useMemo(
+    () => spendingChartData.map((item) => ({ backgroundColor: item.color })),
+    [spendingChartData]
+  )
+
+  const spendingBarStyles = useMemo(
+    () => spendingChartData.map((item) => {
+      const percentage = spendingBreakdown
+        ? (item.value / spendingBreakdown.total) * 100
+        : 0
+      return { width: `${percentage.toFixed(1)}%`, backgroundColor: item.color }
+    }),
+    [spendingChartData, spendingBreakdown]
+  )
+
   // Prepare sparkline data for mini charts - show all months in the filtered range
   const incomeSparkline = useMemo(() => {
     if (!monthlyData) return []
@@ -240,9 +262,7 @@ export default function DashboardPage() {
 
         {/* Quick Insights */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          {...fadeUpWithDelay(0.2)}
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
@@ -254,9 +274,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Income Sources Breakdown */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          {...fadeUpWithDelay(0.4)}
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -289,12 +307,12 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               </div>
               <div className="flex-1 space-y-2">
-                {incomeChartData.map((item) => (
+                {incomeChartData.map((item, i) => (
                   <div key={item.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div
                         className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: item.color }}
+                        style={incomeColorStyles[i]}
                       />
                       <span className="text-sm">{item.name}</span>
                     </div>
@@ -337,9 +355,7 @@ export default function DashboardPage() {
 
         {/* Essential vs Discretionary Spending */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          {...fadeUpWithDelay(0.5)}
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -372,7 +388,7 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               </div>
               <div className="flex-1 space-y-3">
-                {spendingChartData.map((item) => {
+                {spendingChartData.map((item, i) => {
                   const percentage = spendingBreakdown
                     ? ((item.value / spendingBreakdown.total) * 100).toFixed(1)
                     : '0'
@@ -382,7 +398,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2">
                           <div
                             className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: item.color }}
+                            style={spendingColorStyles[i]}
                           />
                           <span className="text-sm">{item.name}</span>
                         </div>
@@ -393,10 +409,7 @@ export default function DashboardPage() {
                       <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${percentage}%`,
-                            backgroundColor: item.color,
-                          }}
+                          style={spendingBarStyles[i]}
                         />
                       </div>
                     </div>
@@ -430,9 +443,7 @@ export default function DashboardPage() {
       {/* Recent Activity & Period Comparison — filter-independent */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          {...fadeUpWithDelay(0.5)}
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>

@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 interface MetricCardProps {
   title: string
@@ -20,6 +21,7 @@ interface MetricCardProps {
 
 export default function MetricCard({ title, value, change, invertChange, changeLabel, icon: Icon, color = 'blue', isLoading, trend }: Readonly<MetricCardProps>) {
   const colors = metricColorConfig[color]
+  const reducedMotion = useReducedMotion()
 
   if (isLoading) {
     return (
@@ -31,11 +33,11 @@ export default function MetricCard({ title, value, change, invertChange, changeL
     )
   }
 
+  const Wrapper = reducedMotion ? 'div' : motion.div
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+    <Wrapper
+      {...(!reducedMotion && { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { type: 'spring', stiffness: 300, damping: 30 } })}
       className="relative p-6 glass rounded-2xl overflow-hidden group border border-white/[0.08] transition-all duration-300 hover:border-white/[0.12] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/30"
     >
       {/* Subtle gradient glow on hover */}
@@ -99,6 +101,6 @@ export default function MetricCard({ title, value, change, invertChange, changeL
           })()}
         </div>
       )}
-    </motion.div>
+    </Wrapper>
   )
 }

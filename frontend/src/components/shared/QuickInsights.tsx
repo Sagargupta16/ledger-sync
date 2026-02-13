@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   ShoppingBag, TrendingUp, Zap, Activity, Gift, Receipt,
@@ -8,6 +9,7 @@ import { useCategoryBreakdown, useTotals } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import LoadingSkeleton from './LoadingSkeleton'
 import { formatCurrency } from '@/lib/formatters'
+import { staggerContainer, fadeUpItem } from '@/constants/animations'
 
 interface QuickInsightsProps {
   readonly dateRange?: { start_date?: string; end_date?: string }
@@ -126,16 +128,6 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
   const transactions = allTransactions.filter((t) => t.type === 'Expense')
   const isLoading = categoryLoading || transactionsLoading || totalsLoading
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {Array.from({ length: 14 }, (_, i) => (
-          <LoadingSkeleton key={`skeleton-${i}`} className="h-16 w-full" />
-        ))}
-      </div>
-    )
-  }
-
   const categories = categoryData?.categories || {}
 
   const topCategory = Object.entries(categories)
@@ -199,7 +191,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
 
   // ─── Build insights array ─────────────────────────────────────────────
 
-  const insights = [
+  const insights = useMemo(() => [
     {
       icon: PiggyBank,
       color: 'text-emerald-400',
@@ -318,16 +310,42 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       value: formatCurrency(totalTransfers),
       subtitle: `${transferTransactions.length} transfer transactions`,
     },
-  ]
+  ], [
+    savingsRate, netSavings, totalIncome,
+    topCategory, topIncomeSource,
+    netCashback, cashbackTransactions.length,
+    totalTransactions, mostFrequentCategory,
+    biggestTransaction,
+    medianTransaction, avgTransactionAmount,
+    avgDailySpending, daysInRange,
+    weekendPercent, weekendSpending, weekdaySpending,
+    peakDay,
+    monthlyBurnRate, monthsInRange,
+    uniqueCategories, uniqueSubcategories,
+    totalTransfers, transferTransactions.length,
+  ])
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {Array.from({ length: 14 }, (_, i) => (
+          <LoadingSkeleton key={`skeleton-${i}`} className="h-16 w-full" />
+        ))}
+      </div>
+    )
+  }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-      {insights.map((insight, index) => (
+    <motion.div
+      className="grid grid-cols-1 lg:grid-cols-2 gap-3"
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+    >
+      {insights.map((insight) => (
         <motion.div
           key={insight.title}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: index * 0.05 }}
+          variants={fadeUpItem}
           className="flex items-center gap-4 p-4 glass rounded-lg border border-white/10 hover:border-primary/30 transition-all"
         >
           <div className={`p-3 ${insight.bg} rounded-lg`}>
@@ -342,6 +360,6 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
           </div>
         </motion.div>
       ))}
-    </div>
+    </motion.div>
   )
 }

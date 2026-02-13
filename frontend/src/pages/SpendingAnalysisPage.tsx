@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { fadeUpWithDelay } from '@/constants/animations'
 import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -178,6 +179,12 @@ export default function SpendingAnalysisPage() {
     return computeBudgetRuleMetrics(spendingBreakdown, totalIncome, savings, needsTarget, wantsTarget, savingsTarget)
   }, [spendingBreakdown, totalIncome, savings, needsTarget, wantsTarget, savingsTarget])
 
+  // Precomputed style objects for chart legend (stable references across renders)
+  const spendingLegendColorStyles = useMemo(
+    () => spendingChartData.map((item) => ({ backgroundColor: item.color })),
+    [spendingChartData]
+  )
+
   const isLoading = !transactions
 
   return (
@@ -204,7 +211,7 @@ export default function SpendingAnalysisPage() {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+          <motion.div {...fadeUpWithDelay(0.2)} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-red-500/20 rounded-xl shadow-lg shadow-red-500/30">
                 <TrendingDown className="w-6 h-6 text-red-500" />
@@ -216,7 +223,7 @@ export default function SpendingAnalysisPage() {
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+          <motion.div {...fadeUpWithDelay(0.3)} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">
                 <Tag className="w-6 h-6 text-primary" />
@@ -228,7 +235,7 @@ export default function SpendingAnalysisPage() {
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+          <motion.div {...fadeUpWithDelay(0.4)} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
                 <PieChart className="w-6 h-6 text-blue-500" />
@@ -242,11 +249,9 @@ export default function SpendingAnalysisPage() {
         </div>
 
         {/* Essential vs Discretionary Spending */}
-        <motion.div 
+        <motion.div
           className="glass p-6 rounded-xl border border-white/10"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          {...fadeUpWithDelay(0.5)}
         >
           <h3 className="text-lg font-semibold text-white mb-4">50/30/20 Budget Rule Analysis</h3>
           {spendingChartData.length > 0 ? (
@@ -277,11 +282,11 @@ export default function SpendingAnalysisPage() {
                   </ResponsiveContainer>
                 </div>
                 <div className="flex gap-6 mt-4">
-                  {spendingChartData.map((item) => (
+                  {spendingChartData.map((item, i) => (
                     <div key={item.name} className="flex items-center gap-2">
                       <div
                         className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: item.color }}
+                        style={spendingLegendColorStyles[i]}
                       />
                       <span className="text-sm text-gray-300">{item.name}</span>
                     </div>

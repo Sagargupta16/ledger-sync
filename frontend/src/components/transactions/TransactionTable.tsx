@@ -210,13 +210,14 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
               </tr>
             ))}
           </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row, index) => (
-              <motion.tr
+          <motion.tbody
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            {table.getRowModel().rows.map((row) => (
+              <tr
                 key={row.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.02 }}
                 className="border-b border-white/5 hover:bg-white/5 transition-colors"
               >
                 {row.getVisibleCells().map((cell) => (
@@ -224,9 +225,9 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
-              </motion.tr>
+              </tr>
             ))}
-          </tbody>
+          </motion.tbody>
         </table>
       </div>
     </motion.div>

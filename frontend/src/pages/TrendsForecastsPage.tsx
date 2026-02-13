@@ -563,14 +563,15 @@ export default function TrendsForecastsPage() {
                     <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Savings Rate</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {chartData.slice(-8).map((trend, index) => (
-                    <motion.tr
+                <motion.tbody
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {chartData.slice(-8).map((trend) => (
+                    <tr
                       key={trend.month}
                       className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.03 }}
                     >
                       <td className="py-3 px-4 text-white font-medium">{trend.month}</td>
                       <td className="py-3 px-4 text-right text-green-400">{formatCurrency(trend.income)}</td>
@@ -581,9 +582,9 @@ export default function TrendsForecastsPage() {
                       <td className={`py-3 px-4 text-right ${trend.rawSavingsRate >= 0 ? 'text-gray-300' : 'text-red-400'}`}>
                         {trend.rawSavingsRate.toFixed(1)}%
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))}
-                </tbody>
+                </motion.tbody>
               </table>
             </div>
           )}
