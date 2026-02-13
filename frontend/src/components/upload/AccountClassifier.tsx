@@ -5,6 +5,12 @@ import { useAccountStore } from '@/store/accountStore'
 import type { AccountType } from '@/types'
 import { toast } from 'sonner'
 
+const CLASSIFIER_TYPES: Array<{ type: AccountType; activeColor: string; hoverColor: string; label: string }> = [
+  { type: 'investment', activeColor: 'bg-purple-500 border-purple-500', hoverColor: 'border-gray-500 hover:border-purple-400', label: 'Investment' },
+  { type: 'deposit', activeColor: 'bg-blue-500 border-blue-500', hoverColor: 'border-gray-500 hover:border-blue-400', label: 'Deposit' },
+  { type: 'loan', activeColor: 'bg-red-500 border-red-500', hoverColor: 'border-gray-500 hover:border-red-400', label: 'Loan' },
+]
+
 export default function AccountClassifier() {
   const { data: balanceData, isLoading } = useAccountBalances()
   const { accountTypes, setAccountType } = useAccountStore()
@@ -49,9 +55,9 @@ export default function AccountClassifier() {
           <thead>
             <tr className="bg-white/5 border-b border-white/10">
               <th className="p-4 font-medium">Account Name</th>
-              <th className="p-4 font-medium text-center w-32">Investment</th>
-              <th className="p-4 font-medium text-center w-32">Deposit</th>
-              <th className="p-4 font-medium text-center w-32">Loan</th>
+              {CLASSIFIER_TYPES.map(({ type, label }) => (
+                <th key={type} className="p-4 font-medium text-center w-32">{label}</th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -60,42 +66,18 @@ export default function AccountClassifier() {
               return (
                 <tr key={account} className="hover:bg-white/5 transition-colors">
                   <td className="p-4 font-medium">{account}</td>
-                  <td className="p-4 text-center">
-                    <button
-                      onClick={() => handleToggle(account, 'investment')}
-                      className={`w-5 h-5 rounded border transition-colors flex items-center justify-center mx-auto ${
-                        types.includes('investment')
-                          ? 'bg-purple-500 border-purple-500'
-                          : 'border-gray-500 hover:border-purple-400'
-                      }`}
-                    >
-                      {types.includes('investment') && <Check className="w-3 h-3 text-white" />}
-                    </button>
-                  </td>
-                  <td className="p-4 text-center">
-                    <button
-                      onClick={() => handleToggle(account, 'deposit')}
-                      className={`w-5 h-5 rounded border transition-colors flex items-center justify-center mx-auto ${
-                        types.includes('deposit')
-                          ? 'bg-blue-500 border-blue-500'
-                          : 'border-gray-500 hover:border-blue-400'
-                      }`}
-                    >
-                      {types.includes('deposit') && <Check className="w-3 h-3 text-white" />}
-                    </button>
-                  </td>
-                  <td className="p-4 text-center">
-                    <button
-                      onClick={() => handleToggle(account, 'loan')}
-                      className={`w-5 h-5 rounded border transition-colors flex items-center justify-center mx-auto ${
-                        types.includes('loan')
-                          ? 'bg-red-500 border-red-500'
-                          : 'border-gray-500 hover:border-red-400'
-                      }`}
-                    >
-                      {types.includes('loan') && <Check className="w-3 h-3 text-white" />}
-                    </button>
-                  </td>
+                  {CLASSIFIER_TYPES.map(({ type, activeColor, hoverColor }) => (
+                    <td key={type} className="p-4 text-center">
+                      <button
+                        onClick={() => handleToggle(account, type)}
+                        className={`w-5 h-5 rounded border transition-colors flex items-center justify-center mx-auto ${
+                          types.includes(type) ? activeColor : hoverColor
+                        }`}
+                      >
+                        {types.includes(type) && <Check className="w-3 h-3 text-white" />}
+                      </button>
+                    </td>
+                  ))}
                 </tr>
               )
             })}

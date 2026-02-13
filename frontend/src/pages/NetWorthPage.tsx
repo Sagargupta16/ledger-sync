@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
+import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -124,6 +124,147 @@ function computeNetWorthTimeSeries(
 
     return point
   })
+}
+
+interface AccountCategoryTableProps {
+  accounts: Record<string, { balance: number; transactions: number }>
+  filterFn: (balance: number) => boolean
+  total: number
+  balanceColorClass: string
+  headerBalanceColorClass: string
+  expandedCategories: Set<string>
+  onToggleCategory: (category: string) => void
+  getAccountType: (name: string) => string
+  emptyIcon: LucideIcon
+  emptyTitle: string
+  emptyDescription: string
+  isLoading: boolean
+}
+
+function AccountCategoryTable({
+  accounts,
+  filterFn,
+  total,
+  balanceColorClass,
+  headerBalanceColorClass,
+  expandedCategories,
+  onToggleCategory,
+  getAccountType,
+  emptyIcon,
+  emptyTitle,
+  emptyDescription,
+  isLoading,
+}: AccountCategoryTableProps) {
+  if (isLoading) {
+    return <div className="text-center py-8 text-gray-400">Loading accounts...</div>
+  }
+
+  const hasAccounts = Object.keys(accounts).some(name => filterFn(accounts[name].balance))
+
+  if (!hasAccounts) {
+    return (
+      <EmptyState
+        icon={emptyIcon}
+        title={emptyTitle}
+        description={emptyDescription}
+        variant="compact"
+      />
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-white/10">
+            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400">Account</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Balance</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">% Allocated</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Type</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Transactions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(accounts)
+            .filter(([, accountData]) => filterFn(accountData.balance) && Math.abs(accountData.balance) >= 0.01)
+            .sort((a, b) => {
+              const catA = getAccountType(a[0])
+              const catB = getAccountType(b[0])
+              if (catA !== catB) return catA.localeCompare(catB)
+              return Math.abs(b[1].balance) - Math.abs(a[1].balance)
+            })
+            .reduce((acc, [accountName, accountData], index, array) => {
+              const currentCategory = getAccountType(accountName)
+              const prevCategory = index > 0 ? getAccountType(array[index - 1][0]) : null
+              const showCategoryHeader = currentCategory !== prevCategory
+
+              if (!acc.categoryTotals[currentCategory]) {
+                acc.categoryTotals[currentCategory] = { balance: 0, transactions: 0 }
+              }
+              acc.categoryTotals[currentCategory].balance += Math.abs(accountData.balance)
+              acc.categoryTotals[currentCategory].transactions += accountData.transactions
+
+              if (showCategoryHeader) {
+                const categoryAccounts = array.filter(([name]) => getAccountType(name) === currentCategory)
+                const catBalance = categoryAccounts.reduce((sum, [, data]) => sum + Math.abs(data.balance), 0)
+                const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
+
+                acc.elements.push(
+                  <tr
+                    key={`header-${currentCategory}`}
+                    className="bg-white/5 cursor-pointer hover:bg-white/8 transition-colors"
+                    onClick={() => onToggleCategory(currentCategory)}
+                  >
+                    <td className="py-2 px-4 text-sm font-semibold text-primary">
+                      <span className="flex items-center gap-2">
+                        {expandedCategories.has(currentCategory)
+                          ? <ChevronDown className="w-4 h-4" />
+                          : <ChevronRight className="w-4 h-4" />}
+                        {currentCategory}
+                        <span className="text-xs text-gray-500 font-normal">({categoryAccounts.length})</span>
+                      </span>
+                    </td>
+                    <td className={`py-2 px-4 text-right text-sm font-medium ${headerBalanceColorClass}`}>
+                      {formatCurrency(catBalance)}
+                    </td>
+                    <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
+                      {formatPercent((catBalance / total) * 100)}
+                    </td>
+                    <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">—</td>
+                    <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">{catTransactions}</td>
+                  </tr>
+                )
+              }
+
+              if (expandedCategories.has(currentCategory)) {
+                acc.elements.push(
+                  <motion.tr
+                    key={accountName}
+                    className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <td className="py-3 pl-10 pr-4 text-white font-medium">{accountName}</td>
+                    <td className={`py-3 px-4 text-right font-bold ${balanceColorClass}`}>
+                      {formatCurrency(Math.abs(accountData.balance))}
+                    </td>
+                    <td className="py-3 px-4 text-right text-gray-400">
+                      {formatPercent((Math.abs(accountData.balance) / total) * 100)}
+                    </td>
+                    <td className="py-3 px-4 text-right text-gray-400">
+                      {getAccountType(accountName)}
+                    </td>
+                    <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
+                  </motion.tr>
+                )
+              }
+
+              return acc
+            }, { elements: [] as React.ReactNode[], categoryTotals: {} as Record<string, { balance: number; transactions: number }> }).elements}
+        </tbody>
+      </table>
+    </div>
+  )
 }
 
 export default function NetWorthPage() {
@@ -460,120 +601,20 @@ export default function NetWorthPage() {
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Assets (Positive Balances)</h3>
-          {(() => {
-            if (isLoading) {
-              return <div className="text-center py-8 text-gray-400">Loading accounts...</div>
-            }
-            const hasAssets = Object.keys(accounts).some(name => accounts[name].balance > 0)
-            if (hasAssets) {
-              return (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400">Account</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Balance</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">% Allocated</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Type</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Transactions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(accounts)
-                    .filter(([, accountData]) => accountData.balance > 0 && Math.abs(accountData.balance) >= 0.01)
-                    .sort((a, b) => {
-                      // Sort by category first, then by balance within category
-                      const catA = getAccountType(a[0])
-                      const catB = getAccountType(b[0])
-                      if (catA !== catB) return catA.localeCompare(catB)
-                      return b[1].balance - a[1].balance
-                    })
-                    .reduce((acc, [accountName, accountData], index, array) => {
-                      const currentCategory = getAccountType(accountName)
-                      const prevCategory = index > 0 ? getAccountType(array[index - 1][0]) : null
-                      const showCategoryHeader = currentCategory !== prevCategory
-                      
-                      // Calculate category totals
-                      if (!acc.categoryTotals[currentCategory]) {
-                        acc.categoryTotals[currentCategory] = { balance: 0, transactions: 0 }
-                      }
-                      acc.categoryTotals[currentCategory].balance += accountData.balance
-                      acc.categoryTotals[currentCategory].transactions += accountData.transactions
-                      
-                      // Add category header with totals
-                      if (showCategoryHeader) {
-                        // Need to calculate totals for this category first
-                        const categoryAccounts = array.filter(([name]) => (getAccountType(name)) === currentCategory)
-                        const catBalance = categoryAccounts.reduce((sum, [, data]) => sum + data.balance, 0)
-                        const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
-                        
-                        acc.elements.push(
-                          <tr
-                            key={`header-${currentCategory}`}
-                            className="bg-white/5 cursor-pointer hover:bg-white/8 transition-colors"
-                            onClick={() => toggleCategory(setExpandedAssetCategories, currentCategory)}
-                          >
-                            <td className="py-2 px-4 text-sm font-semibold text-primary">
-                              <span className="flex items-center gap-2">
-                                {expandedAssetCategories.has(currentCategory)
-                                  ? <ChevronDown className="w-4 h-4" />
-                                  : <ChevronRight className="w-4 h-4" />}
-                                {currentCategory}
-                                <span className="text-xs text-gray-500 font-normal">({categoryAccounts.length})</span>
-                              </span>
-                            </td>
-                            <td className="py-2 px-4 text-right text-sm font-medium text-green-400/70">
-                              {formatCurrency(catBalance)}
-                            </td>
-                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
-                              {formatPercent((catBalance / totalAssets) * 100)}
-                            </td>
-                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">—</td>
-                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">{catTransactions}</td>
-                          </tr>
-                        )
-                      }
-
-                      // Add account row (only if category is expanded)
-                      if (expandedAssetCategories.has(currentCategory)) {
-                        acc.elements.push(
-                          <motion.tr
-                            key={accountName}
-                            className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                          >
-                            <td className="py-3 pl-10 pr-4 text-white font-medium">{accountName}</td>
-                            <td className="py-3 px-4 text-right font-bold text-green-400">
-                              {formatCurrency(accountData.balance)}
-                            </td>
-                            <td className="py-3 px-4 text-right text-gray-400">
-                              {formatPercent((accountData.balance / totalAssets) * 100)}
-                            </td>
-                            <td className="py-3 px-4 text-right text-gray-400">
-                              {getAccountType(accountName)}
-                            </td>
-                            <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
-                          </motion.tr>
-                        )
-                      }
-                      
-                      return acc
-                    }, { elements: [] as React.ReactNode[], categoryTotals: {} as Record<string, { balance: number; transactions: number }> }).elements}
-                </tbody>
-              </table>
-            </div>
-              )
-            }
-            return (
-              <EmptyState
-                icon={PiggyBank}
-                title="No asset accounts found"
-                description="Add transactions for accounts with positive balances to see your assets."
-                variant="compact"
-              />
-            )
-          })()}
+          <AccountCategoryTable
+            accounts={accounts}
+            filterFn={(b) => b > 0}
+            total={totalAssets}
+            balanceColorClass="text-green-400"
+            headerBalanceColorClass="text-green-400/70"
+            expandedCategories={expandedAssetCategories}
+            onToggleCategory={(cat) => toggleCategory(setExpandedAssetCategories, cat)}
+            getAccountType={getAccountType}
+            emptyIcon={PiggyBank}
+            emptyTitle="No asset accounts found"
+            emptyDescription="Add transactions for accounts with positive balances to see your assets."
+            isLoading={isLoading}
+          />
         </motion.div>
 
         <motion.div
@@ -583,120 +624,20 @@ export default function NetWorthPage() {
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Liabilities (Negative Balances)</h3>
-          {(() => {
-            if (isLoading) {
-              return <div className="text-center py-8 text-gray-400">Loading accounts...</div>
-            }
-            const hasLiabilities = Object.keys(accounts).some(name => accounts[name].balance < 0)
-            if (hasLiabilities) {
-              return (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400">Account</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Balance</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">% Allocated</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Type</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Transactions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(accounts)
-                    .filter(([, accountData]) => accountData.balance < 0 && Math.abs(accountData.balance) >= 0.01)
-                    .sort((a, b) => {
-                      // Sort by category first, then by balance within category
-                      const catA = getAccountType(a[0])
-                      const catB = getAccountType(b[0])
-                      if (catA !== catB) return catA.localeCompare(catB)
-                      return Math.abs(b[1].balance) - Math.abs(a[1].balance)
-                    })
-                    .reduce((acc, [accountName, accountData], index, array) => {
-                      const currentCategory = getAccountType(accountName)
-                      const prevCategory = index > 0 ? getAccountType(array[index - 1][0]) : null
-                      const showCategoryHeader = currentCategory !== prevCategory
-                      
-                      // Calculate category totals
-                      if (!acc.categoryTotals[currentCategory]) {
-                        acc.categoryTotals[currentCategory] = { balance: 0, transactions: 0 }
-                      }
-                      acc.categoryTotals[currentCategory].balance += Math.abs(accountData.balance)
-                      acc.categoryTotals[currentCategory].transactions += accountData.transactions
-                      
-                      // Add category header with totals
-                      if (showCategoryHeader) {
-                        // Need to calculate totals for this category first
-                        const categoryAccounts = array.filter(([name]) => (getAccountType(name)) === currentCategory)
-                        const catBalance = categoryAccounts.reduce((sum, [, data]) => sum + Math.abs(data.balance), 0)
-                        const catTransactions = categoryAccounts.reduce((sum, [, data]) => sum + data.transactions, 0)
-                        
-                        acc.elements.push(
-                          <tr
-                            key={`header-${currentCategory}`}
-                            className="bg-white/5 cursor-pointer hover:bg-white/8 transition-colors"
-                            onClick={() => toggleCategory(setExpandedLiabilityCategories, currentCategory)}
-                          >
-                            <td className="py-2 px-4 text-sm font-semibold text-primary">
-                              <span className="flex items-center gap-2">
-                                {expandedLiabilityCategories.has(currentCategory)
-                                  ? <ChevronDown className="w-4 h-4" />
-                                  : <ChevronRight className="w-4 h-4" />}
-                                {currentCategory}
-                                <span className="text-xs text-gray-500 font-normal">({categoryAccounts.length})</span>
-                              </span>
-                            </td>
-                            <td className="py-2 px-4 text-right text-sm font-medium text-red-400/70">
-                              {formatCurrency(catBalance)}
-                            </td>
-                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
-                              {formatPercent((catBalance / totalLiabilities) * 100)}
-                            </td>
-                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">—</td>
-                            <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">{catTransactions}</td>
-                          </tr>
-                        )
-                      }
-
-                      // Add account row (only if category is expanded)
-                      if (expandedLiabilityCategories.has(currentCategory)) {
-                        acc.elements.push(
-                          <motion.tr
-                            key={accountName}
-                            className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                          >
-                            <td className="py-3 pl-10 pr-4 text-white font-medium">{accountName}</td>
-                            <td className="py-3 px-4 text-right font-bold text-red-400">
-                              {formatCurrency(Math.abs(accountData.balance))}
-                            </td>
-                            <td className="py-3 px-4 text-right text-gray-400">
-                              {formatPercent((Math.abs(accountData.balance) / totalLiabilities) * 100)}
-                            </td>
-                            <td className="py-3 px-4 text-right text-gray-400">
-                              {getAccountType(accountName)}
-                            </td>
-                            <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
-                          </motion.tr>
-                        )
-                      }
-                      
-                      return acc
-                    }, { elements: [] as React.ReactNode[], categoryTotals: {} as Record<string, { balance: number; transactions: number }> }).elements}
-                </tbody>
-              </table>
-            </div>
-              )
-            }
-            return (
-              <EmptyState
-                icon={CreditCard}
-                title="No liability accounts found"
-                description="Great news! You don't have any liability accounts with negative balances."
-                variant="compact"
-              />
-            )
-          })()}
+          <AccountCategoryTable
+            accounts={accounts}
+            filterFn={(b) => b < 0}
+            total={totalLiabilities}
+            balanceColorClass="text-red-400"
+            headerBalanceColorClass="text-red-400/70"
+            expandedCategories={expandedLiabilityCategories}
+            onToggleCategory={(cat) => toggleCategory(setExpandedLiabilityCategories, cat)}
+            getAccountType={getAccountType}
+            emptyIcon={CreditCard}
+            emptyTitle="No liability accounts found"
+            emptyDescription="Great news! You don't have any liability accounts with negative balances."
+            isLoading={isLoading}
+          />
         </motion.div>
 
         {/* Credit Card Health */}

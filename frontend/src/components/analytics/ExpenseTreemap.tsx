@@ -4,7 +4,7 @@ import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, Treemap, Tooltip } from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
 import { CHART_COLORS, CHART_GRID_COLOR } from '@/constants/chartColors'
-import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
+import { useTimeNavigation } from '@/hooks/useTimeNavigation'
 import { chartTooltipProps } from '@/components/ui'
 
 const COLORS = CHART_COLORS
@@ -107,8 +107,10 @@ function TreemapCell(props: Record<string, unknown>) {
 export default function ExpenseTreemap() {
   const [treemapView, setTreemapView] = useState<'all_time' | 'yearly' | 'monthly'>('all_time')
   const [showSubcategories, setShowSubcategories] = useState(false)
-  const [currentYear, setCurrentYear] = useState(getCurrentYear())
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
+  const {
+    currentYear, currentMonth,
+    handlePrevYear, handleNextYear, handlePrevMonth, handleNextMonth,
+  } = useTimeNavigation()
 
   // Calculate date range based on selected view
   const getTreemapDateRange = () => {
@@ -195,21 +197,6 @@ export default function ExpenseTreemap() {
       return data
     }
   }, [treemapCategoryData, showSubcategories])
-
-  const handlePrevYear = () => setCurrentYear((prev) => prev - 1)
-  const handleNextYear = () => setCurrentYear((prev) => prev + 1)
-
-  const handlePrevMonth = () => {
-    const date = new Date(currentMonth + '-01')
-    date.setMonth(date.getMonth() - 1)
-    setCurrentMonth(date.toISOString().substring(0, 7))
-  }
-  
-  const handleNextMonth = () => {
-    const date = new Date(currentMonth + '-01')
-    date.setMonth(date.getMonth() + 1)
-    setCurrentMonth(date.toISOString().substring(0, 7))
-  }
 
   return (
     <div className="glass p-6 rounded-xl border border-white/10">

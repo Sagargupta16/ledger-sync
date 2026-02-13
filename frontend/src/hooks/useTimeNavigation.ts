@@ -11,17 +11,14 @@ export function useTimeNavigation(initialMode: ViewMode = 'yearly') {
   const handlePrevYear = () => setCurrentYear((prev) => prev - 1)
   const handleNextYear = () => setCurrentYear((prev) => prev + 1)
 
-  const handlePrevMonth = () => {
+  const navigateMonth = (offset: number) => {
     const date = new Date(currentMonth + '-01')
-    date.setMonth(date.getMonth() - 1)
+    date.setMonth(date.getMonth() + offset)
     setCurrentMonth(date.toISOString().substring(0, 7))
   }
 
-  const handleNextMonth = () => {
-    const date = new Date(currentMonth + '-01')
-    date.setMonth(date.getMonth() + 1)
-    setCurrentMonth(date.toISOString().substring(0, 7))
-  }
+  const handlePrevMonth = () => navigateMonth(-1)
+  const handleNextMonth = () => navigateMonth(1)
 
   return {
     viewMode,

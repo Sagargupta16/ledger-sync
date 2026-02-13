@@ -132,6 +132,14 @@ export interface EarningStartDateConfig {
   use_earning_start_date: boolean
 }
 
+// Helper to create section-specific updaters
+function createSectionUpdater<T>(endpoint: string) {
+  return async (config: T): Promise<UserPreferences> => {
+    const response = await apiClient.put<UserPreferences>(`/preferences/${endpoint}`, config)
+    return response.data
+  }
+}
+
 // Service
 export const preferencesService = {
   /**
@@ -159,58 +167,15 @@ export const preferencesService = {
   },
 
   // Section-specific endpoints for granular updates
-  async updateFiscalYear(config: FiscalYearConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/fiscal-year', config)
-    return response.data
-  },
-
-  async updateEssentialCategories(config: EssentialCategoriesConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/essential-categories', config)
-    return response.data
-  },
-
-  async updateInvestmentMappings(config: InvestmentMappingsConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/investment-mappings', config)
-    return response.data
-  },
-
-  async updateIncomeSources(config: IncomeSourcesConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/income-sources', config)
-    return response.data
-  },
-
-  async updateBudgetDefaults(config: BudgetDefaultsConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/budget-defaults', config)
-    return response.data
-  },
-
-  async updateDisplayPreferences(config: DisplayPreferencesConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/display', config)
-    return response.data
-  },
-
-  async updateAnomalySettings(config: AnomalySettingsConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/anomaly-settings', config)
-    return response.data
-  },
-
-  async updateRecurringSettings(config: RecurringSettingsConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/recurring-settings', config)
-    return response.data
-  },
-
-  async updateSpendingRule(config: SpendingRuleConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/spending-rule', config)
-    return response.data
-  },
-
-  async updateCreditCardLimits(config: CreditCardLimitsConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/credit-card-limits', config)
-    return response.data
-  },
-
-  async updateEarningStartDate(config: EarningStartDateConfig): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences/earning-start-date', config)
-    return response.data
-  },
+  updateFiscalYear: createSectionUpdater<FiscalYearConfig>('fiscal-year'),
+  updateEssentialCategories: createSectionUpdater<EssentialCategoriesConfig>('essential-categories'),
+  updateInvestmentMappings: createSectionUpdater<InvestmentMappingsConfig>('investment-mappings'),
+  updateIncomeSources: createSectionUpdater<IncomeSourcesConfig>('income-sources'),
+  updateBudgetDefaults: createSectionUpdater<BudgetDefaultsConfig>('budget-defaults'),
+  updateDisplayPreferences: createSectionUpdater<DisplayPreferencesConfig>('display'),
+  updateAnomalySettings: createSectionUpdater<AnomalySettingsConfig>('anomaly-settings'),
+  updateRecurringSettings: createSectionUpdater<RecurringSettingsConfig>('recurring-settings'),
+  updateSpendingRule: createSectionUpdater<SpendingRuleConfig>('spending-rule'),
+  updateCreditCardLimits: createSectionUpdater<CreditCardLimitsConfig>('credit-card-limits'),
+  updateEarningStartDate: createSectionUpdater<EarningStartDateConfig>('earning-start-date'),
 }

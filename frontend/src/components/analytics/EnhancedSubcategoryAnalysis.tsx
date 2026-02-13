@@ -2,13 +2,11 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
-import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
-import { CHART_COLORS_WARM, CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
-import { chartTooltipProps } from '@/components/ui'
+import { CHART_COLORS_WARM } from '@/constants/chartColors'
 import { useTimeNavigation } from '@/hooks/useTimeNavigation'
 import { calculateCumulativeData } from '@/lib/chartPeriodUtils'
 import TimeNavigationControls from '@/components/analytics/TimeNavigationControls'
+import TimeSeriesLineChart, { exportChartAsCsv } from '@/components/analytics/TimeSeriesLineChart'
 
 const COLORS = CHART_COLORS_WARM
 
@@ -101,18 +99,7 @@ export default function EnhancedSubcategoryAnalysis() {
   }, [chartData])
 
   const handleExport = () => {
-    const csvRows = ['Period,' + subcategories.join(',')]
-    chartData.forEach((entry) => {
-      const values = subcategories.map((s) => entry[s] ?? 0)
-      csvRows.push(entry.displayPeriod + ',' + values.join(','))
-    })
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `subcategory-analysis-${selectedCategory}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    exportChartAsCsv(`subcategory-analysis-${selectedCategory}.csv`, subcategories, chartData)
   }
 
   return (
@@ -188,53 +175,13 @@ export default function EnhancedSubcategoryAnalysis() {
         </div>
 
         {/* Chart */}
-        {chartData.length > 0 && subcategories.length > 0 ? (
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
-              <XAxis
-                dataKey="displayPeriod"
-                stroke={CHART_AXIS_COLOR}
-                tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-                tickFormatter={(v) => formatDateTick(v, chartData.length)}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                interval={Math.max(1, Math.floor(chartData.length / 20))}
-              />
-              <YAxis
-                stroke={CHART_AXIS_COLOR}
-                tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-                tickFormatter={(value) => formatCurrencyShort(value)}
-              />
-              <Tooltip
-                {...chartTooltipProps}
-                labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
-              />
-              <Legend
-                wrapperStyle={{ paddingTop: '20px' }}
-                formatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
-              />
-              {subcategories.map((subcat, index) => (
-                <Line
-                  key={subcat}
-                  type="natural"
-                  dataKey={subcat}
-                  stroke={COLORS[index % COLORS.length]}
-                  strokeWidth={2}
-                  dot={false}
-                  connectNulls
-                  isAnimationActive={chartData.length < 500}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="h-100 flex items-center justify-center text-muted-foreground">
-            No data available for {selectedCategory}
-          </div>
-        )}
+        <TimeSeriesLineChart
+          chartData={chartData}
+          seriesKeys={subcategories}
+          colors={COLORS}
+          legendFormatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
+          emptyMessage={`No data available for ${selectedCategory}`}
+        />
       </div>
     </motion.div>
   )

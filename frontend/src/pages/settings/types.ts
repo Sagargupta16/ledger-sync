@@ -2,34 +2,10 @@
  * Shared types and constants for the Settings page tabs.
  */
 
+import type { UserPreferences } from '@/services/api/preferences'
+
 // Local preferences shape used across all settings tabs
-export interface LocalPrefs {
-  fiscal_year_start_month: number
-  essential_categories: string[]
-  investment_account_mappings: Record<string, string>
-  taxable_income_categories: string[]
-  investment_returns_categories: string[]
-  non_taxable_income_categories: string[]
-  other_income_categories: string[]
-  default_budget_alert_threshold: number
-  auto_create_budgets: boolean
-  budget_rollover_enabled: boolean
-  number_format: 'indian' | 'international'
-  currency_symbol: string
-  currency_symbol_position: 'before' | 'after'
-  default_time_range: string
-  anomaly_expense_threshold: number
-  anomaly_types_enabled: string[]
-  auto_dismiss_recurring_anomalies: boolean
-  recurring_min_confidence: number
-  recurring_auto_confirm_occurrences: number
-  needs_target_percent: number
-  wants_target_percent: number
-  savings_target_percent: number
-  credit_card_limits: Record<string, number>
-  earning_start_date: string | null
-  use_earning_start_date: boolean
-}
+export type LocalPrefs = Omit<UserPreferences, 'id' | 'created_at' | 'updated_at'>
 
 // Typed key for updating local prefs generically
 export type LocalPrefKey = keyof LocalPrefs
