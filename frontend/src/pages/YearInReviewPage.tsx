@@ -421,15 +421,26 @@ export default function YearInReviewPage() {
               {/* Grid columns (weeks) */}
               <div
                 className="flex gap-0.5"
+                role="region"
+                aria-label="Spending heatmap grid"
                 onMouseOver={(e) => {
                   const target = (e.target as HTMLElement).closest<HTMLElement>('[data-cell-date]')
                   if (target) {
-                    const date = target.getAttribute('data-cell-date')
+                    const date = target.dataset.cellDate
                     const found = grid.find((c) => c.date === date)
-                    setHoveredDay(found || null)
+                    setHoveredDay(found ?? null)
+                  }
+                }}
+                onFocus={(e) => {
+                  const target = (e.target as HTMLElement).closest<HTMLElement>('[data-cell-date]')
+                  if (target) {
+                    const date = target.dataset.cellDate
+                    const found = grid.find((c) => c.date === date)
+                    setHoveredDay(found ?? null)
                   }
                 }}
                 onMouseLeave={() => setHoveredDay(null)}
+                onBlur={() => setHoveredDay(null)}
               >
                 {(() => {
                   const totalWeeks = grid.length > 0 ? (grid.at(-1)?.weekIndex ?? 52) + 1 : 53

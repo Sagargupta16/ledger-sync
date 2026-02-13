@@ -30,7 +30,7 @@ function computeDataDateRange(
   transactions: Array<{ date: string }> | undefined,
 ): { minDate: string | undefined; maxDate: string | undefined } {
   if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
-  const dates = transactions.map(t => t.date.substring(0, 10)).sort()
+  const dates = transactions.map(t => t.date.substring(0, 10)).sort((a, b) => a.localeCompare(b))
   return { minDate: dates[0], maxDate: dates.at(-1) }
 }
 
@@ -59,6 +59,20 @@ function computeCategoryBreakdown(
     categories[category] = (categories[category] || 0) + Math.abs(t.amount as number)
   }
   return categories
+}
+
+/** Build chart data for the 50/30/20 spending breakdown */
+function buildSpendingChartData(
+  spendingBreakdown: { essential: number; discretionary: number } | null,
+  totalIncome: number,
+  savings: number,
+) {
+  if (!spendingBreakdown || totalIncome <= 0) return []
+  return [
+    { name: 'Needs', value: spendingBreakdown.essential, color: SPENDING_TYPE_COLORS.essential },
+    { name: 'Wants', value: spendingBreakdown.discretionary, color: SPENDING_TYPE_COLORS.discretionary },
+    { name: 'Savings', value: savings, color: SAVINGS_COLOR },
+  ].filter((d) => d.value > 0)
 }
 
 /** Calculate the budget rule metrics (50/30/20) based on income breakdown */
@@ -160,14 +174,10 @@ export default function SpendingAnalysisPage() {
   }, [filteredTransactions, preferences])
 
   // Prepare spending breakdown chart data (50/30/20 rule with income base)
-  const spendingChartData = useMemo(() => {
-    if (!spendingBreakdown || totalIncome <= 0) return []
-    return [
-      { name: 'Needs', value: spendingBreakdown.essential, color: SPENDING_TYPE_COLORS.essential },
-      { name: 'Wants', value: spendingBreakdown.discretionary, color: SPENDING_TYPE_COLORS.discretionary },
-      { name: 'Savings', value: savings, color: SAVINGS_COLOR },
-    ].filter((d) => d.value > 0)
-  }, [spendingBreakdown, savings, totalIncome])
+  const spendingChartData = useMemo(
+    () => buildSpendingChartData(spendingBreakdown, totalIncome, savings),
+    [spendingBreakdown, savings, totalIncome]
+  )
 
   // Spending rule targets from preferences (configurable Needs/Wants/Savings)
   const needsTarget = preferences?.needs_target_percent ?? 50

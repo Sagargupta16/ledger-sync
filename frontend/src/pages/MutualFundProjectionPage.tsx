@@ -572,6 +572,27 @@ function ChartStatsFooter(props: Readonly<ChartStatsFooterProps>) {
   )
 }
 
+/** Pre-compute gain/loss display classes and prefixes */
+function computeGainsDisplay(
+  realizedGains: number,
+  realizedGainsPercent: number,
+  overrideGainsPercent: number,
+  xirrPercent: number,
+) {
+  const positive = 'text-emerald-500'
+  const negative = 'text-red-500'
+  return {
+    gainsBgClass: realizedGains >= 0 ? 'bg-emerald-500/20 shadow-emerald-500/30' : 'bg-red-500/20 shadow-red-500/30',
+    gainsIconClass: realizedGains >= 0 ? positive : negative,
+    gainsTextClass: realizedGains >= 0 ? 'text-emerald-600' : 'text-red-600',
+    gainsSignPrefix: realizedGainsPercent >= 0 ? '+' : '',
+    totalReturnColorClass: overrideGainsPercent >= 0 ? positive : negative,
+    totalReturnSignPrefix: overrideGainsPercent >= 0 ? '+' : '',
+    xirrColorClass: xirrPercent >= 0 ? positive : negative,
+    xirrSignPrefix: xirrPercent >= 0 ? '+' : '',
+  }
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function MutualFundProjectionPage() {
@@ -658,14 +679,11 @@ export default function MutualFundProjectionPage() {
   )
 
   // Pre-compute conditional class names and labels to reduce inline ternaries
-  const gainsBgClass = realizedGains >= 0 ? 'bg-emerald-500/20 shadow-emerald-500/30' : 'bg-red-500/20 shadow-red-500/30'
-  const gainsIconClass = realizedGains >= 0 ? 'text-emerald-500' : 'text-red-500'
-  const gainsTextClass = realizedGains >= 0 ? 'text-emerald-600' : 'text-red-600'
-  const gainsSignPrefix = realizedGainsPercent >= 0 ? '+' : ''
-  const totalReturnColorClass = overrideGainsPercent >= 0 ? 'text-emerald-500' : 'text-red-500'
-  const totalReturnSignPrefix = overrideGainsPercent >= 0 ? '+' : ''
-  const xirrColorClass = xirrPercent >= 0 ? 'text-emerald-500' : 'text-red-500'
-  const xirrSignPrefix = xirrPercent >= 0 ? '+' : ''
+  const {
+    gainsBgClass, gainsIconClass, gainsTextClass, gainsSignPrefix,
+    totalReturnColorClass, totalReturnSignPrefix,
+    xirrColorClass, xirrSignPrefix,
+  } = computeGainsDisplay(realizedGains, realizedGainsPercent, overrideGainsPercent, xirrPercent)
   const currentValueLabel = currentValueInput > 0 ? 'Using your entered value' : 'Using portfolio balance'
   const effectiveValueLabel = currentValueInput > 0 ? 'Manual override' : 'From portfolio'
   const sipGrowthLabel = sipGrowthRate === 0 ? 'No annual increase' : `SIP increases ${sipGrowthRate}% yearly`
