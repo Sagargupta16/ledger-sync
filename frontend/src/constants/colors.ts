@@ -44,6 +44,15 @@ export const colors = {
     info: cssVar('--color-info'),
   },
 
+  // Financial semantic colors
+  financial: {
+    income: cssVar('--color-income'),
+    expense: cssVar('--color-expense'),
+    savings: cssVar('--color-savings'),
+    transfer: cssVar('--color-transfer'),
+    investment: cssVar('--color-investment'),
+  },
+
   // Text colors
   text: {
     primary: cssVar('--color-text-primary'),
@@ -86,6 +95,13 @@ export const rawColors = {
     pinkVibrant: '#ff375f',
     indigo: '#818cf8',
     indigoVibrant: '#5e5ce6',
+  },
+  financial: {
+    income: '#34c759',
+    expense: '#ff6b6b',
+    savings: '#a78bfa',
+    transfer: '#5ac8f5',
+    investment: '#5aa3ff',
   },
   text: {
     primary: '#f5f5f7',

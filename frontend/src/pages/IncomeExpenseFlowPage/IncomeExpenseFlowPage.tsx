@@ -46,7 +46,7 @@ const SankeyNodeRenderer = ({
   let fillColor: string
   if (index < incomeCategoryCount) {
     // Income nodes - green gradient
-    const greenColors = ['#10b981', '#22c55e', '#84cc16', '#a3e635', '#6ee7b7']
+    const greenColors = ['#34c759', '#30d158', '#84cc16', '#a3e635', '#6ee7b7']
     fillColor = greenColors[index % greenColors.length]
   } else if (index === totalIncomeNodeIndex || index === savingsNodeIndex || index === expensesNodeIndex) {
     // Middle nodes - purple/blue
@@ -55,7 +55,7 @@ const SankeyNodeRenderer = ({
     else fillColor = '#ec4899'
   } else {
     // Expense nodes - red/orange gradient
-    const redColors = ['#ef4444', '#f59e0b', '#fb923c', '#f97316', '#dc2626']
+    const redColors = ['#ff6b6b', '#ff9f43', '#fb923c', '#f97316', '#ff453a']
     const expenseIndex = index - (incomeCategoryCount + 3)
     fillColor = redColors[expenseIndex % redColors.length]
   }
@@ -409,16 +409,16 @@ const IncomeExpenseFlowPage = () => {
                 >
                   <defs>
                     <linearGradient id="incomeGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.8} />
-                      <stop offset="100%" stopColor="#22c55e" stopOpacity={0.8} />
+                      <stop offset="0%" stopColor="#34c759" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#30d158" stopOpacity={0.8} />
                     </linearGradient>
                     <linearGradient id="middleGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.9} />
+                      <stop offset="0%" stopColor="#818cf8" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.9} />
                     </linearGradient>
                     <linearGradient id="expenseGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8} />
-                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.8} />
+                      <stop offset="0%" stopColor="#ff6b6b" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#ff9f43" stopOpacity={0.8} />
                     </linearGradient>
                   </defs>
                   <Tooltip
@@ -452,15 +452,15 @@ const IncomeExpenseFlowPage = () => {
             {/* Legend */}
             <div className="mt-6 pt-6 border-t border-white/10 flex flex-wrap justify-center gap-6">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #10b981, #22c55e)' }}></div>
+                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #34c759, #30d158)' }}></div>
                 <span className="text-sm text-gray-300">Income Sources</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #6366f1, #8b5cf6)' }}></div>
+                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #818cf8, #a78bfa)' }}></div>
                 <span className="text-sm text-gray-300">Total Income / Savings / Expenses</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #ef4444, #f59e0b)' }}></div>
+                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #ff6b6b, #ff9f43)' }}></div>
                 <span className="text-sm text-gray-300">Expense Categories</span>
               </div>
             </div>

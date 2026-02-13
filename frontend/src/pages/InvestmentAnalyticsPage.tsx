@@ -9,6 +9,7 @@ import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { type AnalyticsViewMode, getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange } from '@/lib/dateUtils'
+import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
 import { usePreferencesStore } from '@/store/preferencesStore'
 
@@ -20,7 +21,7 @@ const CATEGORY_COLORS: Record<InvestmentCategory, string> = {
   'FD/Bonds': '#ec4899',      // Pink
   'Mutual Funds': '#8b5cf6',  // Purple
   'PPF/EPF': '#f59e0b',       // Amber
-  'Stocks': '#10b981',        // Green
+  'Stocks': '#34c759',        // iOS Green
 }
 
 // Map investment types from preferences to our 4 categories
@@ -503,7 +504,7 @@ export default function InvestmentAnalyticsPage() {
                       strokeWidth={2}
                       fillOpacity={1}
                       fill={`url(#color-${category.replaceAll(/[\s/]/g, '-')})`}
-                      isAnimationActive={filteredGrowthData.length < 500}
+                      isAnimationActive={filteredGrowthData.length < CHART_ANIMATION_THRESHOLD}
                     />
                   ))}
                 </AreaChart>

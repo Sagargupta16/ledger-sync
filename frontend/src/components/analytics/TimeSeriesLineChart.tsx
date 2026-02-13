@@ -1,6 +1,7 @@
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
 import { CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
+import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import { chartTooltipProps } from '@/components/ui'
 
 interface TimeSeriesLineChartProps {
@@ -63,7 +64,7 @@ export default function TimeSeriesLineChart({
             strokeWidth={2}
             dot={false}
             connectNulls
-            isAnimationActive={chartData.length < 500}
+            isAnimationActive={chartData.length < CHART_ANIMATION_THRESHOLD}
           />
         ))}
       </LineChart>

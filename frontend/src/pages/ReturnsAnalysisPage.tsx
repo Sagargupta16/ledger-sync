@@ -8,6 +8,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useMemo, useState } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
+import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
@@ -383,12 +384,12 @@ export default function ReturnsAnalysisPage() {
               <AreaChart data={cumulativeReturnsData}>
                 <defs>
                   <linearGradient id="positiveGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#34c759" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#34c759" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="negativeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#ff6b6b" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#ff6b6b" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -419,10 +420,10 @@ export default function ReturnsAnalysisPage() {
                 <Area
                   type="natural"
                   dataKey="cumulative"
-                  stroke={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? "#10b981" : "#ef4444"}
+                  stroke={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? "#34c759" : "#ff6b6b"}
                   strokeWidth={2}
                   fill={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? "url(#positiveGradient)" : "url(#negativeGradient)"}
-                  isAnimationActive={cumulativeReturnsData.length < 500}
+                  isAnimationActive={cumulativeReturnsData.length < CHART_ANIMATION_THRESHOLD}
                 />
               </AreaChart>
             </ResponsiveContainer>

@@ -325,9 +325,8 @@ export default function YearInReviewPage() {
                   role="tab"
                   aria-selected={mode === val}
                   onClick={() => setMode(val)}
-                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    mode === val ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${mode === val ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
                   whileTap={{ scale: 0.97 }}
                 >
                   {mode === val && (
@@ -387,100 +386,126 @@ export default function YearInReviewPage() {
         </div>
 
         {/* Heatmap Grid */}
-        <div className="overflow-x-auto">
-          <div className="min-w-[820px]">
-            {/* Month labels row */}
-            <div className="flex ml-10 mb-1">
-              {monthLabels.map((ml) => (
-                <div
-                  key={`${ml.month}-${ml.weekIndex}`}
-                  className="text-xs text-gray-500"
-                  style={{
-                    position: 'relative',
-                    left: `${ml.weekIndex * 15}px`,
-                    width: 0,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {ml.month}
-                </div>
-              ))}
-            </div>
-
-            {/* Day rows (7 rows × N weeks) */}
-            <div className="flex gap-0.5">
-              {/* Day labels */}
-              <div className="flex flex-col gap-0.5 mr-1.5 pt-0">
-                {DAYS.map((d, i) => (
-                  <div key={d} className="h-[13px] flex items-center text-[10px] text-gray-500 leading-none">
-                    {i % 2 === 1 ? d : ''}
+        <div className="hidden md:block">
+          <div className="overflow-x-auto">
+            <div className="min-w-[820px]">
+              {/* Month labels row */}
+              <div className="flex ml-10 mb-1">
+                {monthLabels.map((ml) => (
+                  <div
+                    key={`${ml.month}-${ml.weekIndex}`}
+                    className="text-xs text-gray-500"
+                    style={{
+                      position: 'relative',
+                      left: `${ml.weekIndex * 15}px`,
+                      width: 0,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {ml.month}
                   </div>
                 ))}
               </div>
 
-              {/* Grid columns (weeks) */}
-              <div
-                className="flex gap-0.5"
-                role="region"
-                aria-label="Spending heatmap grid"
-                onMouseOver={(e) => {
-                  const target = (e.target as HTMLElement).closest<HTMLElement>('[data-cell-date]')
-                  if (target) {
-                    const date = target.dataset.cellDate
-                    const found = grid.find((c) => c.date === date)
-                    setHoveredDay(found ?? null)
-                  }
-                }}
-                onFocus={(e) => {
-                  const target = (e.target as HTMLElement).closest<HTMLElement>('[data-cell-date]')
-                  if (target) {
-                    const date = target.dataset.cellDate
-                    const found = grid.find((c) => c.date === date)
-                    setHoveredDay(found ?? null)
-                  }
-                }}
-                onMouseLeave={() => setHoveredDay(null)}
-                onBlur={() => setHoveredDay(null)}
-              >
-                {(() => {
-                  const totalWeeks = grid.length > 0 ? (grid.at(-1)?.weekIndex ?? 52) + 1 : 53
-                  const weeks: React.ReactNode[] = []
+              {/* Day rows (7 rows × N weeks) */}
+              <div className="flex gap-0.5">
+                {/* Day labels */}
+                <div className="flex flex-col gap-0.5 mr-1.5 pt-0">
+                  {DAYS.map((d, i) => (
+                    <div key={d} className="h-[13px] flex items-center text-[10px] text-gray-500 leading-none">
+                      {i % 2 === 1 ? d : ''}
+                    </div>
+                  ))}
+                </div>
 
-                  for (let w = 0; w < totalWeeks; w++) {
-                    const weekCells = grid.filter((c) => c.weekIndex === w)
-                    weeks.push(
-                      <div key={w} className="flex flex-col gap-0.5">
-                        {Array.from({ length: 7 }, (_, dow) => {
-                          const cell = weekCells.find((c) => c.dayOfWeek === dow)
-                          if (!cell) {
-                            return <div key={dow} className="w-[13px] h-[13px]" />
-                          }
-                          const valMap = { expense: cell.expense, income: cell.income, net: Math.abs(cell.net) }
-                          const val = valMap[mode]
-                          const level = getIntensityLevel(val, modeMax)
-                          const bgColor = heatmapColors[mode][level]
+                {/* Grid columns (weeks) */}
+                <section
+                  className="flex gap-0.5"
+                  aria-label="Spending heatmap grid"
+                  onMouseOver={(e) => {
+                    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-cell-date]')
+                    if (target) {
+                      const date = target.dataset.cellDate
+                      const found = grid.find((c) => c.date === date)
+                      setHoveredDay(found ?? null)
+                    }
+                  }}
+                  onFocus={(e) => {
+                    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-cell-date]')
+                    if (target) {
+                      const date = target.dataset.cellDate
+                      const found = grid.find((c) => c.date === date)
+                      setHoveredDay(found ?? null)
+                    }
+                  }}
+                  onMouseLeave={() => setHoveredDay(null)}
+                  onBlur={() => setHoveredDay(null)}
+                >
+                  {(() => {
+                    const totalWeeks = grid.length > 0 ? (grid.at(-1)?.weekIndex ?? 52) + 1 : 53
+                    const weeks: React.ReactNode[] = []
 
-                          return (
-                            <div
-                              key={dow}
-                              data-cell-date={cell.date}
-                              className="w-[13px] h-[13px] rounded-sm transition-[outline-color] duration-150 hover:ring-1 hover:ring-white/50"
-                              style={{
-                                backgroundColor: bgColor,
-                                outline: cell.isToday ? `2px solid ${modeAccent[mode]}` : undefined,
-                                outlineOffset: cell.isToday ? '-1px' : undefined,
-                              }}
-                            />
-                          )
-                        })}
-                      </div>
-                    )
-                  }
-                  return weeks
-                })()}
+                    for (let w = 0; w < totalWeeks; w++) {
+                      const weekCells = grid.filter((c) => c.weekIndex === w)
+                      weeks.push(
+                        <div key={w} className="flex flex-col gap-0.5">
+                          {Array.from({ length: 7 }, (_, dow) => {
+                            const cell = weekCells.find((c) => c.dayOfWeek === dow)
+                            if (!cell) {
+                              return <div key={dow} className="w-[13px] h-[13px]" />
+                            }
+                            const valMap = { expense: cell.expense, income: cell.income, net: Math.abs(cell.net) }
+                            const val = valMap[mode]
+                            const level = getIntensityLevel(val, modeMax)
+                            const bgColor = heatmapColors[mode][level]
+
+                            return (
+                              <div
+                                key={dow}
+                                data-cell-date={cell.date}
+                                className="w-[13px] h-[13px] rounded-sm transition-[outline-color] duration-150 hover:ring-1 hover:ring-white/50"
+                                style={{
+                                  backgroundColor: bgColor,
+                                  outline: cell.isToday ? `2px solid ${modeAccent[mode]}` : undefined,
+                                  outlineOffset: cell.isToday ? '-1px' : undefined,
+                                }}
+                              />
+                            )
+                          })}
+                        </div>
+                      )
+                    }
+                    return weeks
+                  })()}
+                </section>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Mobile monthly summary — replaces heatmap on small screens */}
+        <div className="md:hidden grid grid-cols-3 gap-2">
+          {MONTHS_SHORT.map((m, i) => {
+            const val = mode === 'expense' ? stats.monthlyExpense[i]
+              : mode === 'income' ? stats.monthlyIncome[i]
+              : stats.monthlyIncome[i] - stats.monthlyExpense[i]
+            const maxVal = mode === 'expense' ? Math.max(...stats.monthlyExpense)
+              : mode === 'income' ? Math.max(...stats.monthlyIncome)
+              : Math.max(...stats.monthlyIncome.map((inc, idx) => Math.abs(inc - stats.monthlyExpense[idx])))
+            const level = getIntensityLevel(Math.abs(val), maxVal)
+            return (
+              <div
+                key={m}
+                className="p-3 rounded-xl text-center transition-colors"
+                style={{ backgroundColor: heatmapColors[mode][level] }}
+              >
+                <div className="text-xs text-muted-foreground mb-1">{m}</div>
+                <div className="text-sm font-semibold text-white">
+                  {formatCurrencyCompact(Math.abs(val))}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         {/* Inline day summary — always visible, no layout shift */}
@@ -502,16 +527,20 @@ export default function YearInReviewPage() {
               </span>
             </>
           ) : (
-            <span className="text-gray-500">Hover over a day to see details</span>
+            <>
+              <span className="text-gray-500 hidden md:inline">Hover over a day to see details</span>
+              <span className="text-gray-500 md:hidden">Tap a month to see details</span>
+            </>
           )}
         </div>
-      </motion.div>
+      </motion.div >
 
       {/* Monthly Breakdown + Insights Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      < div className="grid grid-cols-1 lg:grid-cols-3 gap-6" >
         {/* Monthly bar chart */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+        < motion.div
+          initial={{ opacity: 0, y: 20 }
+          }
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="lg:col-span-2 glass rounded-2xl border border-white/10 p-6"
@@ -532,10 +561,10 @@ export default function YearInReviewPage() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
+        </motion.div >
 
         {/* Quick insights */}
-        <motion.div
+        < motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
@@ -585,11 +614,11 @@ export default function YearInReviewPage() {
               {stats.totalSavings >= 0 ? '+' : ''}{formatCurrencyCompact(stats.totalSavings)}
             </p>
           </div>
-        </motion.div>
-      </div>
+        </motion.div >
+      </div >
 
       {/* Day-of-Week Analysis */}
-      <motion.div
+      < motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
@@ -597,8 +626,8 @@ export default function YearInReviewPage() {
       >
         <h2 className="text-lg font-semibold mb-4">Spending by Day of Week</h2>
         <DayOfWeekChart grid={grid} />
-      </motion.div>
-    </div>
+      </motion.div >
+    </div >
   )
 }
 

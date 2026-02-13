@@ -148,13 +148,14 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
   if (isLoading) {
     return (
       <div className="glass rounded-xl border border-white/10 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop skeleton */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-muted/20 border-b border-white/10">
               <tr>
                 {Array.from({ length: 6 }, (_, i) => (
                   <th key={`skeleton-header-${i}`} className="px-6 py-3 text-left">
-                    <div className="h-4 bg-muted rounded w-20 animate-pulse" />
+                    <div className="h-4 skeleton w-20" />
                   </th>
                 ))}
               </tr>
@@ -164,13 +165,29 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                 <tr key={`skeleton-row-${i}`} className="border-b border-white/5">
                   {Array.from({ length: 6 }, (_, j) => (
                     <td key={`skeleton-cell-${i}-${j}`} className="px-6 py-4">
-                      <div className="h-4 bg-muted rounded w-full animate-pulse" />
+                      <div className="h-4 skeleton w-full" />
                     </td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        {/* Mobile skeleton */}
+        <div className="md:hidden divide-y divide-white/5 p-4 space-y-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={`skeleton-card-${i}`} className="p-4 rounded-xl bg-white/[0.03] space-y-3">
+              <div className="flex justify-between">
+                <div className="h-4 skeleton w-24" />
+                <div className="h-5 skeleton w-20" />
+              </div>
+              <div className="h-3 skeleton w-32" />
+              <div className="flex justify-between">
+                <div className="h-3 skeleton w-16" />
+                <div className="h-3 skeleton w-24" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     )
@@ -195,40 +212,91 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-xl border border-white/10 overflow-hidden shadow-xl"
     >
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-muted/20 border-b border-white/10">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id} className="px-6 py-3 text-left text-sm font-semibold">
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <motion.tbody
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-          >
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                className="border-b border-white/5 hover:bg-white/5 transition-colors"
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-6 py-4">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </motion.tbody>
-        </table>
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-muted/20 border-b border-white/10">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th key={header.id} className="px-6 py-3 text-left text-sm font-semibold">
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <motion.tbody
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              {table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-6 py-4">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </motion.tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Mobile card view */}
+      <div className="md:hidden divide-y divide-white/5">
+        {table.getRowModel().rows.map((row) => {
+          const tx = row.original
+          const isIncome = tx.type === 'Income'
+          const isTransfer = tx.type === 'Transfer'
+          const amountColor = (() => {
+            if (isTransfer) return 'text-ios-teal'
+            if (isIncome) return 'text-ios-green'
+            return 'text-ios-red'
+          })()
+          const prefix = (() => {
+            if (isTransfer) return ''
+            if (isIncome) return '+'
+            return '-'
+          })()
+          const TypeIcon = isIncome ? TrendingUp : TrendingDown
+
+          return (
+            <div key={row.id} className="p-4 hover:bg-white/[0.03] transition-colors">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-muted-foreground">
+                  {format(new Date(tx.date), 'MMM dd, yyyy')}
+                </span>
+                <span className={`text-sm font-semibold ${amountColor}`}>
+                  {prefix}{formatCurrency(Math.abs(tx.amount))}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mb-1">
+                {isTransfer ? (
+                  <span className="text-ios-teal text-sm">→</span>
+                ) : (
+                  <TypeIcon className={`w-3.5 h-3.5 ${isIncome ? 'text-ios-green' : 'text-ios-red'}`} />
+                )}
+                <span className="text-sm font-medium">{tx.category}</span>
+                {tx.subcategory && (
+                  <span className="text-xs text-muted-foreground">/ {tx.subcategory}</span>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{tx.account}</span>
+                {tx.note && <span className="truncate max-w-[150px]">{tx.note}</span>}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </motion.div>
   )

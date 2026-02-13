@@ -7,6 +7,7 @@ import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
+import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -440,12 +441,12 @@ export default function TrendsForecastsPage() {
               <AreaChart data={dailyTrendData}>
                 <defs>
                   <linearGradient id="trendIncomeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#34c759" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#34c759" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="trendExpenseGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#ff6b6b" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#ff6b6b" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="trendSavingsGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4}/>
@@ -464,9 +465,9 @@ export default function TrendsForecastsPage() {
                   ]}
                 />
                 <Legend />
-                <Area type="natural" dataKey="income" name="Income" stroke="#10b981" fill="url(#trendIncomeGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < 500} />
-                <Area type="natural" dataKey="expenses" name="Spending" stroke="#ef4444" fill="url(#trendExpenseGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < 500} />
-                <Area type="natural" dataKey="savings" name="Savings" stroke="#a855f7" fill="url(#trendSavingsGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < 500} />
+                <Area type="natural" dataKey="income" name="Income" stroke="#34c759" fill="url(#trendIncomeGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < CHART_ANIMATION_THRESHOLD} />
+                <Area type="natural" dataKey="expenses" name="Spending" stroke="#ff6b6b" fill="url(#trendExpenseGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < CHART_ANIMATION_THRESHOLD} />
+                <Area type="natural" dataKey="savings" name="Savings" stroke="#a855f7" fill="url(#trendSavingsGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < CHART_ANIMATION_THRESHOLD} />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -525,7 +526,7 @@ export default function TrendsForecastsPage() {
                   stroke="#a855f7"
                   fill="url(#savingsGradient)"
                   strokeWidth={2}
-                  isAnimationActive={dailySavingsData.length < 500}
+                  isAnimationActive={dailySavingsData.length < CHART_ANIMATION_THRESHOLD}
                 />
               </AreaChart>
             </ResponsiveContainer>

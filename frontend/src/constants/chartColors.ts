@@ -46,15 +46,15 @@ export const INCOME_COLORS = [
 
 // Semantic colors for specific use cases
 export const SEMANTIC_COLORS = {
-  income: '#10b981',      // emerald-500
-  expense: '#ef4444',     // red-500
-  savings: '#a855f7',     // purple-500
-  transfer: '#06b6d4',    // cyan-500
-  investment: '#3b82f6',  // blue-500
-  positive: '#22c55e',    // green-500
-  negative: '#ef4444',    // red-500
-  neutral: '#9ca3af',     // gray-400
-  muted: '#6b7280',       // gray-500
+  income: '#34c759',      // ios-green (was #10b981)
+  expense: '#ff6b6b',     // ios-red (was #ef4444)
+  savings: '#a78bfa',     // ios-purple (unchanged)
+  transfer: '#5ac8f5',    // ios-teal (was #06b6d4)
+  investment: '#5aa3ff',  // ios-blue (was #3b82f6)
+  positive: '#34c759',    // ios-green (was #22c55e)
+  negative: '#ff6b6b',    // ios-red (was #ef4444)
+  neutral: '#9ca3af',     // gray-400 (unchanged)
+  muted: '#6b7280',       // gray-500 (unchanged)
 } as const
 
 // Standardized chart axis and grid colors

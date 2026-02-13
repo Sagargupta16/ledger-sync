@@ -7,6 +7,7 @@ import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { usePreferencesStore } from '@/store/preferencesStore'
@@ -306,8 +307,8 @@ export default function IncomeAnalysisPage() {
                 <AreaChart data={trendData}>
                   <defs>
                     <linearGradient id="incomeTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#34c759" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#34c759" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -334,10 +335,10 @@ export default function IncomeAnalysisPage() {
                   <Area
                     type="natural"
                     dataKey="income"
-                    stroke="#10b981"
+                    stroke="#34c759"
                     fill="url(#incomeTrendGradient)"
                     strokeWidth={2}
-                    isAnimationActive={trendData.length < 500}
+                    isAnimationActive={trendData.length < CHART_ANIMATION_THRESHOLD}
                   />
                 </AreaChart>
               </ResponsiveContainer>

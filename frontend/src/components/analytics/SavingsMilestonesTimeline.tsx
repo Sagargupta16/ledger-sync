@@ -4,6 +4,7 @@ import { Flag, CheckCircle, Circle } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
+import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import { CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
 import { chartTooltipProps } from '@/components/ui'
@@ -123,7 +124,7 @@ export default function SavingsMilestonesTimeline() {
                 stroke={rawColors.ios.green}
                 strokeWidth={2}
                 fill="url(#savingsGradient)"
-                isAnimationActive={chartData.length < 500}
+                isAnimationActive={chartData.length < CHART_ANIMATION_THRESHOLD}
               />
             </AreaChart>
           </ResponsiveContainer>

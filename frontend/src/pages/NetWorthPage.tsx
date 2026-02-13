@@ -8,6 +8,7 @@ import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
+import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
@@ -16,16 +17,16 @@ import { usePreferencesStore } from '@/store/preferencesStore'
 
 // Category display configuration
 const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
-  'Cash & Wallets': { label: 'Cash & Wallets', color: '#10b981' },
-  'Bank Accounts': { label: 'Bank Accounts', color: '#3b82f6' },
+  'Cash & Wallets': { label: 'Cash & Wallets', color: '#34c759' },
+  'Bank Accounts': { label: 'Bank Accounts', color: '#5aa3ff' },
   'Investments': { label: 'Investments', color: '#8b5cf6' },
-  'Loans/Lended': { label: 'Loans/Lended', color: '#ef4444' },
-  'Credit Cards': { label: 'Credit Cards', color: '#f97316' },
+  'Loans/Lended': { label: 'Loans/Lended', color: '#ff6b6b' },
+  'Credit Cards': { label: 'Credit Cards', color: '#ff9f43' },
   // Fallback categories
-  'cashbank': { label: 'Cash & Bank', color: '#3b82f6' },
+  'cashbank': { label: 'Cash & Bank', color: '#5aa3ff' },
   'invested': { label: 'Investments', color: '#8b5cf6' },
-  'lended': { label: 'Lended', color: '#14b8a6' },
-  'liability': { label: 'Liabilities', color: '#ef4444' },
+  'lended': { label: 'Lended', color: '#5ac8f5' },
+  'liability': { label: 'Liabilities', color: '#ff6b6b' },
   'other': { label: 'Other', color: '#6b7280' },
 }
 
@@ -521,12 +522,12 @@ export default function NetWorthPage() {
                         <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.6} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
+                        <stop offset="5%" stopColor="#34c759" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="#34c759" stopOpacity={0.1} />
                       </linearGradient>
                       <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.6} />
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
+                        <stop offset="5%" stopColor="#ff6b6b" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="#ff6b6b" stopOpacity={0.1} />
                       </linearGradient>
                       {/* Dynamic gradients for each category */}
                       {allCategories.map((cat) => {
@@ -562,7 +563,7 @@ export default function NetWorthPage() {
                               fillOpacity={1}
                               fill={`url(#color-${cat.replaceAll(/\s+/g, '')})`}
                               name={config.label}
-                              isAnimationActive={filteredNetWorthData.length < 500}
+                              isAnimationActive={filteredNetWorthData.length < CHART_ANIMATION_THRESHOLD}
                             />
                           )
                         })}
@@ -575,7 +576,7 @@ export default function NetWorthPage() {
                         fillOpacity={1}
                         fill="url(#colorNetWorth)"
                         name="Net Worth"
-                        isAnimationActive={filteredNetWorthData.length < 500}
+                        isAnimationActive={filteredNetWorthData.length < CHART_ANIMATION_THRESHOLD}
                       />
                     )}
                   </AreaChart>

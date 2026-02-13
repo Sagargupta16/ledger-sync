@@ -514,7 +514,7 @@ export default function BudgetPage() {
                   </div>
 
                   {/* Progress Bar */}
-                  <div className="h-2.5 bg-black/20 rounded-full overflow-hidden mb-2">
+                  <div className="h-2 bg-black/20 rounded-full overflow-hidden mb-2">
                     <motion.div
                       className="h-full rounded-full"
                       style={{ backgroundColor: cfg.color }}
