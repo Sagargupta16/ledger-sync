@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus, Wallet, PiggyBank, CreditCard, LineChart, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useTrends } from '@/hooks/useAnalytics'
-import { ResponsiveContainer, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { ResponsiveContainer, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine } from 'recharts'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
@@ -39,8 +39,12 @@ function getDirectionIcon(direction: TrendDirection): React.ReactElement {
 
 function formatTooltipName(name: string | undefined): string {
   if (name === 'income') return 'Income'
+  if (name === 'incomeAvg') return 'Income (3m avg)'
   if (name === 'expenses') return 'Spending'
-  return 'Savings'
+  if (name === 'expensesAvg') return 'Spending (3m avg)'
+  if (name === 'savings') return 'Savings'
+  if (name === 'savingsAvg') return 'Savings (3m avg)'
+  return name || ''
 }
 
 export default function TrendsForecastsPage() {
@@ -223,27 +227,36 @@ export default function TrendsForecastsPage() {
     })
   }, [filteredTransactions])
 
-  // Daily income/expense/savings data for the overview chart
-  const dailyTrendData = useMemo(() => {
-    if (!filteredTransactions.length) return []
+  // Monthly trend data for the small multiples charts
+  const monthlyTrendChartData = useMemo(() => {
+    if (!filteredMonthlyTrends.length) return []
+    return filteredMonthlyTrends.map((t) => ({
+      month: t.month,
+      label: new Date(t.month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      income: t.income,
+      expenses: t.expenses,
+      savings: t.surplus,
+    }))
+  }, [filteredMonthlyTrends])
 
-    const dailyMap: Record<string, { income: number; expense: number }> = {}
-    for (const tx of filteredTransactions) {
-      const day = tx.date.substring(0, 10)
-      if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
-      if (tx.type === 'Income') dailyMap[day].income += tx.amount
-      else if (tx.type === 'Expense') dailyMap[day].expense += tx.amount
-    }
+  // 3-month rolling average for the monthly charts
+  const monthlyTrendWithAvg = useMemo(() => {
+    return monthlyTrendChartData.map((d, i) => {
+      const start = Math.max(0, i - 2)
+      const window = monthlyTrendChartData.slice(start, i + 1)
+      return {
+        ...d,
+        incomeAvg: window.reduce((s, w) => s + w.income, 0) / window.length,
+        expensesAvg: window.reduce((s, w) => s + w.expenses, 0) / window.length,
+        savingsAvg: window.reduce((s, w) => s + w.savings, 0) / window.length,
+      }
+    })
+  }, [monthlyTrendChartData])
 
-    return Object.entries(dailyMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, { income, expense }]) => ({
-        date,
-        income,
-        expenses: expense,
-        savings: income - expense,
-      }))
-  }, [filteredTransactions])
+  // Peak values for reference lines (monthly)
+  const peakIncome = useMemo(() => Math.max(...monthlyTrendChartData.map(d => d.income), 0), [monthlyTrendChartData])
+  const peakExpenses = useMemo(() => Math.max(...monthlyTrendChartData.map(d => d.expenses), 0), [monthlyTrendChartData])
+  const peakSavings = useMemo(() => Math.max(...monthlyTrendChartData.map(d => d.savings), 0), [monthlyTrendChartData])
 
   const getTrendIcon = (direction: TrendDirection, isPositiveGood: boolean) => {
     if (direction === 'stable') return <Minus className="w-5 h-5 text-gray-400" />
@@ -282,6 +295,7 @@ export default function TrendsForecastsPage() {
               minDate={dataDateRange.minDate}
               maxDate={dataDateRange.maxDate}
               fiscalYearStartMonth={fiscalYearStartMonth}
+              availableModes={['all_time', 'fy', 'yearly']}
             />
           }
         />
@@ -420,7 +434,7 @@ export default function TrendsForecastsPage() {
           </motion.div>
         </div>
 
-        {/* Main Trend Chart */}
+        {/* Main Trend Chart — Small Multiples */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -429,55 +443,132 @@ export default function TrendsForecastsPage() {
         >
           <div className="flex items-center gap-3 mb-6">
             <LineChart className="w-5 h-5 text-blue-400" />
-            <h3 className="text-lg font-semibold text-white">Income & Expense Trends</h3>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Income & Expense Trends</h3>
+              <p className="text-sm text-gray-500">Monthly breakdown with 3-month rolling averages</p>
+            </div>
           </div>
           {isLoading && (
             <div className="h-80 flex items-center justify-center">
               <div className="animate-pulse text-gray-400">Loading chart...</div>
             </div>
           )}
-          {!isLoading && dailyTrendData.length > 0 && (
-            <ResponsiveContainer width="100%" height={350}>
-              <AreaChart data={dailyTrendData}>
-                <defs>
-                  <linearGradient id="trendIncomeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#34c759" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#34c759" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="trendExpenseGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ff6b6b" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#ff6b6b" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="trendSavingsGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatDateTick(v, dailyTrendData.length)} angle={-45} textAnchor="end" height={80} interval={Math.max(1, Math.floor(dailyTrendData.length / 20))} />
-                <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatCurrencyShort(v)} />
-                <Tooltip
-                  {...chartTooltipProps}
-                  labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                  formatter={(value: number | undefined, name: string | undefined) => [
-                    value === undefined ? '' : formatCurrency(value),
-                    formatTooltipName(name)
-                  ]}
-                />
-                <Legend />
-                <Area type="natural" dataKey="income" name="Income" stroke="#34c759" fill="url(#trendIncomeGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < CHART_ANIMATION_THRESHOLD} />
-                <Area type="natural" dataKey="expenses" name="Spending" stroke="#ff6b6b" fill="url(#trendExpenseGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < CHART_ANIMATION_THRESHOLD} />
-                <Area type="natural" dataKey="savings" name="Savings" stroke="#a855f7" fill="url(#trendSavingsGradient)" strokeWidth={2} isAnimationActive={dailyTrendData.length < CHART_ANIMATION_THRESHOLD} />
-              </AreaChart>
-            </ResponsiveContainer>
+          {!isLoading && monthlyTrendWithAvg.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Income mini chart */}
+              <div className="glass-thin rounded-xl border border-white/10 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <span className="text-sm font-medium text-white">Income</span>
+                </div>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={monthlyTrendWithAvg}>
+                    <defs>
+                      <linearGradient id="trendIncomeGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#34c759" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#34c759" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                    <YAxis hide />
+                    <Tooltip
+                      {...chartTooltipProps}
+                      labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
+                        const month = payload?.[0]?.payload?.month
+                        return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
+                      }}
+                      formatter={(value: number | undefined, name: string | undefined) => [
+                        value === undefined ? '' : formatCurrency(value),
+                        formatTooltipName(name)
+                      ]}
+                    />
+                    <ReferenceLine y={peakIncome} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: '#9ca3af', fontSize: 10, position: 'insideTopRight' }} />
+                    <Area type="monotone" dataKey="income" stroke="#34c759" fill="url(#trendIncomeGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    <Line type="monotone" dataKey="incomeAvg" stroke="#34c759" strokeWidth={2} strokeDasharray="6 3" dot={false} name="Income (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Expenses mini chart */}
+              <div className="glass-thin rounded-xl border border-white/10 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-3 h-3 rounded-full bg-red-500" />
+                  <span className="text-sm font-medium text-white">Expenses</span>
+                </div>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={monthlyTrendWithAvg}>
+                    <defs>
+                      <linearGradient id="trendExpenseGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ff6b6b" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#ff6b6b" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                    <YAxis hide />
+                    <Tooltip
+                      {...chartTooltipProps}
+                      labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
+                        const month = payload?.[0]?.payload?.month
+                        return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
+                      }}
+                      formatter={(value: number | undefined, name: string | undefined) => [
+                        value === undefined ? '' : formatCurrency(value),
+                        formatTooltipName(name)
+                      ]}
+                    />
+                    <ReferenceLine y={peakExpenses} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakExpenses)}`, fill: '#9ca3af', fontSize: 10, position: 'insideTopRight' }} />
+                    <Area type="monotone" dataKey="expenses" stroke="#ff6b6b" fill="url(#trendExpenseGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    <Line type="monotone" dataKey="expensesAvg" stroke="#ff6b6b" strokeWidth={2} strokeDasharray="6 3" dot={false} name="Spending (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Savings mini chart */}
+              <div className="glass-thin rounded-xl border border-white/10 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-3 h-3 rounded-full bg-purple-500" />
+                  <span className="text-sm font-medium text-white">Savings</span>
+                </div>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={monthlyTrendWithAvg}>
+                    <defs>
+                      <linearGradient id="trendSavingsGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                    <YAxis hide />
+                    <Tooltip
+                      {...chartTooltipProps}
+                      labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
+                        const month = payload?.[0]?.payload?.month
+                        return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
+                      }}
+                      formatter={(value: number | undefined, name: string | undefined) => [
+                        value === undefined ? '' : formatCurrency(value),
+                        formatTooltipName(name)
+                      ]}
+                    />
+                    <ReferenceLine y={peakSavings} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakSavings)}`, fill: '#9ca3af', fontSize: 10, position: 'insideTopRight' }} />
+                    <Area type="monotone" dataKey="savings" stroke="#a855f7" fill="url(#trendSavingsGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    <Line type="monotone" dataKey="savingsAvg" stroke="#a855f7" strokeWidth={2} strokeDasharray="6 3" dot={false} name="Savings (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           )}
-          {!isLoading && dailyTrendData.length === 0 && (
+          {!isLoading && monthlyTrendWithAvg.length === 0 && (
             <EmptyState
               icon={LineChart}
               title="No data available"
               description="Upload your transaction data to see spending trends and forecasts."
               actionLabel="Upload Data"
               actionHref="/upload"
+              variant="chart"
             />
           )}
         </motion.div>

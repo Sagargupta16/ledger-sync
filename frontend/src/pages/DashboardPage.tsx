@@ -9,7 +9,7 @@ import Sparkline from '@/components/shared/Sparkline'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore, PeriodComparison } from '@/components/analytics'
 import { formatCurrency } from '@/lib/formatters'
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
@@ -39,11 +39,24 @@ export default function DashboardPage() {
     spendingBreakdown,
     spendingChartData,
     spendingColorStyles,
-    spendingBarStyles,
     incomeSparkline,
     expenseSparkline,
     momChanges,
   } = useDashboardMetrics()
+
+  const incomeBarData = incomeChartData.length > 0
+    ? [Object.fromEntries([['name', 'Income'], ...incomeChartData.map(d => [d.name, d.value])])]
+    : []
+
+  const spendingBarData = spendingChartData.length > 0
+    ? [Object.fromEntries([['name', 'Spending'], ...spendingChartData.map(d => [d.name, d.value])])]
+    : []
+
+  const stackedBarRadius = (index: number, total: number): [number, number, number, number] | number => {
+    if (index === 0) return [4, 0, 0, 4]
+    if (index === total - 1) return [0, 4, 4, 0]
+    return 0
+  }
 
   return (
     <div className="p-8 space-y-8">
@@ -136,31 +149,29 @@ export default function DashboardPage() {
             Income Sources
           </h2>
           {incomeChartData.length > 0 ? (
-            <div className="flex items-center gap-6">
-              <div className="w-40 h-40">
+            <div className="space-y-4">
+              <div className="h-10">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={incomeChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={65}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {incomeChartData.map((entry) => (
-                        <Cell key={`cell-${entry.name}`} fill={entry.color} />
-                      ))}
-                    </Pie>
+                  <BarChart layout="vertical" data={incomeBarData} barSize={32}>
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="name" hide />
                     <Tooltip
                       {...chartTooltipProps}
                       formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                     />
-                  </PieChart>
+                    {incomeChartData.map((item, i) => (
+                      <Bar
+                        key={item.name}
+                        dataKey={item.name}
+                        stackId="a"
+                        fill={item.color}
+                        radius={stackedBarRadius(i, incomeChartData.length)}
+                      />
+                    ))}
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex-1 space-y-2">
+              <div className="space-y-2">
                 {incomeChartData.map((item, i) => (
                   <div key={item.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -217,55 +228,45 @@ export default function DashboardPage() {
             Spending Breakdown
           </h2>
           {spendingChartData.length > 0 ? (
-            <div className="flex items-center gap-6">
-              <div className="w-40 h-40">
+            <div className="space-y-4">
+              <div className="h-10">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={spendingChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={65}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {spendingChartData.map((entry) => (
-                        <Cell key={`cell-${entry.name}`} fill={entry.color} />
-                      ))}
-                    </Pie>
+                  <BarChart layout="vertical" data={spendingBarData} barSize={32}>
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="name" hide />
                     <Tooltip
                       {...chartTooltipProps}
                       formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                     />
-                  </PieChart>
+                    {spendingChartData.map((item, i) => (
+                      <Bar
+                        key={item.name}
+                        dataKey={item.name}
+                        stackId="a"
+                        fill={item.color}
+                        radius={stackedBarRadius(i, spendingChartData.length)}
+                      />
+                    ))}
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex-1 space-y-3">
+              <div className="space-y-3">
                 {spendingChartData.map((item, i) => {
                   const percentage = spendingBreakdown
                     ? ((item.value / spendingBreakdown.total) * 100).toFixed(1)
                     : '0'
                   return (
-                    <div key={item.name}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={spendingColorStyles[i]}
-                          />
-                          <span className="text-sm">{item.name}</span>
-                        </div>
-                        <span className="text-sm font-medium">
-                          {formatCurrency(item.value)} ({percentage}%)
-                        </span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div key={item.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
                         <div
-                          className="h-full rounded-full transition-all"
-                          style={spendingBarStyles[i]}
+                          className="w-3 h-3 rounded-full"
+                          style={spendingColorStyles[i]}
                         />
+                        <span className="text-sm">{item.name}</span>
                       </div>
+                      <span className="text-sm font-medium">
+                        {formatCurrency(item.value)} ({percentage}%)
+                      </span>
                     </div>
                   )
                 })}

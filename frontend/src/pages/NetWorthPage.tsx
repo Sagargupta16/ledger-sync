@@ -3,7 +3,7 @@ import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
@@ -384,6 +384,32 @@ export default function NetWorthPage() {
     })
   }, [netWorthData, dateRange])
 
+  const monthlyChanges = useMemo(() => {
+    if (!filteredNetWorthData || filteredNetWorthData.length < 2) return []
+
+    // Group by month and get last value per month
+    const monthlyValues: Record<string, number> = {}
+    for (const point of filteredNetWorthData) {
+      const month = (point.date as string).substring(0, 7) // "YYYY-MM"
+      monthlyValues[month] = point.netWorth as number
+    }
+
+    const months = Object.keys(monthlyValues).sort()
+    if (months.length < 2) return []
+
+    return months.slice(1).map((month, i) => {
+      const prevMonth = months[i]
+      const change = monthlyValues[month] - monthlyValues[prevMonth]
+      return {
+        month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        change,
+        positive: change >= 0 ? change : 0,
+        negative: change < 0 ? Math.abs(change) : 0,
+        fill: change >= 0 ? '#34c759' : '#ff6b6b',
+      }
+    })
+  }, [filteredNetWorthData])
+
   const toggleCategory = (
     setter: React.Dispatch<React.SetStateAction<Set<string>>>,
     category: string,
@@ -590,10 +616,39 @@ export default function NetWorthPage() {
                 description="Upload your transaction data to track net worth over time."
                 actionLabel="Upload Data"
                 actionHref="/upload"
+                variant="chart"
               />
             )
           })()}
         </motion.div>
+
+        {monthlyChanges.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          >
+            <div className="flex items-center gap-3 mb-6">
+              <BarChart3 className="w-5 h-5 text-purple-400" />
+              <h3 className="text-lg font-semibold text-white">Monthly Net Worth Changes</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={monthlyChanges}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                <XAxis dataKey="month" tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                <Tooltip
+                  {...chartTooltipProps}
+                  formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
+                />
+                <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+                <Bar dataKey="positive" name="Increase" fill="#34c759" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="negative" name="Decrease" fill="#ff6b6b" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

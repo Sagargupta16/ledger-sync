@@ -3,50 +3,50 @@ import { motion } from 'framer-motion'
 import { Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
-import { useTimeNavigation } from '@/hooks/useTimeNavigation'
 import { calculateCumulativeData } from '@/lib/chartPeriodUtils'
-import TimeNavigationControls from '@/components/analytics/TimeNavigationControls'
 import TimeSeriesLineChart, { exportChartAsCsv } from '@/components/analytics/TimeSeriesLineChart'
 
 const COLORS = CHART_COLORS_WARM
 
-export default function EnhancedSubcategoryAnalysis() {
+interface EnhancedSubcategoryAnalysisProps {
+  readonly dateRange?: { readonly start_date?: string; readonly end_date?: string }
+}
+
+export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubcategoryAnalysisProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('Food & Dining')
-  const {
-    viewMode, setViewMode, currentYear, currentMonth,
-    handlePrevYear, handleNextYear, handlePrevMonth, handleNextMonth,
-  } = useTimeNavigation()
   const [cumulative, setCumulative] = useState(true)
 
   const { data: transactions } = useTransactions()
 
-  // Get all expense categories for dropdown
+  // Get all expense categories for dropdown (filtered by dateRange)
   const categories = useMemo(() => {
     if (!transactions) return []
     const expenseCategories = new Set<string>()
     transactions.forEach((tx) => {
-      if (tx.type === 'Expense' && tx.category) {
-        expenseCategories.add(tx.category)
+      if (tx.type !== 'Expense' || !tx.category) return
+      if (dateRange?.start_date) {
+        const txDate = tx.date.substring(0, 10)
+        if (txDate < dateRange.start_date) return
+        if (dateRange.end_date && txDate > dateRange.end_date) return
       }
+      expenseCategories.add(tx.category)
     })
     return Array.from(expenseCategories).sort((a, b) => a.localeCompare(b))
-  }, [transactions])
+  }, [transactions, dateRange])
 
   // Process subcategory data for selected category
   const { chartData, totalTransactions } = useMemo(() => {
     if (!transactions || !selectedCategory) return { chartData: [], totalTransactions: 0 }
 
-    // Filter transactions for selected category
+    // Filter transactions for selected category and dateRange
     const categoryTransactions = transactions.filter((tx) => {
       if (tx.type !== 'Expense' || tx.category !== selectedCategory) return false
-      if (viewMode === 'yearly') {
-        const txYear = Number.parseInt(tx.date.substring(0, 4))
-        return txYear === currentYear
+      if (dateRange?.start_date) {
+        const txDate = tx.date.substring(0, 10)
+        if (txDate < dateRange.start_date) return false
+        if (dateRange.end_date && txDate > dateRange.end_date) return false
       }
-      if (viewMode === 'monthly') {
-        return tx.date.substring(0, 7) === currentMonth
-      }
-      return true // all_time
+      return true
     })
 
     const groupedData: Record<string, Record<string, number>> = {}
@@ -90,7 +90,7 @@ export default function EnhancedSubcategoryAnalysis() {
       chartData: finalData,
       totalTransactions: categoryTransactions.length,
     }
-  }, [transactions, selectedCategory, viewMode, currentYear, currentMonth, cumulative])
+  }, [transactions, selectedCategory, dateRange, cumulative])
 
   const subcategories = useMemo(() => {
     if (chartData.length === 0) return []
@@ -139,16 +139,6 @@ export default function EnhancedSubcategoryAnalysis() {
               ))}
             </select>
 
-            {/* View Mode Toggle */}
-            <select
-              value={viewMode}
-              onChange={(e) => setViewMode(e.target.value as 'monthly' | 'yearly')}
-              className="px-3 py-1.5 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-300 text-sm focus:outline-none"
-            >
-              <option value="monthly" className="bg-gray-800 text-gray-200">Monthly View</option>
-              <option value="yearly" className="bg-gray-800 text-gray-200">Yearly View</option>
-            </select>
-
             {/* Cumulative Toggle */}
             <select
               value={cumulative ? 'cumulative' : 'regular'}
@@ -160,18 +150,7 @@ export default function EnhancedSubcategoryAnalysis() {
             </select>
           </div>
 
-          {/* Navigation */}
-          <TimeNavigationControls
-            viewMode={viewMode}
-            currentYear={currentYear}
-            currentMonth={currentMonth}
-            totalTransactions={totalTransactions}
-            transactionLabel="transactions"
-            handlePrevYear={handlePrevYear}
-            handleNextYear={handleNextYear}
-            handlePrevMonth={handlePrevMonth}
-            handleNextMonth={handleNextMonth}
-          />
+          <span className="text-xs text-gray-400">{totalTransactions} transactions</span>
         </div>
 
         {/* Chart */}

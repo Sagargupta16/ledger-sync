@@ -3,18 +3,16 @@ import { motion } from 'framer-motion'
 import { Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
-import { useTimeNavigation } from '@/hooks/useTimeNavigation'
 import { calculateCumulativeData } from '@/lib/chartPeriodUtils'
-import TimeNavigationControls from '@/components/analytics/TimeNavigationControls'
 import TimeSeriesLineChart, { exportChartAsCsv } from '@/components/analytics/TimeSeriesLineChart'
 
 const COLORS = CHART_COLORS_WARM.slice(0, 8) // Use first 8 colors
 
-export default function MultiCategoryTimeAnalysis() {
-  const {
-    viewMode, setViewMode, currentYear, currentMonth,
-    handlePrevYear, handleNextYear, handlePrevMonth, handleNextMonth,
-  } = useTimeNavigation()
+interface MultiCategoryTimeAnalysisProps {
+  readonly dateRange?: { readonly start_date?: string; readonly end_date?: string }
+}
+
+export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTimeAnalysisProps) {
   const [cumulative, setCumulative] = useState(true)
 
   const { data: transactions } = useTransactions()
@@ -25,14 +23,12 @@ export default function MultiCategoryTimeAnalysis() {
 
     const expenseTransactions = transactions.filter((t) => {
       if (t.type !== 'Expense') return false
-      if (viewMode === 'yearly') {
-        const txYear = Number.parseInt(t.date.substring(0, 4))
-        return txYear === currentYear
+      if (dateRange?.start_date) {
+        const txDate = t.date.substring(0, 10)
+        if (txDate < dateRange.start_date) return false
+        if (dateRange.end_date && txDate > dateRange.end_date) return false
       }
-      if (viewMode === 'monthly') {
-        return t.date.substring(0, 7) === currentMonth
-      }
-      return true // all_time
+      return true
     })
 
     const groupedData: Record<string, Record<string, number>> = {}
@@ -77,7 +73,7 @@ export default function MultiCategoryTimeAnalysis() {
       chartData: finalData,
       totalTransactions: expenseTransactions.length,
     }
-  }, [transactions, viewMode, currentYear, currentMonth, cumulative])
+  }, [transactions, dateRange, cumulative])
 
   const topCategories = useMemo(() => {
     if (chartData.length === 0) return []
@@ -99,30 +95,11 @@ export default function MultiCategoryTimeAnalysis() {
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-white">Multi-Category Time Analysis</h3>
-          <button
-            onClick={handleExport}
-            className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 transition-colors"
-            type="button"
-            title="Export chart"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* View Controls and Year Navigation */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex gap-2">
-            {/* View Mode Toggle */}
-            <select
-              value={viewMode}
-              onChange={(e) => setViewMode(e.target.value as 'monthly' | 'yearly')}
-              className="px-3 py-1.5 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-300 text-sm focus:outline-none"
-            >
-              <option value="monthly" className="bg-gray-800 text-gray-200">Monthly View</option>
-              <option value="yearly" className="bg-gray-800 text-gray-200">Yearly View</option>
-            </select>
-
+          <div>
+            <h3 className="text-xl font-semibold text-white">Multi-Category Time Analysis</h3>
+            <p className="text-xs text-gray-400 mt-1">{totalTransactions} expense transactions</p>
+          </div>
+          <div className="flex items-center gap-2">
             {/* Cumulative Toggle */}
             <select
               value={cumulative ? 'cumulative' : 'regular'}
@@ -132,20 +109,17 @@ export default function MultiCategoryTimeAnalysis() {
               <option value="cumulative" className="bg-gray-800 text-gray-200">Cumulative</option>
               <option value="regular" className="bg-gray-800 text-gray-200">Regular</option>
             </select>
-          </div>
 
-          {/* Navigation */}
-          <TimeNavigationControls
-            viewMode={viewMode}
-            currentYear={currentYear}
-            currentMonth={currentMonth}
-            totalTransactions={totalTransactions}
-            transactionLabel="expense transactions"
-            handlePrevYear={handlePrevYear}
-            handleNextYear={handleNextYear}
-            handlePrevMonth={handlePrevMonth}
-            handleNextMonth={handleNextMonth}
-          />
+            {/* Export */}
+            <button
+              onClick={handleExport}
+              className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 transition-colors"
+              type="button"
+              title="Export chart"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Chart */}

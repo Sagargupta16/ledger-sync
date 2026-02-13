@@ -50,6 +50,7 @@ export default function TimeSeriesLineChart({
           {...chartTooltipProps}
           labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+          itemSorter={(item) => -(item.value as number)}
         />
         <Legend
           wrapperStyle={{ paddingTop: '20px' }}

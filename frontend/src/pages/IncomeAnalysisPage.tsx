@@ -1,21 +1,24 @@
-import { motion } from 'framer-motion'
-import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
+import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank, ChevronDown } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine, PieChart, Pie, Cell } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useState, useMemo } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { usePreferencesStore } from '@/store/preferencesStore'
-import { 
+import { useCategoryBreakdown } from '@/hooks/useAnalytics'
+import {
   calculateIncomeByCategoryBreakdown,
   calculateCashbacksTotal,
   INCOME_CATEGORY_COLORS,
 } from '@/lib/preferencesUtils'
+import { CHART_COLORS } from '@/constants/chartColors'
 
 // Icons for income categories (based on actual data categories)
 const INCOME_CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -27,7 +30,218 @@ const INCOME_CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: st
   'Business/Self Employment Income': Activity,
 }
 
+const BREAKDOWN_COLORS = CHART_COLORS
+
+interface IncomeCategoryData {
+  name: string
+  total: number
+  percent: number
+  color: string
+  subcategories: { name: string; amount: number; percent: number }[]
+}
+
+function IncomeSourcesBreakdown({ dateRange }: { dateRange: { start_date?: string; end_date?: string } }) {
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
+
+  const { data: categoryData, isLoading } = useCategoryBreakdown({
+    transaction_type: 'income',
+    ...dateRange,
+  })
+
+  const { categories, grandTotal } = useMemo(() => {
+    if (!categoryData?.categories) return { categories: [], grandTotal: 0 }
+
+    const total = Object.values(categoryData.categories)
+      .reduce((sum, catData: Record<string, unknown>) => sum + Math.abs(catData.total as number), 0)
+
+    let colorIdx = 0
+    const cats: IncomeCategoryData[] = Object.entries(categoryData.categories)
+      .map(([category, catData]: [string, Record<string, unknown>]) => {
+        const catTotal = Math.abs(catData.total as number)
+        const color = INCOME_CATEGORY_COLORS[category] || BREAKDOWN_COLORS[colorIdx % BREAKDOWN_COLORS.length]
+        colorIdx++
+
+        const subs: IncomeCategoryData['subcategories'] = []
+        if (catData.subcategories) {
+          Object.entries(catData.subcategories as Record<string, number>)
+            .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
+            .forEach(([subcat, amount]) => {
+              subs.push({
+                name: subcat,
+                amount: Math.abs(amount),
+                percent: catTotal > 0 ? (Math.abs(amount) / catTotal) * 100 : 0,
+              })
+            })
+        }
+
+        return { name: category, total: catTotal, percent: total > 0 ? (catTotal / total) * 100 : 0, color, subcategories: subs }
+      })
+      .sort((a, b) => b.total - a.total)
+
+    return { categories: cats, grandTotal: total }
+  }, [categoryData])
+
+  const toggleExpand = (name: string) => {
+    setExpandedCategory((prev) => (prev === name ? null : name))
+  }
+
+  if (isLoading) {
+    return (
+      <div className="glass p-6 rounded-xl border border-white/10">
+        <div className="h-64 flex items-center justify-center">
+          <div className="animate-pulse text-muted-foreground">Loading breakdown...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (categories.length === 0) {
+    return (
+      <div className="glass p-6 rounded-xl border border-white/10">
+        <EmptyState
+          icon={Wallet}
+          title="No income data available"
+          description="Upload your transaction data to see your income breakdown."
+          actionLabel="Upload Data"
+          actionHref="/upload"
+          variant="chart"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="glass p-6 rounded-xl border border-white/10">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <DollarSign className="w-5 h-5 text-green-400" />
+          <div>
+            <h3 className="text-lg font-semibold text-white">Income Sources</h3>
+            <p className="text-xs text-gray-500">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Stacked overview bar */}
+      <div className="flex h-3 rounded-full overflow-hidden mb-6">
+        {categories.map((cat) => (
+          <motion.div
+            key={cat.name}
+            className="h-full transition-opacity hover:opacity-80 cursor-pointer"
+            style={{ backgroundColor: cat.color, width: `${cat.percent}%` }}
+            initial={{ width: 0 }}
+            animate={{ width: `${cat.percent}%` }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            onClick={() => toggleExpand(cat.name)}
+            title={`${cat.name}: ${formatCurrency(cat.total)} (${cat.percent.toFixed(1)}%)`}
+          />
+        ))}
+      </div>
+
+      {/* Category rows */}
+      <div className="space-y-1">
+        {categories.map((cat, i) => {
+          const isExpanded = expandedCategory === cat.name
+          const hasSubcategories = cat.subcategories.length > 0
+
+          return (
+            <div key={cat.name}>
+              <button
+                type="button"
+                onClick={() => hasSubcategories && toggleExpand(cat.name)}
+                className={`w-full text-left px-4 py-3 rounded-xl transition-all group ${
+                  hasSubcategories ? 'cursor-pointer' : 'cursor-default'
+                } ${isExpanded ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: cat.color }}
+                  />
+                  <span className="text-sm font-medium text-white flex-1 truncate">
+                    {cat.name}
+                  </span>
+                  <span className="text-xs text-gray-400 tabular-nums shrink-0">
+                    {cat.percent.toFixed(1)}%
+                  </span>
+                  <span className="text-sm font-semibold text-white tabular-nums shrink-0 w-28 text-right">
+                    {formatCurrency(cat.total)}
+                  </span>
+                  {hasSubcategories && (
+                    <motion.div
+                      animate={{ rotate: isExpanded ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-gray-500 group-hover:text-gray-300"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </motion.div>
+                  )}
+                </div>
+                <div className="mt-2 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ backgroundColor: cat.color }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${cat.percent}%` }}
+                    transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.03 }}
+                  />
+                </div>
+              </button>
+
+              <AnimatePresence>
+                {isExpanded && hasSubcategories && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: 'easeInOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="ml-6 mr-2 py-1 space-y-0.5">
+                      {cat.subcategories.map((sub, si) => (
+                        <div
+                          key={sub.name}
+                          className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/[0.03] transition-colors"
+                        >
+                          <div
+                            className="w-1.5 h-1.5 rounded-full shrink-0 opacity-60"
+                            style={{ backgroundColor: cat.color }}
+                          />
+                          <span className="text-xs text-gray-300 flex-1 truncate">
+                            {sub.name}
+                          </span>
+                          <div className="w-20 h-1 rounded-full bg-white/[0.06] overflow-hidden shrink-0">
+                            <motion.div
+                              className="h-full rounded-full opacity-70"
+                              style={{ backgroundColor: cat.color }}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${sub.percent}%` }}
+                              transition={{ duration: 0.3, delay: si * 0.02 }}
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500 tabular-nums shrink-0 w-10 text-right">
+                            {sub.percent.toFixed(0)}%
+                          </span>
+                          <span className="text-xs font-medium text-gray-300 tabular-nums shrink-0 w-24 text-right">
+                            {formatCurrency(sub.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function IncomeAnalysisPage() {
+  const navigate = useNavigate()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
@@ -109,29 +323,49 @@ export default function IncomeAnalysisPage() {
   // Get primary income type
   const primaryIncomeType = incomeTypeChartData[0]?.name || 'N/A'
 
-  // Process daily income trend data
-  const trendData = useMemo(() => {
+  // Process monthly income trend data with 3-month rolling average
+  const monthlyTrendData = useMemo(() => {
     const incomeTransactions = filteredTransactions.filter((t) => t.type === 'Income')
 
-    const dailyMap: Record<string, number> = {}
+    const monthlyMap: Record<string, number> = {}
     for (const tx of incomeTransactions) {
-      const day = tx.date.substring(0, 10)
-      dailyMap[day] = (dailyMap[day] || 0) + Math.abs(tx.amount)
+      const month = tx.date.substring(0, 7) // YYYY-MM
+      monthlyMap[month] = (monthlyMap[month] || 0) + Math.abs(tx.amount)
     }
 
-    return Object.entries(dailyMap)
+    const sorted = Object.entries(monthlyMap)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, income]) => ({ date, income }))
+      .map(([month, income]) => ({
+        month,
+        label: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        income,
+      }))
+
+    // Add 3-month rolling average
+    return sorted.map((d, i) => {
+      const start = Math.max(0, i - 2)
+      const window = sorted.slice(start, i + 1)
+      return {
+        ...d,
+        incomeAvg: window.reduce((s, w) => s + w.income, 0) / window.length,
+      }
+    })
   }, [filteredTransactions])
 
+  // Peak income for reference line
+  const peakIncome = useMemo(
+    () => Math.max(...monthlyTrendData.map(d => d.income), 0),
+    [monthlyTrendData]
+  )
+
   const growthRate = useMemo(() => {
-    if (trendData.length < 2) return 0
-    const nonZeroData = trendData.filter(d => d.income > 0)
+    if (monthlyTrendData.length < 2) return 0
+    const nonZeroData = monthlyTrendData.filter(d => d.income > 0)
     if (nonZeroData.length < 2) return 0
     const lastValue = nonZeroData.at(-1)?.income || 0
     const firstValue = nonZeroData[0]?.income || 1
     return ((lastValue - firstValue) / firstValue * 100)
-  }, [trendData])
+  }, [monthlyTrendData])
 
   const isLoading = !transactions
 
@@ -229,6 +463,10 @@ export default function IncomeAnalysisPage() {
                       outerRadius={90}
                       dataKey="value"
                       stroke="none"
+                      onClick={(data: { name?: string }) => {
+                        if (data?.name) navigate(`/transactions?type=Income&category=${encodeURIComponent(data.name)}`)
+                      }}
+                      style={{ cursor: 'pointer' }}
                     >
                       {incomeTypeChartData.map((entry) => (
                         <Cell key={`cell-${entry.name}`} fill={entry.color} />
@@ -283,8 +521,8 @@ export default function IncomeAnalysisPage() {
           )}
         </motion.div>
 
-        {/* Income Trend Chart */}
-        <motion.div 
+        {/* Income Trend Chart — Monthly with 3-month rolling average */}
+        <motion.div
           className="glass p-6 rounded-xl border border-white/10"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -293,99 +531,92 @@ export default function IncomeAnalysisPage() {
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <TrendingUp className="w-5 h-5 text-green-400" />
-              <h3 className="text-lg font-semibold text-white">Income Trend</h3>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Income Trend</h3>
+                <p className="text-sm text-gray-500">Monthly income with 3-month rolling average</p>
+              </div>
             </div>
 
-            {/* Chart */}
             {isLoading && (
               <div className="h-96 flex items-center justify-center">
                 <div className="animate-pulse text-gray-400">Loading chart...</div>
               </div>
             )}
-            {!isLoading && trendData.length > 0 && (
+            {!isLoading && monthlyTrendData.length > 0 && (
               <ResponsiveContainer width="100%" height={400}>
-                <AreaChart data={trendData}>
+                <AreaChart data={monthlyTrendData}>
                   <defs>
                     <linearGradient id="incomeTrendGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#34c759" stopOpacity={0.4}/>
                       <stop offset="95%" stopColor="#34c759" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                   <XAxis
-                    dataKey="date"
+                    dataKey="label"
                     stroke="#9ca3af"
-                    fontSize={12}
-                    tickFormatter={(v) => formatDateTick(v, trendData.length)}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    interval={Math.max(1, Math.floor(trendData.length / 20))}
+                    tick={{ fill: '#9ca3af', fontSize: 11 }}
+                    interval={Math.max(0, Math.floor(monthlyTrendData.length / 12) - 1)}
                   />
                   <YAxis
                     stroke="#9ca3af"
-                    fontSize={12}
+                    tick={{ fill: '#9ca3af', fontSize: 11 }}
                     tickFormatter={(value) => formatCurrencyShort(value)}
                   />
                   <Tooltip
                     {...chartTooltipProps}
-                    labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    formatter={(value: number | undefined) => value === undefined ? '' : [formatCurrency(value), 'Income']}
+                    labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
+                      const month = payload?.[0]?.payload?.month
+                      return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
+                    }}
+                    formatter={(value: number | undefined, name: string | undefined) => [
+                      value === undefined ? '' : formatCurrency(value),
+                      name === 'incomeAvg' ? 'Income (3m avg)' : 'Income',
+                    ]}
+                    itemSorter={(item) => -(item.value as number)}
+                  />
+                  <ReferenceLine
+                    y={peakIncome}
+                    stroke="rgba(255,255,255,0.2)"
+                    strokeDasharray="3 3"
+                    label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: '#9ca3af', fontSize: 10, position: 'insideTopRight' }}
                   />
                   <Area
-                    type="natural"
+                    type="monotone"
                     dataKey="income"
                     stroke="#34c759"
                     fill="url(#incomeTrendGradient)"
+                    strokeWidth={1.5}
+                    isAnimationActive={monthlyTrendData.length < CHART_ANIMATION_THRESHOLD}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="incomeAvg"
+                    stroke="#34c759"
                     strokeWidth={2}
-                    isAnimationActive={trendData.length < CHART_ANIMATION_THRESHOLD}
+                    strokeDasharray="6 3"
+                    dot={false}
+                    name="Income (3m avg)"
+                    isAnimationActive={monthlyTrendData.length < CHART_ANIMATION_THRESHOLD}
                   />
                 </AreaChart>
               </ResponsiveContainer>
             )}
-            {!isLoading && trendData.length === 0 && (
+            {!isLoading && monthlyTrendData.length === 0 && (
               <EmptyState
                 icon={TrendingUp}
                 title="No income data available"
                 description="Start by uploading your transaction data to see income trends."
                 actionLabel="Upload Data"
                 actionHref="/upload"
+                variant="chart"
               />
             )}
           </div>
         </motion.div>
 
-        {/* Income Sources Breakdown */}
-        <motion.div 
-          className="glass p-6 rounded-xl border border-white/10"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-        >
-          <h3 className="text-lg font-semibold text-white mb-4">Income Sources</h3>
-          <div className="space-y-3">
-            {incomeTypeChartData.map((item) => (
-                <div
-                  key={item.name}
-                  className="flex items-center justify-between p-4 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-all"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="font-medium text-white">{item.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-white">
-                      {formatCurrency(item.value)}
-                    </div>
-                    <div className="text-sm text-gray-400">{formatPercent((item.value / totalIncome) * 100)}</div>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </motion.div>
+        {/* Income Sources Breakdown — bar style matching Expense Breakdown */}
+        <IncomeSourcesBreakdown dateRange={dateRange} />
       </div>
     </div>
   )

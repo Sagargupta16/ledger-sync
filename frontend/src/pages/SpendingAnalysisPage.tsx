@@ -223,7 +223,7 @@ export default function SpendingAnalysisPage() {
           </motion.div>
         </div>
 
-        {/* Essential vs Discretionary Spending */}
+        {/* 50/30/20 Budget Rule Analysis */}
         <motion.div
           className="glass p-6 rounded-xl border border-white/10"
           {...fadeUpWithDelay(0.5)}
@@ -388,22 +388,23 @@ export default function SpendingAnalysisPage() {
           )}
         </motion.div>
 
-        {/* Advanced Analytics */}
-        <ExpenseTreemap />
-        
-        <MultiCategoryTimeAnalysis />
+        {/* Expense Treemap */}
+        <ExpenseTreemap dateRange={dateRange} />
+
+        {/* Top Merchants */}
+        <TopMerchants dateRange={dateRange} />
+
+        {/* Multi-Category Time Analysis */}
+        <MultiCategoryTimeAnalysis dateRange={dateRange} />
+
+        {/* Subcategory Deep-Dive */}
+        <EnhancedSubcategoryAnalysis dateRange={dateRange} />
 
         {/* Year-over-Year & Recurring */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <YearOverYearComparison />
           <RecurringTransactions />
         </div>
-
-        {/* Top Merchants */}
-        <TopMerchants />
-
-        {/* Subcategory Deep-Dive */}
-        <EnhancedSubcategoryAnalysis />
       </div>
     </div>
   )

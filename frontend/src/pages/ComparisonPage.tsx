@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Equal, Upload } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Equal, Upload, Lightbulb } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import {
   getCurrentYear,
   getCurrentFY,
@@ -15,15 +15,13 @@ import { rawColors } from '@/constants/colors'
 import EmptyState from '@/components/shared/EmptyState'
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
-  Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { CHART_COLORS } from '@/constants/chartColors'
 
 // ─── Types ──────────────────────────────────────────────────────────
 type CompareMode = 'month' | 'year' | 'fy'
@@ -218,34 +216,101 @@ export default function ComparisonPage() {
       }
     }
 
-    return deltas.sort((x, y) => Math.abs(y.changeAbs) - Math.abs(x.changeAbs))
+    return deltas.sort((x, y) => Math.max(y.periodA, y.periodB) - Math.max(x.periodA, x.periodB))
   }, [periodA, periodB])
 
   const expenseDeltas = categoryDeltas.filter((d) => d.type === 'expense')
   const incomeDeltas = categoryDeltas.filter((d) => d.type === 'income')
 
-  // ─── Bar chart data ───────────────────────────────────────────
-  const chartData = useMemo(
-    () => [
-      { metric: 'Income', [periodA.label]: periodA.income, [periodB.label]: periodB.income },
-      { metric: 'Expenses', [periodA.label]: periodA.expense, [periodB.label]: periodB.expense },
-      { metric: 'Savings', [periodA.label]: periodA.savings, [periodB.label]: periodB.savings },
-    ],
-    [periodA, periodB]
-  )
+  // ─── Spending distribution donut data ────────────────────────────
+  const distributionA = useMemo(() => {
+    return Object.entries(periodA.categories)
+      .map(([cat, data]) => ({ name: cat, value: data.expense }))
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8)
+  }, [periodA])
 
-  // ─── Render helpers ───────────────────────────────────────────
-  const changeIcon = (val: number) => {
-    if (Math.abs(val) < 1) return <Minus className="w-4 h-4 text-gray-400" />
-    return val > 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />
-  }
+  const distributionB = useMemo(() => {
+    return Object.entries(periodB.categories)
+      .map(([cat, data]) => ({ name: cat, value: data.expense }))
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8)
+  }, [periodB])
 
-  const changeColor = (val: number, invert = false) => {
-    if (Math.abs(val) < 1) return 'text-gray-400'
-    const positive = val > 0
-    if (invert) return positive ? 'text-red-400' : 'text-green-400'
-    return positive ? 'text-green-400' : 'text-red-400'
-  }
+  // ─── Auto-generated insights ─────────────────────────────────────
+  const insights = useMemo(() => {
+    const items: string[] = []
+
+    // Income change
+    const incChange = pctChange(periodB.income, periodA.income)
+    if (Math.abs(incChange) >= 5) {
+      items.push(
+        incChange > 0
+          ? `Income grew by ${formatPercent(Math.abs(incChange))} from ${periodA.label} to ${periodB.label}.`
+          : `Income dropped by ${formatPercent(Math.abs(incChange))} from ${periodA.label} to ${periodB.label}.`
+      )
+    }
+
+    // Expense change
+    const expChange = pctChange(periodB.expense, periodA.expense)
+    if (Math.abs(expChange) >= 5) {
+      items.push(
+        expChange > 0
+          ? `Spending increased by ${formatPercent(Math.abs(expChange))}. Review discretionary categories.`
+          : `Spending decreased by ${formatPercent(Math.abs(expChange))} — good cost control.`
+      )
+    }
+
+    // Savings rate shift
+    const rateShift = periodB.savingsRate - periodA.savingsRate
+    if (Math.abs(rateShift) >= 3) {
+      items.push(
+        rateShift > 0
+          ? `Savings rate improved by ${rateShift.toFixed(1)} percentage points.`
+          : `Savings rate declined by ${Math.abs(rateShift).toFixed(1)} percentage points.`
+      )
+    }
+
+    // Biggest category swings
+    if (expenseDeltas.length > 0) {
+      const biggest = expenseDeltas[0]
+      if (Math.abs(biggest.changeAbs) > 0) {
+        const direction = biggest.changeAbs > 0 ? 'increased' : 'decreased'
+        items.push(
+          `"${biggest.category}" ${direction} the most: ${formatCurrency(Math.abs(biggest.changeAbs))} (${biggest.change > 0 ? '+' : ''}${biggest.change.toFixed(1)}%).`
+        )
+      }
+    }
+
+    // New or disappeared categories
+    const newCats = Object.keys(periodB.categories).filter(
+      (c) => !periodA.categories[c] && (periodB.categories[c].expense > 0 || periodB.categories[c].income > 0)
+    )
+    if (newCats.length > 0) {
+      items.push(`${newCats.length} new categor${newCats.length === 1 ? 'y' : 'ies'} appeared in ${periodB.label}: ${newCats.slice(0, 3).join(', ')}${newCats.length > 3 ? '…' : ''}.`)
+    }
+
+    const goneCategories = Object.keys(periodA.categories).filter(
+      (c) => !periodB.categories[c] && (periodA.categories[c].expense > 0 || periodA.categories[c].income > 0)
+    )
+    if (goneCategories.length > 0) {
+      items.push(`${goneCategories.length} categor${goneCategories.length === 1 ? 'y' : 'ies'} no longer active in ${periodB.label}: ${goneCategories.slice(0, 3).join(', ')}${goneCategories.length > 3 ? '…' : ''}.`)
+    }
+
+    // Transaction volume
+    const txChange = pctChange(periodB.transactions, periodA.transactions)
+    if (Math.abs(txChange) >= 15) {
+      items.push(
+        txChange > 0
+          ? `Transaction volume surged ${formatPercent(Math.abs(txChange))} — more frequent activity.`
+          : `Transaction count fell ${formatPercent(Math.abs(txChange))} — fewer transactions recorded.`
+      )
+    }
+
+    return items
+  }, [periodA, periodB, expenseDeltas])
 
   // ─── Render ───────────────────────────────────────────────────
   if (isLoading) {
@@ -394,33 +459,161 @@ export default function ComparisonPage() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Side-by-side bar chart */}
+      {/* Visual Overview — stacked comparison bars */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
         className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
       >
-        <h2 className="text-lg font-semibold mb-4">Overview</h2>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <BarChart data={chartData} barGap={8}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-              <XAxis dataKey="metric" tick={{ fill: '#9ca3af', fontSize: 12 }} />
-              <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: '#9ca3af', fontSize: 12 }} />
-              <Tooltip
-                {...chartTooltipProps}
-                formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
-              />
-              <Legend />
-              <Bar dataKey={periodA.label} fill={rawColors.ios.blue} radius={[4, 4, 0, 0]} />
-              <Bar dataKey={periodB.label} fill={rawColors.ios.indigo} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <h2 className="text-lg font-semibold mb-6">Financial Overview</h2>
+        <div className="space-y-6">
+          {/* Income comparison */}
+          <OverviewMetricRow
+            label="Income"
+            valueA={periodA.income}
+            valueB={periodB.income}
+            labelA={periodA.label}
+            labelB={periodB.label}
+            color={rawColors.ios.green}
+            maxValue={Math.max(periodA.income, periodB.income, periodA.expense, periodB.expense, 1)}
+          />
+          {/* Expense comparison */}
+          <OverviewMetricRow
+            label="Expenses"
+            valueA={periodA.expense}
+            valueB={periodB.expense}
+            labelA={periodA.label}
+            labelB={periodB.label}
+            color={rawColors.ios.red}
+            maxValue={Math.max(periodA.income, periodB.income, periodA.expense, periodB.expense, 1)}
+            invertChange
+          />
+          {/* Savings comparison */}
+          <OverviewMetricRow
+            label="Savings"
+            valueA={periodA.savings}
+            valueB={periodB.savings}
+            labelA={periodA.label}
+            labelB={periodB.label}
+            color={rawColors.ios.blue}
+            maxValue={Math.max(periodA.income, periodB.income, periodA.expense, periodB.expense, 1)}
+          />
+          {/* Savings rate */}
+          <OverviewMetricRow
+            label="Savings Rate"
+            valueA={periodA.savingsRate}
+            valueB={periodB.savingsRate}
+            labelA={periodA.label}
+            labelB={periodB.label}
+            color={rawColors.ios.purple}
+            maxValue={100}
+            isPercent
+          />
         </div>
       </motion.div>
 
-      {/* Category Breakdown Tables */}
+      {/* Spending Distribution — Side-by-side donuts */}
+      {(distributionA.length > 0 || distributionB.length > 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+        >
+          <h2 className="text-lg font-semibold mb-1">Spending Distribution</h2>
+          <p className="text-xs text-gray-500 mb-4">How spending is spread across categories</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Period A donut */}
+            <div>
+              <p className="text-sm font-medium text-center mb-2" style={{ color: rawColors.ios.blue }}>{periodA.label}</p>
+              {distributionA.length > 0 ? (
+                <div className="flex flex-col items-center">
+                  <div className="h-52 w-full">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                      <PieChart>
+                        <Pie
+                          data={distributionA}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={80}
+                          dataKey="value"
+                          stroke="none"
+                        >
+                          {distributionA.map((entry, i) => (
+                            <Cell key={entry.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          {...chartTooltipProps}
+                          formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center mt-2">
+                    {distributionA.map((d, i) => (
+                      <div key={d.name} className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                        <span className="text-xs text-gray-400 truncate max-w-24">{d.name}</span>
+                        <span className="text-xs text-gray-500">{periodA.expense > 0 ? ((d.value / periodA.expense) * 100).toFixed(0) : 0}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-8">No expense data</p>
+              )}
+            </div>
+
+            {/* Period B donut */}
+            <div>
+              <p className="text-sm font-medium text-center mb-2" style={{ color: rawColors.ios.indigo }}>{periodB.label}</p>
+              {distributionB.length > 0 ? (
+                <div className="flex flex-col items-center">
+                  <div className="h-52 w-full">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                      <PieChart>
+                        <Pie
+                          data={distributionB}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={80}
+                          dataKey="value"
+                          stroke="none"
+                        >
+                          {distributionB.map((entry, i) => (
+                            <Cell key={entry.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          {...chartTooltipProps}
+                          formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center mt-2">
+                    {distributionB.map((d, i) => (
+                      <div key={d.name} className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                        <span className="text-xs text-gray-400 truncate max-w-24">{d.name}</span>
+                        <span className="text-xs text-gray-500">{periodB.expense > 0 ? ((d.value / periodB.expense) * 100).toFixed(0) : 0}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-8">No expense data</p>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Category Breakdown — Visual Bars */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Expense Categories */}
         <motion.div
@@ -429,32 +622,29 @@ export default function ComparisonPage() {
           transition={{ delay: 0.15 }}
           className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
         >
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingDown className="w-5 h-5 text-red-400" />
-            <h2 className="text-lg font-semibold">Expense Categories</h2>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <TrendingDown className="w-5 h-5 text-red-400" />
+              <h2 className="text-lg font-semibold">Expense Categories</h2>
+            </div>
+            <span className="text-xs text-gray-500">{expenseDeltas.length} categories</span>
           </div>
           {expenseDeltas.length === 0 ? (
             <p className="text-sm text-gray-400">No expense data for selected periods.</p>
           ) : (
-            <div className="space-y-2 max-h-105 overflow-y-auto pr-1">
-              {expenseDeltas.map((d) => (
-                <div
+            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+              {expenseDeltas.map((d, i) => (
+                <CategoryDeltaRow
                   key={d.category}
-                  className="flex items-center justify-between p-3 rounded-xl bg-white/3 hover:bg-white/6 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{d.category}</p>
-                    <p className="text-xs text-gray-400">
-                      {formatCurrency(d.periodA)} → {formatCurrency(d.periodB)}
-                    </p>
-                  </div>
-                  <div className={`flex items-center gap-1 ml-3 ${changeColor(d.change, true)}`}>
-                    {changeIcon(d.change)}
-                    <span className="text-sm font-semibold whitespace-nowrap">
-                      {d.change > 0 ? '+' : ''}{d.change.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
+                  delta={d}
+                  labelA={periodA.label}
+                  labelB={periodB.label}
+                  maxValue={Math.max(expenseDeltas[0].periodA, expenseDeltas[0].periodB, 1)}
+                  colorA={rawColors.ios.blue}
+                  colorB={rawColors.ios.indigo}
+                  invertChange
+                  index={i}
+                />
               ))}
             </div>
           )}
@@ -467,32 +657,28 @@ export default function ComparisonPage() {
           transition={{ delay: 0.2 }}
           className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
         >
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-green-400" />
-            <h2 className="text-lg font-semibold">Income Categories</h2>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-green-400" />
+              <h2 className="text-lg font-semibold">Income Categories</h2>
+            </div>
+            <span className="text-xs text-gray-500">{incomeDeltas.length} categories</span>
           </div>
           {incomeDeltas.length === 0 ? (
             <p className="text-sm text-gray-400">No income data for selected periods.</p>
           ) : (
-            <div className="space-y-2 max-h-105 overflow-y-auto pr-1">
-              {incomeDeltas.map((d) => (
-                <div
+            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+              {incomeDeltas.map((d, i) => (
+                <CategoryDeltaRow
                   key={d.category}
-                  className="flex items-center justify-between p-3 rounded-xl bg-white/3 hover:bg-white/6 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{d.category}</p>
-                    <p className="text-xs text-gray-400">
-                      {formatCurrency(d.periodA)} → {formatCurrency(d.periodB)}
-                    </p>
-                  </div>
-                  <div className={`flex items-center gap-1 ml-3 ${changeColor(d.change)}`}>
-                    {changeIcon(d.change)}
-                    <span className="text-sm font-semibold whitespace-nowrap">
-                      {d.change > 0 ? '+' : ''}{d.change.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
+                  delta={d}
+                  labelA={periodA.label}
+                  labelB={periodB.label}
+                  maxValue={Math.max(incomeDeltas[0].periodA, incomeDeltas[0].periodB, 1)}
+                  colorA={rawColors.ios.blue}
+                  colorB={rawColors.ios.indigo}
+                  index={i}
+                />
               ))}
             </div>
           )}
@@ -525,6 +711,35 @@ export default function ComparisonPage() {
           />
         </div>
       </motion.div>
+
+      {/* Auto-generated Insights */}
+      {insights.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <Lightbulb className="w-5 h-5 text-amber-400" />
+            <h2 className="text-lg font-semibold">Key Insights</h2>
+          </div>
+          <div className="space-y-2">
+            {insights.map((insight, i) => (
+              <motion.div
+                key={insight}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 + i * 0.05 }}
+                className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03]"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                <p className="text-sm text-gray-300">{insight}</p>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </div>
   )
 }
@@ -633,6 +848,169 @@ function KpiCard({
         <span>
           {change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}
         </span>
+      </div>
+    </motion.div>
+  )
+}
+
+function OverviewMetricRow({
+  label,
+  valueA,
+  valueB,
+  labelA,
+  labelB,
+  color,
+  maxValue,
+  invertChange,
+  isPercent,
+}: Readonly<{
+  label: string
+  valueA: number
+  valueB: number
+  labelA: string
+  labelB: string
+  color: string
+  maxValue: number
+  invertChange?: boolean
+  isPercent?: boolean
+}>) {
+  const change = isPercent ? valueB - valueA : pctChange(valueB, valueA)
+  const isPositive = change >= 0
+  const isGood = invertChange ? !isPositive : isPositive
+  const fmtVal = (v: number) => (isPercent ? `${v.toFixed(1)}%` : formatCurrency(v))
+
+  const barWidthA = maxValue > 0 ? (Math.abs(valueA) / maxValue) * 100 : 0
+  const barWidthB = maxValue > 0 ? (Math.abs(valueB) / maxValue) * 100 : 0
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-white">{label}</span>
+        <div className={`flex items-center gap-1 text-xs font-medium ${isGood ? 'text-green-400' : 'text-red-400'}`}>
+          {Math.abs(change) < 1 ? (
+            <Minus className="w-3 h-3 text-gray-400" />
+          ) : change > 0 ? (
+            <ArrowUpRight className="w-3 h-3" />
+          ) : (
+            <ArrowDownRight className="w-3 h-3" />
+          )}
+          <span>{change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}</span>
+        </div>
+      </div>
+      {/* Period A bar */}
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-gray-400 w-24 truncate">{labelA}</span>
+        <div className="flex-1 h-5 rounded-md bg-white/[0.06] overflow-hidden">
+          <motion.div
+            className="h-full rounded-md"
+            style={{ backgroundColor: color, opacity: 0.6 }}
+            initial={{ width: 0 }}
+            animate={{ width: `${barWidthA}%` }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+          />
+        </div>
+        <span className="text-xs font-medium text-gray-300 tabular-nums w-24 text-right">{fmtVal(valueA)}</span>
+      </div>
+      {/* Period B bar */}
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-gray-400 w-24 truncate">{labelB}</span>
+        <div className="flex-1 h-5 rounded-md bg-white/[0.06] overflow-hidden">
+          <motion.div
+            className="h-full rounded-md"
+            style={{ backgroundColor: color }}
+            initial={{ width: 0 }}
+            animate={{ width: `${barWidthB}%` }}
+            transition={{ duration: 0.6, ease: 'easeOut', delay: 0.1 }}
+          />
+        </div>
+        <span className="text-xs font-medium text-white tabular-nums w-24 text-right">{fmtVal(valueB)}</span>
+      </div>
+    </div>
+  )
+}
+
+function CategoryDeltaRow({
+  delta,
+  labelA,
+  labelB,
+  maxValue,
+  colorA,
+  colorB,
+  invertChange,
+  index,
+}: Readonly<{
+  delta: CategoryDelta
+  labelA: string
+  labelB: string
+  maxValue: number
+  colorA: string
+  colorB: string
+  invertChange?: boolean
+  index: number
+}>) {
+  const { category, periodA, periodB, change } = delta
+  const isPositive = change >= 0
+  const isGood = invertChange ? !isPositive : isPositive
+
+  const widthA = maxValue > 0 ? (periodA / maxValue) * 100 : 0
+  const widthB = maxValue > 0 ? (periodB / maxValue) * 100 : 0
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.03 }}
+      className="p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
+    >
+      {/* Header: category name + change badge */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium text-white truncate flex-1">{category}</span>
+        <span className={`flex items-center gap-1 text-xs font-semibold ml-2 px-2 py-0.5 rounded-full ${
+          Math.abs(change) < 1
+            ? 'text-gray-400 bg-white/[0.05]'
+            : isGood
+              ? 'text-green-400 bg-green-400/10'
+              : 'text-red-400 bg-red-400/10'
+        }`}>
+          {Math.abs(change) < 1 ? (
+            <Minus className="w-3 h-3" />
+          ) : change > 0 ? (
+            <ArrowUpRight className="w-3 h-3" />
+          ) : (
+            <ArrowDownRight className="w-3 h-3" />
+          )}
+          {change > 0 ? '+' : ''}{change.toFixed(1)}%
+        </span>
+      </div>
+
+      {/* Period A bar */}
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] text-gray-500 w-16 truncate">{labelA}</span>
+        <div className="flex-1 h-3 rounded bg-white/[0.06] overflow-hidden">
+          <motion.div
+            className="h-full rounded"
+            style={{ backgroundColor: colorA, opacity: 0.65 }}
+            initial={{ width: 0 }}
+            animate={{ width: `${widthA}%` }}
+            transition={{ duration: 0.5, ease: 'easeOut', delay: index * 0.03 }}
+          />
+        </div>
+        <span className="text-xs text-gray-400 tabular-nums w-20 text-right">{formatCurrency(periodA)}</span>
+      </div>
+
+      {/* Period B bar */}
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-gray-500 w-16 truncate">{labelB}</span>
+        <div className="flex-1 h-3 rounded bg-white/[0.06] overflow-hidden">
+          <motion.div
+            className="h-full rounded"
+            style={{ backgroundColor: colorB }}
+            initial={{ width: 0 }}
+            animate={{ width: `${widthB}%` }}
+            transition={{ duration: 0.5, ease: 'easeOut', delay: index * 0.03 + 0.08 }}
+          />
+        </div>
+        <span className="text-xs font-medium text-white tabular-nums w-20 text-right">{formatCurrency(periodB)}</span>
       </div>
     </motion.div>
   )

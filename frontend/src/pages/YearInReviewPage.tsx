@@ -608,6 +608,30 @@ export default function YearInReviewPage() {
             color={rawColors.ios.blue}
           />
 
+          {/* Streak visualization */}
+          {stats.maxStreak > 0 && (
+            <div className="pt-3 mt-3 border-t border-white/10">
+              <p className="text-xs text-gray-500 mb-2">No-Spend Streak Record</p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-0.5">
+                  {Array.from({ length: Math.min(stats.maxStreak, 30) }, (_, i) => (
+                    <div
+                      key={`streak-${i}`}
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        backgroundColor: i < 7 ? rawColors.ios.green : i < 14 ? rawColors.ios.blue : rawColors.ios.purple,
+                        opacity: 0.5 + (i / Math.min(stats.maxStreak, 30)) * 0.5,
+                      }}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm font-bold" style={{ color: stats.maxStreak >= 14 ? rawColors.ios.purple : stats.maxStreak >= 7 ? rawColors.ios.blue : rawColors.ios.green }}>
+                  {stats.maxStreak} days
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="pt-3 mt-3 border-t border-white/10">
             <p className="text-xs text-gray-500 mb-1">Total Savings</p>
             <p className={`text-xl font-bold ${stats.totalSavings >= 0 ? 'text-green-400' : 'text-red-400'}`}>

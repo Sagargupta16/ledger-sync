@@ -513,14 +513,31 @@ export default function BudgetPage() {
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="h-2 bg-black/20 rounded-full overflow-hidden mb-2">
+                  {/* Bullet Chart */}
+                  <div className="relative h-5 mb-2">
+                    {/* Background ranges: good / warning / danger */}
+                    <div className="absolute inset-0 flex rounded-full overflow-hidden">
+                      <div className="h-full bg-white/5" style={{ width: `${Math.min(alertThreshold * 0.75, 100)}%` }} />
+                      <div className="h-full bg-white/8" style={{ width: `${Math.min(alertThreshold - alertThreshold * 0.75, 100 - alertThreshold * 0.75)}%` }} />
+                      <div className="h-full bg-white/12" style={{ width: `${Math.max(100 - alertThreshold, 0)}%` }} />
+                    </div>
+                    {/* Spent bar */}
                     <motion.div
-                      className="h-full rounded-full"
+                      className="absolute top-1 left-0 h-3 rounded-full"
                       style={{ backgroundColor: cfg.color }}
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(100, row.percentage)}%` }}
                       transition={{ duration: 0.6, ease: 'easeOut' }}
+                    />
+                    {/* Target marker line */}
+                    <div
+                      className="absolute top-0 h-full w-0.5 bg-white/40"
+                      style={{ left: `${Math.min(100, 100)}%`, transform: 'translateX(-1px)' }}
+                    />
+                    {/* Alert threshold marker */}
+                    <div
+                      className="absolute top-0 h-full w-0.5 bg-yellow-500/60"
+                      style={{ left: `${alertThreshold}%`, transform: 'translateX(-1px)' }}
                     />
                   </div>
 

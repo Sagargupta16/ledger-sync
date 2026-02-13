@@ -17,10 +17,14 @@ interface MerchantData {
   firstTransaction: string
 }
 
+interface TopMerchantsProps {
+  readonly dateRange?: { start_date?: string; end_date?: string }
+}
+
 const COLORS = CHART_COLORS
 const COLOR_STYLES = COLORS.map(c => ({ backgroundColor: c }))
 
-export default function TopMerchants() {
+export default function TopMerchants({ dateRange }: TopMerchantsProps) {
   const { data: transactions = [], isLoading } = useTransactions()
   const [viewMode, setViewMode] = useState<'amount' | 'frequency'>('amount')
 
@@ -28,7 +32,15 @@ export default function TopMerchants() {
     const merchants: Record<string, MerchantData> = {}
 
     transactions
-      .filter((tx) => tx.type === 'Expense' && tx.note)
+      .filter((tx) => {
+        if (tx.type !== 'Expense' || !tx.note) return false
+        if (dateRange?.start_date) {
+          const txDate = tx.date.substring(0, 10)
+          if (txDate < dateRange.start_date) return false
+          if (dateRange.end_date && txDate > dateRange.end_date) return false
+        }
+        return true
+      })
       .forEach((tx) => {
         // Extract merchant name from note (usually first part before any details)
         const note = tx.note!
@@ -85,7 +97,7 @@ export default function TopMerchants() {
       })
 
     return sorted.slice(0, 10)
-  }, [transactions, viewMode])
+  }, [transactions, viewMode, dateRange])
 
   const totalSpentAtTopMerchants = merchantData.reduce((sum, m) => sum + m.totalSpent, 0)
 
