@@ -5,7 +5,7 @@ Contains all request/response models for authentication operations.
 
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 # =============================================================================
 # Token Schemas
@@ -73,16 +73,19 @@ class UserResponse(BaseModel):
     created_at: str
     last_login: str | None = None
 
-    class Config:
-        """Pydantic config."""
-
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserUpdate(BaseModel):
     """User profile update request."""
 
     full_name: str | None = None
+
+
+class ConfirmAction(BaseModel):
+    """Request model requiring password confirmation for destructive actions."""
+
+    password: str = Field(..., description="Current password for confirmation")
 
 
 class MessageResponse(BaseModel):

@@ -1,13 +1,15 @@
 """Application settings and configuration."""
 
-import os
 import warnings
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Default development secret - NEVER use in production
+# Sentinel value to detect when no secret has been configured
 _DEV_JWT_SECRET = "dev-only-secret-change-in-production-abc123"
+
+# Maximum upload file size (50 MB)
+MAX_UPLOAD_SIZE_BYTES: int = 50 * 1024 * 1024
 
 
 class Settings(BaseSettings):
@@ -44,8 +46,11 @@ class Settings(BaseSettings):
     # SECURITY: Set LEDGER_SYNC_JWT_SECRET_KEY in production!
     jwt_secret_key: str = _DEV_JWT_SECRET
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 60 * 24  # 24 hours
+    jwt_access_token_expire_minutes: int = 30  # 30 minutes (industry standard)
     jwt_refresh_token_expire_days: int = 7
+
+    # Upload limits
+    max_upload_size_bytes: int = MAX_UPLOAD_SIZE_BYTES
 
     # CORS settings
     cors_origins: list[str] = [
@@ -75,7 +80,7 @@ class Settings(BaseSettings):
         return self.data_dir
 
     def validate_production_settings(self) -> list[str]:
-        """Validate critical settings for production deployment.
+        """Validate critical settings for non-development deployment.
 
         Returns:
             List of warning/error messages (empty if all OK)
@@ -83,18 +88,19 @@ class Settings(BaseSettings):
         """
         issues: list[str] = []
 
-        if self.environment == "production":
-            # JWT secret must be changed from default
-            if self.jwt_secret_key == _DEV_JWT_SECRET:
+        # JWT secret must be changed from default in ANY non-development environment
+        if self.jwt_secret_key == _DEV_JWT_SECRET:
+            if self.environment != "development":
                 issues.append(
                     "CRITICAL: jwt_secret_key is using development default. "
                     "Set LEDGER_SYNC_JWT_SECRET_KEY environment variable!"
                 )
 
-            # JWT secret should be sufficiently long
-            if len(self.jwt_secret_key) < 32:
-                issues.append("WARNING: jwt_secret_key should be at least 32 characters")
+        # JWT secret should be sufficiently long
+        if self.jwt_secret_key != _DEV_JWT_SECRET and len(self.jwt_secret_key) < 32:
+            issues.append("WARNING: jwt_secret_key should be at least 32 characters")
 
+        if self.environment == "production":
             # SQLite not recommended for production
             if self.database_url.startswith("sqlite"):
                 issues.append(
@@ -121,8 +127,10 @@ class Settings(BaseSettings):
 # Global settings instance
 settings = Settings()
 
-# Warn about development secrets on import (only once)
-if os.environ.get("LEDGER_SYNC_ENVIRONMENT") == "production":
+# Validate settings on import for any non-development environment
+if settings.environment != "development":
     issues = settings.validate_production_settings()
     for issue in issues:
+        if issue.startswith("CRITICAL"):
+            raise RuntimeError(issue)
         warnings.warn(issue, UserWarning, stacklevel=1)

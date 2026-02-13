@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -226,10 +226,7 @@ class UserPreferencesResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-    class Config:
-        """Pydantic model configuration."""
-
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserPreferencesUpdate(BaseModel):
@@ -347,6 +344,35 @@ def _get_or_create_preferences(session: Session, user: User) -> UserPreferences:
     return prefs
 
 
+def _update_section(
+    session: Session,
+    user: User,
+    config: BaseModel,
+    json_fields: set[str] | None = None,
+) -> UserPreferencesResponse:
+    """Generic helper to update a preferences section.
+
+    Args:
+        session: Database session.
+        user: The authenticated user.
+        config: Pydantic model with the fields to update.
+        json_fields: Field names whose values must be JSON-serialised before storage.
+
+    Returns:
+        Full preferences response after the update.
+
+    """
+    prefs = _get_or_create_preferences(session, user)
+    for field, value in config.model_dump().items():
+        if json_fields and field in json_fields:
+            value = json.dumps(value)
+        setattr(prefs, field, value)
+    prefs.updated_at = datetime.now(UTC)
+    session.commit()
+    session.refresh(prefs)
+    return _model_to_response(prefs)
+
+
 # ----- API Endpoints -----
 
 
@@ -439,12 +465,7 @@ def update_fiscal_year(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update fiscal year configuration."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.fiscal_year_start_month = config.fiscal_year_start_month
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(session, current_user, config)
 
 
 @router.put("/essential-categories")
@@ -454,12 +475,7 @@ def update_essential_categories(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update essential categories list."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.essential_categories = json.dumps(config.essential_categories)
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(session, current_user, config, json_fields={"essential_categories"})
 
 
 @router.put("/investment-mappings")
@@ -469,12 +485,9 @@ def update_investment_mappings(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update investment account mappings."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.investment_account_mappings = json.dumps(config.investment_account_mappings)
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(
+        session, current_user, config, json_fields={"investment_account_mappings"}
+    )
 
 
 @router.put("/income-sources")
@@ -484,15 +497,17 @@ def update_income_sources(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update income source category mappings."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.taxable_income_categories = json.dumps(config.taxable_income_categories)
-    prefs.investment_returns_categories = json.dumps(config.investment_returns_categories)
-    prefs.non_taxable_income_categories = json.dumps(config.non_taxable_income_categories)
-    prefs.other_income_categories = json.dumps(config.other_income_categories)
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(
+        session,
+        current_user,
+        config,
+        json_fields={
+            "taxable_income_categories",
+            "investment_returns_categories",
+            "non_taxable_income_categories",
+            "other_income_categories",
+        },
+    )
 
 
 @router.put("/budget-defaults")
@@ -502,14 +517,7 @@ def update_budget_defaults(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update budget default settings."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.default_budget_alert_threshold = config.default_budget_alert_threshold
-    prefs.auto_create_budgets = config.auto_create_budgets
-    prefs.budget_rollover_enabled = config.budget_rollover_enabled
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(session, current_user, config)
 
 
 @router.put("/display")
@@ -519,15 +527,7 @@ def update_display_preferences(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update display and format preferences."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.number_format = config.number_format
-    prefs.currency_symbol = config.currency_symbol
-    prefs.currency_symbol_position = config.currency_symbol_position
-    prefs.default_time_range = config.default_time_range
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(session, current_user, config)
 
 
 @router.put("/anomaly-settings")
@@ -537,14 +537,9 @@ def update_anomaly_settings(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update anomaly detection settings."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.anomaly_expense_threshold = config.anomaly_expense_threshold
-    prefs.anomaly_types_enabled = json.dumps(config.anomaly_types_enabled)
-    prefs.auto_dismiss_recurring_anomalies = config.auto_dismiss_recurring_anomalies
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(
+        session, current_user, config, json_fields={"anomaly_types_enabled"}
+    )
 
 
 @router.put("/recurring-settings")
@@ -554,13 +549,7 @@ def update_recurring_settings(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update recurring transaction detection settings."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.recurring_min_confidence = config.recurring_min_confidence
-    prefs.recurring_auto_confirm_occurrences = config.recurring_auto_confirm_occurrences
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(session, current_user, config)
 
 
 @router.put("/spending-rule")
@@ -570,14 +559,7 @@ def update_spending_rule(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update spending rule target percentages."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.needs_target_percent = config.needs_target_percent
-    prefs.wants_target_percent = config.wants_target_percent
-    prefs.savings_target_percent = config.savings_target_percent
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(session, current_user, config)
 
 
 @router.put("/credit-card-limits")
@@ -587,12 +569,7 @@ def update_credit_card_limits(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update credit card limit settings."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.credit_card_limits = json.dumps(config.credit_card_limits)
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(session, current_user, config, json_fields={"credit_card_limits"})
 
 
 @router.put("/earning-start-date")
@@ -602,10 +579,4 @@ def update_earning_start_date(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update earning start date configuration."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.earning_start_date = config.earning_start_date
-    prefs.use_earning_start_date = config.use_earning_start_date
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-    return _model_to_response(prefs)
+    return _update_section(session, current_user, config)

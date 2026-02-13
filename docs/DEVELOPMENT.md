@@ -15,10 +15,10 @@
 # Clone and setup
 git clone https://github.com/Sagargupta16/ledger-sync.git
 cd ledger-sync
-pnpm run setup   # Installs all dependencies
+ppnpm run setup   # Installs all dependencies
 
 # Run development servers
-pnpm run dev     # Backend: http://localhost:8000, Frontend: http://localhost:3000
+ppnpm run dev     # Backend: http://localhost:8000, Frontend: http://localhost:3000
 ```
 
 ### Manual Setup
@@ -44,7 +44,7 @@ cd ..
 
 # 5. Install Node dependencies
 cd frontend
-pnpm install
+ppnpm install
 cd ..
 
 # 6. Initialize database
@@ -59,7 +59,7 @@ cd ..
 
 ```powershell
 # From project root - runs both services
-pnpm run dev
+ppnpm run dev
 ```
 
 ### Option 2: Run Services Separately
@@ -75,7 +75,7 @@ python -m uvicorn ledger_sync.api.main:app --reload
 
 ```powershell
 cd frontend
-pnpm run dev
+ppnpm run dev
 ```
 
 ### Option 3: PowerShell Script
@@ -498,13 +498,13 @@ Create `.vscode/launch.json`:
 cd frontend
 
 # Check for errors
-npm run lint
+pnpm run lint
 
 # Format code
-npm run format
+pnpm run format
 
 # Type check
-npm run type-check
+pnpm run type-check
 ```
 
 ## Common Development Tasks
@@ -545,9 +545,9 @@ pip install -U package_name
 
 ```bash
 cd frontend
-npm outdated
-npm update
-npm install new-package
+pnpm outdated
+pnpm update
+pnpm install new-package
 ```
 
 ### Database Migration
@@ -607,17 +607,17 @@ git push origin feature/my-feature
 
 1. Check Python version: `python --version`
 2. Activate virtual environment
-3. Install dependencies: `pip install -r requirements.txt`
+3. Install dependencies: `pip install -e ".[dev]"`
 4. Check port 8000 is available
 5. Check database permissions
 
 ### Frontend won't start
 
 1. Check Node version: `node --version`
-2. Install dependencies: `npm install`
-3. Clear node_modules: `rm -rf node_modules && npm install`
+2. Install dependencies: `pnpm install`
+3. Clear node_modules: `rm -rf node_modules && pnpm install`
 4. Check port 3000 is available
-5. Clear Vite cache: `npm run clean`
+5. Clear Vite cache: `pnpm run clean`
 
 ### Database errors
 

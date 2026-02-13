@@ -28,7 +28,7 @@ export interface Transaction {
   date: string
   amount: number
   currency?: string
-  type: 'Income' | 'Expense' | 'Transfer'
+  type: 'Income' | 'Expense' | 'Transfer' | 'Transfer-In' | 'Transfer-Out'
   category: string
   subcategory?: string
   account: string
@@ -125,4 +125,91 @@ export interface RegisterCredentials {
   email: string
   password: string
   full_name?: string
+}
+
+// Analytics response types
+export interface OverviewResponse {
+  total_income: number
+  total_expenses: number
+  net_change: number
+  best_month: { month: string; surplus: number } | null
+  worst_month: { month: string; surplus: number } | null
+  asset_allocation: Array<{ account: string; balance: number }>
+  transaction_count: number
+}
+
+export interface KPIsResponse {
+  savings_rate: number
+  daily_spending_rate: number
+  monthly_burn_rate: number
+  spending_velocity: number
+  category_concentration: number
+  consistency_score: number
+  lifestyle_inflation: number
+  convenience_spending_pct: number
+}
+
+export interface TotalsResponse {
+  total_income: number
+  total_expenses: number
+  net_savings: number
+  savings_rate: number
+  transaction_count: number
+}
+
+export interface MonthlyAggregation {
+  [monthKey: string]: {
+    income: number
+    expense: number
+    net_savings: number
+    transactions: number
+  }
+}
+
+export interface CategoryBreakdownResponse {
+  categories: Record<string, {
+    total: number
+    count: number
+    percentage: number
+    subcategories: Record<string, number>
+  }>
+  total: number
+}
+
+export interface AccountBalancesResponse {
+  accounts: Record<string, {
+    balance: number
+    transactions: number
+    last_transaction: string | null
+  }>
+  statistics: {
+    total_accounts: number
+    total_balance: number
+    average_balance: number
+    positive_accounts: number
+    negative_accounts: number
+  }
+}
+
+export interface ChartDataResponse {
+  data: Array<Record<string, string | number>>
+}
+
+export interface BehaviorResponse {
+  avg_transaction_size: number
+  spending_frequency: number
+  convenience_spending_pct: number
+  lifestyle_inflation: number
+  top_categories: Array<{ category: string; amount: number }>
+}
+
+export interface TrendsResponse {
+  monthly_trends: Array<{
+    month: string
+    income: number
+    expenses: number
+    surplus: number
+  }>
+  surplus_trend: Array<{ month: string; surplus: number }>
+  consistency_score: number
 }

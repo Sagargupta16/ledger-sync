@@ -18,6 +18,7 @@ import {
   type RecurringSettingsConfig,
 } from '@/services/api/preferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
+import { useAuthStore } from '@/store/authStore'
 
 const PREFERENCES_KEY = ['preferences']
 
@@ -26,10 +27,13 @@ const PREFERENCES_KEY = ['preferences']
  */
 export function usePreferences() {
   const hydrateFromApi = usePreferencesStore((state) => state.hydrateFromApi)
+  const accessToken = useAuthStore((state) => state.accessToken)
 
   const query = useQuery<UserPreferences>({
     queryKey: PREFERENCES_KEY,
     queryFn: () => preferencesService.getPreferences(),
+    // Only fetch when the user is authenticated (prevents 401 before login)
+    enabled: !!accessToken,
     // Preferences only change on explicit save (mutations invalidate this key).
     staleTime: Infinity,
   })

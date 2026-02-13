@@ -1,5 +1,8 @@
 """FastAPI application for ledger-sync web interface."""
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,16 +22,24 @@ from ledger_sync.db.session import init_db
 from ledger_sync.schemas.transactions import HealthResponse
 from ledger_sync.utils.logging import setup_logging
 
+APP_VERSION = "1.0.0"
+
 # Initialize logging
 setup_logging("INFO")
 
-# Initialize database
-init_db()
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """Application lifespan: initialize database on startup."""
+    init_db()
+    yield
+
 
 app = FastAPI(
     title="Ledger Sync API",
     description="Modern API for Excel ingestion and reconciliation",
-    version="1.0.0",
+    version=APP_VERSION,
+    lifespan=lifespan,
 )
 
 # Configure CORS for frontend
@@ -36,8 +47,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Include routers
@@ -52,16 +63,10 @@ app.include_router(transactions_router)
 app.include_router(upload_router)
 
 
-@app.get("/")
-async def root() -> HealthResponse:
-    """Root endpoint - health check."""
-    return HealthResponse(status="healthy", version="1.0.0")
-
-
 @app.get("/health")
 async def health() -> HealthResponse:
     """Health check endpoint."""
-    return HealthResponse(status="healthy", version="1.0.0")
+    return HealthResponse(status="healthy", version=APP_VERSION)
 
 
 if __name__ == "__main__":

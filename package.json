@@ -25,7 +25,6 @@
     "ingestion",
     "reconciliation",
     "fastapi",
-    "nextjs",
     "money-manager"
   ],
   "author": "Sagar Gupta",

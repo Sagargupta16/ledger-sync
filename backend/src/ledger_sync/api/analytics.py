@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
@@ -121,6 +122,217 @@ def get_filtered_transactions(
     return query.all()
 
 
+def _build_base_query(
+    db: Session,
+    user: User,
+    time_range: TimeRange,
+) -> "Query":
+    """Build a filtered base query for the given user and time range.
+
+    Returns a SQLAlchemy query on the Transaction table with user_id,
+    is_deleted, and date range filters already applied.  Callers add
+    their own column expressions / GROUP BY on top of this.
+    """
+    query = db.query(Transaction).filter(
+        Transaction.user_id == user.id, Transaction.is_deleted.is_(False)
+    )
+
+    start_date, end_date = _get_time_range_dates(db, user, time_range)
+    start_date = _apply_earning_start_date(user, start_date)
+    if start_date:
+        query = query.filter(Transaction.date >= start_date)
+    if end_date:
+        query = query.filter(Transaction.date <= end_date)
+
+    return query
+
+
+def _get_sql_totals(
+    db: Session,
+    user: User,
+    time_range: TimeRange,
+) -> dict[str, float]:
+    """Compute total income, expenses, net change, and count in a single SQL query.
+
+    Uses ``func.sum(case(...))`` so the database does all aggregation.
+    """
+    base = _build_base_query(db, user, time_range).subquery()
+
+    row = db.query(
+        func.coalesce(
+            func.sum(
+                case(
+                    (base.c.type == TransactionType.INCOME, base.c.amount),
+                    else_=0,
+                )
+            ),
+            0,
+        ).label("total_income"),
+        func.coalesce(
+            func.sum(
+                case(
+                    (base.c.type == TransactionType.EXPENSE, base.c.amount),
+                    else_=0,
+                )
+            ),
+            0,
+        ).label("total_expenses"),
+        func.count().label("transaction_count"),
+    ).one()
+
+    total_income = float(row.total_income)
+    total_expenses = float(row.total_expenses)
+
+    return {
+        "total_income": total_income,
+        "total_expenses": total_expenses,
+        "net_change": total_income - total_expenses,
+        "transaction_count": row.transaction_count,
+    }
+
+
+def _get_sql_monthly_data(
+    db: Session,
+    user: User,
+    time_range: TimeRange,
+) -> dict[str, dict[str, float]]:
+    """Return monthly income/expenses using SQL GROUP BY.
+
+    Keys are ``"YYYY-MM"`` strings.  Values match the shape returned by
+    ``FinancialCalculator.group_by_month``.
+    """
+    base = _build_base_query(db, user, time_range).subquery()
+    month_col = func.strftime("%Y-%m", base.c.date).label("month")
+
+    rows = (
+        db.query(
+            month_col,
+            func.coalesce(
+                func.sum(
+                    case(
+                        (base.c.type == TransactionType.INCOME, base.c.amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("income"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (base.c.type == TransactionType.EXPENSE, base.c.amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("expenses"),
+        )
+        .group_by(month_col)
+        .all()
+    )
+
+    return {
+        row.month: {"income": float(row.income), "expenses": float(row.expenses)}
+        for row in rows
+    }
+
+
+def _get_sql_category_totals(
+    db: Session,
+    user: User,
+    time_range: TimeRange,
+) -> dict[str, float]:
+    """Return expense totals grouped by category using SQL.
+
+    Only ``EXPENSE`` transactions are included, matching the behaviour of
+    ``FinancialCalculator.group_by_category``.
+    """
+    base = (
+        _build_base_query(db, user, time_range)
+        .filter(Transaction.type == TransactionType.EXPENSE)
+        .subquery()
+    )
+
+    rows = (
+        db.query(
+            base.c.category,
+            func.coalesce(func.sum(base.c.amount), 0).label("total"),
+        )
+        .group_by(base.c.category)
+        .all()
+    )
+
+    return {row.category: float(row.total) for row in rows}
+
+
+def _get_sql_account_totals(
+    db: Session,
+    user: User,
+    time_range: TimeRange,
+) -> dict[str, float]:
+    """Return net account balances using SQL aggregation.
+
+    Income adds to an account, expenses subtract.  Transfers debit the
+    source (``from_account``) and credit the destination (``to_account``).
+    The result matches ``FinancialCalculator.group_by_account``.
+    """
+    base = _build_base_query(db, user, time_range).subquery()
+
+    # Income / Expense rows contribute to the `account` column
+    regular_rows = (
+        db.query(
+            base.c.account.label("account"),
+            func.sum(
+                case(
+                    (base.c.type == TransactionType.INCOME, base.c.amount),
+                    (base.c.type == TransactionType.EXPENSE, -base.c.amount),
+                    else_=0,
+                )
+            ).label("net"),
+        )
+        .filter(base.c.type != TransactionType.TRANSFER)
+        .group_by(base.c.account)
+        .all()
+    )
+
+    account_totals: dict[str, float] = {}
+    for row in regular_rows:
+        account_totals[row.account] = float(row.net)
+
+    # Transfer debits (from_account)
+    transfer_debits = (
+        db.query(
+            base.c.from_account.label("account"),
+            func.sum(base.c.amount).label("total"),
+        )
+        .filter(
+            base.c.type == TransactionType.TRANSFER,
+            base.c.from_account.isnot(None),
+        )
+        .group_by(base.c.from_account)
+        .all()
+    )
+    for row in transfer_debits:
+        account_totals[row.account] = account_totals.get(row.account, 0.0) - float(row.total)
+
+    # Transfer credits (to_account)
+    transfer_credits = (
+        db.query(
+            base.c.to_account.label("account"),
+            func.sum(base.c.amount).label("total"),
+        )
+        .filter(
+            base.c.type == TransactionType.TRANSFER,
+            base.c.to_account.isnot(None),
+        )
+        .group_by(base.c.to_account)
+        .all()
+    )
+    for row in transfer_credits:
+        account_totals[row.account] = account_totals.get(row.account, 0.0) + float(row.total)
+
+    return account_totals
+
+
 @router.get("/overview")
 def get_overview(
     current_user: CurrentUser,
@@ -130,9 +342,9 @@ def get_overview(
     ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
     """Get overview statistics: income, expenses, net change, best/worst month."""
-    transactions = get_filtered_transactions(db, current_user, time_range)
+    totals = _get_sql_totals(db, current_user, time_range)
 
-    if not transactions:
+    if totals["transaction_count"] == 0:
         return {
             "total_income": 0,
             "total_expenses": 0,
@@ -143,11 +355,10 @@ def get_overview(
             "transaction_count": 0,
         }
 
-    # Use calculator for metrics
-    totals = FinancialCalculator.calculate_totals(transactions)
-    monthly_data = FinancialCalculator.group_by_month(transactions)
+    # SQL-based aggregations
+    monthly_data = _get_sql_monthly_data(db, current_user, time_range)
     best_worst = FinancialCalculator.find_best_worst_months(monthly_data)
-    account_activity = FinancialCalculator.group_by_account(transactions)
+    account_activity = _get_sql_account_totals(db, current_user, time_range)
 
     # Format asset allocation
     asset_allocation = [
@@ -162,7 +373,7 @@ def get_overview(
         "best_month": best_worst["best_month"],
         "worst_month": best_worst["worst_month"],
         "asset_allocation": asset_allocation,
-        "transaction_count": len(transactions),
+        "transaction_count": totals["transaction_count"],
     }
 
 
@@ -454,8 +665,7 @@ def get_income_expense_chart(
     ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
     """Get data for income vs expense doughnut chart."""
-    transactions = get_filtered_transactions(db, current_user, time_range)
-    totals = FinancialCalculator.calculate_totals(transactions)
+    totals = _get_sql_totals(db, current_user, time_range)
 
     return {
         "data": [
@@ -475,8 +685,7 @@ def get_categories_chart(
     limit: Annotated[int, Query(description="Number of top categories to return")] = 10,
 ) -> dict[str, Any]:
     """Get data for top categories bar chart."""
-    transactions = get_filtered_transactions(db, current_user, time_range)
-    category_totals = FinancialCalculator.group_by_category(transactions)
+    category_totals = _get_sql_category_totals(db, current_user, time_range)
 
     # Sort and limit
     sorted_categories = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)[:limit]
@@ -493,8 +702,7 @@ def get_monthly_trends_chart(
     ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
     """Get data for monthly trends line chart."""
-    transactions = get_filtered_transactions(db, current_user, time_range)
-    monthly_data = FinancialCalculator.group_by_month(transactions)
+    monthly_data = _get_sql_monthly_data(db, current_user, time_range)
 
     # Format for line chart
     chart_data = [
@@ -519,8 +727,7 @@ def get_account_distribution_chart(
     ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
     """Get data for account distribution doughnut chart."""
-    transactions = get_filtered_transactions(db, current_user, time_range)
-    account_totals = FinancialCalculator.group_by_account(transactions)
+    account_totals = _get_sql_account_totals(db, current_user, time_range)
 
     # Sort by value
     sorted_accounts = sorted(account_totals.items(), key=lambda x: x[1], reverse=True)

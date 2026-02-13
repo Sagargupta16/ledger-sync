@@ -44,7 +44,7 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) =>
         set({
           user,
-          isAuthenticated: !!user,
+          isAuthenticated: !!user && !!get().accessToken,
         }),
 
       // Set tokens
@@ -53,11 +53,13 @@ export const useAuthStore = create<AuthState>()(
           set({
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token,
+            isAuthenticated: !!get().user && !!tokens.access_token,
           })
         } else {
           set({
             accessToken: null,
             refreshToken: null,
+            isAuthenticated: false,
           })
         }
       },
@@ -69,9 +71,9 @@ export const useAuthStore = create<AuthState>()(
       login: (user, tokens) => {
         set({
           user,
-          isAuthenticated: true,
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
+          isAuthenticated: true,
           isLoading: false,
         })
       },
@@ -80,9 +82,9 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         set({
           user: null,
-          isAuthenticated: false,
           accessToken: null,
           refreshToken: null,
+          isAuthenticated: false,
           isLoading: false,
         })
       },
@@ -99,13 +101,18 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'ledger-sync-auth',
-      // Only persist tokens and user data
       partialize: (state) => ({
         user: state.user,
-        isAuthenticated: state.isAuthenticated,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
       }),
+      // After hydrating from localStorage, compute isAuthenticated from
+      // the restored user + accessToken so ProtectedRoute works on reload.
+      onRehydrateStorage: () => (state, error) => {
+        if (!error && state) {
+          state.isAuthenticated = !!state.accessToken && !!state.user
+        }
+      },
     }
   )
 )
@@ -113,9 +120,12 @@ export const useAuthStore = create<AuthState>()(
 // Utility functions for non-React contexts (e.g., Axios interceptors)
 export const getAccessToken = () => useAuthStore.getState().accessToken
 export const getRefreshToken = () => useAuthStore.getState().refreshToken
-export const isAuthenticated = () => useAuthStore.getState().isAuthenticated
+export const isAuthenticated = () => {
+  const state = useAuthStore.getState()
+  return !!state.accessToken && !!state.user
+}
 
 // Selectors for React components (enable Zustand render optimization)
 export const selectAccessToken = (state: AuthState) => state.accessToken
 export const selectUser = (state: AuthState) => state.user
-export const selectIsAuthenticated = (state: AuthState) => state.isAuthenticated
+export const selectIsAuthenticated = (state: AuthState) => !!state.accessToken && !!state.user

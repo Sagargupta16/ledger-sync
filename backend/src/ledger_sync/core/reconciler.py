@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ledger_sync.db.models import Transaction, TransactionType
@@ -316,22 +316,17 @@ class Reconciler:
         """
         user_id = self._ensure_user_id()
 
-        # Find transactions that weren't seen in this import (excluding transfers)
-        # Filter by user
         stmt = (
-            select(Transaction)
+            update(Transaction)
             .where(Transaction.user_id == user_id)
             .where(Transaction.last_seen_at < import_time)
             .where(Transaction.is_deleted.is_(False))
             .where(Transaction.type != TransactionType.TRANSFER)
+            .values(is_deleted=True)
+            .execution_options(synchronize_session="fetch")
         )
-
-        stale_transactions = self.session.execute(stmt).scalars().all()
-
-        count = 0
-        for transaction in stale_transactions:
-            transaction.is_deleted = True
-            count += 1
+        result = self.session.execute(stmt)
+        count = result.rowcount
 
         if count > 0:
             logger.info(f"Marked {count} transactions as deleted")
@@ -594,19 +589,16 @@ class Reconciler:
         user_id = self._ensure_user_id()
 
         stmt = (
-            select(Transaction)
+            update(Transaction)
             .where(Transaction.user_id == user_id)
             .where(Transaction.type == TransactionType.TRANSFER)
             .where(Transaction.last_seen_at < import_time)
             .where(Transaction.is_deleted.is_(False))
+            .values(is_deleted=True)
+            .execution_options(synchronize_session="fetch")
         )
-
-        stale_transfers = self.session.execute(stmt).scalars().all()
-
-        count = 0
-        for transfer in stale_transfers:
-            transfer.is_deleted = True
-            count += 1
+        result = self.session.execute(stmt)
+        count = result.rowcount
 
         if count > 0:
             logger.info(f"Marked {count} transfers as deleted")

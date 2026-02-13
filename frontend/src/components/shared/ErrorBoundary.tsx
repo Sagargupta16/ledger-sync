@@ -21,8 +21,8 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error }
   }
 
-  componentDidCatch() {
-    // Error already captured in state via getDerivedStateFromError
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[ErrorBoundary] Uncaught error:', error, errorInfo)
   }
 
   handleReset = () => {
@@ -49,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 An unexpected error occurred. Don't worry, your data is safe.
               </p>
             </div>
-            {this.state.error && (
+            {this.state.error && import.meta.env.DEV && (
               <div className="bg-black/30 rounded-lg p-4 border border-ios-red/20">
                 <p className="text-sm text-ios-red font-mono break-words">
                   {this.state.error.message}

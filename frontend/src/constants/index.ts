@@ -42,7 +42,16 @@ export const ROUTES = {
   INSIGHTS: '/insights',
 } as const
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const _apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
+
+if (!_apiBaseUrl && !import.meta.env.DEV) {
+  console.warn(
+    '[ledger-sync] VITE_API_BASE_URL is not set. Falling back to http://localhost:8000. ' +
+    'This is expected in development but should be configured in production.'
+  )
+}
+
+export const API_BASE_URL = _apiBaseUrl || 'http://localhost:8000'
 
 export const API_ENDPOINTS = {
   // Upload

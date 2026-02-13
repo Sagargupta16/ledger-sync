@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.analytics import _apply_earning_start_date
@@ -18,6 +19,32 @@ OptionalEndDate = Annotated[datetime | None, Query()]
 OptionalTransactionType = Annotated[
     str | None, Query(description="Filter by type: Income or Expense")
 ]
+
+
+def _build_calc_base_query(
+    db: Session,
+    user: User,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> "Query":
+    """Build a filtered base query for calculations endpoints.
+
+    Applies user_id, is_deleted, earning_start_date and optional date-range
+    filters.  Callers add column expressions / GROUP BY on top.
+    """
+    start_date = _apply_earning_start_date(user, start_date)
+
+    query = db.query(Transaction).filter(
+        Transaction.user_id == user.id,
+        Transaction.is_deleted.is_(False),
+    )
+
+    if start_date:
+        query = query.filter(Transaction.date >= start_date)
+    if end_date:
+        query = query.filter(Transaction.date <= end_date)
+
+    return query
 
 
 @router.get("/categories/master")
@@ -50,30 +77,32 @@ def get_master_categories(
         "expense": {},
     }
 
-    # Get all transactions for this user
-    transactions = (
-        db.query(Transaction)
-        .filter(Transaction.user_id == current_user.id, Transaction.is_deleted.is_(False))
+    # Use SELECT DISTINCT to fetch only unique (type, category, subcategory) tuples
+    rows = (
+        db.query(
+            Transaction.type,
+            Transaction.category,
+            Transaction.subcategory,
+        )
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.is_deleted.is_(False),
+            Transaction.type.in_([TransactionType.INCOME, TransactionType.EXPENSE]),
+        )
+        .distinct()
         .all()
     )
 
-    # Process transactions to extract categories and subcategories
-    for tx in transactions:
-        tx_type = "income" if tx.type == TransactionType.INCOME else "expense"
-        category = tx.category or "Uncategorized"
-        subcategory = tx.subcategory or "Other"
+    for tx_type, category, subcategory in rows:
+        type_key = "income" if tx_type == TransactionType.INCOME else "expense"
+        cat = category or "Uncategorized"
+        subcat = subcategory or "Other"
 
-        # Initialize category if not exists
-        if category not in result[tx_type]:
-            result[tx_type][category] = []
+        if cat not in result[type_key]:
+            result[type_key][cat] = []
 
-        # Add subcategory if not already present
-        if subcategory not in result[tx_type][category]:
-            result[tx_type][category].append(subcategory)
-
-    # Get transfers (they don't have income/expense distinction, but track separately if needed)
-    # For now, we'll skip transfers from category listing since they're movements,
-    # not income/expense
+        if subcat not in result[type_key][cat]:
+            result[type_key][cat].append(subcat)
 
     # Sort subcategories for consistency
     for tx_type in result:
@@ -127,27 +156,41 @@ def get_totals(
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate total income, expenses, and net savings."""
-    transactions = get_transactions(db, current_user, start_date, end_date)
+    base = _build_calc_base_query(db, current_user, start_date, end_date).subquery()
 
-    from decimal import Decimal
+    row = db.query(
+        func.coalesce(
+            func.sum(
+                case(
+                    (base.c.type == TransactionType.INCOME, base.c.amount),
+                    else_=0,
+                )
+            ),
+            0,
+        ).label("total_income"),
+        func.coalesce(
+            func.sum(
+                case(
+                    (base.c.type == TransactionType.EXPENSE, base.c.amount),
+                    else_=0,
+                )
+            ),
+            0,
+        ).label("total_expenses"),
+        func.count().label("transaction_count"),
+    ).one()
 
-    total_income = sum(
-        (Decimal(str(tx.amount)) for tx in transactions if tx.type == TransactionType.INCOME),
-        Decimal(0),
-    )
-    total_expenses = sum(
-        (Decimal(str(tx.amount)) for tx in transactions if tx.type == TransactionType.EXPENSE),
-        Decimal(0),
-    )
+    total_income = float(row.total_income)
+    total_expenses = float(row.total_expenses)
     net_savings = total_income - total_expenses
-    savings_rate = float(net_savings / total_income * 100) if total_income > 0 else 0
+    savings_rate = (net_savings / total_income * 100) if total_income > 0 else 0
 
     return {
-        "total_income": float(total_income),
-        "total_expenses": float(total_expenses),
-        "net_savings": float(net_savings),
+        "total_income": total_income,
+        "total_expenses": total_expenses,
+        "net_savings": net_savings,
         "savings_rate": savings_rate,
-        "transaction_count": len(transactions),
+        "transaction_count": row.transaction_count,
     }
 
 
@@ -159,39 +202,45 @@ def get_monthly_aggregation(
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate monthly income and expense aggregation."""
-    transactions = get_transactions(db, current_user, start_date, end_date)
+    base = _build_calc_base_query(db, current_user, start_date, end_date).subquery()
+    month_col = func.strftime("%Y-%m", base.c.date).label("month")
 
-    from decimal import Decimal
+    rows = (
+        db.query(
+            month_col,
+            func.coalesce(
+                func.sum(
+                    case(
+                        (base.c.type == TransactionType.INCOME, base.c.amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("income"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (base.c.type == TransactionType.EXPENSE, base.c.amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("expense"),
+            func.count().label("transactions"),
+        )
+        .group_by(month_col)
+        .all()
+    )
 
-    monthly_accum: dict[str, dict[str, Any]] = {}
-
-    for tx in transactions:
-        month_key = tx.date.strftime("%Y-%m")
-
-        if month_key not in monthly_accum:
-            monthly_accum[month_key] = {
-                "income": Decimal(0),
-                "expense": Decimal(0),
-                "transactions": 0,
-            }
-
-        if tx.type == TransactionType.INCOME:
-            monthly_accum[month_key]["income"] += Decimal(str(tx.amount))
-        elif tx.type == TransactionType.EXPENSE:
-            monthly_accum[month_key]["expense"] += Decimal(str(tx.amount))
-
-        monthly_accum[month_key]["transactions"] += 1
-
-    # Convert to float for JSON response and calculate net savings
     monthly_data: dict[str, dict[str, float]] = {}
-    for month_key, data in monthly_accum.items():
-        income = float(data["income"])
-        expense = float(data["expense"])
-        monthly_data[month_key] = {
+    for row in rows:
+        income = float(row.income)
+        expense = float(row.expense)
+        monthly_data[row.month] = {
             "income": income,
             "expense": expense,
             "net_savings": income - expense,
-            "transactions": data["transactions"],
+            "transactions": row.transactions,
         }
 
     return monthly_data
@@ -205,43 +254,60 @@ def get_yearly_aggregation(
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate yearly income and expense aggregation."""
-    transactions = get_transactions(db, current_user, start_date, end_date)
+    base = _build_calc_base_query(db, current_user, start_date, end_date).subquery()
+    year_col = func.strftime("%Y", base.c.date).label("year")
 
-    from decimal import Decimal
+    rows = (
+        db.query(
+            year_col,
+            func.coalesce(
+                func.sum(
+                    case(
+                        (base.c.type == TransactionType.INCOME, base.c.amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("income"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (base.c.type == TransactionType.EXPENSE, base.c.amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("expense"),
+            func.count().label("transactions"),
+        )
+        .group_by(year_col)
+        .all()
+    )
 
-    yearly_accum: dict[str, dict[str, Any]] = {}
+    # Fetch distinct months per year for the "months" list
+    month_detail_rows = (
+        db.query(
+            func.strftime("%Y", base.c.date).label("year"),
+            func.strftime("%m", base.c.date).label("month"),
+        )
+        .distinct()
+        .all()
+    )
 
-    for tx in transactions:
-        year = str(tx.date.year)
-        month = tx.date.month
+    year_months: dict[str, list[int]] = {}
+    for yr, mn in month_detail_rows:
+        year_months.setdefault(yr, []).append(int(mn))
 
-        if year not in yearly_accum:
-            yearly_accum[year] = {
-                "income": Decimal(0),
-                "expense": Decimal(0),
-                "transactions": 0,
-                "months": set(),
-            }
-
-        if tx.type == TransactionType.INCOME:
-            yearly_accum[year]["income"] += Decimal(str(tx.amount))
-        elif tx.type == TransactionType.EXPENSE:
-            yearly_accum[year]["expense"] += Decimal(str(tx.amount))
-
-        yearly_accum[year]["transactions"] += 1
-        yearly_accum[year]["months"].add(month)
-
-    # Convert to float for JSON response
     yearly_data: dict[str, dict[str, Any]] = {}
-    for year, data in yearly_accum.items():
-        income = float(data["income"])
-        expense = float(data["expense"])
-        yearly_data[year] = {
+    for row in rows:
+        income = float(row.income)
+        expense = float(row.expense)
+        yearly_data[row.year] = {
             "income": income,
             "expense": expense,
             "net_savings": income - expense,
-            "transactions": data["transactions"],
-            "months": sorted(data["months"]),
+            "transactions": row.transactions,
+            "months": sorted(year_months.get(row.year, [])),
         }
 
     return yearly_data
@@ -256,7 +322,7 @@ def get_category_breakdown(
     transaction_type: OptionalTransactionType = None,
 ) -> dict[str, Any]:
     """Calculate spending/income breakdown by category and subcategory."""
-    transactions = get_transactions(db, current_user, start_date, end_date)
+    query = _build_calc_base_query(db, current_user, start_date, end_date)
 
     # Filter by type if specified
     if transaction_type:
@@ -265,31 +331,46 @@ def get_category_breakdown(
             if transaction_type.lower() == "income"
             else TransactionType.EXPENSE
         )
-        transactions = [tx for tx in transactions if tx.type == tx_type]
+        query = query.filter(Transaction.type == tx_type)
 
+    base = query.subquery()
+
+    # Aggregate by category and subcategory in SQL
+    rows = (
+        db.query(
+            func.coalesce(base.c.category, "Uncategorized").label("category"),
+            func.coalesce(base.c.subcategory, "Other").label("subcategory"),
+            func.coalesce(func.sum(base.c.amount), 0).label("total"),
+            func.count().label("count"),
+        )
+        .group_by(
+            func.coalesce(base.c.category, "Uncategorized"),
+            func.coalesce(base.c.subcategory, "Other"),
+        )
+        .all()
+    )
+
+    # Build the nested category_data structure from flat SQL rows
     category_data: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        cat = row.category
+        subcat = row.subcategory
+        amount = float(row.total)
+        count = row.count
 
-    for tx in transactions:
-        category = tx.category or "Uncategorized"
-        subcategory = tx.subcategory or "Other"
-
-        if category not in category_data:
-            category_data[category] = {
-                "total": 0,
+        if cat not in category_data:
+            category_data[cat] = {
+                "total": 0.0,
                 "count": 0,
                 "subcategories": {},
             }
 
-        category_data[category]["total"] += float(tx.amount)  # Already float from DB Numeric
-        category_data[category]["count"] += 1
-
-        if subcategory not in category_data[category]["subcategories"]:
-            category_data[category]["subcategories"][subcategory] = 0.0
-
-        category_data[category]["subcategories"][subcategory] += float(tx.amount)
+        category_data[cat]["total"] += amount
+        category_data[cat]["count"] += count
+        category_data[cat]["subcategories"][subcat] = amount
 
     # Calculate percentages
-    total_amount = sum(cat["total"] for cat in category_data.values())
+    total_amount = sum(cat_info["total"] for cat_info in category_data.values())
 
     for category in category_data:
         category_data[category]["percentage"] = (
@@ -524,39 +605,55 @@ def get_daily_net_worth(
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate daily income and expense data for net worth trends."""
-    transactions = get_transactions(db, current_user, start_date, end_date)
+    base = _build_calc_base_query(db, current_user, start_date, end_date).subquery()
+    date_col = func.strftime("%Y-%m-%d", base.c.date).label("date_key")
+
+    rows = (
+        db.query(
+            date_col,
+            func.coalesce(
+                func.sum(
+                    case(
+                        (base.c.type == TransactionType.INCOME, base.c.amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("income"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (base.c.type == TransactionType.EXPENSE, base.c.amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("expense"),
+        )
+        .group_by(date_col)
+        .order_by(date_col)
+        .all()
+    )
 
     daily_data: dict[str, dict[str, float]] = {}
-
-    for tx in transactions:
-        date_key = tx.date.strftime("%Y-%m-%d")
-
-        if date_key not in daily_data:
-            daily_data[date_key] = {
-                "income": 0,
-                "expense": 0,
-                "date": date_key,
-            }
-
-        if tx.type == TransactionType.INCOME:
-            daily_data[date_key]["income"] += float(tx.amount)
-        elif tx.type == TransactionType.EXPENSE:
-            daily_data[date_key]["expense"] += float(tx.amount)
-        # Transfers don't affect net worth (money moves between own accounts)
-
-    # Calculate cumulative net worth
-    sorted_dates = sorted(daily_data.keys())
-    cumulative_net_worth = 0
+    cumulative_net_worth = 0.0
     cumulative_data = []
 
-    for date_key in sorted_dates:
-        cumulative_net_worth += daily_data[date_key]["income"] - daily_data[date_key]["expense"]
+    for row in rows:
+        income = float(row.income)
+        expense = float(row.expense)
+        daily_data[row.date_key] = {
+            "income": income,
+            "expense": expense,
+            "date": row.date_key,
+        }
+        cumulative_net_worth += income - expense
         cumulative_data.append(
             {
-                "date": date_key,
+                "date": row.date_key,
                 "net_worth": cumulative_net_worth,
-                "income": daily_data[date_key]["income"],
-                "expense": daily_data[date_key]["expense"],
+                "income": income,
+                "expense": expense,
             },
         )
 
@@ -576,7 +673,7 @@ def get_top_categories(
     transaction_type: OptionalTransactionType = None,
 ) -> list[dict[str, Any]]:
     """Get top N categories by amount."""
-    transactions = get_transactions(db, current_user, start_date, end_date)
+    query = _build_calc_base_query(db, current_user, start_date, end_date)
 
     # Filter by type if specified
     if transaction_type:
@@ -585,29 +682,35 @@ def get_top_categories(
             if transaction_type.lower() == "income"
             else TransactionType.EXPENSE
         )
-        transactions = [tx for tx in transactions if tx.type == tx_type]
+        query = query.filter(Transaction.type == tx_type)
 
-    category_totals: dict[str, float] = {}
-    category_counts: dict[str, int] = {}
+    base = query.subquery()
+    cat_col = func.coalesce(base.c.category, "Uncategorized").label("category")
 
-    for tx in transactions:
-        cat = tx.category or "Uncategorized"
-        category_totals[cat] = category_totals.get(cat, 0) + float(tx.amount)
-        category_counts[cat] = category_counts.get(cat, 0) + 1
+    rows = (
+        db.query(
+            cat_col,
+            func.coalesce(func.sum(base.c.amount), 0).label("amount"),
+            func.count().label("count"),
+        )
+        .group_by(cat_col)
+        .order_by(func.sum(base.c.amount).desc())
+        .limit(limit)
+        .all()
+    )
 
-    total_amount = sum(category_totals.values())
+    # We need the grand total (not just top-N total) for accurate percentages.
+    grand_total_row = db.query(
+        func.coalesce(func.sum(base.c.amount), 0).label("grand_total"),
+    ).one()
+    grand_total = float(grand_total_row.grand_total)
 
-    # Sort by amount and take top N
-    return sorted(
-        [
-            {
-                "category": cat,
-                "amount": amount,
-                "percentage": (amount / total_amount * 100) if total_amount > 0 else 0,
-                "count": category_counts[cat],
-            }
-            for cat, amount in category_totals.items()
-        ],
-        key=lambda x: x["amount"],
-        reverse=True,
-    )[:limit]
+    return [
+        {
+            "category": row.category,
+            "amount": float(row.amount),
+            "percentage": (float(row.amount) / grand_total * 100) if grand_total > 0 else 0,
+            "count": row.count,
+        }
+        for row in rows
+    ]

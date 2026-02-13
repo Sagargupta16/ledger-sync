@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import { Toaster } from 'sonner'
@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { PreferencesProvider } from '@/components/shared/PreferencesProvider'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { useAuthStore } from '@/store/authStore'
+import { useAuthInit } from '@/hooks/api/useAuth'
 
 // Eagerly loaded — core pages the user hits immediately
 import HomePage from '@/pages/HomePage'
@@ -97,17 +98,37 @@ function PageLoader() {
   )
 }
 
+/**
+ * Converts an absolute route path (e.g. "/dashboard") to a relative path
+ * suitable for nested <Route> elements (e.g. "dashboard").
+ */
+function toRelativePath(absolutePath: string): string {
+  return absolutePath.startsWith('/') ? absolutePath.slice(1) : absolutePath
+}
+
+// Simple 404 page shown for unmatched routes
+function NotFoundPage() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center p-4">
+      <div className="text-center space-y-4">
+        <h1 className="text-6xl font-bold text-white">404</h1>
+        <p className="text-xl text-muted-foreground">Page not found</p>
+        <Link
+          to={ROUTES.DASHBOARD}
+          className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-all"
+        >
+          Go to Dashboard
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 // Auth initializer component
 function AuthInitializer({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { setLoading, isAuthenticated, accessToken } = useAuthStore()
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 100)
-
-    return () => clearTimeout(timer)
-  }, [setLoading, isAuthenticated, accessToken])
+  // useAuthInit verifies the token with the server and sets loading to false when done.
+  // This replaces the arbitrary setTimeout approach.
+  useAuthInit()
 
   // Prefetch all lazy page chunks once auth is resolved
   useEffect(() => {
@@ -135,6 +156,20 @@ function LandingPage() {
   return <HomePage />
 }
 
+/** Extracted style object for the Toaster component (avoids recreating on every render) */
+const TOASTER_STYLE: React.CSSProperties = {
+  background: 'rgba(20, 20, 25, 0.95)',
+  backdropFilter: 'blur(12px)',
+  border: '1px solid rgba(255, 255, 255, 0.15)',
+  color: '#ffffff',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+}
+
+const TOASTER_OPTIONS = {
+  duration: 4000,
+  style: TOASTER_STYLE,
+} as const
+
 function App() {
   return (
     <ErrorBoundary>
@@ -157,25 +192,27 @@ function App() {
                     }
                   >
                     <Route path="home" element={<HomePage />} />
-                    <Route path={ROUTES.DASHBOARD.slice(1)} element={<DashboardPage />} />
-                    <Route path={ROUTES.UPLOAD.slice(1)} element={<UploadSyncPage />} />
-                    <Route path={ROUTES.SETTINGS.slice(1)} element={<SettingsPage />} />
-                    <Route path={ROUTES.TRANSACTIONS.slice(1)} element={<TransactionsPage />} />
-                    <Route path={ROUTES.INVESTMENT_ANALYTICS.slice(1)} element={<InvestmentAnalyticsPage />} />
-                    <Route path={ROUTES.MUTUAL_FUND_PROJECTION.slice(1)} element={<MutualFundProjectionPage />} />
-                    <Route path={ROUTES.RETURNS_ANALYSIS.slice(1)} element={<ReturnsAnalysisPage />} />
-                    <Route path={ROUTES.TAX_PLANNING.slice(1)} element={<TaxPlanningPage />} />
-                    <Route path={ROUTES.NET_WORTH.slice(1)} element={<NetWorthPage />} />
-                    <Route path={ROUTES.SPENDING_ANALYSIS.slice(1)} element={<SpendingAnalysisPage />} />
-                    <Route path={ROUTES.INCOME_ANALYSIS.slice(1)} element={<IncomeAnalysisPage />} />
-                    <Route path={ROUTES.INCOME_EXPENSE_FLOW.slice(1)} element={<IncomeExpenseFlowPage />} />
-                    <Route path={ROUTES.TRENDS_FORECASTS.slice(1)} element={<TrendsForecastsPage />} />
-                    <Route path={ROUTES.COMPARISON.slice(1)} element={<ComparisonPage />} />
-                    <Route path={ROUTES.BUDGETS.slice(1)} element={<BudgetPage />} />
-                    <Route path={ROUTES.YEAR_IN_REVIEW.slice(1)} element={<YearInReviewPage />} />
-                    <Route path={ROUTES.ANOMALIES.slice(1)} element={<AnomalyReviewPage />} />
-                    <Route path={ROUTES.GOALS.slice(1)} element={<GoalsPage />} />
-                    <Route path={ROUTES.INSIGHTS.slice(1)} element={<InsightsPage />} />
+                    <Route path={toRelativePath(ROUTES.DASHBOARD)} element={<DashboardPage />} />
+                    <Route path={toRelativePath(ROUTES.UPLOAD)} element={<UploadSyncPage />} />
+                    <Route path={toRelativePath(ROUTES.SETTINGS)} element={<SettingsPage />} />
+                    <Route path={toRelativePath(ROUTES.TRANSACTIONS)} element={<TransactionsPage />} />
+                    <Route path={toRelativePath(ROUTES.INVESTMENT_ANALYTICS)} element={<InvestmentAnalyticsPage />} />
+                    <Route path={toRelativePath(ROUTES.MUTUAL_FUND_PROJECTION)} element={<MutualFundProjectionPage />} />
+                    <Route path={toRelativePath(ROUTES.RETURNS_ANALYSIS)} element={<ReturnsAnalysisPage />} />
+                    <Route path={toRelativePath(ROUTES.TAX_PLANNING)} element={<TaxPlanningPage />} />
+                    <Route path={toRelativePath(ROUTES.NET_WORTH)} element={<NetWorthPage />} />
+                    <Route path={toRelativePath(ROUTES.SPENDING_ANALYSIS)} element={<SpendingAnalysisPage />} />
+                    <Route path={toRelativePath(ROUTES.INCOME_ANALYSIS)} element={<IncomeAnalysisPage />} />
+                    <Route path={toRelativePath(ROUTES.INCOME_EXPENSE_FLOW)} element={<IncomeExpenseFlowPage />} />
+                    <Route path={toRelativePath(ROUTES.TRENDS_FORECASTS)} element={<TrendsForecastsPage />} />
+                    <Route path={toRelativePath(ROUTES.COMPARISON)} element={<ComparisonPage />} />
+                    <Route path={toRelativePath(ROUTES.BUDGETS)} element={<BudgetPage />} />
+                    <Route path={toRelativePath(ROUTES.YEAR_IN_REVIEW)} element={<YearInReviewPage />} />
+                    <Route path={toRelativePath(ROUTES.ANOMALIES)} element={<AnomalyReviewPage />} />
+                    <Route path={toRelativePath(ROUTES.GOALS)} element={<GoalsPage />} />
+                    <Route path={toRelativePath(ROUTES.INSIGHTS)} element={<InsightsPage />} />
+                    {/* 404 catch-all for unmatched routes */}
+                    <Route path="*" element={<NotFoundPage />} />
                   </Route>
                 </Routes>
               </Suspense>
@@ -183,16 +220,7 @@ function App() {
             <Toaster
               position="bottom-right"
               theme="dark"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: 'rgba(20, 20, 25, 0.95)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  color: '#ffffff',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-                },
-              }}
+              toastOptions={TOASTER_OPTIONS}
             />
           </PreferencesProvider>
         </AuthInitializer>

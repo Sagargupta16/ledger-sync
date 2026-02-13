@@ -52,9 +52,9 @@ class User(Base):
     )
     last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    # Relationships
+    # Relationships — use deferred loading to avoid loading all transactions on every user query
     transactions: Mapped["list[Transaction]"] = relationship(
-        "Transaction", back_populates="user", lazy="selectin"
+        "Transaction", back_populates="user", lazy="select"
     )
     preferences: Mapped["UserPreferences | None"] = relationship(
         "UserPreferences", back_populates="user", uselist=False
@@ -261,8 +261,11 @@ class TaxRecord(Base):
     # Primary key
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
+    # User foreign key - scopes tax record to owner
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+
     # Financial year (e.g., "2022-23", "2023-24")
-    financial_year: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    financial_year: Mapped[str] = mapped_column(String(10), nullable=False)
 
     # Income components (all in INR)
     gross_salary: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
@@ -306,8 +309,8 @@ class TaxRecord(Base):
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Composite index for FY queries
-    __table_args__ = (Index("ix_tax_records_fy", "financial_year"),)
+    # Composite index for FY queries scoped to user
+    __table_args__ = (Index("ix_tax_records_user_fy", "user_id", "financial_year"),)
 
     def __repr__(self) -> str:
         """Return string representation."""
@@ -370,9 +373,9 @@ class NetWorthSnapshot(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     source: Mapped[str] = mapped_column(String(50), default="upload")  # upload, manual, api
 
+    # Composite index replaces redundant single-column indexes (already on user_id and snapshot_date)
     __table_args__ = (
-        Index("ix_net_worth_date", "snapshot_date"),
-        Index("ix_net_worth_user", "user_id"),
+        Index("ix_net_worth_user_date", "user_id", "snapshot_date"),
     )
 
 

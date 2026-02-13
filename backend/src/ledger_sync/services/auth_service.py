@@ -205,6 +205,23 @@ class AuthService:
         """
         return self.session.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
 
+    def verify_password_or_raise(self, user: User, password: str) -> None:
+        """Verify the user's password, raising 403 if incorrect.
+
+        Args:
+            user: The authenticated user.
+            password: The plaintext password to verify.
+
+        Raises:
+            HTTPException: If the password does not match.
+
+        """
+        if not verify_password(password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Incorrect password",
+            )
+
     def delete_account(self, user: User) -> None:
         """Permanently delete a user account and all associated data.
 

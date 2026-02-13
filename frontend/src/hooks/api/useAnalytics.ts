@@ -4,8 +4,9 @@ import { calculationsApi } from '@/services/api/calculations'
 import type { TimeRange } from '@/types'
 
 // Data only changes on upload (which invalidates all queries).
-// Keep cached indefinitely so page navigations are instant.
-const STABLE_STALE_TIME = Infinity
+// Use a large but finite stale time so data eventually refreshes,
+// while still keeping page navigations instant.
+const STABLE_STALE_TIME = 5 * 60 * 1000 // 5 minutes
 
 // KPIs and Dashboard
 export function useKPIs(params?: { start_date?: string; end_date?: string }) {
@@ -13,6 +14,7 @@ export function useKPIs(params?: { start_date?: string; end_date?: string }) {
     queryKey: ['kpis', params],
     queryFn: () => analyticsService.getKPIs(params),
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -21,6 +23,7 @@ export function useRecentTransactions(limit: number = 5) {
     queryKey: ['transactions', 'recent', limit],
     queryFn: () => analyticsService.getRecentTransactions(limit),
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -30,6 +33,7 @@ export const useOverview = (timeRange: TimeRange = 'all_time') => {
     queryKey: ['analytics', 'overview', timeRange],
     queryFn: () => analyticsService.getOverview(timeRange),
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -38,6 +42,7 @@ export const useBehavior = (timeRange: TimeRange = 'all_time') => {
     queryKey: ['analytics', 'behavior', timeRange],
     queryFn: () => analyticsService.getBehavior(timeRange),
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -46,6 +51,7 @@ export const useTrends = (timeRange: TimeRange = 'all_time') => {
     queryKey: ['analytics', 'trends', timeRange],
     queryFn: () => analyticsService.getTrends(timeRange),
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -55,6 +61,7 @@ export const useAccountDistribution = (timeRange: TimeRange = 'all_time') => {
     queryKey: ['analytics', 'account-distribution', timeRange],
     queryFn: () => analyticsService.getAccountDistributionChart(timeRange),
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -63,6 +70,7 @@ export const useCategoriesChart = (timeRange: TimeRange = 'all_time', limit = 10
     queryKey: ['analytics', 'categories-chart', timeRange, limit],
     queryFn: () => analyticsService.getCategoriesChart(timeRange, limit),
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -71,6 +79,7 @@ export const useMonthlyTrends = (timeRange: TimeRange = 'all_time') => {
     queryKey: ['analytics', 'monthly-trends', timeRange],
     queryFn: () => analyticsService.getMonthlyTrendsChart(timeRange),
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -87,6 +96,7 @@ export const useCategoryBreakdown = (params?: {
       return response.data
     },
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -98,6 +108,7 @@ export const useAccountBalances = (params?: { start_date?: string; end_date?: st
       return response.data
     },
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -109,6 +120,7 @@ export const useMonthlyAggregation = (params?: { start_date?: string; end_date?:
       return response.data
     },
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -120,6 +132,7 @@ export const useTotals = (params?: { start_date?: string; end_date?: string }) =
       return response.data
     },
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -129,6 +142,7 @@ export const useGeneratedInsights = (timeRange: TimeRange = 'all_time') => {
     queryKey: ['analytics', 'generated-insights', timeRange],
     queryFn: () => analyticsService.getGeneratedInsights(timeRange),
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -141,5 +155,6 @@ export const useMasterCategories = () => {
       return response.data
     },
     staleTime: STABLE_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }

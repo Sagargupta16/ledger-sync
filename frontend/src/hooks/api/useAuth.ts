@@ -106,12 +106,12 @@ export const useCurrentUser = () => {
  * Hook to initialize auth state on app load
  */
 export const useAuthInit = () => {
-  const { isAuthenticated, accessToken, setLoading, logout, setUser } = useAuthStore()
+  const { accessToken, setLoading, logout, setUser } = useAuthStore()
 
   return useQuery({
     queryKey: ['auth', 'init'],
     queryFn: async () => {
-      if (!isAuthenticated || !accessToken) {
+      if (!accessToken) {
         setLoading(false)
         return null
       }

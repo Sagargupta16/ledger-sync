@@ -23,6 +23,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def get_session() -> Generator[Session, None, None]:
     """Get database session.
 
+    Only commits if the session has pending changes (new/dirty/deleted objects),
+    avoiding unnecessary commits on read-only requests.
+
     Yields:
         Database session
 
@@ -30,7 +33,8 @@ def get_session() -> Generator[Session, None, None]:
     session = SessionLocal()
     try:
         yield session
-        session.commit()
+        if session.new or session.dirty or session.deleted:
+            session.commit()
     except Exception:
         session.rollback()
         raise

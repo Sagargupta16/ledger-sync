@@ -50,6 +50,28 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id']
 
+/** Derive default account classifications from account names by keyword matching */
+function getDefaultClassifications(accountNames: string[]): Record<string, string> {
+  const defaults: Record<string, string> = {}
+  accountNames.forEach((name) => {
+    const lowerName = name.toLowerCase()
+    if (lowerName.includes('credit card') || lowerName.includes('cc ') || lowerName.includes('amex')) {
+      defaults[name] = 'Credit Cards'
+    } else if (lowerName.includes('bank') || lowerName.includes('checking') || lowerName.includes('salary')) {
+      defaults[name] = 'Bank Accounts'
+    } else if (lowerName.includes('cash') || lowerName.includes('wallet')) {
+      defaults[name] = 'Cash'
+    } else if (lowerName.includes('investment') || lowerName.includes('mutual') || lowerName.includes('stock')) {
+      defaults[name] = 'Investments'
+    } else if (lowerName.includes('loan') || lowerName.includes('debt')) {
+      defaults[name] = 'Loans/Lended'
+    } else {
+      defaults[name] = 'Other Wallets'
+    }
+  })
+  return defaults
+}
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('accounts')
 
@@ -158,28 +180,6 @@ export default function SettingsPage() {
     loadClassifications()
   }, [accounts])
 
-  // Helper to get default classifications
-  const getDefaultClassifications = (accountNames: string[]): Record<string, string> => {
-    const defaults: Record<string, string> = {}
-    accountNames.forEach((name) => {
-      const lowerName = name.toLowerCase()
-      if (lowerName.includes('credit card') || lowerName.includes('cc ') || lowerName.includes('amex')) {
-        defaults[name] = 'Credit Cards'
-      } else if (lowerName.includes('bank') || lowerName.includes('checking') || lowerName.includes('salary')) {
-        defaults[name] = 'Bank Accounts'
-      } else if (lowerName.includes('cash') || lowerName.includes('wallet')) {
-        defaults[name] = 'Cash'
-      } else if (lowerName.includes('investment') || lowerName.includes('mutual') || lowerName.includes('stock')) {
-        defaults[name] = 'Investments'
-      } else if (lowerName.includes('loan') || lowerName.includes('debt')) {
-        defaults[name] = 'Loans/Lended'
-      } else {
-        defaults[name] = 'Other Wallets'
-      }
-    })
-    return defaults
-  }
-
   // ---------------------------------------------------------------------------
   // Drag-and-drop handlers (shared across tabs)
   // ---------------------------------------------------------------------------
@@ -287,14 +287,17 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      // Save account classifications
+      // Save account classifications (in parallel)
       if (activeTab === 'accounts') {
         const original = await accountClassificationsService.getAllClassifications()
-        for (const [accountName, accountType] of Object.entries(classifications)) {
-          if (original[accountName] !== accountType) {
-            await accountClassificationsService.setClassification(accountName, accountType)
-          }
-        }
+        const changedEntries = Object.entries(classifications).filter(
+          ([accountName, accountType]) => original[accountName] !== accountType
+        )
+        await Promise.all(
+          changedEntries.map(([accountName, accountType]) =>
+            accountClassificationsService.setClassification(accountName, accountType)
+          )
+        )
       }
 
       // Save preferences

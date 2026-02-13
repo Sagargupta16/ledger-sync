@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.schemas.auth import (
+    ConfirmAction,
     MessageResponse,
     RefreshTokenRequest,
     Token,
@@ -163,20 +164,24 @@ def update_profile(
 def delete_account(
     current_user: CurrentUser,
     auth_service: AuthServiceDep,
+    confirmation: ConfirmAction,
 ) -> MessageResponse:
     """Permanently delete the current user's account and all data.
 
     WARNING: This action is irreversible!
+    Requires password confirmation.
     Deletes: all transactions, import history, preferences, and the account itself.
 
     Args:
         current_user: Current authenticated user
         auth_service: Authentication service
+        confirmation: Password confirmation
 
     Returns:
         Confirmation message
 
     """
+    auth_service.verify_password_or_raise(current_user, confirmation.password)
     auth_service.delete_account(current_user)
     return MessageResponse(message="Account and all data permanently deleted")
 
@@ -185,9 +190,11 @@ def delete_account(
 def reset_account(
     current_user: CurrentUser,
     auth_service: AuthServiceDep,
+    confirmation: ConfirmAction,
 ) -> MessageResponse:
     """Reset account to fresh state, keeping login credentials.
 
+    Requires password confirmation.
     This removes all data but preserves your account:
     - Deletes all transactions
     - Deletes import history
@@ -196,10 +203,12 @@ def reset_account(
     Args:
         current_user: Current authenticated user
         auth_service: Authentication service
+        confirmation: Password confirmation
 
     Returns:
         Confirmation message
 
     """
+    auth_service.verify_password_or_raise(current_user, confirmation.password)
     auth_service.reset_account(current_user)
     return MessageResponse(message="Account reset to fresh state. All data cleared.")

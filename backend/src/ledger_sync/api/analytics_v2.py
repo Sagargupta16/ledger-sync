@@ -9,7 +9,8 @@ All aggregation tables are scoped to user_id for multi-user safety.
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import desc
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
@@ -28,6 +29,26 @@ from ledger_sync.db.models import (
 )
 
 router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
+
+
+class CreateBudgetRequest(BaseModel):
+    category: str
+    monthly_limit: float
+    subcategory: str | None = None
+    alert_threshold: float = 80.0
+
+
+class CreateGoalRequest(BaseModel):
+    name: str
+    target_amount: float
+    goal_type: str = "savings"
+    notes: str | None = None
+    target_date: str | None = None
+
+
+class ReviewAnomalyRequest(BaseModel):
+    dismiss: bool = False
+    notes: str | None = None
 
 
 def _get_earning_start_period(user: User) -> str | None:
@@ -546,8 +567,7 @@ def review_anomaly(
     anomaly_id: int,
     current_user: CurrentUser,
     db: DatabaseSession,
-    dismiss: Annotated[bool, Query(description="Dismiss the anomaly")] = False,
-    notes: Annotated[str | None, Query(description="Review notes")] = None,
+    body: ReviewAnomalyRequest,
 ) -> dict[str, Any]:
     """Mark an anomaly as reviewed."""
     anomaly = (
@@ -560,11 +580,11 @@ def review_anomaly(
     )
 
     if not anomaly:
-        return {"success": False, "error": "Anomaly not found"}
+        raise HTTPException(status_code=404, detail="Anomaly not found")
 
     anomaly.is_reviewed = True
-    anomaly.is_dismissed = dismiss
-    anomaly.review_notes = notes
+    anomaly.is_dismissed = body.dismiss
+    anomaly.review_notes = body.notes
     anomaly.reviewed_at = datetime.now(UTC)
 
     db.commit()
@@ -609,20 +629,17 @@ def get_budgets(
 
 @router.post("/budgets")
 def create_budget(
-    category: str,
-    monthly_limit: float,
     current_user: CurrentUser,
     db: DatabaseSession,
-    subcategory: str | None = None,
-    alert_threshold: float = 80,
+    body: CreateBudgetRequest,
 ) -> dict[str, Any]:
     """Create a new budget."""
     budget = Budget(
         user_id=current_user.id,
-        category=category,
-        subcategory=subcategory,
-        monthly_limit=monthly_limit,
-        alert_threshold_pct=alert_threshold,
+        category=body.category,
+        subcategory=body.subcategory,
+        monthly_limit=body.monthly_limit,
+        alert_threshold_pct=body.alert_threshold,
         is_active=True,
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
@@ -679,33 +696,34 @@ def get_financial_goals(
 
 @router.post("/goals")
 def create_goal(
-    name: str,
-    target_amount: float,
     current_user: CurrentUser,
     db: DatabaseSession,
-    goal_type: str = "savings",
-    notes: str | None = None,
-    target_date: datetime | None = None,
+    body: CreateGoalRequest,
 ) -> dict[str, Any]:
     """Create a new financial goal."""
     from ledger_sync.db.models import GoalStatus
 
+    # Parse target_date string to datetime if provided
+    parsed_target_date = None
+    if body.target_date:
+        parsed_target_date = datetime.fromisoformat(body.target_date)
+
     # Calculate monthly target if target date provided
     monthly_target = 0
-    if target_date:
-        months_remaining = (target_date.year - datetime.now(UTC).year) * 12 + (
-            target_date.month - datetime.now(UTC).month
+    if parsed_target_date:
+        months_remaining = (parsed_target_date.year - datetime.now(UTC).year) * 12 + (
+            parsed_target_date.month - datetime.now(UTC).month
         )
         if months_remaining > 0:
-            monthly_target = target_amount / months_remaining
+            monthly_target = body.target_amount / months_remaining
 
     goal = FinancialGoal(
         user_id=current_user.id,
-        name=name,
-        description=notes,
-        goal_type=goal_type,
-        target_amount=target_amount,
-        target_date=target_date,
+        name=body.name,
+        description=body.notes,
+        goal_type=body.goal_type,
+        target_amount=body.target_amount,
+        target_date=parsed_target_date,
         monthly_target=monthly_target,
         status=GoalStatus.ACTIVE,
         created_at=datetime.now(UTC),

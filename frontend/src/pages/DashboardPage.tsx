@@ -8,187 +8,42 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import Sparkline from '@/components/shared/Sparkline'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore, PeriodComparison } from '@/components/analytics'
-import { useRecentTransactions } from '@/hooks/api/useAnalytics'
-import { useMonthlyAggregation, useTotals } from '@/hooks/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
-import { usePreferences } from '@/hooks/api/usePreferences'
-import { useState, useMemo } from 'react'
 import { formatCurrency } from '@/lib/formatters'
-import { type AnalyticsViewMode, getAnalyticsDateRange, getCurrentYear, getCurrentMonth, getCurrentFY, getDateKey } from '@/lib/dateUtils'
-import { usePreferencesStore } from '@/store/preferencesStore'
-import { 
-  calculateIncomeByCategoryBreakdown, 
-  calculateSpendingBreakdown,
-  calculateCashbacksTotal,
-  INCOME_CATEGORY_COLORS,
-  SPENDING_TYPE_COLORS,
-} from '@/lib/preferencesUtils'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
+import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 
 export default function DashboardPage() {
-  const { displayPreferences } = usePreferencesStore()
-  const { data: preferences } = usePreferences()
-  const fiscalYearStartMonth = preferences?.fiscal_year_start_month ?? 4
-
-  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
-    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'all_time'
-  )
-  const [currentYear, setCurrentYear] = useState(getCurrentYear)
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth)
-  const [currentFY, setCurrentFY] = useState(() => getCurrentFY(fiscalYearStartMonth))
-
-  const analyticsDateRange = useMemo(
-    () => getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth),
-    [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth],
-  )
-
-  // Convert for hooks that expect optional (not null) date params
-  const dateRange = useMemo(
-    () => ({
-      start_date: analyticsDateRange.start_date ?? undefined,
-      end_date: analyticsDateRange.end_date ?? undefined,
-    }),
-    [analyticsDateRange],
-  )
-
-  const { data: recentTransactions, isLoading: isLoadingTransactions } = useRecentTransactions(5)
-  const { data: filteredTotals, isLoading } = useTotals(dateRange)
-  const { data: monthlyData } = useMonthlyAggregation(dateRange)
-  const { data: allTransactions } = useTransactions()
-
-  // Boundary dates for AnalyticsTimeFilter navigation
-  const dataDateRange = useMemo(() => {
-    if (!allTransactions?.length) return { minDate: undefined, maxDate: undefined }
-    const dates = allTransactions.map((t) => t.date.substring(0, 10)).sort()
-    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
-  }, [allTransactions])
-
-  // Filter transactions by selected time range
-  const filteredTransactions = useMemo(() => {
-    if (!allTransactions?.length) return []
-    if (!analyticsDateRange.start_date) return allTransactions
-    return allTransactions.filter((t) => {
-      const txDate = getDateKey(t.date)
-      return txDate >= analyticsDateRange.start_date! && (!analyticsDateRange.end_date || txDate <= analyticsDateRange.end_date)
-    })
-  }, [allTransactions, analyticsDateRange])
-
-  // Calculate income breakdown by actual data category (for display)
-  const incomeBreakdown = useMemo(() => {
-    if (filteredTransactions.length === 0) return null
-    return calculateIncomeByCategoryBreakdown(filteredTransactions)
-  }, [filteredTransactions])
-
-  // Calculate total cashbacks using preferences classification
-  const cashbacksTotal = useMemo(() => {
-    if (filteredTransactions.length === 0 || !preferences) return 0
-    
-    // Build income classification from preferences
-    const incomeClassification = {
-      taxable: preferences.taxable_income_categories || [],
-      investmentReturns: preferences.investment_returns_categories || [],
-      nonTaxable: preferences.non_taxable_income_categories || [],
-      other: preferences.other_income_categories || [],
-    }
-    
-    return calculateCashbacksTotal(filteredTransactions, incomeClassification)
-  }, [filteredTransactions, preferences])
-
-  // Calculate spending breakdown (essential vs discretionary)
-  const spendingBreakdown = useMemo(() => {
-    if (filteredTransactions.length === 0 || !preferences) return null
-    return calculateSpendingBreakdown(filteredTransactions, preferences.essential_categories)
-  }, [filteredTransactions, preferences])
-
-  // Prepare income breakdown for pie chart (using actual data categories)
-  const incomeChartData = useMemo(() => {
-    if (!incomeBreakdown) return []
-    const defaultColor = SEMANTIC_COLORS.muted
-    return Object.entries(incomeBreakdown)
-      .filter(([, value]) => value > 0)
-      .map(([category, value]) => ({
-        name: category,
-        value,
-        color: INCOME_CATEGORY_COLORS[category] || defaultColor,
-      }))
-      .sort((a, b) => b.value - a.value)
-  }, [incomeBreakdown])
-
-  // Prepare spending breakdown for pie chart
-  const spendingChartData = useMemo(() => {
-    if (!spendingBreakdown) return []
-    return [
-      { name: 'Essential', value: spendingBreakdown.essential, color: SPENDING_TYPE_COLORS.essential },
-      { name: 'Discretionary', value: spendingBreakdown.discretionary, color: SPENDING_TYPE_COLORS.discretionary },
-    ].filter((d) => d.value > 0)
-  }, [spendingBreakdown])
-
-  // Precomputed style objects for chart legends (stable references across renders)
-  const incomeColorStyles = useMemo(
-    () => incomeChartData.map((item) => ({ backgroundColor: item.color })),
-    [incomeChartData]
-  )
-
-  const spendingColorStyles = useMemo(
-    () => spendingChartData.map((item) => ({ backgroundColor: item.color })),
-    [spendingChartData]
-  )
-
-  const spendingBarStyles = useMemo(
-    () => spendingChartData.map((item) => {
-      const percentage = spendingBreakdown
-        ? (item.value / spendingBreakdown.total) * 100
-        : 0
-      return { width: `${percentage.toFixed(1)}%`, backgroundColor: item.color }
-    }),
-    [spendingChartData, spendingBreakdown]
-  )
-
-  // Prepare sparkline data for mini charts - show all months in the filtered range
-  const incomeSparkline = useMemo(() => {
-    if (!monthlyData) return []
-    return Object.values(monthlyData).map((m: { income?: number }) => m.income || 0)
-  }, [monthlyData])
-
-  const expenseSparkline = useMemo(() => {
-    if (!monthlyData) return []
-    return Object.values(monthlyData).map((m: { expense?: number }) => Math.abs(m.expense || 0))
-  }, [monthlyData])
-
-  // MoM change %: compare the last two COMPLETE months (skip current incomplete month)
-  const momChanges = useMemo(() => {
-    const noChange = { income: undefined, expense: undefined, savings: undefined, savingsRate: undefined, label: 'vs prev month' }
-    if (!monthlyData) return noChange
-    const allMonths = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
-
-    // Current month key (YYYY-MM) — this month is still in progress
-    const now = new Date()
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
-    // Drop the current month if it's the latest — it's incomplete
-    const completeMonths = allMonths.at(-1) === currentMonthKey ? allMonths.slice(0, -1) : allMonths
-
-    if (completeMonths.length < 2) return noChange
-    const curr = monthlyData[completeMonths.at(-1)!]
-    const prev = monthlyData[completeMonths.at(-2)!]
-    const pct = (c: number, p: number) => (p === 0 ? undefined : Number((((c - p) / p) * 100).toFixed(1)))
-    const currSavingsRate = curr.income === 0 ? 0 : (curr.net_savings / curr.income) * 100
-    const prevSavingsRate = prev.income === 0 ? 0 : (prev.net_savings / prev.income) * 100
-    // Build a human-readable label like "Jan vs Dec"
-    const fmt = (key: string) => {
-      const [y, m] = key.split('-')
-      return new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'short' })
-    }
-    return {
-      income: pct(curr.income, prev.income),
-      expense: pct(Math.abs(curr.expense), Math.abs(prev.expense)),
-      savings: pct(curr.net_savings, prev.net_savings),
-      savingsRate: prev.income === 0 ? undefined : Number((currSavingsRate - prevSavingsRate).toFixed(1)),
-      label: `${fmt(completeMonths.at(-1)!)} vs ${fmt(completeMonths.at(-2)!)}`,
-    }
-  }, [monthlyData])
+  const {
+    viewMode,
+    setViewMode,
+    currentYear,
+    setCurrentYear,
+    currentMonth,
+    setCurrentMonth,
+    currentFY,
+    setCurrentFY,
+    fiscalYearStartMonth,
+    dataDateRange,
+    dateRange,
+    filteredTotals,
+    isLoading,
+    filteredTransactions,
+    recentTransactions,
+    isLoadingTransactions,
+    incomeBreakdown,
+    cashbacksTotal,
+    incomeChartData,
+    incomeColorStyles,
+    spendingBreakdown,
+    spendingChartData,
+    spendingColorStyles,
+    spendingBarStyles,
+    incomeSparkline,
+    expenseSparkline,
+    momChanges,
+  } = useDashboardMetrics()
 
   return (
     <div className="p-8 space-y-8">
@@ -217,7 +72,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="Total Income"
-          value={filteredTotals ? formatCurrency(filteredTotals.total_income) : formatCurrency(0)}
+          value={formatCurrency(filteredTotals?.total_income ?? 0)}
           icon={TrendingUp}
           color="green"
           isLoading={isLoading}
@@ -227,7 +82,7 @@ export default function DashboardPage() {
         />
         <MetricCard
           title="Total Expenses"
-          value={filteredTotals ? formatCurrency(Math.abs(filteredTotals.total_expenses)) : formatCurrency(0)}
+          value={formatCurrency(Math.abs(filteredTotals?.total_expenses ?? 0))}
           icon={TrendingDown}
           color="red"
           isLoading={isLoading}
@@ -238,7 +93,7 @@ export default function DashboardPage() {
         />
         <MetricCard
           title="Net Savings"
-          value={filteredTotals ? formatCurrency(filteredTotals.net_savings) : formatCurrency(0)}
+          value={formatCurrency(filteredTotals?.net_savings ?? 0)}
           icon={DollarSign}
           color="blue"
           isLoading={isLoading}
@@ -247,7 +102,7 @@ export default function DashboardPage() {
         />
         <MetricCard
           title="Savings Rate"
-          value={filteredTotals ? `${filteredTotals.savings_rate.toFixed(1)}%` : '0%'}
+          value={`${(filteredTotals?.savings_rate ?? 0).toFixed(1)}%`}
           icon={Percent}
           color="purple"
           isLoading={isLoading}
@@ -256,11 +111,10 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Financial Health & Quick Insights — react to time filter */}
+      {/* Financial Health & Quick Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <FinancialHealthScore transactions={filteredTransactions} />
 
-        {/* Quick Insights */}
         <motion.div
           {...fadeUpWithDelay(0.2)}
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
@@ -331,7 +185,7 @@ export default function DashboardPage() {
                     </div>
                     {cashbacksTotal > 0 && (
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-cyan-400">💳 Cashbacks Earned</span>
+                        <span className="text-cyan-400">Cashbacks Earned</span>
                         <span className="text-cyan-400 font-medium">
                           {formatCurrency(cashbacksTotal)}
                         </span>
@@ -440,14 +294,14 @@ export default function DashboardPage() {
         </motion.div>
       </div>
 
-      {/* Recent Activity & Period Comparison — filter-independent */}
+      {/* Recent Activity & Period Comparison */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <motion.div
           {...fadeUpWithDelay(0.5)}
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-          <RecentTransactions transactions={recentTransactions || []} isLoading={isLoadingTransactions} />
+          <RecentTransactions transactions={recentTransactions ?? []} isLoading={isLoadingTransactions} />
         </motion.div>
         <PeriodComparison />
       </div>

@@ -235,11 +235,14 @@ export const selectEssentialCategories = (state: PreferencesState) =>
 export const selectFiscalYearStartMonth = (state: PreferencesState) =>
   state.fiscalYearStartMonth
 
-export const selectSpendingTargets = (state: PreferencesState) => ({
-  needsTargetPercent: state.needsTargetPercent,
-  wantsTargetPercent: state.wantsTargetPercent,
-  savingsTargetPercent: state.savingsTargetPercent,
-})
+// Individual selectors for spending targets to avoid creating new objects on every call.
+// Use these separately or combine with useShallow from zustand/react/shallow.
+export const selectNeedsTargetPercent = (state: PreferencesState) =>
+  state.needsTargetPercent
+export const selectWantsTargetPercent = (state: PreferencesState) =>
+  state.wantsTargetPercent
+export const selectSavingsTargetPercent = (state: PreferencesState) =>
+  state.savingsTargetPercent
 
 export const selectCreditCardLimits = (state: PreferencesState) =>
   state.creditCardLimits

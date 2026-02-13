@@ -10,6 +10,7 @@ import anyio
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.config.settings import settings
 from ledger_sync.core.sync_engine import SyncEngine
 from ledger_sync.ingest.normalizer import NormalizationError
 from ledger_sync.ingest.validator import ValidationError
@@ -17,6 +18,10 @@ from ledger_sync.schemas.transactions import UploadResponse
 from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="", tags=["upload"])
+
+# Excel file magic bytes for validation
+_XLSX_MAGIC = b"PK"  # ZIP archive (OOXML format)
+_XLS_MAGIC = b"\xd0\xcf\x11\xe0"  # OLE2 compound document
 
 
 def _validate_upload_file(filename: str | None) -> str:
@@ -44,17 +49,58 @@ def _validate_upload_file(filename: str | None) -> str:
     return filename
 
 
-async def _create_temp_file(file: UploadFile) -> Path:
+def _validate_file_content(content: bytes, filename: str) -> None:
+    """Validate file content matches expected Excel format via magic bytes.
+
+    Args:
+        content: The raw file bytes.
+        filename: The original filename (used to determine expected format).
+
+    Raises:
+        HTTPException: If content doesn't match expected Excel magic bytes.
+
+    """
+    if filename.endswith(".xlsx") and not content[:2].startswith(_XLSX_MAGIC):
+        raise HTTPException(
+            status_code=400,
+            detail="File content does not match .xlsx format",
+        )
+    if filename.endswith(".xls") and not content[:4].startswith(_XLS_MAGIC):
+        raise HTTPException(
+            status_code=400,
+            detail="File content does not match .xls format",
+        )
+
+
+async def _create_temp_file(file: UploadFile, filename: str) -> Path:
     """Read uploaded file content and write it to a temporary file.
+
+    Enforces file size limit and validates content magic bytes.
 
     Args:
         file: The uploaded file object.
+        filename: The validated filename.
 
     Returns:
         Path to the created temporary file.
 
+    Raises:
+        HTTPException: If file exceeds size limit or content is invalid.
+
     """
     content = await file.read()
+
+    # Enforce file size limit
+    if len(content) > settings.max_upload_size_bytes:
+        max_mb = settings.max_upload_size_bytes / (1024 * 1024)
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {max_mb:.0f} MB.",
+        )
+
+    # Validate file content magic bytes
+    _validate_file_content(content, filename)
+
     tmp_fd, tmp_name = tempfile.mkstemp(suffix=".xlsx")
     os.close(tmp_fd)
     tmp_path = Path(tmp_name)
@@ -93,6 +139,7 @@ def _cleanup_temp_file(tmp_path: Path) -> None:
     responses={
         400: {"description": "Invalid file type, no file provided, or data format issue"},
         409: {"description": "File already imported"},
+        413: {"description": "File too large"},
         422: {"description": "Invalid Excel file"},
         500: {"description": "Processing failed"},
     },
@@ -119,13 +166,16 @@ async def upload_excel(
 
     """
     filename = _validate_upload_file(file.filename)
-    tmp_path = await _create_temp_file(file)
+    tmp_path = await _create_temp_file(file, filename)
 
     logger.info(f"Processing uploaded file: {filename} for user: {current_user.email}")
 
     try:
         engine = SyncEngine(db, user_id=current_user.id)
-        stats = engine.import_file(tmp_path, force=force)
+        # Run synchronous import in a thread to avoid blocking the event loop
+        stats = await anyio.to_thread.run_sync(
+            lambda: engine.import_file(tmp_path, force=force)
+        )
 
         return UploadResponse(
             success=True,

@@ -7,7 +7,8 @@ import { useMemo, useState } from 'react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip } from 'recharts'
 import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
-import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { computeDataDateRange, filterTransactionsByDateRange, computeCategoryBreakdown } from '@/lib/transactionUtils'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import {
@@ -24,42 +25,6 @@ import { usePreferencesStore } from '@/store/preferencesStore'
 
 // Color for Savings
 const SAVINGS_COLOR = SEMANTIC_COLORS.income
-
-/** Compute the min/max date range from transaction data */
-function computeDataDateRange(
-  transactions: Array<{ date: string }> | undefined,
-): { minDate: string | undefined; maxDate: string | undefined } {
-  if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
-  const dates = transactions.map(t => t.date.substring(0, 10)).sort((a, b) => a.localeCompare(b))
-  return { minDate: dates[0], maxDate: dates.at(-1) }
-}
-
-/** Filter transactions by the given date range */
-function filterTransactionsByDateRange(
-  transactions: Array<{ date: string; [key: string]: unknown }> | undefined,
-  dateRange: { start_date?: string; end_date?: string },
-): Array<{ date: string; [key: string]: unknown }> {
-  if (!transactions) return []
-  if (!dateRange.start_date) return transactions
-
-  return transactions.filter((t) => {
-    const txDate = getDateKey(t.date)
-    return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
-  })
-}
-
-/** Aggregate expense amounts by category */
-function computeCategoryBreakdown(
-  transactions: Array<{ type?: unknown; category?: unknown; amount: unknown }>,
-): Record<string, number> {
-  const categories: Record<string, number> = {}
-  for (const t of transactions) {
-    if (t.type !== 'Expense') continue
-    const category = (t.category as string) || 'Uncategorized'
-    categories[category] = (categories[category] || 0) + Math.abs(t.amount as number)
-  }
-  return categories
-}
 
 /** Build chart data for the 50/30/20 spending breakdown */
 function buildSpendingChartData(

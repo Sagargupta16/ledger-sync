@@ -7,8 +7,34 @@ import TransactionTable from '@/components/transactions/TransactionTable'
 import TransactionFilters, { type FilterValues } from '@/components/transactions/TransactionFilters'
 import Pagination from '@/components/transactions/Pagination'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { transactionsService } from '@/services/api/transactions'
+import { transactionsService, type TransactionFilters as ServiceFilters } from '@/services/api/transactions'
 import { toast } from 'sonner'
+
+/** Map component filter + sorting state to API query params */
+function buildServerFilters(
+  filters: FilterValues,
+  sorting: SortingState,
+  currentPage: number,
+  itemsPerPage: number,
+): ServiceFilters {
+  const sortField = sorting[0]?.id ?? 'date'
+  const sortOrder: 'asc' | 'desc' = sorting[0]?.desc ?? true ? 'desc' : 'asc'
+
+  return {
+    query: filters.query || undefined,
+    category: filters.category || undefined,
+    account: filters.account || undefined,
+    type: filters.type || undefined,
+    min_amount: filters.min_amount,
+    max_amount: filters.max_amount,
+    start_date: filters.start_date || undefined,
+    end_date: filters.end_date || undefined,
+    sort: sortField,
+    sort_order: sortOrder,
+    limit: itemsPerPage,
+    offset: (currentPage - 1) * itemsPerPage,
+  }
+}
 
 export default function TransactionsPage() {
   const [filters, setFilters] = useState<FilterValues>({})
@@ -17,80 +43,45 @@ export default function TransactionsPage() {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }])
   const [isExporting, setIsExporting] = useState(false)
 
-  // Fetch all transactions
-  const { data: allTransactions = [], isLoading } = useTransactions()
+  // Build server-side filter params from current UI state
+  const serverFilters = useMemo(
+    () => buildServerFilters(filters, sorting, currentPage, itemsPerPage),
+    [filters, sorting, currentPage, itemsPerPage],
+  )
 
-  // Filter and sort transactions client-side
-  const filteredAndSortedTransactions = useMemo(() => {
-    let result = [...allTransactions]
+  // Fetch all transactions (unfiltered) for dropdown options and total count
+  const { data: allTransactions = [] } = useTransactions()
 
-    // Apply text search filter
-    if (filters.query) {
-      const queryLower = filters.query.toLowerCase()
-      result = result.filter(
-        (tx) =>
-          tx.note?.toLowerCase().includes(queryLower) ||
-          tx.category?.toLowerCase().includes(queryLower) ||
-          tx.account?.toLowerCase().includes(queryLower)
-      )
-    }
+  // Fetch filtered + sorted + paginated transactions from the server
+  const { data: filteredTransactions = [], isLoading } = useTransactions(serverFilters)
 
-    // Apply category filter
-    if (filters.category) {
-      result = result.filter((tx) => tx.category === filters.category)
-    }
+  // For server-side paginated results the API returns all matching rows when
+  // using the /all endpoint with a limit param. The total count needs to come
+  // from an unfiltered or filtered count. Since the current API returns an
+  // array, we derive the total from a separate query without limit/offset.
+  const totalFilters = useMemo<ServiceFilters>(
+    () => ({
+      query: filters.query || undefined,
+      category: filters.category || undefined,
+      account: filters.account || undefined,
+      type: filters.type || undefined,
+      min_amount: filters.min_amount,
+      max_amount: filters.max_amount,
+      start_date: filters.start_date || undefined,
+      end_date: filters.end_date || undefined,
+    }),
+    [filters],
+  )
 
-    // Apply account filter
-    if (filters.account) {
-      result = result.filter((tx) => 
-        tx.account === filters.account || 
-        tx.from_account === filters.account || 
-        tx.to_account === filters.account
-      )
-    }
+  // Use a query with server-side filters but no pagination to get the total count
+  const { data: allFilteredTransactions = [] } = useTransactions(
+    // Only run a separate count query when filters are active
+    Object.values(totalFilters).some((v) => v !== undefined) ? totalFilters : undefined,
+  )
 
-    // Apply type filter
-    if (filters.type) {
-      result = result.filter((tx) => tx.type === filters.type)
-    }
-
-    // Apply amount filters
-    if (filters.min_amount !== undefined) {
-      result = result.filter((tx) => Math.abs(tx.amount) >= filters.min_amount!)
-    }
-    if (filters.max_amount !== undefined) {
-      result = result.filter((tx) => Math.abs(tx.amount) <= filters.max_amount!)
-    }
-
-    // Apply date filters
-    if (filters.start_date) {
-      const startDate = new Date(filters.start_date)
-      result = result.filter((tx) => new Date(tx.date) >= startDate)
-    }
-    if (filters.end_date) {
-      const endDate = new Date(filters.end_date)
-      result = result.filter((tx) => new Date(tx.date) <= endDate)
-    }
-
-    // Apply sorting
-    const sortField = sorting[0]?.id || 'date'
-    const sortDesc = sorting[0]?.desc ?? true
-    result.sort((a, b) => {
-      const aVal = a[sortField as keyof typeof a] as string | number
-      const bVal = b[sortField as keyof typeof b] as string | number
-
-      if (aVal < bVal) return sortDesc ? 1 : -1
-      if (aVal > bVal) return sortDesc ? -1 : 1
-      return 0
-    })
-
-    return result
-  }, [allTransactions, filters, sorting])
-
-  // Calculate offset for pagination
-  const offset = (currentPage - 1) * itemsPerPage
-  const paginatedTransactions = filteredAndSortedTransactions.slice(offset, offset + itemsPerPage)
-  const total = filteredAndSortedTransactions.length
+  const total = Object.values(totalFilters).some((v) => v !== undefined)
+    ? allFilteredTransactions.length
+    : allTransactions.length
 
   const handleFilterChange = (newFilters: FilterValues) => {
     setFilters(newFilters)
@@ -117,8 +108,9 @@ export default function TransactionsPage() {
       a.download = `transactions-${new Date().toISOString().split('T')[0]}.csv`
       document.body.appendChild(a)
       a.click()
-      globalThis.URL.revokeObjectURL(url)
       a.remove()
+      // Defer URL revocation so the browser has time to start the download
+      setTimeout(() => globalThis.URL.revokeObjectURL(url), 1000)
       toast.success('Export successful!', {
         description: 'Your transactions have been exported to CSV',
       })
@@ -151,7 +143,7 @@ export default function TransactionsPage() {
             <motion.button
               onClick={handleExportCSV}
               whileTap={{ scale: 0.97 }}
-              disabled={isExporting || paginatedTransactions.length === 0}
+              disabled={isExporting || filteredTransactions.length === 0}
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} />
@@ -186,7 +178,7 @@ export default function TransactionsPage() {
         {/* Table */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <TransactionTable
-            transactions={paginatedTransactions}
+            transactions={filteredTransactions}
             isLoading={isLoading}
             sorting={sorting}
             onSortingChange={setSorting}
