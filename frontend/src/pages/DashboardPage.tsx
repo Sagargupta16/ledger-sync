@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { fadeUpWithDelay } from '@/constants/animations'
+import { SCROLL_FADE_UP } from '@/constants/animations'
 import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import RecentTransactions from '@/components/shared/RecentTransactions'
@@ -125,23 +125,21 @@ export default function DashboardPage() {
       </div>
 
       {/* Financial Health & Quick Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
         <FinancialHealthScore transactions={filteredTransactions} />
 
-        <motion.div
-          {...fadeUpWithDelay(0.2)}
+        <div
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
           <QuickInsights dateRange={dateRange} />
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
 
       {/* Income & Spending Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
         {/* Income Sources Breakdown */}
-        <motion.div
-          {...fadeUpWithDelay(0.4)}
+        <div
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -216,11 +214,10 @@ export default function DashboardPage() {
               variant="compact"
             />
           )}
-        </motion.div>
+        </div>
 
         {/* Essential vs Discretionary Spending */}
-        <motion.div
-          {...fadeUpWithDelay(0.5)}
+        <div
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -292,20 +289,19 @@ export default function DashboardPage() {
               variant="compact"
             />
           )}
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
 
       {/* Recent Activity & Period Comparison */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div
-          {...fadeUpWithDelay(0.5)}
+      <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
+        <div
           className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
           <RecentTransactions transactions={recentTransactions ?? []} isLoading={isLoadingTransactions} />
-        </motion.div>
+        </div>
         <PeriodComparison />
-      </div>
+      </motion.div>
     </div>
   )
 }

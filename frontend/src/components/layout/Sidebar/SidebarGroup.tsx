@@ -1,3 +1,6 @@
+import { motion } from 'framer-motion'
+import { staggerFast } from '@/constants/animations'
+
 interface SidebarGroupProps {
   title: string
   isCollapsed?: boolean
@@ -8,7 +11,14 @@ export default function SidebarGroup({ title, isCollapsed, children }: Readonly<
   if (isCollapsed) {
     return (
       <div className="py-2 border-b border-white/[0.06] last:border-b-0">
-        <div className="space-y-1">{children}</div>
+        <motion.div
+          variants={staggerFast}
+          initial="hidden"
+          animate="visible"
+          className="space-y-1"
+        >
+          {children}
+        </motion.div>
       </div>
     )
   }
@@ -19,11 +29,16 @@ export default function SidebarGroup({ title, isCollapsed, children }: Readonly<
       <div className="px-3 py-2 mb-1">
         <span className="text-[11px] font-semibold text-[#636366] uppercase tracking-wider">{title}</span>
       </div>
-      
+
       {/* iOS-style grouped items container */}
-      <div className="space-y-0.5 rounded-xl bg-white/[0.04] p-1">
+      <motion.div
+        variants={staggerFast}
+        initial="hidden"
+        animate="visible"
+        className="space-y-0.5 rounded-xl bg-white/[0.04] p-1"
+      >
         {children}
-      </div>
+      </motion.div>
     </div>
   )
 }

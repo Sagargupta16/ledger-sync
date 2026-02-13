@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { fadeUpWithDelay } from '@/constants/animations'
+import { fadeUpWithDelay, SCROLL_FADE_UP } from '@/constants/animations'
 import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -226,7 +226,7 @@ export default function SpendingAnalysisPage() {
         {/* 50/30/20 Budget Rule Analysis */}
         <motion.div
           className="glass p-6 rounded-xl border border-white/10"
-          {...fadeUpWithDelay(0.5)}
+          {...SCROLL_FADE_UP}
         >
           <h3 className="text-lg font-semibold text-white mb-4">50/30/20 Budget Rule Analysis</h3>
           {spendingChartData.length > 0 ? (
@@ -389,22 +389,30 @@ export default function SpendingAnalysisPage() {
         </motion.div>
 
         {/* Expense Treemap */}
-        <ExpenseTreemap dateRange={dateRange} />
+        <motion.div {...SCROLL_FADE_UP}>
+          <ExpenseTreemap dateRange={dateRange} />
+        </motion.div>
 
         {/* Top Merchants */}
-        <TopMerchants dateRange={dateRange} />
+        <motion.div {...SCROLL_FADE_UP}>
+          <TopMerchants dateRange={dateRange} />
+        </motion.div>
 
         {/* Multi-Category Time Analysis */}
-        <MultiCategoryTimeAnalysis dateRange={dateRange} />
+        <motion.div {...SCROLL_FADE_UP}>
+          <MultiCategoryTimeAnalysis dateRange={dateRange} />
+        </motion.div>
 
         {/* Subcategory Deep-Dive */}
-        <EnhancedSubcategoryAnalysis dateRange={dateRange} />
+        <motion.div {...SCROLL_FADE_UP}>
+          <EnhancedSubcategoryAnalysis dateRange={dateRange} />
+        </motion.div>
 
         {/* Year-over-Year & Recurring */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
           <YearOverYearComparison />
           <RecurringTransactions />
-        </div>
+        </motion.div>
       </div>
     </div>
   )

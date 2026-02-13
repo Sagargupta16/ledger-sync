@@ -436,9 +436,10 @@ export default function TrendsForecastsPage() {
 
         {/* Main Trend Chart — Small Multiples */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <div className="flex items-center gap-3 mb-6">
@@ -575,9 +576,10 @@ export default function TrendsForecastsPage() {
 
         {/* Savings Rate Trend */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <div className="flex items-center gap-3 mb-6">
@@ -634,9 +636,10 @@ export default function TrendsForecastsPage() {
 
         {/* Monthly Breakdown Table */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Month-on-Month Breakdown</h3>

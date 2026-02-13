@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -17,15 +21,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: 'pip'
+      - name: Install Poetry
+        run: pip install poetry
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: poetry-${{ runner.os }}-${{ hashFiles('backend/poetry.lock') }}
+          restore-keys: poetry-${{ runner.os }}-
       - name: Install dependencies
-        run: |
-          pip install -e ".[dev]"
+        run: poetry install --with dev
       - name: Lint
-        run: ruff check .
+        run: poetry run ruff check .
       - name: Type check
-        run: mypy src/
+        run: poetry run mypy src/
       - name: Test
-        run: pytest tests/ -v
+        run: poetry run pytest tests/ -v
 
   frontend:
     runs-on: ubuntu-latest
@@ -36,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

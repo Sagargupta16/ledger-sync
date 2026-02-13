@@ -2,6 +2,7 @@ import { memo, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/cn'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { cardHover } from '@/constants/animations'
 
 interface CardProps {
   children: ReactNode
@@ -35,6 +36,7 @@ export const Card = memo(function Card({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay, type: 'spring', stiffness: 300, damping: 30 }}
+        whileHover={variant === 'interactive' ? cardHover : undefined}
         className={cn(variantClasses[variant], className)}
       >
         {children}

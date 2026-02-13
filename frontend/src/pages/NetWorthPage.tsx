@@ -624,9 +624,10 @@ export default function NetWorthPage() {
 
         {monthlyChanges.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-50px' }}
+            transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="glass rounded-xl border border-white/10 p-6 shadow-lg"
           >
             <div className="flex items-center gap-3 mb-6">
@@ -651,9 +652,10 @@ export default function NetWorthPage() {
         )}
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Assets (Positive Balances)</h3>
@@ -674,9 +676,10 @@ export default function NetWorthPage() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Liabilities (Negative Balances)</h3>
