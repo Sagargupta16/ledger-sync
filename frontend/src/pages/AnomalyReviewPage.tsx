@@ -67,7 +67,7 @@ export default function AnomalyReviewPage() {
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-8 space-y-6">
       <PageHeader
         title="Anomaly Review Board"
         subtitle="Review and manage detected financial anomalies"
@@ -77,7 +77,7 @@ export default function AnomalyReviewPage() {
       <motion.div
         variants={staggerContainer}
         initial="hidden"
-        animate="show"
+        animate="visible"
         className="grid grid-cols-1 md:grid-cols-3 gap-5"
       >
         <motion.div variants={fadeUpItem}>
