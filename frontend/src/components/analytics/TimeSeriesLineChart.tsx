@@ -5,11 +5,11 @@ import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import { chartTooltipProps } from '@/components/ui'
 
 interface TimeSeriesLineChartProps {
-  chartData: Array<Record<string, number | string>>
-  seriesKeys: string[]
-  colors: string[]
-  legendFormatter?: (value: string) => string
-  emptyMessage?: string
+  readonly chartData: Array<Record<string, number | string>>
+  readonly seriesKeys: string[]
+  readonly colors: string[]
+  readonly legendFormatter?: (value: string) => string
+  readonly emptyMessage?: string
 }
 
 export default function TimeSeriesLineChart({

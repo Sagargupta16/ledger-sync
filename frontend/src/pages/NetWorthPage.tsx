@@ -128,18 +128,18 @@ function computeNetWorthTimeSeries(
 }
 
 interface AccountCategoryTableProps {
-  accounts: Record<string, { balance: number; transactions: number }>
-  filterFn: (balance: number) => boolean
-  total: number
-  balanceColorClass: string
-  headerBalanceColorClass: string
-  expandedCategories: Set<string>
-  onToggleCategory: (category: string) => void
-  getAccountType: (name: string) => string
-  emptyIcon: LucideIcon
-  emptyTitle: string
-  emptyDescription: string
-  isLoading: boolean
+  readonly accounts: Record<string, { balance: number; transactions: number }>
+  readonly filterFn: (balance: number) => boolean
+  readonly total: number
+  readonly balanceColorClass: string
+  readonly headerBalanceColorClass: string
+  readonly expandedCategories: Set<string>
+  readonly onToggleCategory: (category: string) => void
+  readonly getAccountType: (name: string) => string
+  readonly emptyIcon: LucideIcon
+  readonly emptyTitle: string
+  readonly emptyDescription: string
+  readonly isLoading: boolean
 }
 
 function AccountCategoryTable({
@@ -293,7 +293,7 @@ export default function NetWorthPage() {
 
   const dataDateRange = useMemo(() => {
     if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
-    const dates = transactions.map(t => t.date.substring(0, 10)).sort()
+    const dates = transactions.map(t => t.date.substring(0, 10)).sort((a, b) => a.localeCompare(b))
     return { minDate: dates[0], maxDate: dates[dates.length - 1] }
   }, [transactions])
 
@@ -394,7 +394,7 @@ export default function NetWorthPage() {
       monthlyValues[month] = point.netWorth as number
     }
 
-    const months = Object.keys(monthlyValues).sort()
+    const months = Object.keys(monthlyValues).sort((a, b) => a.localeCompare(b))
     if (months.length < 2) return []
 
     return months.slice(1).map((month, i) => {
@@ -403,8 +403,8 @@ export default function NetWorthPage() {
       return {
         month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
         change,
-        positive: change >= 0 ? change : 0,
-        negative: change < 0 ? Math.abs(change) : 0,
+        positive: Math.max(change, 0),
+        negative: Math.max(-change, 0),
         fill: change >= 0 ? '#34c759' : '#ff6b6b',
       }
     })

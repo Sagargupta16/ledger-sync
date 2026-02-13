@@ -1,4 +1,4 @@
-# 🏦 Ledger Sync
+# Ledger Sync
 
 **Your personal finance command center** — Transform messy Excel exports into a beautiful, insightful financial dashboard.
 
@@ -6,66 +6,72 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
-![React](https://img.shields.io/badge/react-18-blue.svg)
-![TypeScript](https://img.shields.io/badge/typescript-5.0-blue.svg)
+![React](https://img.shields.io/badge/react-19-blue.svg)
+![TypeScript](https://img.shields.io/badge/typescript-5.9-blue.svg)
 
-## ✨ Features
+## Features
 
-### 📤 Smart Upload & Sync
+### Smart Upload & Sync
 
 - Drag-and-drop Excel uploads with beautiful hero UI
 - Intelligent duplicate detection using SHA-256 hashing
 - Idempotent syncing — re-upload anytime without duplicates
 - Real-time toast notifications for upload status
 
-### 📊 Spending Analysis
+### Spending Analysis
 
 - **50/30/20 Budget Rule** — Track Needs (50%), Wants (30%), and Savings (20%)
 - Category and subcategory breakdown with treemaps
 - Year-over-year spending comparisons
 - Recurring transaction detection
 
-### 💼 Investment Portfolio
+### Investment Portfolio
 
 - **4 Investment Categories**: FD/Bonds, Mutual Funds, PPF/EPF, Stocks
 - Track both inflows (investments) and outflows (redemptions)
 - Net investment calculations per category
 - Asset allocation visualization
 
-### 💸 Cash Flow Visualization
+### Cash Flow Visualization
 
 - Interactive Sankey diagrams showing money flow
-- Income → Expenses/Savings breakdown
+- Income to Expenses/Savings breakdown
 - Monthly and yearly views
 
-### 📈 Analytics & Insights
+### Analytics & Insights
 
 - Financial Health Score with 6 key metrics
 - Income vs Expense trends and forecasting
 - Tax planning for India FY (April-March)
 - Net Worth tracking across all accounts
+- Anomaly detection and review
+- Budget tracking and goals
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-| Layer            | Technology                                                        |
-| ---------------- | ----------------------------------------------------------------- |
-| **Frontend**     | React 18, TypeScript, Vite, TailwindCSS, Recharts, TanStack Query |
-| **Backend**      | Python 3.11+, FastAPI, SQLAlchemy, Alembic                        |
-| **Database**     | SQLite (default), PostgreSQL ready                                |
-| **Architecture** | Monorepo with pnpm workspaces                                     |
+| Layer            | Technology                                                                   |
+| ---------------- | ---------------------------------------------------------------------------- |
+| **Frontend**     | React 19, TypeScript 5.9, Vite 7, Tailwind CSS 4, Recharts 3, Framer Motion 12 |
+| **Backend**      | Python 3.11+, FastAPI, SQLAlchemy 2, Alembic                                |
+| **Database**     | SQLite (default), PostgreSQL ready                                           |
+| **State**        | TanStack Query 5, Zustand 5                                                 |
+| **Package Mgmt** | pnpm 10 (frontend), Poetry (backend)                                        |
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Clone the repository
 git clone https://github.com/Sagargupta16/ledger-sync.git
 cd ledger-sync
 
-# Install all dependencies
+# Install root dependencies (concurrently)
 pnpm install
 
-# Setup backend (one-time)
-pnpm run setup
+# Setup backend
+cd backend && poetry install --with dev && cd ..
+
+# Setup frontend
+cd frontend && pnpm install && cd ..
 
 # Start both frontend and backend
 pnpm run dev
@@ -73,11 +79,11 @@ pnpm run dev
 
 **Access the app:**
 
-- 🌐 Frontend: http://localhost:3000
-- 🔧 Backend API: http://localhost:8000
-- 📚 API Docs: http://localhost:8000/docs
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ledger-sync/
@@ -90,30 +96,41 @@ ledger-sync/
 │   └── tests/            # pytest tests
 ├── frontend/             # React + TypeScript frontend
 │   └── src/
-│       ├── pages/        # 13 page components
-│       ├── components/   # UI & analytics components
+│       ├── pages/        # 18 page components
+│       ├── components/   # UI & analytics components (50+)
 │       ├── hooks/        # React Query hooks
+│       ├── constants/    # Colors, animations, chart config
 │       └── services/     # API client
-└── docs/                 # Documentation
+├── docs/                 # Documentation
+└── .github/workflows/    # CI pipeline
 ```
 
-## 📊 Pages & Features
+## Pages
 
-| Page                       | Description                                    |
-| -------------------------- | ---------------------------------------------- |
-| **Dashboard**              | Overview with KPIs, charts, and quick insights |
-| **Upload & Sync**          | Beautiful upload UI with sample format preview |
-| **Transactions**           | Full transaction list with filters and search  |
-| **Spending Analysis**      | 50/30/20 rule, category breakdown, trends      |
-| **Income Analysis**        | Income sources, growth tracking                |
-| **Cash Flow**              | Sankey diagram of money flow                   |
-| **Investment Analytics**   | Portfolio across 4 categories                  |
-| **Mutual Fund Projection** | SIP calculator and projections                 |
-| **Tax Planning**           | India FY-based tax insights                    |
-| **Net Worth**              | Complete financial picture                     |
-| **Settings**               | Preferences, account mappings                  |
+| Page                       | Description                                         |
+| -------------------------- | --------------------------------------------------- |
+| **Home**                   | Landing page                                        |
+| **Dashboard**              | Overview with KPIs, sparklines, and quick insights  |
+| **Upload & Sync**          | Drag-and-drop upload with sample format preview     |
+| **Transactions**           | Full transaction list with filters and search       |
+| **Spending Analysis**      | 50/30/20 rule, treemap, top merchants, subcategories|
+| **Income Analysis**        | Income sources, growth tracking, breakdown          |
+| **Comparison**             | Period-over-period financial comparison              |
+| **Trends & Forecasts**     | Trend lines, rolling averages, cash flow forecast   |
+| **Cash Flow**              | Sankey diagram of money flow                        |
+| **Investment Analytics**   | Portfolio across 4 categories                       |
+| **Mutual Fund Projection** | SIP calculator and projections                      |
+| **Returns Analysis**       | Investment returns tracking                         |
+| **Tax Planning**           | India FY-based tax insights and slab breakdown      |
+| **Net Worth**              | Assets, liabilities, and credit card health         |
+| **Budget**                 | Budget tracking and monitoring                      |
+| **Goals**                  | Financial goal setting and progress                 |
+| **Insights**               | Advanced analytics (velocity, stability, milestones)|
+| **Anomaly Review**         | Flag and review unusual transactions                |
+| **Year in Review**         | Annual financial summary                            |
+| **Settings**               | Preferences, account mappings, categories           |
 
-## 🔧 Configuration
+## Configuration
 
 ### Backend Environment (`.env`)
 
@@ -128,7 +145,7 @@ LEDGER_SYNC_LOG_LEVEL=INFO
 VITE_API_URL=http://localhost:8000
 ```
 
-## 📖 Documentation
+## Documentation
 
 - [Architecture](docs/architecture.md) — System design and data flow
 - [API Reference](docs/API.md) — REST endpoint documentation
@@ -137,16 +154,10 @@ VITE_API_URL=http://localhost:8000
 - [Testing Guide](docs/TESTING.md) — Test strategies
 - [Deployment Guide](docs/DEPLOYMENT.md) — Production deployment
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please read the [Development Guide](docs/DEVELOPMENT.md) first.
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-<p align="center">
-  Made with ❤️ for personal finance enthusiasts
-</p>

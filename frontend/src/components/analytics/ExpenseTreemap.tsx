@@ -17,7 +17,7 @@ interface CategoryData {
 }
 
 interface ExpenseTreemapProps {
-  dateRange?: { start_date?: string; end_date?: string }
+  readonly dateRange?: { start_date?: string; end_date?: string }
 }
 
 export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {

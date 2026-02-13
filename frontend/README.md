@@ -1,95 +1,104 @@
 # Ledger Sync Frontend
 
-Modern financial analytics dashboard built with React 18, TypeScript, and Vite.
+Modern financial analytics dashboard built with React 19, TypeScript 5.9, and Vite 7.
 
 ## Tech Stack
 
-- **React 18** - UI framework
-- **TypeScript** - Type safety
-- **Vite** - Fast build tool and dev server
-- **TanStack Query** - Server state management and caching
-- **Zustand** - Lightweight global state management
-- **Recharts** - Charting library for data visualization
-- **Tailwind CSS** - Utility-first styling
-- **Framer Motion** - Animations
+- **React 19** - UI framework
+- **TypeScript 5.9** - Type safety
+- **Vite 7** - Fast build tool and dev server
+- **Tailwind CSS 4** - Utility-first styling
+- **TanStack Query 5** - Server state management and caching
+- **Zustand 5** - Lightweight global state management
+- **Recharts 3** - Charting library for data visualization
+- **Framer Motion 12** - Animations and micro-interactions
 - **Sonner** - Toast notifications
 
 ## Project Structure
 
 ```
 src/
-├── pages/              # Page components
+├── pages/                    # Page components (20 pages)
+│   ├── HomePage.tsx
 │   ├── DashboardPage.tsx
-│   ├── UploadSyncPage.tsx       # Beautiful upload UI with hero section
+│   ├── UploadSyncPage.tsx
 │   ├── TransactionsPage.tsx
-│   ├── SpendingAnalysisPage.tsx # 50/30/20 budget rule
+│   ├── SpendingAnalysisPage.tsx
 │   ├── IncomeAnalysisPage.tsx
-│   ├── IncomeExpenseFlowPage/   # Sankey diagrams
-│   ├── InvestmentAnalyticsPage.tsx # 4 investment categories
+│   ├── ComparisonPage.tsx
+│   ├── TrendsForecastsPage.tsx
+│   ├── IncomeExpenseFlowPage/     # Sankey diagrams
+│   ├── InvestmentAnalyticsPage.tsx
 │   ├── MutualFundProjectionPage.tsx
+│   ├── ReturnsAnalysisPage.tsx
 │   ├── TaxPlanningPage.tsx
 │   ├── NetWorthPage.tsx
-│   ├── TrendsForecastsPage.tsx
+│   ├── BudgetPage.tsx
+│   ├── GoalsPage.tsx
+│   ├── InsightsPage.tsx
+│   ├── AnomalyReviewPage.tsx
+│   ├── YearInReviewPage.tsx
 │   └── SettingsPage.tsx
 ├── components/
-│   ├── analytics/      # Analytics components
-│   │   ├── FinancialHealthScore.tsx
-│   │   ├── YearOverYearComparison.tsx
-│   │   ├── CashFlowForecast.tsx
-│   │   ├── ExpenseTreemap.tsx
-│   │   └── ...
+│   ├── analytics/      # Analytics components (25+)
 │   ├── layout/         # Layout components (Sidebar, AppLayout)
-│   ├── shared/         # Shared components (EmptyState, TimeFilter)
+│   ├── shared/         # Shared components (EmptyState, TimeFilter, MetricCard)
 │   ├── transactions/   # Transaction table components
-│   ├── ui/             # Base UI components (shadcn-style)
+│   ├── ui/             # Base UI components
 │   └── upload/         # Upload components (DropZone)
 ├── hooks/              # Custom React hooks
 │   ├── api/            # TanStack Query hooks
-│   │   ├── useTransactions.ts
-│   │   ├── useUpload.ts
-│   │   ├── usePreferences.ts
-│   │   └── useAnalytics.ts
-│   └── usePeriodNavigation.ts
+│   └── useDashboardMetrics.ts
 ├── services/api/       # API client modules
 ├── store/              # Zustand state stores
-├── lib/                # Utilities (formatters, dateUtils)
+├── lib/                # Utilities (formatters, dateUtils, transactionUtils)
 ├── types/              # TypeScript type definitions
-└── constants/          # App constants and colors
+└── constants/          # Colors, animations, chart config
 ```
 
 ## Key Features
 
-### Upload & Sync Page
+### Upload & Sync
 
 - Hero section with gradient background and grid pattern
 - Inline drag-and-drop upload zone
 - Sample Excel format preview table
-- Toast notifications for upload status (bottom-right, glassy style)
+- Toast notifications for upload status
 
 ### Spending Analysis
 
-- **50/30/20 Budget Rule** with 3 entities:
+- **50/30/20 Budget Rule** with configurable targets:
   - Needs (50% of income) - Essential expenses
   - Wants (30% of income) - Discretionary expenses
   - Savings (20% of income) - Income minus expenses
-- Pie chart with all 3 categories
-- Progress bars showing current vs target
+- Expense treemap, top merchants, subcategory deep-dive
+- Year-over-year comparison, recurring transaction detection
 
 ### Investment Analytics
 
-- **4 Investment Categories**:
-  - FD/Bonds (fixed deposits, bonds)
-  - Mutual Funds
-  - PPF/EPF (provident funds)
-  - Stocks
+- **4 Investment Categories**: FD/Bonds, Mutual Funds, PPF/EPF, Stocks
 - NET investment calculation (Inflows - Outflows)
-- Collective portfolio view (no time filter)
-- Asset allocation pie chart
+- Asset allocation visualization
+- Mutual fund SIP projection calculator
 
 ### Cash Flow (Sankey)
 
 - Income sources → Expense categories
 - Visual flow of money through accounts
+
+### Additional Pages
+
+- **Dashboard** - KPIs, sparklines, financial health score, quick insights
+- **Income Analysis** - Income sources, growth tracking
+- **Comparison** - Period-over-period financial comparison
+- **Trends & Forecasts** - Trend lines, rolling averages, cash flow forecast
+- **Tax Planning** - India FY-based tax insights and slab breakdown
+- **Net Worth** - Assets, liabilities, and credit card health
+- **Budget** - Budget tracking and monitoring
+- **Goals** - Financial goal setting and progress
+- **Insights** - Spending velocity, income stability, savings milestones
+- **Anomaly Review** - Flag and review unusual transactions
+- **Year in Review** - Annual financial summary
 
 ## Getting Started
 
@@ -101,10 +110,16 @@ pnpm install
 pnpm run dev
 
 # Type check
-pnpm run typecheck
+pnpm run type-check
+
+# Lint
+pnpm run lint
 
 # Build for production
 pnpm run build
+
+# Run tests
+pnpm run test
 ```
 
 ## Environment Variables
@@ -123,19 +138,10 @@ VITE_API_URL=http://localhost:8000
 
 ### Zustand (Client State)
 
-- `preferencesStore` - User preferences
+- `preferencesStore` - User display preferences
 - `accountStore` - Account mappings
 - `investmentAccountStore` - Investment category mappings
 - `budgetStore` - Budget settings
-
-## Toast Notifications
-
-Configured globally in `App.tsx`:
-
-- Position: bottom-right
-- Dark theme with glassy background
-- 4-second default duration
-- Backdrop blur effect
 
 ## Development
 

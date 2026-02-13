@@ -46,6 +46,21 @@ interface CategoryDelta {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
+
+/** Return the appropriate arrow icon for a change value */
+function ChangeIcon({ change, size = 'w-3.5 h-3.5' }: Readonly<{ change: number; size?: string }>) {
+  if (Math.abs(change) < 1) return <Minus className={`${size} text-gray-400`} />
+  if (change > 0) return <ArrowUpRight className={size} />
+  return <ArrowDownRight className={size} />
+}
+
+/** Return Tailwind class for the change badge background + text */
+function changeBadgeClass(change: number, isGood: boolean): string {
+  if (Math.abs(change) < 1) return 'text-gray-400 bg-white/[0.05]'
+  if (isGood) return 'text-green-400 bg-green-400/10'
+  return 'text-red-400 bg-red-400/10'
+}
+
 const pctChange = (curr: number, prev: number): number => {
   if (prev === 0) return curr === 0 ? 0 : 100
   return ((curr - prev) / Math.abs(prev)) * 100
@@ -66,6 +81,77 @@ const getYearOptions = (transactions: Array<{ date: string }>) => {
 const formatMonthLabel = (m: string) => {
   const [y, mo] = m.split('-')
   return new Date(Number(y), Number(mo) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+// ─── Insight generators (extracted to reduce component complexity) ──
+
+function generateIncomeInsight(periodA: PeriodSummary, periodB: PeriodSummary): string | null {
+  const incChange = pctChange(periodB.income, periodA.income)
+  if (Math.abs(incChange) < 5) return null
+  return incChange > 0
+    ? `Income grew by ${formatPercent(Math.abs(incChange))} from ${periodA.label} to ${periodB.label}.`
+    : `Income dropped by ${formatPercent(Math.abs(incChange))} from ${periodA.label} to ${periodB.label}.`
+}
+
+function generateExpenseInsight(periodA: PeriodSummary, periodB: PeriodSummary): string | null {
+  const expChange = pctChange(periodB.expense, periodA.expense)
+  if (Math.abs(expChange) < 5) return null
+  return expChange > 0
+    ? `Spending increased by ${formatPercent(Math.abs(expChange))}. Review discretionary categories.`
+    : `Spending decreased by ${formatPercent(Math.abs(expChange))} — good cost control.`
+}
+
+function generateSavingsRateInsight(periodA: PeriodSummary, periodB: PeriodSummary): string | null {
+  const rateShift = periodB.savingsRate - periodA.savingsRate
+  if (Math.abs(rateShift) < 3) return null
+  return rateShift > 0
+    ? `Savings rate improved by ${rateShift.toFixed(1)} percentage points.`
+    : `Savings rate declined by ${Math.abs(rateShift).toFixed(1)} percentage points.`
+}
+
+function generateCategorySwingInsight(expenseDeltas: CategoryDelta[]): string | null {
+  if (expenseDeltas.length === 0) return null
+  const biggest = expenseDeltas[0]
+  if (Math.abs(biggest.changeAbs) === 0) return null
+  const direction = biggest.changeAbs > 0 ? 'increased' : 'decreased'
+  return `"${biggest.category}" ${direction} the most: ${formatCurrency(Math.abs(biggest.changeAbs))} (${biggest.change > 0 ? '+' : ''}${biggest.change.toFixed(1)}%).`
+}
+
+function generateNewCategoriesInsight(periodA: PeriodSummary, periodB: PeriodSummary): string | null {
+  const newCats = Object.keys(periodB.categories).filter(
+    (c) => !periodA.categories[c] && (periodB.categories[c].expense > 0 || periodB.categories[c].income > 0)
+  )
+  if (newCats.length === 0) return null
+  return `${newCats.length} new categor${newCats.length === 1 ? 'y' : 'ies'} appeared in ${periodB.label}: ${newCats.slice(0, 3).join(', ')}${newCats.length > 3 ? '…' : ''}.`
+}
+
+function generateGoneCategoriesInsight(periodA: PeriodSummary, periodB: PeriodSummary): string | null {
+  const goneCats = Object.keys(periodA.categories).filter(
+    (c) => !periodB.categories[c] && (periodA.categories[c].expense > 0 || periodA.categories[c].income > 0)
+  )
+  if (goneCats.length === 0) return null
+  return `${goneCats.length} categor${goneCats.length === 1 ? 'y' : 'ies'} no longer active in ${periodB.label}: ${goneCats.slice(0, 3).join(', ')}${goneCats.length > 3 ? '…' : ''}.`
+}
+
+function generateTxVolumeInsight(periodA: PeriodSummary, periodB: PeriodSummary): string | null {
+  const txChange = pctChange(periodB.transactions, periodA.transactions)
+  if (Math.abs(txChange) < 15) return null
+  return txChange > 0
+    ? `Transaction volume surged ${formatPercent(Math.abs(txChange))} — more frequent activity.`
+    : `Transaction count fell ${formatPercent(Math.abs(txChange))} — fewer transactions recorded.`
+}
+
+function generateAllInsights(periodA: PeriodSummary, periodB: PeriodSummary, expenseDeltas: CategoryDelta[]): string[] {
+  const generators = [
+    () => generateIncomeInsight(periodA, periodB),
+    () => generateExpenseInsight(periodA, periodB),
+    () => generateSavingsRateInsight(periodA, periodB),
+    () => generateCategorySwingInsight(expenseDeltas),
+    () => generateNewCategoriesInsight(periodA, periodB),
+    () => generateGoneCategoriesInsight(periodA, periodB),
+    () => generateTxVolumeInsight(periodA, periodB),
+  ]
+  return generators.map(gen => gen()).filter((s): s is string => s !== null)
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -240,77 +326,10 @@ export default function ComparisonPage() {
   }, [periodB])
 
   // ─── Auto-generated insights ─────────────────────────────────────
-  const insights = useMemo(() => {
-    const items: string[] = []
-
-    // Income change
-    const incChange = pctChange(periodB.income, periodA.income)
-    if (Math.abs(incChange) >= 5) {
-      items.push(
-        incChange > 0
-          ? `Income grew by ${formatPercent(Math.abs(incChange))} from ${periodA.label} to ${periodB.label}.`
-          : `Income dropped by ${formatPercent(Math.abs(incChange))} from ${periodA.label} to ${periodB.label}.`
-      )
-    }
-
-    // Expense change
-    const expChange = pctChange(periodB.expense, periodA.expense)
-    if (Math.abs(expChange) >= 5) {
-      items.push(
-        expChange > 0
-          ? `Spending increased by ${formatPercent(Math.abs(expChange))}. Review discretionary categories.`
-          : `Spending decreased by ${formatPercent(Math.abs(expChange))} — good cost control.`
-      )
-    }
-
-    // Savings rate shift
-    const rateShift = periodB.savingsRate - periodA.savingsRate
-    if (Math.abs(rateShift) >= 3) {
-      items.push(
-        rateShift > 0
-          ? `Savings rate improved by ${rateShift.toFixed(1)} percentage points.`
-          : `Savings rate declined by ${Math.abs(rateShift).toFixed(1)} percentage points.`
-      )
-    }
-
-    // Biggest category swings
-    if (expenseDeltas.length > 0) {
-      const biggest = expenseDeltas[0]
-      if (Math.abs(biggest.changeAbs) > 0) {
-        const direction = biggest.changeAbs > 0 ? 'increased' : 'decreased'
-        items.push(
-          `"${biggest.category}" ${direction} the most: ${formatCurrency(Math.abs(biggest.changeAbs))} (${biggest.change > 0 ? '+' : ''}${biggest.change.toFixed(1)}%).`
-        )
-      }
-    }
-
-    // New or disappeared categories
-    const newCats = Object.keys(periodB.categories).filter(
-      (c) => !periodA.categories[c] && (periodB.categories[c].expense > 0 || periodB.categories[c].income > 0)
-    )
-    if (newCats.length > 0) {
-      items.push(`${newCats.length} new categor${newCats.length === 1 ? 'y' : 'ies'} appeared in ${periodB.label}: ${newCats.slice(0, 3).join(', ')}${newCats.length > 3 ? '…' : ''}.`)
-    }
-
-    const goneCategories = Object.keys(periodA.categories).filter(
-      (c) => !periodB.categories[c] && (periodA.categories[c].expense > 0 || periodA.categories[c].income > 0)
-    )
-    if (goneCategories.length > 0) {
-      items.push(`${goneCategories.length} categor${goneCategories.length === 1 ? 'y' : 'ies'} no longer active in ${periodB.label}: ${goneCategories.slice(0, 3).join(', ')}${goneCategories.length > 3 ? '…' : ''}.`)
-    }
-
-    // Transaction volume
-    const txChange = pctChange(periodB.transactions, periodA.transactions)
-    if (Math.abs(txChange) >= 15) {
-      items.push(
-        txChange > 0
-          ? `Transaction volume surged ${formatPercent(Math.abs(txChange))} — more frequent activity.`
-          : `Transaction count fell ${formatPercent(Math.abs(txChange))} — fewer transactions recorded.`
-      )
-    }
-
-    return items
-  }, [periodA, periodB, expenseDeltas])
+  const insights = useMemo(
+    () => generateAllInsights(periodA, periodB, expenseDeltas),
+    [periodA, periodB, expenseDeltas]
+  )
 
   // ─── Render ───────────────────────────────────────────────────
   if (isLoading) {
@@ -887,13 +906,7 @@ function OverviewMetricRow({
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-white">{label}</span>
         <div className={`flex items-center gap-1 text-xs font-medium ${isGood ? 'text-green-400' : 'text-red-400'}`}>
-          {Math.abs(change) < 1 ? (
-            <Minus className="w-3 h-3 text-gray-400" />
-          ) : change > 0 ? (
-            <ArrowUpRight className="w-3 h-3" />
-          ) : (
-            <ArrowDownRight className="w-3 h-3" />
-          )}
+          <ChangeIcon change={change} size="w-3 h-3" />
           <span>{change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}</span>
         </div>
       </div>
@@ -965,20 +978,8 @@ function CategoryDeltaRow({
       {/* Header: category name + change badge */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium text-white truncate flex-1">{category}</span>
-        <span className={`flex items-center gap-1 text-xs font-semibold ml-2 px-2 py-0.5 rounded-full ${
-          Math.abs(change) < 1
-            ? 'text-gray-400 bg-white/[0.05]'
-            : isGood
-              ? 'text-green-400 bg-green-400/10'
-              : 'text-red-400 bg-red-400/10'
-        }`}>
-          {Math.abs(change) < 1 ? (
-            <Minus className="w-3 h-3" />
-          ) : change > 0 ? (
-            <ArrowUpRight className="w-3 h-3" />
-          ) : (
-            <ArrowDownRight className="w-3 h-3" />
-          )}
+        <span className={`flex items-center gap-1 text-xs font-semibold ml-2 px-2 py-0.5 rounded-full ${changeBadgeClass(change, isGood)}`}>
+          <ChangeIcon change={change} size="w-3 h-3" />
           {change > 0 ? '+' : ''}{change.toFixed(1)}%
         </span>
       </div>

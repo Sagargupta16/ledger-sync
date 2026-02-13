@@ -15,10 +15,10 @@
 # Clone and setup
 git clone https://github.com/Sagargupta16/ledger-sync.git
 cd ledger-sync
-ppnpm run setup   # Installs all dependencies
+pnpm run setup   # Installs all dependencies
 
 # Run development servers
-ppnpm run dev     # Backend: http://localhost:8000, Frontend: http://localhost:3000
+pnpm run dev     # Backend: http://localhost:8000, Frontend: http://localhost:3000
 ```
 
 ### Manual Setup
@@ -28,28 +28,19 @@ ppnpm run dev     # Backend: http://localhost:8000, Frontend: http://localhost:3
 git clone https://github.com/Sagargupta16/ledger-sync.git
 cd ledger-sync
 
-# 2. Create Python virtual environment
-python -m venv venv
-
-# 3. Activate virtual environment
-# Windows
-venv\Scripts\activate
-# macOS/Linux
-source venv/bin/activate
-
-# 4. Install Python dependencies
+# 2. Install Python dependencies
 cd backend
-pip install -e ".[dev]"
+poetry install --with dev
 cd ..
 
-# 5. Install Node dependencies
+# 3. Install Node dependencies
 cd frontend
-ppnpm install
+pnpm install
 cd ..
 
-# 6. Initialize database
+# 4. Initialize database
 cd backend
-alembic upgrade head
+poetry run alembic upgrade head
 cd ..
 ```
 
@@ -57,31 +48,25 @@ cd ..
 
 ### Option 1: Concurrent Development (Recommended)
 
-```powershell
+```bash
 # From project root - runs both services
-ppnpm run dev
+pnpm run dev
 ```
 
 ### Option 2: Run Services Separately
 
 **Terminal 1 - Backend:**
 
-```powershell
+```bash
 cd backend
-python -m uvicorn ledger_sync.api.main:app --reload
+poetry run uvicorn ledger_sync.api.main:app --reload --port 8000
 ```
 
 **Terminal 2 - Frontend:**
 
-```powershell
+```bash
 cd frontend
-ppnpm run dev
-```
-
-### Option 3: PowerShell Script
-
-```powershell
-.\start.ps1
+pnpm run dev
 ```
 
 ## Backend Development
@@ -98,7 +83,7 @@ backend/
 │   └── utils/            # Utilities
 ├── tests/                # Test suite
 ├── alembic/              # Migrations
-└── requirements.txt      # Dependencies
+└── pyproject.toml        # Dependencies (Poetry)
 ```
 
 ### Hot Reload
@@ -154,32 +139,29 @@ class NewModel(Base):
 2. **Create migration**:
 
 ```bash
-alembic revision --autogenerate -m "Add new_table"
+poetry run alembic revision --autogenerate -m "Add new_table"
 ```
 
 3. **Apply migration**:
 
 ```bash
-alembic upgrade head
+poetry run alembic upgrade head
 ```
 
 ### Testing Backend
 
 ```bash
 # Run all tests
-pytest
+poetry run pytest tests/ -v
 
 # Run specific test file
-pytest tests/unit/test_hash_id.py
+poetry run pytest tests/unit/test_hash_id.py
 
 # Run with coverage
-pytest --cov=ledger_sync tests/
+poetry run pytest --cov=ledger_sync tests/
 
 # Run with verbose output
-pytest -v
-
-# Run in watch mode (requires pytest-watch)
-ptw
+poetry run pytest -v
 ```
 
 ### Writing Tests
@@ -259,9 +241,9 @@ print(f"Elapsed: {end - start:.3f}s")
 ```
 frontend/
 ├── src/
-│   ├── pages/           # Page components (13 pages)
+│   ├── pages/           # Page components (20 pages)
 │   ├── components/      # UI components
-│   │   ├── analytics/   # Analytics components (13 components)
+│   │   ├── analytics/   # Analytics components (25+)
 │   │   ├── layout/      # Layout components
 │   │   ├── shared/      # Shared components
 │   │   ├── transactions/ # Transaction components
@@ -536,9 +518,8 @@ git push origin feature/new-feature
 
 ```bash
 cd backend
-pip install --upgrade pip
-pip list --outdated
-pip install -U package_name
+poetry show --outdated
+poetry update package_name
 ```
 
 **Frontend:**
@@ -556,13 +537,13 @@ pnpm install new-package
 cd backend
 
 # Create migration
-alembic revision --autogenerate -m "Description"
+poetry run alembic revision --autogenerate -m "Description"
 
 # Apply
-alembic upgrade head
+poetry run alembic upgrade head
 
 # Rollback
-alembic downgrade -1
+poetry run alembic downgrade -1
 ```
 
 ### Environment Variables
@@ -572,8 +553,8 @@ Create `.env` files:
 **backend/.env**
 
 ```
-DATABASE_URL=sqlite:///ledger_sync.db
-DEBUG=True
+LEDGER_SYNC_DATABASE_URL=sqlite:///./ledger_sync.db
+LEDGER_SYNC_LOG_LEVEL=INFO
 ```
 
 **frontend/.env**
@@ -606,8 +587,7 @@ git push origin feature/my-feature
 ### Backend won't start
 
 1. Check Python version: `python --version`
-2. Activate virtual environment
-3. Install dependencies: `pip install -e ".[dev]"`
+2. Install dependencies: `cd backend && poetry install --with dev`
 4. Check port 8000 is available
 5. Check database permissions
 
@@ -622,7 +602,7 @@ git push origin feature/my-feature
 ### Database errors
 
 1. Check SQLite file exists
-2. Run migrations: `alembic upgrade head`
+2. Run migrations: `poetry run alembic upgrade head`
 3. Check permissions on database file
 4. Reset database: delete `.db` file and re-run migrations
 

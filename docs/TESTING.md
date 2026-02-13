@@ -34,31 +34,25 @@ backend/tests/
 cd backend
 
 # Run all tests
-pytest
+poetry run pytest tests/ -v
 
 # Run specific test file
-pytest tests/unit/test_hash_id.py
+poetry run pytest tests/unit/test_hash_id.py
 
 # Run specific test function
-pytest tests/unit/test_hash_id.py::test_hash_generation
-
-# Run with verbose output
-pytest -v
+poetry run pytest tests/unit/test_hash_id.py::test_hash_generation
 
 # Run with coverage
-pytest --cov=ledger_sync tests/
+poetry run pytest --cov=ledger_sync tests/
 
 # Run with coverage and HTML report
-pytest --cov=ledger_sync --cov-report=html tests/
-
-# Run in watch mode (requires pytest-watch)
-ptw
+poetry run pytest --cov=ledger_sync --cov-report=html tests/
 
 # Run only failing tests
-pytest --lf
+poetry run pytest --lf
 
 # Run with detailed output
-pytest -vv --tb=long
+poetry run pytest -vv --tb=long
 ```
 
 ### Writing Unit Tests
@@ -247,7 +241,7 @@ def test_api_call_with_mock():
 
 ```bash
 # Generate coverage report
-pytest --cov=ledger_sync --cov-report=html tests/
+poetry run pytest --cov=ledger_sync --cov-report=html tests/
 
 # View HTML report
 open htmlcov/index.html  # macOS
@@ -257,35 +251,11 @@ xdg-open htmlcov/index.html # Linux
 
 ### Continuous Integration
 
-Example GitHub Actions workflow (`.github/workflows/test.yml`):
+The project uses GitHub Actions for CI. See `.github/workflows/ci.yml` for the full workflow. Backend tests run with:
 
-```yaml
-name: Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.11
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-
-      - name: Run tests
-        run: pytest --cov=ledger_sync tests/
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v2
+```bash
+poetry install --with dev
+poetry run pytest tests/ -v
 ```
 
 ## Frontend Testing
@@ -482,7 +452,7 @@ it("matches snapshot", () => {
 Update snapshots after intentional changes:
 
 ```bash
-npm test -- -u
+pnpm test -- -u
 ```
 
 ## Performance Testing
@@ -615,11 +585,6 @@ npm test -- --watch --debug
 
 Use husky to run tests before commit:
 
-```bash
-npx husky install
-npx husky add .husky/pre-commit "pytest && npm test"
-```
-
 ### GitHub Actions
 
-Automatically run tests on push/PR to ensure code quality.
+The CI workflow in `.github/workflows/ci.yml` automatically runs backend tests (pytest), linting (ruff), type checking (mypy), and frontend type checks, linting, and builds on every push and pull request.

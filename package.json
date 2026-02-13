@@ -4,7 +4,7 @@
   "description": "Production-ready data ingestion and reconciliation engine with modern web interface",
   "scripts": {
     "setup": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run setup:backend\" \"pnpm run setup:frontend\"",
-    "setup:backend": "cd backend && python -m pip install -e .[dev]",
+    "setup:backend": "cd backend && poetry install --with dev",
     "setup:frontend": "cd frontend && pnpm install",
     "dev": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
     "dev:backend": "cd backend && python -m uvicorn ledger_sync.api.main:app --reload --reload-dir src --reload-include \"*.py\" --port 8000",

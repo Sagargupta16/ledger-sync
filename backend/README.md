@@ -4,11 +4,11 @@ FastAPI backend for financial data processing and analytics.
 
 ## Features
 
-- 📤 Excel file ingestion with duplicate detection
-- 🔄 SHA-256 based transaction reconciliation
-- 📊 Financial analytics and calculations
-- 🗄️ SQLite database with SQLAlchemy ORM
-- 🔀 Alembic database migrations
+- Excel file ingestion with duplicate detection
+- SHA-256 based transaction reconciliation
+- Financial analytics and calculations
+- SQLite database with SQLAlchemy ORM
+- Alembic database migrations
 
 ## Tech Stack
 
@@ -20,18 +20,21 @@ FastAPI backend for financial data processing and analytics.
 | Database   | SQLite         |
 | Migrations | Alembic        |
 | Testing    | pytest         |
+| Linting    | Ruff           |
+| Type Check | mypy           |
+| Packaging  | Poetry         |
 
 ## Quick Start
 
-```powershell
-# Install dependencies
-pip install -e ".[dev]"
+```bash
+# Install dependencies (including dev tools)
+poetry install --with dev
 
 # Initialize database
-alembic upgrade head
+poetry run alembic upgrade head
 
 # Start development server
-python -m uvicorn ledger_sync.api.main:app --reload
+poetry run uvicorn ledger_sync.api.main:app --reload --port 8000
 ```
 
 Backend available at http://localhost:8000
@@ -104,41 +107,41 @@ backend/
 
 ### Running Tests
 
-```powershell
+```bash
 # Run all tests
-pytest
+poetry run pytest tests/ -v
 
 # Run with coverage
-pytest --cov=ledger_sync tests/
+poetry run pytest --cov=ledger_sync tests/
 
 # Run specific test file
-pytest tests/unit/test_hash_id.py -v
+poetry run pytest tests/unit/test_hash_id.py -v
+```
+
+### Linting & Type Checking
+
+```bash
+# Lint
+poetry run ruff check .
+
+# Auto-fix lint issues
+poetry run ruff check --fix .
+
+# Type check
+poetry run mypy src/
 ```
 
 ### Database Migrations
 
-```powershell
+```bash
 # Apply migrations
-alembic upgrade head
+poetry run alembic upgrade head
 
 # Create new migration
-alembic revision --autogenerate -m "description"
+poetry run alembic revision --autogenerate -m "description"
 
 # Rollback one migration
-alembic downgrade -1
-```
-
-### CLI Commands
-
-```powershell
-# Import Excel file
-python -m ledger_sync.cli.main import file.xlsx
-
-# Force re-import
-python -m ledger_sync.cli.main import file.xlsx --force
-
-# Verbose output
-python -m ledger_sync.cli.main import file.xlsx --verbose
+poetry run alembic downgrade -1
 ```
 
 ## API Documentation
@@ -150,8 +153,8 @@ python -m ledger_sync.cli.main import file.xlsx --verbose
 
 Environment variables (optional):
 
-- `DATABASE_URL` - Database connection string
-- `CORS_ORIGINS` - Allowed CORS origins
+- `LEDGER_SYNC_DATABASE_URL` - Database connection string (default: `sqlite:///./ledger_sync.db`)
+- `LEDGER_SYNC_LOG_LEVEL` - Log level (default: `INFO`)
 
 ## License
 

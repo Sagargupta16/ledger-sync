@@ -562,7 +562,10 @@ def get_anomalies(
     }
 
 
-@router.post("/anomalies/{anomaly_id}/review")
+@router.post(
+    "/anomalies/{anomaly_id}/review",
+    responses={404: {"description": "Anomaly not found"}},
+)
 def review_anomaly(
     anomaly_id: int,
     current_user: CurrentUser,

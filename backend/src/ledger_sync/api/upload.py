@@ -19,6 +19,11 @@ from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="", tags=["upload"])
 
+# Accepted file extensions
+_XLSX_EXT = ".xlsx"
+_XLS_EXT = ".xls"
+_ACCEPTED_EXTENSIONS = (_XLSX_EXT, _XLS_EXT)
+
 # Excel file magic bytes for validation
 _XLSX_MAGIC = b"PK"  # ZIP archive (OOXML format)
 _XLS_MAGIC = b"\xd0\xcf\x11\xe0"  # OLE2 compound document
@@ -40,10 +45,10 @@ def _validate_upload_file(filename: str | None) -> str:
     if not filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
-    if not filename.endswith((".xlsx", ".xls")):
+    if not filename.endswith(_ACCEPTED_EXTENSIONS):
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file type. Expected .xlsx or .xls, got {filename}",
+            detail=f"Invalid file type. Expected {_XLSX_EXT} or {_XLS_EXT}, got {filename}",
         )
 
     return filename
@@ -60,15 +65,15 @@ def _validate_file_content(content: bytes, filename: str) -> None:
         HTTPException: If content doesn't match expected Excel magic bytes.
 
     """
-    if filename.endswith(".xlsx") and not content[:2].startswith(_XLSX_MAGIC):
+    if filename.endswith(_XLSX_EXT) and not content[:2].startswith(_XLSX_MAGIC):
         raise HTTPException(
             status_code=400,
-            detail="File content does not match .xlsx format",
+            detail=f"File content does not match {_XLSX_EXT} format",
         )
-    if filename.endswith(".xls") and not content[:4].startswith(_XLS_MAGIC):
+    if filename.endswith(_XLS_EXT) and not content[:4].startswith(_XLS_MAGIC):
         raise HTTPException(
             status_code=400,
-            detail="File content does not match .xls format",
+            detail=f"File content does not match {_XLS_EXT} format",
         )
 
 
@@ -101,7 +106,7 @@ async def _create_temp_file(file: UploadFile, filename: str) -> Path:
     # Validate file content magic bytes
     _validate_file_content(content, filename)
 
-    tmp_fd, tmp_name = tempfile.mkstemp(suffix=".xlsx")
+    tmp_fd, tmp_name = tempfile.mkstemp(suffix=_XLSX_EXT)
     os.close(tmp_fd)
     tmp_path = Path(tmp_name)
     await anyio.Path(tmp_path).write_bytes(content)

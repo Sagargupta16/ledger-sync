@@ -70,6 +70,36 @@ const modeAccent: Record<HeatmapMode, string> = {
   net: rawColors.ios.blue,
 }
 
+/** Get monthly value for a given mode */
+function getMonthlyValue(
+  mode: HeatmapMode,
+  monthlyExpense: number[],
+  monthlyIncome: number[],
+  index: number,
+): number {
+  if (mode === 'expense') return monthlyExpense[index]
+  if (mode === 'income') return monthlyIncome[index]
+  return monthlyIncome[index] - monthlyExpense[index]
+}
+
+/** Get max monthly value for a given mode (used for intensity scaling) */
+function getMonthlyMax(
+  mode: HeatmapMode,
+  monthlyExpense: number[],
+  monthlyIncome: number[],
+): number {
+  if (mode === 'expense') return Math.max(...monthlyExpense)
+  if (mode === 'income') return Math.max(...monthlyIncome)
+  return Math.max(...monthlyIncome.map((inc, idx) => Math.abs(inc - monthlyExpense[idx])))
+}
+
+/** Get streak color based on streak length */
+function getStreakColor(maxStreak: number): string {
+  if (maxStreak >= 14) return rawColors.ios.purple
+  if (maxStreak >= 7) return rawColors.ios.blue
+  return rawColors.ios.green
+}
+
 // ─── Extracted helpers (outside component to avoid cognitive complexity) ──
 
 /** Aggregate per-day expense/income totals from transactions within a date range. */
@@ -201,6 +231,47 @@ function accumulateStats(grid: DayCell[]) {
     monthlyExpense,
     monthlyIncome,
   }
+}
+
+/** Render a single heatmap cell */
+function HeatmapCell({ cell, mode, modeMax }: Readonly<{ cell: DayCell; mode: HeatmapMode; modeMax: number }>) {
+  const valMap = { expense: cell.expense, income: cell.income, net: Math.abs(cell.net) }
+  const val = valMap[mode]
+  const level = getIntensityLevel(val, modeMax)
+  const bgColor = heatmapColors[mode][level]
+
+  return (
+    <div
+      data-cell-date={cell.date}
+      className="w-[13px] h-[13px] rounded-sm transition-[outline-color] duration-150 hover:ring-1 hover:ring-white/50"
+      style={{
+        backgroundColor: bgColor,
+        outline: cell.isToday ? `2px solid ${modeAccent[mode]}` : undefined,
+        outlineOffset: cell.isToday ? '-1px' : undefined,
+      }}
+    />
+  )
+}
+
+/** Render the week columns of the heatmap grid */
+function HeatmapWeeks({ grid, mode, modeMax }: Readonly<{ grid: DayCell[]; mode: HeatmapMode; modeMax: number }>) {
+  const totalWeeks = grid.length > 0 ? (grid.at(-1)?.weekIndex ?? 52) + 1 : 53
+  const weeks: React.ReactNode[] = []
+
+  for (let w = 0; w < totalWeeks; w++) {
+    const weekCells = grid.filter((c) => c.weekIndex === w)
+    weeks.push(
+      <div key={w} className="flex flex-col gap-0.5">
+        {Array.from({ length: 7 }, (_, dow) => {
+          const cell = weekCells.find((c) => c.dayOfWeek === dow)
+          if (!cell) return <div key={dow} className="w-[13px] h-[13px]" />
+          return <HeatmapCell key={dow} cell={cell} mode={mode} modeMax={modeMax} />
+        })}
+      </div>
+    )
+  }
+
+  return <>{weeks}</>
 }
 
 // ─── Main Component ─────────────────────────────────────────────────
@@ -441,42 +512,7 @@ export default function YearInReviewPage() {
                   onMouseLeave={() => setHoveredDay(null)}
                   onBlur={() => setHoveredDay(null)}
                 >
-                  {(() => {
-                    const totalWeeks = grid.length > 0 ? (grid.at(-1)?.weekIndex ?? 52) + 1 : 53
-                    const weeks: React.ReactNode[] = []
-
-                    for (let w = 0; w < totalWeeks; w++) {
-                      const weekCells = grid.filter((c) => c.weekIndex === w)
-                      weeks.push(
-                        <div key={w} className="flex flex-col gap-0.5">
-                          {Array.from({ length: 7 }, (_, dow) => {
-                            const cell = weekCells.find((c) => c.dayOfWeek === dow)
-                            if (!cell) {
-                              return <div key={dow} className="w-[13px] h-[13px]" />
-                            }
-                            const valMap = { expense: cell.expense, income: cell.income, net: Math.abs(cell.net) }
-                            const val = valMap[mode]
-                            const level = getIntensityLevel(val, modeMax)
-                            const bgColor = heatmapColors[mode][level]
-
-                            return (
-                              <div
-                                key={dow}
-                                data-cell-date={cell.date}
-                                className="w-[13px] h-[13px] rounded-sm transition-[outline-color] duration-150 hover:ring-1 hover:ring-white/50"
-                                style={{
-                                  backgroundColor: bgColor,
-                                  outline: cell.isToday ? `2px solid ${modeAccent[mode]}` : undefined,
-                                  outlineOffset: cell.isToday ? '-1px' : undefined,
-                                }}
-                              />
-                            )
-                          })}
-                        </div>
-                      )
-                    }
-                    return weeks
-                  })()}
+                  <HeatmapWeeks grid={grid} mode={mode} modeMax={modeMax} />
                 </section>
               </div>
             </div>
@@ -486,12 +522,8 @@ export default function YearInReviewPage() {
         {/* Mobile monthly summary — replaces heatmap on small screens */}
         <div className="md:hidden grid grid-cols-3 gap-2">
           {MONTHS_SHORT.map((m, i) => {
-            const val = mode === 'expense' ? stats.monthlyExpense[i]
-              : mode === 'income' ? stats.monthlyIncome[i]
-              : stats.monthlyIncome[i] - stats.monthlyExpense[i]
-            const maxVal = mode === 'expense' ? Math.max(...stats.monthlyExpense)
-              : mode === 'income' ? Math.max(...stats.monthlyIncome)
-              : Math.max(...stats.monthlyIncome.map((inc, idx) => Math.abs(inc - stats.monthlyExpense[idx])))
+            const val = getMonthlyValue(mode, stats.monthlyExpense, stats.monthlyIncome, i)
+            const maxVal = getMonthlyMax(mode, stats.monthlyExpense, stats.monthlyIncome)
             const level = getIntensityLevel(Math.abs(val), maxVal)
             return (
               <div
@@ -625,7 +657,7 @@ export default function YearInReviewPage() {
                     />
                   ))}
                 </div>
-                <span className="text-sm font-bold" style={{ color: stats.maxStreak >= 14 ? rawColors.ios.purple : stats.maxStreak >= 7 ? rawColors.ios.blue : rawColors.ios.green }}>
+                <span className="text-sm font-bold" style={{ color: getStreakColor(stats.maxStreak) }}>
                   {stats.maxStreak} days
                 </span>
               </div>

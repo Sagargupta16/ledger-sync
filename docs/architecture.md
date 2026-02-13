@@ -172,18 +172,26 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
 #### 1. **Pages Layer** (`src/pages/`)
 
 - **Responsibility**: Screen-level components, layout, page composition
-- **Components** (12 pages):
-  - `DashboardPage` - Main dashboard with overview and analytics
-  - `TransactionsPage` - Transaction table with filtering
+- **Components** (20 pages):
+  - `HomePage` - Landing page
+  - `DashboardPage` - Main dashboard with KPIs, sparklines, and quick insights
   - `UploadSyncPage` - Hero upload UI with sample format preview
+  - `TransactionsPage` - Transaction table with filtering
   - `SpendingAnalysisPage` - 50/30/20 budget rule analysis
-  - `IncomeAnalysisPage` - Income analysis
-  - `IncomeExpenseFlowPage` - Sankey diagram cash flow visualization
+  - `IncomeAnalysisPage` - Income sources and growth tracking
+  - `ComparisonPage` - Period-over-period financial comparison
   - `TrendsForecastsPage` - Trends and forecasting
+  - `IncomeExpenseFlowPage` - Sankey diagram cash flow visualization
   - `InvestmentAnalyticsPage` - 4-category investment portfolio
   - `MutualFundProjectionPage` - SIP/MF projections
+  - `ReturnsAnalysisPage` - Investment returns tracking
   - `TaxPlanningPage` - Tax planning tools
   - `NetWorthPage` - Net worth tracking
+  - `BudgetPage` - Budget tracking and monitoring
+  - `GoalsPage` - Financial goal setting and progress
+  - `InsightsPage` - Advanced analytics (velocity, stability, milestones)
+  - `AnomalyReviewPage` - Flag and review unusual transactions
+  - `YearInReviewPage` - Annual financial summary
   - `SettingsPage` - App settings and preferences
 
 #### 2. **Components Layer** (`src/components/`)

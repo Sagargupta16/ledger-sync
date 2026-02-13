@@ -78,6 +78,60 @@ function computeBudgetRuleMetrics(
   }
 }
 
+/** A single budget rule card (Needs/Wants/Savings) */
+function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, isOverBudget, accentColor, bgClass, iconBgClass, textClass, delay }: Readonly<{
+  title: string
+  subtitle: string
+  icon: React.ComponentType<{ className?: string }>
+  value: number
+  percent: number
+  target: string
+  isOverBudget: boolean
+  accentColor: string
+  bgClass: string
+  iconBgClass: string
+  textClass: string
+  delay: number
+}>) {
+  const barColor = isOverBudget ? SEMANTIC_COLORS.expense : accentColor
+  const statusColorClass = isOverBudget ? 'text-red-400' : 'text-green-400'
+
+  return (
+    <div className={`p-4 rounded-lg ${bgClass}`}>
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`p-2 ${iconBgClass} rounded-lg`}>
+          <Icon className={`w-5 h-5 ${textClass}`} />
+        </div>
+        <div>
+          <p className="font-medium text-white">{title}</p>
+          <p className="text-xs text-gray-400">{subtitle}</p>
+        </div>
+      </div>
+      <p className={`text-2xl font-bold ${textClass} mb-2`}>
+        {formatCurrency(value)}
+      </p>
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Current</span>
+          <span className={statusColorClass}>
+            {formatPercent(percent)}
+          </span>
+        </div>
+        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(percent, 100)}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut', delay }}
+            style={{ backgroundColor: barColor }}
+          />
+        </div>
+        <p className="text-xs text-gray-500">Target: {target} of income</p>
+      </div>
+    </div>
+  )
+}
+
 export default function SpendingAnalysisPage() {
   const { data: transactions } = useTransactions()
   const { data: preferences } = usePreferences()
@@ -270,112 +324,52 @@ export default function SpendingAnalysisPage() {
               </div>
 
               {/* Needs Card (50%) */}
-              <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <ShieldCheck className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">Needs (50%)</p>
-                    <p className="text-xs text-gray-400">Housing, Healthcare, Food, etc.</p>
-                  </div>
-                </div>
-                <p className="text-2xl font-bold text-blue-400 mb-2">
-                  {formatCurrency(spendingBreakdown?.essential || 0)}
-                </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Current</span>
-                    <span className={budgetRuleMetrics?.isOverspendingEssential ? 'text-red-400' : 'text-green-400'}>
-                      {formatPercent(budgetRuleMetrics?.essentialPercent || 0)}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(budgetRuleMetrics?.essentialPercent || 0, 100)}%` }}
-                      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
-                      style={{
-                        backgroundColor: budgetRuleMetrics?.isOverspendingEssential ? SEMANTIC_COLORS.expense : SPENDING_TYPE_COLORS.essential,
-                      }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500">Target: ≤50% of income</p>
-                </div>
-              </div>
+              <BudgetRuleCard
+                title="Needs (50%)"
+                subtitle="Housing, Healthcare, Food, etc."
+                icon={ShieldCheck}
+                value={spendingBreakdown?.essential || 0}
+                percent={budgetRuleMetrics?.essentialPercent || 0}
+                target="≤50%"
+                isOverBudget={budgetRuleMetrics?.isOverspendingEssential || false}
+                accentColor={SPENDING_TYPE_COLORS.essential}
+                bgClass="bg-blue-500/10 border border-blue-500/20"
+                iconBgClass="bg-blue-500/20"
+                textClass="text-blue-400"
+                delay={0.3}
+              />
 
               {/* Wants Card (30%) */}
-              <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-orange-500/20 rounded-lg">
-                    <Sparkles className="w-5 h-5 text-orange-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">Wants (30%)</p>
-                    <p className="text-xs text-gray-400">Entertainment, Shopping, etc.</p>
-                  </div>
-                </div>
-                <p className="text-2xl font-bold text-orange-400 mb-2">
-                  {formatCurrency(spendingBreakdown?.discretionary || 0)}
-                </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Current</span>
-                    <span className={budgetRuleMetrics?.isOverspendingDiscretionary ? 'text-red-400' : 'text-green-400'}>
-                      {formatPercent(budgetRuleMetrics?.discretionaryPercent || 0)}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(budgetRuleMetrics?.discretionaryPercent || 0, 100)}%` }}
-                      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.4 }}
-                      style={{
-                        backgroundColor: budgetRuleMetrics?.isOverspendingDiscretionary ? SEMANTIC_COLORS.expense : SPENDING_TYPE_COLORS.discretionary,
-                      }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500">Target: ≤30% of income</p>
-                </div>
-              </div>
+              <BudgetRuleCard
+                title="Wants (30%)"
+                subtitle="Entertainment, Shopping, etc."
+                icon={Sparkles}
+                value={spendingBreakdown?.discretionary || 0}
+                percent={budgetRuleMetrics?.discretionaryPercent || 0}
+                target="≤30%"
+                isOverBudget={budgetRuleMetrics?.isOverspendingDiscretionary || false}
+                accentColor={SPENDING_TYPE_COLORS.discretionary}
+                bgClass="bg-orange-500/10 border border-orange-500/20"
+                iconBgClass="bg-orange-500/20"
+                textClass="text-orange-400"
+                delay={0.4}
+              />
 
               {/* Savings Card (20%) */}
-              <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-emerald-500/20 rounded-lg">
-                    <PiggyBank className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">Savings (20%)</p>
-                    <p className="text-xs text-gray-400">Income minus Expenses</p>
-                  </div>
-                </div>
-                <p className="text-2xl font-bold text-emerald-400 mb-2">
-                  {formatCurrency(savings)}
-                </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Current</span>
-                    <span className={budgetRuleMetrics?.isUnderSaving ? 'text-red-400' : 'text-green-400'}>
-                      {formatPercent(budgetRuleMetrics?.savingsPercent || 0)}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(budgetRuleMetrics?.savingsPercent || 0, 100)}%` }}
-                      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.5 }}
-                      style={{
-                        backgroundColor: budgetRuleMetrics?.isUnderSaving ? SEMANTIC_COLORS.expense : SAVINGS_COLOR,
-                      }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500">Target: ≥20% of income</p>
-                </div>
-              </div>
+              <BudgetRuleCard
+                title="Savings (20%)"
+                subtitle="Income minus Expenses"
+                icon={PiggyBank}
+                value={savings}
+                percent={budgetRuleMetrics?.savingsPercent || 0}
+                target="≥20%"
+                isOverBudget={budgetRuleMetrics?.isUnderSaving || false}
+                accentColor={SAVINGS_COLOR}
+                bgClass="bg-emerald-500/10 border border-emerald-500/20"
+                iconBgClass="bg-emerald-500/20"
+                textClass="text-emerald-400"
+                delay={0.5}
+              />
             </div>
           ) : (
             <EmptyState

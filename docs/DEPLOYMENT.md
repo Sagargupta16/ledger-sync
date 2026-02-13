@@ -6,9 +6,9 @@ This guide covers deploying Ledger Sync to various environments and platforms.
 
 ## Pre-Deployment Checklist
 
-- [ ] All tests passing (`pytest`, `npm test`)
-- [ ] No TypeScript errors (`npm run type-check`)
-- [ ] No linting errors (`npm run lint`)
+- [ ] All tests passing (`poetry run pytest`, `pnpm test`)
+- [ ] No TypeScript errors (`pnpm run type-check`)
+- [ ] No linting errors (`pnpm run lint`, `poetry run ruff check .`)
 - [ ] Environment variables configured
 - [ ] Database backups created
 - [ ] Git repository clean (all changes committed)
@@ -25,12 +25,12 @@ git clone https://github.com/Sagargupta16/ledger-sync.git
 cd ledger-sync
 
 # Setup
-npm install
-cd backend && pip install -r requirements.txt && alembic upgrade head && cd ..
-cd frontend && npm install && cd ..
+pnpm install
+cd backend && poetry install --with dev && cd ..
+cd frontend && pnpm install && cd ..
 
 # Run
-npm run dev
+pnpm run dev
 ```
 
 Accessible at http://localhost:3000
@@ -59,7 +59,7 @@ ssh user@server.com
 
 ```bash
 sudo apt update
-sudo apt install -y python3.11 python3.11-venv python3-pip nodejs npm nginx
+sudo apt install -y python3.11 python3.11-venv python3-pip nodejs nginx
 ```
 
 3. **Clone Repository**
@@ -73,21 +73,20 @@ cd ledger-sync
 4. **Setup Backend**
 
 ```bash
+pip install poetry
 cd backend
-python3.11 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-alembic upgrade head
-deactivate
+poetry install --with dev
+poetry run alembic upgrade head
 cd ..
 ```
 
 5. **Build Frontend**
 
 ```bash
+npm install -g pnpm
 cd frontend
-npm install
-npm run build  # Creates dist/ folder
+pnpm install
+pnpm run build  # Creates dist/ folder
 cd ..
 ```
 
@@ -103,8 +102,7 @@ After=network.target
 Type=notify
 User=user
 WorkingDirectory=/home/user/ledger-sync/backend
-Environment="PATH=/home/user/ledger-sync/backend/venv/bin"
-ExecStart=/home/user/ledger-sync/backend/venv/bin/python -m uvicorn ledger_sync.api.main:app --host 127.0.0.1 --port 8000
+ExecStart=/usr/local/bin/poetry run uvicorn ledger_sync.api.main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=10
 
@@ -185,16 +183,19 @@ sudo tail -f /var/log/nginx/error.log
 
 ```dockerfile
 # backend/Dockerfile
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies and Poetry
 RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
+RUN pip install poetry
 
-# Copy and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies
+RUN poetry config virtualenvs.create false && poetry install --without dev
 
 # Copy application
 COPY . .
@@ -210,13 +211,14 @@ CMD ["uvicorn", "ledger_sync.api.main:app", "--host", "0.0.0.0", "--port", "8000
 
 ```dockerfile
 # frontend/Dockerfile
-FROM node:18-alpine as build
+FROM node:22-alpine as build
 
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 # Production image
 FROM nginx:alpine
@@ -278,7 +280,7 @@ docker-compose up -d
 #### Procfile
 
 ```
-web: gunicorn -w 4 -b 0.0.0.0:$PORT ledger_sync.api.main:app
+web: uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT
 ```
 
 #### Deploy
@@ -340,11 +342,8 @@ services:
 
 ```bash
 # .env (backend)
-DATABASE_URL=sqlite:///ledger_sync.db
-DEBUG=False
-SECRET_KEY=your-secret-key-here
-CORS_ORIGINS=https://yourdomain.com
-LOG_LEVEL=INFO
+LEDGER_SYNC_DATABASE_URL=sqlite:///./ledger_sync.db
+LEDGER_SYNC_LOG_LEVEL=INFO
 ```
 
 ### Frontend Environment Variables
@@ -416,7 +415,7 @@ sqlite3 ledger_sync.db "PRAGMA integrity_check;"
 1. **Build Optimization**
 
    ```bash
-   npm run build  # Creates optimized dist/
+   pnpm run build  # Creates optimized dist/
    ```
 
 2. **Code Splitting**
@@ -529,22 +528,24 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Run tests
         run: |
-          pip install -r requirements.txt
-          pytest
+          cd backend
+          pip install poetry
+          poetry install --with dev
+          poetry run pytest tests/ -v
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Deploy to production
         env:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
-          ssh -i $DEPLOY_KEY user@server.com "cd ledger-sync && git pull && npm run build"
+          ssh -i $DEPLOY_KEY user@server.com "cd ledger-sync && git pull && cd frontend && pnpm run build"
 ```
 
 ## Rollback Procedure
@@ -622,7 +623,7 @@ curl -I https://yourdomain.com/api/health
 
 ### Frontend Not Loading
 
-- Check build completed (`npm run build`)
+- Check build completed (`pnpm run build`)
 - Verify Nginx configuration
 - Check browser console for errors
 - Verify API URL in .env

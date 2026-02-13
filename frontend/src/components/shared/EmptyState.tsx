@@ -77,9 +77,9 @@ export default function EmptyState({
         {/* Faux chart skeleton */}
         <div className="mx-auto max-w-sm mb-4">
           <div className="flex items-end gap-1 h-24 border-l border-b border-white/10 pl-2 pb-1">
-            {[40, 65, 30, 80, 55, 45, 70, 35, 60, 50].map((h, i) => (
+            {[40, 65, 30, 80, 55, 45, 70, 35, 60, 50].map((h) => (
               <div
-                key={`empty-bar-${i}`}
+                key={`empty-bar-${h}`}
                 className="flex-1 rounded-t bg-white/5"
                 style={{ height: `${h}%` }}
               />

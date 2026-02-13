@@ -373,7 +373,7 @@ class NetWorthSnapshot(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     source: Mapped[str] = mapped_column(String(50), default="upload")  # upload, manual, api
 
-    # Composite index replaces redundant single-column indexes (already on user_id and snapshot_date)
+    # Composite index replaces redundant single-column indexes
     __table_args__ = (
         Index("ix_net_worth_user_date", "user_id", "snapshot_date"),
     )

@@ -40,7 +40,7 @@ interface IncomeCategoryData {
   subcategories: { name: string; amount: number; percent: number }[]
 }
 
-function IncomeSourcesBreakdown({ dateRange }: { dateRange: { start_date?: string; end_date?: string } }) {
+function IncomeSourcesBreakdown({ dateRange }: Readonly<{ dateRange: { start_date?: string; end_date?: string } }>) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
 
   const { data: categoryData, isLoading } = useCategoryBreakdown({

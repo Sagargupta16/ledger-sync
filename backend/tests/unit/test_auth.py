@@ -1,7 +1,5 @@
 """Tests for authentication logic."""
 
-import pytest
-
 from ledger_sync.core.auth.passwords import get_password_hash, verify_password
 from ledger_sync.core.auth.tokens import create_access_token, create_refresh_token, verify_token
 
