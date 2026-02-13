@@ -27,14 +27,14 @@ export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>
           <LoadingSkeleton className="h-5 w-48" />
         </div>
         <div className="flex-1 flex items-end gap-2 pb-4">
-          {Array.from({ length: 12 }).map((_, i) => {
-            const heightPercent = ((i * 7) % 60) + 40
-            return (
-              <div key={`skeleton-${i}`} className="flex-1" style={{ height: `${heightPercent}%` }}>
-                <LoadingSkeleton className="h-full w-full" />
-              </div>
-            )
-          })}
+          {Array.from({ length: 12 }, (_, i) => ({
+            id: `chart-bar-${((i * 7) % 60) + 40}`,
+            heightPercent: ((i * 7) % 60) + 40,
+          })).map((bar) => (
+            <div key={bar.id} className="flex-1" style={{ height: `${bar.heightPercent}%` }}>
+              <LoadingSkeleton className="h-full w-full" />
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -53,8 +53,8 @@ export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
         </div>
       </div>
       <div className="divide-y divide-white/5">
-        {Array.from({ length: rows }).map((_, i) => (
-          <div key={`table-row-${i}`} className="p-4 flex gap-4">
+        {Array.from({ length: rows }, (_, i) => `table-row-${i + 1}`).map((rowKey) => (
+          <div key={rowKey} className="p-4 flex gap-4">
             <LoadingSkeleton className="h-4 w-24" />
             <LoadingSkeleton className="h-4 w-32" />
             <LoadingSkeleton className="h-4 w-20" />

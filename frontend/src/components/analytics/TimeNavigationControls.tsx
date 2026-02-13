@@ -23,7 +23,7 @@ export default function TimeNavigationControls({
   handleNextYear,
   handlePrevMonth,
   handleNextMonth,
-}: TimeNavigationControlsProps) {
+}: Readonly<TimeNavigationControlsProps>) {
   if (viewMode === 'monthly') {
     return (
       <div className="flex items-center gap-3">

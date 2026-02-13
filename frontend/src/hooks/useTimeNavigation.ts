@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { type ViewMode, getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
+import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 
-export type { ViewMode }
+export type { ViewMode } from '@/lib/dateUtils'
 
 export function useTimeNavigation(initialMode: ViewMode = 'yearly') {
   const [viewMode, setViewMode] = useState<ViewMode>(initialMode)

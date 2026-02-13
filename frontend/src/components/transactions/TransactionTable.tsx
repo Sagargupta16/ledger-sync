@@ -43,17 +43,14 @@ const columns: ColumnDef<Transaction>[] = [
     header: 'Type',
     cell: ({ row }) => {
       const type = row.original.type
-      const isIncome = type === 'Income'
-      const isTransfer = type === 'Transfer'
+      const typeIcon = (() => {
+        if (type === 'Income') return <TrendingUp className="w-4 h-4 text-green-500" />
+        if (type === 'Transfer') return <span className="text-blue-500">→</span>
+        return <TrendingDown className="w-4 h-4 text-red-500" />
+      })()
       return (
         <div className="flex items-center gap-2">
-          {isIncome ? (
-            <TrendingUp className="w-4 h-4 text-green-500" />
-          ) : isTransfer ? (
-            <span className="text-blue-500">→</span>
-          ) : (
-            <TrendingDown className="w-4 h-4 text-red-500" />
-          )}
+          {typeIcon}
           <span className="text-sm">{type}</span>
         </div>
       )
@@ -93,13 +90,17 @@ const columns: ColumnDef<Transaction>[] = [
       const isIncome = type === 'Income'
       const isTransfer = type === 'Transfer'
 
-      const colorClass = isTransfer
-        ? 'text-blue-400'
-        : isIncome
-        ? 'text-green-500'
-        : 'text-red-500'
+      const colorClass = (() => {
+        if (isTransfer) return 'text-blue-400'
+        if (isIncome) return 'text-green-500'
+        return 'text-red-500'
+      })()
 
-      const prefix = isTransfer ? '' : isIncome ? '+' : '-'
+      const prefix = (() => {
+        if (isTransfer) return ''
+        if (isIncome) return '+'
+        return '-'
+      })()
 
       return (
         <span className={`text-sm font-semibold ${colorClass}`}>

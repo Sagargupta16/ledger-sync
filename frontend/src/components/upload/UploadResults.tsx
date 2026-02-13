@@ -8,7 +8,7 @@ interface UploadResultsProps {
   uploadTime?: Date
 }
 
-export default function UploadResults({ stats, fileName, uploadTime }: UploadResultsProps) {
+export default function UploadResults({ stats, fileName, uploadTime }: Readonly<UploadResultsProps>) {
   const totalChanges = stats.inserted + stats.updated + stats.deleted
   const totalProcessed = totalChanges + (stats.unchanged || 0)
 
@@ -92,7 +92,7 @@ interface StatCardProps {
   bgColor: string
 }
 
-function StatCard({ icon: Icon, label, value, color, bgColor }: StatCardProps) {
+function StatCard({ icon: Icon, label, value, color, bgColor }: Readonly<StatCardProps>) {
   return (
     <motion.div
       initial={{ scale: 0.8, opacity: 0 }}

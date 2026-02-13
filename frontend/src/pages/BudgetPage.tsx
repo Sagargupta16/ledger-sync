@@ -98,6 +98,17 @@ export default function BudgetPage() {
     const byCategoryYearly: Record<string, number> = {}
     const bySubcategoryYearly: Record<string, number> = {}
 
+    const addToMaps = (
+      catMap: Record<string, number>,
+      subMap: Record<string, number>,
+      cat: string,
+      sub: string | null,
+      amt: number,
+    ) => {
+      catMap[cat] = (catMap[cat] || 0) + amt
+      if (sub) subMap[sub] = (subMap[sub] || 0) + amt
+    }
+
     for (const tx of transactions) {
       if (tx.type !== 'Expense') continue
       const amt = Math.abs(tx.amount)
@@ -107,14 +118,12 @@ export default function BudgetPage() {
 
       // Monthly
       if (tx.date.startsWith(currentMonthKey)) {
-        byCategory[cat] = (byCategory[cat] || 0) + amt
-        if (sub) bySubcategory[sub] = (bySubcategory[sub] || 0) + amt
+        addToMaps(byCategory, bySubcategory, cat, sub, amt)
       }
 
       // Yearly (FY)
       if (dateKey >= fyRange.start && dateKey <= fyRange.end) {
-        byCategoryYearly[cat] = (byCategoryYearly[cat] || 0) + amt
-        if (sub) bySubcategoryYearly[sub] = (bySubcategoryYearly[sub] || 0) + amt
+        addToMaps(byCategoryYearly, bySubcategoryYearly, cat, sub, amt)
       }
     }
 

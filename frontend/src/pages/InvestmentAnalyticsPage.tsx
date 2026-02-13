@@ -225,7 +225,7 @@ export default function InvestmentAnalyticsPage() {
 
     // Generate all days between first and last snapshot
     const firstDate = new Date(dailySnapshots[0].date)
-    const lastDate = new Date(dailySnapshots[dailySnapshots.length - 1].date)
+    const lastDate = new Date(dailySnapshots.at(-1)!.date)
     const allDays: string[] = []
     for (const d = new Date(firstDate); d <= lastDate; d.setDate(d.getDate() + 1)) {
       allDays.push(d.toISOString().substring(0, 10))
@@ -403,11 +403,12 @@ export default function InvestmentAnalyticsPage() {
             <PieChart className="w-5 h-5 text-blue-400" />
             <h3 className="text-lg font-semibold text-white">Asset Allocation</h3>
           </div>
-          {isLoading ? (
+          {isLoading && (
             <div className="h-80 flex items-center justify-center">
               <div className="animate-pulse text-gray-400">Loading chart...</div>
             </div>
-          ) : assetAllocation.length > 0 ? (
+          )}
+          {!isLoading && assetAllocation.length > 0 && (
             <ResponsiveContainer width="100%" height={320}>
               <RechartsPie>
                 <Pie
@@ -420,18 +421,19 @@ export default function InvestmentAnalyticsPage() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {assetAllocation.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {assetAllocation.map((entry) => (
+                    <Cell key={`cell-${entry.name}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip
                   {...chartTooltipProps}
-                  formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+                  formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                 />
                 <Legend />
               </RechartsPie>
             </ResponsiveContainer>
-          ) : (
+          )}
+          {!isLoading && assetAllocation.length === 0 && (
             <EmptyState
               icon={PieChart}
               title="No investment data"
@@ -452,11 +454,12 @@ export default function InvestmentAnalyticsPage() {
             <LineChart className="w-5 h-5 text-purple-400" />
             <h3 className="text-lg font-semibold text-white">Investment Growth Over Time</h3>
           </div>
-          {isLoading ? (
+          {isLoading && (
             <div className="h-80 flex items-center justify-center">
               <div className="animate-pulse text-gray-400">Loading chart...</div>
             </div>
-          ) : filteredGrowthData.length > 0 ? (
+          )}
+          {!isLoading && filteredGrowthData.length > 0 && (
             <ResponsiveContainer width="100%" height={400}>
                 <AreaChart data={filteredGrowthData}>
                   <defs>
@@ -477,14 +480,14 @@ export default function InvestmentAnalyticsPage() {
                     tickFormatter={(v) => formatDateTick(v, filteredGrowthData.length)}
                     interval={Math.max(1, Math.floor(filteredGrowthData.length / 20))}
                   />
-                  <YAxis 
+                  <YAxis
                     stroke="#9ca3af"
                     tickFormatter={(value) => formatCurrencyShort(value)}
                   />
                   <Tooltip
                     {...chartTooltipProps}
                     formatter={(value: number | undefined, name: string | undefined) => [
-                      value !== undefined ? formatCurrency(value) : '',
+                      value === undefined ? '' : formatCurrency(value),
                       name || ''
                     ]}
                     labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -505,7 +508,8 @@ export default function InvestmentAnalyticsPage() {
                   ))}
                 </AreaChart>
               </ResponsiveContainer>
-            ) : (
+          )}
+          {!isLoading && filteredGrowthData.length === 0 && (
               <EmptyState
                 icon={LineChart}
                 title="No investment data"
@@ -513,7 +517,7 @@ export default function InvestmentAnalyticsPage() {
                 actionLabel="Upload Data"
                 actionHref="/upload"
               />
-            )}
+          )}
         </motion.div>
 
         {portfolioData.length > 0 && (

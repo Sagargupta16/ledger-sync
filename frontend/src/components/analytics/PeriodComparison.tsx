@@ -8,6 +8,8 @@ import { rawColors } from '@/constants/colors'
 
 type CompareMode = 'months' | 'years'
 type MetricFormat = 'currency' | 'percent' | 'number' | 'days'
+type TransactionType = 'total' | 'income' | 'expense'
+type PeriodKey = string | number
 
 interface MetricRow {
   label: string
@@ -97,7 +99,7 @@ function buildMonthlyMetrics(
   effectiveMonth1: string,
   effectiveMonth2: string,
   availableMonths: MonthData[],
-  getTransactionCount: (period: string | number, type?: 'total' | 'income' | 'expense') => number,
+  getTransactionCount: (period: PeriodKey, type?: TransactionType) => number,
 ): MetricRow[] {
   const avgIncome = availableMonths.reduce((sum, m) => sum + m.income, 0) / availableMonths.length
   const avgExpense = availableMonths.reduce((sum, m) => sum + m.expense, 0) / availableMonths.length
@@ -136,7 +138,7 @@ function buildYearlyMetrics(
   y2: YearData,
   effectiveYear1: number,
   effectiveYear2: number,
-  getTransactionCount: (period: string | number, type?: 'total' | 'income' | 'expense') => number,
+  getTransactionCount: (period: PeriodKey, type?: TransactionType) => number,
 ): MetricRow[] {
   const txCount1 = getTransactionCount(effectiveYear1)
   const txCount2 = getTransactionCount(effectiveYear2)
@@ -156,7 +158,7 @@ function buildYearlyMetrics(
   ]
 }
 
-function ChangeDisplay({ changePercent, isExpense }: { changePercent: number; isExpense?: boolean }) {
+function ChangeDisplay({ changePercent, isExpense }: Readonly<{ changePercent: number; isExpense?: boolean }>) {
   const prefix = changePercent > 0 ? '+' : ''
   return (
     <div className="flex items-center justify-end gap-2">
@@ -181,7 +183,7 @@ interface SummaryCardProps {
   rateValue?: number
 }
 
-function SummaryCard({ label, color, changePercent, isExpense, showRate, rateValue }: SummaryCardProps) {
+function SummaryCard({ label, color, changePercent, isExpense, showRate, rateValue }: Readonly<SummaryCardProps>) {
   return (
     <div
       className="p-4 rounded-2xl"

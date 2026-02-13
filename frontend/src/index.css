@@ -69,6 +69,8 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
 body {
@@ -147,11 +149,7 @@ body::before {
   background: rgba(255, 255, 255, 0.25);
 }
 
-/* Firefox scrollbar */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
-}
+/* Firefox scrollbar properties merged into html rule above */
 
 /* Smooth animations */
 @keyframes glow {

@@ -71,8 +71,8 @@ function RecentTransactions({ transactions, isLoading }: Readonly<RecentTransact
   if (isLoading) {
     return (
       <div className="space-y-3">
-        {[...new Array(5)].map((_, i) => (
-          <div key={`skeleton-${i}`} className="flex items-center justify-between p-4 rounded-lg border border-border animate-pulse">
+        {Array.from({ length: 5 }, (_, i) => `skeleton-tx-${i}`).map((id) => (
+          <div key={id} className="flex items-center justify-between p-4 rounded-lg border border-border animate-pulse">
             <div className="flex-1 space-y-2">
               <div className="h-4 bg-muted rounded w-1/3" />
               <div className="h-3 bg-muted rounded w-1/4" />

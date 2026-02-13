@@ -10,6 +10,98 @@ import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, g
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { PageHeader } from '@/components/ui'
 
+interface SankeyNodeProps {
+  x: number
+  y: number
+  width: number
+  height: number
+  index: number
+  payload: { name: string }
+  nodeValues: Map<number, number>
+  incomeCategoryCount: number
+  totalIncomeNodeIndex: number
+  savingsNodeIndex: number
+  expensesNodeIndex: number
+  totalIncome: number
+}
+
+const SankeyNode = ({
+  x,
+  y,
+  width,
+  height,
+  index,
+  payload,
+  nodeValues,
+  incomeCategoryCount,
+  totalIncomeNodeIndex,
+  savingsNodeIndex,
+  expensesNodeIndex,
+  totalIncome,
+}: SankeyNodeProps) => {
+  const value = nodeValues.get(index) || 0
+  const percentage = totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0'
+
+  // Determine color based on position
+  let fillColor: string
+  if (index < incomeCategoryCount) {
+    // Income nodes - green gradient
+    const greenColors = ['#10b981', '#22c55e', '#84cc16', '#a3e635', '#6ee7b7']
+    fillColor = greenColors[index % greenColors.length]
+  } else if (index === totalIncomeNodeIndex || index === savingsNodeIndex || index === expensesNodeIndex) {
+    // Middle nodes - purple/blue
+    if (index === totalIncomeNodeIndex) fillColor = '#6366f1'
+    else if (index === savingsNodeIndex) fillColor = '#8b5cf6'
+    else fillColor = '#ec4899'
+  } else {
+    // Expense nodes - red/orange gradient
+    const redColors = ['#ef4444', '#f59e0b', '#fb923c', '#f97316', '#dc2626']
+    const expenseIndex = index - (incomeCategoryCount + 3)
+    fillColor = redColors[expenseIndex % redColors.length]
+  }
+
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={fillColor}
+        fillOpacity={0.9}
+        stroke={fillColor}
+        strokeWidth={0}
+        rx={4}
+        ry={4}
+      />
+      {/* Node label - positioned to the side */}
+      <text
+        x={x < 400 ? x - 10 : x + width + 10}
+        y={y + height / 2}
+        textAnchor={x < 400 ? 'end' : 'start'}
+        dominantBaseline="middle"
+        fill="#ffffff"
+        fontSize={13}
+        fontWeight="600"
+      >
+        {payload.name}
+      </text>
+      {/* Value and percentage */}
+      <text
+        x={x < 400 ? x - 10 : x + width + 10}
+        y={y + height / 2 + 16}
+        textAnchor={x < 400 ? 'end' : 'start'}
+        dominantBaseline="middle"
+        fill="#a78bfa"
+        fontSize={11}
+        fontWeight="500"
+      >
+        {formatCurrency(value)} ({percentage}%)
+      </text>
+    </g>
+  )
+}
+
 const IncomeExpenseFlowPage = () => {
   const { data: allTransactions = [], isLoading } = useTransactions()
   const { data: preferences } = usePreferences()
@@ -95,7 +187,7 @@ const IncomeExpenseFlowPage = () => {
 
   // Add "Savings" and "Expenses" as target nodes
   const savingsNodeIndex = nodeIndex
-  nodeValues.set(nodeIndex, netSavings > 0 ? netSavings : 0)
+  nodeValues.set(nodeIndex, Math.max(netSavings, 0))
   nodes.push({ name: 'Savings' })
   nodeIndex++
 
@@ -255,14 +347,15 @@ const IncomeExpenseFlowPage = () => {
           </div>
         </div>
 
-        {isLoading ? (
+        {isLoading && (
           <div className="h-[700px] flex items-center justify-center bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-xl border border-white/5">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
               <div className="text-gray-400">Loading flow diagram...</div>
             </div>
           </div>
-        ) : nodes.length > 0 ? (
+        )}
+        {!isLoading && nodes.length > 0 && (
           <div className="relative bg-gradient-to-br from-gray-900/30 to-gray-800/30 rounded-xl border border-white/5 p-6 overflow-x-auto">
             <div style={{ minWidth: '1000px', height: '700px', position: 'relative' }}>
               <ResponsiveContainer width="100%" height={700}>
@@ -271,70 +364,17 @@ const IncomeExpenseFlowPage = () => {
                   nodeWidth={20}
                   nodePadding={60}
                   margin={{ top: 30, right: 200, bottom: 30, left: 200 }}
-                  node={(nodeProps: { x: number; y: number; width: number; height: number; index: number; payload: { name: string } }) => {
-                    const { x, y, width, height, index, payload } = nodeProps
-                    const value = nodeValues.get(index) || 0
-                    const percentage = totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0'
-                    
-                    // Determine color based on position
-                    let fillColor: string
-                    if (index < Object.keys(incomeByCategory).length) {
-                      // Income nodes - green gradient
-                      const greenColors = ['#10b981', '#22c55e', '#84cc16', '#a3e635', '#6ee7b7']
-                      fillColor = greenColors[index % greenColors.length]
-                    } else if (index === totalIncomeNodeIndex || index === savingsNodeIndex || index === expensesNodeIndex) {
-                      // Middle nodes - purple/blue
-                      if (index === totalIncomeNodeIndex) fillColor = '#6366f1'
-                      else if (index === savingsNodeIndex) fillColor = '#8b5cf6'
-                      else fillColor = '#ec4899'
-                    } else {
-                      // Expense nodes - red/orange gradient
-                      const redColors = ['#ef4444', '#f59e0b', '#fb923c', '#f97316', '#dc2626']
-                      const expenseIndex = index - (Object.keys(incomeByCategory).length + 3)
-                      fillColor = redColors[expenseIndex % redColors.length]
-                    }
-
-                    return (
-                      <g>
-                        <rect
-                          x={x}
-                          y={y}
-                          width={width}
-                          height={height}
-                          fill={fillColor}
-                          fillOpacity={0.9}
-                          stroke={fillColor}
-                          strokeWidth={0}
-                          rx={4}
-                          ry={4}
-                        />
-                        {/* Node label - positioned to the side */}
-                        <text
-                          x={x < 400 ? x - 10 : x + width + 10}
-                          y={y + height / 2}
-                          textAnchor={x < 400 ? 'end' : 'start'}
-                          dominantBaseline="middle"
-                          fill="#ffffff"
-                          fontSize={13}
-                          fontWeight="600"
-                        >
-                          {payload.name}
-                        </text>
-                        {/* Value and percentage */}
-                        <text
-                          x={x < 400 ? x - 10 : x + width + 10}
-                          y={y + height / 2 + 16}
-                          textAnchor={x < 400 ? 'end' : 'start'}
-                          dominantBaseline="middle"
-                          fill="#a78bfa"
-                          fontSize={11}
-                          fontWeight="500"
-                        >
-                          {formatCurrency(value)} ({percentage}%)
-                        </text>
-                      </g>
-                    )
-                  }}
+                  node={(nodeProps: { x: number; y: number; width: number; height: number; index: number; payload: { name: string } }) => (
+                    <SankeyNode
+                      {...nodeProps}
+                      nodeValues={nodeValues}
+                      incomeCategoryCount={Object.keys(incomeByCategory).length}
+                      totalIncomeNodeIndex={totalIncomeNodeIndex}
+                      savingsNodeIndex={savingsNodeIndex}
+                      expensesNodeIndex={expensesNodeIndex}
+                      totalIncome={totalIncome}
+                    />
+                  )}
                   link={{
                     stroke: '#8b5cf6',
                     strokeOpacity: 0.25,
@@ -373,15 +413,15 @@ const IncomeExpenseFlowPage = () => {
                       color: '#a78bfa',
                       fontSize: '13px',
                     }}
-                    formatter={(value: number | undefined) => value !== undefined ? [
+                    formatter={(value: number | undefined) => value === undefined ? '' : [
                       formatCurrency(value),
                       'Amount'
-                    ] : ''}
+                    ]}
                   />
                 </Sankey>
               </ResponsiveContainer>
             </div>
-            
+
             {/* Legend */}
             <div className="mt-6 pt-6 border-t border-white/10 flex flex-wrap justify-center gap-6">
               <div className="flex items-center gap-2">
@@ -398,7 +438,8 @@ const IncomeExpenseFlowPage = () => {
               </div>
             </div>
           </div>
-        ) : (
+        )}
+        {!isLoading && nodes.length === 0 && (
           <div className="h-[700px] flex items-center justify-center bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-xl border border-white/5">
             <div className="text-center">
               <ArrowRightLeft className="w-16 h-16 text-gray-600 mx-auto mb-4" />

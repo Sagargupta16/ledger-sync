@@ -213,3 +213,4 @@ typings/
 .angular/
 
 .claude
+.mcp.json

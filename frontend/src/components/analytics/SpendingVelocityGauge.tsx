@@ -47,7 +47,11 @@ export default function SpendingVelocityGauge() {
   // Gauge calculation
   const gaugeRatio = prevMonthTotal > 0 ? Math.min(projectedTotal / prevMonthTotal, 2) : 0
   const gaugeAngle = gaugeRatio * 180
-  const gaugeColor = gaugeRatio < 1 ? rawColors.ios.green : gaugeRatio < 1.2 ? rawColors.ios.yellow : rawColors.ios.red
+  const gaugeColor = (() => {
+    if (gaugeRatio < 1) return rawColors.ios.green
+    if (gaugeRatio < 1.2) return rawColors.ios.yellow
+    return rawColors.ios.red
+  })()
 
   // SVG arc path
   const cx = 100, cy = 100, r = 80

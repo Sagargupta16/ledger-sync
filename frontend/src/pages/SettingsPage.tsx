@@ -239,8 +239,9 @@ export default function SettingsPage() {
   // Remove investment mapping
   const handleRemoveInvestmentMapping = (account: string) => {
     if (localPrefs) {
-      const { [account]: _removed, ...rest } = localPrefs.investment_account_mappings
-      void _removed // Explicitly mark as intentionally unused
+      const rest = Object.fromEntries(
+        Object.entries(localPrefs.investment_account_mappings).filter(([key]) => key !== account)
+      )
       updateLocalPref('investment_account_mappings', rest)
     }
   }

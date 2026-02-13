@@ -6,7 +6,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { formatCurrency, formatPercent, formatDateTick } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
@@ -27,6 +27,103 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
   'lended': { label: 'Lended', color: '#14b8a6' },
   'liability': { label: 'Liabilities', color: '#ef4444' },
   'other': { label: 'Other', color: '#6b7280' },
+}
+
+/** Classify an account based on classifications map, investment mappings, or name heuristics */
+function resolveAccountType(
+  accountName: string,
+  classifications: Record<string, string>,
+  investmentMappings: Record<string, unknown>,
+): string {
+  if (classifications[accountName]) {
+    if (classifications[accountName] === 'Investments') return 'Investments'
+    if (classifications[accountName] === 'Cash' || classifications[accountName] === 'Other Wallets') return 'Cash & Wallets'
+    return classifications[accountName]
+  }
+  if (investmentMappings[accountName]) return 'Investments'
+  const name = accountName.toLowerCase()
+  if (name.includes('credit') || name.includes('card')) return 'Credit Cards'
+  if (name.includes('bank')) return 'Bank Accounts'
+  if (name.includes('cash') || name.includes('wallet')) return 'Cash & Wallets'
+  return 'Other'
+}
+
+/** Classify an account into a display category for grouping */
+function resolveAccountCategory(
+  accountName: string,
+  classifications: Record<string, string>,
+  investmentMappings: Record<string, unknown>,
+): string {
+  const classification = classifications[accountName]
+  if (classification) {
+    switch (classification) {
+      case 'Cash':
+      case 'Other Wallets':
+        return 'Cash & Wallets'
+      case 'Bank Accounts':
+        return 'Bank Accounts'
+      case 'Investments':
+        return 'Investments'
+      case 'Credit Cards':
+        return 'Credit Cards'
+      case 'Loans':
+      case 'Loans/Lended':
+        return 'Loans/Lended'
+      default:
+        return classification
+    }
+  }
+  if (investmentMappings[accountName]) return 'Investments'
+  const name = accountName.toLowerCase()
+  if (name.includes('credit') || name.includes('card')) return 'Credit Cards'
+  if (name.includes('bank')) return 'Bank Accounts'
+  if (name.includes('cash') || name.includes('wallet')) return 'Cash & Wallets'
+  if (name.includes('loan') || name.includes('emi') || name.includes('lend')) return 'Loans/Lended'
+  return 'Other'
+}
+
+/** Compute daily cumulative net worth from transactions */
+function computeNetWorthTimeSeries(
+  transactions: Array<{ date: string; type: string; amount: number }>,
+  allCategories: string[],
+  categoryProportions: Record<string, number>,
+): Array<Record<string, number | string>> {
+  if (!transactions.length) return []
+
+  const dailyMap: Record<string, { income: number; expense: number }> = {}
+  for (const tx of transactions) {
+    const day = tx.date.substring(0, 10)
+    if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
+    if (tx.type === 'Income') dailyMap[day].income += tx.amount
+    else if (tx.type === 'Expense') dailyMap[day].expense += tx.amount
+  }
+
+  const sortedDays = Object.entries(dailyMap).sort(([a], [b]) => a.localeCompare(b))
+  let cumNW = 0
+  let cumIncome = 0
+  let cumExpense = 0
+
+  return sortedDays.map(([date, { income, expense }]) => {
+    const flow = income - expense
+    cumNW += flow
+    cumIncome += income
+    cumExpense += expense
+    const positiveNW = Math.max(cumNW, 0)
+
+    const point: Record<string, number | string> = {
+      date,
+      netWorth: cumNW,
+      dailyFlow: flow,
+      cumulativeIncome: cumIncome,
+      cumulativeExpenses: cumExpense,
+    }
+
+    allCategories.forEach(cat => {
+      point[cat] = positiveNW * (categoryProportions[cat] || 0)
+    })
+
+    return point
+  })
 }
 
 export default function NetWorthPage() {
@@ -93,70 +190,12 @@ export default function NetWorthPage() {
   
   // Helper to get account type (for display in tables) - uses classifications from preferences
   const getAccountType = (accountName: string): string => {
-    // First check if classified in user preferences
-    if (classifications[accountName]) {
-      // For Investments, just show "Investments" (don't break into subcategories)
-      if (classifications[accountName] === 'Investments') {
-        return 'Investments'
-      }
-      // Combine Cash and Other Wallets
-      if (classifications[accountName] === 'Cash' || classifications[accountName] === 'Other Wallets') {
-        return 'Cash & Wallets'
-      }
-      return classifications[accountName]
-    }
-    
-    // Fallback: If it's mapped as an investment, show "Investments"
-    if (investmentMappings[accountName]) {
-      return 'Investments'
-    }
-    
-    // Fallback to name-based heuristics for unclassified accounts
-    const name = accountName.toLowerCase()
-    if (name.includes('credit') || name.includes('card')) return 'Credit Cards'
-    if (name.includes('bank')) return 'Bank Accounts'
-    if (name.includes('cash') || name.includes('wallet')) return 'Cash & Wallets'
-    
-    return 'Other'
+    return resolveAccountType(accountName, classifications, investmentMappings)
   }
   
   // Categorize accounts - uses classifications from preferences - memoized with useCallback
   const categorizeAccount = useCallback((accountName: string) => {
-    // First check user's classification preferences
-    const classification = classifications[accountName]
-    
-    if (classification) {
-      switch (classification) {
-        case 'Cash':
-        case 'Other Wallets':
-          return 'Cash & Wallets'
-        case 'Bank Accounts':
-          return 'Bank Accounts'
-        case 'Investments':
-          return 'Investments'
-        case 'Credit Cards':
-          return 'Credit Cards'
-        case 'Loans':
-        case 'Loans/Lended':
-          return 'Loans/Lended'
-        default:
-          return classification
-      }
-    }
-    
-    // Check if it's in investment mappings (even without classification)
-    if (investmentMappings[accountName]) {
-      return 'Investments'
-    }
-    
-    // Fallback to name-based heuristics for unclassified accounts
-    const name = accountName.toLowerCase()
-    if (name.includes('credit') || name.includes('card')) return 'Credit Cards'
-    if (name.includes('bank')) return 'Bank Accounts'
-    if (name.includes('cash') || name.includes('wallet')) return 'Cash & Wallets'
-    if (name.includes('loan') || name.includes('emi') || name.includes('lend')) return 'Loans/Lended'
-    
-    return 'Other'
+    return resolveAccountCategory(accountName, classifications, investmentMappings)
   }, [classifications, investmentMappings])
 
   // Calculate category totals from current balances using classifications
@@ -190,42 +229,7 @@ export default function NetWorthPage() {
 
   // Compute daily cumulative net worth from transactions
   const netWorthData = useMemo(() => {
-    if (!transactions.length) return []
-
-    const dailyMap: Record<string, { income: number; expense: number }> = {}
-    for (const tx of transactions) {
-      const day = tx.date.substring(0, 10)
-      if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
-      if (tx.type === 'Income') dailyMap[day].income += tx.amount
-      else if (tx.type === 'Expense') dailyMap[day].expense += tx.amount
-    }
-
-    const sortedDays = Object.entries(dailyMap).sort(([a], [b]) => a.localeCompare(b))
-    let cumNW = 0
-    let cumIncome = 0
-    let cumExpense = 0
-
-    return sortedDays.map(([date, { income, expense }]) => {
-      const flow = income - expense
-      cumNW += flow
-      cumIncome += income
-      cumExpense += expense
-      const positiveNW = Math.max(cumNW, 0)
-
-      const point: Record<string, number | string> = {
-        date,
-        netWorth: cumNW,
-        dailyFlow: flow,
-        cumulativeIncome: cumIncome,
-        cumulativeExpenses: cumExpense,
-      }
-
-      allCategories.forEach(cat => {
-        point[cat] = positiveNW * (categoryProportions[cat] || 0)
-      })
-
-      return point
-    })
+    return computeNetWorthTimeSeries(transactions, allCategories, categoryProportions)
   }, [transactions, allCategories, categoryProportions])
 
   // Filter chart data to selected time range
@@ -357,87 +361,96 @@ export default function NetWorthPage() {
               {showStacked ? '📊 Stacked View' : '📈 Total View'}
             </button>
           </div>
-          {isLoading ? (
-            <div className="h-80 flex items-center justify-center">
-              <div className="animate-pulse text-gray-400">Loading chart...</div>
-            </div>
-          ) : filteredNetWorthData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={320}>
-              <AreaChart data={filteredNetWorthData}>
-                <defs>
-                  <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.6} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
-                  </linearGradient>
-                  <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.6} />
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
-                  </linearGradient>
-                  {/* Dynamic gradients for each category */}
-                  {allCategories.map((cat) => {
-                    const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
-                    return (
-                      <linearGradient key={`color-${cat}`} id={`color-${cat.replaceAll(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={config.color} stopOpacity={0.7} />
-                        <stop offset="95%" stopColor={config.color} stopOpacity={0.2} />
+          {(() => {
+            if (isLoading) {
+              return (
+                <div className="h-80 flex items-center justify-center">
+                  <div className="animate-pulse text-gray-400">Loading chart...</div>
+                </div>
+              )
+            }
+            if (filteredNetWorthData.length > 0) {
+              const formattedValue = (value: number | undefined) => value === undefined ? '' : formatCurrency(value)
+              return (
+                <ResponsiveContainer width="100%" height={320}>
+                  <AreaChart data={filteredNetWorthData}>
+                    <defs>
+                      <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                       </linearGradient>
-                    )
-                  })}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="date" stroke="#9ca3af" tickFormatter={(v) => formatDateTick(v, filteredNetWorthData.length)} angle={-45} textAnchor="end" height={80} interval={Math.max(1, Math.floor(filteredNetWorthData.length / 20))} />
-                <YAxis stroke="#9ca3af" />
-                <Tooltip
-                  {...chartTooltipProps}
-                  formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
-                  labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                />
-                <Legend />
-                {showStacked ? (
-                  <>
-                    {allCategories.map((cat) => {
-                      const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
-                      return (
-                        <Area
-                          key={cat}
-                          type="natural"
-                          dataKey={cat}
-                          stackId="1"
-                          stroke={config.color}
-                          fillOpacity={1}
-                          fill={`url(#color-${cat.replaceAll(/\s+/g, '')})`}
-                          name={config.label}
-                          isAnimationActive={filteredNetWorthData.length < 500}
-                        />
-                      )
-                    })}
-                  </>
-                ) : (
-                  <Area
-                    type="natural"
-                    dataKey="netWorth"
-                    stroke="#8b5cf6"
-                    fillOpacity={1}
-                    fill="url(#colorNetWorth)"
-                    name="Net Worth"
-                    isAnimationActive={filteredNetWorthData.length < 500}
-                  />
-                )}
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <EmptyState
-              icon={BarChart3}
-              title="No data available"
-              description="Upload your transaction data to track net worth over time."
-              actionLabel="Upload Data"
-              actionHref="/upload"
-            />
-          )}
+                      <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
+                      </linearGradient>
+                      <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
+                      </linearGradient>
+                      {/* Dynamic gradients for each category */}
+                      {allCategories.map((cat) => {
+                        const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
+                        return (
+                          <linearGradient key={`color-${cat}`} id={`color-${cat.replaceAll(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={config.color} stopOpacity={0.7} />
+                            <stop offset="95%" stopColor={config.color} stopOpacity={0.2} />
+                          </linearGradient>
+                        )
+                      })}
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="date" stroke="#9ca3af" tickFormatter={(v) => formatDateTick(v, filteredNetWorthData.length)} angle={-45} textAnchor="end" height={80} interval={Math.max(1, Math.floor(filteredNetWorthData.length / 20))} />
+                    <YAxis stroke="#9ca3af" tickFormatter={(value: number) => formatCurrencyShort(value)} />
+                    <Tooltip
+                      {...chartTooltipProps}
+                      formatter={formattedValue}
+                      labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    />
+                    <Legend />
+                    {showStacked ? (
+                      <>
+                        {allCategories.map((cat) => {
+                          const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
+                          return (
+                            <Area
+                              key={cat}
+                              type="natural"
+                              dataKey={cat}
+                              stackId="1"
+                              stroke={config.color}
+                              fillOpacity={1}
+                              fill={`url(#color-${cat.replaceAll(/\s+/g, '')})`}
+                              name={config.label}
+                              isAnimationActive={filteredNetWorthData.length < 500}
+                            />
+                          )
+                        })}
+                      </>
+                    ) : (
+                      <Area
+                        type="natural"
+                        dataKey="netWorth"
+                        stroke="#8b5cf6"
+                        fillOpacity={1}
+                        fill="url(#colorNetWorth)"
+                        name="Net Worth"
+                        isAnimationActive={filteredNetWorthData.length < 500}
+                      />
+                    )}
+                  </AreaChart>
+                </ResponsiveContainer>
+              )
+            }
+            return (
+              <EmptyState
+                icon={BarChart3}
+                title="No data available"
+                description="Upload your transaction data to track net worth over time."
+                actionLabel="Upload Data"
+                actionHref="/upload"
+              />
+            )
+          })()}
         </motion.div>
 
         <motion.div
@@ -447,9 +460,13 @@ export default function NetWorthPage() {
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Assets (Positive Balances)</h3>
-          {isLoading ? (
-            <div className="text-center py-8 text-gray-400">Loading accounts...</div>
-          ) : Object.keys(accounts).filter(name => accounts[name].balance > 0).length > 0 ? (
+          {(() => {
+            if (isLoading) {
+              return <div className="text-center py-8 text-gray-400">Loading accounts...</div>
+            }
+            const hasAssets = Object.keys(accounts).some(name => accounts[name].balance > 0)
+            if (hasAssets) {
+              return (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -546,14 +563,17 @@ export default function NetWorthPage() {
                 </tbody>
               </table>
             </div>
-          ) : (
-            <EmptyState
-              icon={PiggyBank}
-              title="No asset accounts found"
-              description="Add transactions for accounts with positive balances to see your assets."
-              variant="compact"
-            />
-          )}
+              )
+            }
+            return (
+              <EmptyState
+                icon={PiggyBank}
+                title="No asset accounts found"
+                description="Add transactions for accounts with positive balances to see your assets."
+                variant="compact"
+              />
+            )
+          })()}
         </motion.div>
 
         <motion.div
@@ -563,9 +583,13 @@ export default function NetWorthPage() {
           className="glass rounded-xl border border-white/10 p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Liabilities (Negative Balances)</h3>
-          {isLoading ? (
-            <div className="text-center py-8 text-gray-400">Loading accounts...</div>
-          ) : Object.keys(accounts).filter(name => accounts[name].balance < 0).length > 0 ? (
+          {(() => {
+            if (isLoading) {
+              return <div className="text-center py-8 text-gray-400">Loading accounts...</div>
+            }
+            const hasLiabilities = Object.keys(accounts).some(name => accounts[name].balance < 0)
+            if (hasLiabilities) {
+              return (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -662,14 +686,17 @@ export default function NetWorthPage() {
                 </tbody>
               </table>
             </div>
-          ) : (
-            <EmptyState
-              icon={CreditCard}
-              title="No liability accounts found"
-              description="Great news! You don't have any liability accounts with negative balances."
-              variant="compact"
-            />
-          )}
+              )
+            }
+            return (
+              <EmptyState
+                icon={CreditCard}
+                title="No liability accounts found"
+                description="Great news! You don't have any liability accounts with negative balances."
+                variant="compact"
+              />
+            )
+          })()}
         </motion.div>
 
         {/* Credit Card Health */}

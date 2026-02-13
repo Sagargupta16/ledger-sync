@@ -24,6 +24,44 @@ import { usePreferencesStore } from '@/store/preferencesStore'
 // Color for Savings
 const SAVINGS_COLOR = SEMANTIC_COLORS.income
 
+/** Calculate the budget rule metrics (50/30/20) based on income breakdown */
+function computeBudgetRuleMetrics(
+  spendingBreakdown: { essential: number; discretionary: number } | null,
+  totalIncome: number,
+  savings: number,
+  needsTarget: number,
+  wantsTarget: number,
+  savingsTargetPct: number,
+): {
+  essentialPercent: number
+  discretionaryPercent: number
+  savingsPercent: number
+  essentialTarget: number
+  discretionaryTarget: number
+  savingsTarget: number
+  isOverspendingEssential: boolean
+  isOverspendingDiscretionary: boolean
+  isUnderSaving: boolean
+} | null {
+  if (!spendingBreakdown || totalIncome <= 0) return null
+
+  const essentialPercent = (spendingBreakdown.essential / totalIncome) * 100
+  const discretionaryPercent = (spendingBreakdown.discretionary / totalIncome) * 100
+  const savingsPercent = (savings / totalIncome) * 100
+
+  return {
+    essentialPercent,
+    discretionaryPercent,
+    savingsPercent,
+    essentialTarget: needsTarget,
+    discretionaryTarget: wantsTarget,
+    savingsTarget: savingsTargetPct,
+    isOverspendingEssential: essentialPercent > needsTarget + 5,
+    isOverspendingDiscretionary: discretionaryPercent > wantsTarget + 5,
+    isUnderSaving: savingsPercent < savingsTargetPct - 5,
+  }
+}
+
 export default function SpendingAnalysisPage() {
   const { data: transactions } = useTransactions()
   const { data: preferences } = usePreferences()
@@ -118,23 +156,7 @@ export default function SpendingAnalysisPage() {
 
   // Calculate spending rule metrics (based on income)
   const budgetRuleMetrics = useMemo(() => {
-    if (!spendingBreakdown || totalIncome <= 0) return null
-
-    const essentialPercent = (spendingBreakdown.essential / totalIncome) * 100
-    const discretionaryPercent = (spendingBreakdown.discretionary / totalIncome) * 100
-    const savingsPercent = (savings / totalIncome) * 100
-
-    return {
-      essentialPercent,
-      discretionaryPercent,
-      savingsPercent,
-      essentialTarget: needsTarget,
-      discretionaryTarget: wantsTarget,
-      savingsTarget,
-      isOverspendingEssential: essentialPercent > needsTarget + 5,
-      isOverspendingDiscretionary: discretionaryPercent > wantsTarget + 5,
-      isUnderSaving: savingsPercent < savingsTarget - 5,
-    }
+    return computeBudgetRuleMetrics(spendingBreakdown, totalIncome, savings, needsTarget, wantsTarget, savingsTarget)
   }, [spendingBreakdown, totalIncome, savings, needsTarget, wantsTarget, savingsTarget])
 
   const isLoading = !transactions
@@ -224,13 +246,13 @@ export default function SpendingAnalysisPage() {
                         dataKey="value"
                         stroke="none"
                       >
-                        {spendingChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        {spendingChartData.map((entry) => (
+                          <Cell key={`cell-${entry.name}`} fill={entry.color} />
                         ))}
                       </Pie>
                       <Tooltip
                         {...chartTooltipProps}
-                        formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+                        formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                       />
                     </RechartsPie>
                   </ResponsiveContainer>

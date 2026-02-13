@@ -58,6 +58,30 @@ function computeOverallGrade(grades: Grade[]): Grade {
   return 'F'
 }
 
+function formatChangeDetail(value: number, suffix: string): string {
+  const prefix = value >= 0 ? '+' : ''
+  return `${prefix}${value.toFixed(1)}% ${suffix}`
+}
+
+function computeCV(dailyValues: number[]): { mean: number; cv: number } {
+  const mean = dailyValues.length > 0 ? dailyValues.reduce((a, b) => a + b, 0) / dailyValues.length : 0
+  const stddev = Math.sqrt(
+    dailyValues.length > 0 ? dailyValues.reduce((s, v) => s + (v - mean) ** 2, 0) / dailyValues.length : 0,
+  )
+  const cv = mean > 0 ? (stddev / mean) * 100 : 0
+  return { mean, cv }
+}
+
+function computePrevMonth(selectedMonth: string): string {
+  const [y, m] = selectedMonth.split('-').map(Number)
+  const prevDate = new Date(y, m - 2, 1)
+  return `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
+}
+
+function computeGrowth(current: number, previous: number): number {
+  return previous > 0 ? ((current - previous) / previous) * 100 : 0
+}
+
 export default function MonthlyFinancialReportCard() {
   const { data: transactions = [] } = useTransactions()
 
@@ -66,7 +90,7 @@ export default function MonthlyFinancialReportCard() {
     for (const tx of transactions) {
       months.add(tx.date.substring(0, 7))
     }
-    return [...months].sort().reverse()
+    return [...months].sort((a, b) => b.localeCompare(a))
   }, [transactions])
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -78,55 +102,42 @@ export default function MonthlyFinancialReportCard() {
   const report = useMemo(() => {
     if (!selectedMonth || transactions.length === 0) return null
 
-    // Current month
     const monthTxs = transactions.filter((t) => t.date.startsWith(selectedMonth))
     const income = monthTxs.filter((t) => t.type === 'Income').reduce((s, t) => s + Math.abs(t.amount), 0)
     const expenses = monthTxs.filter((t) => t.type === 'Expense').reduce((s, t) => s + Math.abs(t.amount), 0)
 
-    // Previous month
-    const [y, m] = selectedMonth.split('-').map(Number)
-    const prevDate = new Date(y, m - 2, 1)
-    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
+    const prevMonth = computePrevMonth(selectedMonth)
     const hasPrevMonth = availableMonths.includes(prevMonth)
 
     const prevTxs = hasPrevMonth ? transactions.filter((t) => t.date.startsWith(prevMonth)) : []
     const prevIncome = prevTxs.filter((t) => t.type === 'Income').reduce((s, t) => s + Math.abs(t.amount), 0)
     const prevExpenses = prevTxs.filter((t) => t.type === 'Expense').reduce((s, t) => s + Math.abs(t.amount), 0)
 
-    // 1. Savings Rate
     const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0
     const savingsGrade = gradeSavingsRate(savingsRate)
 
-    // 2. Spending Consistency (daily expense CV)
     const dailyExpenses: Record<string, number> = {}
     for (const tx of monthTxs.filter((t) => t.type === 'Expense')) {
-      const d = tx.date.substring(0, 10)
-      dailyExpenses[d] = (dailyExpenses[d] || 0) + Math.abs(tx.amount)
+      dailyExpenses[tx.date.substring(0, 10)] = (dailyExpenses[tx.date.substring(0, 10)] || 0) + Math.abs(tx.amount)
     }
-    const dailyValues = Object.values(dailyExpenses)
-    const mean = dailyValues.length > 0 ? dailyValues.reduce((a, b) => a + b, 0) / dailyValues.length : 0
-    const stddev = Math.sqrt(
-      dailyValues.length > 0 ? dailyValues.reduce((s, v) => s + (v - mean) ** 2, 0) / dailyValues.length : 0,
-    )
-    const cv = mean > 0 ? (stddev / mean) * 100 : 0
+    const { mean, cv } = computeCV(Object.values(dailyExpenses))
     const consistencyGrade = gradeConsistency(cv)
 
-    // 3. Budget Adherence
-    const expenseChange = hasPrevMonth && prevExpenses > 0 ? ((expenses - prevExpenses) / prevExpenses) * 100 : 0
-    const budgetGrade = hasPrevMonth ? gradeBudgetAdherence(expenseChange) : ('N/A' as Grade | 'N/A')
+    const expenseChange = hasPrevMonth ? computeGrowth(expenses, prevExpenses) : 0
+    const budgetGrade: Grade | 'N/A' = hasPrevMonth ? gradeBudgetAdherence(expenseChange) : 'N/A'
 
-    // 4. Income Growth
-    const incomeGrowth = hasPrevMonth && prevIncome > 0 ? ((income - prevIncome) / prevIncome) * 100 : 0
-    const incomeGrade = hasPrevMonth ? gradeIncomeGrowth(incomeGrowth) : ('N/A' as Grade | 'N/A')
+    const incomeGrowth = hasPrevMonth ? computeGrowth(income, prevIncome) : 0
+    const incomeGrade: Grade | 'N/A' = hasPrevMonth ? gradeIncomeGrowth(incomeGrowth) : 'N/A'
 
-    // Overall
     const validGrades = [savingsGrade, consistencyGrade]
-    if (budgetGrade !== 'N/A') validGrades.push(budgetGrade as Grade)
-    if (incomeGrade !== 'N/A') validGrades.push(incomeGrade as Grade)
-    const overall = computeOverallGrade(validGrades)
+    if (budgetGrade !== 'N/A') validGrades.push(budgetGrade)
+    if (incomeGrade !== 'N/A') validGrades.push(incomeGrade)
+
+    const budgetDetail = hasPrevMonth ? formatChangeDetail(expenseChange, 'vs last month') : 'N/A'
+    const incomeDetail = hasPrevMonth ? formatChangeDetail(incomeGrowth, 'growth') : 'N/A'
 
     return {
-      overall,
+      overall: computeOverallGrade(validGrades),
       categories: [
         {
           name: 'Savings Rate',
@@ -142,14 +153,14 @@ export default function MonthlyFinancialReportCard() {
         },
         {
           name: 'Budget Adherence',
-          grade: budgetGrade as Grade | 'N/A',
-          detail: hasPrevMonth ? `${expenseChange >= 0 ? '+' : ''}${expenseChange.toFixed(1)}% vs last month` : 'N/A',
+          grade: budgetGrade,
+          detail: budgetDetail,
           subtext: hasPrevMonth ? `Last month: ${formatCurrency(prevExpenses)}` : 'No previous month data',
         },
         {
           name: 'Income Growth',
-          grade: incomeGrade as Grade | 'N/A',
-          detail: hasPrevMonth ? `${incomeGrowth >= 0 ? '+' : ''}${incomeGrowth.toFixed(1)}% growth` : 'N/A',
+          grade: incomeGrade,
+          detail: incomeDetail,
           subtext: hasPrevMonth ? `Last month: ${formatCurrency(prevIncome)}` : 'No previous month data',
         },
       ],
@@ -185,11 +196,7 @@ export default function MonthlyFinancialReportCard() {
         </select>
       </div>
 
-      {!report ? (
-        <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-          No transaction data available
-        </div>
-      ) : (
+      {report ? (
         <>
           {/* Overall Grade */}
           <div className="flex flex-col items-center mb-8">
@@ -238,6 +245,10 @@ export default function MonthlyFinancialReportCard() {
             })}
           </div>
         </>
+      ) : (
+        <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+          No transaction data available
+        </div>
       )}
     </motion.div>
   )

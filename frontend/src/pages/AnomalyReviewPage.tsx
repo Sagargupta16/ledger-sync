@@ -127,22 +127,24 @@ export default function AnomalyReviewPage() {
               checked={includeReviewed}
               onChange={(e) => setIncludeReviewed(e.target.checked)}
               className="rounded border-white/20 bg-gray-800"
-            />
+            />{' '}
             Include Reviewed
           </label>
         </div>
       </motion.div>
 
       {/* Anomaly List */}
-      {isLoading ? (
+      {isLoading && (
         <div className="h-64 flex items-center justify-center text-muted-foreground">Loading anomalies...</div>
-      ) : anomalies.length === 0 ? (
+      )}
+      {!isLoading && anomalies.length === 0 && (
         <EmptyState
           icon={AlertTriangle}
           title="No anomalies detected"
           description="Your financial data looks normal. Anomalies will appear here when unusual patterns are detected."
         />
-      ) : (
+      )}
+      {!isLoading && anomalies.length > 0 && (
         <div className="space-y-3">
           {anomalies.map((anomaly) => {
             const TypeIcon = ANOMALY_TYPE_ICONS[anomaly.anomaly_type]

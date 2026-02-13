@@ -62,7 +62,7 @@ export default function CategoryCorrelationAnalysis() {
       dailySpending[date][cat] = (dailySpending[date][cat] || 0) + Math.abs(tx.amount)
     }
 
-    const dates = Object.keys(dailySpending).sort()
+    const dates = Object.keys(dailySpending).sort((a, b) => a.localeCompare(b))
 
     // Build correlation matrix
     const correlationMatrix: number[][] = []
@@ -151,7 +151,8 @@ export default function CategoryCorrelationAnalysis() {
                   const isHovered = hoveredCell?.row === i && hoveredCell?.col === j
                   return (
                     <div
-                      key={j}
+                      key={`${rowCat}-${categories[j]}`}
+                      role="cell"
                       className="relative flex items-center justify-center rounded transition-all cursor-pointer"
                       style={{
                         width: 50,

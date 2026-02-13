@@ -9,7 +9,7 @@ interface DropZoneProps {
   compact?: boolean
 }
 
-export default function DropZone({ onFileSelect, isUploading, compact }: DropZoneProps) {
+export default function DropZone({ onFileSelect, isUploading, compact }: Readonly<DropZoneProps>) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const onDrop = useCallback(
@@ -94,7 +94,7 @@ export default function DropZone({ onFileSelect, isUploading, compact }: DropZon
             <div className={compact ? 'flex-1 text-left' : ''}>
               <div className={compact ? '' : 'space-y-2'}>
                 <h3 className={cn('font-semibold', compact ? 'text-sm' : 'text-xl')}>
-                  {isDragActive ? 'Drop here' : compact ? 'Upload Excel' : 'Upload Excel File'}
+                  {isDragActive ? 'Drop here' : (compact ? 'Upload Excel' : 'Upload Excel File')}
                 </h3>
                 {!compact && (
                   <p className="text-sm text-muted-foreground">

@@ -20,48 +20,118 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade() -> None:
-    """Add new simplified income classification columns and migrate data."""
-    # Add new columns with defaults
-    op.add_column(
-        "user_preferences",
-        sa.Column(
-            "taxable_income_categories",
-            sa.Text(),
-            nullable=False,
-            server_default='["Employment Income", "Business/Self Employment Income"]',
-        ),
-    )
-    op.add_column(
-        "user_preferences",
-        sa.Column(
-            "investment_returns_categories",
-            sa.Text(),
-            nullable=False,
-            server_default='["Investment Income"]',
-        ),
-    )
-    op.add_column(
-        "user_preferences",
-        sa.Column(
-            "non_taxable_income_categories",
-            sa.Text(),
-            nullable=False,
-            server_default='["Refund & Cashbacks"]',
-        ),
-    )
-    op.add_column(
-        "user_preferences",
-        sa.Column(
-            "other_income_categories",
-            sa.Text(),
-            nullable=False,
-            server_default='["One-time Income", "Other", "Modified Balancing"]',
-        ),
+_DEFAULT_TAXABLE = '["Employment Income", "Business/Self Employment Income"]'
+_DEFAULT_INVESTMENT = '["Investment Income"]'
+_DEFAULT_NON_TAXABLE = '["Refund & Cashbacks"]'
+_DEFAULT_OTHER = '["One-time Income", "Other", "Modified Balancing"]'
+
+_NEW_COLUMNS = [
+    ("taxable_income_categories", _DEFAULT_TAXABLE),
+    ("investment_returns_categories", _DEFAULT_INVESTMENT),
+    ("non_taxable_income_categories", _DEFAULT_NON_TAXABLE),
+    ("other_income_categories", _DEFAULT_OTHER),
+]
+
+_OLD_COLUMNS = [
+    "salary_categories",
+    "bonus_categories",
+    "investment_income_categories",
+    "cashback_categories",
+    "employment_benefits_categories",
+    "freelance_categories",
+    "gifts_categories",
+]
+
+
+def _extract_categories(json_str: str) -> list[str]:
+    """Extract category names from old format {category: [subcategories]}."""
+    try:
+        data = json.loads(json_str) if isinstance(json_str, str) else json_str
+        return list(data.keys()) if isinstance(data, dict) else []
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
+def _classify_old_categories(row: sa.engine.Row) -> dict[str, set[str]]:
+    """Classify a row's old category columns into the new tax-based groups."""
+    taxable = set()
+    investment = set()
+    non_taxable = set()
+    other = set()
+
+    # Taxable: salary, bonus, employment benefits, freelance
+    taxable.update(_extract_categories(row.salary_categories))
+    taxable.update(_extract_categories(row.bonus_categories))
+    taxable.update(_extract_categories(row.employment_benefits_categories))
+    taxable.update(_extract_categories(row.freelance_categories))
+
+    # Investment
+    investment.update(_extract_categories(row.investment_income_categories))
+
+    # Non-taxable
+    non_taxable.update(_extract_categories(row.cashback_categories))
+
+    # Other
+    other.update(_extract_categories(row.gifts_categories))
+
+    return {
+        "taxable": taxable,
+        "investment": investment,
+        "non_taxable": non_taxable,
+        "other": other,
+    }
+
+
+def _serialize_with_default(categories: set[str], default: str) -> str:
+    """Serialize a set of categories to JSON, falling back to a default if empty."""
+    if categories:
+        return json.dumps(sorted(categories))
+    return default
+
+
+def _migrate_row(connection: sa.engine.Connection, row: sa.engine.Row) -> None:
+    """Migrate a single user_preferences row from old columns to new columns."""
+    groups = _classify_old_categories(row)
+
+    connection.execute(
+        sa.text("""
+            UPDATE user_preferences
+            SET taxable_income_categories = :taxable,
+                investment_returns_categories = :investment,
+                non_taxable_income_categories = :non_taxable,
+                other_income_categories = :other
+            WHERE id = :id
+        """),
+        {
+            "id": row.id,
+            "taxable": _serialize_with_default(groups["taxable"], _DEFAULT_TAXABLE),
+            "investment": _serialize_with_default(groups["investment"], _DEFAULT_INVESTMENT),
+            "non_taxable": _serialize_with_default(groups["non_taxable"], _DEFAULT_NON_TAXABLE),
+            "other": _serialize_with_default(groups["other"], _DEFAULT_OTHER),
+        },
     )
 
+
+def _add_new_classification_columns() -> None:
+    """Add the new simplified income classification columns."""
+    for col_name, default in _NEW_COLUMNS:
+        op.add_column(
+            "user_preferences",
+            sa.Column(col_name, sa.Text(), nullable=False, server_default=default),
+        )
+
+
+def _drop_old_classification_columns() -> None:
+    """Drop the old income category columns."""
+    for col_name in _OLD_COLUMNS:
+        op.drop_column("user_preferences", col_name)
+
+
+def upgrade() -> None:
+    """Add new simplified income classification columns and migrate data."""
+    _add_new_classification_columns()
+
     # Migrate data from old columns to new ones
-    # Get connection for data migration
     connection = op.get_bind()
     result = connection.execute(
         sa.text(
@@ -72,75 +142,9 @@ def upgrade() -> None:
     )
 
     for row in result:
-        # Parse old JSON structures to get category names
-        taxable = set()
-        investment = set()
-        non_taxable = set()
-        other = set()
+        _migrate_row(connection, row)
 
-        # Helper to extract category names from old format {category: [subcategories]}
-        def extract_categories(json_str: str) -> list[str]:
-            try:
-                data = json.loads(json_str) if isinstance(json_str, str) else json_str
-                return list(data.keys()) if isinstance(data, dict) else []
-            except (json.JSONDecodeError, TypeError):
-                return []
-
-        # Classify based on old mappings
-        for cat in extract_categories(row.salary_categories):
-            taxable.add(cat)
-        for cat in extract_categories(row.bonus_categories):
-            taxable.add(cat)
-        for cat in extract_categories(row.employment_benefits_categories):
-            taxable.add(cat)
-        for cat in extract_categories(row.freelance_categories):
-            taxable.add(cat)
-        for cat in extract_categories(row.investment_income_categories):
-            investment.add(cat)
-        for cat in extract_categories(row.cashback_categories):
-            non_taxable.add(cat)
-        for cat in extract_categories(row.gifts_categories):
-            other.add(cat)
-
-        # Update with migrated data
-        connection.execute(
-            sa.text("""
-                UPDATE user_preferences
-                SET taxable_income_categories = :taxable,
-                    investment_returns_categories = :investment,
-                    non_taxable_income_categories = :non_taxable,
-                    other_income_categories = :other
-                WHERE id = :id
-            """),
-            {
-                "id": row.id,
-                "taxable": (
-                    json.dumps(sorted(taxable))
-                    if taxable
-                    else '["Employment Income", "Business/Self Employment Income"]'
-                ),
-                "investment": (
-                    json.dumps(sorted(investment)) if investment else '["Investment Income"]'
-                ),
-                "non_taxable": (
-                    json.dumps(sorted(non_taxable)) if non_taxable else '["Refund & Cashbacks"]'
-                ),
-                "other": (
-                    json.dumps(sorted(other))
-                    if other
-                    else '["One-time Income", "Other", "Modified Balancing"]'
-                ),
-            },
-        )
-
-    # Drop old columns
-    op.drop_column("user_preferences", "salary_categories")
-    op.drop_column("user_preferences", "bonus_categories")
-    op.drop_column("user_preferences", "investment_income_categories")
-    op.drop_column("user_preferences", "cashback_categories")
-    op.drop_column("user_preferences", "employment_benefits_categories")
-    op.drop_column("user_preferences", "freelance_categories")
-    op.drop_column("user_preferences", "gifts_categories")
+    _drop_old_classification_columns()
 
 
 def downgrade() -> None:

@@ -26,6 +26,61 @@ const calculateCAGR = (endingValue: number, beginningValue: number, years: numbe
   return (Math.pow(endingValue / beginningValue, 1 / years) - 1) * 100
 }
 
+/** Check if a transaction's text matches investment income keywords */
+function isInvestmentIncome(lower: string): boolean {
+  return lower.includes('dividend') || lower.includes('divid') ||
+         lower.includes('interest') || lower.includes('int.') ||
+         lower.includes('int cr') || lower.includes('int credit') ||
+         lower.includes('profit') || lower.includes('gain') ||
+         lower.includes('realized')
+}
+
+/** Check if a transaction's text matches broker fee keywords */
+function isBrokerFee(lower: string): boolean {
+  return (lower.includes('broker') && (lower.includes('charge') || lower.includes('fee'))) ||
+         lower.includes('brokerage') ||
+         (lower.includes('demat') && lower.includes('charge')) ||
+         (lower.includes('trading') && (lower.includes('charge') || lower.includes('fee'))) ||
+         (lower.includes('transaction') && lower.includes('charge'))
+}
+
+/** Check if a transaction's text matches investment loss keywords (excluding broker fees) */
+function isInvestmentLoss(lower: string): boolean {
+  return !lower.includes('broker') && !lower.includes('brokerage') &&
+         (lower.includes('loss') || lower.includes('write'))
+}
+
+/** Group transactions by day into income/expenses buckets */
+function groupTransactionsByDay(
+  transactions: Array<{ date: string; type: string; amount: number; category: string; note?: string; subcategory?: string }>,
+): Record<string, { income: number; expenses: number }> {
+  const dailyData: Record<string, { income: number; expenses: number }> = {}
+
+  for (const tx of transactions) {
+    const dayKey = tx.date.substring(0, 10)
+    if (!dailyData[dayKey]) {
+      dailyData[dayKey] = { income: 0, expenses: 0 }
+    }
+
+    const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
+    const categoryLower = tx.category.toLowerCase()
+    const amount = Math.abs(tx.amount)
+
+    // Income: dividends, interest, investment profit
+    if (tx.type === 'Income' && isInvestmentIncome(lower)) {
+      dailyData[dayKey].income += amount
+    }
+
+    // Expenses: broker fees and investment loss - ONLY from investment categories
+    const isInvestmentCategory = categoryLower.includes('investment') || categoryLower.includes('stock') || categoryLower.includes('trading')
+    if (tx.type === 'Expense' && isInvestmentCategory && (isBrokerFee(lower) || isInvestmentLoss(lower))) {
+      dailyData[dayKey].expenses += amount
+    }
+  }
+
+  return dailyData
+}
+
 export default function ReturnsAnalysisPage() {
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
@@ -208,51 +263,14 @@ export default function ReturnsAnalysisPage() {
 
   // Calculate cumulative P&L over time from transactions (daily)
   const cumulativeReturnsData = useMemo(() => {
-    // Group transactions by day
-    const dailyData: Record<string, { income: number; expenses: number }> = {}
-
-    transactions.forEach((tx) => {
-      const dayKey = tx.date.substring(0, 10) // YYYY-MM-DD
-
-      if (!dailyData[dayKey]) {
-        dailyData[dayKey] = { income: 0, expenses: 0 }
-      }
-
-      const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
-      const categoryLower = tx.category.toLowerCase()
-      const amount = Math.abs(tx.amount)
-
-      // Income: dividends, interest, investment profit
-      if (tx.type === 'Income') {
-        if (lower.includes('dividend') || lower.includes('divid')) {
-          dailyData[dayKey].income += amount
-        } else if (lower.includes('interest') || lower.includes('int.') || lower.includes('int cr') || lower.includes('int credit')) {
-          dailyData[dayKey].income += amount
-        } else if (lower.includes('profit') || lower.includes('gain') || lower.includes('realized')) {
-          dailyData[dayKey].income += amount
-        }
-      }
-
-      // Expenses: broker fees and investment loss - ONLY from investment categories
-      if (tx.type === 'Expense' && (categoryLower.includes('investment') || categoryLower.includes('stock') || categoryLower.includes('trading'))) {
-        if ((lower.includes('broker') && (lower.includes('charge') || lower.includes('fee'))) ||
-            lower.includes('brokerage') ||
-            (lower.includes('demat') && lower.includes('charge')) ||
-            (lower.includes('trading') && (lower.includes('charge') || lower.includes('fee'))) ||
-            (lower.includes('transaction') && lower.includes('charge'))) {
-          dailyData[dayKey].expenses += amount
-        } else if (!lower.includes('broker') && !lower.includes('brokerage') && (lower.includes('loss') || lower.includes('write'))) {
-          dailyData[dayKey].expenses += amount
-        }
-      }
-    })
+    const dailyData = groupTransactionsByDay(transactions)
 
     // Sort by date and calculate cumulative
     const sortedDays = Object.keys(dailyData).sort((a, b) => a.localeCompare(b))
 
     return sortedDays.reduce<Array<{ date: string; cumulative: number; dailyNet: number }>>((acc, day) => {
       const net = dailyData[day].income - dailyData[day].expenses
-      const prevCumulative = acc.length > 0 ? acc[acc.length - 1].cumulative : 0
+      const prevCumulative = acc.length > 0 ? acc.at(-1)!.cumulative : 0
       acc.push({
         date: day,
         cumulative: Math.round(prevCumulative + net),

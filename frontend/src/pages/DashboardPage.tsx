@@ -277,13 +277,13 @@ export default function DashboardPage() {
                       dataKey="value"
                       stroke="none"
                     >
-                      {incomeChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {incomeChartData.map((entry) => (
+                        <Cell key={`cell-${entry.name}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip
                       {...chartTooltipProps}
-                      formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+                      formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -360,13 +360,13 @@ export default function DashboardPage() {
                       dataKey="value"
                       stroke="none"
                     >
-                      {spendingChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {spendingChartData.map((entry) => (
+                        <Cell key={`cell-${entry.name}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip
                       {...chartTooltipProps}
-                      formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+                      formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                     />
                   </PieChart>
                 </ResponsiveContainer>

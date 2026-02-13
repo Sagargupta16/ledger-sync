@@ -28,7 +28,7 @@ const GOAL_TYPE_LABELS: Record<FinancialGoal['goal_type'], string> = {
   custom: 'Custom',
 }
 
-function CircularProgress({ progress, color, size = 80 }: { progress: number; color: string; size?: number }) {
+function CircularProgress({ progress, color, size = 80 }: Readonly<{ progress: number; color: string; size?: number }>) {
   const strokeWidth = 6
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
@@ -223,15 +223,17 @@ export default function GoalsPage() {
       </AnimatePresence>
 
       {/* Goals Grid */}
-      {isLoading ? (
+      {isLoading && (
         <div className="h-64 flex items-center justify-center text-muted-foreground">Loading goals...</div>
-      ) : goals.length === 0 ? (
+      )}
+      {!isLoading && goals.length === 0 && (
         <EmptyState
           icon={Target}
           title="No financial goals yet"
           description="Create your first goal to start tracking your financial progress."
         />
-      ) : (
+      )}
+      {!isLoading && goals.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {goals.map((goal) => {
             const color = GOAL_TYPE_COLORS[goal.goal_type]

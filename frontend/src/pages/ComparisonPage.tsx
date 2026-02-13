@@ -253,8 +253,8 @@ export default function ComparisonPage() {
       <div className="p-8 space-y-6">
         <div className="h-10 w-72 bg-white/5 rounded-xl animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={`skel-${i}`} className="h-48 bg-white/5 rounded-2xl animate-pulse" />
+          {['income', 'expenses', 'savings', 'rate'].map((name) => (
+            <div key={`skel-${name}`} className="h-48 bg-white/5 rounded-2xl animate-pulse" />
           ))}
         </div>
       </div>
@@ -410,7 +410,7 @@ export default function ComparisonPage() {
               <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: '#9ca3af', fontSize: 12 }} />
               <Tooltip
                 {...chartTooltipProps}
-                formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+                formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
               />
               <Legend />
               <Bar dataKey={periodA.label} fill={rawColors.ios.blue} radius={[4, 4, 0, 0]} />
@@ -610,6 +610,12 @@ function KpiCard({
   const isGood = invertChange ? !isPositive : isPositive
   const fmtVal = (v: number) => (isPercent ? `${v.toFixed(1)}%` : formatCurrency(v))
 
+  const changeIndicator = (() => {
+    if (Math.abs(change) < 1) return <Minus className="w-3.5 h-3.5 text-gray-400" />
+    if (isPositive) return <ArrowUpRight className="w-3.5 h-3.5" />
+    return <ArrowDownRight className="w-3.5 h-3.5" />
+  })()
+
   return (
     <motion.div
       className="glass rounded-2xl border border-white/10 p-5 shadow-xl"
@@ -623,13 +629,7 @@ function KpiCard({
         <span className="opacity-60">{labelA}:</span> {fmtVal(valueA)}
       </div>
       <div className={`flex items-center gap-1 text-sm font-medium ${isGood ? 'text-green-400' : 'text-red-400'}`}>
-        {Math.abs(change) < 1 ? (
-          <Minus className="w-3.5 h-3.5 text-gray-400" />
-        ) : (
-          isPositive
-            ? <ArrowUpRight className="w-3.5 h-3.5" />
-            : <ArrowDownRight className="w-3.5 h-3.5" />
-        )}
+        {changeIndicator}
         <span>
           {change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}
         </span>

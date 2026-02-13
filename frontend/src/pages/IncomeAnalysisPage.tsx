@@ -229,13 +229,13 @@ export default function IncomeAnalysisPage() {
                       dataKey="value"
                       stroke="none"
                     >
-                      {incomeTypeChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {incomeTypeChartData.map((entry) => (
+                        <Cell key={`cell-${entry.name}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip
                       {...chartTooltipProps}
-                      formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+                      formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -296,11 +296,12 @@ export default function IncomeAnalysisPage() {
             </div>
 
             {/* Chart */}
-            {isLoading ? (
+            {isLoading && (
               <div className="h-96 flex items-center justify-center">
                 <div className="animate-pulse text-gray-400">Loading chart...</div>
               </div>
-            ) : trendData.length > 0 ? (
+            )}
+            {!isLoading && trendData.length > 0 && (
               <ResponsiveContainer width="100%" height={400}>
                 <AreaChart data={trendData}>
                   <defs>
@@ -328,7 +329,7 @@ export default function IncomeAnalysisPage() {
                   <Tooltip
                     {...chartTooltipProps}
                     labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    formatter={(value: number | undefined) => value !== undefined ? [formatCurrency(value), 'Income'] : ''}
+                    formatter={(value: number | undefined) => value === undefined ? '' : [formatCurrency(value), 'Income']}
                   />
                   <Area
                     type="natural"
@@ -340,7 +341,8 @@ export default function IncomeAnalysisPage() {
                   />
                 </AreaChart>
               </ResponsiveContainer>
-            ) : (
+            )}
+            {!isLoading && trendData.length === 0 && (
               <EmptyState
                 icon={TrendingUp}
                 title="No income data available"

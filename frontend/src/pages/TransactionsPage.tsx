@@ -111,13 +111,13 @@ export default function TransactionsPage() {
     setIsExporting(true)
     try {
       const blob = await transactionsService.exportToCSV(filters)
-      const url = window.URL.createObjectURL(blob)
+      const url = globalThis.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       a.download = `transactions-${new Date().toISOString().split('T')[0]}.csv`
       document.body.appendChild(a)
       a.click()
-      window.URL.revokeObjectURL(url)
+      globalThis.URL.revokeObjectURL(url)
       document.body.removeChild(a)
       toast.success('Export successful!', {
         description: 'Your transactions have been exported to CSV',

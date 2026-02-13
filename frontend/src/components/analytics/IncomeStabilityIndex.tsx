@@ -36,7 +36,7 @@ export default function IncomeStabilityIndex() {
       incomeByCategory[cat][month] = (incomeByCategory[cat][month] || 0) + Math.abs(tx.amount)
     }
 
-    const allMonths = [...allMonthsSet].sort()
+    const allMonths = [...allMonthsSet].sort((a, b) => a.localeCompare(b))
     if (allMonths.length < 2) return { sources: [], overallScore: 0 }
 
     const results: Array<{ name: string; score: number; mean: number; total: number }> = []

@@ -128,6 +128,24 @@ function matchesPatterns(value: string, patterns: string[]): boolean {
   return patterns.some((p) => lower.includes(p))
 }
 
+function formatSignedPercent(value: number): string {
+  const prefix = value > 0 ? '+' : ''
+  return `${prefix}${value.toFixed(1)}%`
+}
+
+function cvToScore(cv: number): number {
+  if (cv < 30) return 90
+  if (cv < 60) return 70
+  if (cv < 100) return 50
+  return 20
+}
+
+function cvToLabel(cv: number): string {
+  if (cv < 30) return 'Low'
+  if (cv < 60) return 'Moderate'
+  return 'High'
+}
+
 function coefficientOfVariation(values: number[]): number {
   if (values.length === 0) return 0
   const mean = values.reduce((a, b) => a + b, 0) / values.length
@@ -297,9 +315,10 @@ function computeAnalysis(
   // BORROW: Debt trend (compare first half vs second half avg debt)
   const firstHalfDebt = buckets.slice(0, halfPoint).reduce((s, m) => s + m.debt, 0) / (halfPoint || 1)
   const secondHalfDebt = buckets.slice(halfPoint).reduce((s, m) => s + m.debt, 0) / ((count - halfPoint) || 1)
+  const debtTrendBase = secondHalfDebt > 0 ? 100 : 0
   const debtTrendPercent = firstHalfDebt > 0
     ? ((secondHalfDebt - firstHalfDebt) / firstHalfDebt) * 100
-    : (secondHalfDebt > 0 ? 100 : 0)
+    : debtTrendBase
 
   // PLAN: Savings consistency
   const monthlySavingsRates = buckets.map((m) =>
@@ -500,7 +519,7 @@ function scoreDebtTrend(data: AnalysisResult): HealthMetric {
     details: [
       data.avgMonthlyDebt === 0
         ? 'No debt payments detected'
-        : `Debt change: ${trend > 0 ? '+' : ''}${trend.toFixed(1)}% (half-over-half)`,
+        : `Debt change: ${formatSignedPercent(trend)} (half-over-half)`,
       trend <= 0 ? 'Debt burden reducing or stable' : 'Debt burden increasing',
     ],
   }
@@ -513,7 +532,7 @@ function scoreSavingsConsistency(data: AnalysisResult): HealthMetric {
 
   // 70% weight on positive months ratio, 30% on consistency (low CV)
   const ratioScore = ratio * 100
-  const cvScore = cv < 30 ? 90 : cv < 60 ? 70 : cv < 100 ? 50 : 20
+  const cvScore = cvToScore(cv)
   const score = ratioScore * 0.7 + cvScore * 0.3
 
   return {
@@ -525,7 +544,7 @@ function scoreSavingsConsistency(data: AnalysisResult): HealthMetric {
     description: `${Math.round(ratio * 100)}% months with positive savings`,
     details: [
       `Positive savings months: ${Math.round(ratio * 100)}%`,
-      `Savings volatility: ${cv < 30 ? 'Low' : cv < 60 ? 'Moderate' : 'High'}`,
+      `Savings volatility: ${cvToLabel(cv)}`,
       ratio >= 0.9 ? 'Consistent savings habit' : 'Target: save in 90%+ of months',
     ],
   }
@@ -646,11 +665,11 @@ function ScoreHeader({
   status,
   monthsAnalyzed,
   overallScore,
-}: {
+}: Readonly<{
   status: ReturnType<typeof getOverallStatus>
   monthsAnalyzed: number
   overallScore: number
-}) {
+}>) {
   return (
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-center gap-3">
@@ -673,10 +692,10 @@ function ScoreHeader({
 function CircularProgress({
   overallScore,
   statusColor,
-}: {
+}: Readonly<{
   overallScore: number
   statusColor: string
-}) {
+}>) {
   return (
     <div className="flex justify-center mb-4">
       <div className="relative w-28 h-28">
@@ -707,11 +726,11 @@ function PillarHeader({
   pillar,
   score,
   metrics,
-}: {
+}: Readonly<{
   pillar: Pillar
   score: number
   metrics: HealthMetric[]
-}) {
+}>) {
   const meta = PILLAR_META[pillar]
   const Icon = meta.icon
   const tier = tierFromScore(score)
@@ -739,10 +758,10 @@ function PillarHeader({
 function MetricRow({
   metric,
   showDetails,
-}: {
+}: Readonly<{
   metric: HealthMetric
   showDetails: boolean
-}) {
+}>) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-sm">
@@ -772,10 +791,10 @@ function MetricRow({
 function DetailsToggle({
   showDetails,
   onToggle,
-}: {
+}: Readonly<{
   showDetails: boolean
   onToggle: () => void
-}) {
+}>) {
   return (
     <button
       onClick={onToggle}

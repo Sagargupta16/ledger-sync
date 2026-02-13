@@ -48,14 +48,14 @@ export default function AccountActivityScore() {
     const results: AccountInfo[] = []
 
     for (const [name, data] of Object.entries(accountData)) {
-      const sortedDates = [...data.dates].sort()
-      const lastTxDate = sortedDates[sortedDates.length - 1]
+      const sortedDates = [...data.dates].sort((a, b) => a.localeCompare(b))
+      const lastTxDate = sortedDates.at(-1)!
       const daysSince = Math.floor((now.getTime() - new Date(lastTxDate).getTime()) / (1000 * 60 * 60 * 24))
 
       let avgFreq = 0
       if (sortedDates.length > 1) {
         const firstDate = new Date(sortedDates[0])
-        const lastDate = new Date(sortedDates[sortedDates.length - 1])
+        const lastDate = new Date(sortedDates.at(-1)!)
         const totalDays = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)
         avgFreq = Math.round(totalDays / (sortedDates.length - 1))
       }

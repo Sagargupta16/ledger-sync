@@ -107,6 +107,99 @@ const calculateSIPProjection = (
   }
 }
 
+// Helper: Build historical chart data from SIP transfers
+function buildHistoricalChartData(
+  sipTransfers: Array<{ date: string; amount: number }>,
+  effectiveCurrentValue: number,
+): ChartDataPoint[] {
+  const data: ChartDataPoint[] = []
+  let cumulativeInvested = 0
+  const monthlyInvested = new Map<string, number>()
+
+  for (const tx of sipTransfers) {
+    const date = new Date(tx.date)
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    cumulativeInvested += tx.amount
+    monthlyInvested.set(monthKey, cumulativeInvested)
+  }
+
+  const totalInvested = cumulativeInvested
+  const totalGains = effectiveCurrentValue - totalInvested
+
+  Array.from(monthlyInvested.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([monthKey, invested]) => {
+      const [year, month] = monthKey.split('-')
+      const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1)
+      const monthLabel = date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
+
+      const proportionalValue = totalInvested > 0
+        ? invested + (invested / totalInvested) * totalGains
+        : invested
+
+      data.push({
+        month: monthLabel,
+        invested: Math.round(invested),
+        value: Math.round(proportionalValue),
+        isHistorical: true,
+      })
+    })
+
+  return data
+}
+
+// Helper: Build projection chart data from the last historical data point
+function buildProjectionChartData(
+  lastHistorical: ChartDataPoint,
+  lastDate: Date,
+  activeMonthlySIP: number,
+  expectedReturn: number,
+  projectionYears: number,
+  sipGrowthRate: number,
+): ChartDataPoint[] {
+  const data: ChartDataPoint[] = []
+  let projectedInvested = lastHistorical.invested
+  let projectedValue = lastHistorical.value
+  let currentSIP = activeMonthlySIP
+  const monthlyRate = expectedReturn / 12 / 100
+
+  for (let i = 1; i <= projectionYears * 12; i++) {
+    const futureDate = new Date(lastDate)
+    futureDate.setMonth(lastDate.getMonth() + i)
+    const monthLabel = futureDate.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
+
+    projectedInvested += currentSIP
+    projectedValue = (projectedValue + currentSIP) * (1 + monthlyRate)
+
+    if (i % 12 === 0 && sipGrowthRate > 0) {
+      currentSIP *= (1 + sipGrowthRate / 100)
+    }
+
+    data.push({
+      month: monthLabel,
+      invested: Math.round(projectedInvested),
+      value: Math.round(projectedValue),
+      isHistorical: false,
+    })
+  }
+
+  return data
+}
+
+// Helper: Detect the most recent monthly SIP amount from transfers
+function detectMonthlySIPAmount(sipTransfers: Array<{ note?: string | null; amount: number }>): number {
+  if (sipTransfers.length === 0) return 0
+
+  const monthlySIPs = sipTransfers.filter(tx => {
+    const note = (tx.note || '').toLowerCase()
+    return note.includes('monthly') || (!note.includes('lumpsum') && note.includes('sip'))
+  })
+
+  if (monthlySIPs.length === 0) return 0
+
+  return monthlySIPs.at(-1)!.amount
+}
+
 export default function MutualFundProjectionPage() {
   const { data: balanceData, isLoading } = useAccountBalances()
   const { data: transactions = [] } = useTransactions()
@@ -175,18 +268,7 @@ export default function MutualFundProjectionPage() {
 
   // Detect last monthly SIP amount (exclude lumpsums)
   const detectedMonthlySIP = useMemo(() => {
-    if (sipTransfers.length === 0) return 0
-    
-    // Filter for monthly SIPs only
-    const monthlySIPs = sipTransfers.filter(tx => {
-      const note = (tx.note || '').toLowerCase()
-      return note.includes('monthly') || (!note.includes('lumpsum') && note.includes('sip'))
-    })
-    
-    if (monthlySIPs.length === 0) return 0
-    
-    // Get the most recent monthly SIP
-    return monthlySIPs[monthlySIPs.length - 1].amount
+    return detectMonthlySIPAmount(sipTransfers)
   }, [sipTransfers])
 
   // Use detected SIP if user hasn't modified it
@@ -210,87 +292,19 @@ export default function MutualFundProjectionPage() {
 
   // Build chart data: historical + projection
   const chartData = useMemo<ChartDataPoint[]>(() => {
-    const data: ChartDataPoint[] = []
-    
-    if (sipTransfers.length === 0) return data
-    
-    // STEP 1: Build historical data (actual SIP transfers)
-    let cumulativeInvested = 0
-    const monthlyInvested = new Map<string, number>()
-    
-    sipTransfers.forEach(tx => {
-      const date = new Date(tx.date)
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      cumulativeInvested += tx.amount
-      monthlyInvested.set(monthKey, cumulativeInvested)
-    })
-    
-    // Total amount actually invested
-    const totalInvested = cumulativeInvested
-    // Current actual value (includes gains/losses) - use override if set
-    const currentValue = effectiveCurrentValue
-    // Total gains/losses
-    const totalGains = currentValue - totalInvested
-    
-    // Add historical months
-    Array.from(monthlyInvested.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .forEach(([monthKey, invested]) => {
-        const [year, month] = monthKey.split('-')
-        const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1)
-        const monthLabel = date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
-        
-        // Distribute gains proportionally based on invested amount
-        const proportionalValue = totalInvested > 0 
-          ? invested + (invested / totalInvested) * totalGains
-          : invested
-        
-        data.push({
-          month: monthLabel,
-          invested: Math.round(invested),
-          value: Math.round(proportionalValue),
-          isHistorical: true,
-        })
-      })
-    
-    // STEP 2: Build projection data (future months)
-    if (data.length > 0) {
-      const lastHistorical = data[data.length - 1]
-      const lastDate = new Date(sipTransfers[sipTransfers.length - 1].date)
-      
-      let projectedInvested = lastHistorical.invested
-      let projectedValue = lastHistorical.value
-      let currentMonthlySIP = activeMonthlySIP
-      const monthlyRate = expectedReturn / 12 / 100
-      
-      // Project forward month by month
-      for (let i = 1; i <= projectionYears * 12; i++) {
-        // Calculate next month's date
-        const futureDate = new Date(lastDate)
-        futureDate.setMonth(lastDate.getMonth() + i)
-        const monthLabel = futureDate.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
-        
-        // Add SIP contribution
-        projectedInvested += currentMonthlySIP
-        
-        // Apply monthly compounding: (previous value + SIP) * (1 + monthly rate)
-        projectedValue = (projectedValue + currentMonthlySIP) * (1 + monthlyRate)
-        
-        // Increase SIP amount annually if growth is set
-        if (i % 12 === 0 && sipGrowthRate > 0) {
-          currentMonthlySIP *= (1 + sipGrowthRate / 100)
-        }
-        
-        data.push({
-          month: monthLabel,
-          invested: Math.round(projectedInvested),
-          value: Math.round(projectedValue),
-          isHistorical: false,
-        })
-      }
-    }
-    
-    return data
+    if (sipTransfers.length === 0) return []
+
+    const historicalData = buildHistoricalChartData(sipTransfers, effectiveCurrentValue)
+
+    if (historicalData.length === 0) return historicalData
+
+    const lastHistorical = historicalData.at(-1)!
+    const lastDate = new Date(sipTransfers.at(-1)!.date)
+    const projectionData = buildProjectionChartData(
+      lastHistorical, lastDate, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate
+    )
+
+    return [...historicalData, ...projectionData]
   }, [sipTransfers, effectiveCurrentValue, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate])
 
   // Realized gains: always based on actual portfolio balance (fixed, not affected by override)
@@ -659,7 +673,7 @@ export default function MutualFundProjectionPage() {
                   />
                   <Tooltip
                     {...chartTooltipProps}
-                    formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+                    formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                   />
                   <Legend />
                   <Area

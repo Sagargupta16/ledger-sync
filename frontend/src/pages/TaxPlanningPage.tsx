@@ -21,6 +21,199 @@ import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
 import TaxSummaryGrid from '@/components/analytics/TaxSummaryGrid'
 import TaxableIncomeTable from '@/components/analytics/TaxableIncomeTable'
 
+/** Result of classifying an income transaction for tax grouping */
+interface IncomeGroupAccumulator {
+  [key: string]: {
+    total: number
+    transactions: Array<{ date: string; type: string; amount: number; category: string; note?: string; subcategory?: string }>
+  }
+}
+
+interface FYData {
+  income: number
+  expense: number
+  taxableIncome: number
+  salaryMonths: Set<string>
+  transactions: Array<{ date: string; type: string; amount: number; category: string; note?: string; subcategory?: string }>
+  incomeGroups: IncomeGroupAccumulator
+}
+
+/** Classify and accumulate an income transaction into the FY group */
+function classifyAndAccumulateIncome(
+  tx: { date: string; type: string; amount: number; category: string; note?: string; subcategory?: string },
+  fyData: FYData,
+  incomeClassification: { taxable: string[]; investmentReturns: string[]; nonTaxable: string[]; other: string[] },
+): void {
+  const incomeType = classifyIncomeType(tx, incomeClassification)
+  const note = tx.note?.toLowerCase() || ''
+  const subcategory = (tx.subcategory || '').toLowerCase()
+
+  const isEPF =
+    note.includes('aws epf') ||
+    note.includes('epf withdrawal') ||
+    (tx.category === 'Employment Income' && tx.subcategory === 'EPF Contribution')
+
+  if (isEPF) {
+    const epfTaxablePortion = tx.amount / 2
+    fyData.taxableIncome += epfTaxablePortion
+    fyData.incomeGroups.EPF.total += epfTaxablePortion
+    fyData.incomeGroups.EPF.transactions.push(tx)
+    return
+  }
+
+  if (incomeType !== 'taxable') return
+
+  fyData.taxableIncome += tx.amount
+  const isSalaryOrStipend = subcategory === 'salary' || subcategory === 'stipend'
+  const isBonus = subcategory === 'bonuses' || subcategory === 'rsus'
+
+  if (isSalaryOrStipend) {
+    fyData.incomeGroups['Salary & Stipend'].total += tx.amount
+    fyData.incomeGroups['Salary & Stipend'].transactions.push(tx)
+    fyData.salaryMonths.add(tx.date.substring(0, 7))
+  } else if (isBonus) {
+    fyData.incomeGroups['Bonus'].total += tx.amount
+    fyData.incomeGroups['Bonus'].transactions.push(tx)
+  } else {
+    fyData.incomeGroups['Other Taxable Income'].total += tx.amount
+    fyData.incomeGroups['Other Taxable Income'].transactions.push(tx)
+  }
+}
+
+/** Create an empty FY data bucket */
+function createEmptyFYData(): FYData {
+  return {
+    income: 0,
+    expense: 0,
+    taxableIncome: 0,
+    salaryMonths: new Set(),
+    transactions: [],
+    incomeGroups: {
+      'Salary & Stipend': { total: 0, transactions: [] },
+      Bonus: { total: 0, transactions: [] },
+      EPF: { total: 0, transactions: [] },
+      'Other Taxable Income': { total: 0, transactions: [] },
+    },
+  }
+}
+
+interface ProjectionResult {
+  grossTaxableIncome: number
+  taxAlreadyPaid: number
+  baseTax: number
+  cess: number
+  professionalTax: number
+  slabBreakdown: Array<{ slab: string; taxableAmount: number; tax: number }>
+  remainingMonths: number
+  avgMonthlySalary: number
+  projectedAdditionalIncome: number
+}
+
+/** Calculate year-end projection for the current FY */
+function calculateProjection(
+  currentFYData: FYData | null,
+  netTaxableIncome: number,
+  salaryMonthsCount: number,
+  taxSlabs: Array<{ min: number; max: number; rate: number }>,
+  standardDeduction: number,
+): ProjectionResult {
+  const today = new Date()
+  const currentMonth = today.getMonth()
+  const remainingMonths = currentMonth >= 3 ? 12 - (currentMonth - 3) : 3 - currentMonth
+
+  const salaryStipendTxs = currentFYData?.incomeGroups?.['Salary & Stipend']?.transactions || []
+
+  if (salaryStipendTxs.length === 0 || remainingMonths <= 0) {
+    return {
+      grossTaxableIncome: 0,
+      taxAlreadyPaid: 0,
+      baseTax: 0,
+      cess: 0,
+      professionalTax: 0,
+      slabBreakdown: [],
+      remainingMonths,
+      avgMonthlySalary: 0,
+      projectedAdditionalIncome: 0,
+    }
+  }
+
+  const sorted = [...salaryStipendTxs].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  )
+  const recentSalaries = sorted.slice(0, Math.min(3, sorted.length))
+  const totalRecentSalary = recentSalaries.reduce((sum, tx) => sum + tx.amount, 0)
+  const avgMonthlySalary = totalRecentSalary / recentSalaries.length
+
+  const projectedAdditionalIncome = avgMonthlySalary * remainingMonths
+  const projectedNetTotal = netTaxableIncome + projectedAdditionalIncome
+  const projectedSalaryMonthsCount = salaryMonthsCount + remainingMonths
+
+  const grossTaxableIncome = calculateGrossFromNet(
+    projectedNetTotal,
+    taxSlabs,
+    standardDeduction,
+    true,
+    projectedSalaryMonthsCount,
+  )
+  const projectedCalc = calculateTax(
+    grossTaxableIncome,
+    taxSlabs,
+    standardDeduction,
+    true,
+    projectedSalaryMonthsCount,
+  )
+
+  return {
+    grossTaxableIncome,
+    taxAlreadyPaid: projectedCalc.totalTax,
+    baseTax: projectedCalc.tax,
+    cess: projectedCalc.cess,
+    professionalTax: projectedCalc.professionalTax,
+    slabBreakdown: projectedCalc.slabBreakdown,
+    remainingMonths,
+    avgMonthlySalary,
+    projectedAdditionalIncome,
+  }
+}
+
+/** Resolve actual vs projected display values */
+function resolveDisplayValues(
+  projection: ProjectionResult | null,
+  actual: {
+    grossTaxableIncome: number
+    netTaxableIncome: number
+    taxAlreadyPaid: number
+    baseTax: number
+    cess: number
+    professionalTax: number
+    slabBreakdown: Array<{ slab: string; taxableAmount: number; tax: number }>
+    income: number
+  },
+) {
+  if (!projection) {
+    return {
+      gross: actual.grossTaxableIncome,
+      net: actual.netTaxableIncome,
+      totalTax: actual.taxAlreadyPaid,
+      baseTax: actual.baseTax,
+      cess: actual.cess,
+      professionalTax: actual.professionalTax,
+      slabBreakdown: actual.slabBreakdown,
+      income: actual.income,
+    }
+  }
+  return {
+    gross: projection.grossTaxableIncome,
+    net: actual.netTaxableIncome + projection.projectedAdditionalIncome,
+    totalTax: projection.taxAlreadyPaid,
+    baseTax: projection.baseTax,
+    cess: projection.cess,
+    professionalTax: projection.professionalTax,
+    slabBreakdown: projection.slabBreakdown,
+    income: actual.income + projection.projectedAdditionalIncome,
+  }
+}
+
 export default function TaxPlanningPage() {
   const { data: allTransactions = [], isLoading } = useTransactions()
   const { data: preferences } = usePreferences()
@@ -43,82 +236,18 @@ export default function TaxPlanningPage() {
 
   // Group transactions by Financial Year
   const transactionsByFY = useMemo(() => {
-    const grouped: Record<
-      string,
-      {
-        income: number
-        expense: number
-        taxableIncome: number
-        salaryMonths: Set<string>
-        transactions: typeof allTransactions
-        incomeGroups: {
-          [key: string]: {
-            total: number
-            transactions: typeof allTransactions
-          }
-        }
-      }
-    > = {}
+    const grouped: Record<string, FYData> = {}
 
     for (const tx of allTransactions) {
       const fy = getFYFromDate(tx.date, fiscalYearStartMonth)
       if (!grouped[fy]) {
-        grouped[fy] = {
-          income: 0,
-          expense: 0,
-          taxableIncome: 0,
-          salaryMonths: new Set(),
-          transactions: [],
-          incomeGroups: {
-            'Salary & Stipend': { total: 0, transactions: [] },
-            Bonus: { total: 0, transactions: [] },
-            EPF: { total: 0, transactions: [] },
-            'Other Taxable Income': { total: 0, transactions: [] },
-          },
-        }
+        grouped[fy] = createEmptyFYData()
       }
       grouped[fy].transactions.push(tx)
 
       if (tx.type === 'Income') {
         grouped[fy].income += tx.amount
-
-        // Use preferences-based income classification
-        const incomeType = classifyIncomeType(tx, incomeClassification)
-        const note = tx.note?.toLowerCase() || ''
-        const subcategory = (tx.subcategory || '').toLowerCase()
-
-        // EPF handling (special case - half taxable)
-        const isEPF =
-          note.includes('aws epf') ||
-          note.includes('epf withdrawal') ||
-          (tx.category === 'Employment Income' && tx.subcategory === 'EPF Contribution')
-
-        // Check if it's salary or stipend specifically (subset of taxable)
-        const isSalaryOrStipend = subcategory === 'salary' || subcategory === 'stipend'
-        const isBonus = subcategory === 'bonuses' || subcategory === 'rsus'
-
-        // Handle EPF separately (50% taxable rule)
-        if (isEPF) {
-          const epfTaxablePortion = tx.amount / 2
-          grouped[fy].taxableIncome += epfTaxablePortion
-          grouped[fy].incomeGroups.EPF.total += epfTaxablePortion
-          grouped[fy].incomeGroups.EPF.transactions.push(tx)
-        } else if (incomeType === 'taxable') {
-          grouped[fy].taxableIncome += tx.amount
-          if (isSalaryOrStipend) {
-            grouped[fy].incomeGroups['Salary & Stipend'].total += tx.amount
-            grouped[fy].incomeGroups['Salary & Stipend'].transactions.push(tx)
-            const month = tx.date.substring(0, 7)
-            grouped[fy].salaryMonths.add(month)
-          } else if (isBonus) {
-            grouped[fy].incomeGroups['Bonus'].total += tx.amount
-            grouped[fy].incomeGroups['Bonus'].transactions.push(tx)
-          } else {
-            grouped[fy].incomeGroups['Other Taxable Income'].total += tx.amount
-            grouped[fy].incomeGroups['Other Taxable Income'].transactions.push(tx)
-          }
-        }
-        // Note: Investment income and cashback are generally not taxable as regular income
+        classifyAndAccumulateIncome(tx, grouped[fy], incomeClassification)
       } else if (tx.type === 'Expense') {
         grouped[fy].expense += tx.amount
       }
@@ -179,86 +308,41 @@ export default function TaxPlanningPage() {
 
   // ── Projection for remaining months ─────────────────────────────────
 
-  const today = new Date()
   const currentFYLabel = getFYFromDate(
-    today.toISOString().split('T')[0],
+    new Date().toISOString().split('T')[0],
     fiscalYearStartMonth,
   )
   const isCurrentFY = selectedFY === currentFYLabel
+  const useProjected = showProjection && isCurrentFY && hasEmploymentIncome
 
-  let projectedGrossTaxableIncome = grossTaxableIncome
-  let projectedTaxAlreadyPaid = taxAlreadyPaid
-  let projectedBaseTax = baseTax
-  let projectedCess = cess
-  let projectedProfessionalTax = professionalTax
-  let projectedSlabBreakdown = slabBreakdown
-  let remainingMonths = 0
-  let avgMonthlySalary = 0
-  let projectedAdditionalIncome = 0
+  const projection = useProjected
+    ? calculateProjection(currentFYData, netTaxableIncome, salaryMonthsCount, taxSlabs, standardDeduction)
+    : null
 
-  if (showProjection && isCurrentFY && hasEmploymentIncome) {
-    const currentMonth = today.getMonth() // 0 = Jan, 3 = Apr
-
-    // Financial year runs Apr (3) to Mar (2)
-    if (currentMonth >= 3) {
-      remainingMonths = 12 - (currentMonth - 3)
-    } else {
-      remainingMonths = 3 - currentMonth
-    }
-
-    // Get average of last 3 months salary from Salary & Stipend group
-    const salaryStipendTxs =
-      currentFYData?.incomeGroups?.['Salary & Stipend']?.transactions || []
-
-    if (salaryStipendTxs.length > 0 && remainingMonths > 0) {
-      const sorted = [...salaryStipendTxs].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      )
-      const recentSalaries = sorted.slice(0, Math.min(3, sorted.length))
-
-      const totalRecentSalary = recentSalaries.reduce((sum, tx) => sum + tx.amount, 0)
-      avgMonthlySalary = totalRecentSalary / recentSalaries.length
-
-      projectedAdditionalIncome = avgMonthlySalary * remainingMonths
-      const projectedNetTotal = netTaxableIncome + projectedAdditionalIncome
-      const projectedSalaryMonthsCount = salaryMonthsCount + remainingMonths
-
-      projectedGrossTaxableIncome = calculateGrossFromNet(
-        projectedNetTotal,
-        taxSlabs,
-        standardDeduction,
-        true,
-        projectedSalaryMonthsCount,
-      )
-      const projectedCalc = calculateTax(
-        projectedGrossTaxableIncome,
-        taxSlabs,
-        standardDeduction,
-        true,
-        projectedSalaryMonthsCount,
-      )
-      projectedBaseTax = projectedCalc.tax
-      projectedSlabBreakdown = projectedCalc.slabBreakdown
-      projectedCess = projectedCalc.cess
-      projectedProfessionalTax = projectedCalc.professionalTax
-      projectedTaxAlreadyPaid = projectedCalc.totalTax
-    }
-  }
+  const remainingMonths = projection?.remainingMonths ?? 0
+  const avgMonthlySalary = projection?.avgMonthlySalary ?? 0
 
   // ── Resolve "actual vs projected" display values ────────────────────
 
-  const useProjected = showProjection && isCurrentFY && hasEmploymentIncome
+  const displayValues = resolveDisplayValues(projection, {
+    grossTaxableIncome,
+    netTaxableIncome,
+    taxAlreadyPaid,
+    baseTax,
+    cess,
+    professionalTax,
+    slabBreakdown,
+    income,
+  })
 
-  const displayGross = useProjected ? projectedGrossTaxableIncome : grossTaxableIncome
-  const displayNet = useProjected
-    ? netTaxableIncome + projectedAdditionalIncome
-    : netTaxableIncome
-  const displayTotalTax = useProjected ? projectedTaxAlreadyPaid : taxAlreadyPaid
-  const displayBaseTax = useProjected ? projectedBaseTax : baseTax
-  const displayCess = useProjected ? projectedCess : cess
-  const displayProfessionalTax = useProjected ? projectedProfessionalTax : professionalTax
-  const displaySlabBreakdown = useProjected ? projectedSlabBreakdown : slabBreakdown
-  const displayIncome = useProjected ? income + projectedAdditionalIncome : income
+  const displayGross = displayValues.gross
+  const displayNet = displayValues.net
+  const displayTotalTax = displayValues.totalTax
+  const displayBaseTax = displayValues.baseTax
+  const displayCess = displayValues.cess
+  const displayProfessionalTax = displayValues.professionalTax
+  const displaySlabBreakdown = displayValues.slabBreakdown
+  const displayIncome = displayValues.income
 
   // ── FY navigation ───────────────────────────────────────────────────
 
