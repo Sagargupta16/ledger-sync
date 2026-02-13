@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Grid3x3 } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -83,7 +83,7 @@ function buildCorrelationMatrix(
 
 export default function CategoryCorrelationAnalysis() {
   const { data: transactions = [] } = useTransactions()
-  const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null)
+  // Hover highlighting is handled via CSS :hover pseudo-class
 
   const { categories, matrix, strongPairs } = useMemo(() => {
     const expenses = transactions.filter((t) => t.type === 'Expense')
@@ -167,19 +167,15 @@ export default function CategoryCorrelationAnalysis() {
                 </span>
                 {categories.map((_, j) => {
                   const r = matrix[i][j]
-                  const isHovered = hoveredCell?.row === i && hoveredCell?.col === j
                   return (
                     <div
                       key={`${rowCat}-${categories[j]}`}
-                      className="relative flex items-center justify-center rounded transition-all cursor-pointer"
+                      className="relative flex items-center justify-center rounded transition-all hover:ring-1 hover:ring-white/30"
                       style={{
                         width: 50,
                         height: 32,
                         backgroundColor: i === j ? 'rgba(255,255,255,0.05)' : getCorrelationBg(r),
-                        border: isHovered ? '1px solid rgba(255,255,255,0.3)' : '1px solid transparent',
                       }}
-                      onMouseEnter={() => setHoveredCell({ row: i, col: j })}
-                      onMouseLeave={() => setHoveredCell(null)}
                     >
                       <span
                         className="text-xs font-mono"

@@ -16,6 +16,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
+import type { Transaction } from '@/types'
 
 // Hide number input spinners
 const hideSpinnersStyle = `
@@ -280,10 +281,303 @@ function computeInvestmentDuration(sipTransfers: Array<{ date: string }>): numbe
   return (now.getTime() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
 }
 
+// Helper: Filter SIP transfer transactions for a given primary account
+function filterSipTransfers(
+  transactions: Transaction[],
+  primaryAccountName: string,
+): Transaction[] {
+  const lowerName = primaryAccountName.toLowerCase()
+  return transactions
+    .filter(tx =>
+      tx.type === 'Transfer' &&
+      tx.to_account?.toLowerCase() === lowerName
+    )
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+interface OverviewCardsProps {
+  isLoading: boolean
+  currentBalance: number
+  primaryAccountName: string | null
+  detectedMonthlySIP: number
+  transactionCount: number
+  totalHistoricalInvested: number
+  realizedGains: number
+  realizedGainsPercent: number
+  gainsBgClass: string
+  gainsIconClass: string
+  gainsTextClass: string
+  gainsSignPrefix: string
+}
+
+function OverviewCards(props: Readonly<OverviewCardsProps>) {
+  const {
+    isLoading,
+    currentBalance,
+    primaryAccountName,
+    detectedMonthlySIP,
+    transactionCount,
+    totalHistoricalInvested,
+    realizedGains,
+    realizedGainsPercent,
+    gainsBgClass,
+    gainsIconClass,
+    gainsTextClass,
+    gainsSignPrefix,
+  } = props
+
+  const currentBalanceDisplay = isLoading ? '...' : formatCurrency(currentBalance)
+  const monthlySipDisplay = isLoading ? '...' : formatCurrency(detectedMonthlySIP)
+  const totalInvestedDisplay = isLoading ? '...' : formatCurrency(totalHistoricalInvested)
+  const realizedGainsDisplay = isLoading ? '...' : formatCurrency(realizedGains)
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-purple-500/20 rounded-xl shadow-lg shadow-purple-500/30">
+            <TrendingUp className="w-6 h-6 text-purple-500" />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Current Balance</p>
+            <p className="text-2xl font-bold">
+              {currentBalanceDisplay}
+            </p>
+            {primaryAccountName && (
+              <p className="text-xs text-muted-foreground mt-1">{primaryAccountName}</p>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-green-500/20 rounded-xl shadow-lg shadow-green-500/30">
+            <Calculator className="w-6 h-6 text-green-500" />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Monthly SIP</p>
+            <p className="text-2xl font-bold">
+              {monthlySipDisplay}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">{transactionCount} transactions</p>
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
+            <Percent className="w-6 h-6 text-blue-500" />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Total Invested</p>
+            <p className="text-2xl font-bold">
+              {totalInvestedDisplay}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Actual contributions</p>
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+      >
+        <div className="flex items-center gap-3">
+          <div className={`p-3 rounded-xl shadow-lg ${gainsBgClass}`}>
+            <TrendingUp className={`w-6 h-6 ${gainsIconClass}`} />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Realized Gain</p>
+            <p className={`text-2xl font-bold ${gainsTextClass}`}>
+              {realizedGainsDisplay}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {gainsSignPrefix}{realizedGainsPercent.toFixed(2)}% returns
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+interface ReturnsAnalysisSectionProps {
+  currentValueInput: number
+  currentBalance: number
+  onCurrentValueChange: (value: number) => void
+  overrideGainsPercent: number
+  overrideGains: number
+  totalHistoricalInvested: number
+  xirrPercent: number
+  investmentDurationYears: number
+  effectiveCurrentValue: number
+  currentValueLabel: string
+  effectiveValueLabel: string
+  totalReturnColorClass: string
+  totalReturnSignPrefix: string
+  xirrColorClass: string
+  xirrSignPrefix: string
+}
+
+function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionProps>) {
+  const {
+    currentValueInput,
+    currentBalance,
+    onCurrentValueChange,
+    overrideGainsPercent,
+    overrideGains,
+    totalHistoricalInvested,
+    xirrPercent,
+    investmentDurationYears,
+    effectiveCurrentValue,
+    currentValueLabel,
+    effectiveValueLabel,
+    totalReturnColorClass,
+    totalReturnSignPrefix,
+    xirrColorClass,
+    xirrSignPrefix,
+  } = props
+
+  return (
+    <div className="mt-8 pt-6 border-t border-white/10">
+      <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
+        <BarChart3 className="w-5 h-5 text-amber-500" />
+        Returns Analysis
+      </h4>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div>
+          <label htmlFor="current-value" className="block text-sm font-medium text-muted-foreground mb-2">
+            Current Value ({'\u20B9'})
+          </label>
+          <input
+            id="current-value"
+            type="number"
+            value={currentValueInput || ''}
+            placeholder={formatCurrency(currentBalance).replace('\u20B9', '').trim()}
+            onChange={(e) => onCurrentValueChange(Number(e.target.value))}
+            className="w-full bg-background border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+            min="0"
+            step="1000"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            {currentValueLabel}
+          </p>
+        </div>
+
+        <div className="flex flex-col justify-center">
+          <p className="text-sm text-muted-foreground">Total Return</p>
+          <p className={`text-2xl font-bold ${totalReturnColorClass}`}>
+            {totalReturnSignPrefix}{overrideGainsPercent.toFixed(2)}%
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {formatCurrency(overrideGains)} on {formatCurrency(totalHistoricalInvested)}
+          </p>
+        </div>
+
+        <div className="flex flex-col justify-center">
+          <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
+          <p className={`text-2xl font-bold ${xirrColorClass}`}>
+            {xirrSignPrefix}{xirrPercent.toFixed(2)}% p.a.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Over {investmentDurationYears.toFixed(1)} years
+          </p>
+        </div>
+
+        <div className="flex flex-col justify-center">
+          <p className="text-sm text-muted-foreground">Effective Value</p>
+          <p className="text-2xl font-bold text-amber-500">
+            {formatCurrency(effectiveCurrentValue)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {effectiveValueLabel}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface ChartStatsFooterProps {
+  isLoading: boolean
+  totalHistoricalInvested: number
+  currentBalance: number
+  projectedInvested: number
+  projectedValue: number
+}
+
+function ChartStatsFooter(props: Readonly<ChartStatsFooterProps>) {
+  const {
+    isLoading,
+    totalHistoricalInvested,
+    currentBalance,
+    projectedInvested,
+    projectedValue,
+  } = props
+
+  const currentInvestedDisplay = isLoading ? '...' : formatCurrency(totalHistoricalInvested)
+  const currentValueDisplay = isLoading ? '...' : formatCurrency(currentBalance)
+  const futureInvestedDisplay = isLoading ? '...' : formatCurrency(projectedInvested)
+  const futureValueDisplay = isLoading ? '...' : formatCurrency(projectedValue)
+
+  return (
+    <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-border">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <p className="text-xs text-muted-foreground">Current Invested</p>
+          <p className="text-xl font-bold text-blue-600">
+            {currentInvestedDisplay}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Current Value</p>
+          <p className="text-xl font-bold text-emerald-600">
+            {currentValueDisplay}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Future Invested</p>
+          <p className="text-xl font-bold text-blue-600">
+            {futureInvestedDisplay}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Future Value</p>
+          <p className="text-xl font-bold text-emerald-600">
+            {futureValueDisplay}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
 export default function MutualFundProjectionPage() {
   const { data: balanceData, isLoading } = useAccountBalances()
   const { data: transactions = [] } = useTransactions()
-  
+
   // State
   const [monthlySIP, setMonthlySIP] = useState(10000)
   const [expectedReturn, setExpectedReturn] = useState(12)
@@ -309,17 +603,8 @@ export default function MutualFundProjectionPage() {
   // Get all SIP transfer transactions to this account
   const sipTransfers = useMemo(() => {
     if (!primaryAccount) return []
-    
-    return transactions
-      .filter(tx => 
-        tx.type === 'Transfer' && 
-        tx.to_account?.toLowerCase() === primaryAccount.name.toLowerCase()
-      )
-      .map(tx => ({
-        ...tx,
-        amount: Math.abs(tx.amount)
-      }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    return filterSipTransfers(transactions, primaryAccount.name)
+      .map(tx => ({ ...tx, amount: Math.abs(tx.amount) }))
   }, [transactions, primaryAccount])
 
   // Detect last monthly SIP amount (exclude lumpsums)
@@ -372,6 +657,21 @@ export default function MutualFundProjectionPage() {
     [sipTransfers]
   )
 
+  // Pre-compute conditional class names and labels to reduce inline ternaries
+  const gainsBgClass = realizedGains >= 0 ? 'bg-emerald-500/20 shadow-emerald-500/30' : 'bg-red-500/20 shadow-red-500/30'
+  const gainsIconClass = realizedGains >= 0 ? 'text-emerald-500' : 'text-red-500'
+  const gainsTextClass = realizedGains >= 0 ? 'text-emerald-600' : 'text-red-600'
+  const gainsSignPrefix = realizedGainsPercent >= 0 ? '+' : ''
+  const totalReturnColorClass = overrideGainsPercent >= 0 ? 'text-emerald-500' : 'text-red-500'
+  const totalReturnSignPrefix = overrideGainsPercent >= 0 ? '+' : ''
+  const xirrColorClass = xirrPercent >= 0 ? 'text-emerald-500' : 'text-red-500'
+  const xirrSignPrefix = xirrPercent >= 0 ? '+' : ''
+  const currentValueLabel = currentValueInput > 0 ? 'Using your entered value' : 'Using portfolio balance'
+  const effectiveValueLabel = currentValueInput > 0 ? 'Manual override' : 'From portfolio'
+  const sipGrowthLabel = sipGrowthRate === 0 ? 'No annual increase' : `SIP increases ${sipGrowthRate}% yearly`
+  const sipInputValue = userModifiedSIP ? monthlySIP : (detectedMonthlySIP || monthlySIP)
+  const showAutoDetectedHint = detectedMonthlySIP > 0 && !userModifiedSIP
+
   return (
     <>
       <style>{hideSpinnersStyle}</style>
@@ -381,90 +681,20 @@ export default function MutualFundProjectionPage() {
           <PageHeader title="SIP Projection" subtitle="Project your systematic investment plan returns" />
 
           {/* Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-500/20 rounded-xl shadow-lg shadow-purple-500/30">
-                  <TrendingUp className="w-6 h-6 text-purple-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Current Balance</p>
-                  <p className="text-2xl font-bold">
-                    {isLoading ? '...' : formatCurrency(currentBalance)}
-                  </p>
-                  {primaryAccount && (
-                    <p className="text-xs text-muted-foreground mt-1">{primaryAccount.name}</p>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-green-500/20 rounded-xl shadow-lg shadow-green-500/30">
-                  <Calculator className="w-6 h-6 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Monthly SIP</p>
-                  <p className="text-2xl font-bold">
-                    {isLoading ? '...' : formatCurrency(detectedMonthlySIP)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">{sipTransfers.length} transactions</p>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
-                  <Percent className="w-6 h-6 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Invested</p>
-                  <p className="text-2xl font-bold">
-                    {isLoading ? '...' : formatCurrency(totalHistoricalInvested)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">Actual contributions</p>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="glass rounded-xl border border-white/10 p-6 shadow-lg"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl shadow-lg ${realizedGains >= 0 ? 'bg-emerald-500/20 shadow-emerald-500/30' : 'bg-red-500/20 shadow-red-500/30'}`}>
-                  <TrendingUp className={`w-6 h-6 ${realizedGains >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Realized Gain</p>
-                  <p className={`text-2xl font-bold ${realizedGains >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {isLoading ? '...' : formatCurrency(realizedGains)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {realizedGainsPercent >= 0 ? '+' : ''}{realizedGainsPercent.toFixed(2)}% returns
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          <OverviewCards
+            isLoading={isLoading}
+            currentBalance={currentBalance}
+            primaryAccountName={primaryAccount?.name ?? null}
+            detectedMonthlySIP={detectedMonthlySIP}
+            transactionCount={sipTransfers.length}
+            totalHistoricalInvested={totalHistoricalInvested}
+            realizedGains={realizedGains}
+            realizedGainsPercent={realizedGainsPercent}
+            gainsBgClass={gainsBgClass}
+            gainsIconClass={gainsIconClass}
+            gainsTextClass={gainsTextClass}
+            gainsSignPrefix={gainsSignPrefix}
+          />
 
           {/* Input Parameters */}
           <motion.div
@@ -477,12 +707,12 @@ export default function MutualFundProjectionPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div>
                 <label htmlFor="monthly-sip" className="block text-sm font-medium text-muted-foreground mb-2">
-                  Monthly SIP (₹)
+                  Monthly SIP ({'\u20B9'})
                 </label>
                 <input
                   id="monthly-sip"
                   type="number"
-                  value={userModifiedSIP ? monthlySIP : (detectedMonthlySIP || monthlySIP)}
+                  value={sipInputValue}
                   onChange={(e) => {
                     setMonthlySIP(Number(e.target.value))
                     setUserModifiedSIP(true)
@@ -491,7 +721,7 @@ export default function MutualFundProjectionPage() {
                   min="0"
                   step="1000"
                 />
-                {detectedMonthlySIP > 0 && !userModifiedSIP && (
+                {showAutoDetectedHint && (
                   <p className="text-xs text-muted-foreground mt-1">Auto-detected from last SIP</p>
                 )}
               </div>
@@ -542,68 +772,29 @@ export default function MutualFundProjectionPage() {
                   step="1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  {sipGrowthRate === 0 ? 'No annual increase' : `SIP increases ${sipGrowthRate}% yearly`}
+                  {sipGrowthLabel}
                 </p>
               </div>
             </div>
 
             {/* Returns Analysis Sub-section */}
-            <div className="mt-8 pt-6 border-t border-white/10">
-              <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-amber-500" />
-                Returns Analysis
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div>
-                  <label htmlFor="current-value" className="block text-sm font-medium text-muted-foreground mb-2">
-                    Current Value (₹)
-                  </label>
-                  <input
-                    id="current-value"
-                    type="number"
-                    value={currentValueInput || ''}
-                    placeholder={formatCurrency(currentBalance).replace('₹', '').trim()}
-                    onChange={(e) => setCurrentValueInput(Number(e.target.value))}
-                    className="w-full bg-background border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                    min="0"
-                    step="1000"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {currentValueInput > 0 ? 'Using your entered value' : 'Using portfolio balance'}
-                  </p>
-                </div>
-
-                <div className="flex flex-col justify-center">
-                  <p className="text-sm text-muted-foreground">Total Return</p>
-                  <p className={`text-2xl font-bold ${overrideGainsPercent >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {overrideGainsPercent >= 0 ? '+' : ''}{overrideGainsPercent.toFixed(2)}%
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatCurrency(overrideGains)} on {formatCurrency(totalHistoricalInvested)}
-                  </p>
-                </div>
-
-                <div className="flex flex-col justify-center">
-                  <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
-                  <p className={`text-2xl font-bold ${xirrPercent >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {xirrPercent >= 0 ? '+' : ''}{xirrPercent.toFixed(2)}% p.a.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Over {investmentDurationYears.toFixed(1)} years
-                  </p>
-                </div>
-
-                <div className="flex flex-col justify-center">
-                  <p className="text-sm text-muted-foreground">Effective Value</p>
-                  <p className="text-2xl font-bold text-amber-500">
-                    {formatCurrency(effectiveCurrentValue)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {currentValueInput > 0 ? 'Manual override' : 'From portfolio'}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <ReturnsAnalysisSection
+              currentValueInput={currentValueInput}
+              currentBalance={currentBalance}
+              onCurrentValueChange={setCurrentValueInput}
+              overrideGainsPercent={overrideGainsPercent}
+              overrideGains={overrideGains}
+              totalHistoricalInvested={totalHistoricalInvested}
+              xirrPercent={xirrPercent}
+              investmentDurationYears={investmentDurationYears}
+              effectiveCurrentValue={effectiveCurrentValue}
+              currentValueLabel={currentValueLabel}
+              effectiveValueLabel={effectiveValueLabel}
+              totalReturnColorClass={totalReturnColorClass}
+              totalReturnSignPrefix={totalReturnSignPrefix}
+              xirrColorClass={xirrColorClass}
+              xirrSignPrefix={xirrSignPrefix}
+            />
           </motion.div>
 
           {/* Projection Results */}
@@ -617,7 +808,7 @@ export default function MutualFundProjectionPage() {
               <div className="text-sm font-medium text-muted-foreground mb-1">Total Investment</div>
               <div className="text-2xl font-bold">{formatCurrency(projection.invested)}</div>
               <div className="text-sm text-muted-foreground mt-1">
-                {projectionYears * 12} months @ ₹{formatCurrencyShort(activeMonthlySIP)}/mo
+                {projectionYears * 12} months @ {'\u20B9'}{formatCurrencyShort(activeMonthlySIP)}/mo
               </div>
             </motion.div>
 
@@ -695,15 +886,15 @@ export default function MutualFundProjectionPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis 
-                    dataKey="month" 
-                    stroke="#9ca3af" 
+                  <XAxis
+                    dataKey="month"
+                    stroke="#9ca3af"
                     tick={{ fontSize: 11 }}
                     interval="preserveStartEnd"
                   />
-                  <YAxis 
-                    stroke="#9ca3af" 
-                    tickFormatter={(v) => formatCurrencyShort(v)} 
+                  <YAxis
+                    stroke="#9ca3af"
+                    tickFormatter={(v) => formatCurrencyShort(v)}
                   />
                   <Tooltip
                     {...chartTooltipProps}
@@ -729,34 +920,13 @@ export default function MutualFundProjectionPage() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-border">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Current Invested</p>
-                  <p className="text-xl font-bold text-blue-600">
-                    {isLoading ? '...' : formatCurrency(totalHistoricalInvested)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Current Value</p>
-                  <p className="text-xl font-bold text-emerald-600">
-                    {isLoading ? '...' : formatCurrency(currentBalance)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Future Invested</p>
-                  <p className="text-xl font-bold text-blue-600">
-                    {isLoading ? '...' : formatCurrency(projection.invested)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Future Value</p>
-                  <p className="text-xl font-bold text-emerald-600">
-                    {isLoading ? '...' : formatCurrency(projection.value)}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <ChartStatsFooter
+              isLoading={isLoading}
+              totalHistoricalInvested={totalHistoricalInvested}
+              currentBalance={currentBalance}
+              projectedInvested={projection.invested}
+              projectedValue={projection.value}
+            />
           </motion.div>
         </div>
       </div>

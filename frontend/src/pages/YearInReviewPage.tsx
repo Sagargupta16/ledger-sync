@@ -203,17 +203,6 @@ function accumulateStats(grid: DayCell[]) {
   }
 }
 
-/** Compute the outline style for a heatmap cell. */
-function getCellOutline(
-  isToday: boolean,
-  isHovered: boolean,
-  accentColor: string,
-): string {
-  if (isToday) return `2px solid ${accentColor}`
-  if (isHovered) return '1.5px solid rgba(255,255,255,0.7)'
-  return '1.5px solid transparent'
-}
-
 // ─── Main Component ─────────────────────────────────────────────────
 export default function YearInReviewPage() {
   const { data: transactions = [] } = useTransactions()
@@ -430,7 +419,18 @@ export default function YearInReviewPage() {
               </div>
 
               {/* Grid columns (weeks) */}
-              <div className="flex gap-0.5">
+              <div
+                className="flex gap-0.5"
+                onMouseOver={(e) => {
+                  const target = (e.target as HTMLElement).closest<HTMLElement>('[data-cell-date]')
+                  if (target) {
+                    const date = target.getAttribute('data-cell-date')
+                    const found = grid.find((c) => c.date === date)
+                    setHoveredDay(found || null)
+                  }
+                }}
+                onMouseLeave={() => setHoveredDay(null)}
+              >
                 {(() => {
                   const totalWeeks = grid.length > 0 ? (grid.at(-1)?.weekIndex ?? 52) + 1 : 53
                   const weeks: React.ReactNode[] = []
@@ -452,15 +452,13 @@ export default function YearInReviewPage() {
                           return (
                             <div
                               key={dow}
-                              tabIndex={-1}
-                              className="w-[13px] h-[13px] rounded-sm cursor-pointer transition-[outline-color] duration-150"
+                              data-cell-date={cell.date}
+                              className="w-[13px] h-[13px] rounded-sm transition-[outline-color] duration-150 hover:ring-1 hover:ring-white/50"
                               style={{
                                 backgroundColor: bgColor,
-                                outline: getCellOutline(cell.isToday, hoveredDay?.date === cell.date, modeAccent[mode]),
-                                outlineOffset: '-1px',
+                                outline: cell.isToday ? `2px solid ${modeAccent[mode]}` : undefined,
+                                outlineOffset: cell.isToday ? '-1px' : undefined,
                               }}
-                              onMouseEnter={() => setHoveredDay(cell)}
-                              onMouseLeave={() => setHoveredDay(null)}
                             />
                           )
                         })}

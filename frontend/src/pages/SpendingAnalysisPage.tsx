@@ -24,6 +24,15 @@ import { usePreferencesStore } from '@/store/preferencesStore'
 // Color for Savings
 const SAVINGS_COLOR = SEMANTIC_COLORS.income
 
+/** Compute the min/max date range from transaction data */
+function computeDataDateRange(
+  transactions: Array<{ date: string }> | undefined,
+): { minDate: string | undefined; maxDate: string | undefined } {
+  if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
+  const dates = transactions.map(t => t.date.substring(0, 10)).sort()
+  return { minDate: dates[0], maxDate: dates.at(-1) }
+}
+
 /** Filter transactions by the given date range */
 function filterTransactionsByDateRange(
   transactions: Array<{ date: string; [key: string]: unknown }> | undefined,
@@ -36,6 +45,19 @@ function filterTransactionsByDateRange(
     const txDate = getDateKey(t.date)
     return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
   })
+}
+
+/** Aggregate expense amounts by category */
+function computeCategoryBreakdown(
+  transactions: Array<{ type?: unknown; category?: unknown; amount: unknown }>,
+): Record<string, number> {
+  const categories: Record<string, number> = {}
+  for (const t of transactions) {
+    if (t.type !== 'Expense') continue
+    const category = (t.category as string) || 'Uncategorized'
+    categories[category] = (categories[category] || 0) + Math.abs(t.amount as number)
+  }
+  return categories
 }
 
 /** Calculate the budget rule metrics (50/30/20) based on income breakdown */
@@ -95,11 +117,7 @@ export default function SpendingAnalysisPage() {
     return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
   }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
 
-  const dataDateRange = useMemo(() => {
-    if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
-    const dates = transactions.map(t => t.date.substring(0, 10)).sort()
-    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
-  }, [transactions])
+  const dataDateRange = useMemo(() => computeDataDateRange(transactions), [transactions])
 
   // Filter transactions by date range
   const filteredTransactions = useMemo(
@@ -125,17 +143,10 @@ export default function SpendingAnalysisPage() {
   const savings = Math.max(0, totalIncome - totalSpending)
 
   // Get category breakdown for filtered transactions
-  const categoryBreakdown = useMemo(() => {
-    const expenses = filteredTransactions.filter((t) => t.type === 'Expense')
-    const categories: Record<string, number> = {}
-    
-    expenses.forEach((t) => {
-      const category = t.category || 'Uncategorized'
-      categories[category] = (categories[category] || 0) + Math.abs(t.amount)
-    })
-    
-    return categories
-  }, [filteredTransactions])
+  const categoryBreakdown = useMemo(
+    () => computeCategoryBreakdown(filteredTransactions),
+    [filteredTransactions]
+  )
 
   const categoriesCount = Object.keys(categoryBreakdown).length
   const topCategory =
