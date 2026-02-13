@@ -32,12 +32,12 @@ function getSizeClass(isCompact: boolean, compact: string, normal: string): stri
   return isCompact ? compact : normal
 }
 
-function ActionButton({ actionLabel, actionHref, onAction, isCompact }: {
+function ActionButton({ actionLabel, actionHref, onAction, isCompact }: Readonly<{
   actionLabel: string
   actionHref?: string
   onAction?: () => void
   isCompact: boolean
-}) {
+}>) {
   const sizeClass = getSizeClass(isCompact, 'text-xs', 'text-sm')
   const baseClass = `inline-flex items-center gap-2 px-5 py-2.5 bg-ios-blue-vibrant text-white rounded-xl font-medium hover:bg-ios-blue active:scale-[0.98] transition-all shadow-lg shadow-ios-blue-vibrant/30 ${sizeClass}`
 

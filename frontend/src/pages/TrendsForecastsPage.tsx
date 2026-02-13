@@ -13,15 +13,33 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
 
+type TrendDirection = 'up' | 'down' | 'stable'
+
 interface TrendMetrics {
   current: number
   previous: number
   change: number
   changePercent: number
-  direction: 'up' | 'down' | 'stable'
+  direction: TrendDirection
   average: number
   highest: number
   lowest: number
+}
+
+function getDirectionIcon(direction: TrendDirection): React.ReactElement {
+  if (direction === 'up') {
+    return <ArrowUpRight className="w-4 h-4" />
+  } else if (direction === 'down') {
+    return <ArrowDownRight className="w-4 h-4" />
+  } else {
+    return <Minus className="w-4 h-4" />
+  }
+}
+
+function formatTooltipName(name: string | undefined): string {
+  if (name === 'income') return 'Income'
+  if (name === 'expenses') return 'Spending'
+  return 'Savings'
 }
 
 export default function TrendsForecastsPage() {
@@ -104,9 +122,9 @@ export default function TrendsForecastsPage() {
     // Calculate savings metrics
     const surpluses = trends.map(t => t.surplus)
     const savingsChange = latest.surplus - previous.surplus
-    const savingsChangePercent = previous.surplus !== 0 ? (savingsChange / Math.abs(previous.surplus)) * 100 : 0
+    const savingsChangePercent = previous.surplus === 0 ? 0 : (savingsChange / Math.abs(previous.surplus)) * 100
 
-    const getDirection = (change: number): 'up' | 'down' | 'stable' => {
+    const getDirection = (change: number): TrendDirection => {
       if (Math.abs(change) < 2) return 'stable'
       return change > 0 ? 'up' : 'down'
     }
@@ -226,7 +244,7 @@ export default function TrendsForecastsPage() {
       }))
   }, [filteredTransactions])
 
-  const getTrendIcon = (direction: 'up' | 'down' | 'stable', isPositiveGood: boolean) => {
+  const getTrendIcon = (direction: TrendDirection, isPositiveGood: boolean) => {
     if (direction === 'stable') return <Minus className="w-5 h-5 text-gray-400" />
     if (direction === 'up') {
       return isPositiveGood 
@@ -238,7 +256,7 @@ export default function TrendsForecastsPage() {
       : <TrendingDown className="w-5 h-5 text-green-500" />
   }
 
-  const getTrendColor = (direction: 'up' | 'down' | 'stable', isPositiveGood: boolean) => {
+  const getTrendColor = (direction: TrendDirection, isPositiveGood: boolean) => {
     if (direction === 'stable') return 'text-gray-400'
     if (direction === 'up') return isPositiveGood ? 'text-green-500' : 'text-red-500'
     return isPositiveGood ? 'text-red-500' : 'text-green-500'
@@ -294,13 +312,7 @@ export default function TrendsForecastsPage() {
             {!isLoading && (
               <div className="space-y-3">
                 <div className={`flex items-center gap-2 ${getTrendColor(metrics.spending.direction, false)}`}>
-                  {metrics.spending.direction === 'up' ? (
-                    <ArrowUpRight className="w-4 h-4" />
-                  ) : metrics.spending.direction === 'down' ? (
-                    <ArrowDownRight className="w-4 h-4" />
-                  ) : (
-                    <Minus className="w-4 h-4" />
-                  )}
+                  {getDirectionIcon(metrics.spending.direction)}
                   <span className="font-semibold">{formatPercent(metrics.spending.changePercent)}</span>
                   <span className="text-gray-500 text-sm">vs previous month</span>
                 </div>
@@ -343,13 +355,7 @@ export default function TrendsForecastsPage() {
             {!isLoading && (
               <div className="space-y-3">
                 <div className={`flex items-center gap-2 ${getTrendColor(metrics.income.direction, true)}`}>
-                  {metrics.income.direction === 'up' ? (
-                    <ArrowUpRight className="w-4 h-4" />
-                  ) : metrics.income.direction === 'down' ? (
-                    <ArrowDownRight className="w-4 h-4" />
-                  ) : (
-                    <Minus className="w-4 h-4" />
-                  )}
+                  {getDirectionIcon(metrics.income.direction)}
                   <span className="font-semibold">{formatPercent(metrics.income.changePercent)}</span>
                   <span className="text-gray-500 text-sm">vs previous month</span>
                 </div>
@@ -392,13 +398,7 @@ export default function TrendsForecastsPage() {
             {!isLoading && (
               <div className="space-y-3">
                 <div className={`flex items-center gap-2 ${getTrendColor(metrics.savings.direction, true)}`}>
-                  {metrics.savings.direction === 'up' ? (
-                    <ArrowUpRight className="w-4 h-4" />
-                  ) : metrics.savings.direction === 'down' ? (
-                    <ArrowDownRight className="w-4 h-4" />
-                  ) : (
-                    <Minus className="w-4 h-4" />
-                  )}
+                  {getDirectionIcon(metrics.savings.direction)}
                   <span className="font-semibold">{formatPercent(metrics.savings.changePercent)}</span>
                   <span className="text-gray-500 text-sm">vs previous month</span>
                 </div>
@@ -459,8 +459,8 @@ export default function TrendsForecastsPage() {
                   {...chartTooltipProps}
                   labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   formatter={(value: number | undefined, name: string | undefined) => [
-                    value !== undefined ? formatCurrency(value) : '',
-                    name === 'income' ? 'Income' : name === 'expenses' ? 'Spending' : 'Savings'
+                    value === undefined ? '' : formatCurrency(value),
+                    formatTooltipName(name)
                   ]}
                 />
                 <Legend />

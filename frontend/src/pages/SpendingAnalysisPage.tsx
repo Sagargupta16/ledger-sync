@@ -24,6 +24,20 @@ import { usePreferencesStore } from '@/store/preferencesStore'
 // Color for Savings
 const SAVINGS_COLOR = SEMANTIC_COLORS.income
 
+/** Filter transactions by the given date range */
+function filterTransactionsByDateRange(
+  transactions: Array<{ date: string; [key: string]: unknown }> | undefined,
+  dateRange: { start_date?: string; end_date?: string },
+): Array<{ date: string; [key: string]: unknown }> {
+  if (!transactions) return []
+  if (!dateRange.start_date) return transactions
+
+  return transactions.filter((t) => {
+    const txDate = getDateKey(t.date)
+    return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
+  })
+}
+
 /** Calculate the budget rule metrics (50/30/20) based on income breakdown */
 function computeBudgetRuleMetrics(
   spendingBreakdown: { essential: number; discretionary: number } | null,
@@ -88,16 +102,10 @@ export default function SpendingAnalysisPage() {
   }, [transactions])
 
   // Filter transactions by date range
-  const filteredTransactions = useMemo(() => {
-    if (!transactions) return []
-    if (!dateRange.start_date) return transactions
-    
-    return transactions.filter((t) => {
-      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
-      const txDate = getDateKey(t.date)
-      return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
-    })
-  }, [transactions, dateRange])
+  const filteredTransactions = useMemo(
+    () => filterTransactionsByDateRange(transactions, dateRange),
+    [transactions, dateRange]
+  )
 
   // Calculate totals for filtered period
   const totalSpending = useMemo(() => {

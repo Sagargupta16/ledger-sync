@@ -33,7 +33,7 @@ export default function IncomeClassificationTab({
   onDragOver,
   onDropOnIncomeClassification,
   onRemoveIncomeClassification,
-}: IncomeClassificationTabProps) {
+}: Readonly<IncomeClassificationTabProps>) {
   // Get income subcategories that haven't been classified yet
   // Returns array of "Category::Subcategory" strings
   const getUnclassifiedIncomeSubcategories = () => {
@@ -46,7 +46,7 @@ export default function IncomeClassificationTab({
 
     // Return "Category::Subcategory" strings that haven't been classified yet
     return Object.entries(allIncomeCategories).flatMap(([cat, subs]) =>
-      (subs as string[])
+      subs
         .map((sub) => `${cat}::${sub}`)
         .filter((item) => !allClassified.has(item))
     )
@@ -80,7 +80,7 @@ export default function IncomeClassificationTab({
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[400px]">
             {/* Group by parent category */}
             {Object.entries(allIncomeCategories).map(([category, subs]) => {
-              const unclassifiedSubs = (subs as string[]).filter((sub) =>
+              const unclassifiedSubs = subs.filter((sub) =>
                 unclassifiedSubcategories.includes(`${category}::${sub}`)
               )
               if (unclassifiedSubs.length === 0) return null
@@ -120,9 +120,8 @@ export default function IncomeClassificationTab({
             const items = localPrefs[targetKey]
 
             return (
-              <div
+              <section
                 key={classType.value}
-                role="region"
                 aria-label={`Drop zone for ${classType.label}`}
                 onDragOver={onDragOver}
                 onDrop={() =>
@@ -173,7 +172,7 @@ export default function IncomeClassificationTab({
                     </div>
                   )}
                 </div>
-              </div>
+              </section>
             )
           })}
         </div>

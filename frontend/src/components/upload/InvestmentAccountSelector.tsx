@@ -49,13 +49,11 @@ export default function InvestmentAccountSelector() {
 
       <div className="space-y-2 max-h-96 overflow-y-auto">
         {accounts.map((account) => (
-          <div
+          <button
+            type="button"
             key={account.name}
-            role="button"
-            tabIndex={0}
             onClick={() => handleToggle(account.name)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggle(account.name) } }}
-            className="p-4 glass rounded-lg border border-white/10 cursor-pointer hover:border-primary/50 transition-all group"
+            className="p-4 glass rounded-lg border border-white/10 cursor-pointer hover:border-primary/50 transition-all group w-full text-left"
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
@@ -74,7 +72,7 @@ export default function InvestmentAccountSelector() {
                 {account.isInvestment && <Check className="w-4 h-4 text-white" />}
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 

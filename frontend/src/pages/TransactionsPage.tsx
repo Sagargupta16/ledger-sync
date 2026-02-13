@@ -118,7 +118,7 @@ export default function TransactionsPage() {
       document.body.appendChild(a)
       a.click()
       globalThis.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      a.remove()
       toast.success('Export successful!', {
         description: 'Your transactions have been exported to CSV',
       })

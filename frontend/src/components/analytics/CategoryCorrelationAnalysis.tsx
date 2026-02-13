@@ -30,6 +30,57 @@ function getCorrelationBg(r: number): string {
   return 'rgba(107,114,128,0.1)'
 }
 
+interface Transaction {
+  type: string
+  date: string
+  category?: string
+  amount: number
+}
+
+function aggregateDailySpending(
+  expenses: Transaction[],
+  topCats: string[]
+): Record<string, Record<string, number>> {
+  const dailySpending: Record<string, Record<string, number>> = {}
+  for (const tx of expenses) {
+    const date = tx.date.substring(0, 10)
+    const cat = tx.category || 'Other'
+    if (!topCats.includes(cat)) continue
+    if (!dailySpending[date]) dailySpending[date] = {}
+    dailySpending[date][cat] = (dailySpending[date][cat] || 0) + Math.abs(tx.amount)
+  }
+  return dailySpending
+}
+
+function buildCorrelationMatrix(
+  topCats: string[],
+  dailySpending: Record<string, Record<string, number>>
+): { matrix: number[][]; strongPairs: Array<{ catA: string; catB: string; r: number }> } {
+  const dates = Object.keys(dailySpending).sort((a, b) => a.localeCompare(b))
+  const matrix: number[][] = []
+  const pairs: Array<{ catA: string; catB: string; r: number }> = []
+
+  for (let i = 0; i < topCats.length; i++) {
+    matrix[i] = []
+    for (let j = 0; j < topCats.length; j++) {
+      if (i === j) {
+        matrix[i][j] = 1
+      } else if (j < i) {
+        matrix[i][j] = matrix[j][i]
+      } else {
+        const xVals = dates.map((d) => dailySpending[d]?.[topCats[i]] || 0)
+        const yVals = dates.map((d) => dailySpending[d]?.[topCats[j]] || 0)
+        const r = pearsonCorrelation(xVals, yVals)
+        matrix[i][j] = r
+        if (r > 0.3) pairs.push({ catA: topCats[i], catB: topCats[j], r })
+      }
+    }
+  }
+
+  pairs.sort((a, b) => b.r - a.r)
+  return { matrix, strongPairs: pairs.slice(0, 3) }
+}
+
 export default function CategoryCorrelationAnalysis() {
   const { data: transactions = [] } = useTransactions()
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null)
@@ -52,42 +103,10 @@ export default function CategoryCorrelationAnalysis() {
 
     if (topCats.length < 2) return { categories: [], matrix: [], strongPairs: [] }
 
-    // Group spending by day per category
-    const dailySpending: Record<string, Record<string, number>> = {}
-    for (const tx of expenses) {
-      const date = tx.date.substring(0, 10)
-      const cat = tx.category || 'Other'
-      if (!topCats.includes(cat)) continue
-      if (!dailySpending[date]) dailySpending[date] = {}
-      dailySpending[date][cat] = (dailySpending[date][cat] || 0) + Math.abs(tx.amount)
-    }
+    const dailySpending = aggregateDailySpending(expenses, topCats)
+    const { matrix: correlationMatrix, strongPairs: pairs } = buildCorrelationMatrix(topCats, dailySpending)
 
-    const dates = Object.keys(dailySpending).sort((a, b) => a.localeCompare(b))
-
-    // Build correlation matrix
-    const correlationMatrix: number[][] = []
-    const pairs: Array<{ catA: string; catB: string; r: number }> = []
-
-    for (let i = 0; i < topCats.length; i++) {
-      correlationMatrix[i] = []
-      for (let j = 0; j < topCats.length; j++) {
-        if (i === j) {
-          correlationMatrix[i][j] = 1
-        } else if (j < i) {
-          correlationMatrix[i][j] = correlationMatrix[j][i]
-        } else {
-          const xVals = dates.map((d) => dailySpending[d]?.[topCats[i]] || 0)
-          const yVals = dates.map((d) => dailySpending[d]?.[topCats[j]] || 0)
-          const r = pearsonCorrelation(xVals, yVals)
-          correlationMatrix[i][j] = r
-          if (r > 0.3) pairs.push({ catA: topCats[i], catB: topCats[j], r })
-        }
-      }
-    }
-
-    pairs.sort((a, b) => b.r - a.r)
-
-    return { categories: topCats, matrix: correlationMatrix, strongPairs: pairs.slice(0, 3) }
+    return { categories: topCats, matrix: correlationMatrix, strongPairs: pairs }
   }, [transactions])
 
   const truncate = (s: string, len: number) => (s.length > len ? `${s.substring(0, len - 1)}…` : s)
@@ -152,7 +171,6 @@ export default function CategoryCorrelationAnalysis() {
                   return (
                     <div
                       key={`${rowCat}-${categories[j]}`}
-                      role="cell"
                       className="relative flex items-center justify-center rounded transition-all cursor-pointer"
                       style={{
                         width: 50,

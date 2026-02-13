@@ -200,6 +200,86 @@ function detectMonthlySIPAmount(sipTransfers: Array<{ note?: string | null; amou
   return monthlySIPs.at(-1)!.amount
 }
 
+// Helper: Load mutual fund accounts from balance data and account classifications
+async function loadMutualFundAccountsData(
+  balanceData: Record<string, unknown> | null | undefined,
+): Promise<{ name: string; balance: number }[]> {
+  const { accounts: investmentAccounts } = await accountClassificationsService.getAccountsByType('Investments')
+  const mfAccounts = Object.entries((balanceData as { accounts?: Record<string, { balance: number }> })?.accounts || {})
+    .filter(([name]) => investmentAccounts.includes(name))
+    .filter(([name]) => name.toLowerCase().includes('mutual') || name.toLowerCase().includes('fund'))
+    .map(([name, data]) => ({
+      name,
+      balance: Math.abs(data.balance),
+    }))
+    .sort((a, b) => b.balance - a.balance)
+
+  return mfAccounts
+}
+
+// Helper: Find primary mutual fund account (Grow Mutual Funds or first available)
+function findPrimaryAccount(
+  mutualFundAccounts: { name: string; balance: number }[],
+): { name: string; balance: number } | null {
+  if (mutualFundAccounts.length === 0) return null
+
+  const growAccount = mutualFundAccounts.find(acc =>
+    acc.name.toLowerCase().includes('grow') && acc.name.toLowerCase().includes('mutual')
+  )
+
+  return growAccount || mutualFundAccounts[0]
+}
+
+// Helper: Build combined historical + projection chart data
+function buildCombinedChartData(
+  sipTransfers: Array<{ date: string; amount: number }>,
+  effectiveCurrentValue: number,
+  activeMonthlySIP: number,
+  expectedReturn: number,
+  projectionYears: number,
+  sipGrowthRate: number,
+): ChartDataPoint[] {
+  if (sipTransfers.length === 0) return []
+
+  const historicalData = buildHistoricalChartData(sipTransfers, effectiveCurrentValue)
+
+  if (historicalData.length === 0) return historicalData
+
+  const lastHistorical = historicalData.at(-1)!
+  const lastDate = new Date(sipTransfers.at(-1)!.date)
+  const projectionData = buildProjectionChartData(
+    lastHistorical, lastDate, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate
+  )
+
+  return [...historicalData, ...projectionData]
+}
+
+// Helper: Compute XIRR percent from SIP cashflows
+function computeXirrPercent(
+  sipTransfers: Array<{ date: string; amount: number }>,
+  effectiveCurrentValue: number,
+): number {
+  if (sipTransfers.length === 0 || effectiveCurrentValue <= 0) return 0
+
+  const cashFlows: { date: Date; amount: number }[] = sipTransfers.map((tx) => ({
+    date: new Date(tx.date),
+    amount: -tx.amount, // outflows are negative
+  }))
+
+  // Final inflow: current value today
+  cashFlows.push({ date: new Date(), amount: effectiveCurrentValue })
+
+  return calculateXIRR(cashFlows)
+}
+
+// Helper: Calculate investment duration in years
+function computeInvestmentDuration(sipTransfers: Array<{ date: string }>): number {
+  if (sipTransfers.length === 0) return 0
+  const firstDate = new Date(sipTransfers[0].date)
+  const now = new Date()
+  return (now.getTime() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+}
+
 export default function MutualFundProjectionPage() {
   const { data: balanceData, isLoading } = useAccountBalances()
   const { data: transactions = [] } = useTransactions()
@@ -215,37 +295,13 @@ export default function MutualFundProjectionPage() {
 
   // Load mutual fund accounts
   useEffect(() => {
-    const loadMutualFundAccounts = async () => {
-      try {
-        const { accounts: investmentAccounts } = await accountClassificationsService.getAccountsByType('Investments')
-        const mfAccounts = Object.entries(balanceData?.accounts || {})
-          .filter(([name]) => investmentAccounts.includes(name))
-          .filter(([name]) => name.toLowerCase().includes('mutual') || name.toLowerCase().includes('fund'))
-          .map(([name, data]) => ({
-            name,
-            balance: Math.abs((data as { balance: number }).balance),
-          }))
-          .sort((a, b) => b.balance - a.balance)
-
-        setMutualFundAccounts(mfAccounts)
-      } catch {
-        setMutualFundAccounts([])
-      }
-    }
-
-    loadMutualFundAccounts()
+    loadMutualFundAccountsData(balanceData)
+      .then(setMutualFundAccounts)
+      .catch(() => setMutualFundAccounts([]))
   }, [balanceData])
 
   // Find primary mutual fund account (Grow Mutual Funds or first available)
-  const primaryAccount = useMemo(() => {
-    if (mutualFundAccounts.length === 0) return null
-    
-    const growAccount = mutualFundAccounts.find(acc => 
-      acc.name.toLowerCase().includes('grow') && acc.name.toLowerCase().includes('mutual')
-    )
-    
-    return growAccount || mutualFundAccounts[0]
-  }, [mutualFundAccounts])
+  const primaryAccount = useMemo(() => findPrimaryAccount(mutualFundAccounts), [mutualFundAccounts])
 
   // Get current portfolio balance
   const currentBalance = primaryAccount?.balance || 0
@@ -291,21 +347,10 @@ export default function MutualFundProjectionPage() {
   }, [activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate, effectiveCurrentValue])
 
   // Build chart data: historical + projection
-  const chartData = useMemo<ChartDataPoint[]>(() => {
-    if (sipTransfers.length === 0) return []
-
-    const historicalData = buildHistoricalChartData(sipTransfers, effectiveCurrentValue)
-
-    if (historicalData.length === 0) return historicalData
-
-    const lastHistorical = historicalData.at(-1)!
-    const lastDate = new Date(sipTransfers.at(-1)!.date)
-    const projectionData = buildProjectionChartData(
-      lastHistorical, lastDate, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate
-    )
-
-    return [...historicalData, ...projectionData]
-  }, [sipTransfers, effectiveCurrentValue, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate])
+  const chartData = useMemo<ChartDataPoint[]>(
+    () => buildCombinedChartData(sipTransfers, effectiveCurrentValue, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate),
+    [sipTransfers, effectiveCurrentValue, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate]
+  )
 
   // Realized gains: always based on actual portfolio balance (fixed, not affected by override)
   const realizedGains = currentBalance - totalHistoricalInvested
@@ -316,27 +361,16 @@ export default function MutualFundProjectionPage() {
   const overrideGainsPercent = totalHistoricalInvested > 0 ? (overrideGains / totalHistoricalInvested) * 100 : 0
 
   // Compute annualized return (XIRR) from actual SIP cashflows
-  const xirrPercent = useMemo(() => {
-    if (sipTransfers.length === 0 || effectiveCurrentValue <= 0) return 0
-
-    const cashFlows: { date: Date; amount: number }[] = sipTransfers.map((tx) => ({
-      date: new Date(tx.date),
-      amount: -tx.amount, // outflows are negative
-    }))
-
-    // Final inflow: current value today
-    cashFlows.push({ date: new Date(), amount: effectiveCurrentValue })
-
-    return calculateXIRR(cashFlows)
-  }, [sipTransfers, effectiveCurrentValue])
+  const xirrPercent = useMemo(
+    () => computeXirrPercent(sipTransfers, effectiveCurrentValue),
+    [sipTransfers, effectiveCurrentValue]
+  )
 
   // Investment duration in years
-  const investmentDurationYears = useMemo(() => {
-    if (sipTransfers.length === 0) return 0
-    const firstDate = new Date(sipTransfers[0].date)
-    const now = new Date()
-    return (now.getTime() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-  }, [sipTransfers])
+  const investmentDurationYears = useMemo(
+    () => computeInvestmentDuration(sipTransfers),
+    [sipTransfers]
+  )
 
   return (
     <>

@@ -30,7 +30,7 @@ export default function OtherSettingsTab({
   localPrefs,
   updateLocalPref,
   creditCardAccounts,
-}: OtherSettingsTabProps) {
+}: Readonly<OtherSettingsTabProps>) {
   const toggleAnomalyType = (type: string) => {
     const enabled = localPrefs.anomaly_types_enabled.includes(type)
     updateLocalPref(

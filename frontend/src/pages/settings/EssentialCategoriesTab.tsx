@@ -29,7 +29,7 @@ export default function EssentialCategoriesTab({
   onDragOver,
   onDropOnEssential,
   onRemoveFromEssential,
-}: EssentialCategoriesTabProps) {
+}: Readonly<EssentialCategoriesTabProps>) {
   // Get available expense categories (not yet marked as essential)
   const availableEssentialCategories = allExpenseCategories.filter(
     (cat) => !localPrefs.essential_categories.includes(cat)
@@ -79,8 +79,7 @@ export default function EssentialCategoriesTab({
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
             Essential Categories ({localPrefs.essential_categories.length})
           </h3>
-          <div
-            role="region"
+          <section
             aria-label="Drop zone for essential categories"
             onDragOver={onDragOver}
             onDrop={onDropOnEssential}
@@ -113,7 +112,7 @@ export default function EssentialCategoriesTab({
                 </div>
               )}
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>

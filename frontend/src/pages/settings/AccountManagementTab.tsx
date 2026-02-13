@@ -63,15 +63,7 @@ export default function AccountManagementTab() {
           This will delete all your transactions, import history, and reset preferences to defaults.
           Your login credentials will be preserved.
         </p>
-        {!showResetConfirm ? (
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/30 transition-all border border-amber-500/30"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Reset Account Data
-          </button>
-        ) : (
+        {showResetConfirm ? (
           <div className="space-y-3 p-4 bg-amber-500/10 rounded-lg border border-amber-500/30">
             <p className="text-amber-300 text-sm font-medium">
               Are you sure? This will remove all your financial data!
@@ -83,7 +75,7 @@ export default function AccountManagementTab() {
                     onSuccess: () => {
                       toast.success('Account reset successfully. All data cleared.')
                       setShowResetConfirm(false)
-                      window.location.reload()
+                      globalThis.location.reload()
                     },
                     onError: () => {
                       toast.error('Failed to reset account')
@@ -103,6 +95,14 @@ export default function AccountManagementTab() {
               </button>
             </div>
           </div>
+        ) : (
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/30 transition-all border border-amber-500/30"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset Account Data
+          </button>
         )}
       </div>
 
@@ -115,15 +115,7 @@ export default function AccountManagementTab() {
         <p className="text-gray-400 text-sm mb-4">
           Permanently delete your account and all associated data. This action cannot be undone.
         </p>
-        {!showDeleteConfirm ? (
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all border border-red-500/30"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete Account
-          </button>
-        ) : (
+        {showDeleteConfirm ? (
           <div className="space-y-3 p-4 bg-red-500/10 rounded-lg border border-red-500/30">
             <p className="text-red-300 text-sm font-medium">
               This is permanent! Type{' '}
@@ -165,6 +157,14 @@ export default function AccountManagementTab() {
               </button>
             </div>
           </div>
+        ) : (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all border border-red-500/30"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete Account
+          </button>
         )}
       </div>
     </div>

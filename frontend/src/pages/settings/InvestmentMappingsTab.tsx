@@ -30,7 +30,7 @@ export default function InvestmentMappingsTab({
   onDragOver,
   onDropOnInvestmentType,
   onRemoveInvestmentMapping,
-}: InvestmentMappingsTabProps) {
+}: Readonly<InvestmentMappingsTabProps>) {
   // Get unassigned investment accounts (for investment mappings)
   const unmappedAccounts = investmentAccounts.filter(
     (acc) => !localPrefs.investment_account_mappings[acc]
@@ -88,9 +88,8 @@ export default function InvestmentMappingsTab({
         {/* Investment Type Drop Zones */}
         <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
           {INVESTMENT_TYPES.map((type) => (
-            <div
+            <section
               key={type.value}
-              role="region"
               aria-label={`Drop zone for ${type.label}`}
               onDragOver={onDragOver}
               onDrop={() => onDropOnInvestmentType(type.value)}
@@ -126,7 +125,7 @@ export default function InvestmentMappingsTab({
                   </div>
                 )}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       </div>

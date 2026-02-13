@@ -32,7 +32,7 @@ export default function AccountClassificationsTab({
   onDragEnd,
   onDragOver,
   onDropOnAccountCategory,
-}: AccountClassificationsTabProps) {
+}: Readonly<AccountClassificationsTabProps>) {
   // Organize accounts by category
   const accountsByCategory = ACCOUNT_TYPES.reduce(
     (acc, category) => {
@@ -92,9 +92,8 @@ export default function AccountClassificationsTab({
         {/* Account Type Drop Zones */}
         <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
           {ACCOUNT_TYPES.map((category) => (
-            <div
+            <section
               key={category}
-              role="region"
               aria-label={`Drop zone for ${category} accounts`}
               onDragOver={onDragOver}
               onDrop={() => onDropOnAccountCategory(category)}
@@ -130,7 +129,7 @@ export default function AccountClassificationsTab({
                   </div>
                 )}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       </div>

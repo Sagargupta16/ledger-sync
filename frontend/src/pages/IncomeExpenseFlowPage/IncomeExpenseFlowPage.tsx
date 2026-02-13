@@ -10,22 +10,22 @@ import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, g
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { PageHeader } from '@/components/ui'
 
-interface SankeyNodeProps {
-  x: number
-  y: number
-  width: number
-  height: number
-  index: number
-  payload: { name: string }
-  nodeValues: Map<number, number>
-  incomeCategoryCount: number
-  totalIncomeNodeIndex: number
-  savingsNodeIndex: number
-  expensesNodeIndex: number
-  totalIncome: number
+interface SankeyNodeRendererProps {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+  readonly index: number
+  readonly payload: { name: string }
+  readonly nodeValues: Map<number, number>
+  readonly incomeCategoryCount: number
+  readonly totalIncomeNodeIndex: number
+  readonly savingsNodeIndex: number
+  readonly expensesNodeIndex: number
+  readonly totalIncome: number
 }
 
-const SankeyNode = ({
+const SankeyNodeRenderer = ({
   x,
   y,
   width,
@@ -38,7 +38,7 @@ const SankeyNode = ({
   savingsNodeIndex,
   expensesNodeIndex,
   totalIncome,
-}: SankeyNodeProps) => {
+}: SankeyNodeRendererProps) => {
   const value = nodeValues.get(index) || 0
   const percentage = totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0'
 
@@ -100,6 +100,30 @@ const SankeyNode = ({
       </text>
     </g>
   )
+}
+
+interface SankeyNodeWrapperProps {
+  readonly nodeValues: Map<number, number>
+  readonly incomeCategoryCount: number
+  readonly totalIncomeNodeIndex: number
+  readonly savingsNodeIndex: number
+  readonly expensesNodeIndex: number
+  readonly totalIncome: number
+}
+
+function createSankeyNodeComponent(context: SankeyNodeWrapperProps) {
+  const SankeyNodeComponent = (nodeProps: { x: number; y: number; width: number; height: number; index: number; payload: { name: string } }) => (
+    <SankeyNodeRenderer
+      {...nodeProps}
+      nodeValues={context.nodeValues}
+      incomeCategoryCount={context.incomeCategoryCount}
+      totalIncomeNodeIndex={context.totalIncomeNodeIndex}
+      savingsNodeIndex={context.savingsNodeIndex}
+      expensesNodeIndex={context.expensesNodeIndex}
+      totalIncome={context.totalIncome}
+    />
+  )
+  return SankeyNodeComponent
 }
 
 const IncomeExpenseFlowPage = () => {
@@ -257,6 +281,19 @@ const IncomeExpenseFlowPage = () => {
 
   const sankeyData = { nodes, links }
 
+  const incomeCategoryCount = Object.keys(incomeByCategory).length
+  const sankeyNodeComponent = useMemo(
+    () => createSankeyNodeComponent({
+      nodeValues,
+      incomeCategoryCount,
+      totalIncomeNodeIndex,
+      savingsNodeIndex,
+      expensesNodeIndex,
+      totalIncome,
+    }),
+    [nodeValues, incomeCategoryCount, totalIncomeNodeIndex, savingsNodeIndex, expensesNodeIndex, totalIncome]
+  )
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -364,17 +401,7 @@ const IncomeExpenseFlowPage = () => {
                   nodeWidth={20}
                   nodePadding={60}
                   margin={{ top: 30, right: 200, bottom: 30, left: 200 }}
-                  node={(nodeProps: { x: number; y: number; width: number; height: number; index: number; payload: { name: string } }) => (
-                    <SankeyNode
-                      {...nodeProps}
-                      nodeValues={nodeValues}
-                      incomeCategoryCount={Object.keys(incomeByCategory).length}
-                      totalIncomeNodeIndex={totalIncomeNodeIndex}
-                      savingsNodeIndex={savingsNodeIndex}
-                      expensesNodeIndex={expensesNodeIndex}
-                      totalIncome={totalIncome}
-                    />
-                  )}
+                  node={sankeyNodeComponent}
                   link={{
                     stroke: '#8b5cf6',
                     strokeOpacity: 0.25,
