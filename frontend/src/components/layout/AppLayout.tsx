@@ -1,7 +1,17 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar/Sidebar'
 
+const pageTransition = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -4 },
+  transition: { duration: 0.2, ease: 'easeOut' },
+}
+
 export default function AppLayout() {
+  const location = useLocation()
+
   return (
     <div className="flex h-screen bg-black relative overflow-hidden">
       {/* Skip to main content link for keyboard users */}
@@ -12,7 +22,7 @@ export default function AppLayout() {
         Skip to main content
       </a>
 
-      {/* Static gradient orbs — no blur compositing, painted once */}
+      {/* Static gradient orbs */}
       <div
         className="fixed inset-0 pointer-events-none"
         aria-hidden="true"
@@ -28,7 +38,11 @@ export default function AppLayout() {
 
       <Sidebar />
       <main id="main-content" className="flex-1 overflow-auto relative z-10">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div key={location.pathname} {...pageTransition}>
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   )

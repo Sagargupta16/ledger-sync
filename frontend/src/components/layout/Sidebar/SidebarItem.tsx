@@ -41,7 +41,7 @@ export default function SidebarItem({ to, icon: Icon, label, isCollapsed }: Read
           cn(
             'flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl transition-colors duration-200 group relative',
             isActive
-              ? 'bg-white/10 text-white font-medium shadow-lg shadow-white/5'
+              ? 'bg-gradient-to-r from-ios-blue/15 to-transparent text-white font-medium shadow-lg shadow-ios-blue/5'
               : 'text-muted-foreground hover:bg-white/10 hover:text-white hover:shadow-md hover:shadow-white/5',
             isCollapsed && 'flex-col gap-1 justify-center px-1 py-2 hover:bg-white/10'
           )
@@ -59,7 +59,7 @@ export default function SidebarItem({ to, icon: Icon, label, isCollapsed }: Read
               />
             )}
             <Icon
-              size={isCollapsed ? 18 : 18}
+              size={18}
               className="transition-colors duration-200 flex-shrink-0"
               style={{
                 color: isActive ? rawColors.ios.blue : rawColors.text.tertiary

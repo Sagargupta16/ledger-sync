@@ -24,7 +24,7 @@
   --color-ring: var(--color-ios-blue);
   --radius: 1rem;
 
-  /* ===== SURFACE TOKENS (single source for all glass/card backgrounds) ===== */
+  /* ===== SURFACE TOKENS ===== */
   --color-surface-1: rgba(28, 28, 30, 0.6);
   --color-surface-2: rgba(28, 28, 30, 0.75);
   --color-surface-3: rgba(44, 44, 46, 0.6);
@@ -35,12 +35,12 @@
   --color-surface-tooltip: #2c2c2e;
   --color-surface-dropdown: #1c1c1e;
 
-  /* ===== BORDER TOKENS (3 levels only) ===== */
+  /* ===== BORDER TOKENS (3 levels) ===== */
   --color-border-subtle: rgba(255, 255, 255, 0.08);
   --color-border-medium: rgba(255, 255, 255, 0.12);
   --color-border-strong: rgba(255, 255, 255, 0.2);
 
-  /* ===== iOS COLOR PALETTE (Tuned for dark-mode dashboard readability) ===== */
+  /* ===== iOS COLOR PALETTE ===== */
   --color-ios-blue: #4a9eff;
   --color-ios-blue-vibrant: #0a84ff;
   --color-ios-green: #30d158;
@@ -79,7 +79,7 @@
   --color-text-tertiary: #636366;
   --color-text-quaternary: #48484a;
 
-  /* ===== GLOW/SHADOW OPACITY ===== */
+  /* ===== GLOW/SHADOW ===== */
   --glow-opacity: 0.15;
   --glow-opacity-strong: 0.25;
 
@@ -121,8 +121,6 @@ body {
   overflow-x: hidden;
 }
 
-/* Background gradient is rendered by AppLayout.tsx — no body::before needed */
-
 /* ===== GLASS / SURFACE SYSTEM ===== */
 
 .glass {
@@ -151,6 +149,28 @@ body {
   backdrop-filter: blur(30px) saturate(150%);
   -webkit-backdrop-filter: blur(30px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ===== CONTEXTUAL GLOW — Financial card accents ===== */
+
+.glow-income {
+  box-shadow: 0 0 40px rgba(48, 209, 88, 0.08), inset 0 1px 0 rgba(48, 209, 88, 0.06);
+}
+
+.glow-expense {
+  box-shadow: 0 0 40px rgba(255, 87, 87, 0.08), inset 0 1px 0 rgba(255, 87, 87, 0.06);
+}
+
+.glow-savings {
+  box-shadow: 0 0 40px rgba(167, 139, 250, 0.08), inset 0 1px 0 rgba(167, 139, 250, 0.06);
+}
+
+.glow-transfer {
+  box-shadow: 0 0 40px rgba(90, 200, 245, 0.08), inset 0 1px 0 rgba(90, 200, 245, 0.06);
+}
+
+.glow-investment {
+  box-shadow: 0 0 40px rgba(74, 158, 255, 0.08), inset 0 1px 0 rgba(74, 158, 255, 0.06);
 }
 
 /* ===== SCROLLBAR ===== */
@@ -211,6 +231,19 @@ body {
   animation: float 10s ease-in-out infinite;
 }
 
+/* ===== PAGE TRANSITION ===== */
+
+.page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
 /* ===== COMPONENT PATTERNS ===== */
 
 .skeleton {
@@ -249,6 +282,28 @@ body {
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
 }
 
+/* ===== RESPONSIVE TYPOGRAPHY ===== */
+
+.text-page-title {
+  font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.text-section-title {
+  font-size: clamp(1.125rem, 1.5vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.text-stat-value {
+  font-size: clamp(1.25rem, 2vw, 2rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
 /* ===== FORM ELEMENTS ===== */
 
 select {
@@ -279,11 +334,14 @@ input:not([type="checkbox"]):not([type="radio"]):focus {
 
 /* ===== ACCESSIBILITY ===== */
 
+/* Double-ring focus — cleaner on dark backgrounds */
 a:focus-visible,
 button:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--color-ios-blue);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-background),
+    0 0 0 4px var(--color-ios-blue);
   border-radius: 8px;
 }
 
@@ -295,5 +353,63 @@ button:focus-visible,
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ===== PRINT STYLESHEET ===== */
+
+@media print {
+  /* Hide non-printable elements */
+  nav,
+  aside,
+  .glass-ultra,
+  .scrollbar-none,
+  button:not([type="submit"]),
+  .recharts-tooltip-wrapper {
+    display: none !important;
+  }
+
+  /* Reset to printable appearance */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  body::before {
+    display: none !important;
+  }
+
+  * {
+    border-color: #e5e5e5 !important;
+    color: inherit !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    text-shadow: none !important;
+  }
+
+  .glass,
+  .glass-strong,
+  .glass-thin {
+    background: white !important;
+    border: 1px solid #e5e5e5 !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  /* Size charts for print */
+  .recharts-responsive-container {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure text is readable */
+  h1, h2, h3 { color: black !important; }
+  p, span, td, th { color: #333 !important; }
+
+  @page {
+    margin: 1.5cm;
+    size: A4;
   }
 }
