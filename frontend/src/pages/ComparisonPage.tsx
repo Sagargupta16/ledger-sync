@@ -16,12 +16,14 @@ import EmptyState from '@/components/shared/EmptyState'
 import {
   ResponsiveContainer,
   Tooltip,
-  PieChart,
-  Pie,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
   Cell,
 } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
-import { CHART_COLORS } from '@/constants/chartColors'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 
 // ─── Types ──────────────────────────────────────────────────────────
 type CompareMode = 'month' | 'year' | 'fy'
@@ -532,105 +534,81 @@ export default function ComparisonPage() {
         </div>
       </motion.div>
 
-      {/* Spending Distribution — Side-by-side donuts */}
-      {(distributionA.length > 0 || distributionB.length > 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="glass rounded-2xl border border-border p-6 shadow-xl"
-        >
-          <h2 className="text-lg font-semibold mb-1">Spending Distribution</h2>
-          <p className="text-xs text-text-tertiary mb-4">How spending is spread across categories</p>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Period A donut */}
-            <div>
-              <p className="text-sm font-medium text-center mb-2" style={{ color: rawColors.ios.blue }}>{periodA.label}</p>
-              {distributionA.length > 0 ? (
-                <div className="flex flex-col items-center">
-                  <div className="h-52 w-full">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                      <PieChart>
-                        <Pie
-                          data={distributionA}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          {distributionA.map((entry, i) => (
-                            <Cell key={entry.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          {...chartTooltipProps}
-                          formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center mt-2">
-                    {distributionA.map((d, i) => (
-                      <div key={d.name} className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                        <span className="text-xs text-muted-foreground truncate max-w-24">{d.name}</span>
-                        <span className="text-xs text-text-tertiary">{periodA.expense > 0 ? ((d.value / periodA.expense) * 100).toFixed(0) : 0}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No expense data</p>
-              )}
-            </div>
+      {/* Spending Distribution — Butterfly / Tornado comparison chart */}
+      {(distributionA.length > 0 || distributionB.length > 0) && (() => {
+        // Merge both periods into butterfly chart data
+        const categorySet = new Set([...distributionA.map(d => d.name), ...distributionB.map(d => d.name)])
+        const aMap = Object.fromEntries(distributionA.map(d => [d.name, d.value]))
+        const bMap = Object.fromEntries(distributionB.map(d => [d.name, d.value]))
+        const butterflyData = Array.from(categorySet)
+          .map(name => ({
+            name,
+            periodA: -(aMap[name] || 0), // negative = extends left
+            periodB: bMap[name] || 0,     // positive = extends right
+          }))
+          .sort((a, b) => Math.max(Math.abs(b.periodA), b.periodB) - Math.max(Math.abs(a.periodA), a.periodB))
+          .slice(0, 10) // top 10 categories
+        const maxVal = Math.max(
+          ...butterflyData.map(d => Math.abs(d.periodA)),
+          ...butterflyData.map(d => d.periodB),
+          1,
+        )
 
-            {/* Period B donut */}
-            <div>
-              <p className="text-sm font-medium text-center mb-2" style={{ color: rawColors.ios.indigo }}>{periodB.label}</p>
-              {distributionB.length > 0 ? (
-                <div className="flex flex-col items-center">
-                  <div className="h-52 w-full">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                      <PieChart>
-                        <Pie
-                          data={distributionB}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          {distributionB.map((entry, i) => (
-                            <Cell key={entry.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          {...chartTooltipProps}
-                          formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center mt-2">
-                    {distributionB.map((d, i) => (
-                      <div key={d.name} className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                        <span className="text-xs text-muted-foreground truncate max-w-24">{d.name}</span>
-                        <span className="text-xs text-text-tertiary">{periodB.expense > 0 ? ((d.value / periodB.expense) * 100).toFixed(0) : 0}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No expense data</p>
-              )}
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="glass rounded-2xl border border-border p-6 shadow-xl"
+          >
+            <h2 className="text-lg font-semibold mb-1">Spending Distribution</h2>
+            <p className="text-xs text-text-tertiary mb-2">Category-by-category comparison — bars extend left and right from center</p>
+            <div className="flex items-center justify-center gap-6 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: rawColors.ios.blue }} />
+                <span className="text-xs text-muted-foreground">{periodA.label} (left)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: rawColors.ios.indigo }} />
+                <span className="text-xs text-muted-foreground">{periodB.label} (right)</span>
+              </div>
             </div>
-          </div>
-        </motion.div>
-      )}
+            <div style={{ height: Math.max(300, butterflyData.length * 36) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ left: 10, right: 10 }}>
+                  <XAxis
+                    type="number"
+                    domain={[-maxVal, maxVal]}
+                    tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }}
+                    tickFormatter={(v: number) => formatCurrencyShort(Math.abs(v))}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={100}
+                    tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
+                  />
+                  <Tooltip
+                    {...chartTooltipProps}
+                    formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(Math.abs(value))}
+                    labelFormatter={(label) => label}
+                  />
+                  <Bar dataKey="periodA" name={periodA.label} stackId="stack" radius={[4, 0, 0, 4]}>
+                    {butterflyData.map((_, i) => (
+                      <Cell key={`a-${i}`} fill={rawColors.ios.blue} />
+                    ))}
+                  </Bar>
+                  <Bar dataKey="periodB" name={periodB.label} stackId="stack" radius={[0, 4, 4, 0]}>
+                    {butterflyData.map((_, i) => (
+                      <Cell key={`b-${i}`} fill={rawColors.ios.indigo} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
+        )
+      })()}
 
       {/* Category Breakdown — Visual Bars */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

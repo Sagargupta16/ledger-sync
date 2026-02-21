@@ -4,6 +4,7 @@ import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank } from 'l
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip } from 'recharts'
 import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
@@ -133,6 +134,7 @@ function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, i
 }
 
 export default function SpendingAnalysisPage() {
+  const navigate = useNavigate()
   const { data: transactions } = useTransactions()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
@@ -298,6 +300,12 @@ export default function SpendingAnalysisPage() {
                         outerRadius={75}
                         dataKey="value"
                         stroke="none"
+                        onClick={(data: { name?: string }) => {
+                          if (data?.name && data.name !== 'Savings') {
+                            navigate(`/transactions?type=Expense&spending_type=${encodeURIComponent(data.name)}`)
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
                       >
                         {spendingChartData.map((entry) => (
                           <Cell key={`cell-${entry.name}`} fill={entry.color} />

@@ -13,11 +13,12 @@ import {
   X,
 } from 'lucide-react'
 import { useState, useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import StatCard from '@/pages/year-in-review/StatCard'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useBudgetStore } from '@/store/budgetStore'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { getCurrentFY, getFYDateRange } from '@/lib/dateUtils'
@@ -31,8 +32,10 @@ import {
   CartesianGrid,
   Tooltip,
   Cell,
+  LabelList,
 } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 // ─── Types ──────────────────────────────────────────────────────────
 type BudgetPeriod = 'monthly' | 'yearly'
@@ -59,6 +62,7 @@ const statusConfig = {
 
 // ─── Component ──────────────────────────────────────────────────────
 export default function BudgetPage() {
+  const navigate = useNavigate()
   const { data: transactions = [] } = useTransactions()
   const { data: categoryData } = useCategoryBreakdown({ transaction_type: 'expense' })
   const { data: preferences } = usePreferences()
@@ -428,23 +432,30 @@ export default function BudgetPage() {
           >
             <h2 className="text-lg font-semibold mb-4">Budget vs Actual</h2>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <BarChart data={chartData} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={50} />
-                  <YAxis tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`} tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
-                  <Tooltip
-                    {...chartTooltipProps}
-                    formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
-                  />
-                  <Bar dataKey="Budget" fill={rawColors.ios.blue} radius={[4, 4, 0, 0]} opacity={0.5} />
-                  <Bar dataKey="Spent" radius={[4, 4, 0, 0]}>
-                    {chartData.map((entry) => (
-                      <Cell key={entry.name} fill={statusConfig[entry.status].color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {chartData.length === 0 ? (
+                <ChartEmptyState height={256} />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <BarChart data={chartData} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                    <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={50} />
+                    <YAxis tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`} tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
+                    <Tooltip
+                      {...chartTooltipProps}
+                      formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
+                    />
+                    <Bar dataKey="Budget" fill={rawColors.ios.blue} radius={[4, 4, 0, 0]} opacity={0.5}>
+                      <LabelList dataKey="Budget" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />
+                    </Bar>
+                    <Bar dataKey="Spent" radius={[4, 4, 0, 0]} onClick={(data: { name?: string }) => { if (data?.name) navigate(`/transactions?category=${encodeURIComponent(data.name)}`) }} style={{ cursor: 'pointer' }}>
+                      <LabelList dataKey="Spent" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />
+                      {chartData.map((entry) => (
+                        <Cell key={entry.name} fill={statusConfig[entry.status].color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </motion.div>
 

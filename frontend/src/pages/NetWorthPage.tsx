@@ -5,13 +5,14 @@ import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts'
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, LabelList } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
@@ -158,6 +159,18 @@ function AccountCategoryTable({
   emptyDescription,
   isLoading,
 }: AccountCategoryTableProps) {
+  const [sortKey, setSortKey] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('desc')
+    }
+  }
+
   if (isLoading) {
     return <div className="text-center py-8 text-muted-foreground">Loading accounts...</div>
   }
@@ -181,7 +194,9 @@ function AccountCategoryTable({
         <thead>
           <tr className="border-b border-border">
             <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Account</th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Balance</th>
+            <th onClick={() => toggleSort('balance')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+              Balance {sortKey === 'balance' && (sortDir === 'asc' ? '\u2191' : '\u2193')}
+            </th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">% Allocated</th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Type</th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Transactions</th>
@@ -191,6 +206,10 @@ function AccountCategoryTable({
           {Object.entries(accounts)
             .filter(([, accountData]) => filterFn(accountData.balance) && Math.abs(accountData.balance) >= 0.01)
             .sort((a, b) => {
+              if (sortKey === 'balance') {
+                const cmp = Math.abs(a[1].balance) - Math.abs(b[1].balance)
+                return sortDir === 'asc' ? cmp : -cmp
+              }
               const catA = getAccountType(a[0])
               const catB = getAccountType(b[0])
               if (catA !== catB) return catA.localeCompare(catB)
@@ -636,20 +655,28 @@ export default function NetWorthPage() {
               <BarChart3 className="w-5 h-5 text-ios-purple" />
               <h3 className="text-lg font-semibold text-white">Monthly Net Worth Changes</h3>
             </div>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={monthlyChanges}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                <XAxis dataKey="month" tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
-                <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
-                <Tooltip
-                  {...chartTooltipProps}
-                  formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
-                />
-                <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
-                <Bar dataKey="positive" name="Increase" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="negative" name="Decrease" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {monthlyChanges.length === 0 ? (
+              <ChartEmptyState height={280} />
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={monthlyChanges}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                  <XAxis dataKey="month" tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
+                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
+                  <Tooltip
+                    {...chartTooltipProps}
+                    formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
+                  />
+                  <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+                  <Bar dataKey="positive" name="Increase" fill={rawColors.ios.green} radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="positive" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />
+                  </Bar>
+                  <Bar dataKey="negative" name="Decrease" fill={rawColors.ios.red} radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="negative" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </motion.div>
         )}
 

@@ -12,7 +12,7 @@ import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } fr
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { type AnalyticsViewMode, getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange } from '@/lib/dateUtils'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
-import EmptyState from '@/components/shared/EmptyState'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { usePreferencesStore } from '@/store/preferencesStore'
 
 // 4 Investment Categories with colors
@@ -295,6 +295,37 @@ export default function InvestmentAnalyticsPage() {
     })
   }, [dailyGrowthData, dateRange])
 
+  // Sorting state for investment accounts table
+  const [investSortKey, setInvestSortKey] = useState<string | null>(null)
+  const [investSortDir, setInvestSortDir] = useState<'asc' | 'desc'>('desc')
+
+  const toggleInvestSort = (key: string) => {
+    if (investSortKey === key) {
+      setInvestSortDir(investSortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setInvestSortKey(key)
+      setInvestSortDir('desc')
+    }
+  }
+
+  const sortedPortfolioData = useMemo(() => {
+    if (!investSortKey) return portfolioData
+    return [...portfolioData].sort((a, b) => {
+      let av: number, bv: number
+      if (investSortKey === 'value') {
+        av = a.value
+        bv = b.value
+      } else if (investSortKey === 'percentage') {
+        av = Number.parseFloat(a.percentage)
+        bv = Number.parseFloat(b.percentage)
+      } else {
+        return 0
+      }
+      const cmp = av - bv
+      return investSortDir === 'asc' ? cmp : -cmp
+    })
+  }, [portfolioData, investSortKey, investSortDir])
+
   if (totalInvestmentValue === 0) {
     return (
       <div className="min-h-screen p-8">
@@ -411,39 +442,34 @@ export default function InvestmentAnalyticsPage() {
               <div className="animate-pulse text-muted-foreground">Loading chart...</div>
             </div>
           )}
-          {!isLoading && assetAllocation.length > 0 && (
-            <ResponsiveContainer width="100%" height={320}>
-              <RechartsPie>
-                <Pie
-                  data={assetAllocation}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, payload }) => `${name} (${payload.percentage}%)`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {assetAllocation.map((entry) => (
-                    <Cell key={`cell-${entry.name}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  {...chartTooltipProps}
-                  formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
-                />
-                <Legend />
-              </RechartsPie>
-            </ResponsiveContainer>
-          )}
-          {!isLoading && assetAllocation.length === 0 && (
-            <EmptyState
-              icon={PieChart}
-              title="No investment data"
-              description="Configure your investment accounts in Settings to see asset allocation."
-              actionLabel="Go to Settings"
-              actionHref="/settings"
-            />
+          {!isLoading && (
+            assetAllocation.length === 0 ? (
+              <ChartEmptyState height={320} />
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <RechartsPie>
+                  <Pie
+                    data={assetAllocation}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, payload }) => `${name} (${payload.percentage}%)`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {assetAllocation.map((entry) => (
+                      <Cell key={`cell-${entry.name}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    {...chartTooltipProps}
+                    formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
+                  />
+                  <Legend />
+                </RechartsPie>
+              </ResponsiveContainer>
+            )
           )}
         </motion.div>
 
@@ -462,8 +488,11 @@ export default function InvestmentAnalyticsPage() {
               <div className="animate-pulse text-muted-foreground">Loading chart...</div>
             </div>
           )}
-          {!isLoading && filteredGrowthData.length > 0 && (
-            <ResponsiveContainer width="100%" height={400}>
+          {!isLoading && (
+            filteredGrowthData.length === 0 ? (
+              <ChartEmptyState height={400} />
+            ) : (
+              <ResponsiveContainer width="100%" height={400}>
                 <AreaChart data={filteredGrowthData}>
                   <defs>
                     {INVESTMENT_CATEGORIES.map((category) => (
@@ -511,15 +540,7 @@ export default function InvestmentAnalyticsPage() {
                   ))}
                 </AreaChart>
               </ResponsiveContainer>
-          )}
-          {!isLoading && filteredGrowthData.length === 0 && (
-              <EmptyState
-                icon={LineChart}
-                title="No investment data"
-                description="Add investment transactions to see growth over time."
-                actionLabel="Upload Data"
-                actionHref="/upload"
-              />
+            )
           )}
         </motion.div>
 
@@ -536,12 +557,16 @@ export default function InvestmentAnalyticsPage() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Account</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Value</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Allocation</th>
+                    <th onClick={() => toggleInvestSort('value')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                      Value {investSortKey === 'value' && (investSortDir === 'asc' ? '\u2191' : '\u2193')}
+                    </th>
+                    <th onClick={() => toggleInvestSort('percentage')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                      Allocation {investSortKey === 'percentage' && (investSortDir === 'asc' ? '\u2191' : '\u2193')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {portfolioData.map((item, index) => (
+                  {sortedPortfolioData.map((item, index) => (
                     <motion.tr
                       key={`${item.name}-${index}`}
                       className="border-b border-border hover:bg-white/10 transition-colors"

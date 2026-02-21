@@ -6,12 +6,12 @@ import { TrendingUp, TrendingDown, Banknote, Receipt } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { useMemo, useState } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
-import EmptyState from '@/components/shared/EmptyState'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { usePreferencesStore } from '@/store/preferencesStore'
@@ -286,6 +286,29 @@ export default function ReturnsAnalysisPage() {
   // Simple return on investment calculation
   const roi = monthlyDataArray.length > 0 ? estimatedCAGR / 12 : 0
 
+  // Waterfall chart data for P&L breakdown
+  const waterfallData = useMemo(() => {
+    let running = 0
+
+    const profit = { name: 'Profit', value: investmentProfit, start: running, end: running + investmentProfit, isTotal: false }
+    running += investmentProfit
+
+    const dividends = { name: 'Dividends', value: dividendIncome, start: running, end: running + dividendIncome, isTotal: false }
+    running += dividendIncome
+
+    const interest = { name: 'Interest', value: interestIncome, start: running, end: running + interestIncome, isTotal: false }
+    running += interestIncome
+
+    const loss = { name: 'Losses', value: -investmentLoss, start: running, end: running - investmentLoss, isTotal: false }
+    running -= investmentLoss
+
+    const fees = { name: 'Fees', value: -brokerFees, start: running, end: running - brokerFees, isTotal: false }
+
+    const netPL = { name: 'Net P&L', value: netProfitLoss, start: 0, end: netProfitLoss, isTotal: true }
+
+    return [profit, dividends, interest, loss, fees, netPL]
+  }, [investmentProfit, dividendIncome, interestIncome, investmentLoss, brokerFees, netProfitLoss])
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -381,7 +404,9 @@ export default function ReturnsAnalysisPage() {
           className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Cumulative Returns Over Time</h3>
-          {cumulativeReturnsData.length > 0 ? (
+          {cumulativeReturnsData.length === 0 ? (
+            <ChartEmptyState height={320} />
+          ) : (
             <ResponsiveContainer width="100%" height={320}>
               <AreaChart data={cumulativeReturnsData}>
                 <defs>
@@ -429,14 +454,6 @@ export default function ReturnsAnalysisPage() {
                 />
               </AreaChart>
             </ResponsiveContainer>
-          ) : (
-            <EmptyState
-              icon={TrendingUp}
-              title="No transaction data available"
-              description="Upload your investment transactions to track returns over time."
-              actionLabel="Upload Data"
-              actionHref="/upload"
-            />
           )}
         </motion.div>
 
@@ -485,6 +502,38 @@ export default function ReturnsAnalysisPage() {
             className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <h3 className="text-lg font-semibold text-white mb-6">Profit & Loss Breakdown</h3>
+            {/* Waterfall Chart */}
+            <div className="mb-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={waterfallData} barCategoryGap="20%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                  <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
+                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
+                  <Tooltip
+                    {...chartTooltipProps}
+                    formatter={(value: number | undefined, name: string | undefined, props: { payload?: { value?: number; isTotal?: boolean } }) => {
+                      const v = props.payload?.value ?? 0
+                      return [formatCurrency(Math.abs(v)), props.payload?.isTotal ? 'Net P&L' : name === 'end' ? 'Amount' : '']
+                    }}
+                    labelFormatter={(label: string) => label}
+                  />
+                  {/* Invisible bar for the "start" offset */}
+                  <Bar dataKey="start" stackId="waterfall" fill="transparent" isAnimationActive={false} />
+                  {/* Visible bar from start to end */}
+                  <Bar dataKey="value" stackId="waterfall" radius={[4, 4, 0, 0]}>
+                    {waterfallData.map((entry, i) => (
+                      <Cell
+                        key={`cell-${i}`}
+                        fill={entry.isTotal
+                          ? (entry.value >= 0 ? rawColors.ios.blue : rawColors.ios.red)
+                          : (entry.value >= 0 ? rawColors.ios.green : rawColors.ios.red)
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
             <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
               <motion.div variants={fadeUpItem} className="p-4 bg-ios-green/10 rounded-lg border border-ios-green/20">
                 <p className="text-sm text-muted-foreground mb-2">Total Income</p>

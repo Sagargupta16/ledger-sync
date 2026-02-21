@@ -11,6 +11,7 @@ import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -260,10 +261,34 @@ export default function TrendsForecastsPage() {
   const peakExpenses = useMemo(() => Math.max(...monthlyTrendChartData.map(d => d.expenses), 0), [monthlyTrendChartData])
   const peakSavings = useMemo(() => Math.max(...monthlyTrendChartData.map(d => d.savings), 0), [monthlyTrendChartData])
 
+  // Sorting state for the monthly breakdown table
+  const [trendSortKey, setTrendSortKey] = useState<string | null>(null)
+  const [trendSortDir, setTrendSortDir] = useState<'asc' | 'desc'>('desc')
+
+  const toggleTrendSort = (key: string) => {
+    if (trendSortKey === key) {
+      setTrendSortDir(trendSortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setTrendSortKey(key)
+      setTrendSortDir('desc')
+    }
+  }
+
+  const sortedChartData = useMemo(() => {
+    const data = chartData.slice(-8)
+    if (!trendSortKey) return data
+    return [...data].sort((a, b) => {
+      const av = a[trendSortKey as keyof typeof a]
+      const bv = b[trendSortKey as keyof typeof b]
+      const cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv))
+      return trendSortDir === 'asc' ? cmp : -cmp
+    })
+  }, [chartData, trendSortKey, trendSortDir])
+
   const getTrendIcon = (direction: TrendDirection, isPositiveGood: boolean) => {
     if (direction === 'stable') return <Minus className="w-5 h-5 text-muted-foreground" />
     if (direction === 'up') {
-      return isPositiveGood 
+      return isPositiveGood
         ? <TrendingUp className="w-5 h-5 text-ios-green" />
         : <TrendingUp className="w-5 h-5 text-ios-red" />
     }
@@ -271,6 +296,9 @@ export default function TrendsForecastsPage() {
       ? <TrendingDown className="w-5 h-5 text-ios-red" />
       : <TrendingDown className="w-5 h-5 text-ios-green" />
   }
+
+  // Linked crosshair state for small-multiples charts
+  const [activeLabel, setActiveLabel] = useState<string | null>(null)
 
   const getTrendColor = (direction: TrendDirection, isPositiveGood: boolean) => {
     if (direction === 'stable') return 'text-muted-foreground'
@@ -464,33 +492,38 @@ export default function TrendsForecastsPage() {
                   <div className="w-3 h-3 rounded-full bg-ios-green" />
                   <span className="text-sm font-medium text-white">Income</span>
                 </div>
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={monthlyTrendWithAvg}>
-                    <defs>
-                      <linearGradient id="trendIncomeGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
-                    <YAxis hide />
-                    <Tooltip
-                      {...chartTooltipProps}
-                      labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
-                        const month = payload?.[0]?.payload?.month
-                        return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
-                      }}
-                      formatter={(value: number | undefined, name: string | undefined) => [
-                        value === undefined ? '' : formatCurrency(value),
-                        formatTooltipName(name)
-                      ]}
-                    />
-                    <ReferenceLine y={peakIncome} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }} />
-                    <Area type="monotone" dataKey="income" stroke={rawColors.ios.green} fill="url(#trendIncomeGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
-                    <Line type="monotone" dataKey="incomeAvg" stroke={rawColors.ios.green} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Income (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {monthlyTrendWithAvg.length === 0 ? (
+                  <ChartEmptyState height={180} />
+                ) : (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
+                      <defs>
+                        <linearGradient id="trendIncomeGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                      <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                      <YAxis hide />
+                      <Tooltip
+                        {...chartTooltipProps}
+                        labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
+                          const month = payload?.[0]?.payload?.month
+                          return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
+                        }}
+                        formatter={(value: number | undefined, name: string | undefined) => [
+                          value === undefined ? '' : formatCurrency(value),
+                          formatTooltipName(name)
+                        ]}
+                      />
+                      <ReferenceLine y={peakIncome} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }} />
+                      {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
+                      <Area type="monotone" dataKey="income" stroke={rawColors.ios.green} fill="url(#trendIncomeGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                      <Line type="monotone" dataKey="incomeAvg" stroke={rawColors.ios.green} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Income (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
 
               {/* Expenses mini chart */}
@@ -499,33 +532,38 @@ export default function TrendsForecastsPage() {
                   <div className="w-3 h-3 rounded-full bg-ios-red" />
                   <span className="text-sm font-medium text-white">Expenses</span>
                 </div>
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={monthlyTrendWithAvg}>
-                    <defs>
-                      <linearGradient id="trendExpenseGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={rawColors.ios.red} stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor={rawColors.ios.red} stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
-                    <YAxis hide />
-                    <Tooltip
-                      {...chartTooltipProps}
-                      labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
-                        const month = payload?.[0]?.payload?.month
-                        return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
-                      }}
-                      formatter={(value: number | undefined, name: string | undefined) => [
-                        value === undefined ? '' : formatCurrency(value),
-                        formatTooltipName(name)
-                      ]}
-                    />
-                    <ReferenceLine y={peakExpenses} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakExpenses)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }} />
-                    <Area type="monotone" dataKey="expenses" stroke={rawColors.ios.red} fill="url(#trendExpenseGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
-                    <Line type="monotone" dataKey="expensesAvg" stroke={rawColors.ios.red} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Spending (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {monthlyTrendWithAvg.length === 0 ? (
+                  <ChartEmptyState height={180} />
+                ) : (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
+                      <defs>
+                        <linearGradient id="trendExpenseGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={rawColors.ios.red} stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor={rawColors.ios.red} stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                      <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                      <YAxis hide />
+                      <Tooltip
+                        {...chartTooltipProps}
+                        labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
+                          const month = payload?.[0]?.payload?.month
+                          return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
+                        }}
+                        formatter={(value: number | undefined, name: string | undefined) => [
+                          value === undefined ? '' : formatCurrency(value),
+                          formatTooltipName(name)
+                        ]}
+                      />
+                      <ReferenceLine y={peakExpenses} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakExpenses)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }} />
+                      {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
+                      <Area type="monotone" dataKey="expenses" stroke={rawColors.ios.red} fill="url(#trendExpenseGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                      <Line type="monotone" dataKey="expensesAvg" stroke={rawColors.ios.red} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Spending (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
 
               {/* Savings mini chart */}
@@ -534,33 +572,38 @@ export default function TrendsForecastsPage() {
                   <div className="w-3 h-3 rounded-full bg-ios-purple" />
                   <span className="text-sm font-medium text-white">Savings</span>
                 </div>
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={monthlyTrendWithAvg}>
-                    <defs>
-                      <linearGradient id="trendSavingsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={rawColors.ios.purple} stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor={rawColors.ios.purple} stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
-                    <YAxis hide />
-                    <Tooltip
-                      {...chartTooltipProps}
-                      labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
-                        const month = payload?.[0]?.payload?.month
-                        return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
-                      }}
-                      formatter={(value: number | undefined, name: string | undefined) => [
-                        value === undefined ? '' : formatCurrency(value),
-                        formatTooltipName(name)
-                      ]}
-                    />
-                    <ReferenceLine y={peakSavings} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakSavings)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }} />
-                    <Area type="monotone" dataKey="savings" stroke={rawColors.ios.purple} fill="url(#trendSavingsGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
-                    <Line type="monotone" dataKey="savingsAvg" stroke={rawColors.ios.purple} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Savings (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {monthlyTrendWithAvg.length === 0 ? (
+                  <ChartEmptyState height={180} />
+                ) : (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
+                      <defs>
+                        <linearGradient id="trendSavingsGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={rawColors.ios.purple} stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor={rawColors.ios.purple} stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                      <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                      <YAxis hide />
+                      <Tooltip
+                        {...chartTooltipProps}
+                        labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
+                          const month = payload?.[0]?.payload?.month
+                          return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
+                        }}
+                        formatter={(value: number | undefined, name: string | undefined) => [
+                          value === undefined ? '' : formatCurrency(value),
+                          formatTooltipName(name)
+                        ]}
+                      />
+                      <ReferenceLine y={peakSavings} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakSavings)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }} />
+                      {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
+                      <Area type="monotone" dataKey="savings" stroke={rawColors.ios.purple} fill="url(#trendSavingsGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                      <Line type="monotone" dataKey="savingsAvg" stroke={rawColors.ios.purple} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Savings (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
           )}
@@ -595,36 +638,40 @@ export default function TrendsForecastsPage() {
             </div>
           )}
           {!isLoading && dailySavingsData.length > 0 && (
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={dailySavingsData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} fontSize={12} tickFormatter={(v) => formatDateTick(v, dailySavingsData.length)} angle={-45} textAnchor="end" height={70} interval={Math.max(1, Math.floor(dailySavingsData.length / 15))} />
-                <YAxis stroke={CHART_AXIS_COLOR} fontSize={12} tickFormatter={(v) => `${Math.round(v)}%`} domain={[0, 'auto']} />
-                <Tooltip
-                  {...chartTooltipProps}
-                  labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                  formatter={(_value: number | undefined, _name: string | undefined, props: { payload?: { rawSavingsRate?: number } }) => {
-                    const actual = props.payload?.rawSavingsRate ?? 0
-                    const label = actual < 0 ? `${actual.toFixed(1)}% (deficit)` : `${actual.toFixed(1)}%`
-                    return [label, 'Cumulative Savings Rate']
-                  }}
-                />
-                <defs>
-                  <linearGradient id="savingsGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={rawColors.ios.purple} stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor={rawColors.ios.purple} stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <Area
-                  type="natural"
-                  dataKey="savingsRate"
-                  stroke={rawColors.ios.purple}
-                  fill="url(#savingsGradient)"
-                  strokeWidth={2}
-                  isAnimationActive={dailySavingsData.length < CHART_ANIMATION_THRESHOLD}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            dailySavingsData.length === 0 ? (
+              <ChartEmptyState height={250} />
+            ) : (
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={dailySavingsData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} fontSize={12} tickFormatter={(v) => formatDateTick(v, dailySavingsData.length)} angle={-45} textAnchor="end" height={70} interval={Math.max(1, Math.floor(dailySavingsData.length / 15))} />
+                  <YAxis stroke={CHART_AXIS_COLOR} fontSize={12} tickFormatter={(v) => `${Math.round(v)}%`} domain={[0, 'auto']} />
+                  <Tooltip
+                    {...chartTooltipProps}
+                    labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    formatter={(_value: number | undefined, _name: string | undefined, props: { payload?: { rawSavingsRate?: number } }) => {
+                      const actual = props.payload?.rawSavingsRate ?? 0
+                      const label = actual < 0 ? `${actual.toFixed(1)}% (deficit)` : `${actual.toFixed(1)}%`
+                      return [label, 'Cumulative Savings Rate']
+                    }}
+                  />
+                  <defs>
+                    <linearGradient id="savingsGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={rawColors.ios.purple} stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor={rawColors.ios.purple} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <Area
+                    type="natural"
+                    dataKey="savingsRate"
+                    stroke={rawColors.ios.purple}
+                    fill="url(#savingsGradient)"
+                    strokeWidth={2}
+                    isAnimationActive={dailySavingsData.length < CHART_ANIMATION_THRESHOLD}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )
           )}
           {!isLoading && dailySavingsData.length === 0 && (
             <EmptyState
@@ -654,10 +701,18 @@ export default function TrendsForecastsPage() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Month</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Income</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Spending</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Savings</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Savings Rate</th>
+                    <th onClick={() => toggleTrendSort('income')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                      Income {trendSortKey === 'income' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
+                    </th>
+                    <th onClick={() => toggleTrendSort('expenses')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                      Spending {trendSortKey === 'expenses' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
+                    </th>
+                    <th onClick={() => toggleTrendSort('surplus')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                      Savings {trendSortKey === 'surplus' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
+                    </th>
+                    <th onClick={() => toggleTrendSort('rawSavingsRate')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                      Savings Rate {trendSortKey === 'rawSavingsRate' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
+                    </th>
                   </tr>
                 </thead>
                 <motion.tbody
@@ -665,7 +720,7 @@ export default function TrendsForecastsPage() {
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.2 }}
                 >
-                  {chartData.slice(-8).map((trend) => (
+                  {sortedChartData.map((trend) => (
                     <tr
                       key={trend.month}
                       className="border-b border-border hover:bg-white/10 transition-colors"
