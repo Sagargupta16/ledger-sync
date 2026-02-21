@@ -280,12 +280,10 @@ class FinancialCalculator:
         if not first_3_months or not last_3_months:
             return 0.0
 
-        avg_first = float(
-            sum((_to_decimal(t.amount) for t in first_3_months), Decimal(0)) / len(first_3_months)
-        )
-        avg_last = float(
-            sum((_to_decimal(t.amount) for t in last_3_months), Decimal(0)) / len(last_3_months)
-        )
+        # Use total spending divided by number of months (3) — not by transaction count,
+        # which would measure average transaction size rather than average monthly spending.
+        avg_first = float(sum((_to_decimal(t.amount) for t in first_3_months), Decimal(0)) / 3)
+        avg_last = float(sum((_to_decimal(t.amount) for t in last_3_months), Decimal(0)) / 3)
 
         if avg_first == 0:
             return 0.0

@@ -255,6 +255,9 @@ export function useDashboardMetrics(): DashboardMetrics {
     if (!curr || !prev) return noChange
 
     const pct = (c: number, p: number) => (p === 0 ? undefined : Number((((c - p) / p) * 100).toFixed(1)))
+    // For savings, use abs(prev) as denominator so a sign flip (e.g. -1000 → +500)
+    // correctly shows improvement (+150%) rather than a misleading -150%.
+    const savingsPct = (c: number, p: number) => (p === 0 ? undefined : Number((((c - p) / Math.abs(p)) * 100).toFixed(1)))
     const currSavingsRate = curr.income === 0 ? 0 : (curr.net_savings / curr.income) * 100
     const prevSavingsRate = prev.income === 0 ? 0 : (prev.net_savings / prev.income) * 100
 
@@ -266,7 +269,7 @@ export function useDashboardMetrics(): DashboardMetrics {
     return {
       income: pct(curr.income, prev.income),
       expense: pct(Math.abs(curr.expense), Math.abs(prev.expense)),
-      savings: pct(curr.net_savings, prev.net_savings),
+      savings: savingsPct(curr.net_savings, prev.net_savings),
       savingsRate: prev.income === 0 ? undefined : Number((currSavingsRate - prevSavingsRate).toFixed(1)),
       label: `${fmt(currKey)} vs ${fmt(prevKey)}`,
     }

@@ -542,9 +542,9 @@ def _calculate_expense_averages(
     end_date: datetime | None,
 ) -> tuple[float, float]:
     """Return (average_daily_expense, average_monthly_expense)."""
-    day_count = (end_date - start_date).days if start_date and end_date else 30
+    day_count = max((end_date - start_date).days, 1) if start_date and end_date else 30
     month_count = max(day_count / 30.44, 1)  # 365.25/12 avg days per month
-    average_daily = total_expenses / day_count if day_count > 0 else 0
+    average_daily = total_expenses / day_count
     average_monthly = total_expenses / month_count if month_count > 0 else 0
     return average_daily, average_monthly
 
