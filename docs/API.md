@@ -8,7 +8,7 @@ http://localhost:8000
 
 ## Authentication
 
-Currently, the API does not require authentication. All endpoints are public.
+The API requires JWT Bearer token authentication. All endpoints use the `get_current_user` dependency.
 
 ## Common Response Format
 
@@ -716,6 +716,7 @@ Allowed Origins (configurable):
 
 - http://localhost:3000
 - http://localhost:5173
+- http://localhost:5174
 
 ---
 

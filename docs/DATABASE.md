@@ -2,76 +2,97 @@
 
 ## Overview
 
-Ledger Sync uses SQLite with SQLAlchemy ORM. The database stores financial transactions, accounts, and metadata for reconciliation and analytics.
+Ledger Sync uses SQLite with SQLAlchemy 2.0 ORM (Mapped types). The database stores financial transactions with multi-user support, and includes models for analytics, budgets, anomalies, and net worth tracking.
 
 ## Database Models
 
 ### Transaction Model
 
-Represents a single financial transaction (income, expense, transfer).
+Represents a single financial transaction (income, expense, or transfer). Uses SHA-256 hash as the primary key for deduplication.
 
 ```python
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    # Primary Key
-    id = Column(Integer, primary_key=True)
+    # Primary key is the SHA-256 hash (no separate auto-increment ID)
+    transaction_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
-    # Content Fields
-    hash_id = Column(String(64), unique=True, index=True)  # SHA-256 hash
-    date = Column(DateTime, index=True)
-    amount = Column(Numeric(12, 2))
-    type = Column(String(20))  # Income, Expense, Transfer, Reimbursement, Investment
-    category = Column(String(100), index=True)
-    subcategory = Column(String(100), nullable=True)
-    account = Column(String(100), index=True)
-    description = Column(String(255), nullable=True)
+    # Core fields
+    date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="INR")
+    type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False, index=True)
 
-    # Metadata Fields
-    file_source = Column(String(255))  # Source filename
-    is_deleted = Column(Boolean, default=False, index=True)
+    # Categorization
+    account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_import_time = Column(DateTime, nullable=True)
+    # Transfer-specific
+    from_account: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    to_account: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    is_transfer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Optional
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Metadata
+    source_file: Mapped[str] = mapped_column(String(500), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
 ```
+
+**Transaction Types** (enum): `Expense`, `Income`, `Transfer`
 
 **Table Schema:**
 
-| Column           | Type          | Constraints | Index | Description                    |
-| ---------------- | ------------- | ----------- | ----- | ------------------------------ |
-| id               | INTEGER       | PRIMARY KEY |       | Auto-increment ID              |
-| hash_id          | TEXT(64)      | UNIQUE      | YES   | SHA-256 hash for deduplication |
-| date             | TIMESTAMP     |             | YES   | Transaction date               |
-| amount           | DECIMAL(12,2) |             | NO    | Transaction amount             |
-| type             | VARCHAR(20)   |             | NO    | Income/Expense/Transfer/etc    |
-| category         | VARCHAR(100)  |             | YES   | Spending category              |
-| subcategory      | VARCHAR(100)  | NULL        | NO    | Sub-category                   |
-| account          | VARCHAR(100)  |             | YES   | Account name                   |
-| description      | TEXT          | NULL        | NO    | Transaction description        |
-| file_source      | VARCHAR(255)  |             | NO    | Source file name               |
-| is_deleted       | BOOLEAN       | DEFAULT 0   | YES   | Soft delete flag               |
-| created_at       | TIMESTAMP     | DEFAULT NOW | YES   | Insert timestamp               |
-| updated_at       | TIMESTAMP     | DEFAULT NOW | NO    | Update timestamp               |
-| last_import_time | TIMESTAMP     | NULL        | NO    | Last import time               |
+| Column           | Type            | Constraints | Index | Description                      |
+| ---------------- | --------------- | ----------- | ----- | -------------------------------- |
+| transaction_id   | VARCHAR(64)     | PRIMARY KEY | YES   | SHA-256 hash (dedup + PK)        |
+| user_id          | INTEGER         | FOREIGN KEY | YES   | Owning user                      |
+| date             | TIMESTAMP       | NOT NULL    | YES   | Transaction date                 |
+| amount           | DECIMAL(15,2)   | NOT NULL    | NO    | Transaction amount               |
+| currency         | VARCHAR(10)     | DEFAULT INR | NO    | Currency code                    |
+| type             | ENUM            | NOT NULL    | YES   | Expense / Income / Transfer      |
+| account          | VARCHAR(255)    | NOT NULL    | YES   | Account name                     |
+| category         | VARCHAR(255)    | NOT NULL    | YES   | Category                         |
+| subcategory      | VARCHAR(255)    | NULL        | NO    | Sub-category                     |
+| from_account     | VARCHAR(255)    | NULL        | YES   | Transfer source account          |
+| to_account       | VARCHAR(255)    | NULL        | YES   | Transfer destination account     |
+| is_transfer      | BOOLEAN         | DEFAULT 0   | NO    | Transfer flag                    |
+| note             | TEXT            | NULL        | NO    | Transaction note                 |
+| source_file      | VARCHAR(500)    | NOT NULL    | NO    | Source Excel filename            |
+| last_seen_at     | TIMESTAMP       | NOT NULL    | YES   | Last import time                 |
+| is_deleted       | BOOLEAN         | DEFAULT 0   | YES   | Soft delete flag                 |
 
-**Indexes:**
-
-- `hash_id` - Fast duplicate detection
-- `date` - Range queries
-- `category` - Category analysis
-- `account` - Account filtering
-- `is_deleted` - Exclude deleted records
-- `created_at` - Time-based sorting
-
-### Composite Indexes (future optimization)
+**Composite Indexes:**
 
 ```sql
-CREATE INDEX idx_date_category ON transactions(date, category);
-CREATE INDEX idx_account_type ON transactions(account, type);
-CREATE INDEX idx_date_type ON transactions(date, type);
+ix_transactions_date_type (date, type)
+ix_transactions_category_subcategory (category, subcategory)
+ix_transactions_user_date (user_id, date)
+ix_transactions_user_deleted (user_id, is_deleted)
+ix_transactions_user_type_deleted (user_id, type, is_deleted)
 ```
+
+### Other Models
+
+The database also includes these models (see `backend/src/ledger_sync/db/models.py`):
+
+- **User** — Authentication with hashed passwords and JWT tokens
+- **UserPreferences** — Fiscal year, essential categories, income classifications, anomaly thresholds
+- **AccountClassification** — User-defined account type mappings (Bank, Investment, Credit Card, etc.)
+- **MonthlySummary** — Pre-calculated monthly income/expense/savings aggregations
+- **CategoryTrend** — Category-level trends over time periods
+- **TransferFlow** — Aggregated transfer flows between accounts
+- **RecurringTransaction** — Detected recurring patterns (SIPs, subscriptions, salaries)
+- **MerchantIntelligence** — Extracted merchant data from transaction notes
+- **NetWorthSnapshot** — Point-in-time net worth with asset/liability breakdown
+- **FYSummary** — Fiscal year summaries with YoY changes
+- **Anomaly** — Detected anomalies (high expenses, budget exceeded)
+- **Budget** — User-defined budget limits per category
+- **AuditLog** — Operation audit trail
 
 ## Database Operations
 

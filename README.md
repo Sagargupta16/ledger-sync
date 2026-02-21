@@ -40,7 +40,7 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 
 ### Analytics & Insights
 
-- Financial Health Score with 6 key metrics
+- Financial Health Score with 8 metrics across 4 pillars (Spend, Save, Borrow, Plan)
 - Income vs Expense trends and forecasting
 - Tax planning for India FY (April-March)
 - Net Worth tracking across all accounts
@@ -64,22 +64,21 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 git clone https://github.com/Sagargupta16/ledger-sync.git
 cd ledger-sync
 
-# Install root dependencies (concurrently)
+# Install root dependencies
 pnpm install
 
-# Setup backend
-cd backend && poetry install --with dev && cd ..
+# Setup backend + frontend in parallel
+pnpm run setup
 
-# Setup frontend
-cd frontend && pnpm install && cd ..
-
-# Start both frontend and backend
+# Start both servers
 pnpm run dev
 ```
 
+> **Note:** The backend setup uses `python -m poetry` instead of bare `poetry` for PATH compatibility on Windows.
+
 **Access the app:**
 
-- Frontend: http://localhost:3000
+- Frontend: http://localhost:5173
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
@@ -96,8 +95,8 @@ ledger-sync/
 │   └── tests/            # pytest tests
 ├── frontend/             # React + TypeScript frontend
 │   └── src/
-│       ├── pages/        # 18 page components
-│       ├── components/   # UI & analytics components (50+)
+│       ├── pages/        # 20 page components
+│       ├── components/   # UI & analytics components (60+)
 │       ├── hooks/        # React Query hooks
 │       ├── constants/    # Colors, animations, chart config
 │       └── services/     # API client

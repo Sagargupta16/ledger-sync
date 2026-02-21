@@ -18,7 +18,7 @@ cd ledger-sync
 pnpm run setup   # Installs all dependencies
 
 # Run development servers
-pnpm run dev     # Backend: http://localhost:8000, Frontend: http://localhost:3000
+pnpm run dev     # Backend: http://localhost:8000, Frontend: http://localhost:5173
 ```
 
 ### Manual Setup
@@ -467,7 +467,7 @@ Create `.vscode/launch.json`:
       "type": "chrome",
       "request": "launch",
       "name": "Launch Chrome",
-      "url": "http://localhost:3000",
+      "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/frontend/src"
     }
   ]
