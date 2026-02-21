@@ -144,6 +144,18 @@ export default function CommandPalette() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  // ── Open via sidebar search button (custom event) ───────────────────────
+
+  useEffect(() => {
+    const handler = () => {
+      setIsOpen(true)
+      setQuery('')
+      setSelectedIndex(0)
+    }
+    document.addEventListener('open-command-palette', handler)
+    return () => document.removeEventListener('open-command-palette', handler)
+  }, [])
+
   // ── Focus input when opened ───────────────────────────────────────────────
 
   useEffect(() => {

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar/Sidebar'
@@ -10,8 +11,39 @@ const pageTransition = {
   transition: { duration: 0.2, ease: 'easeOut' },
 }
 
+// Route → browser tab title
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/transactions': 'Transactions',
+  '/subscriptions': 'Subscriptions',
+  '/bill-calendar': 'Bill Calendar',
+  '/spending': 'Expense Analysis',
+  '/income': 'Income Analysis',
+  '/income-expense-flow': 'Cash Flow',
+  '/comparison': 'Comparison',
+  '/year-in-review': 'Year in Review',
+  '/budgets': 'Budget Manager',
+  '/goals': 'Financial Goals',
+  '/insights': 'Insights',
+  '/anomalies': 'Anomaly Review',
+  '/net-worth': 'Net Worth',
+  '/forecasts': 'Trends & Forecasts',
+  '/investments/analytics': 'Investment Analytics',
+  '/investments/sip-projection': 'SIP Projections',
+  '/investments/returns': 'Returns Analysis',
+  '/tax': 'Tax Planning',
+  '/upload': 'Upload & Sync',
+  '/settings': 'Settings',
+}
+
 export default function AppLayout() {
   const location = useLocation()
+
+  // Dynamic page title
+  useEffect(() => {
+    const title = PAGE_TITLES[location.pathname]
+    document.title = title ? `${title} | Ledger Sync` : 'Ledger Sync'
+  }, [location.pathname])
 
   return (
     <div className="flex h-screen bg-black relative overflow-hidden">
