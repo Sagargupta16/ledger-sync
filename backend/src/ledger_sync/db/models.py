@@ -374,9 +374,7 @@ class NetWorthSnapshot(Base):
     source: Mapped[str] = mapped_column(String(50), default="upload")  # upload, manual, api
 
     # Composite index replaces redundant single-column indexes
-    __table_args__ = (
-        Index("ix_net_worth_user_date", "user_id", "snapshot_date"),
-    )
+    __table_args__ = (Index("ix_net_worth_user_date", "user_id", "snapshot_date"),)
 
 
 class InvestmentHolding(Base):

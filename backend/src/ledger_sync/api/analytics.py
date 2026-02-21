@@ -231,8 +231,7 @@ def _get_sql_monthly_data(
     )
 
     return {
-        row.month: {"income": float(row.income), "expenses": float(row.expenses)}
-        for row in rows
+        row.month: {"income": float(row.income), "expenses": float(row.expenses)} for row in rows
     }
 
 

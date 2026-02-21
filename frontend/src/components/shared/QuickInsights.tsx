@@ -133,13 +133,6 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
   const topCategory = Object.entries(categories)
     .sort(([, a], [, b]) => (b as CategoryData).total - (a as CategoryData).total)[0]
 
-  const biggestTransaction = transactions.length > 0
-    ? transactions.reduce(
-        (max, t) => (Math.abs(t.amount) > Math.abs(max.amount) ? t : max),
-        transactions[0],
-      )
-    : { amount: 0, category: 'N/A', date: '' }
-
   const daysInRange = computeDaysInRange(dateRange, transactions)
   const monthsInRange = computeMonthsInRange(dateRange, transactions)
 
@@ -191,7 +184,15 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
 
   // ─── Build insights array ─────────────────────────────────────────────
 
-  const insights = useMemo(() => [
+  const insights = useMemo(() => {
+  const biggestTransaction = transactions.length > 0
+    ? transactions.reduce(
+        (max, t) => (Math.abs(t.amount) > Math.abs(max.amount) ? t : max),
+        transactions[0],
+      )
+    : { amount: 0, category: 'N/A', date: '' }
+
+  return [
     {
       icon: PiggyBank,
       color: 'text-emerald-400',
@@ -310,12 +311,12 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       value: formatCurrency(totalTransfers),
       subtitle: `${transferTransactions.length} transfer transactions`,
     },
-  ], [
+  ]}, [
     savingsRate, netSavings, totalIncome,
     topCategory, topIncomeSource,
     netCashback, cashbackTransactions.length,
     totalTransactions, mostFrequentCategory,
-    biggestTransaction,
+    transactions,
     medianTransaction, avgTransactionAmount,
     avgDailySpending, daysInRange,
     weekendPercent, weekendSpending, weekdaySpending,

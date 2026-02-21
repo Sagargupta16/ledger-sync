@@ -537,9 +537,7 @@ def update_anomaly_settings(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update anomaly detection settings."""
-    return _update_section(
-        session, current_user, config, json_fields={"anomaly_types_enabled"}
-    )
+    return _update_section(session, current_user, config, json_fields={"anomaly_types_enabled"})
 
 
 @router.put("/recurring-settings")

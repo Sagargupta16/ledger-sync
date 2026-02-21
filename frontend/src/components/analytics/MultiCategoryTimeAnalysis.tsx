@@ -4,7 +4,8 @@ import { Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
 import { calculateCumulativeData } from '@/lib/chartPeriodUtils'
-import TimeSeriesLineChart, { exportChartAsCsv } from '@/components/analytics/TimeSeriesLineChart'
+import TimeSeriesLineChart from '@/components/analytics/TimeSeriesLineChart'
+import { exportChartAsCsv } from '@/lib/exportCsv'
 
 const COLORS = CHART_COLORS_WARM.slice(0, 8) // Use first 8 colors
 

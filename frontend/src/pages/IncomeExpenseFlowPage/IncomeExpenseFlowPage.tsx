@@ -163,136 +163,142 @@ const IncomeExpenseFlowPage = () => {
     })
   }, [allTransactions, dateRange])
 
-  // Calculate income and expense totals by category
-  const incomeByCategory = fyTransactions
-    .filter(txn => txn.type === 'Income')
-    .reduce((acc, txn) => {
-      const category = txn.category || 'Other Income'
-      acc[category] = (acc[category] || 0) + txn.amount
-      return acc
-    }, {} as Record<string, number>)
+  // Calculate income and expense totals by category and prepare Sankey data
+  const {
+    totalIncome, totalExpense, netSavings, savingsRate,
+    sankeyData, sankeyNodeComponent,
+  } = useMemo(() => {
+    const incomeByCategory = fyTransactions
+      .filter(txn => txn.type === 'Income')
+      .reduce((acc, txn) => {
+        const category = txn.category || 'Other Income'
+        acc[category] = (acc[category] || 0) + txn.amount
+        return acc
+      }, {} as Record<string, number>)
 
-  const expenseByCategory = fyTransactions
-    .filter(txn => txn.type === 'Expense')
-    .reduce((acc, txn) => {
-      const category = txn.category || 'Other Expense'
-      acc[category] = (acc[category] || 0) + txn.amount
-      return acc
-    }, {} as Record<string, number>)
+    const expenseByCategory = fyTransactions
+      .filter(txn => txn.type === 'Expense')
+      .reduce((acc, txn) => {
+        const category = txn.category || 'Other Expense'
+        acc[category] = (acc[category] || 0) + txn.amount
+        return acc
+      }, {} as Record<string, number>)
 
-  const totalIncome = Object.values(incomeByCategory).reduce((a, b) => a + b, 0)
-  const totalExpense = Object.values(expenseByCategory).reduce((a, b) => a + b, 0)
-  const netSavings = totalIncome - totalExpense
-  const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0
+    const totalIncome = Object.values(incomeByCategory).reduce((a, b) => a + b, 0)
+    const totalExpense = Object.values(expenseByCategory).reduce((a, b) => a + b, 0)
+    const netSavings = totalIncome - totalExpense
+    const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0
 
-  // Prepare Sankey data
-  const nodes: Array<{ name: string; color?: string }> = []
-  const links: Array<{ source: number; target: number; value: number; color?: string }> = []
-  let nodeIndex = 0
-  const nodeMap = new Map<string, number>()
-  const nodeValues = new Map<number, number>()
+    // Prepare Sankey data
+    const nodes: Array<{ name: string; color?: string }> = []
+    const links: Array<{ source: number; target: number; value: number; color?: string }> = []
+    let nodeIndex = 0
+    const nodeMap = new Map<string, number>()
+    const nodeValues = new Map<number, number>()
 
-  // Add income categories as source nodes (top 10)
-  Object.entries(incomeByCategory)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .forEach(([category, amount]) => {
-      nodeMap.set(category, nodeIndex)
-      nodeValues.set(nodeIndex, amount)
-      nodes.push({ name: category })
-      nodeIndex++
-    })
+    // Add income categories as source nodes (top 10)
+    Object.entries(incomeByCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .forEach(([category, amount]) => {
+        nodeMap.set(category, nodeIndex)
+        nodeValues.set(nodeIndex, amount)
+        nodes.push({ name: category })
+        nodeIndex++
+      })
 
-  // Add "Total Income" as middle node
-  const totalIncomeNodeIndex = nodeIndex
-  nodeValues.set(nodeIndex, totalIncome)
-  nodes.push({ name: 'Total Income' })
-  nodeIndex++
+    // Add "Total Income" as middle node
+    const totalIncomeNodeIndex = nodeIndex
+    nodeValues.set(nodeIndex, totalIncome)
+    nodes.push({ name: 'Total Income' })
+    nodeIndex++
 
-  // Add "Savings" and "Expenses" as target nodes
-  const savingsNodeIndex = nodeIndex
-  nodeValues.set(nodeIndex, Math.max(netSavings, 0))
-  nodes.push({ name: 'Savings' })
-  nodeIndex++
+    // Add "Savings" and "Expenses" as target nodes
+    const savingsNodeIndex = nodeIndex
+    nodeValues.set(nodeIndex, Math.max(netSavings, 0))
+    nodes.push({ name: 'Savings' })
+    nodeIndex++
 
-  const expensesNodeIndex = nodeIndex
-  nodeValues.set(nodeIndex, totalExpense)
-  nodes.push({ name: 'Expenses' })
-  nodeIndex++
+    const expensesNodeIndex = nodeIndex
+    nodeValues.set(nodeIndex, totalExpense)
+    nodes.push({ name: 'Expenses' })
+    nodeIndex++
 
-  // Add expense categories as final target nodes (top 10)
-  Object.entries(expenseByCategory)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .forEach(([category, amount]) => {
-      nodeMap.set(`expense_${category}`, nodeIndex)
-      nodeValues.set(nodeIndex, amount)
-      nodes.push({ name: category })
-      nodeIndex++
-    })
+    // Add expense categories as final target nodes (top 10)
+    Object.entries(expenseByCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .forEach(([category, amount]) => {
+        nodeMap.set(`expense_${category}`, nodeIndex)
+        nodeValues.set(nodeIndex, amount)
+        nodes.push({ name: category })
+        nodeIndex++
+      })
 
-  // Create links from income categories to Total Income
-  Object.entries(incomeByCategory)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .forEach(([category, amount]) => {
-      const sourceIndex = nodeMap.get(category)
-      if (sourceIndex !== undefined) {
-        links.push({
-          source: sourceIndex,
-          target: totalIncomeNodeIndex,
-          value: amount
-        })
-      }
-    })
+    // Create links from income categories to Total Income
+    Object.entries(incomeByCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .forEach(([category, amount]) => {
+        const sourceIndex = nodeMap.get(category)
+        if (sourceIndex !== undefined) {
+          links.push({
+            source: sourceIndex,
+            target: totalIncomeNodeIndex,
+            value: amount
+          })
+        }
+      })
 
-  // Link from Total Income to Savings
-  if (netSavings > 0) {
-    links.push({
-      source: totalIncomeNodeIndex,
-      target: savingsNodeIndex,
-      value: netSavings
-    })
-  }
+    // Link from Total Income to Savings
+    if (netSavings > 0) {
+      links.push({
+        source: totalIncomeNodeIndex,
+        target: savingsNodeIndex,
+        value: netSavings
+      })
+    }
 
-  // Link from Total Income to Expenses
-  if (totalExpense > 0) {
-    links.push({
-      source: totalIncomeNodeIndex,
-      target: expensesNodeIndex,
-      value: totalExpense
-    })
-  }
+    // Link from Total Income to Expenses
+    if (totalExpense > 0) {
+      links.push({
+        source: totalIncomeNodeIndex,
+        target: expensesNodeIndex,
+        value: totalExpense
+      })
+    }
 
-  // Create links from Expenses to expense categories
-  Object.entries(expenseByCategory)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .forEach(([category, amount]) => {
-      const targetIndex = nodeMap.get(`expense_${category}`)
-      if (targetIndex !== undefined) {
-        links.push({
-          source: expensesNodeIndex,
-          target: targetIndex,
-          value: amount
-        })
-      }
-    })
+    // Create links from Expenses to expense categories
+    Object.entries(expenseByCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .forEach(([category, amount]) => {
+        const targetIndex = nodeMap.get(`expense_${category}`)
+        if (targetIndex !== undefined) {
+          links.push({
+            source: expensesNodeIndex,
+            target: targetIndex,
+            value: amount
+          })
+        }
+      })
 
-  const sankeyData = { nodes, links }
-
-  const incomeCategoryCount = Object.keys(incomeByCategory).length
-  const sankeyNodeComponent = useMemo(
-    () => createSankeyNodeComponent({
+    const incomeCategoryCount = Object.keys(incomeByCategory).length
+    const sankeyNodeComponent = createSankeyNodeComponent({
       nodeValues,
       incomeCategoryCount,
       totalIncomeNodeIndex,
       savingsNodeIndex,
       expensesNodeIndex,
       totalIncome,
-    }),
-    [nodeValues, incomeCategoryCount, totalIncomeNodeIndex, savingsNodeIndex, expensesNodeIndex, totalIncome]
-  )
+    })
+
+    return {
+      totalIncome, totalExpense, netSavings, savingsRate,
+      sankeyData: { nodes, links },
+      sankeyNodeComponent,
+    }
+  }, [fyTransactions])
 
   return (
     <div className="min-h-screen p-8">
@@ -392,7 +398,7 @@ const IncomeExpenseFlowPage = () => {
             </div>
           </div>
         )}
-        {!isLoading && nodes.length > 0 && (
+        {!isLoading && sankeyData.nodes.length > 0 && (
           <div className="relative bg-gradient-to-br from-gray-900/30 to-gray-800/30 rounded-xl border border-white/5 p-6 overflow-x-auto">
             <div style={{ minWidth: '1000px', height: '700px', position: 'relative' }}>
               <ResponsiveContainer width="100%" height={700}>
@@ -466,7 +472,7 @@ const IncomeExpenseFlowPage = () => {
             </div>
           </div>
         )}
-        {!isLoading && nodes.length === 0 && (
+        {!isLoading && sankeyData.nodes.length === 0 && (
           <div className="h-[700px] flex items-center justify-center bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-xl border border-white/5">
             <div className="text-center">
               <ArrowRightLeft className="w-16 h-16 text-gray-600 mx-auto mb-4" />

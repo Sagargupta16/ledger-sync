@@ -178,9 +178,7 @@ async def upload_excel(
     try:
         engine = SyncEngine(db, user_id=current_user.id)
         # Run synchronous import in a thread to avoid blocking the event loop
-        stats = await anyio.to_thread.run_sync(
-            lambda: engine.import_file(tmp_path, force=force)
-        )
+        stats = await anyio.to_thread.run_sync(lambda: engine.import_file(tmp_path, force=force))
 
         return UploadResponse(
             success=True,
