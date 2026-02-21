@@ -24,10 +24,10 @@ const SAMPLE_EXCEL_DATA = [
 ]
 
 const TYPE_STYLES: Record<string, string> = {
-  'Income': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  'Expense': 'bg-red-500/20 text-red-400 border-red-500/30',
-  'Transfer-Out': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  'Transfer-In': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  'Income': 'bg-ios-green/20 text-ios-green border-ios-green/30',
+  'Expense': 'bg-ios-red/20 text-ios-red border-ios-red/30',
+  'Transfer-Out': 'bg-ios-orange/20 text-ios-orange border-ios-orange/30',
+  'Transfer-In': 'bg-ios-blue/20 text-ios-blue border-ios-blue/30',
 }
 
 export default function UploadSyncPage() {
@@ -94,7 +94,7 @@ export default function UploadSyncPage() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-secondary/20 border border-white/10"
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-ios-purple/10 to-secondary/20 border border-border"
         >
           {/* Background decoration */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px]" />
@@ -111,7 +111,7 @@ export default function UploadSyncPage() {
                 <h1 className="text-4xl md:text-5xl font-bold text-white">
                   Upload & Sync
                 </h1>
-                <p className="text-lg text-gray-400 max-w-md">
+                <p className="text-lg text-muted-foreground max-w-md">
                   Import your Excel transactions. We'll automatically detect changes and sync your data.
                 </p>
                 
@@ -122,7 +122,7 @@ export default function UploadSyncPage() {
                     { icon: RefreshCw, text: 'Smart sync' },
                     { icon: FileSpreadsheet, text: '.xlsx & .xls' },
                   ].map((feature) => (
-                    <div key={feature.text} className="flex items-center gap-2 text-sm text-gray-300">
+                    <div key={feature.text} className="flex items-center gap-2 text-sm text-foreground">
                       <feature.icon className="w-4 h-4 text-primary" />
                       <span>{feature.text}</span>
                     </div>
@@ -135,12 +135,12 @@ export default function UploadSyncPage() {
                 <div
                   {...getRootProps()}
                   className={cn(
-                    'relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300',
+                    'relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors duration-300',
                     'bg-black/20 backdrop-blur-sm',
                     'hover:border-primary hover:bg-primary/10',
                     isDragActive && 'border-primary bg-primary/20 scale-[1.02]',
                     uploadMutation.isPending && 'opacity-50 cursor-not-allowed',
-                    selectedFile ? 'border-primary' : 'border-white/20'
+                    selectedFile ? 'border-primary' : 'border-border-strong'
                   )}
                 >
                   <input {...getInputProps()} />
@@ -154,13 +154,13 @@ export default function UploadSyncPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-white">Uploading...</p>
-                        <p className="text-sm text-gray-400">{selectedFile?.name}</p>
+                        <p className="text-sm text-muted-foreground">{selectedFile?.name}</p>
                       </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-4">
                       <div className={cn(
-                        'w-16 h-16 rounded-full flex items-center justify-center transition-all',
+                        'w-16 h-16 rounded-full flex items-center justify-center transition-colors',
                         isDragActive ? 'bg-primary/30 scale-110' : 'bg-primary/20'
                       )}>
                         <Upload className={cn(
@@ -172,13 +172,13 @@ export default function UploadSyncPage() {
                         <p className="font-semibold text-white text-lg">
                           {isDragActive ? 'Drop your file here' : 'Drop Excel file here'}
                         </p>
-                        <p className="text-sm text-gray-400 mt-1">
+                        <p className="text-sm text-muted-foreground mt-1">
                           or click to browse
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
-                        <FileSpreadsheet className="w-4 h-4 text-gray-400" />
-                        <span className="text-xs text-gray-400">.xlsx, .xls supported</span>
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-border">
+                        <FileSpreadsheet className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">.xlsx, .xls supported</span>
                       </div>
                     </div>
                   )}
@@ -193,21 +193,21 @@ export default function UploadSyncPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="p-5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center gap-4"
+            className="p-5 rounded-xl bg-ios-yellow/10 border border-ios-yellow/30 flex items-center gap-4"
           >
-            <div className="p-3 rounded-full bg-yellow-500/20">
-              <AlertTriangle className="w-6 h-6 text-yellow-500" />
+            <div className="p-3 rounded-full bg-ios-yellow/20">
+              <AlertTriangle className="w-6 h-6 text-ios-yellow" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-yellow-400">File Already Uploaded</h3>
-              <p className="text-sm text-gray-400">
+              <h3 className="font-semibold text-ios-yellow">File Already Uploaded</h3>
+              <p className="text-sm text-muted-foreground">
                 <span className="text-white">{conflictError.file.name}</span> was imported before. Re-upload to sync changes.
               </p>
             </div>
             <button
               onClick={handleForceReupload}
               disabled={uploadMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-black rounded-lg hover:bg-yellow-400 transition-all font-medium disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-ios-yellow text-black rounded-lg hover:bg-ios-yellow transition-colors font-medium disabled:opacity-50"
             >
               <RefreshCw className={cn('w-4 h-4', uploadMutation.isPending && 'animate-spin')} />
               Force Reupload
@@ -228,15 +228,15 @@ export default function UploadSyncPage() {
             </div>
             <div>
               <h2 className="text-xl font-semibold text-white">Expected Format</h2>
-              <p className="text-sm text-gray-400">Your Excel should look like this</p>
+              <p className="text-sm text-muted-foreground">Your Excel should look like this</p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 overflow-hidden bg-black/20 backdrop-blur-sm">
+          <div className="rounded-xl border border-border overflow-hidden bg-black/20 backdrop-blur-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/5">
+                  <tr className="border-b border-border bg-white/5">
                     <th className="px-4 py-3 text-left font-medium text-primary">Date</th>
                     <th className="px-4 py-3 text-left font-medium text-primary">Account</th>
                     <th className="px-4 py-3 text-left font-medium text-primary">Category</th>
@@ -250,24 +250,24 @@ export default function UploadSyncPage() {
                   {SAMPLE_EXCEL_DATA.map((row) => (
                     <tr 
                       key={`${row.date}-${row.amount}-${row.note}`} 
-                      className="border-b border-white/5 hover:bg-white/5 transition-colors even:bg-white/[0.02]"
+                      className="border-b border-border hover:bg-white/10 transition-colors even:bg-white/5"
                     >
-                      <td className="px-4 py-2.5 text-gray-300 font-mono text-xs">{row.date}</td>
-                      <td className="px-4 py-2.5 text-gray-300">{row.account}</td>
-                      <td className="px-4 py-2.5 text-gray-300">{row.category}</td>
-                      <td className="px-4 py-2.5 text-gray-500">{row.subcategory}</td>
+                      <td className="px-4 py-2.5 text-foreground font-mono text-xs">{row.date}</td>
+                      <td className="px-4 py-2.5 text-foreground">{row.account}</td>
+                      <td className="px-4 py-2.5 text-foreground">{row.category}</td>
+                      <td className="px-4 py-2.5 text-text-tertiary">{row.subcategory}</td>
                       <td className="px-4 py-2.5">
                         <span className={cn(
                           'px-2 py-0.5 rounded border text-xs font-medium',
-                          TYPE_STYLES[row.type] || 'bg-gray-500/20 text-gray-400'
+                          TYPE_STYLES[row.type] || 'bg-muted-foreground/20 text-muted-foreground'
                         )}>
                           {row.type}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-gray-300">
+                      <td className="px-4 py-2.5 text-right font-mono text-foreground">
                         ₹{row.amount.toLocaleString('en-IN')}
                       </td>
-                      <td className="px-4 py-2.5 text-gray-500 text-xs">{row.note}</td>
+                      <td className="px-4 py-2.5 text-text-tertiary text-xs">{row.note}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -275,10 +275,10 @@ export default function UploadSyncPage() {
             </div>
             
             {/* Footer tip */}
-            <div className="px-4 py-3 border-t border-white/10 bg-white/[0.02] flex items-center gap-2">
+            <div className="px-4 py-3 border-t border-border bg-white/5 flex items-center gap-2">
               <ArrowRight className="w-4 h-4 text-primary shrink-0" />
-              <p className="text-xs text-gray-400">
-                Column names are flexible — <span className="text-gray-300">"Period"</span> or <span className="text-gray-300">"Date"</span> both work. 
+              <p className="text-xs text-muted-foreground">
+                Column names are flexible — <span className="text-foreground">"Period"</span> or <span className="text-foreground">"Date"</span> both work. 
                 Export from Money Manager Pro for best results.
               </p>
             </div>

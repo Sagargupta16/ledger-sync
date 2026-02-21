@@ -92,13 +92,13 @@ export default function BudgetTracker() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'safe':
-        return 'text-green-500 bg-green-500/20 border-green-500/30'
+        return 'text-ios-green bg-ios-green/20 border-ios-green/30'
       case 'warning':
-        return 'text-yellow-500 bg-yellow-500/20 border-yellow-500/30'
+        return 'text-ios-yellow bg-ios-yellow/20 border-ios-yellow/30'
       case 'danger':
-        return 'text-orange-500 bg-orange-500/20 border-orange-500/30'
+        return 'text-ios-orange bg-ios-orange/20 border-ios-orange/30'
       case 'exceeded':
-        return 'text-red-500 bg-red-500/20 border-red-500/30'
+        return 'text-ios-red bg-ios-red/20 border-ios-red/30'
       default:
         return ''
     }
@@ -107,13 +107,13 @@ export default function BudgetTracker() {
   const getProgressColor = (status: string) => {
     switch (status) {
       case 'safe':
-        return 'bg-green-500'
+        return 'bg-ios-green'
       case 'warning':
-        return 'bg-yellow-500'
+        return 'bg-ios-yellow'
       case 'danger':
-        return 'bg-orange-500'
+        return 'bg-ios-orange'
       case 'exceeded':
-        return 'bg-red-500'
+        return 'bg-ios-red'
       default:
         return 'bg-primary'
     }
@@ -128,12 +128,12 @@ export default function BudgetTracker() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6 shadow-xl"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-emerald-500/20 rounded-xl">
-            <Target className="w-6 h-6 text-emerald-500" />
+          <div className="p-3 bg-ios-green/20 rounded-xl">
+            <Target className="w-6 h-6 text-ios-green" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Budget Tracker</h3>
@@ -144,7 +144,7 @@ export default function BudgetTracker() {
         </div>
         <button
           onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-all"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
         >
           <Plus className="w-4 h-4" />
           <span className="text-sm">Add Budget</span>
@@ -160,13 +160,13 @@ export default function BudgetTracker() {
           </div>
           <div className="p-3 rounded-xl bg-background/30 text-center">
             <p className="text-xs text-muted-foreground">Total Spent</p>
-            <p className={`text-lg font-bold ${totalSpent > totalBudget ? 'text-red-500' : 'text-green-500'}`}>
+            <p className={`text-lg font-bold ${totalSpent > totalBudget ? 'text-ios-red' : 'text-ios-green'}`}>
               {formatCurrency(totalSpent)}
             </p>
           </div>
           <div className="p-3 rounded-xl bg-background/30 text-center">
             <p className="text-xs text-muted-foreground">Remaining</p>
-            <p className={`text-lg font-bold ${totalBudget - totalSpent < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+            <p className={`text-lg font-bold ${totalBudget - totalSpent < 0 ? 'text-ios-red' : 'text-ios-green'}`}>
               {formatCurrency(totalBudget - totalSpent)}
             </p>
           </div>
@@ -175,13 +175,13 @@ export default function BudgetTracker() {
 
       {/* Add Budget Form */}
       {isAdding && (
-        <div className="mb-4 p-4 rounded-xl bg-background/50 border border-white/10">
+        <div className="mb-4 p-4 rounded-xl bg-background/50 border border-border">
           <h4 className="text-sm font-medium mb-3">Add New Budget</h4>
           <div className="flex gap-3">
             <select
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-lg bg-background/50 border border-white/10 text-sm"
+              className="flex-1 px-3 py-2 rounded-lg bg-background/50 border border-border text-sm"
             >
               <option value="">Select category</option>
               {categoriesWithoutBudget.map((cat) => (
@@ -193,7 +193,7 @@ export default function BudgetTracker() {
               value={newLimit}
               onChange={(e) => setNewLimit(e.target.value)}
               placeholder="Budget limit"
-              className="w-32 px-3 py-2 rounded-lg bg-background/50 border border-white/10 text-sm"
+              className="w-32 px-3 py-2 rounded-lg bg-background/50 border border-border text-sm"
             />
             <button
               onClick={handleAddBudget}
@@ -226,7 +226,7 @@ export default function BudgetTracker() {
           {budgetStatus.map((budget) => (
             <div
               key={budget.category}
-              className={`p-4 rounded-xl border transition-all ${getStatusColor(budget.status)}`}
+              className={`p-4 rounded-xl border transition-colors ${getStatusColor(budget.status)}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -248,7 +248,7 @@ export default function BudgetTracker() {
                           handleEditBudget(budget.category, Number.parseFloat((e.target as HTMLInputElement).value))
                         }
                       }}
-                      className="w-24 px-2 py-1 rounded bg-background/50 border border-white/20 text-sm"
+                      className="w-24 px-2 py-1 rounded bg-background/50 border border-border-strong text-sm"
                       autoFocus
                     />
                   ) : (
@@ -262,7 +262,7 @@ export default function BudgetTracker() {
                       </button>
                       <button
                         onClick={() => removeBudget(budget.category)}
-                        className="p-1 rounded hover:bg-white/10 text-red-400"
+                        className="p-1 rounded hover:bg-white/10 text-ios-red"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -274,7 +274,7 @@ export default function BudgetTracker() {
               {/* Progress Bar */}
               <div className="h-2 bg-black/20 rounded-full overflow-hidden mb-2">
                 <div
-                  className={`h-full transition-all duration-500 ${getProgressColor(budget.status)}`}
+                  className={`h-full transition-colors duration-500 ${getProgressColor(budget.status)}`}
                   style={{ width: `${Math.min(100, budget.percentage)}%` }}
                 />
               </div>
@@ -285,7 +285,7 @@ export default function BudgetTracker() {
               </div>
               
               {budget.remaining < 0 ? (
-                <p className="text-xs mt-1 text-red-400">
+                <p className="text-xs mt-1 text-ios-red">
                   Over budget by {formatCurrency(Math.abs(budget.remaining))}
                 </p>
               ) : (
@@ -300,7 +300,7 @@ export default function BudgetTracker() {
 
       {/* Suggestions */}
       {categoriesWithoutBudget.length > 0 && budgets.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-white/10">
+        <div className="mt-4 pt-4 border-t border-border">
           <p className="text-xs text-muted-foreground mb-2">
             Suggested budgets based on spending:
           </p>
@@ -316,7 +316,7 @@ export default function BudgetTracker() {
                     const suggested = Math.ceil(currentMonthSpending[cat] * 1.2 / 1000) * 1000
                     setBudget(cat, suggested)
                   }}
-                  className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs hover:bg-primary/20 transition-all"
+                  className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs hover:bg-primary/20 transition-colors"
                 >
                   + {cat} ({formatCurrency(currentMonthSpending[cat])})
                 </button>

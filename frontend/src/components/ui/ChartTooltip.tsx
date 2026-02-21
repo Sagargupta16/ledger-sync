@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { rawColors } from '@/constants/colors'
 
 /**
  * Shared chart tooltip styling for Recharts.
@@ -25,7 +26,7 @@ export const CHART_TOOLTIP_STYLE: CSSProperties = {
 }
 
 export const CHART_TOOLTIP_LABEL_STYLE: CSSProperties = {
-  color: '#8e8e93',
+  color: rawColors.text.secondary,
   marginBottom: '4px',
   fontWeight: 500,
 }

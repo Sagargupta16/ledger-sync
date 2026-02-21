@@ -52,7 +52,7 @@ function IconBubble({ selectedFile, isDragActive, compact }: Readonly<IconBubble
 
   return (
     <div className={cn(
-      'rounded-full transition-all duration-300',
+      'rounded-full transition-colors duration-300',
       hasHighlight ? 'bg-primary/20 shadow-lg shadow-primary/30' : 'bg-primary/10',
       compact ? 'p-2' : 'p-4'
     )}>
@@ -69,7 +69,7 @@ function FileSelectedView({ selectedFile, compact, isUploading, onClear }: Reado
   return (
     <div className={compact ? 'flex-1 text-left' : 'space-y-2'}>
       <div className={cn(
-        'flex items-center gap-2 glass-strong rounded-lg border border-white/20',
+        'flex items-center gap-2 glass-strong rounded-lg border border-border-strong',
         compact ? 'px-2 py-1' : 'px-4 py-2 shadow-lg'
       )}>
         <FileSpreadsheet className={cn('text-primary', compact ? 'w-4 h-4' : 'w-5 h-5')} />
@@ -166,7 +166,7 @@ export default function DropZone({ onFileSelect, isUploading, compact }: Readonl
       <div
         {...getRootProps()}
         className={cn(
-          'relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-300 glass',
+          'relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors duration-300 glass',
           'hover:border-primary hover:bg-primary/10 hover:shadow-xl hover:shadow-primary/20',
           isDragActive && 'border-primary bg-primary/20 scale-[1.02] shadow-xl shadow-primary/30',
           isUploading && 'opacity-50 cursor-not-allowed',

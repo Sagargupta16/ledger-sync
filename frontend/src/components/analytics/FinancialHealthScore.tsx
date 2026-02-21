@@ -598,9 +598,9 @@ function calculateMetrics(data: AnalysisResult): HealthMetric[] {
 // ─── UI Helpers ─────────────────────────────────────────────────────────────
 
 function getOverallStatus(score: number) {
-  if (score >= 80) return { label: 'Financially Healthy', tier: 'healthy' as FinHealthTier, color: 'text-emerald-400', bgColor: 'bg-emerald-500' }
-  if (score >= 40) return { label: 'Financially Coping', tier: 'coping' as FinHealthTier, color: 'text-amber-400', bgColor: 'bg-amber-500' }
-  return { label: 'Financially Vulnerable', tier: 'vulnerable' as FinHealthTier, color: 'text-red-400', bgColor: 'bg-red-500' }
+  if (score >= 80) return { label: 'Financially Healthy', tier: 'healthy' as FinHealthTier, color: 'text-ios-green', bgColor: 'bg-ios-green' }
+  if (score >= 40) return { label: 'Financially Coping', tier: 'coping' as FinHealthTier, color: 'text-ios-orange', bgColor: 'bg-ios-orange' }
+  return { label: 'Financially Vulnerable', tier: 'vulnerable' as FinHealthTier, color: 'text-ios-red', bgColor: 'bg-ios-red' }
 }
 
 function getSummary(score: number): string {
@@ -615,17 +615,17 @@ function getSummary(score: number): string {
 
 function getTierColor(tier: FinHealthTier) {
   switch (tier) {
-    case 'healthy': return 'bg-emerald-500'
-    case 'coping': return 'bg-amber-500'
-    case 'vulnerable': return 'bg-red-500'
+    case 'healthy': return 'bg-ios-green'
+    case 'coping': return 'bg-ios-orange'
+    case 'vulnerable': return 'bg-ios-red'
   }
 }
 
 function getTierIcon(tier: FinHealthTier) {
   switch (tier) {
-    case 'healthy': return <CheckCircle className="w-4 h-4 text-emerald-400" />
-    case 'coping': return <Info className="w-4 h-4 text-amber-400" />
-    case 'vulnerable': return <AlertTriangle className="w-4 h-4 text-red-400" />
+    case 'healthy': return <CheckCircle className="w-4 h-4 text-ios-green" />
+    case 'coping': return <Info className="w-4 h-4 text-ios-orange" />
+    case 'vulnerable': return <AlertTriangle className="w-4 h-4 text-ios-red" />
   }
 }
 
@@ -636,16 +636,16 @@ function getPillarScore(metrics: HealthMetric[], pillar: Pillar): number {
 }
 
 function getPillarTrendIcon(score: number) {
-  if (score >= 70) return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-  if (score >= 40) return <Info className="w-3.5 h-3.5 text-amber-400" />
-  return <TrendingDown className="w-3.5 h-3.5 text-red-400" />
+  if (score >= 70) return <TrendingUp className="w-3.5 h-3.5 text-ios-green" />
+  if (score >= 40) return <Info className="w-3.5 h-3.5 text-ios-orange" />
+  return <TrendingDown className="w-3.5 h-3.5 text-ios-red" />
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 function LoadingSkeleton() {
   return (
-    <div className="glass rounded-2xl border border-white/10 p-6 animate-pulse">
+    <div className="glass rounded-2xl border border-border p-6 animate-pulse">
       <div className="h-8 bg-muted rounded w-1/3 mb-4" />
       <div className="h-32 bg-muted rounded" />
     </div>
@@ -654,7 +654,7 @@ function LoadingSkeleton() {
 
 function EmptyState() {
   return (
-    <div className="glass rounded-2xl border border-white/10 p-6">
+    <div className="glass rounded-2xl border border-border p-6">
       <h3 className="text-lg font-semibold mb-2">Financial Health Score</h3>
       <p className="text-muted-foreground">Need more transaction data to calculate health score.</p>
     </div>
@@ -773,7 +773,7 @@ function MetricRow({
       </div>
       <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
         <div
-          className={`h-full ${getTierColor(metric.status)} rounded-full transition-all`}
+          className={`h-full ${getTierColor(metric.status)} rounded-full transition-colors`}
           style={{ width: `${metric.score}%` }}
         />
       </div>
@@ -798,7 +798,7 @@ function DetailsToggle({
   return (
     <button
       onClick={onToggle}
-      className="w-full mt-4 pt-4 border-t border-white/10 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
+      className="w-full mt-4 pt-4 border-t border-border flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
     >
       {showDetails ? (
         <>
@@ -848,7 +848,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6 shadow-xl"
     >
       <ScoreHeader
         status={status}
@@ -884,7 +884,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
       <DetailsToggle showDetails={showDetails} onToggle={() => setShowDetails(!showDetails)} />
 
       {/* Attribution */}
-      <p className="text-[10px] text-center text-muted-foreground/50 mt-3">
+      <p className="text-caption text-center text-muted-foreground/50 mt-3">
         Based on Financial Health Network's FinHealth Score framework
       </p>
     </motion.div>

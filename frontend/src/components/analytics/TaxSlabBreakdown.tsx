@@ -32,15 +32,15 @@ export default function TaxSlabBreakdown({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.4 }}
-      className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+      className="glass rounded-xl border border-border p-6 shadow-lg"
     >
       <h3 className="text-xl font-semibold text-white mb-4">
         {isNewRegime ? 'Tax Slabs (FY 2025-26 Onwards)' : 'Tax Slabs (Before FY 2025-26)'}
       </h3>
 
       {/* Standard Deduction Info */}
-      <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-        <p className="text-sm text-blue-400">
+      <div className="mb-4 p-3 bg-ios-blue/10 border border-ios-blue/30 rounded-lg">
+        <p className="text-sm text-ios-blue">
           Standard Deduction:{' '}
           <span className="font-semibold">{formatCurrency(standardDeduction)}</span>
           {fyYear >= 2024 ? ' (from FY 2024-25)' : ' (before FY 2024-25)'}
@@ -53,15 +53,15 @@ export default function TaxSlabBreakdown({
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/10">
-              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">
+            <tr className="border-b border-border">
+              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">
                 Lower Limit
               </th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">
+              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">
                 Upper Limit
               </th>
-              <th className="text-right py-3 px-4 text-sm font-semibold text-gray-300">Tax %</th>
-              <th className="text-right py-3 px-4 text-sm font-semibold text-gray-300">
+              <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Tax %</th>
+              <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">
                 Tax Amount
               </th>
             </tr>
@@ -75,7 +75,7 @@ export default function TaxSlabBreakdown({
               return (
                 <tr
                   key={`${slab.lower}-${slab.upper}`}
-                  className={`border-b border-white/5 ${isApplicable ? 'bg-primary/5' : ''}`}
+                  className={`border-b border-border ${isApplicable ? 'bg-primary/5' : ''}`}
                 >
                   <td className="py-3 px-4 text-white">{formatCurrency(slab.lower)}</td>
                   <td className="py-3 px-4 text-white">
@@ -90,7 +90,7 @@ export default function TaxSlabBreakdown({
                 </tr>
               )
             })}
-            <tr className="border-t border-white/10">
+            <tr className="border-t border-border">
               <td colSpan={3} className="py-3 px-4 text-right font-semibold text-white">
                 Tax on Base:
               </td>
@@ -98,19 +98,19 @@ export default function TaxSlabBreakdown({
                 {formatCurrency(baseTax)}
               </td>
             </tr>
-            <tr className="border-b border-white/5">
-              <td colSpan={3} className="py-3 px-4 text-right text-sm text-gray-400">
+            <tr className="border-b border-border">
+              <td colSpan={3} className="py-3 px-4 text-right text-sm text-muted-foreground">
                 + Health & Education Cess (4%):
               </td>
-              <td className="py-3 px-4 text-right text-sm text-gray-300">
+              <td className="py-3 px-4 text-right text-sm text-foreground">
                 {formatCurrency(cess)}
               </td>
             </tr>
-            <tr className="border-b border-white/5">
-              <td colSpan={3} className="py-3 px-4 text-right text-sm text-gray-400">
+            <tr className="border-b border-border">
+              <td colSpan={3} className="py-3 px-4 text-right text-sm text-muted-foreground">
                 + Professional Tax:
               </td>
-              <td className="py-3 px-4 text-right text-sm text-gray-300">
+              <td className="py-3 px-4 text-right text-sm text-foreground">
                 {formatCurrency(professionalTax)}
               </td>
             </tr>

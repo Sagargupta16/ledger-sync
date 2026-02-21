@@ -115,7 +115,7 @@ function NotFoundPage() {
         <p className="text-xl text-muted-foreground">Page not found</p>
         <Link
           to={ROUTES.DASHBOARD}
-          className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-all"
+          className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-colors"
         >
           Go to Dashboard
         </Link>

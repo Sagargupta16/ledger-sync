@@ -21,11 +21,11 @@ export default function TaxSummaryCards({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+        className="glass rounded-xl border border-border p-6 shadow-lg"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-green-500/20 rounded-xl shadow-lg shadow-green-500/30">
-            <TrendingUp className="w-6 h-6 text-green-500" />
+          <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
+            <TrendingUp className="w-6 h-6 text-ios-green" />
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Salaried Income</p>
@@ -41,11 +41,11 @@ export default function TaxSummaryCards({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+        className="glass rounded-xl border border-border p-6 shadow-lg"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
-            <IndianRupee className="w-6 h-6 text-blue-500" />
+          <div className="p-3 bg-ios-blue/20 rounded-xl shadow-lg shadow-ios-blue/30">
+            <IndianRupee className="w-6 h-6 text-ios-blue" />
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Taxable Income</p>
@@ -61,7 +61,7 @@ export default function TaxSummaryCards({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+        className="glass rounded-xl border border-border p-6 shadow-lg"
       >
         <div className="flex items-center gap-3">
           <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">

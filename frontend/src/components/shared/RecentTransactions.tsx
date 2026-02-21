@@ -20,12 +20,12 @@ const TransactionRow = memo(function TransactionRow({
   return (
     <motion.div
       variants={fadeUpItem}
-      className="flex items-center justify-between p-4 rounded-lg glass border border-white/10 hover:border-white/20 hover:shadow-lg transition-all duration-300 group"
+      className="flex items-center justify-between p-4 rounded-lg glass border border-border hover:border-border-strong hover:shadow-lg transition-colors duration-300 group"
     >
       <div className="flex items-center gap-4 flex-1">
         {/* Icon */}
         <div
-          className={`p-2 rounded-lg shadow-lg transition-all duration-300 group-hover:scale-110 ${
+          className={`p-2 rounded-lg shadow-lg transition-[color,background-color,border-color,transform,box-shadow] duration-300 group-hover:scale-110 ${
             transaction.type === 'Income'
               ? 'bg-ios-green/20 text-ios-green shadow-ios-green/30'
               : 'bg-ios-red/20 text-ios-red shadow-ios-red/30'

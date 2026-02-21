@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { rawColors } from '@/constants/colors'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank, ChevronDown } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -18,7 +19,7 @@ import {
   calculateCashbacksTotal,
   INCOME_CATEGORY_COLORS,
 } from '@/lib/preferencesUtils'
-import { CHART_COLORS } from '@/constants/chartColors'
+import { CHART_COLORS, CHART_AXIS_COLOR } from '@/constants/chartColors'
 
 // Icons for income categories (based on actual data categories)
 const INCOME_CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -87,7 +88,7 @@ function IncomeSourcesBreakdown({ dateRange }: Readonly<{ dateRange: { start_dat
 
   if (isLoading) {
     return (
-      <div className="glass p-6 rounded-xl border border-white/10">
+      <div className="glass p-6 rounded-xl border border-border">
         <div className="h-64 flex items-center justify-center">
           <div className="animate-pulse text-muted-foreground">Loading breakdown...</div>
         </div>
@@ -97,7 +98,7 @@ function IncomeSourcesBreakdown({ dateRange }: Readonly<{ dateRange: { start_dat
 
   if (categories.length === 0) {
     return (
-      <div className="glass p-6 rounded-xl border border-white/10">
+      <div className="glass p-6 rounded-xl border border-border">
         <EmptyState
           icon={Wallet}
           title="No income data available"
@@ -111,14 +112,14 @@ function IncomeSourcesBreakdown({ dateRange }: Readonly<{ dateRange: { start_dat
   }
 
   return (
-    <div className="glass p-6 rounded-xl border border-white/10">
+    <div className="glass p-6 rounded-xl border border-border">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <DollarSign className="w-5 h-5 text-green-400" />
+          <DollarSign className="w-5 h-5 text-ios-green" />
           <div>
             <h3 className="text-lg font-semibold text-white">Income Sources</h3>
-            <p className="text-xs text-gray-500">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
+            <p className="text-xs text-text-tertiary">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
           </div>
         </div>
       </div>
@@ -150,9 +151,9 @@ function IncomeSourcesBreakdown({ dateRange }: Readonly<{ dateRange: { start_dat
               <button
                 type="button"
                 onClick={() => hasSubcategories && toggleExpand(cat.name)}
-                className={`w-full text-left px-4 py-3 rounded-xl transition-all group ${
+                className={`w-full text-left px-4 py-3 rounded-xl transition-colors group ${
                   hasSubcategories ? 'cursor-pointer' : 'cursor-default'
-                } ${isExpanded ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]'}`}
+                } ${isExpanded ? 'bg-white/5' : 'hover:bg-white/10'}`}
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -162,7 +163,7 @@ function IncomeSourcesBreakdown({ dateRange }: Readonly<{ dateRange: { start_dat
                   <span className="text-sm font-medium text-white flex-1 truncate">
                     {cat.name}
                   </span>
-                  <span className="text-xs text-gray-400 tabular-nums shrink-0">
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                     {cat.percent.toFixed(1)}%
                   </span>
                   <span className="text-sm font-semibold text-white tabular-nums shrink-0 w-28 text-right">
@@ -172,13 +173,13 @@ function IncomeSourcesBreakdown({ dateRange }: Readonly<{ dateRange: { start_dat
                     <motion.div
                       animate={{ rotate: isExpanded ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
-                      className="text-gray-500 group-hover:text-gray-300"
+                      className="text-text-tertiary group-hover:text-foreground"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </motion.div>
                   )}
                 </div>
-                <div className="mt-2 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ backgroundColor: cat.color }}
@@ -202,16 +203,16 @@ function IncomeSourcesBreakdown({ dateRange }: Readonly<{ dateRange: { start_dat
                       {cat.subcategories.map((sub, si) => (
                         <div
                           key={sub.name}
-                          className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/[0.03] transition-colors"
+                          className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
                         >
                           <div
                             className="w-1.5 h-1.5 rounded-full shrink-0 opacity-60"
                             style={{ backgroundColor: cat.color }}
                           />
-                          <span className="text-xs text-gray-300 flex-1 truncate">
+                          <span className="text-xs text-foreground flex-1 truncate">
                             {sub.name}
                           </span>
-                          <div className="w-20 h-1 rounded-full bg-white/[0.06] overflow-hidden shrink-0">
+                          <div className="w-20 h-1 rounded-full bg-white/5 overflow-hidden shrink-0">
                             <motion.div
                               className="h-full rounded-full opacity-70"
                               style={{ backgroundColor: cat.color }}
@@ -220,10 +221,10 @@ function IncomeSourcesBreakdown({ dateRange }: Readonly<{ dateRange: { start_dat
                               transition={{ duration: 0.3, delay: si * 0.02 }}
                             />
                           </div>
-                          <span className="text-xs text-gray-500 tabular-nums shrink-0 w-10 text-right">
+                          <span className="text-xs text-text-tertiary tabular-nums shrink-0 w-10 text-right">
                             {sub.percent.toFixed(0)}%
                           </span>
-                          <span className="text-xs font-medium text-gray-300 tabular-nums shrink-0 w-24 text-right">
+                          <span className="text-xs font-medium text-foreground tabular-nums shrink-0 w-24 text-right">
                             {formatCurrency(sub.amount)}
                           </span>
                         </div>
@@ -308,7 +309,7 @@ export default function IncomeAnalysisPage() {
   // Prepare income category chart data (using actual data categories)
   const incomeTypeChartData = useMemo(() => {
     if (!incomeBreakdown) return []
-    const defaultColor = '#6b7280'
+    const defaultColor = rawColors.text.tertiary
     return Object.entries(incomeBreakdown)
       .filter(([, value]) => value > 0)
       .map(([category, value]) => ({
@@ -393,10 +394,10 @@ export default function IncomeAnalysisPage() {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-xl border border-border p-6 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-500/20 rounded-xl shadow-lg shadow-green-500/30">
-                <DollarSign className="w-6 h-6 text-green-500" />
+              <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
+                <DollarSign className="w-6 h-6 text-ios-green" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Income</p>
@@ -405,7 +406,7 @@ export default function IncomeAnalysisPage() {
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-xl border border-border p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">
                 <Activity className="w-6 h-6 text-primary" />
@@ -417,10 +418,10 @@ export default function IncomeAnalysisPage() {
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass rounded-xl border border-border p-6 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
-                <TrendingUp className="w-6 h-6 text-blue-500" />
+              <div className="p-3 bg-ios-blue/20 rounded-xl shadow-lg shadow-ios-blue/30">
+                <TrendingUp className="w-6 h-6 text-ios-blue" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Growth Rate</p>
@@ -429,14 +430,14 @@ export default function IncomeAnalysisPage() {
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass rounded-xl border border-border p-6 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-cyan-500/20 rounded-xl shadow-lg shadow-cyan-500/30">
-                <Wallet className="w-6 h-6 text-cyan-500" />
+              <div className="p-3 bg-ios-teal/20 rounded-xl shadow-lg shadow-ios-teal/30">
+                <Wallet className="w-6 h-6 text-ios-teal" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">💳 Cashbacks Earned</p>
-                <p className="text-2xl font-bold text-cyan-400">{isLoading ? '...' : formatCurrency(cashbacksTotal)}</p>
+                <p className="text-2xl font-bold text-ios-teal">{isLoading ? '...' : formatCurrency(cashbacksTotal)}</p>
               </div>
             </div>
           </motion.div>
@@ -444,7 +445,7 @@ export default function IncomeAnalysisPage() {
 
         {/* Income Category Breakdown */}
         <motion.div 
-          className="glass p-6 rounded-xl border border-white/10"
+          className="glass p-6 rounded-xl border border-border"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.55 }}
@@ -488,7 +489,7 @@ export default function IncomeAnalysisPage() {
                   return (
                     <div
                       key={item.name}
-                      className="p-4 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-all"
+                      className="p-4 rounded-lg bg-surface-dropdown/30 hover:bg-surface-dropdown/50 transition-colors"
                     >
                       <div className="flex items-center gap-3 mb-2">
                         <div 
@@ -499,7 +500,7 @@ export default function IncomeAnalysisPage() {
                         </div>
                         <div>
                           <p className="font-medium text-white">{item.name}</p>
-                          <p className="text-xs text-gray-400">{percentage}% of income</p>
+                          <p className="text-xs text-muted-foreground">{percentage}% of income</p>
                         </div>
                       </div>
                       <p className="text-xl font-bold" style={{ color: item.color }}>
@@ -523,23 +524,23 @@ export default function IncomeAnalysisPage() {
 
         {/* Income Trend Chart — Monthly with 3-month rolling average */}
         <motion.div
-          className="glass p-6 rounded-xl border border-white/10"
+          className="glass p-6 rounded-xl border border-border"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <TrendingUp className="w-5 h-5 text-green-400" />
+              <TrendingUp className="w-5 h-5 text-ios-green" />
               <div>
                 <h3 className="text-lg font-semibold text-white">Income Trend</h3>
-                <p className="text-sm text-gray-500">Monthly income with 3-month rolling average</p>
+                <p className="text-sm text-text-tertiary">Monthly income with 3-month rolling average</p>
               </div>
             </div>
 
             {isLoading && (
               <div className="h-96 flex items-center justify-center">
-                <div className="animate-pulse text-gray-400">Loading chart...</div>
+                <div className="animate-pulse text-muted-foreground">Loading chart...</div>
               </div>
             )}
             {!isLoading && monthlyTrendData.length > 0 && (
@@ -547,20 +548,20 @@ export default function IncomeAnalysisPage() {
                 <AreaChart data={monthlyTrendData}>
                   <defs>
                     <linearGradient id="incomeTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#34c759" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#34c759" stopOpacity={0}/>
+                      <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                   <XAxis
                     dataKey="label"
-                    stroke="#9ca3af"
-                    tick={{ fill: '#9ca3af', fontSize: 11 }}
+                    stroke={CHART_AXIS_COLOR}
+                    tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
                     interval={Math.max(0, Math.floor(monthlyTrendData.length / 12) - 1)}
                   />
                   <YAxis
-                    stroke="#9ca3af"
-                    tick={{ fill: '#9ca3af', fontSize: 11 }}
+                    stroke={CHART_AXIS_COLOR}
+                    tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
                     tickFormatter={(value) => formatCurrencyShort(value)}
                   />
                   <Tooltip
@@ -579,12 +580,12 @@ export default function IncomeAnalysisPage() {
                     y={peakIncome}
                     stroke="rgba(255,255,255,0.2)"
                     strokeDasharray="3 3"
-                    label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: '#9ca3af', fontSize: 10, position: 'insideTopRight' }}
+                    label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }}
                   />
                   <Area
                     type="monotone"
                     dataKey="income"
-                    stroke="#34c759"
+                    stroke={rawColors.ios.green}
                     fill="url(#incomeTrendGradient)"
                     strokeWidth={1.5}
                     isAnimationActive={monthlyTrendData.length < CHART_ANIMATION_THRESHOLD}
@@ -592,7 +593,7 @@ export default function IncomeAnalysisPage() {
                   <Line
                     type="monotone"
                     dataKey="incomeAvg"
-                    stroke="#34c759"
+                    stroke={rawColors.ios.green}
                     strokeWidth={2}
                     strokeDasharray="6 3"
                     dot={false}

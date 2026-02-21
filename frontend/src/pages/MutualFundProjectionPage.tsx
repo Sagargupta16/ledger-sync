@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion'
+import { rawColors } from '@/constants/colors'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, Calculator, Percent, BarChart3 } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
@@ -338,11 +340,11 @@ function OverviewCards(props: Readonly<OverviewCardsProps>) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+        className="glass rounded-xl border border-border p-6 shadow-lg"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-purple-500/20 rounded-xl shadow-lg shadow-purple-500/30">
-            <TrendingUp className="w-6 h-6 text-purple-500" />
+          <div className="p-3 bg-ios-purple/20 rounded-xl shadow-lg shadow-ios-purple/30">
+            <TrendingUp className="w-6 h-6 text-ios-purple" />
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Current Balance</p>
@@ -360,11 +362,11 @@ function OverviewCards(props: Readonly<OverviewCardsProps>) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+        className="glass rounded-xl border border-border p-6 shadow-lg"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-green-500/20 rounded-xl shadow-lg shadow-green-500/30">
-            <Calculator className="w-6 h-6 text-green-500" />
+          <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
+            <Calculator className="w-6 h-6 text-ios-green" />
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Monthly SIP</p>
@@ -380,11 +382,11 @@ function OverviewCards(props: Readonly<OverviewCardsProps>) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+        className="glass rounded-xl border border-border p-6 shadow-lg"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
-            <Percent className="w-6 h-6 text-blue-500" />
+          <div className="p-3 bg-ios-blue/20 rounded-xl shadow-lg shadow-ios-blue/30">
+            <Percent className="w-6 h-6 text-ios-blue" />
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Total Invested</p>
@@ -400,7 +402,7 @@ function OverviewCards(props: Readonly<OverviewCardsProps>) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+        className="glass rounded-xl border border-border p-6 shadow-lg"
       >
         <div className="flex items-center gap-3">
           <div className={`p-3 rounded-xl shadow-lg ${gainsBgClass}`}>
@@ -459,9 +461,9 @@ function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionProps>) {
   } = props
 
   return (
-    <div className="mt-8 pt-6 border-t border-white/10">
+    <div className="mt-8 pt-6 border-t border-border">
       <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
-        <BarChart3 className="w-5 h-5 text-amber-500" />
+        <BarChart3 className="w-5 h-5 text-ios-orange" />
         Returns Analysis
       </h4>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -506,7 +508,7 @@ function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionProps>) {
 
         <div className="flex flex-col justify-center">
           <p className="text-sm text-muted-foreground">Effective Value</p>
-          <p className="text-2xl font-bold text-amber-500">
+          <p className="text-2xl font-bold text-ios-orange">
             {formatCurrency(effectiveCurrentValue)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -545,25 +547,25 @@ function ChartStatsFooter(props: Readonly<ChartStatsFooterProps>) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>
           <p className="text-xs text-muted-foreground">Current Invested</p>
-          <p className="text-xl font-bold text-blue-600">
+          <p className="text-xl font-bold text-ios-blue">
             {currentInvestedDisplay}
           </p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Current Value</p>
-          <p className="text-xl font-bold text-emerald-600">
+          <p className="text-xl font-bold text-ios-green">
             {currentValueDisplay}
           </p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Future Invested</p>
-          <p className="text-xl font-bold text-blue-600">
+          <p className="text-xl font-bold text-ios-blue">
             {futureInvestedDisplay}
           </p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Future Value</p>
-          <p className="text-xl font-bold text-emerald-600">
+          <p className="text-xl font-bold text-ios-green">
             {futureValueDisplay}
           </p>
         </div>
@@ -579,12 +581,12 @@ function computeGainsDisplay(
   overrideGainsPercent: number,
   xirrPercent: number,
 ) {
-  const positive = 'text-emerald-500'
-  const negative = 'text-red-500'
+  const positive = 'text-ios-green'
+  const negative = 'text-ios-red'
   return {
-    gainsBgClass: realizedGains >= 0 ? 'bg-emerald-500/20 shadow-emerald-500/30' : 'bg-red-500/20 shadow-red-500/30',
+    gainsBgClass: realizedGains >= 0 ? 'bg-ios-green/20 shadow-ios-green/30' : 'bg-ios-red/20 shadow-ios-red/30',
     gainsIconClass: realizedGains >= 0 ? positive : negative,
-    gainsTextClass: realizedGains >= 0 ? 'text-emerald-600' : 'text-red-600',
+    gainsTextClass: realizedGains >= 0 ? 'text-ios-green' : 'text-ios-red',
     gainsSignPrefix: realizedGainsPercent >= 0 ? '+' : '',
     totalReturnColorClass: overrideGainsPercent >= 0 ? positive : negative,
     totalReturnSignPrefix: overrideGainsPercent >= 0 ? '+' : '',
@@ -719,7 +721,7 @@ export default function MutualFundProjectionPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <h3 className="text-lg font-semibold mb-6">Projection Parameters</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -821,7 +823,7 @@ export default function MutualFundProjectionPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.5 }}
-              className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+              className="glass rounded-xl border border-border p-6 shadow-lg"
             >
               <div className="text-sm font-medium text-muted-foreground mb-1">Total Investment</div>
               <div className="text-2xl font-bold">{formatCurrency(projection.invested)}</div>
@@ -834,10 +836,10 @@ export default function MutualFundProjectionPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.6 }}
-              className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+              className="glass rounded-xl border border-border p-6 shadow-lg"
             >
               <div className="text-sm font-medium text-muted-foreground mb-1">Projected Value</div>
-              <div className="text-2xl font-bold text-green-600">{formatCurrency(projection.value)}</div>
+              <div className="text-2xl font-bold text-ios-green">{formatCurrency(projection.value)}</div>
               <div className="text-sm text-muted-foreground mt-1">After {projectionYears} years</div>
             </motion.div>
 
@@ -845,10 +847,10 @@ export default function MutualFundProjectionPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.7 }}
-              className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+              className="glass rounded-xl border border-border p-6 shadow-lg"
             >
               <div className="text-sm font-medium text-muted-foreground mb-1">Projected Returns</div>
-              <div className="text-2xl font-bold text-blue-600">{formatCurrency(projection.returns)}</div>
+              <div className="text-2xl font-bold text-ios-blue">{formatCurrency(projection.returns)}</div>
               <div className="text-sm text-muted-foreground mt-1">
                 {((projection.returns / projection.invested) * 100).toFixed(1)}% overall gain
               </div>
@@ -860,7 +862,7 @@ export default function MutualFundProjectionPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
               <div>
@@ -895,23 +897,23 @@ export default function MutualFundProjectionPage() {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorInvested" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.1} />
+                      <stop offset="5%" stopColor={rawColors.ios.blue} stopOpacity={0.8} />
+                      <stop offset="95%" stopColor={rawColors.ios.blue} stopOpacity={0.1} />
                     </linearGradient>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#34d399" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#34d399" stopOpacity={0.1} />
+                      <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.8} />
+                      <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis
                     dataKey="month"
-                    stroke="#9ca3af"
+                    stroke={CHART_AXIS_COLOR}
                     tick={{ fontSize: 11 }}
                     interval="preserveStartEnd"
                   />
                   <YAxis
-                    stroke="#9ca3af"
+                    stroke={CHART_AXIS_COLOR}
                     tickFormatter={(v) => formatCurrencyShort(v)}
                   />
                   <Tooltip
@@ -923,7 +925,7 @@ export default function MutualFundProjectionPage() {
                     type="natural"
                     dataKey="invested"
                     name="Invested Amount"
-                    stroke="#60a5fa"
+                    stroke={rawColors.ios.blue}
                     fill="url(#colorInvested)"
                     strokeWidth={2}
                   />
@@ -931,7 +933,7 @@ export default function MutualFundProjectionPage() {
                     type="natural"
                     dataKey="value"
                     name="Portfolio Value"
-                    stroke="#34d399"
+                    stroke={rawColors.ios.green}
                     fill="url(#colorValue)"
                     strokeWidth={2}
                   />

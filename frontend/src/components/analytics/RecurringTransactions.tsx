@@ -250,7 +250,7 @@ export default function RecurringTransactions() {
 
   if (isLoading) {
     return (
-      <div className="glass rounded-2xl border border-white/10 p-6 animate-pulse">
+      <div className="glass rounded-2xl border border-border p-6 animate-pulse">
         <div className="h-8 bg-muted rounded w-1/3 mb-4" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -265,12 +265,12 @@ export default function RecurringTransactions() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6 shadow-xl"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-cyan-500/20 rounded-xl">
-            <RefreshCw className="w-6 h-6 text-cyan-500" />
+          <div className="p-3 bg-ios-teal/20 rounded-xl">
+            <RefreshCw className="w-6 h-6 text-ios-teal" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Recurring Transactions</h3>
@@ -293,10 +293,10 @@ export default function RecurringTransactions() {
           {recurringTransactions.map((item, index) => (
             <div
               key={`${item.pattern}-${index}`}
-              className={`p-4 rounded-xl border transition-all ${
+              className={`p-4 rounded-xl border transition-colors ${
                 item.isActive
-                  ? 'bg-background/30 border-white/10 hover:border-white/20'
-                  : 'bg-background/10 border-white/5 opacity-60'
+                  ? 'bg-background/30 border-border hover:border-border-strong'
+                  : 'bg-background/10 border-border opacity-60'
               }`}
             >
               <div className="flex items-start justify-between">
@@ -304,9 +304,9 @@ export default function RecurringTransactions() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium truncate">{item.pattern}</span>
                     {item.isActive ? (
-                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <CheckCircle className="w-4 h-4 text-ios-green flex-shrink-0" />
                     ) : (
-                      <AlertCircle className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                      <AlertCircle className="w-4 h-4 text-ios-yellow flex-shrink-0" />
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
@@ -318,16 +318,16 @@ export default function RecurringTransactions() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-red-500">{formatCurrency(item.avgAmount)}</p>
+                  <p className="font-semibold text-ios-red">{formatCurrency(item.avgAmount)}</p>
                   <p className="text-xs text-muted-foreground">Total: {formatCurrency(item.totalSpent)}</p>
                 </div>
               </div>
               {item.isActive && (
-                <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+                <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">
                     Last: {new Date(item.lastDate).toLocaleDateString()}
                   </span>
-                  <span className="text-cyan-500">
+                  <span className="text-ios-teal">
                     Next expected: {new Date(item.expectedNextDate).toLocaleDateString()}
                   </span>
                 </div>
@@ -339,13 +339,13 @@ export default function RecurringTransactions() {
 
       {/* Monthly Summary */}
       {recurringTransactions.length > 0 && (
-        <div className="mt-4 p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+        <div className="mt-4 p-4 rounded-xl bg-ios-teal/10 border border-ios-teal/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-cyan-500" />
+              <DollarSign className="w-5 h-5 text-ios-teal" />
               <span className="font-medium">Monthly Fixed Costs</span>
             </div>
-            <span className="text-xl font-bold text-cyan-500">{formatCurrency(monthlyCommitment)}</span>
+            <span className="text-xl font-bold text-ios-teal">{formatCurrency(monthlyCommitment)}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             Based on {activeCount} active recurring expenses

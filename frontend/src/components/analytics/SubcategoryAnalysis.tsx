@@ -160,7 +160,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
 
   return (
     <motion.div
-      className="glass p-6 rounded-xl border border-white/10"
+      className="glass p-6 rounded-xl border border-border"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.7 }}
@@ -171,7 +171,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
           <div key={item.category}>
             <motion.button
               onClick={() => setSelectedCategory(selectedCategory === item.category ? null : item.category)}
-              className="w-full flex items-center justify-between p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all border border-white/5"
+              className="w-full flex items-center justify-between p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-border"
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
             >
@@ -213,7 +213,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                   transition={{ duration: 0.3 }}
                   className="overflow-hidden"
                 >
-                  <div className="mt-2 p-4 bg-white/[0.03] rounded-lg border border-white/5">
+                  <div className="mt-2 p-4 bg-white/5 rounded-lg border border-border">
                     {/* Filters and Navigation */}
                     <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
                       <div className="flex items-center gap-2">
@@ -221,21 +221,21 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                         <select
                           value={viewMode}
                           onChange={(e) => setViewMode(e.target.value as 'monthly' | 'yearly' | 'all_time')}
-                          className="px-3 py-1.5 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-300 text-sm focus:outline-none"
+                          className="px-3 py-1.5 bg-ios-blue/20 border border-ios-blue/30 rounded-lg text-ios-blue text-sm focus:outline-none"
                         >
-                          <option value="monthly" className="bg-gray-800 text-gray-200">Monthly View</option>
-                          <option value="yearly" className="bg-gray-800 text-gray-200">Yearly View</option>
-                          <option value="all_time" className="bg-gray-800 text-gray-200">All Time</option>
+                          <option value="monthly" className="bg-surface-dropdown text-foreground">Monthly View</option>
+                          <option value="yearly" className="bg-surface-dropdown text-foreground">Yearly View</option>
+                          <option value="all_time" className="bg-surface-dropdown text-foreground">All Time</option>
                         </select>
                         
                         {/* Cumulative Toggle */}
                         <select
                           value={cumulative ? 'cumulative' : 'regular'}
                           onChange={(e) => setCumulative(e.target.value === 'cumulative')}
-                          className="px-3 py-1.5 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 text-sm focus:outline-none"
+                          className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
                         >
-                          <option value="cumulative" className="bg-gray-800 text-gray-200">Cumulative</option>
-                          <option value="regular" className="bg-gray-800 text-gray-200">Regular</option>
+                          <option value="cumulative" className="bg-surface-dropdown text-foreground">Cumulative</option>
+                          <option value="regular" className="bg-surface-dropdown text-foreground">Regular</option>
                         </select>
                       </div>
 
@@ -291,13 +291,13 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="p-3 bg-white/[0.04] rounded-lg">
+                      <div className="p-3 bg-white/5 rounded-lg">
                         <div className="text-sm text-muted-foreground mb-1">Total Spending</div>
                         <div className="text-lg font-semibold text-white">
                           {formatCurrency(subcategoryDetails.totalAmount)}
                         </div>
                       </div>
-                      <div className="p-3 bg-white/[0.04] rounded-lg">
+                      <div className="p-3 bg-white/5 rounded-lg">
                         <div className="text-sm text-muted-foreground mb-1">Transactions</div>
                         <div className="text-lg font-semibold text-white">
                           {subcategoryDetails.totalCount}
@@ -306,19 +306,19 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                     </div>
 
                     <div className="mb-4">
-                      <h4 className="text-sm font-semibold text-gray-300 mb-2">Subcategory Breakdown</h4>
+                      <h4 className="text-sm font-semibold text-foreground mb-2">Subcategory Breakdown</h4>
                       <div className="space-y-2">
                         {subcategoryDetails.subcategories.map((subcat, idx) => (
                           <div
                             key={subcat.name}
-                            className="flex items-center justify-between p-2 bg-white/[0.03] rounded"
+                            className="flex items-center justify-between p-2 bg-white/5 rounded"
                           >
                             <div className="flex items-center gap-2 flex-1">
                               <div
                                 className="w-2 h-2 rounded-full"
                                 style={COLOR_STYLES[(index + idx) % COLOR_STYLES.length]}
                               />
-                              <span className="text-sm text-gray-300">{subcat.name}</span>
+                              <span className="text-sm text-foreground">{subcat.name}</span>
                               <span className="text-xs text-text-tertiary">({subcat.count} txns)</span>
                             </div>
                             <div className="text-right">
@@ -334,7 +334,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
 
                     {subcategoryDetails.trendData.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-semibold text-gray-300 mb-2">Monthly Trend</h4>
+                        <h4 className="text-sm font-semibold text-foreground mb-2">Monthly Trend</h4>
                         <ResponsiveContainer width="100%" height={200}>
                           <LineChart data={subcategoryDetails.trendData}>
                             <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />

@@ -38,10 +38,10 @@ export const PeriodNavigator = memo(function PeriodNavigator({
           aria-selected={viewMode === 'monthly'}
           onClick={() => onViewModeChange('monthly')}
           className={cn(
-            'px-3 py-1.5 text-sm rounded-md transition-all',
+            'px-3 py-1.5 text-sm rounded-md transition-colors',
             viewMode === 'monthly'
               ? 'bg-primary text-white'
-              : 'text-gray-400 hover:text-white'
+              : 'text-muted-foreground hover:text-white'
           )}
         >
           Monthly
@@ -52,10 +52,10 @@ export const PeriodNavigator = memo(function PeriodNavigator({
           aria-selected={viewMode === 'yearly'}
           onClick={() => onViewModeChange('yearly')}
           className={cn(
-            'px-3 py-1.5 text-sm rounded-md transition-all',
+            'px-3 py-1.5 text-sm rounded-md transition-colors',
             viewMode === 'yearly'
               ? 'bg-primary text-white'
-              : 'text-gray-400 hover:text-white'
+              : 'text-muted-foreground hover:text-white'
           )}
         >
           Yearly
@@ -67,10 +67,10 @@ export const PeriodNavigator = memo(function PeriodNavigator({
             aria-selected={viewMode === 'all_time'}
             onClick={() => onViewModeChange('all_time')}
             className={cn(
-              'px-3 py-1.5 text-sm rounded-md transition-all',
+              'px-3 py-1.5 text-sm rounded-md transition-colors',
               viewMode === 'all_time'
                 ? 'bg-primary text-white'
-                : 'text-gray-400 hover:text-white'
+                : 'text-muted-foreground hover:text-white'
             )}
           >
             All Time
@@ -87,7 +87,7 @@ export const PeriodNavigator = memo(function PeriodNavigator({
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
             aria-label="Previous period"
           >
-            <ChevronLeft className="w-5 h-5 text-gray-400" />
+            <ChevronLeft className="w-5 h-5 text-muted-foreground" />
           </button>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg min-w-[140px] justify-center">
             <Calendar className="w-4 h-4 text-primary" />
@@ -99,7 +99,7 @@ export const PeriodNavigator = memo(function PeriodNavigator({
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
             aria-label="Next period"
           >
-            <ChevronRight className="w-5 h-5 text-gray-400" />
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
       )}

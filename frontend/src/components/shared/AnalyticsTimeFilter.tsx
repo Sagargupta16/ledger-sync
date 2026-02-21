@@ -210,10 +210,10 @@ export default function AnalyticsTimeFilter({
             role="tab"
             aria-selected={viewMode === mode.value}
             onClick={() => onViewModeChange(mode.value)}
-            className={`relative px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            className={`relative px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               viewMode === mode.value
                 ? 'text-white'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                : 'text-muted-foreground hover:text-white hover:bg-white/10'
             }`}
             whileTap={{ scale: 0.97 }}
           >

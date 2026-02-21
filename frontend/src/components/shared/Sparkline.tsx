@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { rawColors } from '@/constants/colors'
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
@@ -12,7 +13,7 @@ interface SparklineProps {
  * Sparkline with animated SVG path draw effect on mount.
  * Falls back to instant render when reduced motion is preferred.
  */
-export default function Sparkline({ data, color = '#8b5cf6', height = 40 }: Readonly<SparklineProps>) {
+export default function Sparkline({ data, color = rawColors.ios.purple, height = 40 }: Readonly<SparklineProps>) {
   const reducedMotion = useReducedMotion()
   const width = 200 // SVG viewBox width — scales with container via CSS
 

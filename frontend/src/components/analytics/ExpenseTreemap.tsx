@@ -73,7 +73,7 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
 
   if (isLoading) {
     return (
-      <div className="glass p-6 rounded-xl border border-white/10">
+      <div className="glass p-6 rounded-xl border border-border">
         <div className="h-64 flex items-center justify-center">
           <div className="animate-pulse text-muted-foreground">Loading breakdown...</div>
         </div>
@@ -83,7 +83,7 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
 
   if (categories.length === 0) {
     return (
-      <div className="glass p-6 rounded-xl border border-white/10">
+      <div className="glass p-6 rounded-xl border border-border">
         <EmptyState
           icon={CreditCard}
           title="No expense data available"
@@ -97,14 +97,14 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
   }
 
   return (
-    <div className="glass p-6 rounded-xl border border-white/10">
+    <div className="glass p-6 rounded-xl border border-border">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
           <BarChart3 className="w-5 h-5 text-ios-purple" />
           <div>
             <h3 className="text-lg font-semibold text-white">Expense Breakdown</h3>
-            <p className="text-xs text-gray-500">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
+            <p className="text-xs text-text-tertiary">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
           </div>
         </div>
       </div>
@@ -137,9 +137,9 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
               <button
                 type="button"
                 onClick={() => hasSubcategories && toggleExpand(cat.name)}
-                className={`w-full text-left px-4 py-3 rounded-xl transition-all group ${
+                className={`w-full text-left px-4 py-3 rounded-xl transition-colors group ${
                   hasSubcategories ? 'cursor-pointer' : 'cursor-default'
-                } ${isExpanded ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]'}`}
+                } ${isExpanded ? 'bg-white/5' : 'hover:bg-white/10'}`}
               >
                 <div className="flex items-center gap-3">
                   {/* Color dot */}
@@ -154,7 +154,7 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
                   </span>
 
                   {/* Percentage + Amount */}
-                  <span className="text-xs text-gray-400 tabular-nums shrink-0">
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                     {cat.percent.toFixed(1)}%
                   </span>
                   <span className="text-sm font-semibold text-white tabular-nums shrink-0 w-28 text-right">
@@ -166,7 +166,7 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
                     <motion.div
                       animate={{ rotate: isExpanded ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
-                      className="text-gray-500 group-hover:text-gray-300"
+                      className="text-text-tertiary group-hover:text-foreground"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </motion.div>
@@ -174,7 +174,7 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
                 </div>
 
                 {/* Proportional bar */}
-                <div className="mt-2 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ backgroundColor: cat.color }}
@@ -199,7 +199,7 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
                       {cat.subcategories.map((sub, si) => (
                         <div
                           key={sub.name}
-                          className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/[0.03] transition-colors"
+                          className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
                         >
                           {/* Indent marker */}
                           <div
@@ -207,12 +207,12 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
                             style={{ backgroundColor: cat.color }}
                           />
 
-                          <span className="text-xs text-gray-300 flex-1 truncate">
+                          <span className="text-xs text-foreground flex-1 truncate">
                             {sub.name}
                           </span>
 
                           {/* Subcategory bar */}
-                          <div className="w-20 h-1 rounded-full bg-white/[0.06] overflow-hidden shrink-0">
+                          <div className="w-20 h-1 rounded-full bg-white/5 overflow-hidden shrink-0">
                             <motion.div
                               className="h-full rounded-full opacity-70"
                               style={{ backgroundColor: cat.color }}
@@ -222,10 +222,10 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
                             />
                           </div>
 
-                          <span className="text-xs text-gray-500 tabular-nums shrink-0 w-10 text-right">
+                          <span className="text-xs text-text-tertiary tabular-nums shrink-0 w-10 text-right">
                             {sub.percent.toFixed(0)}%
                           </span>
-                          <span className="text-xs font-medium text-gray-300 tabular-nums shrink-0 w-24 text-right">
+                          <span className="text-xs font-medium text-foreground tabular-nums shrink-0 w-24 text-right">
                             {formatCurrency(sub.amount)}
                           </span>
                         </div>

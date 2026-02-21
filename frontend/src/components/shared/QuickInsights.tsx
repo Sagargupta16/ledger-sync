@@ -195,8 +195,8 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
   return [
     {
       icon: PiggyBank,
-      color: 'text-emerald-400',
-      bg: 'bg-emerald-500/20',
+      color: 'text-ios-green',
+      bg: 'bg-ios-green/20',
       title: 'Savings Rate',
       value: `${savingsRate.toFixed(1)}%`,
       subtitle: totalIncome > 0
@@ -247,8 +247,8 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     },
     {
       icon: BarChart3,
-      color: 'text-violet-400',
-      bg: 'bg-violet-500/20',
+      color: 'text-ios-purple',
+      bg: 'bg-ios-purple/20',
       title: 'Median Transaction',
       value: formatCurrency(medianTransaction),
       subtitle: avgTransactionAmount > medianTransaction
@@ -265,16 +265,16 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     },
     {
       icon: Calendar,
-      color: 'text-rose-400',
-      bg: 'bg-rose-500/20',
+      color: 'text-ios-red',
+      bg: 'bg-ios-red/20',
       title: 'Weekend Spending',
       value: `${weekendPercent.toFixed(0)}%`,
       subtitle: `${formatCurrency(weekendSpending)} on weekends vs ${formatCurrency(weekdaySpending)} weekdays`,
     },
     {
       icon: Clock,
-      color: 'text-amber-400',
-      bg: 'bg-amber-500/20',
+      color: 'text-ios-orange',
+      bg: 'bg-ios-orange/20',
       title: 'Peak Spending Day',
       value: peakDay.name,
       subtitle: `${formatCurrency(peakDay.total)} total on ${peakDay.name}s`,
@@ -289,8 +289,8 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     },
     {
       icon: Layers,
-      color: 'text-cyan-400',
-      bg: 'bg-cyan-500/20',
+      color: 'text-ios-teal',
+      bg: 'bg-ios-teal/20',
       title: 'Spending Diversity',
       value: `${uniqueCategories} categories`,
       subtitle: `Across ${uniqueSubcategories} subcategories`,
@@ -347,7 +347,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
         <motion.div
           key={insight.title}
           variants={fadeUpItem}
-          className="flex items-center gap-4 p-4 glass rounded-lg border border-white/10 hover:border-primary/30 transition-all"
+          className="flex items-center gap-4 p-4 glass rounded-lg border border-border hover:border-primary/30 transition-colors"
         >
           <div className={`p-3 ${insight.bg} rounded-lg`}>
             <insight.icon className={`w-5 h-5 ${insight.color}`} />

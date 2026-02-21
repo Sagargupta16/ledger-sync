@@ -105,7 +105,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubca
 
   return (
     <motion.div
-      className="glass p-6 rounded-xl border border-white/10"
+      className="glass p-6 rounded-xl border border-border"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.5 }}
@@ -116,7 +116,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubca
           <h3 className="text-xl font-semibold text-white">Enhanced Subcategory Analysis</h3>
           <button
             onClick={handleExport}
-            className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 transition-colors"
+            className="p-2 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-foreground transition-colors"
             type="button"
             title="Export chart"
           >
@@ -131,10 +131,10 @@ export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubca
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-purple-500/50 min-w-50"
+              className="px-4 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-ios-purple/50 min-w-50"
             >
               {categories.map((category) => (
-                <option key={category} value={category} className="bg-gray-800 text-gray-200">
+                <option key={category} value={category} className="bg-surface-dropdown text-foreground">
                   {category}
                 </option>
               ))}
@@ -144,14 +144,14 @@ export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubca
             <select
               value={cumulative ? 'cumulative' : 'regular'}
               onChange={(e) => setCumulative(e.target.value === 'cumulative')}
-              className="px-3 py-1.5 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 text-sm focus:outline-none"
+              className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
             >
-              <option value="cumulative" className="bg-gray-800 text-gray-200">Cumulative</option>
-              <option value="regular" className="bg-gray-800 text-gray-200">Regular</option>
+              <option value="cumulative" className="bg-surface-dropdown text-foreground">Cumulative</option>
+              <option value="regular" className="bg-surface-dropdown text-foreground">Regular</option>
             </select>
           </div>
 
-          <span className="text-xs text-gray-400">{totalTransactions} transactions</span>
+          <span className="text-xs text-muted-foreground">{totalTransactions} transactions</span>
         </div>
 
         {/* Chart */}

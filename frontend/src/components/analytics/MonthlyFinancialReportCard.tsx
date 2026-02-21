@@ -173,23 +173,23 @@ export default function MonthlyFinancialReportCard() {
 
   return (
     <motion.div
-      className="glass rounded-2xl border border-white/10 p-6"
+      className="glass rounded-2xl border border-border p-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.4 }}
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <ClipboardCheck className="w-5 h-5 text-purple-400" />
+          <ClipboardCheck className="w-5 h-5 text-ios-purple" />
           <h3 className="text-lg font-semibold text-white">Monthly Report Card</h3>
         </div>
         <select
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
-          className="px-3 py-1.5 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-purple-500/50"
+          className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-ios-purple/50"
         >
           {availableMonths.map((m) => (
-            <option key={m} value={m} className="bg-gray-800 text-gray-200">
+            <option key={m} value={m} className="bg-surface-dropdown text-foreground">
               {new Date(`${m}-01`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </option>
           ))}
@@ -213,22 +213,22 @@ export default function MonthlyFinancialReportCard() {
             <p className="text-sm font-medium mt-3" style={{ color: GRADE_COLORS[report.overall] }}>
               {monthLabel}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Overall Financial Grade</p>
+            <p className="text-xs text-text-tertiary mt-1">Overall Financial Grade</p>
           </div>
 
           {/* Grade Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {report.categories.map((cat) => {
               const isNA = cat.grade === 'N/A'
-              const color = isNA ? '#6b7280' : GRADE_COLORS[cat.grade as Grade]
+              const color = isNA ? rawColors.text.tertiary : GRADE_COLORS[cat.grade as Grade]
 
               return (
                 <div
                   key={cat.name}
-                  className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]"
+                  className="p-4 rounded-xl bg-white/5 border border-border"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-300">{cat.name}</p>
+                    <p className="text-sm font-medium text-foreground">{cat.name}</p>
                     <span
                       className="text-2xl font-bold"
                       style={{ color }}
@@ -239,7 +239,7 @@ export default function MonthlyFinancialReportCard() {
                   <p className="text-xs mt-2" style={{ color }}>
                     {cat.detail}
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">{cat.subtext}</p>
+                  <p className="text-xs text-text-quaternary mt-1">{cat.subtext}</p>
                 </div>
               )
             })}

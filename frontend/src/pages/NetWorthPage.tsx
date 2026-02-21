@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion'
+import { rawColors } from '@/constants/colors'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -17,17 +19,17 @@ import { usePreferencesStore } from '@/store/preferencesStore'
 
 // Category display configuration
 const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
-  'Cash & Wallets': { label: 'Cash & Wallets', color: '#34c759' },
-  'Bank Accounts': { label: 'Bank Accounts', color: '#5aa3ff' },
-  'Investments': { label: 'Investments', color: '#8b5cf6' },
-  'Loans/Lended': { label: 'Loans/Lended', color: '#ff6b6b' },
-  'Credit Cards': { label: 'Credit Cards', color: '#ff9f43' },
+  'Cash & Wallets': { label: 'Cash & Wallets', color: rawColors.ios.green },
+  'Bank Accounts': { label: 'Bank Accounts', color: rawColors.ios.blue },
+  'Investments': { label: 'Investments', color: rawColors.ios.purple },
+  'Loans/Lended': { label: 'Loans/Lended', color: rawColors.ios.red },
+  'Credit Cards': { label: 'Credit Cards', color: rawColors.ios.orange },
   // Fallback categories
-  'cashbank': { label: 'Cash & Bank', color: '#5aa3ff' },
-  'invested': { label: 'Investments', color: '#8b5cf6' },
-  'lended': { label: 'Lended', color: '#5ac8f5' },
-  'liability': { label: 'Liabilities', color: '#ff6b6b' },
-  'other': { label: 'Other', color: '#6b7280' },
+  'cashbank': { label: 'Cash & Bank', color: rawColors.ios.blue },
+  'invested': { label: 'Investments', color: rawColors.ios.purple },
+  'lended': { label: 'Lended', color: rawColors.ios.teal },
+  'liability': { label: 'Liabilities', color: rawColors.ios.red },
+  'other': { label: 'Other', color: rawColors.text.tertiary },
 }
 
 /** Classify an account based on classifications map, investment mappings, or name heuristics */
@@ -157,7 +159,7 @@ function AccountCategoryTable({
   isLoading,
 }: AccountCategoryTableProps) {
   if (isLoading) {
-    return <div className="text-center py-8 text-gray-400">Loading accounts...</div>
+    return <div className="text-center py-8 text-muted-foreground">Loading accounts...</div>
   }
 
   const hasAccounts = Object.keys(accounts).some(name => filterFn(accounts[name].balance))
@@ -177,12 +179,12 @@ function AccountCategoryTable({
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-white/10">
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400">Account</th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Balance</th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">% Allocated</th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Type</th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Transactions</th>
+          <tr className="border-b border-border">
+            <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Account</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Balance</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">% Allocated</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Type</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Transactions</th>
           </tr>
         </thead>
         <tbody>
@@ -213,7 +215,7 @@ function AccountCategoryTable({
                 acc.elements.push(
                   <tr
                     key={`header-${currentCategory}`}
-                    className="bg-white/5 cursor-pointer hover:bg-white/8 transition-colors"
+                    className="bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
                     onClick={() => onToggleCategory(currentCategory)}
                   >
                     <td className="py-2 px-4 text-sm font-semibold text-primary">
@@ -222,17 +224,17 @@ function AccountCategoryTable({
                           ? <ChevronDown className="w-4 h-4" />
                           : <ChevronRight className="w-4 h-4" />}
                         {currentCategory}
-                        <span className="text-xs text-gray-500 font-normal">({categoryAccounts.length})</span>
+                        <span className="text-xs text-text-tertiary font-normal">({categoryAccounts.length})</span>
                       </span>
                     </td>
                     <td className={`py-2 px-4 text-right text-sm font-medium ${headerBalanceColorClass}`}>
                       {formatCurrency(catBalance)}
                     </td>
-                    <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">
+                    <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
                       {formatPercent((catBalance / total) * 100)}
                     </td>
-                    <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">—</td>
-                    <td className="py-2 px-4 text-right text-sm font-medium text-gray-400/70">{catTransactions}</td>
+                    <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">—</td>
+                    <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">{catTransactions}</td>
                   </tr>
                 )
               }
@@ -241,7 +243,7 @@ function AccountCategoryTable({
                 acc.elements.push(
                   <motion.tr
                     key={accountName}
-                    className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                    className="border-b border-border hover:bg-white/10 transition-colors"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                   >
@@ -249,13 +251,13 @@ function AccountCategoryTable({
                     <td className={`py-3 px-4 text-right font-bold ${balanceColorClass}`}>
                       {formatCurrency(Math.abs(accountData.balance))}
                     </td>
-                    <td className="py-3 px-4 text-right text-gray-400">
+                    <td className="py-3 px-4 text-right text-muted-foreground">
                       {formatPercent((Math.abs(accountData.balance) / total) * 100)}
                     </td>
-                    <td className="py-3 px-4 text-right text-gray-400">
+                    <td className="py-3 px-4 text-right text-muted-foreground">
                       {getAccountType(accountName)}
                     </td>
-                    <td className="py-3 px-4 text-right text-gray-400">{accountData.transactions}</td>
+                    <td className="py-3 px-4 text-right text-muted-foreground">{accountData.transactions}</td>
                   </motion.tr>
                 )
               }
@@ -405,7 +407,7 @@ export default function NetWorthPage() {
         change,
         positive: Math.max(change, 0),
         negative: Math.max(-change, 0),
-        fill: change >= 0 ? '#34c759' : '#ff6b6b',
+        fill: change >= 0 ? rawColors.ios.green : rawColors.ios.red,
       }
     })
   }, [filteredNetWorthData])
@@ -453,11 +455,11 @@ export default function NetWorthPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-500/20 rounded-xl shadow-lg shadow-green-500/30">
-                <PiggyBank className="w-6 h-6 text-green-500" />
+              <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
+                <PiggyBank className="w-6 h-6 text-ios-green" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Assets</p>
@@ -472,11 +474,11 @@ export default function NetWorthPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-red-500/20 rounded-xl shadow-lg shadow-red-500/30">
-                <CreditCard className="w-6 h-6 text-red-500" />
+              <div className="p-3 bg-ios-red/20 rounded-xl shadow-lg shadow-ios-red/30">
+                <CreditCard className="w-6 h-6 text-ios-red" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Liabilities</p>
@@ -491,7 +493,7 @@ export default function NetWorthPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
               <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">
@@ -511,19 +513,19 @@ export default function NetWorthPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <BarChart3 className="w-5 h-5 text-blue-400" />
+              <BarChart3 className="w-5 h-5 text-ios-blue" />
               <h3 className="text-lg font-semibold text-white">Net Worth Trend</h3>
             </div>
             <button
               onClick={() => setShowStacked(!showStacked)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 showStacked
                   ? 'bg-primary text-white shadow-lg shadow-primary/50'
-                  : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-white/10'
+                  : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
               }`}
             >
               {showStacked ? '📊 Stacked View' : '📈 Total View'}
@@ -533,7 +535,7 @@ export default function NetWorthPage() {
             if (isLoading) {
               return (
                 <div className="h-80 flex items-center justify-center">
-                  <div className="animate-pulse text-gray-400">Loading chart...</div>
+                  <div className="animate-pulse text-muted-foreground">Loading chart...</div>
                 </div>
               )
             }
@@ -544,16 +546,16 @@ export default function NetWorthPage() {
                   <AreaChart data={filteredNetWorthData}>
                     <defs>
                       <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                        <stop offset="5%" stopColor={rawColors.ios.purple} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={rawColors.ios.purple} stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#34c759" stopOpacity={0.6} />
-                        <stop offset="95%" stopColor="#34c759" stopOpacity={0.1} />
+                        <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.6} />
+                        <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0.1} />
                       </linearGradient>
                       <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ff6b6b" stopOpacity={0.6} />
-                        <stop offset="95%" stopColor="#ff6b6b" stopOpacity={0.1} />
+                        <stop offset="5%" stopColor={rawColors.ios.red} stopOpacity={0.6} />
+                        <stop offset="95%" stopColor={rawColors.ios.red} stopOpacity={0.1} />
                       </linearGradient>
                       {/* Dynamic gradients for each category */}
                       {allCategories.map((cat) => {
@@ -567,8 +569,8 @@ export default function NetWorthPage() {
                       })}
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                    <XAxis dataKey="date" stroke="#9ca3af" tickFormatter={(v) => formatDateTick(v, filteredNetWorthData.length)} angle={-45} textAnchor="end" height={80} interval={Math.max(1, Math.floor(filteredNetWorthData.length / 20))} />
-                    <YAxis stroke="#9ca3af" tickFormatter={(value: number) => formatCurrencyShort(value)} />
+                    <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} tickFormatter={(v) => formatDateTick(v, filteredNetWorthData.length)} angle={-45} textAnchor="end" height={80} interval={Math.max(1, Math.floor(filteredNetWorthData.length / 20))} />
+                    <YAxis stroke={CHART_AXIS_COLOR} tickFormatter={(value: number) => formatCurrencyShort(value)} />
                     <Tooltip
                       {...chartTooltipProps}
                       formatter={formattedValue}
@@ -598,7 +600,7 @@ export default function NetWorthPage() {
                       <Area
                         type="natural"
                         dataKey="netWorth"
-                        stroke="#8b5cf6"
+                        stroke={rawColors.ios.purple}
                         fillOpacity={1}
                         fill="url(#colorNetWorth)"
                         name="Net Worth"
@@ -628,24 +630,24 @@ export default function NetWorthPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-50px' }}
             transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center gap-3 mb-6">
-              <BarChart3 className="w-5 h-5 text-purple-400" />
+              <BarChart3 className="w-5 h-5 text-ios-purple" />
               <h3 className="text-lg font-semibold text-white">Monthly Net Worth Changes</h3>
             </div>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={monthlyChanges}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                <XAxis dataKey="month" tick={{ fill: '#9ca3af', fontSize: 11 }} />
-                <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                <XAxis dataKey="month" tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
+                <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
                 <Tooltip
                   {...chartTooltipProps}
                   formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                 />
                 <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
-                <Bar dataKey="positive" name="Increase" fill="#34c759" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="negative" name="Decrease" fill="#ff6b6b" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="positive" name="Increase" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="negative" name="Decrease" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </motion.div>
@@ -656,15 +658,15 @@ export default function NetWorthPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Assets (Positive Balances)</h3>
           <AccountCategoryTable
             accounts={accounts}
             filterFn={(b) => b > 0}
             total={totalAssets}
-            balanceColorClass="text-green-400"
-            headerBalanceColorClass="text-green-400/70"
+            balanceColorClass="text-ios-green"
+            headerBalanceColorClass="text-ios-green/70"
             expandedCategories={expandedAssetCategories}
             onToggleCategory={(cat) => toggleCategory(setExpandedAssetCategories, cat)}
             getAccountType={getAccountType}
@@ -680,15 +682,15 @@ export default function NetWorthPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Liabilities (Negative Balances)</h3>
           <AccountCategoryTable
             accounts={accounts}
             filterFn={(b) => b < 0}
             total={totalLiabilities}
-            balanceColorClass="text-red-400"
-            headerBalanceColorClass="text-red-400/70"
+            balanceColorClass="text-ios-red"
+            headerBalanceColorClass="text-ios-red/70"
             expandedCategories={expandedLiabilityCategories}
             onToggleCategory={(cat) => toggleCategory(setExpandedLiabilityCategories, cat)}
             getAccountType={getAccountType}

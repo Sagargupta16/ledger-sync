@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import {
   Flame,
   TrendingDown,
@@ -396,7 +397,7 @@ export default function YearInReviewPage() {
                   role="tab"
                   aria-selected={mode === val}
                   onClick={() => setMode(val)}
-                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${mode === val ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${mode === val ? 'text-white' : 'text-muted-foreground hover:text-white hover:bg-white/10'
                     }`}
                   whileTap={{ scale: 0.97 }}
                 >
@@ -435,7 +436,7 @@ export default function YearInReviewPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+        className="glass rounded-2xl border border-border p-6 shadow-xl"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -443,7 +444,7 @@ export default function YearInReviewPage() {
             {{ expense: 'Spending', income: 'Earning', net: 'Savings' }[mode]} Heatmap — {isFYMode ? currentFY : selectedYear}
           </h2>
           {/* Legend */}
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
             <span>Less</span>
             {heatmapColors[mode].map((color) => (
               <div
@@ -465,7 +466,7 @@ export default function YearInReviewPage() {
                 {monthLabels.map((ml) => (
                   <div
                     key={`${ml.month}-${ml.weekIndex}`}
-                    className="text-xs text-gray-500"
+                    className="text-xs text-text-tertiary"
                     style={{
                       position: 'relative',
                       left: `${ml.weekIndex * 15}px`,
@@ -483,7 +484,7 @@ export default function YearInReviewPage() {
                 {/* Day labels */}
                 <div className="flex flex-col gap-0.5 mr-1.5 pt-0">
                   {DAYS.map((d, i) => (
-                    <div key={d} className="h-[13px] flex items-center text-[10px] text-gray-500 leading-none">
+                    <div key={d} className="h-[13px] flex items-center text-caption text-text-tertiary leading-none">
                       {i % 2 === 1 ? d : ''}
                     </div>
                   ))}
@@ -541,7 +542,7 @@ export default function YearInReviewPage() {
         </div>
 
         {/* Inline day summary — always visible, no layout shift */}
-        <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-6 text-xs min-h-[28px]">
+        <div className="mt-4 pt-3 border-t border-border flex items-center gap-6 text-xs min-h-[28px]">
           {hoveredDay ? (
             <>
               <span className="text-white font-medium">
@@ -552,16 +553,16 @@ export default function YearInReviewPage() {
                   year: 'numeric',
                 })}
               </span>
-              <span className="text-red-400">Spending: {formatCurrency(hoveredDay.expense)}</span>
-              <span className="text-green-400">Earning: {formatCurrency(hoveredDay.income)}</span>
-              <span className={hoveredDay.net >= 0 ? 'text-blue-400' : 'text-orange-400'}>
+              <span className="text-ios-red">Spending: {formatCurrency(hoveredDay.expense)}</span>
+              <span className="text-ios-green">Earning: {formatCurrency(hoveredDay.income)}</span>
+              <span className={hoveredDay.net >= 0 ? 'text-ios-blue' : 'text-ios-orange'}>
                 Savings: {hoveredDay.net >= 0 ? '+' : ''}{formatCurrency(hoveredDay.net)}
               </span>
             </>
           ) : (
             <>
-              <span className="text-gray-500 hidden md:inline">Hover over a day to see details</span>
-              <span className="text-gray-500 md:hidden">Tap a month to see details</span>
+              <span className="text-text-tertiary hidden md:inline">Hover over a day to see details</span>
+              <span className="text-text-tertiary md:hidden">Tap a month to see details</span>
             </>
           )}
         </div>
@@ -575,15 +576,15 @@ export default function YearInReviewPage() {
           }
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="lg:col-span-2 glass rounded-2xl border border-white/10 p-6"
+          className="lg:col-span-2 glass rounded-2xl border border-border p-6"
         >
           <h2 className="text-lg font-semibold mb-4">Monthly Breakdown</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={monthlyBarData} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 11 }} />
-                <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
+                <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
                 <RechartsTooltip
                   {...chartTooltipProps}
                   formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
@@ -600,7 +601,7 @@ export default function YearInReviewPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass rounded-2xl border border-white/10 p-6 space-y-4"
+          className="glass rounded-2xl border border-border p-6 space-y-4"
         >
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Flame className="w-5 h-5" style={{ color: rawColors.ios.orange }} />
@@ -642,8 +643,8 @@ export default function YearInReviewPage() {
 
           {/* Streak visualization */}
           {stats.maxStreak > 0 && (
-            <div className="pt-3 mt-3 border-t border-white/10">
-              <p className="text-xs text-gray-500 mb-2">No-Spend Streak Record</p>
+            <div className="pt-3 mt-3 border-t border-border">
+              <p className="text-xs text-text-tertiary mb-2">No-Spend Streak Record</p>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-0.5">
                   {Array.from({ length: Math.min(stats.maxStreak, 30) }, (_, i) => (
@@ -664,9 +665,9 @@ export default function YearInReviewPage() {
             </div>
           )}
 
-          <div className="pt-3 mt-3 border-t border-white/10">
-            <p className="text-xs text-gray-500 mb-1">Total Savings</p>
-            <p className={`text-xl font-bold ${stats.totalSavings >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          <div className="pt-3 mt-3 border-t border-border">
+            <p className="text-xs text-text-tertiary mb-1">Total Savings</p>
+            <p className={`text-xl font-bold ${stats.totalSavings >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
               {stats.totalSavings >= 0 ? '+' : ''}{formatCurrencyCompact(stats.totalSavings)}
             </p>
           </div>
@@ -678,7 +679,7 @@ export default function YearInReviewPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-2xl border border-white/10 p-6"
+        className="glass rounded-2xl border border-border p-6"
       >
         <h2 className="text-lg font-semibold mb-4">Spending by Day of Week</h2>
         <DayOfWeekChart grid={grid} />

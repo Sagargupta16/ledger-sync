@@ -147,7 +147,7 @@ export default function YearOverYearComparison() {
 
   if (isLoading) {
     return (
-      <div className="glass rounded-2xl border border-white/10 p-6 animate-pulse">
+      <div className="glass rounded-2xl border border-border p-6 animate-pulse">
         <div className="h-8 bg-muted rounded w-1/3 mb-4" />
         <div className="h-64 bg-muted rounded" />
       </div>
@@ -156,7 +156,7 @@ export default function YearOverYearComparison() {
 
   if (fyData.length < 2) {
     return (
-      <div className="glass rounded-2xl border border-white/10 p-6">
+      <div className="glass rounded-2xl border border-border p-6">
         <h3 className="text-lg font-semibold mb-2">Year-over-Year Comparison</h3>
         <p className="text-muted-foreground">Need at least 2 financial years of data for comparison.</p>
       </div>
@@ -167,7 +167,7 @@ export default function YearOverYearComparison() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6 shadow-xl"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -184,7 +184,7 @@ export default function YearOverYearComparison() {
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-white/10 text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
+          className="px-3 py-2 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
         >
           <option value="all">All Categories</option>
           {allCategories.map((cat) => (

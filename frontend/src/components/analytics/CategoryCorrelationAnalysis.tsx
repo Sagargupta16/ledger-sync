@@ -19,7 +19,7 @@ function pearsonCorrelation(x: number[], y: number[]): number {
 function getCorrelationColor(r: number): string {
   if (r > 0.5) return rawColors.ios.red
   if (r > 0.2) return rawColors.ios.orange
-  if (r > -0.2) return '#6b7280'
+  if (r > -0.2) return rawColors.text.tertiary
   return rawColors.ios.blue
 }
 
@@ -114,13 +114,13 @@ export default function CategoryCorrelationAnalysis() {
   if (categories.length < 2) {
     return (
       <motion.div
-        className="glass rounded-2xl border border-white/10 p-6"
+        className="glass rounded-2xl border border-border p-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
         <div className="flex items-center gap-2 mb-5">
-          <Grid3x3 className="w-5 h-5 text-orange-400" />
+          <Grid3x3 className="w-5 h-5 text-ios-orange" />
           <h3 className="text-lg font-semibold text-white">Category Correlations</h3>
         </div>
         <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
@@ -132,13 +132,13 @@ export default function CategoryCorrelationAnalysis() {
 
   return (
     <motion.div
-      className="glass rounded-2xl border border-white/10 p-6"
+      className="glass rounded-2xl border border-border p-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Grid3x3 className="w-5 h-5 text-orange-400" />
+        <Grid3x3 className="w-5 h-5 text-ios-orange" />
         <h3 className="text-lg font-semibold text-white">Category Correlations</h3>
       </div>
 
@@ -150,7 +150,7 @@ export default function CategoryCorrelationAnalysis() {
             {categories.map((cat) => (
               <div
                 key={cat}
-                className="text-xs text-gray-500 text-center"
+                className="text-xs text-text-tertiary text-center"
                 style={{ width: 50, transform: 'rotate(-45deg)', transformOrigin: 'left bottom', whiteSpace: 'nowrap' }}
               >
                 {truncate(cat, 10)}
@@ -162,7 +162,7 @@ export default function CategoryCorrelationAnalysis() {
           <div className="mt-6 space-y-1">
             {categories.map((rowCat, i) => (
               <div key={rowCat} className="flex items-center gap-1">
-                <span className="text-xs text-gray-500 w-[85px] text-right pr-2 flex-shrink-0 truncate" title={rowCat}>
+                <span className="text-xs text-text-tertiary w-[85px] text-right pr-2 flex-shrink-0 truncate" title={rowCat}>
                   {truncate(rowCat, 12)}
                 </span>
                 {categories.map((_, j) => {
@@ -170,7 +170,7 @@ export default function CategoryCorrelationAnalysis() {
                   return (
                     <div
                       key={`${rowCat}-${categories[j]}`}
-                      className="relative flex items-center justify-center rounded transition-all hover:ring-1 hover:ring-white/30"
+                      className="relative flex items-center justify-center rounded transition-colors hover:ring-1 hover:ring-white/30"
                       style={{
                         width: 50,
                         height: 32,
@@ -195,14 +195,14 @@ export default function CategoryCorrelationAnalysis() {
       {/* Strong Pairs */}
       {strongPairs.length > 0 && (
         <div className="mt-5 space-y-2">
-          <p className="text-xs text-gray-500 font-medium">Strong correlations (r &gt; 0.3):</p>
+          <p className="text-xs text-text-tertiary font-medium">Strong correlations (r &gt; 0.3):</p>
           {strongPairs.map((pair) => (
             <div key={`${pair.catA}-${pair.catB}`} className="flex items-center gap-2 text-xs">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getCorrelationColor(pair.r) }} />
-              <span className="text-gray-300">
+              <span className="text-foreground">
                 {pair.catA} &amp; {pair.catB}
               </span>
-              <span className="text-gray-500 font-mono">r={pair.r.toFixed(2)}</span>
+              <span className="text-text-tertiary font-mono">r={pair.r.toFixed(2)}</span>
             </div>
           ))}
         </div>
@@ -213,12 +213,12 @@ export default function CategoryCorrelationAnalysis() {
         {[
           { label: 'Strong +', color: rawColors.ios.red },
           { label: 'Weak +', color: rawColors.ios.orange },
-          { label: 'Neutral', color: '#6b7280' },
+          { label: 'Neutral', color: rawColors.text.tertiary },
           { label: 'Negative', color: rawColors.ios.blue },
         ].map((item) => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-            <span className="text-xs text-gray-500">{item.label}</span>
+            <span className="text-xs text-text-tertiary">{item.label}</span>
           </div>
         ))}
       </div>

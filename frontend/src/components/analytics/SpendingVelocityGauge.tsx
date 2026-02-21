@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { motion } from 'framer-motion'
 import { Gauge } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -66,14 +67,14 @@ export default function SpendingVelocityGauge() {
 
   return (
     <motion.div
-      className="glass rounded-2xl border border-white/10 p-6"
+      className="glass rounded-2xl border border-border p-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Gauge className="w-5 h-5 text-purple-400" />
+        <Gauge className="w-5 h-5 text-ios-purple" />
         <h3 className="text-lg font-semibold text-white">Spending Velocity</h3>
-        <span className="text-xs text-gray-500 ml-auto">Day {daysElapsed} of {daysInMonth}</span>
+        <span className="text-xs text-text-tertiary ml-auto">Day {daysElapsed} of {daysInMonth}</span>
       </div>
 
       <div className="flex flex-col lg:flex-row items-center gap-8">
@@ -102,7 +103,7 @@ export default function SpendingVelocityGauge() {
             <text x={cx} y={cy - 10} textAnchor="middle" fill="white" fontSize="22" fontWeight="bold">
               {pace >= 0 ? '+' : ''}{Math.round(pace)}%
             </text>
-            <text x={cx} y={cy + 10} textAnchor="middle" fill="#9ca3af" fontSize="11">
+            <text x={cx} y={cy + 10} textAnchor="middle" fill={CHART_AXIS_COLOR} fontSize="11">
               vs last month
             </text>
           </svg>
@@ -110,27 +111,27 @@ export default function SpendingVelocityGauge() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 flex-1 w-full">
-          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            <p className="text-xs text-gray-500">Daily Rate</p>
+          <div className="p-4 rounded-xl bg-white/5 border border-border">
+            <p className="text-xs text-text-tertiary">Daily Rate</p>
             <p className="text-lg font-semibold text-white mt-1">{formatCurrency(dailyRate)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">per day</p>
+            <p className="text-xs text-text-tertiary mt-0.5">per day</p>
           </div>
-          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            <p className="text-xs text-gray-500">Projected Total</p>
+          <div className="p-4 rounded-xl bg-white/5 border border-border">
+            <p className="text-xs text-text-tertiary">Projected Total</p>
             <p className="text-lg font-semibold mt-1" style={{ color: gaugeColor }}>{formatCurrency(projectedTotal)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">this month</p>
+            <p className="text-xs text-text-tertiary mt-0.5">this month</p>
           </div>
-          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            <p className="text-xs text-gray-500">Last Month Total</p>
-            <p className="text-lg font-semibold text-gray-300 mt-1">{formatCurrency(prevMonthTotal)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">actual spend</p>
+          <div className="p-4 rounded-xl bg-white/5 border border-border">
+            <p className="text-xs text-text-tertiary">Last Month Total</p>
+            <p className="text-lg font-semibold text-foreground mt-1">{formatCurrency(prevMonthTotal)}</p>
+            <p className="text-xs text-text-tertiary mt-0.5">actual spend</p>
           </div>
-          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            <p className="text-xs text-gray-500">Pace</p>
+          <div className="p-4 rounded-xl bg-white/5 border border-border">
+            <p className="text-xs text-text-tertiary">Pace</p>
             <p className="text-lg font-semibold mt-1" style={{ color: pace <= 0 ? rawColors.ios.green : rawColors.ios.red }}>
               {pace <= 0 ? 'Under' : 'Over'} Budget
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">{Math.abs(Math.round(pace))}% {pace <= 0 ? 'slower' : 'faster'}</p>
+            <p className="text-xs text-text-tertiary mt-0.5">{Math.abs(Math.round(pace))}% {pace <= 0 ? 'slower' : 'faster'}</p>
           </div>
         </div>
       </div>

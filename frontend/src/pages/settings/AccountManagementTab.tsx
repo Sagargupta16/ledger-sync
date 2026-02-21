@@ -22,30 +22,30 @@ export default function AccountManagementTab() {
   return (
     <div className="space-y-6">
       {/* User Info Section */}
-      <div className="glass rounded-lg p-5 border border-white/10">
+      <div className="glass rounded-lg p-5 border border-border">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <UserCog className="w-5 h-5 text-primary" />
           Account Information
         </h3>
         <div className="space-y-3">
-          <div className="flex justify-between items-center py-2 border-b border-white/10">
-            <span className="text-gray-400">Email</span>
+          <div className="flex justify-between items-center py-2 border-b border-border">
+            <span className="text-muted-foreground">Email</span>
             <span className="text-white">{user?.email || 'N/A'}</span>
           </div>
-          <div className="flex justify-between items-center py-2 border-b border-white/10">
-            <span className="text-gray-400">Name</span>
+          <div className="flex justify-between items-center py-2 border-b border-border">
+            <span className="text-muted-foreground">Name</span>
             <span className="text-white">{user?.full_name || 'Not set'}</span>
           </div>
-          <div className="flex justify-between items-center py-2 border-b border-white/10">
-            <span className="text-gray-400">Account Status</span>
+          <div className="flex justify-between items-center py-2 border-b border-border">
+            <span className="text-muted-foreground">Account Status</span>
             <span
-              className={`px-2 py-1 rounded text-xs ${user?.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}
+              className={`px-2 py-1 rounded text-xs ${user?.is_active ? 'bg-ios-green/20 text-ios-green' : 'bg-ios-red/20 text-ios-red'}`}
             >
               {user?.is_active ? 'Active' : 'Inactive'}
             </span>
           </div>
           <div className="flex justify-between items-center py-2">
-            <span className="text-gray-400">Member Since</span>
+            <span className="text-muted-foreground">Member Since</span>
             <span className="text-white">
               {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
             </span>
@@ -54,18 +54,18 @@ export default function AccountManagementTab() {
       </div>
 
       {/* Reset Account Section */}
-      <div className="glass rounded-lg p-5 border border-amber-500/30 bg-amber-500/5">
-        <h3 className="text-lg font-semibold text-amber-400 mb-2 flex items-center gap-2">
+      <div className="glass rounded-lg p-5 border border-ios-orange/30 bg-ios-orange/5">
+        <h3 className="text-lg font-semibold text-ios-orange mb-2 flex items-center gap-2">
           <RotateCcw className="w-5 h-5" />
           Reset Account
         </h3>
-        <p className="text-gray-400 text-sm mb-4">
+        <p className="text-muted-foreground text-sm mb-4">
           This will delete all your transactions, import history, and reset preferences to defaults.
           Your login credentials will be preserved.
         </p>
         {showResetConfirm ? (
-          <div className="space-y-3 p-4 bg-amber-500/10 rounded-lg border border-amber-500/30">
-            <p className="text-amber-300 text-sm font-medium">
+          <div className="space-y-3 p-4 bg-ios-orange/10 rounded-lg border border-ios-orange/30">
+            <p className="text-ios-orange text-sm font-medium">
               Are you sure? This will remove all your financial data!
             </p>
             <div className="flex gap-2">
@@ -83,13 +83,13 @@ export default function AccountManagementTab() {
                   })
                 }}
                 disabled={resetAccount.isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-black rounded-lg hover:bg-amber-400 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-ios-orange text-black rounded-lg hover:bg-ios-orange transition-colors disabled:opacity-50"
               >
                 {resetAccount.isPending ? 'Resetting...' : 'Yes, Reset Everything'}
               </button>
               <button
                 onClick={() => setShowResetConfirm(false)}
-                className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all"
+                className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
               >
                 Cancel
               </button>
@@ -98,7 +98,7 @@ export default function AccountManagementTab() {
         ) : (
           <button
             onClick={() => setShowResetConfirm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/30 transition-all border border-amber-500/30"
+            className="flex items-center gap-2 px-4 py-2 bg-ios-orange/20 text-ios-orange rounded-lg hover:bg-ios-orange/30 transition-colors border border-ios-orange/30"
           >
             <RotateCcw className="w-4 h-4" />
             Reset Account Data
@@ -107,26 +107,26 @@ export default function AccountManagementTab() {
       </div>
 
       {/* Delete Account Section */}
-      <div className="glass rounded-lg p-5 border border-red-500/30 bg-red-500/5">
-        <h3 className="text-lg font-semibold text-red-400 mb-2 flex items-center gap-2">
+      <div className="glass rounded-lg p-5 border border-ios-red/30 bg-ios-red/5">
+        <h3 className="text-lg font-semibold text-ios-red mb-2 flex items-center gap-2">
           <Trash2 className="w-5 h-5" />
           Delete Account
         </h3>
-        <p className="text-gray-400 text-sm mb-4">
+        <p className="text-muted-foreground text-sm mb-4">
           Permanently delete your account and all associated data. This action cannot be undone.
         </p>
         {showDeleteConfirm ? (
-          <div className="space-y-3 p-4 bg-red-500/10 rounded-lg border border-red-500/30">
-            <p className="text-red-300 text-sm font-medium">
+          <div className="space-y-3 p-4 bg-ios-red/10 rounded-lg border border-ios-red/30">
+            <p className="text-ios-red text-sm font-medium">
               This is permanent! Type{' '}
-              <span className="font-mono bg-red-500/20 px-1 rounded">DELETE</span> to confirm:
+              <span className="font-mono bg-ios-red/20 px-1 rounded">DELETE</span> to confirm:
             </p>
             <input
               type="text"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
               placeholder="Type DELETE to confirm"
-              className="w-full px-3 py-2 bg-white/5 border border-red-500/30 rounded-lg text-white text-sm focus:border-red-500"
+              className="w-full px-3 py-2 bg-white/5 border border-ios-red/30 rounded-lg text-white text-sm focus:border-ios-red"
             />
             <div className="flex gap-2">
               <button
@@ -142,7 +142,7 @@ export default function AccountManagementTab() {
                   })
                 }}
                 disabled={deleteConfirmText !== 'DELETE' || deleteAccount.isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-ios-red text-white rounded-lg hover:bg-ios-red transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {deleteAccount.isPending ? 'Deleting...' : 'Permanently Delete'}
               </button>
@@ -151,7 +151,7 @@ export default function AccountManagementTab() {
                   setShowDeleteConfirm(false)
                   setDeleteConfirmText('')
                 }}
-                className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all"
+                className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
               >
                 Cancel
               </button>
@@ -160,7 +160,7 @@ export default function AccountManagementTab() {
         ) : (
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all border border-red-500/30"
+            className="flex items-center gap-2 px-4 py-2 bg-ios-red/20 text-ios-red rounded-lg hover:bg-ios-red/30 transition-colors border border-ios-red/30"
           >
             <Trash2 className="w-4 h-4" />
             Delete Account

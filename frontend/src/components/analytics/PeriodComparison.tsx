@@ -214,7 +214,7 @@ function SummaryCard({ label, color, changePercent, isExpense, showRate, rateVal
   )
 }
 
-const selectClass = 'px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] border border-white/[0.08] text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors backdrop-blur-xl'
+const selectClass = 'px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors backdrop-blur-xl'
 
 export default function PeriodComparison() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
@@ -337,7 +337,7 @@ export default function PeriodComparison() {
 
   if (isLoading) {
     return (
-      <div className="glass rounded-2xl border border-white/[0.08] p-6">
+      <div className="glass rounded-2xl border border-border p-6">
         <div className="h-8 skeleton w-1/3 mb-4" />
         <div className="h-64 skeleton" />
       </div>
@@ -346,7 +346,7 @@ export default function PeriodComparison() {
 
   if (availableMonths.length < 2) {
     return (
-      <div className="glass rounded-2xl border border-white/[0.08] p-6">
+      <div className="glass rounded-2xl border border-border p-6">
         <h3 className="text-lg font-semibold mb-2">Period Comparison</h3>
         <p style={{ color: rawColors.text.secondary }}>Need at least 2 months of data for comparison.</p>
       </div>
@@ -358,7 +358,7 @@ export default function PeriodComparison() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="glass rounded-2xl border border-white/[0.08] p-6 shadow-xl shadow-black/20"
+      className="glass rounded-2xl border border-border p-6 shadow-xl shadow-black/20"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
@@ -384,13 +384,13 @@ export default function PeriodComparison() {
       {/* Mode Toggle & Selectors - iOS style */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6 p-4 rounded-2xl glass-thin">
         {/* Mode Toggle - iOS segmented control */}
-        <div className="flex bg-white/[0.06] rounded-xl p-1" role="tablist" aria-label="Compare mode">
+        <div className="flex bg-white/5 rounded-xl p-1" role="tablist" aria-label="Compare mode">
           <button
             type="button"
             role="tab"
             aria-selected={compareMode === 'months'}
             onClick={() => setCompareMode('months')}
-            className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
+            className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
             style={{
               backgroundColor: compareMode === 'months' ? rawColors.ios.blue : 'transparent',
               color: compareMode === 'months' ? '#fff' : rawColors.text.secondary
@@ -403,7 +403,7 @@ export default function PeriodComparison() {
             role="tab"
             aria-selected={compareMode === 'years'}
             onClick={() => setCompareMode('years')}
-            className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
+            className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
             style={{
               backgroundColor: compareMode === 'years' ? rawColors.ios.blue : 'transparent',
               color: compareMode === 'years' ? '#fff' : rawColors.text.secondary
@@ -413,7 +413,7 @@ export default function PeriodComparison() {
           </button>
         </div>
 
-        <div className="h-6 w-px bg-white/[0.08] hidden sm:block" />
+        <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
         {/* Period Selectors - iOS style */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -428,7 +428,7 @@ export default function PeriodComparison() {
                 aria-label="First month to compare"
               >
                 {availableMonths.map((m) => (
-                  <option key={m.month} value={m.month} className="bg-[#1c1c1e]">
+                  <option key={m.month} value={m.month} className="bg-surface-dropdown">
                     {formatMonthLabel(m.month)}
                   </option>
                 ))}
@@ -441,7 +441,7 @@ export default function PeriodComparison() {
                 aria-label="Second month to compare"
               >
                 {availableMonths.map((m) => (
-                  <option key={m.month} value={m.month} className="bg-[#1c1c1e]">
+                  <option key={m.month} value={m.month} className="bg-surface-dropdown">
                     {formatMonthLabel(m.month)}
                   </option>
                 ))}
@@ -456,7 +456,7 @@ export default function PeriodComparison() {
                 aria-label="First year to compare"
               >
                 {availableYears.map((year) => (
-                  <option key={year} value={year} className="bg-[#1c1c1e]">
+                  <option key={year} value={year} className="bg-surface-dropdown">
                     {year}
                   </option>
                 ))}
@@ -469,7 +469,7 @@ export default function PeriodComparison() {
                 aria-label="Second year to compare"
               >
                 {availableYears.map((year) => (
-                  <option key={year} value={year} className="bg-[#1c1c1e]">
+                  <option key={year} value={year} className="bg-surface-dropdown">
                     {year}
                   </option>
                 ))}
@@ -484,7 +484,7 @@ export default function PeriodComparison() {
         <div className="overflow-x-auto rounded-xl">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/[0.08]">
+              <tr className="border-b border-border">
                 <th className="text-left py-3 px-4 text-sm font-semibold" style={{ color: rawColors.text.secondary }}>Metric</th>
                 <th className="text-right py-3 px-4 text-sm font-semibold" style={{ color: rawColors.ios.blue }}>
                   {getPeriod1Label()}
@@ -503,7 +503,7 @@ export default function PeriodComparison() {
               {comparisonMetrics.map((metric) => (
                 <tr
                   key={metric.label}
-                  className="border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors"
+                  className="border-b border-border hover:bg-white/10 transition-colors"
                 >
                   <td className="py-3 px-4 text-sm font-medium text-white/90">
                     {metric.label}

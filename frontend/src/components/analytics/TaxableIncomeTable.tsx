@@ -39,7 +39,7 @@ export default function TaxableIncomeTable({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.7 }}
-      className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+      className="glass rounded-xl border border-border p-6 shadow-lg"
     >
       <h3 className="text-lg font-semibold text-white mb-6">
         Salaried Taxable Income for {selectedFY}
@@ -47,11 +47,11 @@ export default function TaxableIncomeTable({
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/10">
-              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Date</th>
-              <th className="text-right py-3 px-4 text-sm font-semibold text-gray-300">Amount</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Type</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-300">Note</th>
+            <tr className="border-b border-border">
+              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Date</th>
+              <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Amount</th>
+              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Type</th>
+              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Note</th>
             </tr>
           </thead>
           <tbody>
@@ -61,18 +61,18 @@ export default function TaxableIncomeTable({
                   data.transactions.length > 0 && (
                     <React.Fragment key={group}>
                       <tr
-                        className="border-b border-white/10 bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+                        className="border-b border-border bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
                         onClick={() => toggleGroup(group)}
                       >
                         <td colSpan={2} className="py-3 px-4 text-left font-bold text-white">
                           <div className="flex items-center gap-2">
                             {expandedGroups.has(group) ? (
-                              <ChevronDown className="w-4 h-4 text-gray-400" />
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
                             ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-400" />
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
                             )}
                             {group}
-                            <span className="text-xs font-normal text-gray-400">
+                            <span className="text-xs font-normal text-muted-foreground">
                               ({data.transactions.length})
                             </span>
                           </div>
@@ -90,7 +90,7 @@ export default function TaxableIncomeTable({
                         data.transactions.map((tx) => (
                           <motion.tr
                             key={tx.id}
-                            className="border-b border-white/5"
+                            className="border-b border-border"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                           >
@@ -100,15 +100,15 @@ export default function TaxableIncomeTable({
                             <td className="py-3 px-4 text-right">
                               {group === 'EPF' ? (
                                 <div>
-                                  <div className="font-bold text-green-400">
+                                  <div className="font-bold text-ios-green">
                                     {formatCurrency(tx.amount / 2)}
                                   </div>
-                                  <div className="text-xs text-gray-400">
+                                  <div className="text-xs text-muted-foreground">
                                     (50% of {formatCurrency(tx.amount)})
                                   </div>
                                 </div>
                               ) : (
-                                <span className="font-bold text-green-400">
+                                <span className="font-bold text-ios-green">
                                   {formatCurrency(tx.amount)}
                                 </span>
                               )}

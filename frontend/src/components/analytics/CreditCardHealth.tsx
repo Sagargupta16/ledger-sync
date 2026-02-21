@@ -58,13 +58,13 @@ export default function CreditCardHealth() {
   const getStatusColor = (status: CreditCardAccount['status']) => {
     switch (status) {
       case 'low':
-        return 'text-green-500 bg-green-500/20 border-green-500/30'
+        return 'text-ios-green bg-ios-green/20 border-ios-green/30'
       case 'medium':
-        return 'text-blue-500 bg-blue-500/20 border-blue-500/30'
+        return 'text-ios-blue bg-ios-blue/20 border-ios-blue/30'
       case 'high':
-        return 'text-yellow-500 bg-yellow-500/20 border-yellow-500/30'
+        return 'text-ios-yellow bg-ios-yellow/20 border-ios-yellow/30'
       case 'critical':
-        return 'text-red-500 bg-red-500/20 border-red-500/30'
+        return 'text-ios-red bg-ios-red/20 border-ios-red/30'
     }
   }
 
@@ -80,15 +80,15 @@ export default function CreditCardHealth() {
   }
 
   const getUtilizationBar = (utilization: number) => {
-    let color = 'bg-green-500'
-    if (utilization > 75) color = 'bg-red-500'
-    else if (utilization > 50) color = 'bg-yellow-500'
-    else if (utilization > 30) color = 'bg-blue-500'
+    let color = 'bg-ios-green'
+    if (utilization > 75) color = 'bg-ios-red'
+    else if (utilization > 50) color = 'bg-ios-yellow'
+    else if (utilization > 30) color = 'bg-ios-blue'
 
     return (
       <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
         <div
-          className={`h-full ${color} transition-all duration-500`}
+          className={`h-full ${color} transition-colors duration-500`}
           style={{ width: `${Math.min(100, utilization)}%` }}
         />
       </div>
@@ -97,7 +97,7 @@ export default function CreditCardHealth() {
 
   if (isLoading) {
     return (
-      <div className="glass rounded-2xl border border-white/10 p-6 animate-pulse">
+      <div className="glass rounded-2xl border border-border p-6 animate-pulse">
         <div className="h-8 bg-muted rounded w-1/3 mb-4" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -110,10 +110,10 @@ export default function CreditCardHealth() {
 
   if (creditCards.length === 0) {
     return (
-      <div className="glass rounded-2xl border border-white/10 p-6">
+      <div className="glass rounded-2xl border border-border p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-purple-500/20 rounded-xl">
-            <CreditCard className="w-6 h-6 text-purple-500" />
+          <div className="p-3 bg-ios-purple/20 rounded-xl">
+            <CreditCard className="w-6 h-6 text-ios-purple" />
           </div>
           <h3 className="text-lg font-semibold">Credit Card Health</h3>
         </div>
@@ -126,12 +126,12 @@ export default function CreditCardHealth() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6 shadow-xl"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl ${overallUtilization > 50 ? 'bg-yellow-500/20' : 'bg-green-500/20'}`}>
-            <CreditCard className={`w-6 h-6 ${overallUtilization > 50 ? 'text-yellow-500' : 'text-green-500'}`} />
+          <div className={`p-3 rounded-xl ${overallUtilization > 50 ? 'bg-ios-yellow/20' : 'bg-ios-green/20'}`}>
+            <CreditCard className={`w-6 h-6 ${overallUtilization > 50 ? 'text-ios-yellow' : 'text-ios-green'}`} />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Credit Card Health</h3>
@@ -143,10 +143,10 @@ export default function CreditCardHealth() {
       </div>
 
       {/* Overall Utilization */}
-      <div className="mb-6 p-4 rounded-xl bg-background/30 border border-white/10">
+      <div className="mb-6 p-4 rounded-xl bg-background/30 border border-border">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium">Total Credit Utilization</span>
-          <span className={`font-bold ${overallUtilization > 50 ? 'text-yellow-500' : 'text-green-500'}`}>
+          <span className={`font-bold ${overallUtilization > 50 ? 'text-ios-yellow' : 'text-ios-green'}`}>
             {formatPercent(overallUtilization)}
           </span>
         </div>
@@ -182,11 +182,11 @@ export default function CreditCardHealth() {
 
       {/* Recommendations */}
       {creditCards.some((c) => c.status === 'critical' || c.status === 'high') && (
-        <div className="mt-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+        <div className="mt-4 p-4 rounded-xl bg-ios-yellow/10 border border-ios-yellow/20">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-ios-yellow flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-yellow-500">High Utilization Warning</p>
+              <p className="text-sm font-medium text-ios-yellow">High Utilization Warning</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Credit utilization above 30% can affect your credit score. Consider paying down balances
                 on high-utilization cards.
@@ -198,17 +198,17 @@ export default function CreditCardHealth() {
 
       {/* Tips */}
       <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-        <div className="p-2 rounded-lg bg-green-500/10">
-          <p className="text-xs font-medium text-green-500">&lt;30%</p>
-          <p className="text-[10px] text-muted-foreground">Excellent</p>
+        <div className="p-2 rounded-lg bg-ios-green/10">
+          <p className="text-xs font-medium text-ios-green">&lt;30%</p>
+          <p className="text-caption text-muted-foreground">Excellent</p>
         </div>
-        <div className="p-2 rounded-lg bg-yellow-500/10">
-          <p className="text-xs font-medium text-yellow-500">30-50%</p>
-          <p className="text-[10px] text-muted-foreground">Good</p>
+        <div className="p-2 rounded-lg bg-ios-yellow/10">
+          <p className="text-xs font-medium text-ios-yellow">30-50%</p>
+          <p className="text-caption text-muted-foreground">Good</p>
         </div>
-        <div className="p-2 rounded-lg bg-red-500/10">
-          <p className="text-xs font-medium text-red-500">&gt;50%</p>
-          <p className="text-[10px] text-muted-foreground">Reduce</p>
+        <div className="p-2 rounded-lg bg-ios-red/10">
+          <p className="text-xs font-medium text-ios-red">&gt;50%</p>
+          <p className="text-caption text-muted-foreground">Reduce</p>
         </div>
       </div>
     </motion.div>

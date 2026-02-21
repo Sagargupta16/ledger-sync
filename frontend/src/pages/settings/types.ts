@@ -21,12 +21,12 @@ export const ACCOUNT_TYPES = [
 ]
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  Cash: 'from-green-500 to-emerald-600',
-  'Bank Accounts': 'from-blue-500 to-cyan-600',
-  'Credit Cards': 'from-orange-500 to-red-600',
-  Investments: 'from-purple-500 to-pink-600',
-  Loans: 'from-red-500 to-orange-600',
-  'Other Wallets': 'from-indigo-500 to-blue-600',
+  Cash: 'from-ios-green to-ios-green',
+  'Bank Accounts': 'from-ios-blue to-ios-teal',
+  'Credit Cards': 'from-ios-orange to-ios-red',
+  Investments: 'from-ios-purple to-ios-pink',
+  Loans: 'from-ios-red to-ios-orange',
+  'Other Wallets': 'from-ios-indigo to-ios-blue',
 }
 
 // Month names for fiscal year dropdown
@@ -47,14 +47,14 @@ export const MONTHS = [
 
 // Investment types
 export const INVESTMENT_TYPES = [
-  { value: 'stocks', label: 'Stocks', color: 'from-blue-500 to-blue-600' },
-  { value: 'mutual_funds', label: 'Mutual Funds', color: 'from-purple-500 to-purple-600' },
-  { value: 'fixed_deposits', label: 'Fixed Deposits', color: 'from-amber-500 to-amber-600' },
-  { value: 'ppf_epf', label: 'PPF/EPF', color: 'from-green-500 to-green-600' },
-  { value: 'real_estate', label: 'Real Estate', color: 'from-pink-500 to-pink-600' },
-  { value: 'gold', label: 'Gold', color: 'from-yellow-500 to-yellow-600' },
-  { value: 'crypto', label: 'Crypto', color: 'from-orange-500 to-orange-600' },
-  { value: 'other', label: 'Other', color: 'from-gray-500 to-gray-600' },
+  { value: 'stocks', label: 'Stocks', color: 'from-ios-blue to-ios-blue' },
+  { value: 'mutual_funds', label: 'Mutual Funds', color: 'from-ios-purple to-ios-purple' },
+  { value: 'fixed_deposits', label: 'Fixed Deposits', color: 'from-ios-orange to-ios-orange' },
+  { value: 'ppf_epf', label: 'PPF/EPF', color: 'from-ios-green to-ios-green' },
+  { value: 'real_estate', label: 'Real Estate', color: 'from-ios-pink to-ios-pink' },
+  { value: 'gold', label: 'Gold', color: 'from-ios-yellow to-ios-yellow' },
+  { value: 'crypto', label: 'Crypto', color: 'from-ios-orange to-ios-orange' },
+  { value: 'other', label: 'Other', color: 'from-muted-foreground to-text-tertiary' },
 ]
 
 // Time range options (aligned with AnalyticsViewMode)
@@ -78,25 +78,25 @@ export const INCOME_CLASSIFICATION_TYPES = [
   {
     value: 'taxable',
     label: '💰 Taxable Income',
-    color: 'from-red-500 to-orange-600',
+    color: 'from-ios-red to-ios-orange',
     description: 'Salary, bonus, freelance income',
   },
   {
     value: 'investment',
     label: '📈 Investment Returns',
-    color: 'from-green-500 to-emerald-600',
+    color: 'from-ios-green to-ios-green',
     description: 'Dividends, interest, capital gains',
   },
   {
     value: 'non_taxable',
     label: '💳 Cashbacks',
-    color: 'from-blue-500 to-cyan-600',
+    color: 'from-ios-blue to-ios-teal',
     description: 'Refunds, cashbacks, rewards',
   },
   {
     value: 'other',
     label: '📦 Others',
-    color: 'from-purple-500 to-pink-600',
+    color: 'from-ios-purple to-ios-pink',
     description: 'Gifts, prizes, miscellaneous',
   },
 ]

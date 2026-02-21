@@ -104,7 +104,7 @@ export default function ErrorState({
       {onRetry && (
         <button
           onClick={onRetry}
-          className={`mt-4 inline-flex items-center gap-2 px-4 py-2 bg-ios-red/20 text-ios-red rounded-lg hover:bg-ios-red/30 transition-all ${
+          className={`mt-4 inline-flex items-center gap-2 px-4 py-2 bg-ios-red/20 text-ios-red rounded-lg hover:bg-ios-red/30 transition-colors ${
             isCompact ? 'text-xs' : 'text-sm'
           }`}
           aria-label="Retry loading"

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps } from '@/components/ui'
@@ -45,8 +46,8 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <BarChart data={data} barGap={4}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-          <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
-          <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: '#9ca3af', fontSize: 11 }} />
+          <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
+          <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
           <RechartsTooltip
             {...chartTooltipProps}
             formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}

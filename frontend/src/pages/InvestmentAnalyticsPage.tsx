@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion'
+import { rawColors } from '@/constants/colors'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, PieChart, DollarSign, LineChart } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
@@ -18,10 +20,10 @@ const INVESTMENT_CATEGORIES = ['FD/Bonds', 'Mutual Funds', 'PPF/EPF', 'Stocks'] 
 type InvestmentCategory = typeof INVESTMENT_CATEGORIES[number]
 
 const CATEGORY_COLORS: Record<InvestmentCategory, string> = {
-  'FD/Bonds': '#ec4899',      // Pink
-  'Mutual Funds': '#8b5cf6',  // Purple
+  'FD/Bonds': rawColors.ios.pink,      // Pink
+  'Mutual Funds': rawColors.ios.purple,  // Purple
   'PPF/EPF': '#f59e0b',       // Amber
-  'Stocks': '#34c759',        // iOS Green
+  'Stocks': rawColors.ios.green,        // iOS Green
 }
 
 // Map investment types from preferences to our 4 categories
@@ -302,7 +304,7 @@ export default function InvestmentAnalyticsPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-xl border border-white/10 p-8 shadow-lg text-center"
+            className="glass rounded-xl border border-border p-8 shadow-lg text-center"
           >
             <p className="text-muted-foreground mb-4">No investment accounts classified yet.</p>
             <p className="text-sm text-muted-foreground">
@@ -342,11 +344,11 @@ export default function InvestmentAnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-500/20 rounded-xl shadow-lg shadow-green-500/30">
-                <TrendingUp className="w-6 h-6 text-green-500" />
+              <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
+                <TrendingUp className="w-6 h-6 text-ios-green" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Investment Value</p>
@@ -361,11 +363,11 @@ export default function InvestmentAnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
-                <PieChart className="w-6 h-6 text-blue-500" />
+              <div className="p-3 bg-ios-blue/20 rounded-xl shadow-lg shadow-ios-blue/30">
+                <PieChart className="w-6 h-6 text-ios-blue" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Portfolio Assets</p>
@@ -378,11 +380,11 @@ export default function InvestmentAnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-purple-500/20 rounded-xl shadow-lg shadow-purple-500/30">
-                <DollarSign className="w-6 h-6 text-purple-500" />
+              <div className="p-3 bg-ios-purple/20 rounded-xl shadow-lg shadow-ios-purple/30">
+                <DollarSign className="w-6 h-6 text-ios-purple" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Est. Returns (5%)</p>
@@ -398,15 +400,15 @@ export default function InvestmentAnalyticsPage() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <div className="flex items-center gap-3 mb-6">
-            <PieChart className="w-5 h-5 text-blue-400" />
+            <PieChart className="w-5 h-5 text-ios-blue" />
             <h3 className="text-lg font-semibold text-white">Asset Allocation</h3>
           </div>
           {isLoading && (
             <div className="h-80 flex items-center justify-center">
-              <div className="animate-pulse text-gray-400">Loading chart...</div>
+              <div className="animate-pulse text-muted-foreground">Loading chart...</div>
             </div>
           )}
           {!isLoading && assetAllocation.length > 0 && (
@@ -449,15 +451,15 @@ export default function InvestmentAnalyticsPage() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <div className="flex items-center gap-3 mb-6">
-            <LineChart className="w-5 h-5 text-purple-400" />
+            <LineChart className="w-5 h-5 text-ios-purple" />
             <h3 className="text-lg font-semibold text-white">Investment Growth Over Time</h3>
           </div>
           {isLoading && (
             <div className="h-80 flex items-center justify-center">
-              <div className="animate-pulse text-gray-400">Loading chart...</div>
+              <div className="animate-pulse text-muted-foreground">Loading chart...</div>
             </div>
           )}
           {!isLoading && filteredGrowthData.length > 0 && (
@@ -474,7 +476,7 @@ export default function InvestmentAnalyticsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis
                     dataKey="date"
-                    stroke="#9ca3af"
+                    stroke={CHART_AXIS_COLOR}
                     angle={-45}
                     textAnchor="end"
                     height={80}
@@ -482,7 +484,7 @@ export default function InvestmentAnalyticsPage() {
                     interval={Math.max(1, Math.floor(filteredGrowthData.length / 20))}
                   />
                   <YAxis
-                    stroke="#9ca3af"
+                    stroke={CHART_AXIS_COLOR}
                     tickFormatter={(value) => formatCurrencyShort(value)}
                   />
                   <Tooltip
@@ -526,30 +528,30 @@ export default function InvestmentAnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <h3 className="text-lg font-semibold text-white mb-6">Investment Accounts</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400">Account</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Value</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Allocation</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Account</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Value</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Allocation</th>
                   </tr>
                 </thead>
                 <tbody>
                   {portfolioData.map((item, index) => (
                     <motion.tr
                       key={`${item.name}-${index}`}
-                      className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                      className="border-b border-border hover:bg-white/10 transition-colors"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.6 + index * 0.05 }}
                     >
                       <td className="py-3 px-4 text-white font-medium">{item.name}</td>
-                      <td className="py-3 px-4 text-right text-green-400">{formatCurrency(item.value)}</td>
-                      <td className="py-3 px-4 text-right text-purple-400">{formatPercent(Number.parseFloat(item.percentage))}</td>
+                      <td className="py-3 px-4 text-right text-ios-green">{formatCurrency(item.value)}</td>
+                      <td className="py-3 px-4 text-right text-ios-purple">{formatPercent(Number.parseFloat(item.percentage))}</td>
                     </motion.tr>
                   ))}
                 </tbody>

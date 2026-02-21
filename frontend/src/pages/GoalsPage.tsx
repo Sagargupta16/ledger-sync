@@ -54,7 +54,7 @@ function CircularProgress({ progress, color, size = 80 }: Readonly<{ progress: n
         strokeLinecap="round"
         strokeDasharray={circumference}
         strokeDashoffset={offset}
-        className="transition-all duration-700 ease-out"
+        className="transition-colors duration-700 ease-out"
       />
     </svg>
   )
@@ -128,7 +128,7 @@ export default function GoalsPage() {
         action={
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors hover:opacity-90"
             style={{ background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})` }}
           >
             <Plus className="w-4 h-4" /> Create Goal
@@ -158,7 +158,7 @@ export default function GoalsPage() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <form onSubmit={handleSubmit} className="glass rounded-2xl border border-white/10 p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="glass rounded-2xl border border-border p-6 space-y-4">
               <h3 className="text-lg font-semibold text-white">Create New Goal</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
@@ -166,12 +166,12 @@ export default function GoalsPage() {
                   placeholder="Goal name *"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="px-4 py-2.5 bg-gray-800/80 border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-purple-500/50"
+                  className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
                 />
                 <select
                   value={formData.goal_type}
                   onChange={(e) => setFormData({ ...formData, goal_type: e.target.value })}
-                  className="px-4 py-2.5 bg-gray-800/80 border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-purple-500/50"
+                  className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
                 >
                   <option value="savings">Savings</option>
                   <option value="debt_payoff">Debt Payoff</option>
@@ -185,13 +185,13 @@ export default function GoalsPage() {
                   placeholder="Target amount *"
                   value={formData.target_amount}
                   onChange={(e) => setFormData({ ...formData, target_amount: e.target.value })}
-                  className="px-4 py-2.5 bg-gray-800/80 border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-purple-500/50"
+                  className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
                 />
                 <input
                   type="date"
                   value={formData.target_date}
                   onChange={(e) => setFormData({ ...formData, target_date: e.target.value })}
-                  className="px-4 py-2.5 bg-gray-800/80 border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-purple-500/50"
+                  className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
                 />
               </div>
               <input
@@ -199,20 +199,20 @@ export default function GoalsPage() {
                 placeholder="Notes (optional)"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full px-4 py-2.5 bg-gray-800/80 border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-purple-500/50"
+                className="w-full px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
               />
               <div className="flex gap-3">
                 <button
                   type="submit"
                   disabled={createGoal.isPending}
-                  className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-green-600 hover:bg-green-500 transition-colors disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-ios-green hover:bg-ios-green transition-colors disabled:opacity-50"
                 >
                   {createGoal.isPending ? 'Creating...' : 'Create Goal'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="px-5 py-2 rounded-xl text-sm text-gray-400 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                  className="px-5 py-2 rounded-xl text-sm text-muted-foreground bg-white/5 border border-border hover:bg-white/10 transition-colors"
                 >
                   Cancel
                 </button>
@@ -245,7 +245,7 @@ export default function GoalsPage() {
                 key={goal.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass rounded-2xl border border-white/10 p-6"
+                className="glass rounded-2xl border border-border p-6"
               >
                 {/* Header */}
                 <div className="flex items-start justify-between">
@@ -269,16 +269,16 @@ export default function GoalsPage() {
                 {/* Details */}
                 <div className="grid grid-cols-3 gap-4 mt-5">
                   <div>
-                    <p className="text-xs text-gray-500">Target</p>
+                    <p className="text-xs text-text-tertiary">Target</p>
                     <p className="text-sm font-medium text-white">{formatCurrency(goal.target_amount)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Current</p>
+                    <p className="text-xs text-text-tertiary">Current</p>
                     <p className="text-sm font-medium" style={{ color }}>{formatCurrency(goal.current_amount)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Remaining</p>
-                    <p className="text-sm font-medium text-gray-300">{formatCurrency(remaining)}</p>
+                    <p className="text-xs text-text-tertiary">Remaining</p>
+                    <p className="text-sm font-medium text-foreground">{formatCurrency(remaining)}</p>
                   </div>
                 </div>
 
@@ -299,21 +299,21 @@ export default function GoalsPage() {
                 <div className="flex items-center justify-between mt-4">
                   <div className="flex items-center gap-2">
                     {goal.is_achieved ? (
-                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <CheckCircle className="w-4 h-4 text-ios-green" />
                     ) : (
-                      <Clock className="w-4 h-4 text-gray-500" />
+                      <Clock className="w-4 h-4 text-text-tertiary" />
                     )}
                     <span className="text-xs" style={{ color: status.color }}>
                       {status.label}
                     </span>
                   </div>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-text-tertiary">
                     Target: {new Date(goal.target_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
                 </div>
 
                 {goal.notes && (
-                  <p className="mt-3 text-xs text-gray-500 italic">{goal.notes}</p>
+                  <p className="mt-3 text-xs text-text-tertiary italic">{goal.notes}</p>
                 )}
               </motion.div>
             )

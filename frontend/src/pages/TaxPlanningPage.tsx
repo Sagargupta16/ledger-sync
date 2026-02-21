@@ -379,10 +379,10 @@ export default function TaxPlanningPage() {
                     <button
                       onClick={() => setShowProjection(!showProjection)}
                       type="button"
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                         showProjection
                           ? 'bg-primary text-white shadow-lg shadow-primary/50'
-                          : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-white/10'
+                          : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
                       }`}
                     >
                       {showProjection ? 'Showing Projection' : 'Year-End Projection'}

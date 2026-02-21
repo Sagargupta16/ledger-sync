@@ -25,9 +25,9 @@ const ANOMALY_TYPE_ICONS: Record<Anomaly['anomaly_type'], typeof TrendingUp> = {
 }
 
 const SEVERITY_STYLES: Record<Anomaly['severity'], { bg: string; text: string; border: string }> = {
-  high: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
-  medium: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/20' },
-  low: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' },
+  high: { bg: 'bg-ios-red/10', text: 'text-ios-red', border: 'border-ios-red/20' },
+  medium: { bg: 'bg-ios-yellow/10', text: 'text-ios-yellow', border: 'border-ios-yellow/20' },
+  low: { bg: 'bg-ios-blue/10', text: 'text-ios-blue', border: 'border-ios-blue/20' },
 }
 
 export default function AnomalyReviewPage() {
@@ -95,13 +95,13 @@ export default function AnomalyReviewPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-white/10 p-5"
+        className="glass rounded-2xl border border-border p-5"
       >
         <div className="flex items-center gap-4 flex-wrap">
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-purple-500/50"
+            className="px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-ios-purple/50"
           >
             <option value="">All Types</option>
             <option value="high_expense">High Expense</option>
@@ -113,7 +113,7 @@ export default function AnomalyReviewPage() {
           <select
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
-            className="px-3 py-2 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-purple-500/50"
+            className="px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-ios-purple/50"
           >
             <option value="">All Severities</option>
             <option value="high">High</option>
@@ -121,12 +121,12 @@ export default function AnomalyReviewPage() {
             <option value="low">Low</option>
           </select>
 
-          <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
             <input
               type="checkbox"
               checked={includeReviewed}
               onChange={(e) => setIncludeReviewed(e.target.checked)}
-              className="rounded border-white/20 bg-gray-800"
+              className="rounded border-border-strong bg-surface-dropdown"
             />{' '}
             Include Reviewed
           </label>
@@ -156,7 +156,7 @@ export default function AnomalyReviewPage() {
                 key={anomaly.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`glass rounded-2xl border p-5 ${anomaly.is_reviewed ? 'border-white/5 opacity-60' : 'border-white/10'}`}
+                className={`glass rounded-2xl border p-5 ${anomaly.is_reviewed ? 'border-border opacity-60' : 'border-border'}`}
               >
                 {/* Header Row */}
                 <div className="flex items-start justify-between gap-4">
@@ -173,15 +173,15 @@ export default function AnomalyReviewPage() {
                           {anomaly.severity}
                         </span>
                         {anomaly.is_reviewed && (
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-400 border border-green-500/20">
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-ios-green/10 text-ios-green border border-ios-green/20">
                             {anomaly.is_dismissed ? 'Dismissed' : 'Reviewed'}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-400 mt-1">{anomaly.description}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{anomaly.description}</p>
                     </div>
                   </div>
-                  <span className="text-xs text-gray-500 whitespace-nowrap">
+                  <span className="text-xs text-text-tertiary whitespace-nowrap">
                     {new Date(anomaly.detected_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
                 </div>
@@ -190,15 +190,15 @@ export default function AnomalyReviewPage() {
                 {anomaly.expected_value != null && anomaly.actual_value != null && (
                   <div className="flex items-center gap-6 mt-3 ml-11">
                     <div className="text-xs">
-                      <span className="text-gray-500">Expected: </span>
-                      <span className="text-gray-300">{formatCurrency(anomaly.expected_value)}</span>
+                      <span className="text-text-tertiary">Expected: </span>
+                      <span className="text-foreground">{formatCurrency(anomaly.expected_value)}</span>
                     </div>
                     <div className="text-xs">
-                      <span className="text-gray-500">Actual: </span>
+                      <span className="text-text-tertiary">Actual: </span>
                       <span className="text-white font-medium">{formatCurrency(anomaly.actual_value)}</span>
                     </div>
                     {anomaly.deviation_pct != null && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${anomaly.deviation_pct > 0 ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${anomaly.deviation_pct > 0 ? 'bg-ios-red/10 text-ios-red' : 'bg-ios-green/10 text-ios-green'}`}>
                         {anomaly.deviation_pct > 0 ? '+' : ''}{formatPercent(anomaly.deviation_pct / 100)}
                       </span>
                     )}
@@ -207,7 +207,7 @@ export default function AnomalyReviewPage() {
 
                 {/* Review Notes */}
                 {anomaly.review_notes && (
-                  <div className="mt-3 ml-11 text-xs text-gray-500 italic">
+                  <div className="mt-3 ml-11 text-xs text-text-tertiary italic">
                     Note: {anomaly.review_notes}
                   </div>
                 )}
@@ -219,14 +219,14 @@ export default function AnomalyReviewPage() {
                       <button
                         onClick={() => handleReview(anomaly.id, false)}
                         disabled={reviewMutation.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-ios-green/10 text-ios-green border border-ios-green/20 hover:bg-ios-green/20 transition-colors disabled:opacity-50"
                       >
                         <Check className="w-3 h-3" /> Review
                       </button>
                       <button
                         onClick={() => handleReview(anomaly.id, true)}
                         disabled={reviewMutation.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-ios-red/10 text-ios-red border border-ios-red/20 hover:bg-ios-red/20 transition-colors disabled:opacity-50"
                       >
                         <X className="w-3 h-3" /> Dismiss
                       </button>
@@ -235,7 +235,7 @@ export default function AnomalyReviewPage() {
                           setExpandedNoteId(isExpanded ? null : anomaly.id)
                           setNoteText('')
                         }}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition-colors"
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg bg-white/5 text-muted-foreground border border-border hover:bg-white/10 transition-colors"
                       >
                         {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         Add Note
@@ -254,7 +254,7 @@ export default function AnomalyReviewPage() {
                             value={noteText}
                             onChange={(e) => setNoteText(e.target.value)}
                             placeholder="Add review notes..."
-                            className="w-full px-3 py-2 bg-gray-800/80 border border-white/10 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-purple-500/50"
+                            className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
                           />
                         </motion.div>
                       )}

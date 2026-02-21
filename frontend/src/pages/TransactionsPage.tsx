@@ -144,7 +144,7 @@ export default function TransactionsPage() {
               onClick={handleExportCSV}
               whileTap={{ scale: 0.97 }}
               disabled={isExporting || filteredTransactions.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} />
               <span className="text-sm font-medium">{isExporting ? 'Exporting...' : 'Export CSV'}</span>
@@ -157,7 +157,7 @@ export default function TransactionsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <div className="flex items-center gap-3">
             <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">

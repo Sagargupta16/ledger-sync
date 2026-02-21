@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion'
+import { rawColors } from '@/constants/colors'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { TrendingUp, TrendingDown, Banknote, Receipt } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
@@ -313,19 +315,19 @@ export default function ReturnsAnalysisPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-xl shadow-lg ${netProfitLoss >= 0 ? 'bg-green-500/20 shadow-green-500/30' : 'bg-red-500/20 shadow-red-500/30'}`}>
+              <div className={`p-3 rounded-xl shadow-lg ${netProfitLoss >= 0 ? 'bg-ios-green/20 shadow-ios-green/30' : 'bg-ios-red/20 shadow-ios-red/30'}`}>
                 {netProfitLoss >= 0 ? (
-                  <TrendingUp className="w-6 h-6 text-green-500" />
+                  <TrendingUp className="w-6 h-6 text-ios-green" />
                 ) : (
-                  <TrendingDown className="w-6 h-6 text-red-500" />
+                  <TrendingDown className="w-6 h-6 text-ios-red" />
                 )}
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Net Profit/Loss</p>
-                <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
                   {netProfitLoss >= 0 ? '' : '-'}{formatCurrency(Math.abs(netProfitLoss))}
                 </p>
               </div>
@@ -336,15 +338,15 @@ export default function ReturnsAnalysisPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-emerald-500/20 rounded-xl shadow-lg shadow-emerald-500/30">
-                <Banknote className="w-6 h-6 text-emerald-500" />
+              <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
+                <Banknote className="w-6 h-6 text-ios-green" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Dividend Income</p>
-                <p className="text-2xl font-bold text-emerald-400">
+                <p className="text-2xl font-bold text-ios-green">
                   {formatCurrency(dividendIncome)}
                 </p>
               </div>
@@ -355,15 +357,15 @@ export default function ReturnsAnalysisPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.45 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-orange-500/20 rounded-xl shadow-lg shadow-orange-500/30">
-                <Receipt className="w-6 h-6 text-orange-500" />
+              <div className="p-3 bg-ios-orange/20 rounded-xl shadow-lg shadow-ios-orange/30">
+                <Receipt className="w-6 h-6 text-ios-orange" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Broker Fees</p>
-                <p className="text-2xl font-bold text-orange-400">
+                <p className="text-2xl font-bold text-ios-orange">
                   {formatCurrency(brokerFees)}
                 </p>
               </div>
@@ -376,7 +378,7 @@ export default function ReturnsAnalysisPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.55 }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Cumulative Returns Over Time</h3>
           {cumulativeReturnsData.length > 0 ? (
@@ -384,18 +386,18 @@ export default function ReturnsAnalysisPage() {
               <AreaChart data={cumulativeReturnsData}>
                 <defs>
                   <linearGradient id="positiveGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#34c759" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#34c759" stopOpacity={0} />
+                    <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="negativeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ff6b6b" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#ff6b6b" stopOpacity={0} />
+                    <stop offset="5%" stopColor={rawColors.ios.red} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={rawColors.ios.red} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis
                   dataKey="date"
-                  stroke="#9ca3af"
+                  stroke={CHART_AXIS_COLOR}
                   fontSize={12}
                   tickFormatter={(v) => formatDateTick(v, cumulativeReturnsData.length)}
                   angle={-45}
@@ -404,7 +406,7 @@ export default function ReturnsAnalysisPage() {
                   interval={Math.max(1, Math.floor(cumulativeReturnsData.length / 20))}
                 />
                 <YAxis
-                  stroke="#9ca3af"
+                  stroke={CHART_AXIS_COLOR}
                   tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
@@ -420,7 +422,7 @@ export default function ReturnsAnalysisPage() {
                 <Area
                   type="natural"
                   dataKey="cumulative"
-                  stroke={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? "#34c759" : "#ff6b6b"}
+                  stroke={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? rawColors.ios.green : rawColors.ios.red}
                   strokeWidth={2}
                   fill={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? "url(#positiveGradient)" : "url(#negativeGradient)"}
                   isAnimationActive={cumulativeReturnsData.length < CHART_ANIMATION_THRESHOLD}
@@ -442,34 +444,34 @@ export default function ReturnsAnalysisPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.65 }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Returns Metrics</h3>
           <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <p className="text-xs text-gray-400 mb-2">CAGR</p>
-              <p className="text-2xl font-bold text-green-400">{isLoading ? '...' : formatPercent(estimatedCAGR)}</p>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground mb-2">CAGR</p>
+              <p className="text-2xl font-bold text-ios-green">{isLoading ? '...' : formatPercent(estimatedCAGR)}</p>
             </motion.div>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <p className="text-xs text-gray-400 mb-2">Monthly ROI</p>
-              <p className="text-2xl font-bold text-blue-400">{isLoading ? '...' : formatPercent(roi)}</p>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground mb-2">Monthly ROI</p>
+              <p className="text-2xl font-bold text-ios-blue">{isLoading ? '...' : formatPercent(roi)}</p>
             </motion.div>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <p className="text-xs text-gray-400 mb-2">Net P&L</p>
-              <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground mb-2">Net P&L</p>
+              <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
                 {formatCurrency(Math.abs(netProfitLoss))}
               </p>
             </motion.div>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <p className="text-xs text-gray-400 mb-2">Dividends</p>
-              <p className="text-2xl font-bold text-emerald-400">{formatCurrency(dividendIncome)}</p>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground mb-2">Dividends</p>
+              <p className="text-2xl font-bold text-ios-green">{formatCurrency(dividendIncome)}</p>
             </motion.div>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <p className="text-xs text-gray-400 mb-2">Fees Paid</p>
-              <p className="text-2xl font-bold text-orange-400">{formatCurrency(brokerFees)}</p>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground mb-2">Fees Paid</p>
+              <p className="text-2xl font-bold text-ios-orange">{formatCurrency(brokerFees)}</p>
             </motion.div>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <p className="text-xs text-gray-400 mb-2">Interest Income</p>
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground mb-2">Interest Income</p>
               <p className="text-2xl font-bold text-teal-400">{formatCurrency(interestIncome)}</p>
             </motion.div>
           </motion.div>
@@ -480,53 +482,53 @@ export default function ReturnsAnalysisPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <h3 className="text-lg font-semibold text-white mb-6">Profit & Loss Breakdown</h3>
             <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
-              <motion.div variants={fadeUpItem} className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
-                <p className="text-sm text-gray-400 mb-2">Total Income</p>
+              <motion.div variants={fadeUpItem} className="p-4 bg-ios-green/10 rounded-lg border border-ios-green/20">
+                <p className="text-sm text-muted-foreground mb-2">Total Income</p>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-xs text-gray-400">Investment Profit</span>
-                    <span className="text-sm font-semibold text-green-400">{formatCurrency(investmentProfit)}</span>
+                    <span className="text-xs text-muted-foreground">Investment Profit</span>
+                    <span className="text-sm font-semibold text-ios-green">{formatCurrency(investmentProfit)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-xs text-gray-400">Dividend Income</span>
-                    <span className="text-sm font-semibold text-emerald-400">{formatCurrency(dividendIncome)}</span>
+                    <span className="text-xs text-muted-foreground">Dividend Income</span>
+                    <span className="text-sm font-semibold text-ios-green">{formatCurrency(dividendIncome)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-xs text-gray-400">Interest Income</span>
+                    <span className="text-xs text-muted-foreground">Interest Income</span>
                     <span className="text-sm font-semibold text-teal-400">{formatCurrency(interestIncome)}</span>
                   </div>
-                  <div className="flex justify-between border-t border-green-500/20 pt-2">
-                    <span className="text-sm font-semibold text-gray-300">Total</span>
-                    <span className="text-lg font-bold text-green-400">{formatCurrency(investmentProfit + dividendIncome + interestIncome)}</span>
+                  <div className="flex justify-between border-t border-ios-green/20 pt-2">
+                    <span className="text-sm font-semibold text-foreground">Total</span>
+                    <span className="text-lg font-bold text-ios-green">{formatCurrency(investmentProfit + dividendIncome + interestIncome)}</span>
                   </div>
                 </div>
               </motion.div>
-              <motion.div variants={fadeUpItem} className="p-4 bg-red-500/10 rounded-lg border border-red-500/20">
-                <p className="text-sm text-gray-400 mb-2">Total Expenses</p>
+              <motion.div variants={fadeUpItem} className="p-4 bg-ios-red/10 rounded-lg border border-ios-red/20">
+                <p className="text-sm text-muted-foreground mb-2">Total Expenses</p>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-xs text-gray-400">Investment Loss</span>
-                    <span className="text-sm font-semibold text-red-400">{formatCurrency(investmentLoss)}</span>
+                    <span className="text-xs text-muted-foreground">Investment Loss</span>
+                    <span className="text-sm font-semibold text-ios-red">{formatCurrency(investmentLoss)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-xs text-gray-400">Broker Fees</span>
-                    <span className="text-sm font-semibold text-orange-400">{formatCurrency(brokerFees)}</span>
+                    <span className="text-xs text-muted-foreground">Broker Fees</span>
+                    <span className="text-sm font-semibold text-ios-orange">{formatCurrency(brokerFees)}</span>
                   </div>
-                  <div className="flex justify-between border-t border-red-500/20 pt-2">
-                    <span className="text-sm font-semibold text-gray-300">Total</span>
-                    <span className="text-lg font-bold text-red-400">{formatCurrency(investmentLoss + brokerFees)}</span>
+                  <div className="flex justify-between border-t border-ios-red/20 pt-2">
+                    <span className="text-sm font-semibold text-foreground">Total</span>
+                    <span className="text-lg font-bold text-ios-red">{formatCurrency(investmentLoss + brokerFees)}</span>
                   </div>
                 </div>
               </motion.div>
             </motion.div>
-            <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10">
+            <div className="mt-4 p-4 bg-white/5 rounded-lg border border-border">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-white">Net Profit/Loss</span>
-                <span className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <span className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
                   {netProfitLoss >= 0 ? '' : '-'}{formatCurrency(Math.abs(netProfitLoss))}
                 </span>
               </div>

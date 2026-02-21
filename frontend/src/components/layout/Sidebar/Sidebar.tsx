@@ -145,15 +145,15 @@ export default function Sidebar() {
       {/* Sidebar - iOS Frosted Glass */}
       <aside
         className={cn(
-          'fixed lg:sticky top-0 h-screen glass-ultra transition-all duration-300 ease-out z-40',
-          'border-r border-white/[0.06]',
-          isCollapsed ? 'w-20 overflow-visible' : 'w-72',
+          'fixed lg:sticky top-0 h-screen glass-ultra transition-colors duration-300 ease-out z-40',
+          'border-r border-border',
+          isCollapsed ? 'w-20' : 'w-72',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        <div className={cn("flex flex-col h-full", isCollapsed && "overflow-visible")}>
+        <div className="flex flex-col h-full">
           {/* Header - iOS style */}
-          <div className={cn("border-b border-white/[0.06]", isCollapsed ? "p-4" : "p-6")}>
+          <div className={cn("border-b border-border", isCollapsed ? "p-4" : "p-6")}>
             <Link to="/" className={cn(
               "flex items-center hover:opacity-80 transition-opacity",
               isCollapsed ? "justify-center" : "gap-3"
@@ -182,8 +182,8 @@ export default function Sidebar() {
           <nav
             aria-label="Main navigation"
             className={cn(
-            "flex-1 py-2",
-            isCollapsed ? "px-2 overflow-visible" : "px-3 overflow-y-auto"
+            "flex-1 py-2 overflow-y-auto overflow-x-visible scrollbar-none",
+            isCollapsed ? "px-2" : "px-3"
           )}>
             {navigationGroups.map((group) => (
               <SidebarGroup
@@ -205,12 +205,12 @@ export default function Sidebar() {
           </nav>
 
           {/* Collapse Toggle Button */}
-          <div className="p-2 border-t border-white/[0.06]">
+          <div className="p-2 border-t border-border">
             <button
               onClick={toggleCollapse}
               className={cn(
-                "w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-200",
-                "text-[#98989f] hover:bg-white/[0.08] hover:text-white hover:scale-[1.02]",
+                "w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors duration-200",
+                "text-muted-foreground hover:bg-white/10 hover:text-white hover:scale-[1.02]",
                 isCollapsed && "justify-center px-2"
               )}
               title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -228,14 +228,14 @@ export default function Sidebar() {
 
           {/* User Profile & Logout */}
           <div className={cn(
-            "border-t border-white/[0.06]",
+            "border-t border-border",
             isCollapsed ? "p-2" : "p-3"
           )}>
             {/* User Card */}
             {user && (
               <div className={cn(
-                "rounded-xl transition-all duration-200",
-                isCollapsed ? "p-2" : "p-3 bg-white/[0.04] hover:bg-white/[0.06]"
+                "rounded-xl transition-colors duration-200",
+                isCollapsed ? "p-2" : "p-3 bg-white/5 hover:bg-white/10"
               )}>
                 <div className={cn(
                   "flex items-center gap-3",
@@ -271,8 +271,8 @@ export default function Sidebar() {
                     onClick={handleLogout}
                     disabled={logout.isPending}
                     className={cn(
-                      "w-full flex items-center justify-center gap-2 mt-3 px-3 py-2 rounded-lg transition-all duration-200",
-                      "text-[#ff453a]/80 hover:text-[#ff453a] bg-[#ff453a]/5 hover:bg-[#ff453a]/10",
+                      "w-full flex items-center justify-center gap-2 mt-3 px-3 py-2 rounded-lg transition-colors duration-200",
+                      "text-ios-red-vibrant/80 hover:text-ios-red-vibrant bg-ios-red-vibrant/5 hover:bg-ios-red-vibrant/10",
                       "text-xs font-medium",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
@@ -290,8 +290,8 @@ export default function Sidebar() {
                 onClick={handleLogout}
                 disabled={logout.isPending}
                 className={cn(
-                  "w-full flex items-center justify-center mt-2 p-2 rounded-xl transition-all duration-200",
-                  "text-[#ff453a] hover:bg-[#ff453a]/10",
+                  "w-full flex items-center justify-center mt-2 p-2 rounded-xl transition-colors duration-200",
+                  "text-ios-red-vibrant hover:bg-ios-red-vibrant/10",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
                 title="Sign out"

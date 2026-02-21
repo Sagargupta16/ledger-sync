@@ -129,7 +129,7 @@ export default function DashboardPage() {
         <FinancialHealthScore transactions={filteredTransactions} />
 
         <div
-          className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
+          className="p-6 glass rounded-2xl border border-border shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
           <QuickInsights dateRange={dateRange} />
@@ -140,10 +140,10 @@ export default function DashboardPage() {
       <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
         {/* Income Sources Breakdown */}
         <div
-          className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
+          className="p-6 glass rounded-2xl border border-border shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-green-500" />
+            <Wallet className="w-5 h-5 text-ios-green" />
             Income Sources
           </h2>
           {incomeChartData.length > 0 ? (
@@ -183,10 +183,10 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 {incomeBreakdown && (
-                  <div className="pt-2 mt-2 border-t border-white/10 space-y-1">
+                  <div className="pt-2 mt-2 border-t border-border space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Total</span>
-                      <span className="text-sm font-bold text-green-500">
+                      <span className="text-sm font-bold text-ios-green">
                         {formatCurrency(
                           Object.values(incomeBreakdown).reduce((a, b) => a + b, 0)
                         )}
@@ -194,8 +194,8 @@ export default function DashboardPage() {
                     </div>
                     {cashbacksTotal > 0 && (
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-cyan-400">Cashbacks Earned</span>
-                        <span className="text-cyan-400 font-medium">
+                        <span className="text-ios-teal">Cashbacks Earned</span>
+                        <span className="text-ios-teal font-medium">
                           {formatCurrency(cashbacksTotal)}
                         </span>
                       </div>
@@ -218,10 +218,10 @@ export default function DashboardPage() {
 
         {/* Essential vs Discretionary Spending */}
         <div
-          className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
+          className="p-6 glass rounded-2xl border border-border shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-red-500" />
+            <CreditCard className="w-5 h-5 text-ios-red" />
             Spending Breakdown
           </h2>
           {spendingChartData.length > 0 ? (
@@ -268,10 +268,10 @@ export default function DashboardPage() {
                   )
                 })}
                 {spendingBreakdown && (
-                  <div className="pt-2 mt-2 border-t border-white/10">
+                  <div className="pt-2 mt-2 border-t border-border">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Total Spending</span>
-                      <span className="text-sm font-bold text-red-500">
+                      <span className="text-sm font-bold text-ios-red">
                         {formatCurrency(spendingBreakdown.total)}
                       </span>
                     </div>
@@ -295,7 +295,7 @@ export default function DashboardPage() {
       {/* Recent Activity & Period Comparison */}
       <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
         <div
-          className="p-6 glass rounded-2xl border border-white/10 shadow-xl"
+          className="p-6 glass rounded-2xl border border-border shadow-xl"
         >
           <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
           <RecentTransactions transactions={recentTransactions ?? []} isLoading={isLoadingTransactions} />

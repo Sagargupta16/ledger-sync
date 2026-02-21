@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { rawColors } from '@/constants/colors'
 import { ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { ResponsiveContainer, Sankey, Tooltip } from 'recharts'
@@ -46,16 +47,16 @@ const SankeyNodeRenderer = ({
   let fillColor: string
   if (index < incomeCategoryCount) {
     // Income nodes - green gradient
-    const greenColors = ['#34c759', '#30d158', '#84cc16', '#a3e635', '#6ee7b7']
+    const greenColors = [rawColors.ios.green, rawColors.ios.green, '#84cc16', '#a3e635', '#6ee7b7']
     fillColor = greenColors[index % greenColors.length]
   } else if (index === totalIncomeNodeIndex || index === savingsNodeIndex || index === expensesNodeIndex) {
     // Middle nodes - purple/blue
-    if (index === totalIncomeNodeIndex) fillColor = '#6366f1'
-    else if (index === savingsNodeIndex) fillColor = '#8b5cf6'
-    else fillColor = '#ec4899'
+    if (index === totalIncomeNodeIndex) fillColor = rawColors.ios.indigoVibrant
+    else if (index === savingsNodeIndex) fillColor = rawColors.ios.purple
+    else fillColor = rawColors.ios.pink
   } else {
     // Expense nodes - red/orange gradient
-    const redColors = ['#ff6b6b', '#ff9f43', '#fb923c', '#f97316', '#ff453a']
+    const redColors = [rawColors.ios.red, rawColors.ios.orange, '#fb923c', '#f97316', rawColors.ios.redVibrant]
     const expenseIndex = index - (incomeCategoryCount + 3)
     fillColor = redColors[expenseIndex % redColors.length]
   }
@@ -92,7 +93,7 @@ const SankeyNodeRenderer = ({
         y={y + height / 2 + 16}
         textAnchor={x < 400 ? 'end' : 'start'}
         dominantBaseline="middle"
-        fill="#a78bfa"
+        fill={rawColors.ios.purple}
         fontSize={11}
         fontWeight="500"
       >
@@ -330,42 +331,42 @@ const IncomeExpenseFlowPage = () => {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-1 md:grid-cols-4 gap-6"
       >
-        <div className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+        <div className="glass rounded-xl border border-border p-6 shadow-lg">
           <div className="flex items-center gap-3 mb-2">
-            <TrendingUp className="w-5 h-5 text-green-500" />
+            <TrendingUp className="w-5 h-5 text-ios-green" />
             <p className="text-sm text-muted-foreground">Total Income</p>
           </div>
-          <p className="text-2xl font-bold text-green-400">
+          <p className="text-2xl font-bold text-ios-green">
             {formatCurrency(totalIncome)}
           </p>
         </div>
 
-        <div className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+        <div className="glass rounded-xl border border-border p-6 shadow-lg">
           <div className="flex items-center gap-3 mb-2">
-            <TrendingDown className="w-5 h-5 text-red-500" />
+            <TrendingDown className="w-5 h-5 text-ios-red" />
             <p className="text-sm text-muted-foreground">Total Expense</p>
           </div>
-          <p className="text-2xl font-bold text-red-400">
+          <p className="text-2xl font-bold text-ios-red">
             {formatCurrency(totalExpense)}
           </p>
         </div>
 
-        <div className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+        <div className="glass rounded-xl border border-border p-6 shadow-lg">
           <div className="flex items-center gap-3 mb-2">
-            <ArrowRightLeft className={`w-5 h-5 ${netSavings >= 0 ? 'text-primary' : 'text-red-500'}`} />
+            <ArrowRightLeft className={`w-5 h-5 ${netSavings >= 0 ? 'text-primary' : 'text-ios-red'}`} />
             <p className="text-sm text-muted-foreground">Net Savings</p>
           </div>
-          <p className={`text-2xl font-bold ${netSavings >= 0 ? 'text-primary' : 'text-red-400'}`}>
+          <p className={`text-2xl font-bold ${netSavings >= 0 ? 'text-primary' : 'text-ios-red'}`}>
             {formatCurrency(Math.abs(netSavings))}
           </p>
         </div>
 
-        <div className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+        <div className="glass rounded-xl border border-border p-6 shadow-lg">
           <div className="flex items-center gap-3 mb-2">
-            <TrendingUp className={`w-5 h-5 ${savingsRate >= 20 ? 'text-green-500' : 'text-yellow-500'}`} />
+            <TrendingUp className={`w-5 h-5 ${savingsRate >= 20 ? 'text-ios-green' : 'text-ios-yellow'}`} />
             <p className="text-sm text-muted-foreground">Savings Rate</p>
           </div>
-          <p className={`text-2xl font-bold ${savingsRate >= 20 ? 'text-green-400' : 'text-yellow-400'}`}>
+          <p className={`text-2xl font-bold ${savingsRate >= 20 ? 'text-ios-green' : 'text-ios-yellow'}`}>
             {formatPercent(savingsRate)}
           </p>
         </div>
@@ -376,12 +377,12 @@ const IncomeExpenseFlowPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-xl border border-white/10 p-8 shadow-lg"
+        className="glass rounded-xl border border-border p-8 shadow-lg"
       >
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-500/20 rounded-xl shadow-lg shadow-purple-500/30">
-              <ArrowRightLeft className="w-6 h-6 text-purple-400" />
+            <div className="p-3 bg-ios-purple/20 rounded-xl shadow-lg shadow-ios-purple/30">
+              <ArrowRightLeft className="w-6 h-6 text-ios-purple" />
             </div>
             <div>
               <h3 className="text-xl font-semibold text-white">Cash Flow Sankey</h3>
@@ -391,15 +392,15 @@ const IncomeExpenseFlowPage = () => {
         </div>
 
         {isLoading && (
-          <div className="h-[700px] flex items-center justify-center bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-xl border border-white/5">
+          <div className="h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-              <div className="text-gray-400">Loading flow diagram...</div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-purple mx-auto mb-4"></div>
+              <div className="text-muted-foreground">Loading flow diagram...</div>
             </div>
           </div>
         )}
         {!isLoading && sankeyData.nodes.length > 0 && (
-          <div className="relative bg-gradient-to-br from-gray-900/30 to-gray-800/30 rounded-xl border border-white/5 p-6 overflow-x-auto">
+          <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6 overflow-x-auto">
             <div style={{ minWidth: '1000px', height: '700px', position: 'relative' }}>
               <ResponsiveContainer width="100%" height={700}>
                 <Sankey
@@ -409,22 +410,22 @@ const IncomeExpenseFlowPage = () => {
                   margin={{ top: 30, right: 200, bottom: 30, left: 200 }}
                   node={sankeyNodeComponent}
                   link={{
-                    stroke: '#8b5cf6',
+                    stroke: rawColors.ios.purple,
                     strokeOpacity: 0.25,
                   }}
                 >
                   <defs>
                     <linearGradient id="incomeGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#34c759" stopOpacity={0.8} />
-                      <stop offset="100%" stopColor="#30d158" stopOpacity={0.8} />
+                      <stop offset="0%" stopColor={rawColors.ios.green} stopOpacity={0.8} />
+                      <stop offset="100%" stopColor={rawColors.ios.green} stopOpacity={0.8} />
                     </linearGradient>
                     <linearGradient id="middleGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#818cf8" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.9} />
+                      <stop offset="0%" stopColor={rawColors.ios.indigo} stopOpacity={0.9} />
+                      <stop offset="100%" stopColor={rawColors.ios.purple} stopOpacity={0.9} />
                     </linearGradient>
                     <linearGradient id="expenseGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#ff6b6b" stopOpacity={0.8} />
-                      <stop offset="100%" stopColor="#ff9f43" stopOpacity={0.8} />
+                      <stop offset="0%" stopColor={rawColors.ios.red} stopOpacity={0.8} />
+                      <stop offset="100%" stopColor={rawColors.ios.orange} stopOpacity={0.8} />
                     </linearGradient>
                   </defs>
                   <Tooltip
@@ -443,7 +444,7 @@ const IncomeExpenseFlowPage = () => {
                       marginBottom: '4px',
                     }}
                     itemStyle={{
-                      color: '#a78bfa',
+                      color: rawColors.ios.purple,
                       fontSize: '13px',
                     }}
                     formatter={(value: number | undefined) => value === undefined ? '' : [
@@ -456,28 +457,28 @@ const IncomeExpenseFlowPage = () => {
             </div>
 
             {/* Legend */}
-            <div className="mt-6 pt-6 border-t border-white/10 flex flex-wrap justify-center gap-6">
+            <div className="mt-6 pt-6 border-t border-border flex flex-wrap justify-center gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #34c759, #30d158)' }}></div>
-                <span className="text-sm text-gray-300">Income Sources</span>
+                <span className="text-sm text-foreground">Income Sources</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #818cf8, #a78bfa)' }}></div>
-                <span className="text-sm text-gray-300">Total Income / Savings / Expenses</span>
+                <span className="text-sm text-foreground">Total Income / Savings / Expenses</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #ff6b6b, #ff9f43)' }}></div>
-                <span className="text-sm text-gray-300">Expense Categories</span>
+                <span className="text-sm text-foreground">Expense Categories</span>
               </div>
             </div>
           </div>
         )}
         {!isLoading && sankeyData.nodes.length === 0 && (
-          <div className="h-[700px] flex items-center justify-center bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-xl border border-white/5">
+          <div className="h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
             <div className="text-center">
-              <ArrowRightLeft className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400 text-lg">No transaction data available for FY {currentFY}</p>
-              <p className="text-gray-500 text-sm mt-2">Select a different financial year or upload transaction data</p>
+              <ArrowRightLeft className="w-16 h-16 text-text-quaternary mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">No transaction data available for FY {currentFY}</p>
+              <p className="text-text-tertiary text-sm mt-2">Select a different financial year or upload transaction data</p>
             </div>
           </div>
         )}

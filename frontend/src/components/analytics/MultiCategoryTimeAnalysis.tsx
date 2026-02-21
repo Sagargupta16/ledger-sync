@@ -88,7 +88,7 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
 
   return (
     <motion.div
-      className="glass p-6 rounded-xl border border-white/10"
+      className="glass p-6 rounded-xl border border-border"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.7 }}
@@ -98,23 +98,23 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-semibold text-white">Multi-Category Time Analysis</h3>
-            <p className="text-xs text-gray-400 mt-1">{totalTransactions} expense transactions</p>
+            <p className="text-xs text-muted-foreground mt-1">{totalTransactions} expense transactions</p>
           </div>
           <div className="flex items-center gap-2">
             {/* Cumulative Toggle */}
             <select
               value={cumulative ? 'cumulative' : 'regular'}
               onChange={(e) => setCumulative(e.target.value === 'cumulative')}
-              className="px-3 py-1.5 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 text-sm focus:outline-none"
+              className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
             >
-              <option value="cumulative" className="bg-gray-800 text-gray-200">Cumulative</option>
-              <option value="regular" className="bg-gray-800 text-gray-200">Regular</option>
+              <option value="cumulative" className="bg-surface-dropdown text-foreground">Cumulative</option>
+              <option value="regular" className="bg-surface-dropdown text-foreground">Regular</option>
             </select>
 
             {/* Export */}
             <button
               onClick={handleExport}
-              className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 transition-colors"
+              className="p-2 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-foreground transition-colors"
               type="button"
               title="Export chart"
             >

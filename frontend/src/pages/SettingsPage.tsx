@@ -333,7 +333,7 @@ export default function SettingsPage() {
     return (
       <div className="min-h-screen p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-gray-400">Loading settings...</div>
+          <div className="text-muted-foreground">Loading settings...</div>
         </div>
       </div>
     )
@@ -348,22 +348,22 @@ export default function SettingsPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-400 to-secondary bg-clip-text text-transparent drop-shadow-lg">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-ios-purple to-secondary bg-clip-text text-transparent drop-shadow-lg">
             Settings
           </h1>
           <p className="text-muted-foreground mt-2">Configure your financial tracking preferences</p>
         </motion.div>
 
         {/* Tabs */}
-        <div className="flex flex-wrap gap-2 p-1 bg-white/5 rounded-xl border border-white/10">
+        <div className="flex flex-wrap gap-2 p-1 bg-white/5 rounded-xl border border-border">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 activeTab === tab.id
                   ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg'
-                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+                  : 'text-muted-foreground hover:text-white hover:bg-white/10'
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -379,7 +379,7 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="glass rounded-xl border border-white/10 p-6"
+            className="glass rounded-xl border border-border p-6"
           >
             {activeTab === 'accounts' && (
               <AccountClassificationsTab
@@ -446,13 +446,13 @@ export default function SettingsPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent p-8 border-t border-white/10"
+          className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent p-8 border-t border-border"
         >
           <div className="max-w-7xl mx-auto flex gap-3 justify-end">
             <motion.button
               onClick={handleReset}
               whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
               <span>Reset to Defaults</span>
@@ -461,7 +461,7 @@ export default function SettingsPage() {
               onClick={handleSave}
               whileTap={{ scale: 0.97 }}
               disabled={!hasChanges || isSaving}
-              className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />
               <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>

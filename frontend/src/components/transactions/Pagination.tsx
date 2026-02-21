@@ -20,7 +20,7 @@ export default function Pagination({
   const endItem = Math.min(currentPage * itemsPerPage, totalItems)
 
   return (
-    <div className="glass rounded-xl border border-white/10 p-4 shadow-lg">
+    <div className="glass rounded-xl border border-border p-4 shadow-lg">
       <div className="flex items-center justify-between flex-wrap gap-4">
         {/* Items per page */}
         <div className="flex items-center gap-2">
@@ -28,12 +28,12 @@ export default function Pagination({
           <select
             value={itemsPerPage}
             onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-            className="px-3 py-1 bg-gray-800/80 border border-white/10 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer hover:bg-gray-800"
+            className="px-3 py-1 bg-surface-dropdown/80 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors cursor-pointer hover:bg-surface-dropdown"
           >
-            <option value={10} className="bg-gray-800 text-gray-200">10</option>
-            <option value={25} className="bg-gray-800 text-gray-200">25</option>
-            <option value={50} className="bg-gray-800 text-gray-200">50</option>
-            <option value={100} className="bg-gray-800 text-gray-200">100</option>
+            <option value={10} className="bg-surface-dropdown text-foreground">10</option>
+            <option value={25} className="bg-surface-dropdown text-foreground">25</option>
+            <option value={50} className="bg-surface-dropdown text-foreground">50</option>
+            <option value={100} className="bg-surface-dropdown text-foreground">100</option>
           </select>
           <span className="text-sm text-muted-foreground">per page</span>
         </div>
@@ -50,7 +50,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-border disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -72,9 +72,9 @@ export default function Pagination({
                 <button
                   key={pageNum}
                   onClick={() => onPageChange(pageNum)}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${currentPage === pageNum
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${currentPage === pageNum
                       ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                      : 'bg-white/5 hover:bg-white/10 border border-white/10'
+                      : 'bg-white/5 hover:bg-white/10 border border-border'
                     }`}
                 >
                   {pageNum}
@@ -86,7 +86,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-border disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronRight className="w-4 h-4" />
           </button>

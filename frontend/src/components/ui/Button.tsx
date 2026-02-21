@@ -15,12 +15,12 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     'bg-ios-blue text-white hover:bg-ios-blue-vibrant shadow-lg shadow-ios-blue/30 active:scale-[0.98]',
   secondary:
-    'glass border border-white/10 text-white hover:bg-white/[0.08] hover:border-white/[0.15] active:scale-[0.98]',
-  ghost: 'text-muted-foreground hover:text-white hover:bg-white/[0.06] active:scale-[0.98]',
+    'glass border border-border text-white hover:bg-white/10 hover:border-border-strong active:scale-[0.98]',
+  ghost: 'text-muted-foreground hover:text-white hover:bg-white/10 active:scale-[0.98]',
   danger:
     'bg-ios-red text-white hover:bg-ios-red-vibrant shadow-lg shadow-ios-red/30 active:scale-[0.98]',
   outline:
-    'border border-white/10 text-white hover:bg-white/[0.06] hover:border-white/[0.15] active:scale-[0.98]',
+    'border border-border text-white hover:bg-white/10 hover:border-border-strong active:scale-[0.98]',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -42,7 +42,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       ref={ref}
       disabled={disabled || isLoading}
       className={cn(
-        'inline-flex items-center justify-center font-medium transition-all duration-200',
+        'inline-flex items-center justify-center font-medium transition-colors duration-200',
         'disabled:opacity-50 disabled:pointer-events-none',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ios-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         variantClasses[variant],

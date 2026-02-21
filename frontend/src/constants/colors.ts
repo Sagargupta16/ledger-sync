@@ -1,20 +1,44 @@
 /**
  * Centralized iOS Color Palette
- * 
- * All colors are defined as CSS variables in index.css under @theme.
- * This file provides TypeScript constants for accessing them in JS/TSX.
- * 
+ *
+ * Single source of truth: CSS variables in index.css.
+ * This file reads computed values at runtime so JS/Recharts/SVG always
+ * match whatever is defined in CSS — change index.css and everything updates.
+ *
  * Usage in components:
- * - For Tailwind classes: Use `text-ios-blue`, `bg-ios-green/20`, etc.
- * - For inline styles: Use `colors.ios.blue` or `cssVar('--color-ios-blue')`
+ * - Tailwind classes: `text-ios-blue`, `bg-ios-green/20`, etc.
+ * - Inline styles:   `colors.ios.blue` (returns `var(--color-ios-blue)`)
+ * - Recharts/SVG:    `rawColors.ios.blue` (returns resolved hex like `#4a9eff`)
  */
 
-// Helper to reference CSS variables
+// Helper to reference CSS variables (for inline style props)
 export const cssVar = (variable: string) => `var(${variable})`
 
-// iOS Color Palette - maps to CSS variables
+/**
+ * Read a CSS custom property's computed hex value from :root.
+ * Falls back to the provided default if DOM isn't available (SSR).
+ */
+function resolveColor(varName: string, fallback: string): string {
+  if (typeof document === 'undefined') return fallback
+  const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+  return value || fallback
+}
+
+/**
+ * Convert a resolved hex color to an rgba string at a given opacity.
+ * Handles both #RRGGBB and #RGB formats.
+ */
+function hexToRgba(hex: string, alpha: number): string {
+  const cleaned = hex.replace('#', '')
+  const r = Number.parseInt(cleaned.length === 3 ? cleaned[0] + cleaned[0] : cleaned.slice(0, 2), 16)
+  const g = Number.parseInt(cleaned.length === 3 ? cleaned[1] + cleaned[1] : cleaned.slice(2, 4), 16)
+  const b = Number.parseInt(cleaned.length === 3 ? cleaned[2] + cleaned[2] : cleaned.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+// ─── CSS var() references (for React inline styles) ──────────────────────────
+
 export const colors = {
-  // Primary iOS colors (softened for dark mode)
   ios: {
     blue: cssVar('--color-ios-blue'),
     blueVibrant: cssVar('--color-ios-blue-vibrant'),
@@ -35,16 +59,12 @@ export const colors = {
     indigo: cssVar('--color-ios-indigo'),
     indigoVibrant: cssVar('--color-ios-indigo-vibrant'),
   },
-
-  // Semantic colors
   semantic: {
     success: cssVar('--color-success'),
     warning: cssVar('--color-warning'),
     error: cssVar('--color-error'),
     info: cssVar('--color-info'),
   },
-
-  // Financial semantic colors
   financial: {
     income: cssVar('--color-income'),
     expense: cssVar('--color-expense'),
@@ -52,16 +72,12 @@ export const colors = {
     transfer: cssVar('--color-transfer'),
     investment: cssVar('--color-investment'),
   },
-
-  // Text colors
   text: {
     primary: cssVar('--color-text-primary'),
     secondary: cssVar('--color-text-secondary'),
     tertiary: cssVar('--color-text-tertiary'),
     quaternary: cssVar('--color-text-quaternary'),
   },
-
-  // UI colors
   ui: {
     background: cssVar('--color-background'),
     foreground: cssVar('--color-foreground'),
@@ -74,93 +90,72 @@ export const colors = {
   },
 } as const
 
-// Raw hex values for cases where CSS variables can't be used (e.g., gradients in canvas)
-export const rawColors = {
-  ios: {
-    blue: '#5aa3ff',
-    blueVibrant: '#0a84ff',
-    green: '#34c759',
-    greenVibrant: '#30d158',
-    red: '#ff6b6b',
-    redVibrant: '#ff453a',
-    orange: '#ff9f43',
-    orangeVibrant: '#ff9f0a',
-    yellow: '#ffd93d',
-    yellowVibrant: '#ffd426',
-    teal: '#5ac8f5',
-    tealVibrant: '#64d2ff',
-    purple: '#a78bfa',
-    purpleVibrant: '#bf5af2',
-    pink: '#ff8fab',
-    pinkVibrant: '#ff375f',
-    indigo: '#818cf8',
-    indigoVibrant: '#5e5ce6',
-  },
-  financial: {
-    income: '#34c759',
-    expense: '#ff6b6b',
-    savings: '#a78bfa',
-    transfer: '#5ac8f5',
-    investment: '#5aa3ff',
-  },
-  text: {
-    primary: '#f5f5f7',
-    secondary: '#8e8e93',
-    tertiary: '#636366',
-    quaternary: '#48484a',
-  },
-} as const
+// ─── Resolved hex values (for Recharts, SVG, canvas — reads from CSS at runtime) ─
 
-// Color config for MetricCard and similar components
-export const metricColorConfig = {
-  green: {
-    bg: 'rgba(52, 199, 89, 0.12)',
-    text: rawColors.ios.green,
-    glow: 'rgba(52, 199, 89, 0.15)',
-    className: 'text-ios-green',
-  },
-  red: {
-    bg: 'rgba(255, 107, 107, 0.12)',
-    text: rawColors.ios.red,
-    glow: 'rgba(255, 107, 107, 0.15)',
-    className: 'text-ios-red',
-  },
-  blue: {
-    bg: 'rgba(90, 163, 255, 0.12)',
-    text: rawColors.ios.blue,
-    glow: 'rgba(90, 163, 255, 0.15)',
-    className: 'text-ios-blue',
-  },
-  purple: {
-    bg: 'rgba(167, 139, 250, 0.12)',
-    text: rawColors.ios.purple,
-    glow: 'rgba(167, 139, 250, 0.15)',
-    className: 'text-ios-purple',
-  },
-  yellow: {
-    bg: 'rgba(255, 217, 61, 0.12)',
-    text: '#e5c100', // Slightly darker for readability
-    glow: 'rgba(255, 217, 61, 0.15)',
-    className: 'text-ios-yellow',
-  },
-  teal: {
-    bg: 'rgba(90, 200, 245, 0.12)',
-    text: rawColors.ios.teal,
-    glow: 'rgba(90, 200, 245, 0.15)',
-    className: 'text-ios-teal',
-  },
-  orange: {
-    bg: 'rgba(255, 159, 67, 0.12)',
-    text: '#e89b00', // Slightly darker for readability
-    glow: 'rgba(255, 159, 67, 0.15)',
-    className: 'text-ios-orange',
-  },
-  indigo: {
-    bg: 'rgba(129, 140, 248, 0.12)',
-    text: rawColors.ios.indigo,
-    glow: 'rgba(129, 140, 248, 0.15)',
-    className: 'text-ios-indigo',
-  },
-} as const
+/** Call once after DOM is ready (e.g. in a top-level useEffect or module scope). */
+function buildRawColors() {
+  const r = (v: string, fb: string) => resolveColor(v, fb)
+  return {
+    ios: {
+      blue:           r('--color-ios-blue',           '#4a9eff'),
+      blueVibrant:    r('--color-ios-blue-vibrant',   '#0a84ff'),
+      green:          r('--color-ios-green',           '#30d158'),
+      greenVibrant:   r('--color-ios-green-vibrant',  '#28cd50'),
+      red:            r('--color-ios-red',             '#ff5757'),
+      redVibrant:     r('--color-ios-red-vibrant',    '#ff453a'),
+      orange:         r('--color-ios-orange',          '#ff9f0a'),
+      orangeVibrant:  r('--color-ios-orange-vibrant', '#ff9500'),
+      yellow:         r('--color-ios-yellow',          '#ffd93d'),
+      yellowVibrant:  r('--color-ios-yellow-vibrant', '#ffd426'),
+      teal:           r('--color-ios-teal',            '#5ac8f5'),
+      tealVibrant:    r('--color-ios-teal-vibrant',   '#64d2ff'),
+      purple:         r('--color-ios-purple',          '#a78bfa'),
+      purpleVibrant:  r('--color-ios-purple-vibrant', '#bf5af2'),
+      pink:           r('--color-ios-pink',            '#ff8fab'),
+      pinkVibrant:    r('--color-ios-pink-vibrant',   '#ff375f'),
+      indigo:         r('--color-ios-indigo',          '#818cf8'),
+      indigoVibrant:  r('--color-ios-indigo-vibrant', '#5e5ce6'),
+    },
+    financial: {
+      income:     r('--color-income',     '#30d158'),
+      expense:    r('--color-expense',    '#ff5757'),
+      savings:    r('--color-savings',    '#a78bfa'),
+      transfer:   r('--color-transfer',   '#5ac8f5'),
+      investment: r('--color-investment', '#4a9eff'),
+    },
+    text: {
+      primary:    r('--color-text-primary',    '#f5f5f7'),
+      secondary:  r('--color-text-secondary',  '#8e8e93'),
+      tertiary:   r('--color-text-tertiary',   '#636366'),
+      quaternary: r('--color-text-quaternary', '#48484a'),
+    },
+  }
+}
+
+// Resolved once at module load (DOM is ready by the time React renders)
+export const rawColors = buildRawColors()
+
+// ─── MetricCard color configs (derived from rawColors) ───────────────────────
+
+function buildMetricColorConfig() {
+  const mc = (color: string, twClass: string) => ({
+    bg: hexToRgba(color, 0.12),
+    text: color,
+    glow: hexToRgba(color, 0.15),
+    className: twClass,
+  })
+  return {
+    green:  mc(rawColors.ios.green,  'text-ios-green'),
+    red:    mc(rawColors.ios.red,    'text-ios-red'),
+    blue:   mc(rawColors.ios.blue,   'text-ios-blue'),
+    purple: mc(rawColors.ios.purple, 'text-ios-purple'),
+    yellow: mc(rawColors.ios.yellow, 'text-ios-yellow'),
+    teal:   mc(rawColors.ios.teal,   'text-ios-teal'),
+    orange: mc(rawColors.ios.orange, 'text-ios-orange'),
+    indigo: mc(rawColors.ios.indigo, 'text-ios-indigo'),
+  } as const
+}
+
+export const metricColorConfig = buildMetricColorConfig()
 
 export type MetricColor = keyof typeof metricColorConfig

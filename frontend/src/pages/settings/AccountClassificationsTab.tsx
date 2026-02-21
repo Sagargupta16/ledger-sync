@@ -50,7 +50,7 @@ export default function AccountClassificationsTab({
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-white">Account Type Classifications</h2>
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Drag accounts from the left into category boxes on the right
         </p>
       </div>
@@ -58,11 +58,11 @@ export default function AccountClassificationsTab({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Unassigned Accounts - Source */}
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-muted-foreground"></span>
             Unassigned Accounts ({unclassifiedAccounts.length})
           </h3>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[400px]">
+          <div className="bg-white/5 border border-border rounded-xl p-4 min-h-[400px]">
             <div className="flex flex-wrap gap-2">
               {unclassifiedAccounts.map((accountName) => (
                 <motion.div
@@ -70,20 +70,20 @@ export default function AccountClassificationsTab({
                   draggable
                   onDragStart={() => onDragStart(accountName, 'account')}
                   onDragEnd={onDragEnd}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full cursor-move hover:bg-white/20 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-border-strong rounded-full cursor-move hover:bg-white/20 transition-colors"
                   whileHover={{ scale: 1.05 }}
                 >
                   <GripVertical className="w-3 h-3 text-white/40" />
                   <span className="text-sm text-white truncate">{accountName}</span>
                   {!balancesLoading && (
-                    <span className="text-xs text-gray-400 font-mono ml-1">
+                    <span className="text-xs text-muted-foreground font-mono ml-1">
                       {formatCurrency(Math.abs(balanceData?.accounts[accountName]?.balance || 0))}
                     </span>
                   )}
                 </motion.div>
               ))}
               {unclassifiedAccounts.length === 0 && (
-                <p className="text-gray-500 text-sm">All accounts classified</p>
+                <p className="text-text-tertiary text-sm">All accounts classified</p>
               )}
             </div>
           </div>
@@ -97,10 +97,10 @@ export default function AccountClassificationsTab({
               aria-label={`Drop zone for ${category} accounts`}
               onDragOver={onDragOver}
               onDrop={() => onDropOnAccountCategory(category)}
-              className={`bg-white/5 rounded-xl border-2 border-dashed p-4 transition-all min-h-[180px] ${
+              className={`bg-white/5 rounded-xl border-2 border-dashed p-4 transition-colors min-h-[180px] ${
                 dragType === 'account'
-                  ? 'border-white/40 bg-white/10'
-                  : 'border-white/20 hover:border-white/30'
+                  ? 'border-border-strong bg-white/10'
+                  : 'border-border-strong hover:border-border-strong'
               }`}
             >
               <div
@@ -116,7 +116,7 @@ export default function AccountClassificationsTab({
                     draggable
                     onDragStart={() => onDragStart(accountName, 'account')}
                     onDragEnd={onDragEnd}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full cursor-move hover:bg-white/20 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-border-strong rounded-full cursor-move hover:bg-white/20 transition-colors"
                     whileHover={{ scale: 1.05 }}
                   >
                     <GripVertical className="w-3 h-3 text-white/40" />
@@ -124,7 +124,7 @@ export default function AccountClassificationsTab({
                   </motion.div>
                 ))}
                 {accountsByCategory[category].length === 0 && (
-                  <div className="flex items-center justify-center w-full h-16 text-gray-500">
+                  <div className="flex items-center justify-center w-full h-16 text-text-tertiary">
                     <p className="text-sm">Drop here</p>
                   </div>
                 )}

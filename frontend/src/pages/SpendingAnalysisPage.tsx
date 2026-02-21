@@ -94,7 +94,7 @@ function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, i
   delay: number
 }>) {
   const barColor = isOverBudget ? SEMANTIC_COLORS.expense : accentColor
-  const statusColorClass = isOverBudget ? 'text-red-400' : 'text-green-400'
+  const statusColorClass = isOverBudget ? 'text-ios-red' : 'text-ios-green'
 
   return (
     <div className={`p-4 rounded-lg ${bgClass}`}>
@@ -104,7 +104,7 @@ function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, i
         </div>
         <div>
           <p className="font-medium text-white">{title}</p>
-          <p className="text-xs text-gray-400">{subtitle}</p>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
         </div>
       </div>
       <p className={`text-2xl font-bold ${textClass} mb-2`}>
@@ -112,12 +112,12 @@ function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, i
       </p>
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Current</span>
+          <span className="text-muted-foreground">Current</span>
           <span className={statusColorClass}>
             {formatPercent(percent)}
           </span>
         </div>
-        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+        <div className="h-2 bg-surface-dropdown rounded-full overflow-hidden">
           <motion.div
             className="h-full rounded-full"
             initial={{ width: 0 }}
@@ -126,7 +126,7 @@ function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, i
             style={{ backgroundColor: barColor }}
           />
         </div>
-        <p className="text-xs text-gray-500">Target: {target} of income</p>
+        <p className="text-xs text-text-tertiary">Target: {target} of income</p>
       </div>
     </div>
   )
@@ -240,10 +240,10 @@ export default function SpendingAnalysisPage() {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <motion.div {...fadeUpWithDelay(0.2)} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+          <motion.div {...fadeUpWithDelay(0.2)} className="glass rounded-xl border border-border p-6 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-red-500/20 rounded-xl shadow-lg shadow-red-500/30">
-                <TrendingDown className="w-6 h-6 text-red-500" />
+              <div className="p-3 bg-ios-red/20 rounded-xl shadow-lg shadow-ios-red/30">
+                <TrendingDown className="w-6 h-6 text-ios-red" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Spending</p>
@@ -252,7 +252,7 @@ export default function SpendingAnalysisPage() {
             </div>
           </motion.div>
 
-          <motion.div {...fadeUpWithDelay(0.3)} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+          <motion.div {...fadeUpWithDelay(0.3)} className="glass rounded-xl border border-border p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">
                 <Tag className="w-6 h-6 text-primary" />
@@ -264,10 +264,10 @@ export default function SpendingAnalysisPage() {
             </div>
           </motion.div>
 
-          <motion.div {...fadeUpWithDelay(0.4)} className="glass rounded-xl border border-white/10 p-6 shadow-lg">
+          <motion.div {...fadeUpWithDelay(0.4)} className="glass rounded-xl border border-border p-6 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-500/20 rounded-xl shadow-lg shadow-blue-500/30">
-                <PieChart className="w-6 h-6 text-blue-500" />
+              <div className="p-3 bg-ios-blue/20 rounded-xl shadow-lg shadow-ios-blue/30">
+                <PieChart className="w-6 h-6 text-ios-blue" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Categories Tracked</p>
@@ -279,7 +279,7 @@ export default function SpendingAnalysisPage() {
 
         {/* 50/30/20 Budget Rule Analysis */}
         <motion.div
-          className="glass p-6 rounded-xl border border-white/10"
+          className="glass p-6 rounded-xl border border-border"
           {...SCROLL_FADE_UP}
         >
           <h3 className="text-lg font-semibold text-white mb-4">50/30/20 Budget Rule Analysis</h3>
@@ -317,7 +317,7 @@ export default function SpendingAnalysisPage() {
                         className="w-3 h-3 rounded-full"
                         style={spendingLegendColorStyles[i]}
                       />
-                      <span className="text-sm text-gray-300">{item.name}</span>
+                      <span className="text-sm text-foreground">{item.name}</span>
                     </div>
                   ))}
                 </div>
@@ -333,9 +333,9 @@ export default function SpendingAnalysisPage() {
                 target="≤50%"
                 isOverBudget={budgetRuleMetrics?.isOverspendingEssential || false}
                 accentColor={SPENDING_TYPE_COLORS.essential}
-                bgClass="bg-blue-500/10 border border-blue-500/20"
-                iconBgClass="bg-blue-500/20"
-                textClass="text-blue-400"
+                bgClass="bg-ios-blue/10 border border-ios-blue/20"
+                iconBgClass="bg-ios-blue/20"
+                textClass="text-ios-blue"
                 delay={0.3}
               />
 
@@ -349,9 +349,9 @@ export default function SpendingAnalysisPage() {
                 target="≤30%"
                 isOverBudget={budgetRuleMetrics?.isOverspendingDiscretionary || false}
                 accentColor={SPENDING_TYPE_COLORS.discretionary}
-                bgClass="bg-orange-500/10 border border-orange-500/20"
-                iconBgClass="bg-orange-500/20"
-                textClass="text-orange-400"
+                bgClass="bg-ios-orange/10 border border-ios-orange/20"
+                iconBgClass="bg-ios-orange/20"
+                textClass="text-ios-orange"
                 delay={0.4}
               />
 
@@ -365,9 +365,9 @@ export default function SpendingAnalysisPage() {
                 target="≥20%"
                 isOverBudget={budgetRuleMetrics?.isUnderSaving || false}
                 accentColor={SAVINGS_COLOR}
-                bgClass="bg-emerald-500/10 border border-emerald-500/20"
-                iconBgClass="bg-emerald-500/20"
-                textClass="text-emerald-400"
+                bgClass="bg-ios-green/10 border border-ios-green/20"
+                iconBgClass="bg-ios-green/20"
+                textClass="text-ios-green"
                 delay={0.5}
               />
             </div>

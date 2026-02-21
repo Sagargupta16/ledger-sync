@@ -118,7 +118,7 @@ export default function CashFlowForecast() {
 
   if (isLoading) {
     return (
-      <div className="glass rounded-2xl border border-white/10 p-6 animate-pulse">
+      <div className="glass rounded-2xl border border-border p-6 animate-pulse">
         <div className="h-8 bg-muted rounded w-1/3 mb-4" />
         <div className="h-64 bg-muted rounded" />
       </div>
@@ -127,7 +127,7 @@ export default function CashFlowForecast() {
 
   if (!forecastData.combined?.length) {
     return (
-      <div className="glass rounded-2xl border border-white/10 p-6">
+      <div className="glass rounded-2xl border border-border p-6">
         <h3 className="text-lg font-semibold mb-2">Cash Flow Forecast</h3>
         <p className="text-muted-foreground">Need at least 3 months of data for forecasting.</p>
       </div>
@@ -140,7 +140,7 @@ export default function CashFlowForecast() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6 shadow-xl"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">

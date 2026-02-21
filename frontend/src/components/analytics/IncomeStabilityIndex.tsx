@@ -69,13 +69,13 @@ export default function IncomeStabilityIndex() {
 
   return (
     <motion.div
-      className="glass rounded-2xl border border-white/10 p-6"
+      className="glass rounded-2xl border border-border p-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Shield className="w-5 h-5 text-blue-400" />
+        <Shield className="w-5 h-5 text-ios-blue" />
         <h3 className="text-lg font-semibold text-white">Income Stability Index</h3>
       </div>
 
@@ -95,7 +95,7 @@ export default function IncomeStabilityIndex() {
             </div>
             <div>
               <p className="text-sm font-medium" style={{ color: scoreColor }}>{getStabilityLabel(overallScore)}</p>
-              <p className="text-xs text-gray-500">Overall income stability score (0-100)</p>
+              <p className="text-xs text-text-tertiary">Overall income stability score (0-100)</p>
             </div>
           </div>
 
@@ -136,7 +136,7 @@ export default function IncomeStabilityIndex() {
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-xs text-gray-500">{item.label}</span>
+                <span className="text-xs text-text-tertiary">{item.label}</span>
               </div>
             ))}
           </div>

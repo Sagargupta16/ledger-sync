@@ -39,7 +39,7 @@ export default function EssentialCategoriesTab({
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-white">Essential Categories</h2>
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Drag expense categories from the left to mark them as essential (non-discretionary)
         </p>
       </div>
@@ -47,11 +47,11 @@ export default function EssentialCategoriesTab({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Available Categories - Source */}
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-muted-foreground"></span>
             Available Categories ({availableEssentialCategories.length})
           </h3>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[400px]">
+          <div className="bg-white/5 border border-border rounded-xl p-4 min-h-[400px]">
             <div className="flex flex-wrap gap-2">
               {availableEssentialCategories.map((category) => (
                 <motion.div
@@ -59,7 +59,7 @@ export default function EssentialCategoriesTab({
                   draggable
                   onDragStart={() => onDragStart(category, 'category')}
                   onDragEnd={onDragEnd}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full cursor-move hover:bg-white/20 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-border-strong rounded-full cursor-move hover:bg-white/20 transition-colors"
                   whileHover={{ scale: 1.05 }}
                 >
                   <GripVertical className="w-3 h-3 text-white/40" />
@@ -67,7 +67,7 @@ export default function EssentialCategoriesTab({
                 </motion.div>
               ))}
               {availableEssentialCategories.length === 0 && (
-                <p className="text-gray-500 text-sm">All categories marked as essential</p>
+                <p className="text-text-tertiary text-sm">All categories marked as essential</p>
               )}
             </div>
           </div>
@@ -75,39 +75,39 @@ export default function EssentialCategoriesTab({
 
         {/* Essential Categories Drop Zone */}
         <div className="lg:col-span-2 space-y-3">
-          <h3 className="text-sm font-medium text-emerald-400 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <h3 className="text-sm font-medium text-ios-green flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-ios-green"></span>
             Essential Categories ({localPrefs.essential_categories.length})
           </h3>
           <section
             aria-label="Drop zone for essential categories"
             onDragOver={onDragOver}
             onDrop={onDropOnEssential}
-            className={`bg-white/5 rounded-xl border-2 border-dashed p-4 min-h-[400px] transition-all ${
+            className={`bg-white/5 rounded-xl border-2 border-dashed p-4 min-h-[400px] transition-colors ${
               dragType === 'category'
-                ? 'border-emerald-400 bg-emerald-500/10'
-                : 'border-white/20 hover:border-white/30'
+                ? 'border-ios-green bg-ios-green/10'
+                : 'border-border-strong hover:border-border-strong'
             }`}
           >
             <div className="flex flex-wrap gap-2">
               {localPrefs.essential_categories.map((category) => (
                 <motion.div
                   key={category}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/40 rounded-full"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-ios-green/20 border border-ios-green/40 rounded-full"
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                 >
-                  <span className="text-sm text-emerald-300">{category}</span>
+                  <span className="text-sm text-ios-green">{category}</span>
                   <button
                     onClick={() => onRemoveFromEssential(category)}
-                    className="text-emerald-300 hover:text-red-400 transition-colors"
+                    className="text-ios-green hover:text-ios-red transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </motion.div>
               ))}
               {localPrefs.essential_categories.length === 0 && (
-                <div className="flex items-center justify-center w-full h-16 text-gray-500">
+                <div className="flex items-center justify-center w-full h-16 text-text-tertiary">
                   <p className="text-sm">Drop categories here</p>
                 </div>
               )}

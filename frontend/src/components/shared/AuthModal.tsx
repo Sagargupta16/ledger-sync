@@ -119,7 +119,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
               {/* Close Button */}
               <button
                 onClick={handleClose}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400 hover:text-white"
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -152,7 +152,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                   >
-                    <label htmlFor="auth-fullname" className="block text-sm font-medium text-gray-300 mb-1.5">
+                    <label htmlFor="auth-fullname" className="block text-sm font-medium text-foreground mb-1.5">
                       Full Name
                     </label>
                     <div className="relative">
@@ -163,14 +163,14 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="John Doe"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-input border border-white/10 text-white placeholder-text-quaternary focus:outline-none focus:border-ios-blue focus:ring-1 focus:ring-ios-blue transition-colors text-sm"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-input border border-border text-white placeholder-text-quaternary focus:outline-none focus:border-ios-blue focus:ring-1 focus:ring-ios-blue transition-colors text-sm"
                       />
                     </div>
                   </motion.div>
                 )}
 
                 <div>
-                  <label htmlFor="auth-email" className="block text-sm font-medium text-gray-300 mb-1.5">
+                  <label htmlFor="auth-email" className="block text-sm font-medium text-foreground mb-1.5">
                     Email
                   </label>
                   <div className="relative">
@@ -182,13 +182,13 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
                       required
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-input border border-white/10 text-white placeholder-text-quaternary focus:outline-none focus:border-ios-blue focus:ring-1 focus:ring-ios-blue transition-colors text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-input border border-border text-white placeholder-text-quaternary focus:outline-none focus:border-ios-blue focus:ring-1 focus:ring-ios-blue transition-colors text-sm"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="auth-password" className="block text-sm font-medium text-gray-300 mb-1.5">
+                  <label htmlFor="auth-password" className="block text-sm font-medium text-foreground mb-1.5">
                     Password
                   </label>
                   <div className="relative">
@@ -201,7 +201,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                       placeholder="••••••••"
                       required
                       minLength={mode === 'register' ? 8 : undefined}
-                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-input border border-white/10 text-white placeholder-text-quaternary focus:outline-none focus:border-ios-blue focus:ring-1 focus:ring-ios-blue transition-colors text-sm"
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-input border border-border text-white placeholder-text-quaternary focus:outline-none focus:border-ios-blue focus:ring-1 focus:ring-ios-blue transition-colors text-sm"
                     />
                     <button
                       type="button"
@@ -225,7 +225,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-2.5 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 mt-2"
+                  className="w-full py-2.5 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 mt-2"
                   style={{
                     background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
                   }}
@@ -268,7 +268,7 @@ export function LoginButton({ onClick }: Readonly<{ onClick: () => void }>) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white transition-all hover:scale-105 border border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10"
+      className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white transition-colors hover:scale-105 border border-border-strong hover:border-border-strong bg-white/5 hover:bg-white/10"
     >
       <LogIn className="w-4 h-4" />
       Login / Sign Up

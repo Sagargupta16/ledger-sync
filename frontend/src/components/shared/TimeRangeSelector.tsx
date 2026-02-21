@@ -19,10 +19,10 @@ export default function TimeRangeSelector({ value, onChange }: Readonly<TimeRang
           role="tab"
           aria-selected={value === range}
           onClick={() => onChange(range)}
-          className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             value === range
               ? 'text-white'
-              : 'hover:text-white hover:bg-white/[0.06]'
+              : 'hover:text-white hover:bg-white/10'
           }`}
           style={{ color: value === range ? undefined : rawColors.text.secondary }}
           whileTap={{ scale: 0.97 }}

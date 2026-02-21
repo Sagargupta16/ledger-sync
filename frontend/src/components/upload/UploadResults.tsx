@@ -16,13 +16,13 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full p-6 glass border border-white/10 rounded-2xl space-y-6 shadow-xl"
+      className="w-full p-6 glass border border-border rounded-2xl space-y-6 shadow-xl"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-green-500" />
+            <CheckCircle className="w-5 h-5 text-ios-green" />
             Upload Successful
           </h3>
           <p className="text-sm text-muted-foreground">{fileName}</p>
@@ -41,29 +41,29 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
           icon={CheckCircle}
           label="Inserted"
           value={stats.inserted}
-          color="text-green-500"
-          bgColor="bg-green-500/20"
+          color="text-ios-green"
+          bgColor="bg-ios-green/20"
         />
         <StatCard
           icon={AlertCircle}
           label="Updated"
           value={stats.updated}
-          color="text-blue-500"
-          bgColor="bg-blue-500/20"
+          color="text-ios-blue"
+          bgColor="bg-ios-blue/20"
         />
         <StatCard
           icon={Trash2}
           label="Deleted"
           value={stats.deleted}
-          color="text-red-500"
-          bgColor="bg-red-500/20"
+          color="text-ios-red"
+          bgColor="bg-ios-red/20"
         />
         <StatCard
           icon={Clock}
           label="Unchanged"
           value={stats.unchanged || 0}
-          color="text-gray-500"
-          bgColor="bg-gray-500/20"
+          color="text-text-tertiary"
+          bgColor="bg-muted-foreground/20"
         />
       </div>
 
@@ -76,7 +76,7 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
         {totalChanges > 0 && (
           <div className="flex items-center justify-between text-sm mt-1">
             <span className="text-muted-foreground">Changes Made</span>
-            <span className="font-semibold text-blue-500">{totalChanges} transactions</span>
+            <span className="font-semibold text-ios-blue">{totalChanges} transactions</span>
           </div>
         )}
       </div>
@@ -98,7 +98,7 @@ function StatCard({ icon: Icon, label, value, color, bgColor }: Readonly<StatCar
       initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-      className="flex items-center gap-3 p-4 glass-strong rounded-xl border border-white/10 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+      className="flex items-center gap-3 p-4 glass-strong rounded-xl border border-border shadow-lg hover:shadow-xl hover:scale-105 transition-colors duration-300"
     >
       <div className={`p-2 rounded-lg ${bgColor} shadow-lg`}>
         <Icon className={`w-5 h-5 ${color}`} />

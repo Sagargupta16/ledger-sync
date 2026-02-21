@@ -51,7 +51,7 @@ export default function InvestmentMappingsTab({
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-white">Investment Account Mappings</h2>
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Drag accounts from the left into investment categories on the right
         </p>
       </div>
@@ -59,11 +59,11 @@ export default function InvestmentMappingsTab({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Unassigned Accounts - Source */}
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-muted-foreground"></span>
             Unassigned Accounts ({unmappedAccounts.length})
           </h3>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[400px]">
+          <div className="bg-white/5 border border-border rounded-xl p-4 min-h-[400px]">
             <div className="flex flex-wrap gap-2">
               {unmappedAccounts.map((account) => (
                 <motion.div
@@ -71,7 +71,7 @@ export default function InvestmentMappingsTab({
                   draggable
                   onDragStart={() => onDragStart(account, 'account')}
                   onDragEnd={onDragEnd}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full cursor-move hover:bg-white/20 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-border-strong rounded-full cursor-move hover:bg-white/20 transition-colors"
                   whileHover={{ scale: 1.05 }}
                 >
                   <GripVertical className="w-3 h-3 text-white/40" />
@@ -79,7 +79,7 @@ export default function InvestmentMappingsTab({
                 </motion.div>
               ))}
               {unmappedAccounts.length === 0 && (
-                <p className="text-gray-500 text-sm">All accounts assigned</p>
+                <p className="text-text-tertiary text-sm">All accounts assigned</p>
               )}
             </div>
           </div>
@@ -93,10 +93,10 @@ export default function InvestmentMappingsTab({
               aria-label={`Drop zone for ${type.label}`}
               onDragOver={onDragOver}
               onDrop={() => onDropOnInvestmentType(type.value)}
-              className={`bg-white/5 rounded-xl border-2 border-dashed p-4 transition-all min-h-[180px] ${
+              className={`bg-white/5 rounded-xl border-2 border-dashed p-4 transition-colors min-h-[180px] ${
                 dragType === 'account'
-                  ? 'border-white/40 bg-white/10'
-                  : 'border-white/20 hover:border-white/30'
+                  ? 'border-border-strong bg-white/10'
+                  : 'border-border-strong hover:border-border-strong'
               }`}
             >
               <div className={`bg-gradient-to-r ${type.color} rounded-lg px-3 py-2 mb-3`}>
@@ -106,21 +106,21 @@ export default function InvestmentMappingsTab({
                 {accountsByInvestmentType[type.value].map((account) => (
                   <motion.div
                     key={account}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-border-strong rounded-full"
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                   >
                     <span className="text-sm text-white truncate">{account}</span>
                     <button
                       onClick={() => onRemoveInvestmentMapping(account)}
-                      className="text-gray-400 hover:text-red-400 transition-colors"
+                      className="text-muted-foreground hover:text-ios-red transition-colors"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </motion.div>
                 ))}
                 {accountsByInvestmentType[type.value].length === 0 && (
-                  <div className="flex items-center justify-center w-full h-16 text-gray-500">
+                  <div className="flex items-center justify-center w-full h-16 text-text-tertiary">
                     <p className="text-sm">Drop here</p>
                   </div>
                 )}

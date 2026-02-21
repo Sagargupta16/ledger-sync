@@ -7,10 +7,10 @@ import { rawColors } from '@/constants/colors'
 type ActivityLevel = 'high' | 'medium' | 'low' | 'dormant'
 
 const ACTIVITY_STYLES: Record<ActivityLevel, { color: string; bg: string; border: string }> = {
-  high: { color: rawColors.ios.green, bg: 'bg-green-500/10', border: 'border-green-500/20' },
-  medium: { color: rawColors.ios.blue, bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-  low: { color: rawColors.ios.yellow, bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
-  dormant: { color: rawColors.ios.red, bg: 'bg-red-500/10', border: 'border-red-500/20' },
+  high: { color: rawColors.ios.green, bg: 'bg-ios-green/10', border: 'border-ios-green/20' },
+  medium: { color: rawColors.ios.blue, bg: 'bg-ios-blue/10', border: 'border-ios-blue/20' },
+  low: { color: rawColors.ios.yellow, bg: 'bg-ios-yellow/10', border: 'border-ios-yellow/20' },
+  dormant: { color: rawColors.ios.red, bg: 'bg-ios-red/10', border: 'border-ios-red/20' },
 }
 
 const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
@@ -88,15 +88,15 @@ export default function AccountActivityScore() {
 
   return (
     <motion.div
-      className="glass rounded-2xl border border-white/10 p-6"
+      className="glass rounded-2xl border border-border p-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Activity className="w-5 h-5 text-cyan-400" />
+        <Activity className="w-5 h-5 text-ios-teal" />
         <h3 className="text-lg font-semibold text-white">Account Activity</h3>
-        <span className="text-xs text-gray-500 ml-auto">{accounts.length} accounts</span>
+        <span className="text-xs text-text-tertiary ml-auto">{accounts.length} accounts</span>
       </div>
 
       {accounts.length === 0 ? (
@@ -108,20 +108,20 @@ export default function AccountActivityScore() {
           {accounts.map((acct) => {
             const style = ACTIVITY_STYLES[acct.level]
             return (
-              <div key={acct.name} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors">
+              <div key={acct.name} className="p-3 rounded-xl bg-white/5 border border-border hover:bg-white/10 transition-colors">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate" title={acct.name}>{acct.name}</p>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-gray-500">{acct.count} transactions</span>
-                      <span className="text-xs text-gray-600">|</span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-text-tertiary">{acct.count} transactions</span>
+                      <span className="text-xs text-text-quaternary">|</span>
+                      <span className="text-xs text-text-tertiary">
                         {acct.daysSinceLastTx === 0 ? 'Today' : `${acct.daysSinceLastTx}d ago`}
                       </span>
                       {acct.avgFrequency > 0 && (
                         <>
-                          <span className="text-xs text-gray-600">|</span>
-                          <span className="text-xs text-gray-500">Every {acct.avgFrequency}d</span>
+                          <span className="text-xs text-text-quaternary">|</span>
+                          <span className="text-xs text-text-tertiary">Every {acct.avgFrequency}d</span>
                         </>
                       )}
                     </div>

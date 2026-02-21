@@ -100,7 +100,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
         transition: { type: 'spring', stiffness: 300, damping: 30 },
         whileHover: cardHover,
       })}
-      className="relative p-6 glass rounded-2xl overflow-hidden group border border-white/[0.08] transition-shadow duration-300 hover:border-white/[0.12] hover:shadow-xl hover:shadow-black/30"
+      className="relative p-6 glass rounded-2xl overflow-hidden group border border-border transition-shadow duration-300 hover:border-border-strong hover:shadow-xl hover:shadow-black/30"
     >
       {/* Animated gradient glow on hover */}
       <div

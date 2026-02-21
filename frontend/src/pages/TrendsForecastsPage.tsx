@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion'
+import { rawColors } from '@/constants/colors'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, TrendingDown, Minus, Wallet, PiggyBank, CreditCard, LineChart, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useTrends } from '@/hooks/useAnalytics'
 import { ResponsiveContainer, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine } from 'recharts'
@@ -259,21 +261,21 @@ export default function TrendsForecastsPage() {
   const peakSavings = useMemo(() => Math.max(...monthlyTrendChartData.map(d => d.savings), 0), [monthlyTrendChartData])
 
   const getTrendIcon = (direction: TrendDirection, isPositiveGood: boolean) => {
-    if (direction === 'stable') return <Minus className="w-5 h-5 text-gray-400" />
+    if (direction === 'stable') return <Minus className="w-5 h-5 text-muted-foreground" />
     if (direction === 'up') {
       return isPositiveGood 
-        ? <TrendingUp className="w-5 h-5 text-green-500" />
-        : <TrendingUp className="w-5 h-5 text-red-500" />
+        ? <TrendingUp className="w-5 h-5 text-ios-green" />
+        : <TrendingUp className="w-5 h-5 text-ios-red" />
     }
     return isPositiveGood
-      ? <TrendingDown className="w-5 h-5 text-red-500" />
-      : <TrendingDown className="w-5 h-5 text-green-500" />
+      ? <TrendingDown className="w-5 h-5 text-ios-red" />
+      : <TrendingDown className="w-5 h-5 text-ios-green" />
   }
 
   const getTrendColor = (direction: TrendDirection, isPositiveGood: boolean) => {
-    if (direction === 'stable') return 'text-gray-400'
-    if (direction === 'up') return isPositiveGood ? 'text-green-500' : 'text-red-500'
-    return isPositiveGood ? 'text-red-500' : 'text-green-500'
+    if (direction === 'stable') return 'text-muted-foreground'
+    if (direction === 'up') return isPositiveGood ? 'text-ios-green' : 'text-ios-red'
+    return isPositiveGood ? 'text-ios-red' : 'text-ios-green'
   }
 
   return (
@@ -307,12 +309,12 @@ export default function TrendsForecastsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-red-500/20 rounded-xl">
-                  <CreditCard className="w-6 h-6 text-red-400" />
+                <div className="p-3 bg-ios-red/20 rounded-xl">
+                  <CreditCard className="w-6 h-6 text-ios-red" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Spending Trend</p>
@@ -329,16 +331,16 @@ export default function TrendsForecastsPage() {
                 <div className={`flex items-center gap-2 ${getTrendColor(metrics.spending.direction, false)}`}>
                   {getDirectionIcon(metrics.spending.direction)}
                   <span className="font-semibold">{formatPercent(metrics.spending.changePercent)}</span>
-                  <span className="text-gray-500 text-sm">vs previous month</span>
+                  <span className="text-text-tertiary text-sm">vs previous month</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
                   <div>
-                    <p className="text-xs text-gray-500">Average</p>
-                    <p className="text-sm font-medium text-gray-300">{formatCurrency(metrics.spending.average)}</p>
+                    <p className="text-xs text-text-tertiary">Average</p>
+                    <p className="text-sm font-medium text-foreground">{formatCurrency(metrics.spending.average)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Peak</p>
-                    <p className="text-sm font-medium text-gray-300">{formatCurrency(metrics.spending.highest)}</p>
+                    <p className="text-xs text-text-tertiary">Peak</p>
+                    <p className="text-sm font-medium text-foreground">{formatCurrency(metrics.spending.highest)}</p>
                   </div>
                 </div>
               </div>
@@ -350,12 +352,12 @@ export default function TrendsForecastsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-green-500/20 rounded-xl">
-                  <Wallet className="w-6 h-6 text-green-400" />
+                <div className="p-3 bg-ios-green/20 rounded-xl">
+                  <Wallet className="w-6 h-6 text-ios-green" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Income Trend</p>
@@ -372,16 +374,16 @@ export default function TrendsForecastsPage() {
                 <div className={`flex items-center gap-2 ${getTrendColor(metrics.income.direction, true)}`}>
                   {getDirectionIcon(metrics.income.direction)}
                   <span className="font-semibold">{formatPercent(metrics.income.changePercent)}</span>
-                  <span className="text-gray-500 text-sm">vs previous month</span>
+                  <span className="text-text-tertiary text-sm">vs previous month</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
                   <div>
-                    <p className="text-xs text-gray-500">Average</p>
-                    <p className="text-sm font-medium text-gray-300">{formatCurrency(metrics.income.average)}</p>
+                    <p className="text-xs text-text-tertiary">Average</p>
+                    <p className="text-sm font-medium text-foreground">{formatCurrency(metrics.income.average)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Peak</p>
-                    <p className="text-sm font-medium text-gray-300">{formatCurrency(metrics.income.highest)}</p>
+                    <p className="text-xs text-text-tertiary">Peak</p>
+                    <p className="text-sm font-medium text-foreground">{formatCurrency(metrics.income.highest)}</p>
                   </div>
                 </div>
               </div>
@@ -393,16 +395,16 @@ export default function TrendsForecastsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-6 shadow-lg"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-500/20 rounded-xl">
-                  <PiggyBank className="w-6 h-6 text-purple-400" />
+                <div className="p-3 bg-ios-purple/20 rounded-xl">
+                  <PiggyBank className="w-6 h-6 text-ios-purple" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Savings Trend</p>
-                  <p className={`text-2xl font-bold ${metrics.savings.current >= 0 ? 'text-white' : 'text-red-400'}`}>
+                  <p className={`text-2xl font-bold ${metrics.savings.current >= 0 ? 'text-white' : 'text-ios-red'}`}>
                     {isLoading ? '...' : formatCurrency(metrics.savings.current)}
                   </p>
                 </div>
@@ -415,18 +417,18 @@ export default function TrendsForecastsPage() {
                 <div className={`flex items-center gap-2 ${getTrendColor(metrics.savings.direction, true)}`}>
                   {getDirectionIcon(metrics.savings.direction)}
                   <span className="font-semibold">{formatPercent(metrics.savings.changePercent)}</span>
-                  <span className="text-gray-500 text-sm">vs previous month</span>
+                  <span className="text-text-tertiary text-sm">vs previous month</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
                   <div>
-                    <p className="text-xs text-gray-500">Average</p>
-                    <p className={`text-sm font-medium ${metrics.savings.average >= 0 ? 'text-gray-300' : 'text-red-400'}`}>
+                    <p className="text-xs text-text-tertiary">Average</p>
+                    <p className={`text-sm font-medium ${metrics.savings.average >= 0 ? 'text-foreground' : 'text-ios-red'}`}>
                       {formatCurrency(metrics.savings.average)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Best Month</p>
-                    <p className="text-sm font-medium text-green-400">{formatCurrency(metrics.savings.highest)}</p>
+                    <p className="text-xs text-text-tertiary">Best Month</p>
+                    <p className="text-sm font-medium text-ios-green">{formatCurrency(metrics.savings.highest)}</p>
                   </div>
                 </div>
               </div>
@@ -440,38 +442,38 @@ export default function TrendsForecastsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <div className="flex items-center gap-3 mb-6">
-            <LineChart className="w-5 h-5 text-blue-400" />
+            <LineChart className="w-5 h-5 text-ios-blue" />
             <div>
               <h3 className="text-lg font-semibold text-white">Income & Expense Trends</h3>
-              <p className="text-sm text-gray-500">Monthly breakdown with 3-month rolling averages</p>
+              <p className="text-sm text-text-tertiary">Monthly breakdown with 3-month rolling averages</p>
             </div>
           </div>
           {isLoading && (
             <div className="h-80 flex items-center justify-center">
-              <div className="animate-pulse text-gray-400">Loading chart...</div>
+              <div className="animate-pulse text-muted-foreground">Loading chart...</div>
             </div>
           )}
           {!isLoading && monthlyTrendWithAvg.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Income mini chart */}
-              <div className="glass-thin rounded-xl border border-white/10 p-4">
+              <div className="glass-thin rounded-xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <div className="w-3 h-3 rounded-full bg-ios-green" />
                   <span className="text-sm font-medium text-white">Income</span>
                 </div>
                 <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={monthlyTrendWithAvg}>
                     <defs>
                       <linearGradient id="trendIncomeGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#34c759" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="#34c759" stopOpacity={0}/>
+                        <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                    <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
                     <YAxis hide />
                     <Tooltip
                       {...chartTooltipProps}
@@ -484,29 +486,29 @@ export default function TrendsForecastsPage() {
                         formatTooltipName(name)
                       ]}
                     />
-                    <ReferenceLine y={peakIncome} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: '#9ca3af', fontSize: 10, position: 'insideTopRight' }} />
-                    <Area type="monotone" dataKey="income" stroke="#34c759" fill="url(#trendIncomeGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
-                    <Line type="monotone" dataKey="incomeAvg" stroke="#34c759" strokeWidth={2} strokeDasharray="6 3" dot={false} name="Income (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    <ReferenceLine y={peakIncome} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }} />
+                    <Area type="monotone" dataKey="income" stroke={rawColors.ios.green} fill="url(#trendIncomeGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    <Line type="monotone" dataKey="incomeAvg" stroke={rawColors.ios.green} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Income (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Expenses mini chart */}
-              <div className="glass-thin rounded-xl border border-white/10 p-4">
+              <div className="glass-thin rounded-xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
+                  <div className="w-3 h-3 rounded-full bg-ios-red" />
                   <span className="text-sm font-medium text-white">Expenses</span>
                 </div>
                 <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={monthlyTrendWithAvg}>
                     <defs>
                       <linearGradient id="trendExpenseGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ff6b6b" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="#ff6b6b" stopOpacity={0}/>
+                        <stop offset="5%" stopColor={rawColors.ios.red} stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor={rawColors.ios.red} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                    <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
                     <YAxis hide />
                     <Tooltip
                       {...chartTooltipProps}
@@ -519,29 +521,29 @@ export default function TrendsForecastsPage() {
                         formatTooltipName(name)
                       ]}
                     />
-                    <ReferenceLine y={peakExpenses} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakExpenses)}`, fill: '#9ca3af', fontSize: 10, position: 'insideTopRight' }} />
-                    <Area type="monotone" dataKey="expenses" stroke="#ff6b6b" fill="url(#trendExpenseGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
-                    <Line type="monotone" dataKey="expensesAvg" stroke="#ff6b6b" strokeWidth={2} strokeDasharray="6 3" dot={false} name="Spending (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    <ReferenceLine y={peakExpenses} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakExpenses)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }} />
+                    <Area type="monotone" dataKey="expenses" stroke={rawColors.ios.red} fill="url(#trendExpenseGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    <Line type="monotone" dataKey="expensesAvg" stroke={rawColors.ios.red} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Spending (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Savings mini chart */}
-              <div className="glass-thin rounded-xl border border-white/10 p-4">
+              <div className="glass-thin rounded-xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-3 h-3 rounded-full bg-purple-500" />
+                  <div className="w-3 h-3 rounded-full bg-ios-purple" />
                   <span className="text-sm font-medium text-white">Savings</span>
                 </div>
                 <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={monthlyTrendWithAvg}>
                     <defs>
                       <linearGradient id="trendSavingsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                        <stop offset="5%" stopColor={rawColors.ios.purple} stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor={rawColors.ios.purple} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                    <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
                     <YAxis hide />
                     <Tooltip
                       {...chartTooltipProps}
@@ -554,9 +556,9 @@ export default function TrendsForecastsPage() {
                         formatTooltipName(name)
                       ]}
                     />
-                    <ReferenceLine y={peakSavings} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakSavings)}`, fill: '#9ca3af', fontSize: 10, position: 'insideTopRight' }} />
-                    <Area type="monotone" dataKey="savings" stroke="#a855f7" fill="url(#trendSavingsGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
-                    <Line type="monotone" dataKey="savingsAvg" stroke="#a855f7" strokeWidth={2} strokeDasharray="6 3" dot={false} name="Savings (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    <ReferenceLine y={peakSavings} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakSavings)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }} />
+                    <Area type="monotone" dataKey="savings" stroke={rawColors.ios.purple} fill="url(#trendSavingsGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
+                    <Line type="monotone" dataKey="savingsAvg" stroke={rawColors.ios.purple} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Savings (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -580,24 +582,24 @@ export default function TrendsForecastsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <div className="flex items-center gap-3 mb-6">
-            <PiggyBank className="w-5 h-5 text-purple-400" />
+            <PiggyBank className="w-5 h-5 text-ios-purple" />
             <h3 className="text-lg font-semibold text-white">Savings Rate Trend</h3>
-            <span className="text-sm text-gray-500">(% of income saved each month)</span>
+            <span className="text-sm text-text-tertiary">(% of income saved each month)</span>
           </div>
           {isLoading && (
             <div className="h-64 flex items-center justify-center">
-              <div className="animate-pulse text-gray-400">Loading chart...</div>
+              <div className="animate-pulse text-muted-foreground">Loading chart...</div>
             </div>
           )}
           {!isLoading && dailySavingsData.length > 0 && (
             <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={dailySavingsData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} tickFormatter={(v) => formatDateTick(v, dailySavingsData.length)} angle={-45} textAnchor="end" height={70} interval={Math.max(1, Math.floor(dailySavingsData.length / 15))} />
-                <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => `${Math.round(v)}%`} domain={[0, 'auto']} />
+                <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} fontSize={12} tickFormatter={(v) => formatDateTick(v, dailySavingsData.length)} angle={-45} textAnchor="end" height={70} interval={Math.max(1, Math.floor(dailySavingsData.length / 15))} />
+                <YAxis stroke={CHART_AXIS_COLOR} fontSize={12} tickFormatter={(v) => `${Math.round(v)}%`} domain={[0, 'auto']} />
                 <Tooltip
                   {...chartTooltipProps}
                   labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -609,14 +611,14 @@ export default function TrendsForecastsPage() {
                 />
                 <defs>
                   <linearGradient id="savingsGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                    <stop offset="5%" stopColor={rawColors.ios.purple} stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor={rawColors.ios.purple} stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <Area
                   type="natural"
                   dataKey="savingsRate"
-                  stroke="#a855f7"
+                  stroke={rawColors.ios.purple}
                   fill="url(#savingsGradient)"
                   strokeWidth={2}
                   isAnimationActive={dailySavingsData.length < CHART_ANIMATION_THRESHOLD}
@@ -640,22 +642,22 @@ export default function TrendsForecastsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-white/10 p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Month-on-Month Breakdown</h3>
           {isLoading && (
-            <div className="text-center py-8 text-gray-400">Loading data...</div>
+            <div className="text-center py-8 text-muted-foreground">Loading data...</div>
           )}
           {!isLoading && chartData.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400">Month</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Income</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Spending</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Savings</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400">Savings Rate</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Month</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Income</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Spending</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Savings</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Savings Rate</th>
                   </tr>
                 </thead>
                 <motion.tbody
@@ -666,15 +668,15 @@ export default function TrendsForecastsPage() {
                   {chartData.slice(-8).map((trend) => (
                     <tr
                       key={trend.month}
-                      className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                      className="border-b border-border hover:bg-white/10 transition-colors"
                     >
                       <td className="py-3 px-4 text-white font-medium">{trend.month}</td>
-                      <td className="py-3 px-4 text-right text-green-400">{formatCurrency(trend.income)}</td>
-                      <td className="py-3 px-4 text-right text-red-400">{formatCurrency(trend.expenses)}</td>
-                      <td className={`py-3 px-4 text-right font-bold ${trend.surplus >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
+                      <td className="py-3 px-4 text-right text-ios-green">{formatCurrency(trend.income)}</td>
+                      <td className="py-3 px-4 text-right text-ios-red">{formatCurrency(trend.expenses)}</td>
+                      <td className={`py-3 px-4 text-right font-bold ${trend.surplus >= 0 ? 'text-ios-purple' : 'text-ios-red'}`}>
                         {formatCurrency(trend.surplus)}
                       </td>
-                      <td className={`py-3 px-4 text-right ${trend.rawSavingsRate >= 0 ? 'text-gray-300' : 'text-red-400'}`}>
+                      <td className={`py-3 px-4 text-right ${trend.rawSavingsRate >= 0 ? 'text-foreground' : 'text-ios-red'}`}>
                         {trend.rawSavingsRate.toFixed(1)}%
                       </td>
                     </tr>

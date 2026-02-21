@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="max-w-md w-full glass rounded-2xl border border-white/10 p-8 space-y-6">
+          <div className="max-w-md w-full glass rounded-2xl border border-border p-8 space-y-6">
             <div className="flex items-center justify-center">
               <div className="p-4 bg-ios-red/20 rounded-full">
                 <AlertTriangle className="w-12 h-12 text-ios-red" />
@@ -59,14 +59,14 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex gap-3">
               <button
                 onClick={this.handleReset}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-all"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
                 Try Again
               </button>
               <button
                 onClick={() => globalThis.location.reload()}
-                className="flex-1 px-4 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all"
+                className="flex-1 px-4 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
               >
                 Reload Page
               </button>

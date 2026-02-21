@@ -54,15 +54,15 @@ export default function SavingsMilestonesTimeline() {
 
   return (
     <motion.div
-      className="glass rounded-2xl border border-white/10 p-6"
+      className="glass rounded-2xl border border-border p-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Flag className="w-5 h-5 text-green-400" />
+        <Flag className="w-5 h-5 text-ios-green" />
         <h3 className="text-lg font-semibold text-white">Savings Milestones</h3>
-        <span className="text-xs text-gray-500 ml-auto">{milestonesReached.length} milestones reached</span>
+        <span className="text-xs text-text-tertiary ml-auto">{milestonesReached.length} milestones reached</span>
       </div>
 
       {chartData.length === 0 ? (
@@ -113,7 +113,7 @@ export default function SavingsMilestonesTimeline() {
                   label={{
                     value: formatCurrencyShort(m),
                     position: 'right',
-                    fill: '#6b7280',
+                    fill: rawColors.text.tertiary,
                     fontSize: 10,
                   }}
                 />
@@ -136,19 +136,19 @@ export default function SavingsMilestonesTimeline() {
               return (
                 <div
                   key={milestone}
-                  className={`p-3 rounded-xl border ${reached ? 'bg-green-500/5 border-green-500/20' : 'bg-white/[0.02] border-white/[0.06]'}`}
+                  className={`p-3 rounded-xl border ${reached ? 'bg-ios-green/5 border-ios-green/20' : 'bg-white/5 border-border'}`}
                 >
                   <div className="flex items-center gap-2">
                     {reached ? (
-                      <CheckCircle className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                      <CheckCircle className="w-3.5 h-3.5 text-ios-green flex-shrink-0" />
                     ) : (
-                      <Circle className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
+                      <Circle className="w-3.5 h-3.5 text-text-quaternary flex-shrink-0" />
                     )}
-                    <span className={`text-sm font-medium ${reached ? 'text-green-400' : 'text-gray-500'}`}>
+                    <span className={`text-sm font-medium ${reached ? 'text-ios-green' : 'text-text-tertiary'}`}>
                       {formatCurrencyShort(milestone)}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 ml-5.5">
+                  <p className="text-xs text-text-tertiary mt-1 ml-5.5">
                     {reached
                       ? new Date(reached.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
                       : 'Not yet reached'}

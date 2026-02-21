@@ -109,7 +109,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
 
   if (isLoading) {
     return (
-      <div className="glass rounded-2xl border border-white/10 p-6 animate-pulse">
+      <div className="glass rounded-2xl border border-border p-6 animate-pulse">
         <div className="h-8 bg-muted rounded w-1/3 mb-4" />
         <div className="h-64 bg-muted rounded" />
       </div>
@@ -120,7 +120,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6 shadow-xl"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -135,7 +135,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
         <div className="flex gap-2">
           <button
             onClick={() => setViewMode('amount')}
-            className={`px-3 py-1 rounded-lg text-sm transition-all ${
+            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
               viewMode === 'amount'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background/50 hover:bg-background/70'
@@ -145,7 +145,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
           </button>
           <button
             onClick={() => setViewMode('frequency')}
-            className={`px-3 py-1 rounded-lg text-sm transition-all ${
+            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
               viewMode === 'frequency'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background/50 hover:bg-background/70'
@@ -195,7 +195,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
             {merchantData.map((merchant, index) => (
               <div
                 key={merchant.name}
-                className="flex items-center gap-3 p-3 rounded-xl bg-background/30 hover:bg-background/50 transition-all"
+                className="flex items-center gap-3 p-3 rounded-xl bg-background/30 hover:bg-background/50 transition-colors"
               >
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
@@ -220,7 +220,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
 
       {/* Summary */}
       {merchantData.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-3 gap-4 text-center">
+        <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-2xl font-bold text-ios-orange">{merchantData.length}</p>
             <p className="text-xs text-muted-foreground">Top Merchants</p>

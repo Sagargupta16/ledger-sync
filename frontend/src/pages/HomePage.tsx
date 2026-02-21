@@ -77,7 +77,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-black/50 border-b border-white/10">
+      <header className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-black/50 border-b border-border">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
@@ -97,7 +97,7 @@ export default function HomePage() {
             {isAuthenticated ? (
               <Link
                 to={ROUTES.DASHBOARD}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white transition-all hover:scale-105"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white transition-colors hover:scale-105"
                 style={{
                   background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
                 }}
@@ -139,13 +139,13 @@ export default function HomePage() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.1 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-white/10 mb-8"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-border mb-8"
               >
                 <Sparkles
                   className="w-4 h-4"
                   style={{ color: rawColors.ios.yellow }}
                 />
-                <span className="text-sm text-gray-300">
+                <span className="text-sm text-foreground">
                   Personal Finance Made Simple
                 </span>
               </motion.div>
@@ -157,7 +157,7 @@ export default function HomePage() {
                 transition={{ delay: 0.2 }}
                 className="text-5xl md:text-7xl font-bold mb-6"
               >
-                <span className="bg-gradient-to-r from-white via-white to-gray-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-white via-white to-muted-foreground bg-clip-text text-transparent">
                   Take Control of{' '}
                 </span>
                 <br />
@@ -176,7 +176,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-xl text-gray-400 max-w-2xl mx-auto mb-10"
+                className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10"
               >
                 Ledger Sync is your all-in-one financial dashboard. Import your
                 transactions from Excel, track investments, analyze spending
@@ -192,7 +192,7 @@ export default function HomePage() {
               >
                 <button
                   onClick={handleGetStarted}
-                  className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                  className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl"
                   style={{
                     background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
                     boxShadow: `0 10px 30px ${rawColors.ios.blue}30`,
@@ -204,7 +204,7 @@ export default function HomePage() {
                 </button>
                 <a
                   href="#features"
-                  className="flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-all duration-300 hover:scale-105 glass-strong border border-white/20"
+                  className="flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
                 >
                   Learn More
                 </a>
@@ -224,13 +224,13 @@ export default function HomePage() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.5 + index * 0.05 }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10"
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-border"
                 >
                   <CheckCircle2
                     className="w-4 h-4"
                     style={{ color: rawColors.ios.green }}
                   />
-                  <span className="text-sm text-gray-300">{item}</span>
+                  <span className="text-sm text-foreground">{item}</span>
                 </motion.div>
               ))}
             </motion.div>
@@ -238,7 +238,7 @@ export default function HomePage() {
         </section>
 
         {/* What is Ledger Sync Section */}
-        <section className="py-20 border-t border-white/10">
+        <section className="py-20 border-t border-border">
           <div className="max-w-6xl mx-auto px-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -251,7 +251,7 @@ export default function HomePage() {
                 <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
                   What is Ledger Sync?
                 </h2>
-                <p className="text-gray-400 mb-6 leading-relaxed">
+                <p className="text-muted-foreground mb-6 leading-relaxed">
                   Ledger Sync is a powerful personal finance management tool
                   designed for the Indian market. It seamlessly imports your
                   transaction data from Money Manager Pro Excel exports and
@@ -272,7 +272,7 @@ export default function HomePage() {
                       <h3 className="font-semibold text-white mb-1">
                         Excel Import
                       </h3>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         Upload your Money Manager Pro exports. Smart duplicate
                         detection ensures no double entries.
                       </p>
@@ -292,7 +292,7 @@ export default function HomePage() {
                       <h3 className="font-semibold text-white mb-1">
                         Smart Analytics
                       </h3>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         50/30/20 budget analysis, spending trends, income
                         patterns, and investment returns.
                       </p>
@@ -312,7 +312,7 @@ export default function HomePage() {
                       <h3 className="font-semibold text-white mb-1">
                         India-Focused
                       </h3>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         Fiscal year (April-March) support, INR formatting, and
                         India-specific tax planning tools.
                       </p>
@@ -323,12 +323,12 @@ export default function HomePage() {
 
               {/* Visual */}
               <div className="relative">
-                <div className="glass rounded-3xl border border-white/10 p-8">
+                <div className="glass rounded-3xl border border-border p-8">
                   <div className="space-y-4">
                     {/* Mock Dashboard Preview */}
                     <div className="flex items-center justify-between mb-6">
                       <div>
-                        <div className="text-sm text-gray-400">Net Worth</div>
+                        <div className="text-sm text-muted-foreground">Net Worth</div>
                         <div className="text-3xl font-bold text-white">
                           ₹24,85,000
                         </div>
@@ -345,25 +345,25 @@ export default function HomePage() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-white/5 rounded-xl p-4">
-                        <div className="text-xs text-gray-400">Income</div>
+                        <div className="text-xs text-muted-foreground">Income</div>
                         <div className="text-lg font-semibold text-white">
                           ₹1,25,000
                         </div>
                       </div>
                       <div className="bg-white/5 rounded-xl p-4">
-                        <div className="text-xs text-gray-400">Expenses</div>
+                        <div className="text-xs text-muted-foreground">Expenses</div>
                         <div className="text-lg font-semibold text-white">
                           ₹68,500
                         </div>
                       </div>
                       <div className="bg-white/5 rounded-xl p-4">
-                        <div className="text-xs text-gray-400">Savings</div>
+                        <div className="text-xs text-muted-foreground">Savings</div>
                         <div className="text-lg font-semibold text-white">
                           ₹56,500
                         </div>
                       </div>
                       <div className="bg-white/5 rounded-xl p-4">
-                        <div className="text-xs text-gray-400">Investments</div>
+                        <div className="text-xs text-muted-foreground">Investments</div>
                         <div className="text-lg font-semibold text-white">
                           ₹12,40,000
                         </div>
@@ -386,7 +386,7 @@ export default function HomePage() {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-20 border-t border-white/10">
+        <section id="features" className="py-20 border-t border-border">
           <div className="max-w-6xl mx-auto px-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -409,7 +409,7 @@ export default function HomePage() {
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 Everything You Need
               </h2>
-              <p className="text-gray-400 max-w-2xl mx-auto">
+              <p className="text-muted-foreground max-w-2xl mx-auto">
                 Powerful features designed to give you complete visibility into
                 your finances
               </p>
@@ -423,7 +423,7 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-start gap-4 p-6 rounded-2xl glass border border-white/10 hover:border-white/20 transition-colors"
+                  className="flex items-start gap-4 p-6 rounded-2xl glass border border-border hover:border-border-strong transition-colors"
                 >
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -438,7 +438,7 @@ export default function HomePage() {
                     <h3 className="text-lg font-semibold text-white mb-1">
                       {feature.title}
                     </h3>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-sm text-muted-foreground">
                       {feature.description}
                     </p>
                   </div>
@@ -449,7 +449,7 @@ export default function HomePage() {
         </section>
 
         {/* CTA Section */}
-        <section className="py-20 border-t border-white/10">
+        <section className="py-20 border-t border-border">
           <div className="max-w-4xl mx-auto px-6 text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -459,13 +459,13 @@ export default function HomePage() {
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 Ready to Take Control?
               </h2>
-              <p className="text-gray-400 mb-8 max-w-xl mx-auto">
+              <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
                 Start tracking your finances today. It's free, private, and
                 takes just a minute to get started.
               </p>
               <button
                 onClick={handleGetStarted}
-                className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl"
                 style={{
                   background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
                   boxShadow: `0 10px 30px ${rawColors.ios.blue}30`,
@@ -480,9 +480,9 @@ export default function HomePage() {
         </section>
 
         {/* Footer */}
-        <footer className="py-8 border-t border-white/10">
+        <footer className="py-8 border-t border-border">
           <div className="max-w-6xl mx-auto px-6 text-center">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-text-tertiary">
               Made with ❤️ for better financial management
             </p>
           </div>

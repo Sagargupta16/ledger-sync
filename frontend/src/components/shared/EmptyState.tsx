@@ -41,7 +41,7 @@ function ActionButton({ actionLabel, actionHref, onAction, isCompact }: Readonly
   isCompact: boolean
 }>) {
   const sizeClass = getSizeClass(isCompact, 'text-xs', 'text-sm')
-  const baseClass = `inline-flex items-center gap-2 px-5 py-2.5 bg-ios-blue-vibrant text-white rounded-xl font-medium hover:bg-ios-blue active:scale-[0.98] transition-all shadow-lg shadow-ios-blue-vibrant/30 ${sizeClass}`
+  const baseClass = `inline-flex items-center gap-2 px-5 py-2.5 bg-ios-blue-vibrant text-white rounded-xl font-medium hover:bg-ios-blue active:scale-[0.98] transition-colors shadow-lg shadow-ios-blue-vibrant/30 ${sizeClass}`
 
   if (actionHref) {
     return (
@@ -76,7 +76,7 @@ export default function EmptyState({
       <div className={`py-8 px-6 text-center ${className}`}>
         {/* Faux chart skeleton */}
         <div className="mx-auto max-w-sm mb-4">
-          <div className="flex items-end gap-1 h-24 border-l border-b border-white/10 pl-2 pb-1">
+          <div className="flex items-end gap-1 h-24 border-l border-b border-border pl-2 pb-1">
             {[40, 65, 30, 80, 55, 45, 70, 35, 60, 50].map((h) => (
               <div
                 key={`empty-bar-${h}`}
@@ -87,9 +87,9 @@ export default function EmptyState({
           </div>
         </div>
         <div className="flex flex-col items-center gap-2">
-          {Icon && <Icon className="w-8 h-8 text-gray-600" />}
-          <h3 className="text-base font-semibold text-gray-300">{title}</h3>
-          {description && <p className="text-sm text-gray-500 max-w-sm">{description}</p>}
+          {Icon && <Icon className="w-8 h-8 text-text-quaternary" />}
+          <h3 className="text-base font-semibold text-foreground">{title}</h3>
+          {description && <p className="text-sm text-text-tertiary max-w-sm">{description}</p>}
           {actionLabel && actionHref && (
             <a href={actionHref} className="mt-2 text-sm text-primary hover:underline">{actionLabel}</a>
           )}
@@ -142,7 +142,7 @@ export default function EmptyState({
 
   if (variant === 'card') {
     return (
-      <div className="glass rounded-2xl border border-white/[0.08] shadow-lg shadow-black/20">
+      <div className="glass rounded-2xl border border-border shadow-lg shadow-black/20">
         {content}
       </div>
     )

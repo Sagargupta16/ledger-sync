@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import {
   Target,
   Plus,
@@ -50,10 +51,10 @@ interface BudgetRow {
 
 // ─── Helpers ────────────────────────────────────────────────────────
 const statusConfig = {
-  safe: { color: rawColors.ios.green, bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400' },
-  warning: { color: rawColors.ios.yellow, bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400' },
-  danger: { color: rawColors.ios.orange, bg: 'bg-orange-500/10', border: 'border-orange-500/20', text: 'text-orange-400' },
-  exceeded: { color: rawColors.ios.red, bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-400' },
+  safe: { color: rawColors.ios.green, bg: 'bg-ios-green/10', border: 'border-ios-green/20', text: 'text-ios-green' },
+  warning: { color: rawColors.ios.yellow, bg: 'bg-ios-yellow/10', border: 'border-ios-yellow/20', text: 'text-ios-yellow' },
+  danger: { color: rawColors.ios.orange, bg: 'bg-ios-orange/10', border: 'border-ios-orange/20', text: 'text-ios-orange' },
+  exceeded: { color: rawColors.ios.red, bg: 'bg-ios-red/10', border: 'border-ios-red/20', text: 'text-ios-red' },
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -262,8 +263,8 @@ export default function BudgetPage() {
                   role="tab"
                   aria-selected={viewMode === val}
                   onClick={() => setViewMode(val)}
-                  className={`relative px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    viewMode === val ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  className={`relative px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    viewMode === val ? 'text-white' : 'text-muted-foreground hover:text-white hover:bg-white/10'
                   }`}
                   whileTap={{ scale: 0.97 }}
                 >
@@ -284,7 +285,7 @@ export default function BudgetPage() {
             <motion.button
               onClick={() => setIsAdding(true)}
               whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
               style={{ backgroundColor: `${rawColors.ios.green}22`, color: rawColors.ios.green }}
             >
               <Plus className="w-4 h-4" /> Add Budget
@@ -323,7 +324,7 @@ export default function BudgetPage() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="glass rounded-2xl border border-white/10 p-6 overflow-hidden"
+            className="glass rounded-2xl border border-border p-6 overflow-hidden"
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">New Budget</h3>
@@ -334,12 +335,12 @@ export default function BudgetPage() {
             <div className="flex flex-wrap gap-4 items-end">
               {viewMode === 'category' ? (
                 <div className="flex-1 min-w-48">
-                  <label htmlFor="budget-category" className="text-xs text-gray-400 mb-1 block">Category</label>
+                  <label htmlFor="budget-category" className="text-xs text-muted-foreground mb-1 block">Category</label>
                   <select
                     id="budget-category"
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-white/10 text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
+                    className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
                   >
                     <option value="">Select category</option>
                     {availableCategories.map((c) => (
@@ -350,12 +351,12 @@ export default function BudgetPage() {
               ) : (
                 <>
                   <div className="flex-1 min-w-40">
-                    <label htmlFor="budget-cat-sub" className="text-xs text-gray-400 mb-1 block">Category</label>
+                    <label htmlFor="budget-cat-sub" className="text-xs text-muted-foreground mb-1 block">Category</label>
                     <select
                       id="budget-cat-sub"
                       value={formCategory}
                       onChange={(e) => { setFormCategory(e.target.value); setFormSubcategory('') }}
-                      className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-white/10 text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
+                      className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
                     >
                       <option value="">Select category</option>
                       {allCategories.filter((c) => subcategoriesForCategory[c]?.length).map((c) => (
@@ -364,12 +365,12 @@ export default function BudgetPage() {
                     </select>
                   </div>
                   <div className="flex-1 min-w-40">
-                    <label htmlFor="budget-subcategory" className="text-xs text-gray-400 mb-1 block">Subcategory</label>
+                    <label htmlFor="budget-subcategory" className="text-xs text-muted-foreground mb-1 block">Subcategory</label>
                     <select
                       id="budget-subcategory"
                       value={formSubcategory}
                       onChange={(e) => setFormSubcategory(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-white/10 text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors disabled:opacity-50"
+                      className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors disabled:opacity-50"
                       disabled={!formCategory}
                     >
                       <option value="">Select subcategory</option>
@@ -381,23 +382,23 @@ export default function BudgetPage() {
                 </>
               )}
               <div className="w-36">
-                <label htmlFor="budget-limit" className="text-xs text-gray-400 mb-1 block">Limit (₹)</label>
+                <label htmlFor="budget-limit" className="text-xs text-muted-foreground mb-1 block">Limit (₹)</label>
                 <input
                   id="budget-limit"
                   type="number"
                   value={formLimit}
                   onChange={(e) => setFormLimit(e.target.value)}
                   placeholder="Amount"
-                  className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-white/10 text-sm text-white placeholder-gray-500"
+                  className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white placeholder-gray-500"
                 />
               </div>
               <div className="w-32">
-                <label htmlFor="budget-period" className="text-xs text-gray-400 mb-1 block">Period</label>
+                <label htmlFor="budget-period" className="text-xs text-muted-foreground mb-1 block">Period</label>
                 <select
                   id="budget-period"
                   value={budgetPeriod}
                   onChange={(e) => setBudgetPeriod(e.target.value as BudgetPeriod)}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-white/10 text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
+                  className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
                 >
                   <option value="monthly">Monthly</option>
                   <option value="yearly">Yearly</option>
@@ -406,7 +407,7 @@ export default function BudgetPage() {
               <button
                 onClick={handleAdd}
                 disabled={!formCategory || !formLimit}
-                className="px-5 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-all"
+                className="px-5 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-colors"
                 style={{ backgroundColor: rawColors.ios.green }}
               >
                 Add
@@ -423,15 +424,15 @@ export default function BudgetPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl border border-white/10 p-6 shadow-xl"
+            className="glass rounded-2xl border border-border p-6 shadow-xl"
           >
             <h2 className="text-lg font-semibold mb-4">Budget vs Actual</h2>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={chartData} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={50} />
-                  <YAxis tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`} tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={50} />
+                  <YAxis tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`} tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
                   <Tooltip
                     {...chartTooltipProps}
                     formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
@@ -471,10 +472,10 @@ export default function BudgetPage() {
                       <div>
                         <span className="font-medium">{row.category}</span>
                         {row.subcategory && (
-                          <span className="text-gray-400 text-sm ml-1">/ {row.subcategory}</span>
+                          <span className="text-muted-foreground text-sm ml-1">/ {row.subcategory}</span>
                         )}
                       </div>
-                      <span className="text-xs text-gray-500 ml-2 px-2 py-0.5 rounded-full bg-white/5">
+                      <span className="text-xs text-text-tertiary ml-2 px-2 py-0.5 rounded-full bg-white/5">
                         {row.period}
                       </span>
                     </div>
@@ -494,7 +495,7 @@ export default function BudgetPage() {
                             }
                             if (e.key === 'Escape') setEditKey(null)
                           }}
-                          className="w-28 px-2 py-1 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-white/10 text-sm text-white"
+                          className="w-28 px-2 py-1 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white"
                           autoFocus
                         />
                       ) : (
@@ -502,10 +503,10 @@ export default function BudgetPage() {
                           <span className={`text-lg font-bold ${cfg.text}`}>
                             {formatPercent(row.percentage)}
                           </span>
-                          <button onClick={() => setEditKey(key)} className="p-1.5 rounded-lg hover:bg-white/10 transition-all">
-                            <Edit2 className="w-3.5 h-3.5 text-gray-400" />
+                          <button onClick={() => setEditKey(key)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                            <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
                           </button>
-                          <button onClick={() => removeBudget(key)} className="p-1.5 rounded-lg hover:bg-white/10 transition-all text-red-400">
+                          <button onClick={() => removeBudget(key)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-ios-red">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </>
@@ -518,8 +519,8 @@ export default function BudgetPage() {
                     {/* Background ranges: good / warning / danger */}
                     <div className="absolute inset-0 flex rounded-full overflow-hidden">
                       <div className="h-full bg-white/5" style={{ width: `${Math.min(alertThreshold * 0.75, 100)}%` }} />
-                      <div className="h-full bg-white/8" style={{ width: `${Math.min(alertThreshold - alertThreshold * 0.75, 100 - alertThreshold * 0.75)}%` }} />
-                      <div className="h-full bg-white/12" style={{ width: `${Math.max(100 - alertThreshold, 0)}%` }} />
+                      <div className="h-full bg-white/10" style={{ width: `${Math.min(alertThreshold - alertThreshold * 0.75, 100 - alertThreshold * 0.75)}%` }} />
+                      <div className="h-full bg-white/10" style={{ width: `${Math.max(100 - alertThreshold, 0)}%` }} />
                     </div>
                     {/* Spent bar */}
                     <motion.div
@@ -531,26 +532,26 @@ export default function BudgetPage() {
                     />
                     {/* Target marker line */}
                     <div
-                      className="absolute top-0 h-full w-0.5 bg-white/40"
+                      className="absolute top-0 h-full w-0.5 bg-white/20"
                       style={{ left: `${Math.min(100, 100)}%`, transform: 'translateX(-1px)' }}
                     />
                     {/* Alert threshold marker */}
                     <div
-                      className="absolute top-0 h-full w-0.5 bg-yellow-500/60"
+                      className="absolute top-0 h-full w-0.5 bg-ios-yellow/60"
                       style={{ left: `${alertThreshold}%`, transform: 'translateX(-1px)' }}
                     />
                   </div>
 
-                  <div className="flex justify-between text-xs text-gray-400">
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Spent: {formatCurrency(row.spent)}</span>
                     <span>Budget: {formatCurrency(row.limit)}</span>
                   </div>
                   {row.remaining < 0 ? (
-                    <p className="text-xs mt-1 text-red-400 font-medium">
+                    <p className="text-xs mt-1 text-ios-red font-medium">
                       Over budget by {formatCurrency(Math.abs(row.remaining))}
                     </p>
                   ) : (
-                    <p className="text-xs mt-1 text-gray-500">
+                    <p className="text-xs mt-1 text-text-tertiary">
                       {formatCurrency(row.remaining)} remaining
                     </p>
                   )}
@@ -563,16 +564,16 @@ export default function BudgetPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="glass rounded-2xl border border-white/10 p-12 text-center"
+          className="glass rounded-2xl border border-border p-12 text-center"
         >
-          <PiggyBank className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <PiggyBank className="w-16 h-16 text-text-quaternary mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No budgets set yet</h3>
-          <p className="text-sm text-gray-400 mb-6 max-w-md mx-auto">
+          <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
             Set spending limits for your categories to start tracking. We'll suggest limits based on your spending patterns.
           </p>
           <button
             onClick={() => setIsAdding(true)}
-            className="px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all"
+            className="px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-colors"
             style={{ backgroundColor: rawColors.ios.green }}
           >
             <Plus className="w-4 h-4 inline mr-1.5" /> Create Your First Budget
@@ -585,12 +586,12 @@ export default function BudgetPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-2xl border border-white/10 p-6"
+          className="glass rounded-2xl border border-border p-6"
         >
           <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="w-5 h-5 text-gray-400" />
+            <BarChart3 className="w-5 h-5 text-muted-foreground" />
             <h3 className="text-sm font-medium">Suggested Budgets</h3>
-            <span className="text-xs text-gray-500">Based on current spending</span>
+            <span className="text-xs text-text-tertiary">Based on current spending</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {availableCategories
@@ -607,7 +608,7 @@ export default function BudgetPage() {
                     key={cat}
                     onClick={() => handleQuickAdd(cat, spent)}
                     whileTap={{ scale: 0.95 }}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:scale-105"
+                    className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors hover:scale-105"
                     style={{ backgroundColor: `${rawColors.ios.green}15`, color: rawColors.ios.green }}
                   >
                     + {displayName} ({formatCurrency(spent)}/mo)
