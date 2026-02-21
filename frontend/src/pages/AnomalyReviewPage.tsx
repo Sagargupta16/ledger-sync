@@ -67,7 +67,7 @@ export default function AnomalyReviewPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6">
       <PageHeader
         title="Anomaly Review Board"
         subtitle="Review and manage detected financial anomalies"

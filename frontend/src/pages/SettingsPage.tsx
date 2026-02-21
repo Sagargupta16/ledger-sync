@@ -334,7 +334,7 @@ export default function SettingsPage() {
 
   if (preferencesLoading || classificationsLoading || categoriesLoading) {
     return (
-      <div className="min-h-screen p-8">
+      <div className="min-h-screen p-4 md:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-muted-foreground">Loading settings...</div>
         </div>
@@ -347,11 +347,11 @@ export default function SettingsPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="min-h-screen p-8 pb-32">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8 pb-32">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-ios-purple to-secondary bg-clip-text text-transparent drop-shadow-lg">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary via-ios-purple to-secondary bg-clip-text text-transparent drop-shadow-lg">
             Settings
           </h1>
           <p className="text-muted-foreground mt-2">Configure your financial tracking preferences</p>
@@ -449,7 +449,7 @@ export default function SettingsPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent p-8 border-t border-border"
+          className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent p-4 md:p-8 border-t border-border"
         >
           <div className="max-w-7xl mx-auto flex gap-3 justify-end">
             <motion.button

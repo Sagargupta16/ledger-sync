@@ -336,7 +336,7 @@ export default function ComparisonPage() {
   // ─── Render ───────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6">
         <div className="h-10 w-72 bg-white/5 rounded-xl animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {['income', 'expenses', 'savings', 'rate'].map((name) => (
@@ -349,7 +349,7 @@ export default function ComparisonPage() {
 
   if (transactions.length === 0) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <EmptyState
           title="No transactions yet"
           description="Upload your Excel data to start comparing periods."
@@ -360,7 +360,7 @@ export default function ComparisonPage() {
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
       {/* Header */}
       <PageHeader
         title="Period Comparison"
@@ -629,7 +629,7 @@ export default function ComparisonPage() {
           {expenseDeltas.length === 0 ? (
             <p className="text-sm text-muted-foreground">No expense data for selected periods.</p>
           ) : (
-            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[300px] md:h-[400px] lg:h-[520px] overflow-y-auto pr-1">
               {expenseDeltas.map((d, i) => (
                 <CategoryDeltaRow
                   key={d.category}
@@ -664,7 +664,7 @@ export default function ComparisonPage() {
           {incomeDeltas.length === 0 ? (
             <p className="text-sm text-muted-foreground">No income data for selected periods.</p>
           ) : (
-            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[300px] md:h-[400px] lg:h-[520px] overflow-y-auto pr-1">
               {incomeDeltas.map((d, i) => (
                 <CategoryDeltaRow
                   key={d.category}

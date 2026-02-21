@@ -3,6 +3,8 @@ import { rawColors } from '@/constants/colors'
 import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, TrendingDown, Minus, Wallet, PiggyBank, CreditCard, LineChart, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useTrends } from '@/hooks/useAnalytics'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { getSmartInterval } from '@/lib/chartUtils'
 import { ResponsiveContainer, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine } from 'recharts'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { useState, useMemo } from 'react'
@@ -51,6 +53,7 @@ function formatTooltipName(name: string | undefined): string {
 }
 
 export default function TrendsForecastsPage() {
+  const dims = useChartDimensions()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
   const { displayPreferences } = usePreferencesStore()
@@ -307,7 +310,7 @@ export default function TrendsForecastsPage() {
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Trends & Forecasts"
@@ -331,7 +334,7 @@ export default function TrendsForecastsPage() {
         />
 
         {/* Trend Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Spending Trend Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -504,7 +507,7 @@ export default function TrendsForecastsPage() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                      <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                      <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyTrendWithAvg.length, dims.maxXLabels)} />
                       <YAxis hide />
                       <Tooltip
                         {...chartTooltipProps}
@@ -544,7 +547,7 @@ export default function TrendsForecastsPage() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                      <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                      <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyTrendWithAvg.length, dims.maxXLabels)} />
                       <YAxis hide />
                       <Tooltip
                         {...chartTooltipProps}
@@ -584,7 +587,7 @@ export default function TrendsForecastsPage() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                      <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }} interval={Math.max(0, Math.floor(monthlyTrendWithAvg.length / 6) - 1)} />
+                      <XAxis dataKey="label" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyTrendWithAvg.length, dims.maxXLabels)} />
                       <YAxis hide />
                       <Tooltip
                         {...chartTooltipProps}
@@ -644,8 +647,8 @@ export default function TrendsForecastsPage() {
               <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={dailySavingsData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} fontSize={12} tickFormatter={(v) => formatDateTick(v, dailySavingsData.length)} angle={-45} textAnchor="end" height={70} interval={Math.max(1, Math.floor(dailySavingsData.length / 15))} />
-                  <YAxis stroke={CHART_AXIS_COLOR} fontSize={12} tickFormatter={(v) => `${Math.round(v)}%`} domain={[0, 'auto']} />
+                  <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} fontSize={dims.tickFontSize} tickFormatter={(v) => formatDateTick(v, dailySavingsData.length)} angle={dims.angleXLabels ? -45 : 0} textAnchor={dims.angleXLabels ? 'end' : 'middle'} height={70} interval={getSmartInterval(dailySavingsData.length, dims.maxXLabels)} />
+                  <YAxis stroke={CHART_AXIS_COLOR} fontSize={dims.tickFontSize} tickFormatter={(v) => `${Math.round(v)}%`} domain={[0, 'auto']} />
                   <Tooltip
                     {...chartTooltipProps}
                     labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}

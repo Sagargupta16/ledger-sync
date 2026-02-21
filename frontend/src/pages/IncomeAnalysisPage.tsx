@@ -2,6 +2,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank, ChevronDown } from 'lucide-react'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine, PieChart, Pie, Cell } from 'recharts'
@@ -242,6 +244,7 @@ function IncomeSourcesBreakdown({ dateRange }: Readonly<{ dateRange: { start_dat
 }
 
 export default function IncomeAnalysisPage() {
+  const dims = useChartDimensions()
   const navigate = useNavigate()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
@@ -371,7 +374,7 @@ export default function IncomeAnalysisPage() {
   const isLoading = !transactions
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Income Analysis"
@@ -393,7 +396,7 @@ export default function IncomeAnalysisPage() {
           }
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-xl border border-border p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
@@ -452,7 +455,7 @@ export default function IncomeAnalysisPage() {
         >
           <h3 className="text-lg font-semibold text-white mb-4">Income by Category</h3>
           {incomeTypeChartData.length > 0 ? (
-            <div className="flex flex-col lg:flex-row items-center gap-8">
+            <div className="flex flex-col lg:flex-row items-center gap-4 md:gap-6 lg:gap-8">
               <div className="w-64 h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -544,8 +547,8 @@ export default function IncomeAnalysisPage() {
               </div>
             )}
             {!isLoading && monthlyTrendData.length > 0 && (
-              <ResponsiveContainer width="100%" height={400}>
-                <AreaChart data={monthlyTrendData}>
+              <ResponsiveContainer width="100%" height={dims.chartHeight}>
+                <AreaChart data={monthlyTrendData} margin={dims.margin}>
                   <defs>
                     <linearGradient id="incomeTrendGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.4}/>
@@ -556,12 +559,12 @@ export default function IncomeAnalysisPage() {
                   <XAxis
                     dataKey="label"
                     stroke={CHART_AXIS_COLOR}
-                    tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-                    interval={Math.max(0, Math.floor(monthlyTrendData.length / 12) - 1)}
+                    tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }}
+                    interval={getSmartInterval(monthlyTrendData.length, dims.maxXLabels)}
                   />
                   <YAxis
                     stroke={CHART_AXIS_COLOR}
-                    tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
+                    tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }}
                     tickFormatter={(value) => formatCurrencyShort(value)}
                   />
                   <Tooltip

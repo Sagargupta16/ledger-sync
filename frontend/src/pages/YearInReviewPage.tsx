@@ -12,6 +12,8 @@ import {
   ArrowDownRight,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
@@ -278,6 +280,7 @@ function HeatmapWeeks({ grid, mode, modeMax }: Readonly<{ grid: DayCell[]; mode:
 
 // ─── Main Component ─────────────────────────────────────────────────
 export default function YearInReviewPage() {
+  const dims = useChartDimensions()
   const { data: transactions = [] } = useTransactions()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
@@ -364,7 +367,7 @@ export default function YearInReviewPage() {
 
   // ── Render ───────────────────────────────────────────────────
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
       {/* Header */}
       <PageHeader
         title="Year in Review"
@@ -587,17 +590,17 @@ export default function YearInReviewPage() {
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={monthlyBarData} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
-                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
+                  <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyBarData.length, dims.maxXLabels)} />
+                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} />
                   <RechartsTooltip
                     {...chartTooltipProps}
                     formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
                   />
                   <Bar dataKey="Spending" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} opacity={0.8}>
-                    <LabelList dataKey="Spending" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />
+                    {dims.showBarLabels && <LabelList dataKey="Spending" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
                   </Bar>
                   <Bar dataKey="Earning" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} opacity={0.8}>
-                    <LabelList dataKey="Earning" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />
+                    {dims.showBarLabels && <LabelList dataKey="Earning" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

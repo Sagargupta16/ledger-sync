@@ -49,7 +49,7 @@ export default function FYNavigator({
         <div className="text-center flex-1">
           <div className="flex items-center justify-center gap-4">
             <div>
-              <h2 className="text-3xl font-bold text-white">{selectedFY || 'Select FY'}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white">{selectedFY || 'Select FY'}</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {isNewRegime
                   ? 'New Tax Regime (2025-26 onwards)'

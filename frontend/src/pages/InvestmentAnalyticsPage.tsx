@@ -328,14 +328,14 @@ export default function InvestmentAnalyticsPage() {
 
   if (totalInvestmentValue === 0) {
     return (
-      <div className="min-h-screen p-8">
+      <div className="min-h-screen p-4 md:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           <PageHeader title="Investment Analytics" subtitle="Monitor your investment portfolio performance" />
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-xl border border-border p-8 shadow-lg text-center"
+            className="glass rounded-xl border border-border p-4 md:p-6 lg:p-8 shadow-lg text-center"
           >
             <p className="text-muted-foreground mb-4">No investment accounts classified yet.</p>
             <p className="text-sm text-muted-foreground">
@@ -348,7 +348,7 @@ export default function InvestmentAnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Investment Analytics"
@@ -370,7 +370,7 @@ export default function InvestmentAnalyticsPage() {
           }
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

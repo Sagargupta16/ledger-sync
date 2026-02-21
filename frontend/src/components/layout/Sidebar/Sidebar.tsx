@@ -136,7 +136,7 @@ export default function Sidebar() {
       {/* Mobile toggle button - iOS style */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-3 rounded-2xl glass-strong shadow-xl shadow-black/20 active:scale-95 transition-transform"
+        className="lg:hidden fixed top-4 left-4 z-50 w-11 h-11 flex items-center justify-center rounded-2xl glass-strong shadow-xl shadow-black/20 active:scale-95 transition-transform"
         aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
       >
         {isMobileOpen ? <X size={22} className="text-white" /> : <Menu size={22} className="text-white" />}

@@ -110,7 +110,7 @@ export default function SpendingVelocityGauge() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 flex-1 w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 flex-1 w-full">
           <div className="p-4 rounded-xl bg-white/5 border border-border">
             <p className="text-xs text-text-tertiary">Daily Rate</p>
             <p className="text-lg font-semibold text-white mt-1">{formatCurrency(dailyRate)}</p>

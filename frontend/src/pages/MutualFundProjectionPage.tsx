@@ -336,7 +336,7 @@ function OverviewCards(props: Readonly<OverviewCardsProps>) {
   const realizedGainsDisplay = isLoading ? '...' : formatCurrency(realizedGains)
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -695,7 +695,7 @@ export default function MutualFundProjectionPage() {
   return (
     <>
       <style>{hideSpinnersStyle}</style>
-      <div className="min-h-screen p-8">
+      <div className="min-h-screen p-4 md:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <PageHeader title="SIP Projection" subtitle="Project your systematic investment plan returns" />
@@ -818,7 +818,7 @@ export default function MutualFundProjectionPage() {
           </motion.div>
 
           {/* Projection Results */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}

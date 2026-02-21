@@ -101,14 +101,14 @@ export default function UploadSyncPage() {
           <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           
           <div className="relative p-8 md:p-10">
-            <div className="flex flex-col lg:flex-row gap-8 items-center">
+            <div className="flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 items-center">
               {/* Left: Title & Info */}
               <div className="flex-1 space-y-4">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-sm">
                   <Sparkles className="w-4 h-4" />
                   <span>Smart Sync</span>
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold text-white">
+                <h1 className="text-4xl md:text-3xl sm:text-4xl md:text-5xl font-bold text-white">
                   Upload & Sync
                 </h1>
                 <p className="text-lg text-muted-foreground max-w-md">
@@ -135,7 +135,7 @@ export default function UploadSyncPage() {
                 <div
                   {...getRootProps()}
                   className={cn(
-                    'relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors duration-300',
+                    'relative border-2 border-dashed rounded-2xl p-4 md:p-8 text-center cursor-pointer transition-colors duration-300',
                     'bg-black/20 backdrop-blur-sm',
                     'hover:border-primary hover:bg-primary/10',
                     isDragActive && 'border-primary bg-primary/20 scale-[1.02]',

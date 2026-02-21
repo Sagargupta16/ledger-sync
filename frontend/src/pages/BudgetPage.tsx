@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { getSmartInterval } from '@/lib/chartUtils'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import StatCard from '@/pages/year-in-review/StatCard'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -62,6 +64,7 @@ const statusConfig = {
 
 // ─── Component ──────────────────────────────────────────────────────
 export default function BudgetPage() {
+  const dims = useChartDimensions()
   const navigate = useNavigate()
   const { data: transactions = [] } = useTransactions()
   const { data: categoryData } = useCategoryBreakdown({ transaction_type: 'expense' })
@@ -252,7 +255,7 @@ export default function BudgetPage() {
 
   // ─── Render ───────────────────────────────────────────────────
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
       {/* Header */}
       <PageHeader
         title="Budget Tracker"
@@ -338,7 +341,7 @@ export default function BudgetPage() {
             </div>
             <div className="flex flex-wrap gap-4 items-end">
               {viewMode === 'category' ? (
-                <div className="flex-1 min-w-48">
+                <div className="flex-1 min-w-0 sm:min-w-48">
                   <label htmlFor="budget-category" className="text-xs text-muted-foreground mb-1 block">Category</label>
                   <select
                     id="budget-category"
@@ -354,7 +357,7 @@ export default function BudgetPage() {
                 </div>
               ) : (
                 <>
-                  <div className="flex-1 min-w-40">
+                  <div className="flex-1 min-w-0 sm:min-w-40">
                     <label htmlFor="budget-cat-sub" className="text-xs text-muted-foreground mb-1 block">Category</label>
                     <select
                       id="budget-cat-sub"
@@ -368,7 +371,7 @@ export default function BudgetPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="flex-1 min-w-40">
+                  <div className="flex-1 min-w-0 sm:min-w-40">
                     <label htmlFor="budget-subcategory" className="text-xs text-muted-foreground mb-1 block">Subcategory</label>
                     <select
                       id="budget-subcategory"
@@ -438,17 +441,17 @@ export default function BudgetPage() {
                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart data={chartData} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={50} />
-                    <YAxis tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`} tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
+                    <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(chartData.length, dims.maxXLabels)} angle={dims.angleXLabels ? -20 : 0} textAnchor={dims.angleXLabels ? 'end' : 'middle'} height={50} />
+                    <YAxis tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} />
                     <Tooltip
                       {...chartTooltipProps}
                       formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
                     />
                     <Bar dataKey="Budget" fill={rawColors.ios.blue} radius={[4, 4, 0, 0]} opacity={0.5}>
-                      <LabelList dataKey="Budget" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />
+                      {dims.showBarLabels && <LabelList dataKey="Budget" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
                     </Bar>
                     <Bar dataKey="Spent" radius={[4, 4, 0, 0]} onClick={(data: { name?: string }) => { if (data?.name) navigate(`/transactions?category=${encodeURIComponent(data.name)}`) }} style={{ cursor: 'pointer' }}>
-                      <LabelList dataKey="Spent" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />
+                      {dims.showBarLabels && <LabelList dataKey="Spent" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
                       {chartData.map((entry) => (
                         <Cell key={entry.name} fill={statusConfig[entry.status].color} />
                       ))}

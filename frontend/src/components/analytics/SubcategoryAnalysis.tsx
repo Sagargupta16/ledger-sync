@@ -290,7 +290,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
                       <div className="p-3 bg-white/5 rounded-lg">
                         <div className="text-sm text-muted-foreground mb-1">Total Spending</div>
                         <div className="text-lg font-semibold text-white">

@@ -219,7 +219,7 @@ export default function SpendingAnalysisPage() {
   const isLoading = !transactions
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Spending Analysis"
@@ -241,7 +241,7 @@ export default function SpendingAnalysisPage() {
           }
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <motion.div {...fadeUpWithDelay(0.2)} className="glass rounded-xl border border-border p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-ios-red/20 rounded-xl shadow-lg shadow-ios-red/30">

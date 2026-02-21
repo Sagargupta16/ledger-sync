@@ -302,7 +302,7 @@ const IncomeExpenseFlowPage = () => {
   }, [fyTransactions])
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Income-Expense Flow"
@@ -329,7 +329,7 @@ const IncomeExpenseFlowPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-4 gap-6"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
       >
         <div className="glass rounded-xl border border-border p-6 shadow-lg">
           <div className="flex items-center gap-3 mb-2">
@@ -377,7 +377,7 @@ const IncomeExpenseFlowPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-xl border border-border p-8 shadow-lg"
+        className="glass rounded-xl border border-border p-4 md:p-6 lg:p-8 shadow-lg"
       >
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -392,7 +392,7 @@ const IncomeExpenseFlowPage = () => {
         </div>
 
         {isLoading && (
-          <div className="h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
+          <div className="h-[400px] md:h-[550px] lg:h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-purple mx-auto mb-4"></div>
               <div className="text-muted-foreground">Loading flow diagram...</div>
@@ -401,8 +401,8 @@ const IncomeExpenseFlowPage = () => {
         )}
         {!isLoading && sankeyData.nodes.length > 0 && (
           <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6 overflow-x-auto">
-            <div style={{ minWidth: '1000px', height: '700px', position: 'relative' }}>
-              <ResponsiveContainer width="100%" height={700}>
+            <div style={{ minWidth: "min(1000px, 90vw)", height: '700px', position: 'relative' }}>
+              <ResponsiveContainer width="100%" height={typeof window !== 'undefined' && window.innerWidth < 768 ? 400 : 700}>
                 <Sankey
                   data={sankeyData as { nodes: Array<{ name: string }>; links: Array<{ source: number; target: number; value: number }> }}
                   nodeWidth={20}
@@ -474,7 +474,7 @@ const IncomeExpenseFlowPage = () => {
           </div>
         )}
         {!isLoading && sankeyData.nodes.length === 0 && (
-          <div className="h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
+          <div className="h-[400px] md:h-[550px] lg:h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
             <div className="text-center">
               <ArrowRightLeft className="w-16 h-16 text-text-quaternary mx-auto mb-4" />
               <p className="text-muted-foreground text-lg">No transaction data available for FY {currentFY}</p>

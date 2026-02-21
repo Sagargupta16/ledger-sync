@@ -133,7 +133,7 @@ export default function TransactionsPage() {
   }, [allTransactions])
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <PageHeader

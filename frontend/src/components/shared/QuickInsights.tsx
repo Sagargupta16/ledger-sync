@@ -328,7 +328,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {Array.from({ length: 14 }, (_, i) => (
           <LoadingSkeleton key={`skeleton-${i}`} className="h-16 w-full" />
         ))}
@@ -338,7 +338,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
 
   return (
     <motion.div
-      className="grid grid-cols-1 lg:grid-cols-2 gap-3"
+      className="grid grid-cols-1 sm:grid-cols-2 gap-3"
       variants={staggerContainer}
       initial="hidden"
       animate="visible"

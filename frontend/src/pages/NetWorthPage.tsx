@@ -3,6 +3,8 @@ import { rawColors } from '@/constants/colors'
 import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, LabelList } from 'recharts'
@@ -290,6 +292,7 @@ function AccountCategoryTable({
 }
 
 export default function NetWorthPage() {
+  const dims = useChartDimensions()
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
   const { data: transactions = [], isLoading: transactionsLoading } = useTransactions()
   const { data: preferences } = usePreferences()
@@ -447,7 +450,7 @@ export default function NetWorthPage() {
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Net Worth"
@@ -469,7 +472,7 @@ export default function NetWorthPage() {
           }
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -588,14 +591,14 @@ export default function NetWorthPage() {
                       })}
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                    <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} tickFormatter={(v) => formatDateTick(v, filteredNetWorthData.length)} angle={-45} textAnchor="end" height={80} interval={Math.max(1, Math.floor(filteredNetWorthData.length / 20))} />
-                    <YAxis stroke={CHART_AXIS_COLOR} tickFormatter={(value: number) => formatCurrencyShort(value)} />
+                    <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} tickFormatter={(v) => formatDateTick(v, filteredNetWorthData.length)} angle={dims.angleXLabels ? -45 : 0} textAnchor={dims.angleXLabels ? 'end' : 'middle'} height={80} interval={getSmartInterval(filteredNetWorthData.length, dims.maxXLabels)} />
+                    <YAxis stroke={CHART_AXIS_COLOR} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} tickFormatter={(value: number) => formatCurrencyShort(value)} />
                     <Tooltip
                       {...chartTooltipProps}
                       formatter={formattedValue}
                       labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                     />
-                    <Legend />
+                    {dims.showLegend && <Legend />}
                     {showStacked ? (
                       <>
                         {allCategories.map((cat) => {
@@ -661,18 +664,18 @@ export default function NetWorthPage() {
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={monthlyChanges}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="month" tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
-                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
+                  <XAxis dataKey="month" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyChanges.length, dims.maxXLabels)} />
+                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} />
                   <Tooltip
                     {...chartTooltipProps}
                     formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                   />
                   <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
                   <Bar dataKey="positive" name="Increase" fill={rawColors.ios.green} radius={[4, 4, 0, 0]}>
-                    <LabelList dataKey="positive" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />
+                    {dims.showBarLabels && <LabelList dataKey="positive" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
                   </Bar>
                   <Bar dataKey="negative" name="Decrease" fill={rawColors.ios.red} radius={[4, 4, 0, 0]}>
-                    <LabelList dataKey="negative" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />
+                    {dims.showBarLabels && <LabelList dataKey="negative" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

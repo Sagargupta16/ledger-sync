@@ -128,7 +128,7 @@ export default function HomePage() {
             />
           </div>
 
-          <div className="max-w-6xl mx-auto px-6 py-20 relative z-10">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16 md:py-20 relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -155,7 +155,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-5xl md:text-7xl font-bold mb-6"
+                className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-4 sm:mb-6"
               >
                 <span className="bg-gradient-to-r from-white via-white to-muted-foreground bg-clip-text text-transparent">
                   Take Control of{' '}
@@ -248,7 +248,7 @@ export default function HomePage() {
             >
               {/* Text */}
               <div>
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+                <h2 className="text-3xl md:text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-6">
                   What is Ledger Sync?
                 </h2>
                 <p className="text-muted-foreground mb-6 leading-relaxed">
@@ -323,13 +323,13 @@ export default function HomePage() {
 
               {/* Visual */}
               <div className="relative">
-                <div className="glass rounded-3xl border border-border p-8">
+                <div className="glass rounded-3xl border border-border p-4 md:p-8">
                   <div className="space-y-4">
                     {/* Mock Dashboard Preview */}
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <div className="text-sm text-muted-foreground">Net Worth</div>
-                        <div className="text-3xl font-bold text-white">
+                        <div className="text-2xl sm:text-3xl font-bold text-white">
                           ₹24,85,000
                         </div>
                       </div>
@@ -343,7 +343,7 @@ export default function HomePage() {
                         +12.4%
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div className="bg-white/5 rounded-xl p-4">
                         <div className="text-xs text-muted-foreground">Income</div>
                         <div className="text-lg font-semibold text-white">
@@ -406,7 +406,7 @@ export default function HomePage() {
                   Features
                 </span>
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-3xl md:text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
                 Everything You Need
               </h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -456,7 +456,7 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-3xl md:text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
                 Ready to Take Control?
               </h2>
               <p className="text-muted-foreground mb-8 max-w-xl mx-auto">

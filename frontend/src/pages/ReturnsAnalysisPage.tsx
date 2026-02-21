@@ -4,6 +4,8 @@ import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { TrendingUp, TrendingDown, Banknote, Receipt } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
@@ -85,6 +87,7 @@ function groupTransactionsByDay(
 }
 
 export default function ReturnsAnalysisPage() {
+  const dims = useChartDimensions()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
@@ -310,7 +313,7 @@ export default function ReturnsAnalysisPage() {
   }, [investmentProfit, dividendIncome, interestIncome, investmentLoss, brokerFees, netProfitLoss])
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Returns Analysis"
@@ -333,7 +336,7 @@ export default function ReturnsAnalysisPage() {
         />
 
         {/* P&L Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -407,8 +410,8 @@ export default function ReturnsAnalysisPage() {
           {cumulativeReturnsData.length === 0 ? (
             <ChartEmptyState height={320} />
           ) : (
-            <ResponsiveContainer width="100%" height={320}>
-              <AreaChart data={cumulativeReturnsData}>
+            <ResponsiveContainer width="100%" height={dims.chartHeight}>
+              <AreaChart data={cumulativeReturnsData} margin={dims.margin}>
                 <defs>
                   <linearGradient id="positiveGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.3} />
@@ -423,15 +426,16 @@ export default function ReturnsAnalysisPage() {
                 <XAxis
                   dataKey="date"
                   stroke={CHART_AXIS_COLOR}
-                  fontSize={12}
+                  tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }}
                   tickFormatter={(v) => formatDateTick(v, cumulativeReturnsData.length)}
-                  angle={-45}
-                  textAnchor="end"
+                  angle={dims.angleXLabels ? -45 : 0}
+                  textAnchor={dims.angleXLabels ? 'end' : 'middle'}
                   height={80}
-                  interval={Math.max(1, Math.floor(cumulativeReturnsData.length / 20))}
+                  interval={getSmartInterval(cumulativeReturnsData.length, dims.maxXLabels)}
                 />
                 <YAxis
                   stroke={CHART_AXIS_COLOR}
+                  tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }}
                   tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
@@ -507,8 +511,8 @@ export default function ReturnsAnalysisPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={waterfallData} barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
-                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
+                  <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(waterfallData.length, dims.maxXLabels)} />
+                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} />
                   <Tooltip
                     {...chartTooltipProps}
                     formatter={(value: number | undefined, name: string | undefined, props: { payload?: { value?: number; isTotal?: boolean } }) => {

@@ -202,7 +202,7 @@ export default function OtherSettingsTab({
           <PiggyBank className="w-5 h-5 text-primary" />
           Budget Defaults
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 items-start">
           <div>
             <label htmlFor="alert-threshold" className="block text-sm font-medium text-foreground mb-2">
               Alert Threshold (%)
@@ -314,7 +314,7 @@ export default function OtherSettingsTab({
           <Target className="w-5 h-5 text-primary" />
           Spending Rule (Needs / Wants / Savings)
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div>
             <label htmlFor="needs-target" className="block text-sm font-medium text-foreground mb-2">
               Needs Target (%)

@@ -682,7 +682,7 @@ function ScoreHeader({
         </div>
       </div>
       <div className="text-right">
-        <p className={`text-3xl font-bold ${status.color}`}>{Math.round(overallScore)}</p>
+        <p className={`text-2xl sm:text-3xl font-bold ${status.color}`}>{Math.round(overallScore)}</p>
         <p className={`text-sm font-medium ${status.color}`}>{status.label}</p>
       </div>
     </div>

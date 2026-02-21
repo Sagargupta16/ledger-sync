@@ -137,7 +137,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
 
       {/* Animated Value */}
       <div className="flex items-baseline gap-2 relative z-10">
-        <p className="text-3xl font-semibold text-white">
+        <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-white">
           <AnimatedValue value={value} reducedMotion={reducedMotion} />
         </p>
       </div>

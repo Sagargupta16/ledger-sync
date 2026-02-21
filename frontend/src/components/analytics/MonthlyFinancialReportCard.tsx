@@ -201,7 +201,7 @@ export default function MonthlyFinancialReportCard() {
           {/* Overall Grade */}
           <div className="flex flex-col items-center mb-8">
             <div
-              className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-lg"
+              className="w-24 h-24 rounded-full flex items-center justify-center text-2xl sm:text-3xl md:text-4xl font-bold text-white shadow-lg"
               style={{
                 backgroundColor: `${GRADE_COLORS[report.overall]}20`,
                 boxShadow: `0 8px 32px ${GRADE_COLORS[report.overall]}30`,
