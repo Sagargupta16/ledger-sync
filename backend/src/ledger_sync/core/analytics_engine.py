@@ -127,6 +127,17 @@ class AnalyticsEngine:
         return DEFAULT_ESSENTIAL_CATEGORIES
 
     @property
+    def excluded_accounts(self) -> set[str]:
+        """Get excluded account names from preferences (empty set if none configured)."""
+        if self._preferences and getattr(self._preferences, "excluded_accounts", None):
+            accounts = self._parse_json_field(
+                self._preferences.excluded_accounts,
+                [],
+            )
+            return set(accounts)
+        return set()
+
+    @property
     def investment_account_patterns(self) -> dict[str, str]:
         """Get investment account mappings from preferences or defaults."""
         if self._preferences and self._preferences.investment_account_mappings:
@@ -433,10 +444,17 @@ class AnalyticsEngine:
         return results
 
     def _user_transaction_query(self):
-        """Base query for transactions scoped to current user."""
+        """Base query for transactions scoped to current user.
+
+        Excludes transactions from accounts listed in the user's
+        ``excluded_accounts`` preference (e.g. internal wallets).
+        """
         query = self.db.query(Transaction).filter(Transaction.is_deleted.is_(False))
         if self.user_id is not None:
             query = query.filter(Transaction.user_id == self.user_id)
+        excluded = self.excluded_accounts
+        if excluded:
+            query = query.filter(Transaction.account.notin_(excluded))
         return query
 
     def _calculate_monthly_summaries(self, transactions: list | None = None) -> int:

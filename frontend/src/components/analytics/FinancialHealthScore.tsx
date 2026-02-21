@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
 import { formatCurrencyCompact } from '@/lib/formatters'
 import type { Transaction } from '@/types'
@@ -206,6 +207,7 @@ function classifyTransaction(
   tx: Transaction,
   bucket: MonthlyBucket,
   isInvestmentAccount: (name: string) => boolean,
+  userFixedCategories?: Set<string>,
 ): void {
   const amount = Math.abs(tx.amount)
   const category = tx.category || 'Other'
@@ -227,7 +229,13 @@ function classifyTransaction(
     bucket.categories[category] = (bucket.categories[category] || 0) + amount
     if (matchesCategoryList(category, DEBT_CATEGORIES)) bucket.debt += amount
     if (matchesCategoryList(category, DISCRETIONARY_CATEGORIES)) bucket.discretionary += amount
-    if (matchesCategoryList(category, ESSENTIAL_CATEGORIES)) bucket.essential += amount
+    // Check both hardcoded essential categories AND user-defined fixed expense categories
+    const isEssential = matchesCategoryList(category, ESSENTIAL_CATEGORIES)
+    const isUserFixed = userFixedCategories
+      ? (userFixedCategories.has(category.toLowerCase()) ||
+         userFixedCategories.has(`${category}::${tx.subcategory || ''}`.toLowerCase()))
+      : false
+    if (isEssential || isUserFixed) bucket.essential += amount
   }
 }
 
@@ -236,6 +244,7 @@ function classifyTransaction(
 function computeMonthlyData(
   transactions: Transaction[],
   isInvestmentAccount: (name: string) => boolean,
+  userFixedCategories?: Set<string>,
 ): { months: string[]; monthlyData: Record<string, MonthlyBucket> } | null {
   if (transactions.length < 10) return null
 
@@ -246,7 +255,7 @@ function computeMonthlyData(
     if (!monthlyData[month]) {
       monthlyData[month] = createEmptyBucket()
     }
-    classifyTransaction(tx, monthlyData[month], isInvestmentAccount)
+    classifyTransaction(tx, monthlyData[month], isInvestmentAccount, userFixedCategories)
   }
 
   const months = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
@@ -356,12 +365,13 @@ function computeAnalysis(
 // ─── FHN Indicator Scorers ──────────────────────────────────────────────────
 
 // SPEND 1: Spend less than income
-function scoreSpendLessThanIncome(data: AnalysisResult): HealthMetric {
+function scoreSpendLessThanIncome(data: AnalysisResult, savingsGoalPercent = 20): HealthMetric {
   const rate = data.savingsRate
+  const target = savingsGoalPercent
   let score: number
-  if (rate >= 20) score = clamp(90 + (rate - 20) * 0.5, 90, 100)
-  else if (rate >= 10) score = 70 + ((rate - 10) / 10) * 19
-  else if (rate >= 0) score = 40 + (rate / 10) * 29
+  if (rate >= target) score = clamp(90 + (rate - target) * 0.5, 90, 100)
+  else if (rate >= target / 2) score = 70 + ((rate - target / 2) / (target / 2)) * 19
+  else if (rate >= 0) score = 40 + (rate / (target / 2)) * 29
   else score = clamp(40 + rate * 2, 0, 39)
 
   return {
@@ -374,7 +384,7 @@ function scoreSpendLessThanIncome(data: AnalysisResult): HealthMetric {
     details: [
       `Avg income: ${formatCurrencyCompact(data.avgMonthlyIncome)}/mo`,
       `Avg expenses: ${formatCurrencyCompact(data.avgMonthlyExpense)}/mo`,
-      rate >= 20 ? 'Target met: saving 20%+ of income' : 'Target: save at least 20% of income',
+      rate >= target ? `Target met: saving ${target}%+ of income` : `Target: save at least ${target}% of income`,
     ],
   }
 }
@@ -582,9 +592,9 @@ function scoreIncomeStability(data: AnalysisResult): HealthMetric {
 
 // ─── Calculate All Metrics ──────────────────────────────────────────────────
 
-function calculateMetrics(data: AnalysisResult): HealthMetric[] {
+function calculateMetrics(data: AnalysisResult, savingsGoalPercent = 20): HealthMetric[] {
   return [
-    scoreSpendLessThanIncome(data),
+    scoreSpendLessThanIncome(data, savingsGoalPercent),
     scoreEssentialRatio(data),
     scoreEmergencyFund(data),
     scoreInvestment(data),
@@ -823,22 +833,43 @@ interface FinancialHealthScoreProps {
 
 export default function FinancialHealthScore({ transactions: propTransactions }: Readonly<FinancialHealthScoreProps>) {
   const { data: fetchedTransactions = [], isLoading: isFetching } = useTransactions()
+  const { data: preferences } = usePreferences()
   const transactions = propTransactions ?? fetchedTransactions
   const isLoading = !propTransactions && isFetching
   const [showDetails, setShowDetails] = useState(false)
   const isInvestmentAccount = useInvestmentAccountStore((state) => state.isInvestmentAccount)
 
+  const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
+
+  // Parse fixed_expense_categories from preferences for more accurate essential classification
+  const userFixedCategories = useMemo<Set<string>>(() => {
+    const raw = preferences?.fixed_expense_categories
+    if (!raw) return new Set()
+    let arr: string[]
+    if (Array.isArray(raw)) {
+      arr = raw
+    } else {
+      try {
+        const parsed = JSON.parse(raw)
+        arr = Array.isArray(parsed) ? parsed : []
+      } catch {
+        arr = []
+      }
+    }
+    return new Set(arr.map((c) => c.toLowerCase()))
+  }, [preferences?.fixed_expense_categories])
+
   const analysisData = useMemo(() => {
     if (!transactions.length) return null
-    const result = computeMonthlyData(transactions, isInvestmentAccount)
+    const result = computeMonthlyData(transactions, isInvestmentAccount, userFixedCategories.size > 0 ? userFixedCategories : undefined)
     if (!result) return null
     return computeAnalysis(result.months, result.monthlyData)
-  }, [transactions, isInvestmentAccount])
+  }, [transactions, isInvestmentAccount, userFixedCategories])
 
   if (isLoading) return <LoadingSkeleton />
   if (!analysisData) return <EmptyState />
 
-  const metrics = calculateMetrics(analysisData)
+  const metrics = calculateMetrics(analysisData, savingsGoalPercent)
   if (metrics.length === 0) return <EmptyState />
 
   const overallScore = metrics.reduce((sum, m) => sum + (m.score * m.weight) / 100, 0)

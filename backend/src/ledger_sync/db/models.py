@@ -1138,6 +1138,31 @@ class UserPreferences(Base):
     earning_start_date: Mapped[str | None] = mapped_column(String(10), nullable=True, default=None)
     use_earning_start_date: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # ===== 12. Fixed/Mandatory Monthly Expenses =====
+    # JSON array of "Category::Subcategory" that are fixed every month
+    # e.g. ["Housing::Rent", "Utilities::Internet", "Transportation::EMI"]
+    fixed_expense_categories: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+
+    # ===== 13. Savings & Investment Targets =====
+    savings_goal_percent: Mapped[float] = mapped_column(Float, nullable=False, default=20.0)
+    monthly_investment_target: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    # ===== 14. Payday Configuration =====
+    payday: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    # ===== 15. Tax Regime Preference =====
+    preferred_tax_regime: Mapped[str] = mapped_column(String(10), nullable=False, default="new")
+
+    # ===== 16. Excluded Accounts =====
+    # JSON array of account names to exclude from analytics
+    excluded_accounts: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+
+    # ===== 17. Notification Preferences =====
+    notify_budget_alerts: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notify_anomalies: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notify_upcoming_bills: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notify_days_ahead: Mapped[int] = mapped_column(Integer, nullable=False, default=7)
+
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(

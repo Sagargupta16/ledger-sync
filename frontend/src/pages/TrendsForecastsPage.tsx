@@ -56,6 +56,7 @@ export default function TrendsForecastsPage() {
   const dims = useChartDimensions()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
+  const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
   const { displayPreferences } = usePreferencesStore()
 
   // Time filter state — same as all other analytics pages
@@ -664,6 +665,18 @@ export default function TrendsForecastsPage() {
                       <stop offset="95%" stopColor={rawColors.ios.purple} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
+                  <ReferenceLine
+                    y={savingsGoalPercent}
+                    stroke={rawColors.ios.green}
+                    strokeDasharray="6 4"
+                    strokeWidth={1.5}
+                    label={{
+                      value: `Target: ${savingsGoalPercent}%`,
+                      fill: rawColors.ios.green,
+                      fontSize: 11,
+                      position: 'insideTopRight',
+                    }}
+                  />
                   <Area
                     type="natural"
                     dataKey="savingsRate"

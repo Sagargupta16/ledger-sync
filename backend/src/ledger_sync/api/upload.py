@@ -1,4 +1,4 @@
-"""Upload API endpoint for Excel file ingestion."""
+"""Upload API endpoint for Excel and CSV file ingestion."""
 
 import atexit
 import os
@@ -22,7 +22,8 @@ router = APIRouter(prefix="", tags=["upload"])
 # Accepted file extensions
 _XLSX_EXT = ".xlsx"
 _XLS_EXT = ".xls"
-_ACCEPTED_EXTENSIONS = (_XLSX_EXT, _XLS_EXT)
+_CSV_EXT = ".csv"
+_ACCEPTED_EXTENSIONS = (_XLSX_EXT, _XLS_EXT, _CSV_EXT)
 
 # Excel file magic bytes for validation
 _XLSX_MAGIC = b"PK"  # ZIP archive (OOXML format)
@@ -46,16 +47,19 @@ def _validate_upload_file(filename: str | None) -> str:
         raise HTTPException(status_code=400, detail="No file provided")
 
     if not filename.endswith(_ACCEPTED_EXTENSIONS):
+        allowed = ", ".join(_ACCEPTED_EXTENSIONS)
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file type. Expected {_XLSX_EXT} or {_XLS_EXT}, got {filename}",
+            detail=f"Invalid file type. Expected one of {allowed}, got {filename}",
         )
 
     return filename
 
 
 def _validate_file_content(content: bytes, filename: str) -> None:
-    """Validate file content matches expected Excel format via magic bytes.
+    """Validate file content matches expected format via magic bytes.
+
+    CSV files start with plain text, so magic-byte validation is skipped for them.
 
     Args:
         content: The raw file bytes.
@@ -65,6 +69,10 @@ def _validate_file_content(content: bytes, filename: str) -> None:
         HTTPException: If content doesn't match expected Excel magic bytes.
 
     """
+    # CSV files are plain text — skip magic-byte validation
+    if filename.endswith(_CSV_EXT):
+        return
+
     if filename.endswith(_XLSX_EXT) and not content[:2].startswith(_XLSX_MAGIC):
         raise HTTPException(
             status_code=400,
@@ -106,7 +114,8 @@ async def _create_temp_file(file: UploadFile, filename: str) -> Path:
     # Validate file content magic bytes
     _validate_file_content(content, filename)
 
-    tmp_fd, tmp_name = tempfile.mkstemp(suffix=_XLSX_EXT)
+    suffix = Path(filename).suffix
+    tmp_fd, tmp_name = tempfile.mkstemp(suffix=suffix)
     os.close(tmp_fd)
     tmp_path = Path(tmp_name)
     await anyio.Path(tmp_path).write_bytes(content)
@@ -151,15 +160,15 @@ def _cleanup_temp_file(tmp_path: Path) -> None:
 )
 async def upload_excel(
     current_user: CurrentUser,
-    file: Annotated[UploadFile, File(description="Excel file to import")],
+    file: Annotated[UploadFile, File(description="Excel or CSV file to import")],
     db: DatabaseSession,
     force: bool = False,
 ) -> UploadResponse:
-    """Upload and process Excel file.
+    """Upload and process an Excel or CSV file.
 
     Args:
         current_user: Authenticated user
-        file: Excel file to import
+        file: Excel (.xlsx, .xls) or CSV (.csv) file to import
         force: Force re-import even if file was previously imported
         db: Database session
 

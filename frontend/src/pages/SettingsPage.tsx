@@ -21,6 +21,10 @@ import {
   DollarSign,
   Settings2,
   UserCog,
+  Receipt,
+  Target,
+  Bell,
+  EyeOff,
 } from 'lucide-react'
 import { useAccountBalances, useMasterCategories } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
@@ -33,6 +37,10 @@ import {
   IncomeClassificationTab,
   OtherSettingsTab,
   AccountManagementTab,
+  FixedExpensesTab,
+  FinancialTargetsTab,
+  NotificationPreferencesTab,
+  ExcludedAccountsTab,
 } from './settings'
 import type { LocalPrefs, LocalPrefKey } from './settings'
 import type { IncomeClassificationType } from './settings/types'
@@ -42,8 +50,12 @@ import { INCOME_CLASSIFICATION_KEY_MAP } from './settings/types'
 const TABS = [
   { id: 'accounts', label: 'Account Types', icon: Wallet },
   { id: 'categories', label: 'Essential Categories', icon: TrendingUp },
+  { id: 'fixed-expenses', label: 'Fixed Expenses', icon: Receipt },
   { id: 'investments', label: 'Investment Mappings', icon: DollarSign },
   { id: 'income', label: 'Income Sources', icon: DollarSign },
+  { id: 'financial-targets', label: 'Financial Targets', icon: Target },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'excluded-accounts', label: 'Excluded Accounts', icon: EyeOff },
   { id: 'others', label: 'Other Settings', icon: Settings2 },
   { id: 'account-management', label: 'Account', icon: UserCog },
 ] as const
@@ -159,6 +171,20 @@ export default function SettingsPage() {
         credit_card_limits: { ...preferences.credit_card_limits },
         earning_start_date: preferences.earning_start_date ?? null,
         use_earning_start_date: preferences.use_earning_start_date ?? false,
+        fixed_expense_categories: Array.isArray(preferences.fixed_expense_categories)
+          ? [...preferences.fixed_expense_categories]
+          : preferences.fixed_expense_categories ?? [],
+        savings_goal_percent: preferences.savings_goal_percent ?? 20,
+        monthly_investment_target: preferences.monthly_investment_target ?? 0,
+        payday: preferences.payday ?? 1,
+        preferred_tax_regime: preferences.preferred_tax_regime ?? 'new',
+        excluded_accounts: Array.isArray(preferences.excluded_accounts)
+          ? [...preferences.excluded_accounts]
+          : preferences.excluded_accounts ?? [],
+        notify_budget_alerts: preferences.notify_budget_alerts ?? true,
+        notify_anomalies: preferences.notify_anomalies ?? true,
+        notify_upcoming_bills: preferences.notify_upcoming_bills ?? true,
+        notify_days_ahead: preferences.notify_days_ahead ?? 7,
       })
     }
   }, [preferences, localPrefs])
@@ -224,6 +250,32 @@ export default function SettingsPage() {
       updateLocalPref(
         'essential_categories',
         localPrefs.essential_categories.filter((c) => c !== category)
+      )
+    }
+  }
+
+  // Fixed expenses drop handler
+  const handleDropOnFixedExpenses = () => {
+    if (draggedItem && dragType === 'category' && localPrefs) {
+      const current = Array.isArray(localPrefs.fixed_expense_categories)
+        ? localPrefs.fixed_expense_categories
+        : []
+      if (!current.includes(draggedItem)) {
+        updateLocalPref('fixed_expense_categories', [...current, draggedItem])
+      }
+    }
+    handleDragEnd()
+  }
+
+  // Remove from fixed expenses
+  const handleRemoveFromFixedExpenses = (category: string) => {
+    if (localPrefs) {
+      const current = Array.isArray(localPrefs.fixed_expense_categories)
+        ? localPrefs.fixed_expense_categories
+        : []
+      updateLocalPref(
+        'fixed_expense_categories',
+        current.filter((c) => c !== category)
       )
     }
   }
@@ -411,6 +463,19 @@ export default function SettingsPage() {
               />
             )}
 
+            {activeTab === 'fixed-expenses' && localPrefs && (
+              <FixedExpensesTab
+                localPrefs={localPrefs}
+                allExpenseCategories={allExpenseCategories}
+                dragType={dragType}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleDragOver}
+                onDropOnFixedExpenses={handleDropOnFixedExpenses}
+                onRemoveFromFixedExpenses={handleRemoveFromFixedExpenses}
+              />
+            )}
+
             {activeTab === 'investments' && localPrefs && (
               <InvestmentMappingsTab
                 localPrefs={localPrefs}
@@ -435,6 +500,18 @@ export default function SettingsPage() {
                 onDropOnIncomeClassification={handleDropOnIncomeClassification}
                 onRemoveIncomeClassification={handleRemoveIncomeClassification}
               />
+            )}
+
+            {activeTab === 'financial-targets' && localPrefs && (
+              <FinancialTargetsTab localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
+            )}
+
+            {activeTab === 'notifications' && localPrefs && (
+              <NotificationPreferencesTab localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
+            )}
+
+            {activeTab === 'excluded-accounts' && localPrefs && (
+              <ExcludedAccountsTab localPrefs={localPrefs} accounts={accounts} updateLocalPref={updateLocalPref} />
             )}
 
             {activeTab === 'others' && localPrefs && (

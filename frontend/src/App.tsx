@@ -35,6 +35,8 @@ const pageImports = {
   AnomalyReviewPage: () => import('@/pages/AnomalyReviewPage'),
   GoalsPage: () => import('@/pages/GoalsPage'),
   InsightsPage: () => import('@/pages/InsightsPage'),
+  SubscriptionTrackerPage: () => import('@/pages/SubscriptionTrackerPage'),
+  BillCalendarPage: () => import('@/pages/BillCalendarPage'),
 }
 
 const UploadSyncPage = lazy(pageImports.UploadSyncPage)
@@ -55,6 +57,8 @@ const SettingsPage = lazy(pageImports.SettingsPage)
 const AnomalyReviewPage = lazy(pageImports.AnomalyReviewPage)
 const GoalsPage = lazy(pageImports.GoalsPage)
 const InsightsPage = lazy(pageImports.InsightsPage)
+const SubscriptionTrackerPage = lazy(pageImports.SubscriptionTrackerPage)
+const BillCalendarPage = lazy(pageImports.BillCalendarPage)
 
 /**
  * Prefetch all lazy page chunks in the background after initial load.
@@ -211,6 +215,8 @@ function App() {
                     <Route path={toRelativePath(ROUTES.ANOMALIES)} element={<AnomalyReviewPage />} />
                     <Route path={toRelativePath(ROUTES.GOALS)} element={<GoalsPage />} />
                     <Route path={toRelativePath(ROUTES.INSIGHTS)} element={<InsightsPage />} />
+                    <Route path={toRelativePath(ROUTES.SUBSCRIPTIONS)} element={<SubscriptionTrackerPage />} />
+                    <Route path={toRelativePath(ROUTES.BILL_CALENDAR)} element={<BillCalendarPage />} />
                     {/* 404 catch-all for unmatched routes */}
                     <Route path="*" element={<NotFoundPage />} />
                   </Route>

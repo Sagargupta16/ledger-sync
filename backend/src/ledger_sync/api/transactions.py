@@ -1,11 +1,12 @@
-"""Transaction API endpoints for listing, searching, and exporting transactions."""
+"""Transaction API endpoints for listing, searching, creating, and exporting transactions."""
 
 import csv
 import io
-from datetime import datetime
+from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Query as SAQuery
@@ -14,7 +15,9 @@ from sqlalchemy.orm import Session
 from ledger_sync.api.analytics import _apply_earning_start_date
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import Transaction, TransactionType, User
+from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.schemas.transactions import (
+    TransactionCreateRequest,
     TransactionResponse,
     TransactionsListResponse,
 )
@@ -358,3 +361,100 @@ async def export_transactions(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=transactions.csv"},
     )
+
+
+# --- Quick-Add Transaction Endpoint ---
+
+# Shared hasher instance (stateless, safe to reuse)
+_hasher = TransactionHasher()
+
+
+@router.post(
+    "/api/transactions",
+    status_code=201,
+    responses={
+        201: {"description": "Transaction created successfully"},
+        400: {"description": "Invalid transaction data"},
+        409: {"description": "Duplicate transaction already exists"},
+    },
+)
+async def create_transaction(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    body: TransactionCreateRequest,
+) -> TransactionResponse:
+    """Manually create a single transaction.
+
+    Generates a deterministic transaction ID using the same hashing logic
+    as the file-import pipeline, and sets ``source_file`` to
+    ``"manual_entry"``.
+
+    Args:
+        current_user: Authenticated user
+        db: Database session
+        body: Transaction data
+
+    Returns:
+        The newly created transaction
+
+    Raises:
+        HTTPException: If the transaction type is invalid or a duplicate exists
+
+    """
+    # Map string type to enum
+    tx_type = _TRANSACTION_TYPE_MAP.get(body.type.lower())
+    if tx_type is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid transaction type: {body.type}. "
+            "Expected one of: Income, Expense, Transfer.",
+        )
+
+    now = datetime.now(UTC)
+    amount = Decimal(str(round(body.amount, 2)))
+
+    # Generate deterministic transaction ID (same logic as ingest pipeline)
+    transaction_id = _hasher.generate_transaction_id(
+        date=body.date,
+        amount=amount,
+        account=body.account,
+        note=body.note,
+        category=body.category,
+        subcategory=body.subcategory,
+        tx_type=body.type,
+        user_id=current_user.id,
+    )
+
+    # Check for duplicate
+    existing = db.get(Transaction, transaction_id)
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="A transaction with identical fields already exists.",
+        )
+
+    transaction = Transaction(
+        transaction_id=transaction_id,
+        user_id=current_user.id,
+        date=body.date,
+        amount=amount,
+        currency="INR",
+        type=tx_type,
+        category=body.category,
+        subcategory=body.subcategory,
+        account=body.account,
+        from_account=body.from_account,
+        to_account=body.to_account,
+        note=body.note,
+        source_file="manual_entry",
+        last_seen_at=now,
+        created_at=now,
+        updated_at=now,
+        is_deleted=False,
+    )
+
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+
+    return _to_transaction_response(transaction)

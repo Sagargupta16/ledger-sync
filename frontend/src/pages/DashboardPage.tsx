@@ -1,6 +1,7 @@
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { SCROLL_FADE_UP } from '@/constants/animations'
-import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard } from 'lucide-react'
+import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard, CalendarClock, Lock } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import RecentTransactions from '@/components/shared/RecentTransactions'
 import QuickInsights from '@/components/shared/QuickInsights'
@@ -13,8 +14,45 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recha
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
+import { usePreferences } from '@/hooks/api/usePreferences'
+
+/** Parse fixed_expense_categories (may be JSON string or array) */
+function parseStringArray(raw: string[] | string | undefined): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+/** Compute days from today to the next occurrence of a payday (1-31) */
+function daysUntilPayday(payday: number): number {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  const dayOfMonth = today.getDate()
+
+  // Clamp payday to valid range
+  const pd = Math.max(1, Math.min(31, payday))
+
+  if (dayOfMonth <= pd) {
+    // Payday is this month (or today)
+    const target = new Date(year, month, pd)
+    return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  }
+  // Payday already passed this month — compute for next month
+  const target = new Date(year, month + 1, pd)
+  return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+}
 
 export default function DashboardPage() {
+  const { data: preferences } = usePreferences()
+  const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
+  const payday = preferences?.payday ?? 0
+
   const {
     viewMode,
     setViewMode,
@@ -43,6 +81,34 @@ export default function DashboardPage() {
     expenseSparkline,
     momChanges,
   } = useDashboardMetrics()
+
+  // Parse fixed expense categories from preferences
+  const fixedExpenseCategories = useMemo(
+    () => parseStringArray(preferences?.fixed_expense_categories),
+    [preferences?.fixed_expense_categories],
+  )
+
+  // Compute fixed commitments total for the current month
+  const fixedCommitmentsTotal = useMemo(() => {
+    if (fixedExpenseCategories.length === 0 || !filteredTransactions?.length) return 0
+    const fixedSet = new Set(fixedExpenseCategories.map((c) => c.toLowerCase()))
+    const now = new Date()
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    return filteredTransactions
+      .filter((tx) => {
+        if (tx.type !== 'Expense') return false
+        if (!tx.date.startsWith(currentMonthKey)) return false
+        const key = `${tx.category}::${tx.subcategory || ''}`.toLowerCase()
+        return fixedSet.has(key)
+      })
+      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+  }, [filteredTransactions, fixedExpenseCategories])
+
+  // Compute days until payday
+  const daysToPayday = useMemo(() => {
+    if (!payday || payday <= 0) return null
+    return daysUntilPayday(payday)
+  }, [payday])
 
   const incomeBarData = incomeChartData.length > 0
     ? [Object.fromEntries([['name', 'Income'], ...incomeChartData.map(d => [d.name, d.value])])]
@@ -121,8 +187,35 @@ export default function DashboardPage() {
           isLoading={isLoading}
           change={momChanges.savingsRate}
           changeLabel={momChanges.label ? `pts ${momChanges.label}` : 'pts vs prev month'}
+          subtitle={savingsGoalPercent !== 20 ? `Target: ${savingsGoalPercent}%` : undefined}
         />
       </div>
+
+      {/* Secondary Indicators: Fixed Commitments & Days Until Payday */}
+      {(fixedExpenseCategories.length > 0 || daysToPayday !== null) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {fixedExpenseCategories.length > 0 && (
+            <MetricCard
+              title="Fixed Commitments"
+              value={formatCurrency(fixedCommitmentsTotal)}
+              icon={Lock}
+              color="orange"
+              isLoading={isLoading}
+              subtitle="This month's fixed expenses"
+            />
+          )}
+          {daysToPayday !== null && (
+            <MetricCard
+              title="Days Until Payday"
+              value={daysToPayday === 0 ? 'Today!' : `${daysToPayday} day${daysToPayday === 1 ? '' : 's'}`}
+              icon={CalendarClock}
+              color="teal"
+              isLoading={isLoading}
+              subtitle={`Payday is on the ${payday}${payday === 1 ? 'st' : payday === 2 ? 'nd' : payday === 3 ? 'rd' : 'th'} of each month`}
+            />
+          )}
+        </div>
+      )}
 
       {/* Financial Health & Quick Insights */}
       <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>

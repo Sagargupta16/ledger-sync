@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar/Sidebar'
+import CommandPalette from '@/components/shared/CommandPalette'
 
 const pageTransition = {
   initial: { opacity: 0, y: 8 },
@@ -44,6 +45,9 @@ export default function AppLayout() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Global command palette — Cmd+K / Ctrl+K */}
+      <CommandPalette />
     </div>
   )
 }

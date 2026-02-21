@@ -10,6 +10,8 @@ interface TaxSlabBreakdownProps {
   standardDeduction: number
   fyYear: number
   baseTax: number
+  rebate87A?: number
+  surcharge?: number
   cess: number
   professionalTax: number
   totalTax: number
@@ -23,6 +25,8 @@ export default function TaxSlabBreakdown({
   standardDeduction,
   fyYear,
   baseTax,
+  rebate87A = 0,
+  surcharge = 0,
   cess,
   professionalTax,
   totalTax,
@@ -98,6 +102,26 @@ export default function TaxSlabBreakdown({
                 {formatCurrency(baseTax)}
               </td>
             </tr>
+            {rebate87A > 0 && (
+            <tr className="border-b border-border">
+              <td colSpan={3} className="py-3 px-4 text-right text-sm text-ios-green">
+                - Section 87A Rebate:
+              </td>
+              <td className="py-3 px-4 text-right text-sm text-ios-green">
+                -{formatCurrency(rebate87A)}
+              </td>
+            </tr>
+            )}
+            {surcharge > 0 && (
+            <tr className="border-b border-border">
+              <td colSpan={3} className="py-3 px-4 text-right text-sm text-muted-foreground">
+                + Surcharge:
+              </td>
+              <td className="py-3 px-4 text-right text-sm text-foreground">
+                {formatCurrency(surcharge)}
+              </td>
+            </tr>
+            )}
             <tr className="border-b border-border">
               <td colSpan={3} className="py-3 px-4 text-right text-sm text-muted-foreground">
                 + Health & Education Cess (4%):

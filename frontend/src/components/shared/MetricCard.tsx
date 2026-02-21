@@ -74,9 +74,11 @@ interface MetricCardProps {
   color?: MetricColor
   isLoading?: boolean
   trend?: ReactNode
+  /** Optional subtitle shown below the value (e.g. "Target: 30%") */
+  subtitle?: string
 }
 
-export default function MetricCard({ title, value, change, invertChange, changeLabel, icon: Icon, color = 'blue', isLoading, trend }: Readonly<MetricCardProps>) {
+export default function MetricCard({ title, value, change, invertChange, changeLabel, icon: Icon, color = 'blue', isLoading, trend, subtitle }: Readonly<MetricCardProps>) {
   const colors = metricColorConfig[color]
   const reducedMotion = useReducedMotion()
 
@@ -141,6 +143,11 @@ export default function MetricCard({ title, value, change, invertChange, changeL
           <AnimatedValue value={value} reducedMotion={reducedMotion} />
         </p>
       </div>
+
+      {/* Subtitle */}
+      {subtitle && (
+        <p className="text-xs mt-1 relative z-10" style={{ color: rawColors.text.tertiary }}>{subtitle}</p>
+      )}
 
       {/* Sparkline/Trend */}
       {trend && (

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ledger_sync.core.analytics_engine import AnalyticsEngine
 from ledger_sync.core.reconciler import Reconciler, ReconciliationStats
 from ledger_sync.db.models import ImportLog
+from ledger_sync.ingest.csv_loader import CsvLoader
 from ledger_sync.ingest.excel_loader import ExcelLoader
 from ledger_sync.ingest.normalizer import DataNormalizer
 from ledger_sync.utils.logging import logger
@@ -27,7 +28,8 @@ class SyncEngine:
         """
         self.session = session
         self.user_id = user_id
-        self.loader = ExcelLoader()
+        self.excel_loader = ExcelLoader()
+        self.csv_loader = CsvLoader()
         self.normalizer = DataNormalizer()
         self.reconciler = Reconciler(session, user_id=user_id)
 
@@ -47,10 +49,10 @@ class SyncEngine:
         return self.session.execute(stmt).scalar_one_or_none()
 
     def import_file(self, file_path: Path, force: bool = False) -> ReconciliationStats:
-        """Import Excel file and synchronize with database.
+        """Import an Excel or CSV file and synchronize with database.
 
         Args:
-            file_path: Path to Excel file
+            file_path: Path to Excel (.xlsx, .xls) or CSV (.csv) file
             force: Force import even if file was previously imported
 
         Returns:
@@ -63,8 +65,11 @@ class SyncEngine:
         logger.info(f"Starting import of {file_path}")
         import_time = datetime.now(UTC)
 
-        # Step 1: Load and validate Excel
-        df, column_mapping, file_hash = self.loader.load(file_path)
+        # Step 1: Load and validate — pick the right loader by extension
+        if file_path.suffix.lower() == ".csv":
+            df, column_mapping, file_hash = self.csv_loader.load(file_path)
+        else:
+            df, column_mapping, file_hash = self.excel_loader.load(file_path)
 
         # Check if already imported
         existing_import = self.check_already_imported(file_hash)

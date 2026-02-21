@@ -41,6 +41,8 @@ export const ROUTES = {
   ANOMALIES: '/anomalies',
   GOALS: '/goals',
   INSIGHTS: '/insights',
+  SUBSCRIPTIONS: '/subscriptions',
+  BILL_CALENDAR: '/bill-calendar',
 } as const
 
 const _apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined

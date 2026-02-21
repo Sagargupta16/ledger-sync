@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -11,14 +11,16 @@ import {
   calculateTax,
   calculateGrossFromNet,
   getFYFromDate,
-  getTaxSlabsForFY,
   getStandardDeduction,
   parseFYStartYear,
+  getTaxSlabs,
+  getNewRegimeSlabs,
 } from '@/lib/taxCalculator'
 import { PageHeader } from '@/components/ui'
 import TaxSummaryCards from '@/components/analytics/TaxSummaryCards'
 import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
 import TaxSummaryGrid from '@/components/analytics/TaxSummaryGrid'
+import EffectiveTaxRateChart from '@/components/analytics/EffectiveTaxRateChart'
 import TaxableIncomeTable from '@/components/analytics/TaxableIncomeTable'
 
 /** Result of classifying an income transaction for tax grouping */
@@ -116,6 +118,8 @@ function calculateProjection(
   salaryMonthsCount: number,
   taxSlabs: Array<{ min: number; max: number; rate: number }>,
   standardDeduction: number,
+  isNewRegime: boolean = true,
+  fyYear: number = 2025,
 ): ProjectionResult {
   const today = new Date()
   const currentMonth = today.getMonth()
@@ -148,19 +152,27 @@ function calculateProjection(
   const projectedNetTotal = netTaxableIncome + projectedAdditionalIncome
   const projectedSalaryMonthsCount = salaryMonthsCount + remainingMonths
 
+  // Always use New Regime slabs for gross calculation (employer deducts TDS under new regime)
+  const newSlabs = getNewRegimeSlabs(fyYear)
   const grossTaxableIncome = calculateGrossFromNet(
     projectedNetTotal,
-    taxSlabs,
+    newSlabs,
     standardDeduction,
     true,
     projectedSalaryMonthsCount,
+    10,
+    true,
+    fyYear,
   )
+  // Calculate tax using the SELECTED regime's slabs
   const projectedCalc = calculateTax(
     grossTaxableIncome,
     taxSlabs,
     standardDeduction,
     true,
     projectedSalaryMonthsCount,
+    isNewRegime,
+    fyYear,
   )
 
   return {
@@ -220,6 +232,10 @@ export default function TaxPlanningPage() {
   const [selectedFY, setSelectedFY] = useState<string>('')
   const [showProjection, setShowProjection] = useState(false)
 
+  // Tax regime preference: default from user preferences, overridable via toggle
+  const preferredRegime = preferences?.preferred_tax_regime || 'new'
+  const [regimeOverride, setRegimeOverride] = useState<'new' | 'old' | null>(null)
+
   // Get fiscal year start month from preferences (default to April)
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || FY_START_MONTH
 
@@ -278,23 +294,38 @@ export default function TaxPlanningPage() {
 
   // Determine which tax slabs to use
   const fyYear = selectedFY ? parseFYStartYear(selectedFY) : 0
-  const isNewRegime = fyYear >= 2025
-  const taxSlabs = getTaxSlabsForFY(fyYear)
+  // New Regime was introduced in FY 2020-21 (start year 2020)
+  const newRegimeAvailable = fyYear >= 2020
+  const selectedRegime = !newRegimeAvailable
+    ? 'old'
+    : (regimeOverride ?? (preferredRegime === 'old' ? 'old' : 'new'))
+  const isNewRegime = selectedRegime === 'new'
+  const taxSlabs = getTaxSlabs(fyYear, selectedRegime as 'new' | 'old')
+  const regimeLabel = isNewRegime ? 'New Tax Regime' : 'Old Tax Regime (with 80C)'
   const standardDeduction = getStandardDeduction(fyYear)
 
-  // Calculate gross income from net received (reverse calculation)
+  // Always compute gross using NEW regime (employer deducts TDS under new regime)
+  // This gross stays the same regardless of which regime the user views
   const hasEmploymentIncome = netTaxableIncome > 0
+  const newRegimeSlabs = getNewRegimeSlabs(fyYear)
 
   const grossTaxableIncome = calculateGrossFromNet(
     netTaxableIncome,
-    taxSlabs,
+    newRegimeSlabs,
     standardDeduction,
     hasEmploymentIncome,
     salaryMonthsCount,
+    10,
+    true,
+    fyYear,
   )
+
+  // Calculate tax using the SELECTED regime's slabs on the same gross
   const {
     tax: baseTax,
     slabBreakdown,
+    rebate87A,
+    surcharge,
     cess,
     professionalTax,
     totalTax: taxAlreadyPaid,
@@ -304,6 +335,8 @@ export default function TaxPlanningPage() {
     standardDeduction,
     hasEmploymentIncome,
     salaryMonthsCount,
+    isNewRegime,
+    fyYear,
   )
 
   // ── Projection for remaining months ─────────────────────────────────
@@ -316,11 +349,16 @@ export default function TaxPlanningPage() {
   const useProjected = showProjection && isCurrentFY && hasEmploymentIncome
 
   const projection = useProjected
-    ? calculateProjection(currentFYData, netTaxableIncome, salaryMonthsCount, taxSlabs, standardDeduction)
+    ? calculateProjection(currentFYData, netTaxableIncome, salaryMonthsCount, taxSlabs, standardDeduction, isNewRegime, fyYear)
     : null
 
   const remainingMonths = projection?.remainingMonths ?? 0
   const avgMonthlySalary = projection?.avgMonthlySalary ?? 0
+
+  // Get full tax result for projected values (includes rebate/surcharge)
+  const projectedTaxResult = useProjected && projection
+    ? calculateTax(projection.grossTaxableIncome, taxSlabs, standardDeduction, true, salaryMonthsCount + remainingMonths, isNewRegime, fyYear)
+    : null
 
   // ── Resolve "actual vs projected" display values ────────────────────
 
@@ -370,9 +408,35 @@ export default function TaxPlanningPage() {
         <motion.div variants={fadeUpItem}>
           <PageHeader
             title="Tax Planning"
-            subtitle={`Estimate your tax liability and plan ahead${isNewRegime ? ' — New Tax Regime (2025-26 onwards)' : ' — Old Tax Regime (Before 2025-26)'}`}
+            subtitle={`Estimate your tax liability — ${regimeLabel}`}
             action={
               <div className="flex items-center gap-4">
+                {/* Tax Regime Toggle — hidden for FYs before 2020-21 */}
+                {newRegimeAvailable && <div className="flex rounded-lg border border-border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setRegimeOverride('new')}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                      isNewRegime
+                        ? 'bg-primary text-white'
+                        : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                    }`}
+                  >
+                    New Regime
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegimeOverride('old')}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                      !isNewRegime
+                        ? 'bg-primary text-white'
+                        : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                    }`}
+                  >
+                    Old Regime
+                  </button>
+                </div>}
+
                 {/* Year-End Projection Toggle — LEFT */}
                 {isCurrentFY && hasEmploymentIncome && (
                   <div className="flex flex-col items-end gap-1">
@@ -444,6 +508,8 @@ export default function TaxPlanningPage() {
             standardDeduction={standardDeduction}
             fyYear={fyYear}
             baseTax={displayBaseTax}
+            rebate87A={projectedTaxResult?.rebate87A ?? rebate87A}
+            surcharge={projectedTaxResult?.surcharge ?? surcharge}
             cess={displayCess}
             professionalTax={displayProfessionalTax}
             totalTax={displayTotalTax}
@@ -461,6 +527,15 @@ export default function TaxPlanningPage() {
           />
         </motion.div>
 
+        {/* Effective Tax Rate Curve */}
+        <EffectiveTaxRateChart
+          taxSlabs={taxSlabs}
+          isNewRegime={isNewRegime}
+          fyYear={fyYear}
+          standardDeduction={standardDeduction}
+          currentIncome={grossTaxableIncome}
+        />
+
         <motion.div variants={fadeUpItem}>
           <TaxableIncomeTable
             selectedFY={selectedFY}
@@ -468,7 +543,184 @@ export default function TaxPlanningPage() {
             netTaxableIncome={netTaxableIncome}
           />
         </motion.div>
+
+        {/* ── Tax Saving Suggestions ─────────────────────────────── */}
+        <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl mt-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-ios-green/20 rounded-xl">
+              <TrendingUp className="w-5 h-5 text-ios-green" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Tax Saving Suggestions</h3>
+              <p className="text-xs text-muted-foreground">
+                {isNewRegime ? 'New Regime — Limited deductions, lower rates' : 'Old Regime — Maximize deductions to reduce taxable income'}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {isNewRegime ? (
+              <>
+                <TaxTip title="Standard Deduction" amount={standardDeduction} description="Automatically applied to salaried individuals. No action needed." />
+                <TaxTip title="NPS — Employer Contribution" amount={null} description="Section 80CCD(2): Up to 14% of basic salary contributed by employer is deductible even in New Regime." />
+                <TaxTip title="Home Loan Interest (Let-out)" amount={null} description="Section 24(b): Interest on loan for let-out property is fully deductible (no limit). Self-occupied is NOT allowed in New Regime." />
+                <TaxTip title="Agniveer Corpus Fund" amount={null} description="Section 80CCH: Full deduction for contributions to the Agniveer scheme." />
+                <TaxTip title="Section 87A Rebate" amount={fyYear >= 2025 ? 60000 : 25000} description={fyYear >= 2025 ? 'Income up to 12L: Full tax rebate (zero tax up to 12.75L after standard deduction).' : 'Income up to 7L: Full tax rebate (zero tax up to 7.75L after standard deduction).'} />
+                <TaxTip title="Consider Old Regime?" amount={null} description="If you have significant 80C investments (1.5L), HRA, home loan interest, or medical insurance — Old Regime may save more. Compare both." />
+              </>
+            ) : (
+              <>
+                <TaxTip title="Section 80C" amount={150000} description="PPF, ELSS, LIC, EPF, tuition fees, home loan principal. Max deduction: 1.5L." />
+                <TaxTip title="Section 80CCD(1B) — NPS" amount={50000} description="Additional 50K deduction for NPS contributions (over and above 80C)." />
+                <TaxTip title="Section 80D — Health Insurance" amount={75000} description="Self/family: 25K (50K if senior). Parents: 25K (50K if senior). Total max: 75K-1L." />
+                <TaxTip title="Section 24(b) — Home Loan Interest" amount={200000} description="Interest on self-occupied property loan: up to 2L deduction per year." />
+                <TaxTip title="HRA Exemption" amount={null} description="If you live in rented housing and receive HRA as part of salary, claim exemption under Section 10(13A)." />
+                <TaxTip title="Section 80E — Education Loan" amount={null} description="Full interest deduction on education loan for self, spouse, or children. No upper limit. Available for 8 years." />
+                <TaxTip title="Section 80G — Donations" amount={null} description="50% or 100% deduction for donations to approved charities. Keep receipts with PAN of the organization." />
+                <TaxTip title="Section 80TTA — Savings Interest" amount={10000} description="Interest from savings bank accounts: up to 10K deduction (50K for senior citizens under 80TTB)." />
+              </>
+            )}
+          </div>
+        </motion.div>
+
+        {/* ── Regime Comparison: When Old is Better ──────────────── */}
+        {newRegimeAvailable && (
+        <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl mt-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-ios-purple/20 rounded-xl">
+              <ChevronRight className="w-5 h-5 text-ios-purple" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Which Regime Saves You More?</h3>
+              <p className="text-xs text-muted-foreground">
+                Based on your income of {formatCurrency(grossTaxableIncome)}
+              </p>
+            </div>
+          </div>
+
+          <RegimeComparison
+            grossIncome={grossTaxableIncome}
+            fyYear={fyYear}
+            standardDeduction={standardDeduction}
+            salaryMonthsCount={salaryMonthsCount}
+          />
+        </motion.div>
+        )}
       </motion.div>
+    </div>
+  )
+}
+
+/** Small tip card used in the tax savings suggestions grid */
+function TaxTip({ title, amount, description }: Readonly<{ title: string; amount: number | null; description: string }>) {
+  return (
+    <div className="p-3 rounded-xl bg-white/5 border border-border">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm font-medium text-foreground">{title}</span>
+        {amount !== null && (
+          <span className="text-xs font-semibold text-ios-green">
+            up to {formatCurrency(amount)}
+          </span>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+    </div>
+  )
+}
+
+/** Regime comparison — shows tax under both regimes and breakeven deduction amount */
+function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonthsCount }: Readonly<{
+  grossIncome: number
+  fyYear: number
+  standardDeduction: number
+  salaryMonthsCount: number
+}>) {
+  const newTax = calculateTax(grossIncome, getTaxSlabs(fyYear, 'new'), standardDeduction, true, salaryMonthsCount, true, fyYear)
+  const oldTax = calculateTax(grossIncome, getTaxSlabs(fyYear, 'old'), standardDeduction, true, salaryMonthsCount, false, fyYear)
+
+  const newTotal = newTax.totalTax
+  const oldTotal = oldTax.totalTax
+  const diff = Math.abs(newTotal - oldTotal)
+  const newIsBetter = newTotal <= oldTotal
+  const betterRegime = newIsBetter ? 'New Regime' : 'Old Regime'
+
+  // Calculate how much deduction needed in Old Regime to beat New Regime
+  // Old regime tax decreases as deductions increase. Find the deduction amount
+  // where old regime tax = new regime tax.
+  let breakEvenDeduction = 0
+  if (newIsBetter && grossIncome > 0) {
+    // Search for the deduction amount that makes old regime equal to new
+    for (let d = 0; d <= 1000000; d += 10000) {
+      const oldWithDeductions = calculateTax(
+        Math.max(0, grossIncome - d), getTaxSlabs(fyYear, 'old'),
+        standardDeduction, true, salaryMonthsCount, false, fyYear,
+      )
+      if (oldWithDeductions.totalTax <= newTotal) {
+        breakEvenDeduction = d
+        break
+      }
+    }
+  }
+
+  if (grossIncome <= 0) return null
+
+  return (
+    <div className="space-y-4">
+      {/* Side by side comparison */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className={`p-4 rounded-xl border ${newIsBetter ? 'border-ios-green/30 bg-ios-green/5' : 'border-border bg-white/5'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">New Regime</span>
+            {newIsBetter && <span className="text-caption font-semibold text-ios-green px-2 py-0.5 rounded-full bg-ios-green/20">Better</span>}
+          </div>
+          <p className="text-xl font-bold text-foreground">{formatCurrency(newTotal)}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Effective rate: {grossIncome > 0 ? ((newTotal / grossIncome) * 100).toFixed(1) : '0'}%
+          </p>
+        </div>
+        <div className={`p-4 rounded-xl border ${!newIsBetter ? 'border-ios-green/30 bg-ios-green/5' : 'border-border bg-white/5'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">Old Regime</span>
+            {!newIsBetter && <span className="text-caption font-semibold text-ios-green px-2 py-0.5 rounded-full bg-ios-green/20">Better</span>}
+          </div>
+          <p className="text-xl font-bold text-foreground">{formatCurrency(oldTotal)}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Effective rate: {grossIncome > 0 ? ((oldTotal / grossIncome) * 100).toFixed(1) : '0'}%
+            <span className="text-text-quaternary"> (without deductions)</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Verdict */}
+      <div className="p-4 rounded-xl bg-ios-purple/5 border border-ios-purple/20">
+        <p className="text-sm">
+          <span className="font-semibold text-ios-purple">{betterRegime}</span>
+          {' saves you '}
+          <span className="font-semibold text-ios-green">{formatCurrency(diff)}</span>
+          {' more'}
+          {newIsBetter ? ' (without any deductions).' : ' even without deductions — you already benefit from lower slab rates.'}
+        </p>
+
+        {newIsBetter && breakEvenDeduction > 0 && (
+          <p className="text-sm mt-2 text-muted-foreground">
+            Old Regime becomes better only if you claim at least{' '}
+            <span className="font-semibold text-foreground">{formatCurrency(breakEvenDeduction)}</span>
+            {' '}in deductions (80C + 80D + HRA + 24b etc). If your total deductions are less than this, stick with New Regime.
+          </p>
+        )}
+
+        {newIsBetter && breakEvenDeduction === 0 && grossIncome > 500000 && (
+          <p className="text-sm mt-2 text-muted-foreground">
+            At your income level, New Regime is better even with maximum Old Regime deductions.
+          </p>
+        )}
+
+        {!newIsBetter && (
+          <p className="text-sm mt-2 text-muted-foreground">
+            The Old Regime&apos;s higher slab rates are offset by the deductions available. Make sure you&apos;re claiming all eligible deductions (80C: 1.5L, 80D, HRA, 24b) to maximize the benefit.
+          </p>
+        )}
+      </div>
     </div>
   )
 }

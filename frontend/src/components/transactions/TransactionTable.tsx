@@ -251,52 +251,75 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
         </div>
       </div>
 
-      {/* Mobile card view */}
-      <div className="md:hidden divide-y divide-white/5">
-        {table.getRowModel().rows.map((row) => {
-          const tx = row.original
-          const isIncome = tx.type === 'Income'
-          const isTransfer = tx.type === 'Transfer'
-          const amountColor = (() => {
-            if (isTransfer) return 'text-ios-teal'
-            if (isIncome) return 'text-ios-green'
-            return 'text-ios-red'
-          })()
-          const prefix = (() => {
-            if (isTransfer) return ''
-            if (isIncome) return '+'
-            return '-'
-          })()
-          const TypeIcon = isIncome ? TrendingUp : TrendingDown
+      {/* Mobile card view — grouped by day with daily totals */}
+      <div className="md:hidden">
+        {(() => {
+          const rows = table.getRowModel().rows
+          const grouped = rows.reduce<Record<string, typeof rows>>((acc, row) => {
+            const dateKey = row.original.date.substring(0, 10)
+            if (!acc[dateKey]) acc[dateKey] = []
+            acc[dateKey].push(row)
+            return acc
+          }, {})
 
-          return (
-            <div key={row.id} className="p-4 hover:bg-white/10 transition-colors">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-muted-foreground">
-                  {format(new Date(tx.date), 'MMM dd, yyyy')}
-                </span>
-                <span className={`text-sm font-semibold ${amountColor}`}>
-                  {prefix}{formatCurrency(Math.abs(tx.amount))}
-                </span>
+          return Object.entries(grouped).map(([dateKey, dayRows]) => {
+            const dayTotal = dayRows.reduce((sum, r) => {
+              if (r.original.type === 'Expense') return sum - r.original.amount
+              if (r.original.type === 'Income') return sum + r.original.amount
+              return sum
+            }, 0)
+
+            return (
+              <div key={dateKey}>
+                {/* Day header */}
+                <div className="sticky top-0 z-10 px-4 py-2 bg-background/90 backdrop-blur-sm flex items-center justify-between border-b border-border">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {format(new Date(dateKey), 'EEE, MMM dd yyyy')}
+                  </span>
+                  <span className={`text-xs font-semibold ${dayTotal >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
+                    {dayTotal >= 0 ? '+' : ''}{formatCurrency(dayTotal)}
+                  </span>
+                </div>
+                {/* Day transactions */}
+                <div className="divide-y divide-white/5">
+                  {dayRows.map((row) => {
+                    const tx = row.original
+                    const isIncome = tx.type === 'Income'
+                    const isTransfer = tx.type === 'Transfer'
+                    const amountColor = isTransfer ? 'text-ios-teal' : isIncome ? 'text-ios-green' : 'text-ios-red'
+                    const prefix = isTransfer ? '' : isIncome ? '+' : '-'
+                    const TypeIcon = isIncome ? TrendingUp : TrendingDown
+
+                    return (
+                      <div key={row.id} className="p-4 hover:bg-white/10 transition-colors">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            {isTransfer ? (
+                              <span className="text-ios-teal text-sm">→</span>
+                            ) : (
+                              <TypeIcon className={`w-3.5 h-3.5 ${isIncome ? 'text-ios-green' : 'text-ios-red'}`} />
+                            )}
+                            <span className="text-sm font-medium">{tx.category}</span>
+                            {tx.subcategory && (
+                              <span className="text-xs text-muted-foreground">/ {tx.subcategory}</span>
+                            )}
+                          </div>
+                          <span className={`text-sm font-semibold ${amountColor}`}>
+                            {prefix}{formatCurrency(Math.abs(tx.amount))}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{tx.account}</span>
+                          {tx.note && <span className="truncate max-w-[150px]">{tx.note}</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-              <div className="flex items-center gap-2 mb-1">
-                {isTransfer ? (
-                  <span className="text-ios-teal text-sm">→</span>
-                ) : (
-                  <TypeIcon className={`w-3.5 h-3.5 ${isIncome ? 'text-ios-green' : 'text-ios-red'}`} />
-                )}
-                <span className="text-sm font-medium">{tx.category}</span>
-                {tx.subcategory && (
-                  <span className="text-xs text-muted-foreground">/ {tx.subcategory}</span>
-                )}
-              </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{tx.account}</span>
-                {tx.note && <span className="truncate max-w-[150px]">{tx.note}</span>}
-              </div>
-            </div>
-          )
-        })}
+            )
+          })
+        })()}
       </div>
     </motion.div>
   )

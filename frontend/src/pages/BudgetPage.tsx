@@ -72,6 +72,24 @@ export default function BudgetPage() {
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
   const alertThreshold = preferences?.default_budget_alert_threshold ?? 80
 
+  // Parse fixed_expense_categories from preferences (may be JSON string or array)
+  const fixedExpenseCategories = useMemo<Set<string>>(() => {
+    const raw = preferences?.fixed_expense_categories
+    if (!raw) return new Set()
+    let arr: string[]
+    if (Array.isArray(raw)) {
+      arr = raw
+    } else {
+      try {
+        const parsed = JSON.parse(raw)
+        arr = Array.isArray(parsed) ? parsed : []
+      } catch {
+        arr = []
+      }
+    }
+    return new Set(arr.map((c) => c.toLowerCase()))
+  }, [preferences?.fixed_expense_categories])
+
   const getStatus = useCallback((pct: number): BudgetRow['status'] => {
     if (pct >= 100) return 'exceeded'
     if (pct >= alertThreshold) return 'danger'
@@ -492,6 +510,11 @@ export default function BudgetPage() {
                       <span className="text-xs text-text-tertiary ml-2 px-2 py-0.5 rounded-full bg-white/5">
                         {row.period}
                       </span>
+                      {fixedExpenseCategories.has(key.toLowerCase()) && (
+                        <span className="text-xs ml-1 px-2 py-0.5 rounded-full bg-ios-purple/15 text-ios-purple border border-ios-purple/20">
+                          Fixed
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       {isEditing ? (
@@ -556,19 +579,22 @@ export default function BudgetPage() {
                     />
                   </div>
 
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Spent: {formatCurrency(row.spent)}</span>
-                    <span>Budget: {formatCurrency(row.limit)}</span>
+                  {/* Primary: available to spend */}
+                  <div className="mb-1">
+                    {row.remaining >= 0 ? (
+                      <p className="text-sm font-semibold text-ios-green">
+                        {formatCurrency(row.remaining)} left to spend
+                      </p>
+                    ) : (
+                      <p className="text-sm font-semibold text-ios-red">
+                        {formatCurrency(Math.abs(row.remaining))} over budget
+                      </p>
+                    )}
                   </div>
-                  {row.remaining < 0 ? (
-                    <p className="text-xs mt-1 text-ios-red font-medium">
-                      Over budget by {formatCurrency(Math.abs(row.remaining))}
-                    </p>
-                  ) : (
-                    <p className="text-xs mt-1 text-text-tertiary">
-                      {formatCurrency(row.remaining)} remaining
-                    </p>
-                  )}
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{formatCurrency(row.spent)} spent</span>
+                    <span>of {formatCurrency(row.limit)}</span>
+                  </div>
                 </motion.div>
               )
             })}

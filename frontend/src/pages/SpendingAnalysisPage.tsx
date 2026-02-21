@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { fadeUpWithDelay, SCROLL_FADE_UP } from '@/constants/animations'
-import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank } from 'lucide-react'
+import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank, Lock, Shuffle } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useMemo, useState } from 'react'
@@ -194,6 +194,48 @@ export default function SpendingAnalysisPage() {
     return calculateSpendingBreakdown(filteredTransactions, preferences.essential_categories)
   }, [filteredTransactions, preferences])
 
+  // Parse fixed_expense_categories (may be JSON string or array)
+  const fixedExpenseCategories = useMemo<string[]>(() => {
+    const raw = preferences?.fixed_expense_categories
+    if (!raw) return []
+    if (Array.isArray(raw)) return raw
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }, [preferences])
+
+  // Calculate fixed vs variable spending breakdown
+  const fixedVariableBreakdown = useMemo(() => {
+    if (!filteredTransactions || fixedExpenseCategories.length === 0) return null
+    let fixed = 0
+    let variable = 0
+    const fixedSet = new Set(fixedExpenseCategories.map((c) => c.toLowerCase()))
+
+    filteredTransactions
+      .filter((t) => t.type === 'Expense')
+      .forEach((t) => {
+        const key = `${t.category}::${t.subcategory || ''}`.toLowerCase()
+        const amount = Math.abs(t.amount)
+        if (fixedSet.has(key)) {
+          fixed += amount
+        } else {
+          variable += amount
+        }
+      })
+
+    const total = fixed + variable
+    return {
+      fixed,
+      variable,
+      total,
+      fixedPercent: total > 0 ? (fixed / total) * 100 : 0,
+      variablePercent: total > 0 ? (variable / total) * 100 : 0,
+    }
+  }, [filteredTransactions, fixedExpenseCategories])
+
   // Prepare spending breakdown chart data (50/30/20 rule with income base)
   const spendingChartData = useMemo(
     () => buildSpendingChartData(spendingBreakdown, totalIncome, savings),
@@ -241,7 +283,7 @@ export default function SpendingAnalysisPage() {
           }
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${fixedVariableBreakdown ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
           <motion.div {...fadeUpWithDelay(0.2)} className="glass rounded-xl border border-border p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-ios-red/20 rounded-xl shadow-lg shadow-ios-red/30">
@@ -277,6 +319,36 @@ export default function SpendingAnalysisPage() {
               </div>
             </div>
           </motion.div>
+
+          {fixedVariableBreakdown && (
+            <>
+              <motion.div {...fadeUpWithDelay(0.5)} className="glass rounded-xl border border-border p-6 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-ios-purple/20 rounded-xl shadow-lg shadow-ios-purple/30">
+                    <Lock className="w-6 h-6 text-ios-purple" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Fixed</p>
+                    <p className="text-2xl font-bold">{formatCurrency(fixedVariableBreakdown.fixed)}</p>
+                    <p className="text-xs text-muted-foreground">{formatPercent(fixedVariableBreakdown.fixedPercent)} of spending</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div {...fadeUpWithDelay(0.6)} className="glass rounded-xl border border-border p-6 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-ios-teal/20 rounded-xl shadow-lg shadow-ios-teal/30">
+                    <Shuffle className="w-6 h-6 text-ios-teal" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Variable</p>
+                    <p className="text-2xl font-bold">{formatCurrency(fixedVariableBreakdown.variable)}</p>
+                    <p className="text-xs text-muted-foreground">{formatPercent(fixedVariableBreakdown.variablePercent)} of spending</p>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
         </div>
 
         {/* 50/30/20 Budget Rule Analysis */}
@@ -284,7 +356,7 @@ export default function SpendingAnalysisPage() {
           className="glass p-6 rounded-xl border border-border"
           {...SCROLL_FADE_UP}
         >
-          <h3 className="text-lg font-semibold text-white mb-4">50/30/20 Budget Rule Analysis</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">{needsTarget}/{wantsTarget}/{savingsTarget} Budget Rule Analysis</h3>
           {spendingChartData.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Pie Chart */}
@@ -331,14 +403,14 @@ export default function SpendingAnalysisPage() {
                 </div>
               </div>
 
-              {/* Needs Card (50%) */}
+              {/* Needs Card */}
               <BudgetRuleCard
-                title="Needs (50%)"
+                title={`Needs (${needsTarget}%)`}
                 subtitle="Housing, Healthcare, Food, etc."
                 icon={ShieldCheck}
                 value={spendingBreakdown?.essential || 0}
                 percent={budgetRuleMetrics?.essentialPercent || 0}
-                target="≤50%"
+                target={`\u2264${needsTarget}%`}
                 isOverBudget={budgetRuleMetrics?.isOverspendingEssential || false}
                 accentColor={SPENDING_TYPE_COLORS.essential}
                 bgClass="bg-ios-blue/10 border border-ios-blue/20"
@@ -347,14 +419,14 @@ export default function SpendingAnalysisPage() {
                 delay={0.3}
               />
 
-              {/* Wants Card (30%) */}
+              {/* Wants Card */}
               <BudgetRuleCard
-                title="Wants (30%)"
+                title={`Wants (${wantsTarget}%)`}
                 subtitle="Entertainment, Shopping, etc."
                 icon={Sparkles}
                 value={spendingBreakdown?.discretionary || 0}
                 percent={budgetRuleMetrics?.discretionaryPercent || 0}
-                target="≤30%"
+                target={`\u2264${wantsTarget}%`}
                 isOverBudget={budgetRuleMetrics?.isOverspendingDiscretionary || false}
                 accentColor={SPENDING_TYPE_COLORS.discretionary}
                 bgClass="bg-ios-orange/10 border border-ios-orange/20"
@@ -363,14 +435,14 @@ export default function SpendingAnalysisPage() {
                 delay={0.4}
               />
 
-              {/* Savings Card (20%) */}
+              {/* Savings Card */}
               <BudgetRuleCard
-                title="Savings (20%)"
+                title={`Savings (${savingsTarget}%)`}
                 subtitle="Income minus Expenses"
                 icon={PiggyBank}
                 value={savings}
                 percent={budgetRuleMetrics?.savingsPercent || 0}
-                target="≥20%"
+                target={`\u2265${savingsTarget}%`}
                 isOverBudget={budgetRuleMetrics?.isUnderSaving || false}
                 accentColor={SAVINGS_COLOR}
                 bgClass="bg-ios-green/10 border border-ios-green/20"

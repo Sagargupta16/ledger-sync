@@ -19,6 +19,7 @@ from ledger_sync.api.auth import router as auth_router
 from ledger_sync.api.calculations import router as calculations_router
 from ledger_sync.api.meta import router as meta_router
 from ledger_sync.api.preferences import router as preferences_router
+from ledger_sync.api.reports import router as reports_router
 from ledger_sync.api.transactions import router as transactions_router
 from ledger_sync.api.upload import router as upload_router
 from ledger_sync.config.settings import settings
@@ -136,6 +137,7 @@ app.include_router(calculations_router)
 app.include_router(meta_router)
 app.include_router(account_classifications_router)
 app.include_router(preferences_router)
+app.include_router(reports_router)
 app.include_router(transactions_router)
 app.include_router(upload_router)
 

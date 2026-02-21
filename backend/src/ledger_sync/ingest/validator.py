@@ -46,8 +46,8 @@ class ExcelValidator:
             msg = f"Path is not a file: {file_path}"
             raise ValidationError(msg)
 
-        if file_path.suffix.lower() not in [".xlsx", ".xls"]:
-            msg = f"File must be Excel format (.xlsx or .xls): {file_path}"
+        if file_path.suffix.lower() not in [".xlsx", ".xls", ".csv"]:
+            msg = f"File must be Excel (.xlsx, .xls) or CSV (.csv) format: {file_path}"
             raise ValidationError(msg)
 
     def validate_columns(self, df: pd.DataFrame) -> dict[str, str]:

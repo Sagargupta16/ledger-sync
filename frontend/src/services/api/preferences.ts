@@ -65,6 +65,28 @@ export interface UserPreferences {
   earning_start_date: string | null
   use_earning_start_date: boolean
 
+  // 12. Fixed/Mandatory Monthly Expenses
+  fixed_expense_categories: string[] | string
+
+  // 13. Savings & Investment Targets
+  savings_goal_percent: number
+  monthly_investment_target: number
+
+  // 14. Payday Configuration
+  payday: number
+
+  // 15. Tax Regime Preference
+  preferred_tax_regime: string
+
+  // 16. Excluded Accounts
+  excluded_accounts: string[] | string
+
+  // 17. Notification Preferences
+  notify_budget_alerts: boolean
+  notify_anomalies: boolean
+  notify_upcoming_bills: boolean
+  notify_days_ahead: number
+
   // Metadata
   created_at: string | null
   updated_at: string | null

@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   Goal,
   Lightbulb,
+  CreditCard,
 } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
@@ -34,6 +35,7 @@ import SidebarGroup from './SidebarGroup'
 import SidebarItem from './SidebarItem'
 import { useAuthStore } from '@/store/authStore'
 import { useLogout } from '@/hooks/api/useAuth'
+import NotificationCenter from '@/components/shared/NotificationCenter'
 
 const SIDEBAR_COLLAPSED_KEY = 'ledger-sync-sidebar-collapsed'
 
@@ -66,6 +68,8 @@ const navigationGroups = [
       { path: ROUTES.ANOMALIES, label: 'Anomaly Review', icon: AlertTriangle },
       { path: ROUTES.GOALS, label: 'Financial Goals', icon: Goal },
       { path: ROUTES.INSIGHTS, label: 'Financial Insights', icon: Lightbulb },
+      { path: ROUTES.SUBSCRIPTIONS, label: 'Subscriptions', icon: CreditCard },
+      { path: ROUTES.BILL_CALENDAR, label: 'Bill Calendar', icon: CalendarDays },
     ],
   },
   {
@@ -204,8 +208,8 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          {/* Collapse Toggle Button */}
-          <div className="p-2 border-t border-border">
+          {/* Collapse Toggle & Notifications */}
+          <div className="p-2 border-t border-border space-y-1">
             <button
               onClick={toggleCollapse}
               className={cn(
@@ -224,6 +228,7 @@ export default function Sidebar() {
                 </>
               )}
             </button>
+            <NotificationCenter isCollapsed={isCollapsed} />
           </div>
 
           {/* User Profile & Logout */}
