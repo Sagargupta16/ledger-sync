@@ -15,6 +15,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -148,6 +149,19 @@ class Transaction(Base):
         index=True,
     )
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+
+    # Audit timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
 
     # Relationship back to user
     user: Mapped["User"] = relationship("User", back_populates="transactions")
@@ -373,8 +387,11 @@ class NetWorthSnapshot(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     source: Mapped[str] = mapped_column(String(50), default="upload")  # upload, manual, api
 
-    # Composite index replaces redundant single-column indexes
-    __table_args__ = (Index("ix_net_worth_user_date", "user_id", "snapshot_date"),)
+    # Unique per user per day — prevents duplicate snapshots on re-upload
+    __table_args__ = (
+        Index("ix_net_worth_user_date", "user_id", "snapshot_date"),
+        UniqueConstraint("user_id", "snapshot_date", name="uq_net_worth_user_date"),
+    )
 
 
 class InvestmentHolding(Base):
@@ -608,6 +625,56 @@ class RecurringTransaction(Base):
         Index("ix_recurring_category_account", "category", "account"),
         Index("ix_recurring_user", "user_id"),
     )
+
+
+class ScheduledTransaction(Base):
+    """Future planned transactions — SIPs, EMIs, salaries, subscriptions.
+
+    These are user-defined or auto-detected from RecurringTransaction patterns.
+    They represent expected future cash flows and are excluded from historical charts.
+    """
+
+    __tablename__ = "scheduled_transactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+
+    # What
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
+    type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False)
+    category: Mapped[str] = mapped_column(String(255), nullable=False)
+    subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    account: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # When
+    frequency: Mapped[RecurrenceFrequency] = mapped_column(
+        Enum(RecurrenceFrequency),
+        nullable=False,
+    )
+    expected_day: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Day of month (1-31)
+    next_due_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    end_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # Null = no end
+
+    # Linking
+    recurring_transaction_id: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )  # Auto-detected source
+
+    # Status
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    __table_args__ = (Index("ix_scheduled_user_active", "user_id", "is_active"),)
 
 
 class MerchantIntelligence(Base):

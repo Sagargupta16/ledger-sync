@@ -44,9 +44,11 @@ coverage.xml
 
 # Database
 *.db
+*.db-wal
+*.db-shm
+*.db-journal
 *.sqlite
 *.sqlite3
-*.db-journal
 ledger_sync.db
 
 # Alembic

@@ -2,7 +2,7 @@
 
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 from ledger_sync.config.settings import settings
@@ -15,6 +15,26 @@ engine = create_engine(
     # SQLite-specific settings
     connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
 )
+
+
+# SQLite performance PRAGMAs — applied on every new connection
+if "sqlite" in settings.database_url:
+
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragmas(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        # WAL mode: allows concurrent reads during writes
+        cursor.execute("PRAGMA journal_mode=WAL")
+        # NORMAL sync: 2-3x faster writes, safe with WAL
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        # Increase cache to 64MB (default is 2MB)
+        cursor.execute("PRAGMA cache_size=-65536")
+        # Store temp tables in memory
+        cursor.execute("PRAGMA temp_store=MEMORY")
+        # Enable FK enforcement
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
