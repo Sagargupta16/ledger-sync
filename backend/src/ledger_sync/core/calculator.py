@@ -118,7 +118,9 @@ class FinancialCalculator:
         dates = [t.date for t in expenses]
         min_date = min(dates)
         max_date = max(dates)
-        months_span = (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month) + 1
+        months_span = max(
+            (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month) + 1, 1
+        )
 
         total_spent = sum(
             (_to_decimal(t.amount) for t in expenses),

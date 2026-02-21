@@ -97,6 +97,8 @@ def _apply_field_filters(tx_query: SAQuery, filters: SearchFilters) -> SAQuery:
         tx_type = _TRANSACTION_TYPE_MAP.get(filters.type.lower())
         if tx_type is not None:
             tx_query = tx_query.filter(Transaction.type == tx_type)
+        else:
+            tx_query = tx_query.filter(False)  # Invalid type returns empty
     if filters.query:
         search_term = f"%{filters.query}%"
         tx_query = tx_query.filter(

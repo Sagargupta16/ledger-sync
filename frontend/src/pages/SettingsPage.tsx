@@ -163,21 +163,24 @@ export default function SettingsPage() {
     }
   }, [preferences, localPrefs])
 
-  // Load account classifications
+  // Load account classifications (with abort to prevent race conditions)
   useEffect(() => {
+    let cancelled = false
     const loadClassifications = async () => {
       setClassificationsLoading(true)
       try {
         const data = await accountClassificationsService.getAllClassifications()
+        if (cancelled) return
         const withDefaults = { ...getDefaultClassifications(accounts), ...data }
         setClassifications(withDefaults)
       } catch {
-        toast.error('Failed to load account classifications')
+        if (!cancelled) toast.error('Failed to load account classifications')
       } finally {
-        setClassificationsLoading(false)
+        if (!cancelled) setClassificationsLoading(false)
       }
     }
     loadClassifications()
+    return () => { cancelled = true }
   }, [accounts])
 
   // ---------------------------------------------------------------------------

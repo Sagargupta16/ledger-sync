@@ -89,12 +89,12 @@ function PageLoader() {
   if (!show) return null
 
   return (
-    <output className="flex items-center justify-center min-h-[50vh]" aria-label="Loading page">
+    <div className="flex items-center justify-center min-h-[50vh]" aria-label="Loading page">
       <div className="flex flex-col items-center gap-3">
         <div className="w-8 h-8 border-2 border-ios-blue/30 border-t-ios-blue rounded-full animate-spin" />
         <span className="text-sm text-muted-foreground">Loading...</span>
       </div>
-    </output>
+    </div>
   )
 }
 
@@ -144,12 +144,12 @@ function LandingPage() {
 
   if (isLoading) {
     return (
-      <output className="min-h-screen flex items-center justify-center bg-black" aria-label="Authenticating">
+      <div className="min-h-screen flex items-center justify-center bg-black" aria-label="Authenticating">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-ios-blue/30 border-t-ios-blue rounded-full animate-spin" />
           <span className="text-sm text-muted-foreground">Loading...</span>
         </div>
-      </output>
+      </div>
     )
   }
 

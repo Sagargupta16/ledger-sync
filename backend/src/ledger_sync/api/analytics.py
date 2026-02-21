@@ -95,7 +95,10 @@ def _apply_earning_start_date(user: User, current_start: datetime | None) -> dat
     if not prefs.use_earning_start_date or not prefs.earning_start_date:
         return current_start
 
-    earning_dt = datetime.strptime(prefs.earning_start_date, "%Y-%m-%d").replace(tzinfo=UTC)
+    try:
+        earning_dt = datetime.strptime(prefs.earning_start_date, "%Y-%m-%d").replace(tzinfo=UTC)
+    except (ValueError, TypeError):
+        return current_start
 
     if current_start is None:
         return earning_dt

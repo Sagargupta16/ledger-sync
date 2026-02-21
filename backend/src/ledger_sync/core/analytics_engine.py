@@ -637,10 +637,10 @@ class AnalyticsEngine:
         )
 
         # Get account classifications for coloring
-        classifications = {
-            ac.account_name: ac.account_type.value
-            for ac in self.db.query(AccountClassification).all()
-        }
+        ac_query = self.db.query(AccountClassification)
+        if self.user_id is not None:
+            ac_query = ac_query.filter(AccountClassification.user_id == self.user_id)
+        classifications = {ac.account_name: ac.account_type.value for ac in ac_query.all()}
 
         # Aggregate flows
         flows: dict[tuple, dict[str, Any]] = defaultdict(
@@ -964,10 +964,10 @@ class AnalyticsEngine:
                 account_balances[txn.account] -= Decimal(str(txn.amount))
 
         # Categorize accounts
-        classifications = {
-            ac.account_name: ac.account_type.value
-            for ac in self.db.query(AccountClassification).all()
-        }
+        ac_query = self.db.query(AccountClassification)
+        if self.user_id is not None:
+            ac_query = ac_query.filter(AccountClassification.user_id == self.user_id)
+        classifications = {ac.account_name: ac.account_type.value for ac in ac_query.all()}
 
         # Calculate totals by category
         totals = self._categorize_account_balances(account_balances, classifications)
@@ -1264,7 +1264,7 @@ class AnalyticsEngine:
             A FYSummary ORM instance
 
         """
-        is_complete = data["end_date"] < now if data["end_date"] else False
+        is_complete = bool(data["end_date"] and data["end_date"] < now)
 
         return FYSummary(
             user_id=self.user_id,

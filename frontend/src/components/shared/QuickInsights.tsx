@@ -109,7 +109,7 @@ function computeTopByCategory(transactions: Transaction[]) {
     const cat = t.category || 'Other'
     byCat[cat] = (byCat[cat] || 0) + Math.abs(t.amount)
   }
-  return Object.entries(byCat).sort(([, a], [, b]) => b - a)[0]
+  return Object.entries(byCat).sort(([, a], [, b]) => b - a)[0] ?? null
 }
 
 // ─── Main component ─────────────────────────────────────────────────────

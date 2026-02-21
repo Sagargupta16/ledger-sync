@@ -39,7 +39,13 @@ export default function TransactionFilters({ onFilterChange, categories, account
   const [searchQuery, setSearchQuery] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const isFirstRender = useRef(true)
+  const onFilterChangeRef = useRef(onFilterChange)
   const currencySymbol = usePreferencesStore((state) => state.displayPreferences.currencySymbol)
+
+  // Keep callback ref in sync
+  useEffect(() => {
+    onFilterChangeRef.current = onFilterChange
+  }, [onFilterChange])
 
   // Debounce search query
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
@@ -50,10 +56,11 @@ export default function TransactionFilters({ onFilterChange, categories, account
       isFirstRender.current = false
       return
     }
-    const newFilters = { ...filters, query: debouncedSearchQuery || undefined }
-    setFilters(newFilters)
-    onFilterChange(newFilters)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setFilters((prev) => {
+      const newFilters = { ...prev, query: debouncedSearchQuery || undefined }
+      onFilterChangeRef.current(newFilters)
+      return newFilters
+    })
   }, [debouncedSearchQuery])
 
   const handleFilterChange = useCallback((key: keyof FilterValues, value: string | number | undefined) => {

@@ -533,7 +533,7 @@ export default function BudgetPage() {
                     {/* Target marker line */}
                     <div
                       className="absolute top-0 h-full w-0.5 bg-white/20"
-                      style={{ left: `${Math.min(100, 100)}%`, transform: 'translateX(-1px)' }}
+                      style={{ left: `${Math.min(100, row.percentage)}%`, transform: 'translateX(-1px)' }}
                     />
                     {/* Alert threshold marker */}
                     <div
