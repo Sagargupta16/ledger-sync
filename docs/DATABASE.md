@@ -74,6 +74,8 @@ ix_transactions_category_subcategory (category, subcategory)
 ix_transactions_user_date (user_id, date)
 ix_transactions_user_deleted (user_id, is_deleted)
 ix_transactions_user_type_deleted (user_id, type, is_deleted)
+ix_transactions_user_category (user_id, category)
+ix_transactions_user_date_type (user_id, date, type)
 ```
 
 ### Other Models
@@ -267,6 +269,8 @@ Currently, no foreign keys (no cascading deletes).
 - `category` - Fast filtering by category
 - `account` - Fast filtering by account
 - `is_deleted` - Fast filtering of active records
+- `(user_id, category)` - Fast per-user category aggregation
+- `(user_id, date, type)` - Fast per-user time-range + type filtering
 
 ### Query Optimization Strategies
 
@@ -341,12 +345,16 @@ sqlite3 ledger_sync.db "ANALYZE;"
 
 ### Scaling to PostgreSQL
 
-For multi-user or high-volume scenarios:
+PostgreSQL is supported out of the box. The application auto-detects the database type from `DATABASE_URL` and applies the appropriate configuration:
 
-1. Replace SQLite with PostgreSQL
-2. Add connection pooling (pgBouncer)
-3. Add replication for high availability
-4. Implement partitioning for large tables
+- **SQLite**: WAL mode, 64MB cache, NORMAL sync, foreign keys enabled
+- **PostgreSQL**: Connection pooling (pool_size=20, max_overflow=10, pool_pre_ping=True)
+
+For high-availability production deployments:
+
+1. Set `LEDGER_SYNC_DATABASE_URL` to a PostgreSQL connection string
+2. Add replication for high availability
+3. Implement partitioning for large tables
 
 ### Sample PostgreSQL Migration
 
@@ -381,22 +389,16 @@ class Category(Base):
 
 ## Connection String
 
-### SQLite
+### SQLite (default)
 
 ```
 sqlite:///ledger_sync.db
 ```
 
-### PostgreSQL (future)
+### PostgreSQL
 
 ```
 postgresql://username:password@localhost:5432/ledger_sync
-```
-
-### MySQL (future)
-
-```
-mysql+pymysql://username:password@localhost:3306/ledger_sync
 ```
 
 ## Database Configuration

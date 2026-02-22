@@ -65,6 +65,7 @@ Ledger Sync is a full-stack financial management application with a clear separa
     - Uses SHA-256 hashing for deterministic IDs
   - `sync_engine.py` - Data synchronization orchestration
   - `calculator.py` - Financial calculations (income, expenses, insights)
+  - `query_helpers.py` - Shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`) used by both `calculations.py` and `analytics.py` to eliminate duplicated CASE/SUM patterns
   - `time_filter.py` - Time range filtering logic
 
 #### 3. **Data Access Layer** (`src/ledger_sync/db/`)
@@ -204,12 +205,13 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
     - `PeriodComparison` - Month-to-month comparison with selectors
     - `CashFlowForecast` - Future cash flow predictions
     - `RecurringTransactions` - Recurring payment detection
-    - `ExpenseTreemap` - Expense visualization as treemap
+    - `CategoryBreakdown` - Shared category treemap/table component (parameterized for income or expense)
+    - `ExpenseTreemap` - Thin wrapper around `CategoryBreakdown` for expense visualization
     - `TopMerchants` - Top merchants/vendors analysis
     - `EnhancedSubcategoryAnalysis` - Advanced subcategory analysis
     - `MultiCategoryTimeAnalysis` - Time-based category analysis
   - `layout/` - Layout components (AppLayout, Sidebar)
-  - `shared/` - Shared components (EmptyState, AnalyticsTimeFilter)
+  - `shared/` - Shared components (EmptyState, AnalyticsTimeFilter, MetricCard)
   - `transactions/` - Transaction table components
   - `ui/` - Base UI components (shadcn-style)
   - `upload/` - File upload components (DropZone)
@@ -218,8 +220,10 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
 
 - **Responsibility**: Custom React hooks for logic reuse
 - **Examples**:
+  - `useAnalyticsTimeFilter` - Shared time-filter state (view mode, date range, FY) used by all analytics pages
   - `useAccountTypes` - Account type management
   - `useAnalytics` - Analytics data fetching
+  - `useChartDimensions` - Responsive chart sizing based on viewport
   - `usePeriodNavigation` - Time period navigation
   - `api/` - TanStack Query hooks for API calls
 
@@ -427,33 +431,36 @@ GET    /api/meta/*                      - Metadata endpoints
 
 ### Current Design
 
-- Single SQLite database (file-based)
-- Suitable for personal use and small datasets
-- All data in one instance
+- SQLite for development (file-based), PostgreSQL-ready for production
+- PostgreSQL connection pooling pre-configured (pool_size=20, max_overflow=10)
+- JWT-based multi-user authentication and authorization
+- All data is user-scoped
 
 ### Future Improvements
 
-- Migrate to PostgreSQL for multi-user scenarios
 - Implement caching (Redis) for analytics
 - Async database operations
 - API rate limiting
-- User authentication and authorization
+- Virtual scrolling for large transaction tables
 
 ## Performance Optimizations
 
 ### Backend
 
-- Efficient queries with SQLAlchemy
-- Database indexes on frequently queried columns
+- Composite indexes on high-traffic query patterns (`user_id+category`, `user_id+date+type`)
+- PostgreSQL connection pooling (pool_size=20, max_overflow=10, pool_pre_ping=True)
+- SQLite WAL mode with 64MB cache and NORMAL sync for fast writes
+- O(n) pre-grouped category analysis (replaced O(c*n) nested loops)
 - Batch processing for large imports
-- Response caching for analytics
+- Shared SQL aggregation helpers to reduce query duplication
 
 ### Frontend
 
-- Code splitting with Vite
-- Lazy loading of pages
-- Memoization of expensive calculations
-- Chart rendering optimization
+- Code splitting with Vite and lazy-loaded pages (`React.lazy`)
+- `useDeferredValue` for non-blocking search in CommandPalette
+- Memoized chart data objects in DashboardPage to prevent unnecessary re-renders
+- Responsive chart dimensions via `useChartDimensions` hook
+- TanStack Query caching with `staleTime: Infinity` to avoid refetches
 
 ## Testing Strategy
 

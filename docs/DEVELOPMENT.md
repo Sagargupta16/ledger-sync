@@ -78,6 +78,11 @@ backend/
 ├── src/ledger_sync/
 │   ├── api/              # FastAPI endpoints
 │   ├── core/             # Business logic
+│   │   ├── query_helpers.py  # Shared SQL aggregation helpers
+│   │   ├── analytics_engine.py
+│   │   ├── calculator.py
+│   │   ├── reconciler.py
+│   │   └── sync_engine.py
 │   ├── db/               # Database layer
 │   ├── ingest/           # Data ingestion
 │   └── utils/            # Utilities
@@ -243,14 +248,16 @@ frontend/
 ├── src/
 │   ├── pages/           # Page components (20 pages)
 │   ├── components/      # UI components
-│   │   ├── analytics/   # Analytics components (25+)
+│   │   ├── analytics/   # Analytics components (25+, including CategoryBreakdown)
 │   │   ├── layout/      # Layout components
 │   │   ├── shared/      # Shared components
 │   │   ├── transactions/ # Transaction components
 │   │   ├── ui/          # Base UI components
 │   │   └── upload/      # Upload components
 │   ├── hooks/           # Custom hooks
-│   │   └── api/         # API-specific hooks
+│   │   ├── useAnalyticsTimeFilter.ts  # Shared time-filter state for analytics pages
+│   │   ├── useChartDimensions.ts      # Responsive chart sizing
+│   │   └── api/         # API-specific hooks (TanStack Query)
 │   ├── lib/             # Utilities (cn, queryClient)
 │   ├── services/        # API client
 │   │   └── api/         # API service modules
@@ -324,6 +331,28 @@ export default function MyAnalyticsComponent({ timeRange }: Props) {
 
 ```tsx
 export { default as MyAnalyticsComponent } from "./MyAnalyticsComponent";
+```
+
+### Using the Shared Analytics Time Filter
+
+All analytics pages use `useAnalyticsTimeFilter` to manage time-range state consistently:
+
+```tsx
+import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
+import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+
+export default function MyAnalyticsPage() {
+  const { data: allTransactions = [] } = useTransactions()
+
+  const { dateRange, dataDateRange, timeFilterProps } = useAnalyticsTimeFilter(
+    allTransactions,
+    { availableModes: ['all_time', 'fy', 'yearly', 'monthly'] }, // optional
+  )
+
+  // Use dateRange.start_date / dateRange.end_date to filter data
+  // Spread timeFilterProps onto AnalyticsTimeFilter
+  return <AnalyticsTimeFilter {...timeFilterProps} />
+}
 ```
 
 ### Creating Custom Hooks with TanStack Query
