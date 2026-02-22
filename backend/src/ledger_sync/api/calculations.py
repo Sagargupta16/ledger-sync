@@ -1,5 +1,6 @@
 """Calculation API endpoints - All financial calculations."""
 
+from collections import defaultdict
 from datetime import datetime
 from typing import Annotated, Any
 
@@ -433,14 +434,17 @@ def _find_unusual_spending(
     category_counts: dict[str, int],
 ) -> list[dict[str, Any]]:
     """Identify transactions exceeding 2x their category average, returning top 5."""
+    # Pre-group by category once (O(n)) instead of scanning all expenses per category (O(c*n))
+    by_category: dict[str, list[Transaction]] = defaultdict(list)
+    for tx in expenses:
+        by_category[tx.category or "Uncategorized"].append(tx)
+
     unusual: list[dict[str, Any]] = []
     for category, total in category_totals.items():
         avg_amount = total / category_counts[category]
         threshold = avg_amount * 2
 
-        for tx in expenses:
-            if (tx.category or "Uncategorized") != category:
-                continue
+        for tx in by_category.get(category, []):
             tx_amount = float(tx.amount)
             if tx_amount > threshold:
                 unusual.append(

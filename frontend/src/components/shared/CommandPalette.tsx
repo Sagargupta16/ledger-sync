@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, useDeferredValue } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -188,11 +188,13 @@ export default function CommandPalette() {
     }
   }, [isOpen])
 
-  // ── Build search results ──────────────────────────────────────────────────
+  // ── Build search results (deferred to avoid blocking input on every keystroke) ──
+
+  const deferredQuery = useDeferredValue(query)
 
   const results: PaletteResult[] = useMemo(() => {
     const items: PaletteResult[] = []
-    const q = query.trim()
+    const q = deferredQuery.trim()
 
     // If no query, show all pages
     if (!q) {
@@ -215,7 +217,7 @@ export default function CommandPalette() {
     items.push(...searchTransactions(transactions, q))
 
     return items
-  }, [query, transactions])
+  }, [deferredQuery, transactions])
 
   // selectedIndex is reset via the query input's onChange handler below
 

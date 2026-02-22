@@ -9,16 +9,23 @@ from ledger_sync.config.settings import settings
 from ledger_sync.db.base import Base
 
 # Create engine
-engine = create_engine(
-    settings.database_url,
-    echo=settings.database_echo,
-    # SQLite-specific settings
-    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
-)
+_is_sqlite = "sqlite" in settings.database_url
+_engine_kwargs: dict = {
+    "echo": settings.database_echo,
+}
+if _is_sqlite:
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # PostgreSQL production pool settings
+    _engine_kwargs["pool_size"] = 20
+    _engine_kwargs["max_overflow"] = 10
+    _engine_kwargs["pool_pre_ping"] = True
+
+engine = create_engine(settings.database_url, **_engine_kwargs)
 
 
 # SQLite performance PRAGMAs — applied on every new connection
-if "sqlite" in settings.database_url:
+if _is_sqlite:
 
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragmas(dbapi_connection, _connection_record):

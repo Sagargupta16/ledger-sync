@@ -173,6 +173,8 @@ class Transaction(Base):
         Index("ix_transactions_user_date", "user_id", "date"),
         Index("ix_transactions_user_deleted", "user_id", "is_deleted"),
         Index("ix_transactions_user_type_deleted", "user_id", "type", "is_deleted"),
+        Index("ix_transactions_user_category", "user_id", "category"),
+        Index("ix_transactions_user_date_type", "user_id", "date", "type"),
     )
 
     def __repr__(self) -> str:

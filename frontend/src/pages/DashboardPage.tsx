@@ -130,13 +130,13 @@ export default function DashboardPage() {
     return daysUntilPayday(payday)
   }, [payday])
 
-  const incomeBarData = incomeChartData.length > 0
+  const incomeBarData = useMemo(() => incomeChartData.length > 0
     ? [Object.fromEntries([['name', 'Income'], ...incomeChartData.map(d => [d.name, d.value])])]
-    : []
+    : [], [incomeChartData])
 
-  const spendingBarData = spendingChartData.length > 0
+  const spendingBarData = useMemo(() => spendingChartData.length > 0
     ? [Object.fromEntries([['name', 'Spending'], ...spendingChartData.map(d => [d.name, d.value])])]
-    : []
+    : [], [spendingChartData])
 
   const stackedBarRadius = (index: number, total: number): [number, number, number, number] | number => {
     if (index === 0) return [4, 0, 0, 4]
