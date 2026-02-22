@@ -57,8 +57,8 @@ export function useAnalyticsTimeFilter(
   const dataDateRange = useMemo(() => {
     if (!transactions || transactions.length === 0)
       return { minDate: undefined, maxDate: undefined }
-    const dates = transactions.map((t) => t.date.substring(0, 10)).sort()
-    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
+    const dates = transactions.map((t) => t.date.substring(0, 10)).sort((a, b) => a.localeCompare(b))
+    return { minDate: dates[0], maxDate: dates.at(-1) }
   }, [transactions])
 
   const timeFilterProps = {
