@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
 import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, PieChart, DollarSign, LineChart } from 'lucide-react'
+import MetricCard from '@/components/shared/MetricCard'
 import { useMemo, useState } from 'react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -10,10 +11,9 @@ import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip, Legen
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-import { type AnalyticsViewMode, getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange } from '@/lib/dateUtils'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { usePreferencesStore } from '@/store/preferencesStore'
+import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
 // 4 Investment Categories with colors
 const INVESTMENT_CATEGORIES = ['FD/Bonds', 'Mutual Funds', 'PPF/EPF', 'Stocks'] as const
@@ -267,25 +267,10 @@ export default function InvestmentAnalyticsPage() {
   }, [transactions, investmentAccounts, accountToCategory])
 
   // Time filter state for growth chart
-  const fiscalYearStartMonth = preferences?.fiscal_year_start_month ?? 4
-  const { displayPreferences } = usePreferencesStore()
-  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
-    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'all_time'
+  const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(
+    transactions,
+    { defaultViewMode: 'all_time' },
   )
-  const [currentYear, setCurrentYear] = useState(getCurrentYear)
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth)
-  const [currentFY, setCurrentFY] = useState(() => getCurrentFY(fiscalYearStartMonth))
-
-  const dateRange = useMemo(
-    () => getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth),
-    [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth]
-  )
-
-  const dataDateRange = useMemo(() => {
-    if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
-    const dates = transactions.map(t => t.date.substring(0, 10)).sort()
-    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
-  }, [transactions])
 
   const filteredGrowthData = useMemo(() => {
     if (!dateRange.start_date || !dateRange.end_date) return dailyGrowthData
@@ -354,77 +339,14 @@ export default function InvestmentAnalyticsPage() {
           title="Investment Analytics"
           subtitle="Monitor your investment portfolio performance"
           action={
-            <AnalyticsTimeFilter
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              currentYear={currentYear}
-              currentMonth={currentMonth}
-              currentFY={currentFY}
-              onYearChange={setCurrentYear}
-              onMonthChange={setCurrentMonth}
-              onFYChange={setCurrentFY}
-              minDate={dataDateRange.minDate}
-              maxDate={dataDateRange.maxDate}
-              fiscalYearStartMonth={fiscalYearStartMonth}
-            />
+            <AnalyticsTimeFilter {...timeFilterProps} />
           }
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
-                <TrendingUp className="w-6 h-6 text-ios-green" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Investment Value</p>
-                <p className="text-2xl font-bold">
-                  {isLoading ? '...' : formatCurrency(totalInvestmentValue)}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-ios-blue/20 rounded-xl shadow-lg shadow-ios-blue/30">
-                <PieChart className="w-6 h-6 text-ios-blue" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Portfolio Assets</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : investmentAccounts.length}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-ios-purple/20 rounded-xl shadow-lg shadow-ios-purple/30">
-                <DollarSign className="w-6 h-6 text-ios-purple" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Est. Returns (5%)</p>
-                <p className="text-2xl font-bold">
-                  {isLoading ? '...' : formatCurrency(investmentReturns)}
-                </p>
-              </div>
-            </div>
-          </motion.div>
+          <MetricCard title="Total Investment Value" value={formatCurrency(totalInvestmentValue)} icon={TrendingUp} color="green" isLoading={isLoading} />
+          <MetricCard title="Portfolio Assets" value={investmentAccounts.length} icon={PieChart} color="blue" isLoading={isLoading} />
+          <MetricCard title="Est. Returns (5%)" value={formatCurrency(investmentReturns)} icon={DollarSign} color="purple" isLoading={isLoading} />
         </div>
 
         <motion.div

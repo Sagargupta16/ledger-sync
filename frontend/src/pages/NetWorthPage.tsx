@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
 import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
+import MetricCard from '@/components/shared/MetricCard'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { getSmartInterval } from '@/lib/chartUtils'
@@ -16,9 +17,8 @@ import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
-import { usePreferencesStore } from '@/store/preferencesStore'
+import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
 // Category display configuration
 const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
@@ -302,24 +302,10 @@ export default function NetWorthPage() {
   const [expandedLiabilityCategories, setExpandedLiabilityCategories] = useState<Set<string>>(new Set())
 
   // Time filter state
-  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
-  const { displayPreferences } = usePreferencesStore()
-  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
-    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'all_time'
+  const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(
+    transactions,
+    { defaultViewMode: 'all_time' },
   )
-  const [currentYear, setCurrentYear] = useState(getCurrentYear())
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
-  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
-
-  const dateRange = useMemo(() => {
-    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
-  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
-
-  const dataDateRange = useMemo(() => {
-    if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
-    const dates = transactions.map(t => t.date.substring(0, 10)).sort((a, b) => a.localeCompare(b))
-    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
-  }, [transactions])
 
   // Load account classifications
   useEffect(() => {
@@ -456,79 +442,14 @@ export default function NetWorthPage() {
           title="Net Worth"
           subtitle="Track your total assets and liabilities"
           action={
-            <AnalyticsTimeFilter
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              currentYear={currentYear}
-              currentMonth={currentMonth}
-              currentFY={currentFY}
-              onYearChange={setCurrentYear}
-              onMonthChange={setCurrentMonth}
-              onFYChange={setCurrentFY}
-              minDate={dataDateRange.minDate}
-              maxDate={dataDateRange.maxDate}
-              fiscalYearStartMonth={fiscalYearStartMonth}
-            />
+            <AnalyticsTimeFilter {...timeFilterProps} />
           }
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
-                <PiggyBank className="w-6 h-6 text-ios-green" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Assets</p>
-                <p className="text-2xl font-bold">
-                  {isLoading ? '...' : formatCurrency(totalAssets)}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-ios-red/20 rounded-xl shadow-lg shadow-ios-red/30">
-                <CreditCard className="w-6 h-6 text-ios-red" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Liabilities</p>
-                <p className="text-2xl font-bold">
-                  {isLoading ? '...' : formatCurrency(totalLiabilities)}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">
-                <TrendingUp className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Net Worth</p>
-                <p className="text-2xl font-bold">
-                  {isLoading ? '...' : formatCurrency(netWorth)}
-                </p>
-              </div>
-            </div>
-          </motion.div>
+          <MetricCard title="Total Assets" value={formatCurrency(totalAssets)} icon={PiggyBank} color="green" isLoading={isLoading} />
+          <MetricCard title="Total Liabilities" value={formatCurrency(totalLiabilities)} icon={CreditCard} color="red" isLoading={isLoading} />
+          <MetricCard title="Net Worth" value={formatCurrency(netWorth)} icon={TrendingUp} color="blue" isLoading={isLoading} />
         </div>
 
         <motion.div

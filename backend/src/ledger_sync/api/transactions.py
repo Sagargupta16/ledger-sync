@@ -12,8 +12,8 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
-from ledger_sync.api.analytics import _apply_earning_start_date
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.query_helpers import apply_earning_start_date as _apply_earning_start_date
 from ledger_sync.db.models import Transaction, TransactionType, User
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.schemas.transactions import (

@@ -6,7 +6,7 @@ import { useTrends } from '@/hooks/useAnalytics'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { getSmartInterval } from '@/lib/chartUtils'
 import { ResponsiveContainer, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine } from 'recharts'
-import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { getDateKey } from '@/lib/dateUtils'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
@@ -17,7 +17,7 @@ import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { usePreferencesStore } from '@/store/preferencesStore'
+import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
 type TrendDirection = 'up' | 'down' | 'stable'
 
@@ -237,32 +237,16 @@ function MonthlyBreakdownTable({
 export default function TrendsForecastsPage() {
   const dims = useChartDimensions()
   const { data: preferences } = usePreferences()
-  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
   const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
-  const { displayPreferences } = usePreferencesStore()
-
-  // Time filter state — same as all other analytics pages
-  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
-    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'fy'
-  )
-  const [currentYear, setCurrentYear] = useState(getCurrentYear())
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
-  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
 
   // Fetch all trends data; filter client-side by date range
   const { data: trendsData, isLoading } = useTrends('all_time')
   const { data: allTransactions = [] } = useTransactions()
 
-  // Get date range based on current filter
-  const dateRange = useMemo(() => {
-    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
-  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
-
-  const dataDateRange = useMemo(() => {
-    if (!allTransactions || allTransactions.length === 0) return { minDate: undefined, maxDate: undefined }
-    const dates = allTransactions.map(t => t.date.substring(0, 10)).sort()
-    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
-  }, [allTransactions])
+  const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(
+    allTransactions,
+    { availableModes: ['all_time', 'fy', 'yearly'] },
+  )
 
   // Filter monthly trends by the selected date range
   const filteredMonthlyTrends = useMemo(() => {
@@ -481,20 +465,7 @@ export default function TrendsForecastsPage() {
           title="Trends & Forecasts"
           subtitle="Analyze patterns and predict future trends"
           action={
-            <AnalyticsTimeFilter
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              currentYear={currentYear}
-              currentMonth={currentMonth}
-              currentFY={currentFY}
-              onYearChange={setCurrentYear}
-              onMonthChange={setCurrentMonth}
-              onFYChange={setCurrentFY}
-              minDate={dataDateRange.minDate}
-              maxDate={dataDateRange.maxDate}
-              fiscalYearStartMonth={fiscalYearStartMonth}
-              availableModes={['all_time', 'fy', 'yearly']}
-            />
+            <AnalyticsTimeFilter {...timeFilterProps} />
           }
         />
 

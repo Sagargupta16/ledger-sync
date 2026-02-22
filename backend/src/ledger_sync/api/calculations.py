@@ -4,11 +4,15 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
-from sqlalchemy import case, func
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ledger_sync.api.analytics import _apply_earning_start_date
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.query_helpers import (
+    build_transaction_query,
+    expense_sum_col,
+    income_sum_col,
+)
 from ledger_sync.db.models import Transaction, TransactionType, User
 
 router = APIRouter(prefix="/api/calculations", tags=["calculations"])
@@ -20,31 +24,6 @@ OptionalTransactionType = Annotated[
     str | None, Query(description="Filter by type: Income or Expense")
 ]
 
-
-def _build_calc_base_query(
-    db: Session,
-    user: User,
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
-) -> "Query":
-    """Build a filtered base query for calculations endpoints.
-
-    Applies user_id, is_deleted, earning_start_date and optional date-range
-    filters.  Callers add column expressions / GROUP BY on top.
-    """
-    start_date = _apply_earning_start_date(user, start_date)
-
-    query = db.query(Transaction).filter(
-        Transaction.user_id == user.id,
-        Transaction.is_deleted.is_(False),
-    )
-
-    if start_date:
-        query = query.filter(Transaction.date >= start_date)
-    if end_date:
-        query = query.filter(Transaction.date <= end_date)
-
-    return query
 
 
 @router.get("/categories/master")
@@ -133,19 +112,7 @@ def get_transactions(
     end_date: datetime | None = None,
 ) -> list[Transaction]:
     """Get non-deleted transactions for a user, optionally filtered by date range."""
-    start_date = _apply_earning_start_date(user, start_date)
-
-    query = db.query(Transaction).filter(
-        Transaction.user_id == user.id,
-        Transaction.is_deleted.is_(False),
-    )
-
-    if start_date:
-        query = query.filter(Transaction.date >= start_date)
-    if end_date:
-        query = query.filter(Transaction.date <= end_date)
-
-    return query.all()
+    return build_transaction_query(db, user, start_date, end_date).all()
 
 
 @router.get("/totals")
@@ -156,27 +123,11 @@ def get_totals(
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate total income, expenses, and net savings."""
-    base = _build_calc_base_query(db, current_user, start_date, end_date).subquery()
+    base = build_transaction_query(db, current_user, start_date, end_date).subquery()
 
     row = db.query(
-        func.coalesce(
-            func.sum(
-                case(
-                    (base.c.type == TransactionType.INCOME, base.c.amount),
-                    else_=0,
-                )
-            ),
-            0,
-        ).label("total_income"),
-        func.coalesce(
-            func.sum(
-                case(
-                    (base.c.type == TransactionType.EXPENSE, base.c.amount),
-                    else_=0,
-                )
-            ),
-            0,
-        ).label("total_expenses"),
+        income_sum_col(base),
+        expense_sum_col(base),
         func.count().label("transaction_count"),
     ).one()
 
@@ -202,30 +153,14 @@ def get_monthly_aggregation(
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate monthly income and expense aggregation."""
-    base = _build_calc_base_query(db, current_user, start_date, end_date).subquery()
+    base = build_transaction_query(db, current_user, start_date, end_date).subquery()
     month_col = func.strftime("%Y-%m", base.c.date).label("month")
 
     rows = (
         db.query(
             month_col,
-            func.coalesce(
-                func.sum(
-                    case(
-                        (base.c.type == TransactionType.INCOME, base.c.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("income"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (base.c.type == TransactionType.EXPENSE, base.c.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("expense"),
+            income_sum_col(base, label="income"),
+            expense_sum_col(base, label="expense"),
             func.count().label("transactions"),
         )
         .group_by(month_col)
@@ -254,30 +189,14 @@ def get_yearly_aggregation(
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate yearly income and expense aggregation."""
-    base = _build_calc_base_query(db, current_user, start_date, end_date).subquery()
+    base = build_transaction_query(db, current_user, start_date, end_date).subquery()
     year_col = func.strftime("%Y", base.c.date).label("year")
 
     rows = (
         db.query(
             year_col,
-            func.coalesce(
-                func.sum(
-                    case(
-                        (base.c.type == TransactionType.INCOME, base.c.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("income"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (base.c.type == TransactionType.EXPENSE, base.c.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("expense"),
+            income_sum_col(base, label="income"),
+            expense_sum_col(base, label="expense"),
             func.count().label("transactions"),
         )
         .group_by(year_col)
@@ -322,7 +241,7 @@ def get_category_breakdown(
     transaction_type: OptionalTransactionType = None,
 ) -> dict[str, Any]:
     """Calculate spending/income breakdown by category and subcategory."""
-    query = _build_calc_base_query(db, current_user, start_date, end_date)
+    query = build_transaction_query(db, current_user, start_date, end_date)
 
     # Filter by type if specified
     if transaction_type:
@@ -605,30 +524,14 @@ def get_daily_net_worth(
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate daily income and expense data for net worth trends."""
-    base = _build_calc_base_query(db, current_user, start_date, end_date).subquery()
+    base = build_transaction_query(db, current_user, start_date, end_date).subquery()
     date_col = func.strftime("%Y-%m-%d", base.c.date).label("date_key")
 
     rows = (
         db.query(
             date_col,
-            func.coalesce(
-                func.sum(
-                    case(
-                        (base.c.type == TransactionType.INCOME, base.c.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("income"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (base.c.type == TransactionType.EXPENSE, base.c.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("expense"),
+            income_sum_col(base, label="income"),
+            expense_sum_col(base, label="expense"),
         )
         .group_by(date_col)
         .order_by(date_col)
@@ -673,7 +576,7 @@ def get_top_categories(
     transaction_type: OptionalTransactionType = None,
 ) -> list[dict[str, Any]]:
     """Get top N categories by amount."""
-    query = _build_calc_base_query(db, current_user, start_date, end_date)
+    query = build_transaction_query(db, current_user, start_date, end_date)
 
     # Filter by type if specified
     if transaction_type:

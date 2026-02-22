@@ -10,8 +10,18 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.calculator import FinancialCalculator
+from ledger_sync.core.query_helpers import (
+    apply_earning_start_date,
+    build_transaction_query,
+    expense_sum_col,
+    income_sum_col,
+)
 from ledger_sync.core.time_filter import TimeRange
 from ledger_sync.db.models import Transaction, TransactionType, User
+
+# Backward-compatible alias so existing ``from ledger_sync.api.analytics
+# import _apply_earning_start_date`` statements keep working.
+_apply_earning_start_date = apply_earning_start_date
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -81,48 +91,14 @@ def _get_time_range_dates(
     return start_date, end_date
 
 
-def _apply_earning_start_date(user: User, current_start: datetime | None) -> datetime | None:
-    """Clamp start_date to earning_start_date if the preference is enabled.
-
-    If the user has configured an earning start date and enabled it,
-    ensures the returned start date is never earlier than that date.
-    Returns ``current_start`` unchanged when the preference is off.
-    """
-    prefs = user.preferences
-    if prefs is None:
-        return current_start
-
-    if not prefs.use_earning_start_date or not prefs.earning_start_date:
-        return current_start
-
-    try:
-        earning_dt = datetime.strptime(prefs.earning_start_date, "%Y-%m-%d").replace(tzinfo=UTC)
-    except (ValueError, TypeError):
-        return current_start
-
-    if current_start is None:
-        return earning_dt
-    return max(current_start, earning_dt)
-
-
 def get_filtered_transactions(
     db: Session,
     user: User,
     time_range: TimeRange = TimeRange.ALL_TIME,
 ) -> list[Transaction]:
     """Get non-deleted transactions filtered by time range at the DB level."""
-    query = db.query(Transaction).filter(
-        Transaction.user_id == user.id, Transaction.is_deleted.is_(False)
-    )
-
     start_date, end_date = _get_time_range_dates(db, user, time_range)
-    start_date = _apply_earning_start_date(user, start_date)
-    if start_date:
-        query = query.filter(Transaction.date >= start_date)
-    if end_date:
-        query = query.filter(Transaction.date <= end_date)
-
-    return query.all()
+    return build_transaction_query(db, user, start_date, end_date).all()
 
 
 def _build_base_query(
@@ -136,18 +112,8 @@ def _build_base_query(
     is_deleted, and date range filters already applied.  Callers add
     their own column expressions / GROUP BY on top of this.
     """
-    query = db.query(Transaction).filter(
-        Transaction.user_id == user.id, Transaction.is_deleted.is_(False)
-    )
-
     start_date, end_date = _get_time_range_dates(db, user, time_range)
-    start_date = _apply_earning_start_date(user, start_date)
-    if start_date:
-        query = query.filter(Transaction.date >= start_date)
-    if end_date:
-        query = query.filter(Transaction.date <= end_date)
-
-    return query
+    return build_transaction_query(db, user, start_date, end_date)
 
 
 def _get_sql_totals(
@@ -162,24 +128,8 @@ def _get_sql_totals(
     base = _build_base_query(db, user, time_range).subquery()
 
     row = db.query(
-        func.coalesce(
-            func.sum(
-                case(
-                    (base.c.type == TransactionType.INCOME, base.c.amount),
-                    else_=0,
-                )
-            ),
-            0,
-        ).label("total_income"),
-        func.coalesce(
-            func.sum(
-                case(
-                    (base.c.type == TransactionType.EXPENSE, base.c.amount),
-                    else_=0,
-                )
-            ),
-            0,
-        ).label("total_expenses"),
+        income_sum_col(base),
+        expense_sum_col(base),
         func.count().label("transaction_count"),
     ).one()
 
@@ -210,24 +160,8 @@ def _get_sql_monthly_data(
     rows = (
         db.query(
             month_col,
-            func.coalesce(
-                func.sum(
-                    case(
-                        (base.c.type == TransactionType.INCOME, base.c.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("income"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (base.c.type == TransactionType.EXPENSE, base.c.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("expenses"),
+            income_sum_col(base, label="income"),
+            expense_sum_col(base, label="expenses"),
         )
         .group_by(month_col)
         .all()

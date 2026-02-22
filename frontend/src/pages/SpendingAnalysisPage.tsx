@@ -1,15 +1,16 @@
 import { motion } from 'framer-motion'
-import { fadeUpWithDelay, SCROLL_FADE_UP } from '@/constants/animations'
+import { SCROLL_FADE_UP } from '@/constants/animations'
 import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank, Lock, Shuffle } from 'lucide-react'
+import MetricCard from '@/components/shared/MetricCard'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip } from 'recharts'
 import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
-import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, type AnalyticsViewMode } from '@/lib/dateUtils'
-import { computeDataDateRange, filterTransactionsByDateRange, computeCategoryBreakdown } from '@/lib/transactionUtils'
+import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
+import { filterTransactionsByDateRange, computeCategoryBreakdown } from '@/lib/transactionUtils'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import {
@@ -22,7 +23,6 @@ import {
 } from '@/components/analytics'
 import { chartTooltipProps, PageHeader } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
-import { usePreferencesStore } from '@/store/preferencesStore'
 
 // Color for Savings
 const SAVINGS_COLOR = SEMANTIC_COLORS.income
@@ -137,23 +137,7 @@ export default function SpendingAnalysisPage() {
   const navigate = useNavigate()
   const { data: transactions } = useTransactions()
   const { data: preferences } = usePreferences()
-  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
-
-  // Time filter state
-  const { displayPreferences } = usePreferencesStore()
-  const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
-    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'fy'
-  )
-  const [currentYear, setCurrentYear] = useState(getCurrentYear())
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
-  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
-
-  // Get date range based on current filter
-  const dateRange = useMemo(() => {
-    return getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth)
-  }, [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth])
-
-  const dataDateRange = useMemo(() => computeDataDateRange(transactions), [transactions])
+  const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(transactions)
 
   // Filter transactions by date range
   const filteredTransactions = useMemo(
@@ -267,86 +251,19 @@ export default function SpendingAnalysisPage() {
           title="Spending Analysis"
           subtitle="Track and analyze your spending patterns"
           action={
-            <AnalyticsTimeFilter
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              currentYear={currentYear}
-              currentMonth={currentMonth}
-              currentFY={currentFY}
-              onYearChange={setCurrentYear}
-              onMonthChange={setCurrentMonth}
-              onFYChange={setCurrentFY}
-              minDate={dataDateRange.minDate}
-              maxDate={dataDateRange.maxDate}
-              fiscalYearStartMonth={fiscalYearStartMonth}
-            />
+            <AnalyticsTimeFilter {...timeFilterProps} />
           }
         />
 
         <div className={`grid grid-cols-1 sm:grid-cols-2 ${fixedVariableBreakdown ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
-          <motion.div {...fadeUpWithDelay(0.2)} className="glass rounded-xl border border-border p-6 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-ios-red/20 rounded-xl shadow-lg shadow-ios-red/30">
-                <TrendingDown className="w-6 h-6 text-ios-red" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Spending</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : formatCurrency(totalSpending)}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div {...fadeUpWithDelay(0.3)} className="glass rounded-xl border border-border p-6 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">
-                <Tag className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Top Category</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : topCategory}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div {...fadeUpWithDelay(0.4)} className="glass rounded-xl border border-border p-6 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-ios-blue/20 rounded-xl shadow-lg shadow-ios-blue/30">
-                <PieChart className="w-6 h-6 text-ios-blue" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Categories Tracked</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : categoriesCount}</p>
-              </div>
-            </div>
-          </motion.div>
+          <MetricCard title="Total Spending" value={formatCurrency(totalSpending)} icon={TrendingDown} color="red" isLoading={isLoading} />
+          <MetricCard title="Top Category" value={topCategory} icon={Tag} color="blue" isLoading={isLoading} />
+          <MetricCard title="Categories Tracked" value={categoriesCount} icon={PieChart} color="blue" isLoading={isLoading} />
 
           {fixedVariableBreakdown && (
             <>
-              <motion.div {...fadeUpWithDelay(0.5)} className="glass rounded-xl border border-border p-6 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-ios-purple/20 rounded-xl shadow-lg shadow-ios-purple/30">
-                    <Lock className="w-6 h-6 text-ios-purple" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Fixed</p>
-                    <p className="text-2xl font-bold">{formatCurrency(fixedVariableBreakdown.fixed)}</p>
-                    <p className="text-xs text-muted-foreground">{formatPercent(fixedVariableBreakdown.fixedPercent)} of spending</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div {...fadeUpWithDelay(0.6)} className="glass rounded-xl border border-border p-6 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-ios-teal/20 rounded-xl shadow-lg shadow-ios-teal/30">
-                    <Shuffle className="w-6 h-6 text-ios-teal" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Variable</p>
-                    <p className="text-2xl font-bold">{formatCurrency(fixedVariableBreakdown.variable)}</p>
-                    <p className="text-xs text-muted-foreground">{formatPercent(fixedVariableBreakdown.variablePercent)} of spending</p>
-                  </div>
-                </div>
-              </motion.div>
+              <MetricCard title="Fixed" value={formatCurrency(fixedVariableBreakdown.fixed)} icon={Lock} color="purple" isLoading={isLoading} subtitle={`${formatPercent(fixedVariableBreakdown.fixedPercent)} of spending`} />
+              <MetricCard title="Variable" value={formatCurrency(fixedVariableBreakdown.variable)} icon={Shuffle} color="teal" isLoading={isLoading} subtitle={`${formatPercent(fixedVariableBreakdown.variablePercent)} of spending`} />
             </>
           )}
         </div>
