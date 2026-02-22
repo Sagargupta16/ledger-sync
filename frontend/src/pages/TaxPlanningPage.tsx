@@ -226,6 +226,17 @@ function resolveDisplayValues(
   }
 }
 
+/** Determine the selected tax regime based on FY availability and user preference */
+function resolveSelectedRegime(
+  newRegimeAvailable: boolean,
+  regimeOverride: 'new' | 'old' | null,
+  preferredRegime: string,
+): 'new' | 'old' {
+  if (!newRegimeAvailable) return 'old'
+  if (regimeOverride) return regimeOverride
+  return preferredRegime === 'old' ? 'old' : 'new'
+}
+
 export default function TaxPlanningPage() {
   const { data: allTransactions = [], isLoading } = useTransactions()
   const { data: preferences } = usePreferences()
@@ -296,11 +307,9 @@ export default function TaxPlanningPage() {
   const fyYear = selectedFY ? parseFYStartYear(selectedFY) : 0
   // New Regime was introduced in FY 2020-21 (start year 2020)
   const newRegimeAvailable = fyYear >= 2020
-  const selectedRegime = !newRegimeAvailable
-    ? 'old'
-    : (regimeOverride ?? (preferredRegime === 'old' ? 'old' : 'new'))
+  const selectedRegime = resolveSelectedRegime(newRegimeAvailable, regimeOverride, preferredRegime)
   const isNewRegime = selectedRegime === 'new'
-  const taxSlabs = getTaxSlabs(fyYear, selectedRegime as 'new' | 'old')
+  const taxSlabs = getTaxSlabs(fyYear, selectedRegime)
   const regimeLabel = isNewRegime ? 'New Tax Regime' : 'Old Tax Regime (with 80C)'
   const standardDeduction = getStandardDeduction(fyYear)
 
@@ -428,9 +437,9 @@ export default function TaxPlanningPage() {
                     type="button"
                     onClick={() => setRegimeOverride('old')}
                     className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                      !isNewRegime
-                        ? 'bg-primary text-white'
-                        : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                      isNewRegime
+                        ? 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                        : 'bg-primary text-white'
                     }`}
                   >
                     Old Regime
@@ -642,6 +651,7 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
   const oldTotal = oldTax.totalTax
   const diff = Math.abs(newTotal - oldTotal)
   const newIsBetter = newTotal <= oldTotal
+  const oldIsBetter = !newIsBetter
   const betterRegime = newIsBetter ? 'New Regime' : 'Old Regime'
 
   // Calculate how much deduction needed in Old Regime to beat New Regime
@@ -678,10 +688,10 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
             Effective rate: {grossIncome > 0 ? ((newTotal / grossIncome) * 100).toFixed(1) : '0'}%
           </p>
         </div>
-        <div className={`p-4 rounded-xl border ${!newIsBetter ? 'border-ios-green/30 bg-ios-green/5' : 'border-border bg-white/5'}`}>
+        <div className={`p-4 rounded-xl border ${oldIsBetter ? 'border-ios-green/30 bg-ios-green/5' : 'border-border bg-white/5'}`}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Old Regime</span>
-            {!newIsBetter && <span className="text-caption font-semibold text-ios-green px-2 py-0.5 rounded-full bg-ios-green/20">Better</span>}
+            {oldIsBetter && <span className="text-caption font-semibold text-ios-green px-2 py-0.5 rounded-full bg-ios-green/20">Better</span>}
           </div>
           <p className="text-xl font-bold text-foreground">{formatCurrency(oldTotal)}</p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -715,7 +725,7 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
           </p>
         )}
 
-        {!newIsBetter && (
+        {oldIsBetter && (
           <p className="text-sm mt-2 text-muted-foreground">
             The Old Regime&apos;s higher slab rates are offset by the deductions available. Make sure you&apos;re claiming all eligible deductions (80C: 1.5L, 80D, HRA, 24b) to maximize the benefit.
           </p>

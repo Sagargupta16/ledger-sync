@@ -402,7 +402,7 @@ const IncomeExpenseFlowPage = () => {
         {!isLoading && sankeyData.nodes.length > 0 && (
           <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6 overflow-x-auto">
             <div style={{ minWidth: "min(1000px, 90vw)", height: '700px', position: 'relative' }}>
-              <ResponsiveContainer width="100%" height={typeof window !== 'undefined' && window.innerWidth < 768 ? 400 : 700}>
+              <ResponsiveContainer width="100%" height={typeof globalThis.window !== 'undefined' && globalThis.window.innerWidth < 768 ? 400 : 700}>
                 <Sankey
                   data={sankeyData as { nodes: Array<{ name: string }>; links: Array<{ source: number; target: number; value: number }> }}
                   nodeWidth={20}

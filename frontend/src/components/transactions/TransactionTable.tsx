@@ -22,6 +22,18 @@ interface TransactionTableProps {
   onSortingChange: (sorting: SortingState) => void
 }
 
+function getAmountColor(type: string): string {
+  if (type === 'Transfer') return 'text-ios-teal'
+  if (type === 'Income') return 'text-ios-green'
+  return 'text-ios-red'
+}
+
+function getAmountPrefix(type: string): string {
+  if (type === 'Transfer') return ''
+  if (type === 'Income') return '+'
+  return '-'
+}
+
 const columns: ColumnDef<Transaction>[] = [
   {
     accessorKey: 'date',
@@ -286,8 +298,8 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                     const tx = row.original
                     const isIncome = tx.type === 'Income'
                     const isTransfer = tx.type === 'Transfer'
-                    const amountColor = isTransfer ? 'text-ios-teal' : isIncome ? 'text-ios-green' : 'text-ios-red'
-                    const prefix = isTransfer ? '' : isIncome ? '+' : '-'
+                    const amountColor = getAmountColor(tx.type)
+                    const prefix = getAmountPrefix(tx.type)
                     const TypeIcon = isIncome ? TrendingUp : TrendingDown
 
                     return (

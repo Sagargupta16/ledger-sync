@@ -97,6 +97,13 @@ function capitalize(str: string | null): string {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
 }
 
+/** Return the confidence indicator color based on percentage threshold */
+function getConfidenceColor(percent: number, colors: { green: string; yellow: string; red: string }): string {
+  if (percent >= 80) return colors.green
+  if (percent >= 50) return colors.yellow
+  return colors.red
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -137,12 +144,7 @@ function SummaryCard({
 /** Confidence score visual indicator */
 function ConfidenceIndicator({ confidence }: Readonly<{ confidence: number }>) {
   const percent = Math.round(confidence * 100)
-  const color =
-    percent >= 80
-      ? rawColors.ios.green
-      : percent >= 50
-        ? rawColors.ios.yellow
-        : rawColors.ios.red
+  const color = getConfidenceColor(percent, rawColors.ios)
 
   return (
     <div className="flex items-center gap-2">
@@ -412,23 +414,25 @@ export default function SubscriptionTrackerPage() {
             </div>
           </div>
 
-          {isLoading ? (
+          {isLoading && (
             <div className="space-y-4">
-              {Array.from({ length: 5 }).map((_, i) => (
+              {Array.from({ length: 5 }, (_, i) => `skeleton-${i}`).map((id) => (
                 <div
-                  key={`skeleton-${i}`}
+                  key={id}
                   className="h-32 rounded-xl bg-white/5 animate-pulse"
                 />
               ))}
             </div>
-          ) : sortedSubscriptions.length === 0 ? (
+          )}
+          {!isLoading && sortedSubscriptions.length === 0 && (
             <EmptyState
               icon={CreditCard}
               title="No recurring expenses found"
               description="Once recurring expense patterns are detected from your transactions, they will appear here as subscriptions."
               variant="card"
             />
-          ) : (
+          )}
+          {!isLoading && sortedSubscriptions.length > 0 && (
             <motion.div
               className="space-y-4"
               variants={staggerContainer}

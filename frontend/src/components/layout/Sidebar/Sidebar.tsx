@@ -159,15 +159,119 @@ for (const group of navigationGroups) {
 }
 for (const item of bottomItems) allItemsMap.set(item.path, item)
 
+// ─── Extracted sub-components ────────────────────────────────────────────────
+
+function MobileToggleButton({
+  isMobileOpen,
+  onToggle,
+}: {
+  isMobileOpen: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className="lg:hidden fixed top-4 left-4 z-50 w-11 h-11 flex items-center justify-center rounded-2xl glass-strong shadow-xl shadow-black/20 active:scale-95 transition-transform"
+      aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
+    >
+      {isMobileOpen
+        ? <X size={22} className="text-white" />
+        : <Menu size={22} className="text-white" />}
+    </button>
+  )
+}
+
+function UserProfile({
+  user,
+  isCollapsed,
+  onLogout,
+  isPending,
+}: {
+  user: { full_name?: string | null; email: string } | null
+  isCollapsed: boolean
+  onLogout: () => void
+  isPending: boolean
+}) {
+  return (
+    <div className={cn(
+      'border-t border-border',
+      isCollapsed ? 'p-2' : 'p-3',
+    )}>
+      {user && (
+        <div className={cn(
+          'rounded-xl transition-colors duration-200',
+          isCollapsed ? 'p-2' : 'p-3 bg-white/5 hover:bg-white/10',
+        )}>
+          <div className={cn(
+            'flex items-center gap-3',
+            isCollapsed && 'justify-center',
+          )}>
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg"
+              style={{
+                background: `linear-gradient(135deg, ${rawColors.ios.purple}, ${rawColors.ios.pink})`,
+                boxShadow: `0 4px 12px ${rawColors.ios.purple}40`,
+              }}
+            >
+              <span className="text-white font-semibold text-sm">
+                {(user.full_name || user.email)[0].toUpperCase()}
+              </span>
+            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">
+                  {user.full_name || user.email.split('@')[0]}
+                </p>
+                <p className="text-xs truncate" style={{ color: rawColors.text.tertiary }}>
+                  {user.email}
+                </p>
+              </div>
+            )}
+          </div>
+          {!isCollapsed && (
+            <button
+              onClick={onLogout}
+              disabled={isPending}
+              className={cn(
+                'w-full flex items-center justify-center gap-2 mt-3 px-3 py-2 rounded-lg transition-colors duration-200',
+                'text-ios-red-vibrant/80 hover:text-ios-red-vibrant bg-ios-red-vibrant/5 hover:bg-ios-red-vibrant/10',
+                'text-xs font-medium',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+              )}
+            >
+              <LogOut size={14} />
+              <span>{isPending ? 'Signing out...' : 'Sign Out'}</span>
+            </button>
+          )}
+        </div>
+      )}
+      {isCollapsed && (
+        <button
+          onClick={onLogout}
+          disabled={isPending}
+          className={cn(
+            'w-full flex items-center justify-center mt-2 p-2 rounded-xl transition-colors duration-200',
+            'text-ios-red-vibrant hover:bg-ios-red-vibrant/10',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+          )}
+          title="Sign out"
+        >
+          <LogOut size={18} />
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
+    if (typeof globalThis.window === 'undefined') {
+      return false
     }
-    return false
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
   })
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => loadSet(COLLAPSED_GROUPS_KEY),
@@ -296,16 +400,10 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile toggle button */}
-      <button
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 w-11 h-11 flex items-center justify-center rounded-2xl glass-strong shadow-xl shadow-black/20 active:scale-95 transition-transform"
-        aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
-      >
-        {isMobileOpen
-          ? <X size={22} className="text-white" />
-          : <Menu size={22} className="text-white" />}
-      </button>
+      <MobileToggleButton
+        isMobileOpen={isMobileOpen}
+        onToggle={() => setIsMobileOpen(!isMobileOpen)}
+      />
 
       {/* Sidebar */}
       <aside
@@ -501,73 +599,12 @@ export default function Sidebar() {
           </div>
 
           {/* User Profile & Logout */}
-          <div className={cn(
-            'border-t border-border',
-            isCollapsed ? 'p-2' : 'p-3',
-          )}>
-            {user && (
-              <div className={cn(
-                'rounded-xl transition-colors duration-200',
-                isCollapsed ? 'p-2' : 'p-3 bg-white/5 hover:bg-white/10',
-              )}>
-                <div className={cn(
-                  'flex items-center gap-3',
-                  isCollapsed && 'justify-center',
-                )}>
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg"
-                    style={{
-                      background: `linear-gradient(135deg, ${rawColors.ios.purple}, ${rawColors.ios.pink})`,
-                      boxShadow: `0 4px 12px ${rawColors.ios.purple}40`,
-                    }}
-                  >
-                    <span className="text-white font-semibold text-sm">
-                      {(user.full_name || user.email)[0].toUpperCase()}
-                    </span>
-                  </div>
-                  {!isCollapsed && (
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">
-                        {user.full_name || user.email.split('@')[0]}
-                      </p>
-                      <p className="text-xs truncate" style={{ color: rawColors.text.tertiary }}>
-                        {user.email}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {!isCollapsed && (
-                  <button
-                    onClick={handleLogout}
-                    disabled={logout.isPending}
-                    className={cn(
-                      'w-full flex items-center justify-center gap-2 mt-3 px-3 py-2 rounded-lg transition-colors duration-200',
-                      'text-ios-red-vibrant/80 hover:text-ios-red-vibrant bg-ios-red-vibrant/5 hover:bg-ios-red-vibrant/10',
-                      'text-xs font-medium',
-                      'disabled:opacity-50 disabled:cursor-not-allowed',
-                    )}
-                  >
-                    <LogOut size={14} />
-                    <span>{logout.isPending ? 'Signing out...' : 'Sign Out'}</span>
-                  </button>
-                )}
-              </div>
-            )}
-            {isCollapsed && (
-              <button
-                onClick={handleLogout}
-                disabled={logout.isPending}
-                className={cn(
-                  'w-full flex items-center justify-center mt-2 p-2 rounded-xl transition-colors duration-200',
-                  'text-ios-red-vibrant hover:bg-ios-red-vibrant/10',
-                  'disabled:opacity-50 disabled:cursor-not-allowed',
-                )}
-                title="Sign out"
-              >
-                <LogOut size={18} />
-              </button>
-            )}
-          </div>
+          <UserProfile
+            user={user}
+            isCollapsed={isCollapsed}
+            onLogout={handleLogout}
+            isPending={logout.isPending}
+          />
         </div>
       </aside>
 

@@ -60,6 +60,37 @@ function daysUntil(dateStr: string | null): number | null {
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 
+function getSeverityFromPct(pct: number): Notification['severity'] {
+  if (pct >= 100) return 'high'
+  if (pct >= 90) return 'medium'
+  return 'low'
+}
+
+function getAnomalyLabel(anomalyType: string, amount: string): string {
+  if (anomalyType === 'high_expense') return `Unusual ${amount} expense`
+  if (anomalyType === 'large_transfer') return `Large ${amount} transfer detected`
+  if (anomalyType === 'budget_exceeded') return 'Budget exceeded'
+  return 'Unusual activity'
+}
+
+function getDueMessage(name: string, amount: string, days: number): string {
+  if (days === 0) return `${name} (${amount}) is due today`
+  if (days === 1) return `${name} (${amount}) is due tomorrow`
+  return `${name} (${amount}) due in ${days} days`
+}
+
+function getSeverityFromDays(days: number): Notification['severity'] {
+  if (days <= 1) return 'high'
+  if (days <= 3) return 'medium'
+  return 'low'
+}
+
+function getSeverityColor(severity: Notification['severity']): string {
+  if (severity === 'high') return rawColors.ios.red
+  if (severity === 'medium') return rawColors.ios.orange
+  return rawColors.ios.yellow
+}
+
 function relativeTime(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date()
@@ -83,8 +114,7 @@ function budgetNotifications(budgets: Budget[]): Notification[] {
     .filter((b) => b.usage_pct >= b.alert_threshold)
     .map((b) => {
       const pct = Math.round(b.usage_pct)
-      const severity: Notification['severity'] =
-        pct >= 100 ? 'high' : pct >= 90 ? 'medium' : 'low'
+      const severity: Notification['severity'] = getSeverityFromPct(pct)
       return {
         id: `budget-${b.id}`,
         type: 'budget' as NotificationType,
@@ -112,14 +142,7 @@ function anomalyNotifications(anomalies: Anomaly[]): Notification[] {
       const amount = a.actual_value
         ? formatCurrencyCompact(a.actual_value)
         : ''
-      const label =
-        a.anomaly_type === 'high_expense'
-          ? `Unusual ${amount} expense`
-          : a.anomaly_type === 'large_transfer'
-            ? `Large ${amount} transfer detected`
-            : a.anomaly_type === 'budget_exceeded'
-              ? 'Budget exceeded'
-              : 'Unusual activity'
+      const label = getAnomalyLabel(a.anomaly_type, amount)
       return {
         id: `anomaly-${a.id}`,
         type: 'anomaly' as NotificationType,
@@ -141,14 +164,9 @@ function upcomingNotifications(recurring: RecurringTransaction[]): Notification[
       id: `upcoming-${r.id}`,
       type: 'upcoming',
       title: 'Upcoming Payment',
-      message:
-        days === 0
-          ? `${r.name} (${amount}) is due today`
-          : days === 1
-            ? `${r.name} (${amount}) is due tomorrow`
-            : `${r.name} (${amount}) due in ${days} days`,
+      message: getDueMessage(r.name, amount, days),
       timestamp: r.next_expected!,
-      severity: days <= 1 ? 'high' : days <= 3 ? 'medium' : 'low',
+      severity: getSeverityFromDays(days),
       meta: { category: r.category, amount: r.expected_amount },
     })
   }
@@ -198,13 +216,8 @@ const groupOrder: NotificationType[] = ['budget', 'anomaly', 'upcoming']
 // Severity dot
 // ---------------------------------------------------------------------------
 
-function SeverityDot({ severity }: { severity: Notification['severity'] }) {
-  const color =
-    severity === 'high'
-      ? rawColors.ios.red
-      : severity === 'medium'
-        ? rawColors.ios.orange
-        : rawColors.ios.yellow
+function SeverityDot({ severity }: Readonly<{ severity: Notification['severity'] }>) {
+  const color = getSeverityColor(severity)
   return (
     <span
       className="inline-block w-2 h-2 rounded-full flex-shrink-0"
@@ -217,7 +230,7 @@ function SeverityDot({ severity }: { severity: Notification['severity'] }) {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function NotificationCenter({ isCollapsed }: NotificationCenterProps) {
+export default function NotificationCenter({ isCollapsed }: Readonly<NotificationCenterProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [dismissed, setDismissed] = useState<Set<string>>(loadDismissed)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -299,6 +312,8 @@ export default function NotificationCenter({ isCollapsed }: NotificationCenterPr
     return () => document.removeEventListener('keydown', handleKey)
   }, [isOpen])
 
+  const unreadSuffix = totalCount > 0 ? ` (${totalCount} unread)` : ''
+
   return (
     <div className="relative">
       {/* Bell button */}
@@ -312,7 +327,7 @@ export default function NotificationCenter({ isCollapsed }: NotificationCenterPr
           isOpen && 'bg-white/10 text-white',
         )}
         title="Notifications"
-        aria-label={`Notifications${totalCount > 0 ? ` (${totalCount} unread)` : ''}`}
+        aria-label={`Notifications${unreadSuffix}`}
       >
         <div className="relative">
           <Bell size={18} />

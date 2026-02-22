@@ -52,6 +52,188 @@ function formatTooltipName(name: string | undefined): string {
   return name || ''
 }
 
+// ─── Extracted sub-components ────────────────────────────────────────
+
+interface TrendCardProps {
+  metrics: TrendMetrics
+  icon: React.ElementType
+  iconBgClass: string
+  iconColorClass: string
+  label: string
+  isPositiveGood: boolean
+  delay: number
+  isLoading: boolean
+  valueClassName?: string
+  averageClassName?: string
+  secondStatLabel?: string
+  secondStatClassName?: string
+}
+
+function TrendCard({
+  metrics,
+  icon: Icon,
+  iconBgClass,
+  iconColorClass,
+  label,
+  isPositiveGood,
+  delay,
+  isLoading,
+  valueClassName = 'text-white',
+  averageClassName = 'text-foreground',
+  secondStatLabel = 'Peak',
+  secondStatClassName = 'text-foreground',
+}: Readonly<TrendCardProps>) {
+  const getTrendIcon = (direction: TrendDirection, positiveGood: boolean) => {
+    if (direction === 'stable') return <Minus className="w-5 h-5 text-muted-foreground" />
+    if (direction === 'up') {
+      return positiveGood
+        ? <TrendingUp className="w-5 h-5 text-ios-green" />
+        : <TrendingUp className="w-5 h-5 text-ios-red" />
+    }
+    return positiveGood
+      ? <TrendingDown className="w-5 h-5 text-ios-red" />
+      : <TrendingDown className="w-5 h-5 text-ios-green" />
+  }
+
+  const getTrendColor = (direction: TrendDirection, positiveGood: boolean) => {
+    if (direction === 'stable') return 'text-muted-foreground'
+    if (direction === 'up') return positiveGood ? 'text-ios-green' : 'text-ios-red'
+    return positiveGood ? 'text-ios-red' : 'text-ios-green'
+  }
+
+  const secondStatValue = secondStatLabel === 'Best Month' ? metrics.highest : metrics.highest
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className="glass rounded-xl border border-border p-6 shadow-lg"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`p-3 ${iconBgClass} rounded-xl`}>
+            <Icon className={`w-6 h-6 ${iconColorClass}`} />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className={`text-2xl font-bold ${valueClassName}`}>
+              {isLoading ? '...' : formatCurrency(metrics.current)}
+            </p>
+          </div>
+        </div>
+        {!isLoading && getTrendIcon(metrics.direction, isPositiveGood)}
+      </div>
+
+      {!isLoading && (
+        <div className="space-y-3">
+          <div className={`flex items-center gap-2 ${getTrendColor(metrics.direction, isPositiveGood)}`}>
+            {getDirectionIcon(metrics.direction)}
+            <span className="font-semibold">{formatPercent(metrics.changePercent)}</span>
+            <span className="text-text-tertiary text-sm">vs previous month</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+            <div>
+              <p className="text-xs text-text-tertiary">Average</p>
+              <p className={`text-sm font-medium ${averageClassName}`}>{formatCurrency(metrics.average)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-text-tertiary">{secondStatLabel}</p>
+              <p className={`text-sm font-medium ${secondStatClassName}`}>{formatCurrency(secondStatValue)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
+interface MonthlyBreakdownTableProps {
+  isLoading: boolean
+  chartData: Array<{ month: string; income: number; expenses: number; surplus: number; rawSavingsRate: number }>
+  sortedChartData: Array<{ month: string; income: number; expenses: number; surplus: number; rawSavingsRate: number }>
+  trendSortKey: string | null
+  trendSortDir: 'asc' | 'desc'
+  toggleTrendSort: (key: string) => void
+}
+
+function MonthlyBreakdownTable({
+  isLoading,
+  chartData,
+  sortedChartData,
+  trendSortKey,
+  trendSortDir,
+  toggleTrendSort,
+}: Readonly<MonthlyBreakdownTableProps>) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-50px' }}
+      transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className="glass rounded-xl border border-border p-6 shadow-lg"
+    >
+      <h3 className="text-lg font-semibold text-white mb-6">Month-on-Month Breakdown</h3>
+      {isLoading && (
+        <div className="text-center py-8 text-muted-foreground">Loading data...</div>
+      )}
+      {!isLoading && chartData.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Month</th>
+                <th onClick={() => toggleTrendSort('income')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                  Income {trendSortKey === 'income' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
+                </th>
+                <th onClick={() => toggleTrendSort('expenses')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                  Spending {trendSortKey === 'expenses' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
+                </th>
+                <th onClick={() => toggleTrendSort('surplus')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                  Savings {trendSortKey === 'surplus' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
+                </th>
+                <th onClick={() => toggleTrendSort('rawSavingsRate')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                  Savings Rate {trendSortKey === 'rawSavingsRate' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
+                </th>
+              </tr>
+            </thead>
+            <motion.tbody
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              {sortedChartData.map((trend) => (
+                <tr
+                  key={trend.month}
+                  className="border-b border-border hover:bg-white/10 transition-colors"
+                >
+                  <td className="py-3 px-4 text-white font-medium">{trend.month}</td>
+                  <td className="py-3 px-4 text-right text-ios-green">{formatCurrency(trend.income)}</td>
+                  <td className="py-3 px-4 text-right text-ios-red">{formatCurrency(trend.expenses)}</td>
+                  <td className={`py-3 px-4 text-right font-bold ${trend.surplus >= 0 ? 'text-ios-purple' : 'text-ios-red'}`}>
+                    {formatCurrency(trend.surplus)}
+                  </td>
+                  <td className={`py-3 px-4 text-right ${trend.rawSavingsRate >= 0 ? 'text-foreground' : 'text-ios-red'}`}>
+                    {trend.rawSavingsRate.toFixed(1)}%
+                  </td>
+                </tr>
+              ))}
+            </motion.tbody>
+          </table>
+        </div>
+      )}
+      {!isLoading && chartData.length === 0 && (
+        <EmptyState
+          icon={TrendingUp}
+          title="No data available"
+          description="Monthly breakdown will appear here once you have transactions."
+          variant="compact"
+        />
+      )}
+    </motion.div>
+  )
+}
+
 export default function TrendsForecastsPage() {
   const dims = useChartDimensions()
   const { data: preferences } = usePreferences()
@@ -289,26 +471,8 @@ export default function TrendsForecastsPage() {
     })
   }, [chartData, trendSortKey, trendSortDir])
 
-  const getTrendIcon = (direction: TrendDirection, isPositiveGood: boolean) => {
-    if (direction === 'stable') return <Minus className="w-5 h-5 text-muted-foreground" />
-    if (direction === 'up') {
-      return isPositiveGood
-        ? <TrendingUp className="w-5 h-5 text-ios-green" />
-        : <TrendingUp className="w-5 h-5 text-ios-red" />
-    }
-    return isPositiveGood
-      ? <TrendingDown className="w-5 h-5 text-ios-red" />
-      : <TrendingDown className="w-5 h-5 text-ios-green" />
-  }
-
   // Linked crosshair state for small-multiples charts
   const [activeLabel, setActiveLabel] = useState<string | null>(null)
-
-  const getTrendColor = (direction: TrendDirection, isPositiveGood: boolean) => {
-    if (direction === 'stable') return 'text-muted-foreground'
-    if (direction === 'up') return isPositiveGood ? 'text-ios-green' : 'text-ios-red'
-    return isPositiveGood ? 'text-ios-red' : 'text-ios-green'
-  }
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
@@ -336,136 +500,40 @@ export default function TrendsForecastsPage() {
 
         {/* Trend Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Spending Trend Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-ios-red/20 rounded-xl">
-                  <CreditCard className="w-6 h-6 text-ios-red" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Spending Trend</p>
-                  <p className="text-2xl font-bold text-white">
-                    {isLoading ? '...' : formatCurrency(metrics.spending.current)}
-                  </p>
-                </div>
-              </div>
-              {!isLoading && getTrendIcon(metrics.spending.direction, false)}
-            </div>
-            
-            {!isLoading && (
-              <div className="space-y-3">
-                <div className={`flex items-center gap-2 ${getTrendColor(metrics.spending.direction, false)}`}>
-                  {getDirectionIcon(metrics.spending.direction)}
-                  <span className="font-semibold">{formatPercent(metrics.spending.changePercent)}</span>
-                  <span className="text-text-tertiary text-sm">vs previous month</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
-                  <div>
-                    <p className="text-xs text-text-tertiary">Average</p>
-                    <p className="text-sm font-medium text-foreground">{formatCurrency(metrics.spending.average)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-tertiary">Peak</p>
-                    <p className="text-sm font-medium text-foreground">{formatCurrency(metrics.spending.highest)}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </motion.div>
-
-          {/* Income Trend Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-ios-green/20 rounded-xl">
-                  <Wallet className="w-6 h-6 text-ios-green" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Income Trend</p>
-                  <p className="text-2xl font-bold text-white">
-                    {isLoading ? '...' : formatCurrency(metrics.income.current)}
-                  </p>
-                </div>
-              </div>
-              {!isLoading && getTrendIcon(metrics.income.direction, true)}
-            </div>
-            
-            {!isLoading && (
-              <div className="space-y-3">
-                <div className={`flex items-center gap-2 ${getTrendColor(metrics.income.direction, true)}`}>
-                  {getDirectionIcon(metrics.income.direction)}
-                  <span className="font-semibold">{formatPercent(metrics.income.changePercent)}</span>
-                  <span className="text-text-tertiary text-sm">vs previous month</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
-                  <div>
-                    <p className="text-xs text-text-tertiary">Average</p>
-                    <p className="text-sm font-medium text-foreground">{formatCurrency(metrics.income.average)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-tertiary">Peak</p>
-                    <p className="text-sm font-medium text-foreground">{formatCurrency(metrics.income.highest)}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </motion.div>
-
-          {/* Savings Trend Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-ios-purple/20 rounded-xl">
-                  <PiggyBank className="w-6 h-6 text-ios-purple" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Savings Trend</p>
-                  <p className={`text-2xl font-bold ${metrics.savings.current >= 0 ? 'text-white' : 'text-ios-red'}`}>
-                    {isLoading ? '...' : formatCurrency(metrics.savings.current)}
-                  </p>
-                </div>
-              </div>
-              {!isLoading && getTrendIcon(metrics.savings.direction, true)}
-            </div>
-            
-            {!isLoading && (
-              <div className="space-y-3">
-                <div className={`flex items-center gap-2 ${getTrendColor(metrics.savings.direction, true)}`}>
-                  {getDirectionIcon(metrics.savings.direction)}
-                  <span className="font-semibold">{formatPercent(metrics.savings.changePercent)}</span>
-                  <span className="text-text-tertiary text-sm">vs previous month</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
-                  <div>
-                    <p className="text-xs text-text-tertiary">Average</p>
-                    <p className={`text-sm font-medium ${metrics.savings.average >= 0 ? 'text-foreground' : 'text-ios-red'}`}>
-                      {formatCurrency(metrics.savings.average)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-tertiary">Best Month</p>
-                    <p className="text-sm font-medium text-ios-green">{formatCurrency(metrics.savings.highest)}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </motion.div>
+          <TrendCard
+            metrics={metrics.spending}
+            icon={CreditCard}
+            iconBgClass="bg-ios-red/20"
+            iconColorClass="text-ios-red"
+            label="Spending Trend"
+            isPositiveGood={false}
+            delay={0.2}
+            isLoading={isLoading}
+          />
+          <TrendCard
+            metrics={metrics.income}
+            icon={Wallet}
+            iconBgClass="bg-ios-green/20"
+            iconColorClass="text-ios-green"
+            label="Income Trend"
+            isPositiveGood={true}
+            delay={0.3}
+            isLoading={isLoading}
+          />
+          <TrendCard
+            metrics={metrics.savings}
+            icon={PiggyBank}
+            iconBgClass="bg-ios-purple/20"
+            iconColorClass="text-ios-purple"
+            label="Savings Trend"
+            isPositiveGood={true}
+            delay={0.4}
+            isLoading={isLoading}
+            valueClassName={metrics.savings.current >= 0 ? 'text-white' : 'text-ios-red'}
+            averageClassName={metrics.savings.average >= 0 ? 'text-foreground' : 'text-ios-red'}
+            secondStatLabel="Best Month"
+            secondStatClassName="text-ios-green"
+          />
         </div>
 
         {/* Main Trend Chart — Small Multiples */}
@@ -700,71 +768,14 @@ export default function TrendsForecastsPage() {
         </motion.div>
 
         {/* Monthly Breakdown Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-border p-6 shadow-lg"
-        >
-          <h3 className="text-lg font-semibold text-white mb-6">Month-on-Month Breakdown</h3>
-          {isLoading && (
-            <div className="text-center py-8 text-muted-foreground">Loading data...</div>
-          )}
-          {!isLoading && chartData.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Month</th>
-                    <th onClick={() => toggleTrendSort('income')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
-                      Income {trendSortKey === 'income' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
-                    </th>
-                    <th onClick={() => toggleTrendSort('expenses')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
-                      Spending {trendSortKey === 'expenses' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
-                    </th>
-                    <th onClick={() => toggleTrendSort('surplus')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
-                      Savings {trendSortKey === 'surplus' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
-                    </th>
-                    <th onClick={() => toggleTrendSort('rawSavingsRate')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
-                      Savings Rate {trendSortKey === 'rawSavingsRate' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
-                    </th>
-                  </tr>
-                </thead>
-                <motion.tbody
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {sortedChartData.map((trend) => (
-                    <tr
-                      key={trend.month}
-                      className="border-b border-border hover:bg-white/10 transition-colors"
-                    >
-                      <td className="py-3 px-4 text-white font-medium">{trend.month}</td>
-                      <td className="py-3 px-4 text-right text-ios-green">{formatCurrency(trend.income)}</td>
-                      <td className="py-3 px-4 text-right text-ios-red">{formatCurrency(trend.expenses)}</td>
-                      <td className={`py-3 px-4 text-right font-bold ${trend.surplus >= 0 ? 'text-ios-purple' : 'text-ios-red'}`}>
-                        {formatCurrency(trend.surplus)}
-                      </td>
-                      <td className={`py-3 px-4 text-right ${trend.rawSavingsRate >= 0 ? 'text-foreground' : 'text-ios-red'}`}>
-                        {trend.rawSavingsRate.toFixed(1)}%
-                      </td>
-                    </tr>
-                  ))}
-                </motion.tbody>
-              </table>
-            </div>
-          )}
-          {!isLoading && chartData.length === 0 && (
-            <EmptyState
-              icon={TrendingUp}
-              title="No data available"
-              description="Monthly breakdown will appear here once you have transactions."
-              variant="compact"
-            />
-          )}
-        </motion.div>
+        <MonthlyBreakdownTable
+          isLoading={isLoading}
+          chartData={chartData}
+          sortedChartData={sortedChartData}
+          trendSortKey={trendSortKey}
+          trendSortDir={trendSortDir}
+          toggleTrendSort={toggleTrendSort}
+        />
 
         {/* Cash Flow Forecast */}
         <CashFlowForecast />

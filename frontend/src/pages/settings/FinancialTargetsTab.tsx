@@ -16,6 +16,13 @@ interface FinancialTargetsTabProps {
 
 const PAYDAY_OPTIONS = Array.from({ length: 31 }, (_, i) => i + 1)
 
+function getOrdinalSuffix(day: number): string {
+  if (day === 1 || day === 21 || day === 31) return 'st'
+  if (day === 2 || day === 22) return 'nd'
+  if (day === 3 || day === 23) return 'rd'
+  return 'th'
+}
+
 export default function FinancialTargetsTab({
   localPrefs,
   updateLocalPref,
@@ -114,7 +121,7 @@ export default function FinancialTargetsTab({
           >
             {PAYDAY_OPTIONS.map((day) => (
               <option key={day} value={day} className="bg-background">
-                {day}{day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'}
+                {day}{getOrdinalSuffix(day)}
               </option>
             ))}
           </select>
@@ -135,7 +142,7 @@ export default function FinancialTargetsTab({
             Select your preferred income tax regime for tax-related calculations.
           </p>
           <div className="flex flex-col gap-3">
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer" aria-label="New Regime">
               <input
                 type="radio"
                 name="tax-regime"
@@ -149,7 +156,7 @@ export default function FinancialTargetsTab({
                 <p className="text-xs text-muted-foreground">Lower tax rates, fewer deductions (default from FY 2024-25)</p>
               </div>
             </label>
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer" aria-label="Old Regime">
               <input
                 type="radio"
                 name="tax-regime"

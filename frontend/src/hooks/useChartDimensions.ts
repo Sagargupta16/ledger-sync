@@ -76,13 +76,13 @@ const DIMENSIONS: Record<Breakpoint, Omit<ChartDimensions, 'breakpoint'>> = {
  */
 export function useChartDimensions(): ChartDimensions {
   const [bp, setBp] = useState<Breakpoint>(() =>
-    typeof window !== 'undefined' ? getBreakpoint(window.innerWidth) : 'desktop',
+    globalThis.window === undefined ? 'desktop' : getBreakpoint(globalThis.window.innerWidth),
   )
 
   useEffect(() => {
-    const onResize = () => setBp(getBreakpoint(window.innerWidth))
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    const onResize = () => setBp(getBreakpoint(globalThis.window.innerWidth))
+    globalThis.window.addEventListener('resize', onResize)
+    return () => globalThis.window.removeEventListener('resize', onResize)
   }, [])
 
   return { breakpoint: bp, ...DIMENSIONS[bp] }

@@ -505,76 +505,25 @@ class AnalyticsEngine:
             expense_ratio = float(total_expenses / total_income * 100) if total_income > 0 else 0
 
             # Calculate MoM changes
-            income_change_pct = 0.0
-            expense_change_pct = 0.0
-            if prev_income and prev_income > 0:
-                income_change_pct = float((total_income - prev_income) / prev_income * 100)
-            if prev_expenses and prev_expenses > 0:
-                expense_change_pct = float((total_expenses - prev_expenses) / prev_expenses * 100)
+            income_change_pct = self._mom_change_pct(total_income, prev_income)
+            expense_change_pct = self._mom_change_pct(total_expenses, prev_expenses)
 
             now = datetime.now(UTC)
             total_txns = data["income_count"] + data["expense_count"] + data["transfer_count"]
 
-            # Merge: update if (user_id, period_key) exists, insert otherwise
-            existing = (
-                self.db.query(MonthlySummary)
-                .filter(
-                    MonthlySummary.user_id == self.user_id,
-                    MonthlySummary.period_key == period_key,
-                )
-                .first()
+            self._upsert_monthly_summary(
+                period_key,
+                data,
+                total_income,
+                total_expenses,
+                net_savings,
+                savings_rate,
+                expense_ratio,
+                income_change_pct,
+                expense_change_pct,
+                total_txns,
+                now,
             )
-
-            if existing:
-                existing.total_income = total_income
-                existing.salary_income = data["salary_income"]
-                existing.investment_income = data["investment_income"]
-                existing.other_income = data["other_income"]
-                existing.total_expenses = total_expenses
-                existing.essential_expenses = data["essential_expenses"]
-                existing.discretionary_expenses = data["discretionary_expenses"]
-                existing.total_transfers_out = data["total_transfers_out"]
-                existing.total_transfers_in = data["total_transfers_in"]
-                existing.net_investment_flow = data["net_investment_flow"]
-                existing.net_savings = net_savings
-                existing.savings_rate = savings_rate
-                existing.expense_ratio = expense_ratio
-                existing.income_count = data["income_count"]
-                existing.expense_count = data["expense_count"]
-                existing.transfer_count = data["transfer_count"]
-                existing.total_transactions = total_txns
-                existing.income_change_pct = income_change_pct
-                existing.expense_change_pct = expense_change_pct
-                existing.last_calculated = now
-            else:
-                self.db.add(
-                    MonthlySummary(
-                        user_id=self.user_id,
-                        year=data["year"],
-                        month=data["month"],
-                        period_key=period_key,
-                        total_income=total_income,
-                        salary_income=data["salary_income"],
-                        investment_income=data["investment_income"],
-                        other_income=data["other_income"],
-                        total_expenses=total_expenses,
-                        essential_expenses=data["essential_expenses"],
-                        discretionary_expenses=data["discretionary_expenses"],
-                        total_transfers_out=data["total_transfers_out"],
-                        total_transfers_in=data["total_transfers_in"],
-                        net_investment_flow=data["net_investment_flow"],
-                        net_savings=net_savings,
-                        savings_rate=savings_rate,
-                        expense_ratio=expense_ratio,
-                        income_count=data["income_count"],
-                        expense_count=data["expense_count"],
-                        transfer_count=data["transfer_count"],
-                        total_transactions=total_txns,
-                        income_change_pct=income_change_pct,
-                        expense_change_pct=expense_change_pct,
-                        last_calculated=now,
-                    )
-                )
             count += 1
 
             prev_income = total_income
@@ -589,6 +538,91 @@ class AnalyticsEngine:
             stale.delete(synchronize_session=False)
 
         return count
+
+    @staticmethod
+    def _mom_change_pct(
+        current: Decimal,
+        previous: Decimal | None,
+    ) -> float:
+        """Return month-over-month percentage change."""
+        if previous and previous > 0:
+            return float((current - previous) / previous * 100)
+        return 0.0
+
+    def _upsert_monthly_summary(
+        self,
+        period_key: str,
+        data: dict[str, Any],
+        total_income: Decimal,
+        total_expenses: Decimal,
+        net_savings: Decimal,
+        savings_rate: float,
+        expense_ratio: float,
+        income_change_pct: float,
+        expense_change_pct: float,
+        total_txns: int,
+        now: datetime,
+    ) -> None:
+        """Merge (insert or update) a single MonthlySummary row."""
+        existing = (
+            self.db.query(MonthlySummary)
+            .filter(
+                MonthlySummary.user_id == self.user_id,
+                MonthlySummary.period_key == period_key,
+            )
+            .first()
+        )
+
+        if existing:
+            existing.total_income = total_income
+            existing.salary_income = data["salary_income"]
+            existing.investment_income = data["investment_income"]
+            existing.other_income = data["other_income"]
+            existing.total_expenses = total_expenses
+            existing.essential_expenses = data["essential_expenses"]
+            existing.discretionary_expenses = data["discretionary_expenses"]
+            existing.total_transfers_out = data["total_transfers_out"]
+            existing.total_transfers_in = data["total_transfers_in"]
+            existing.net_investment_flow = data["net_investment_flow"]
+            existing.net_savings = net_savings
+            existing.savings_rate = savings_rate
+            existing.expense_ratio = expense_ratio
+            existing.income_count = data["income_count"]
+            existing.expense_count = data["expense_count"]
+            existing.transfer_count = data["transfer_count"]
+            existing.total_transactions = total_txns
+            existing.income_change_pct = income_change_pct
+            existing.expense_change_pct = expense_change_pct
+            existing.last_calculated = now
+        else:
+            self.db.add(
+                MonthlySummary(
+                    user_id=self.user_id,
+                    year=data["year"],
+                    month=data["month"],
+                    period_key=period_key,
+                    total_income=total_income,
+                    salary_income=data["salary_income"],
+                    investment_income=data["investment_income"],
+                    other_income=data["other_income"],
+                    total_expenses=total_expenses,
+                    essential_expenses=data["essential_expenses"],
+                    discretionary_expenses=data["discretionary_expenses"],
+                    total_transfers_out=data["total_transfers_out"],
+                    total_transfers_in=data["total_transfers_in"],
+                    net_investment_flow=data["net_investment_flow"],
+                    net_savings=net_savings,
+                    savings_rate=savings_rate,
+                    expense_ratio=expense_ratio,
+                    income_count=data["income_count"],
+                    expense_count=data["expense_count"],
+                    transfer_count=data["transfer_count"],
+                    total_transactions=total_txns,
+                    income_change_pct=income_change_pct,
+                    expense_change_pct=expense_change_pct,
+                    last_calculated=now,
+                )
+            )
 
     def _categorize_transaction_for_summary(
         self,
@@ -654,12 +688,7 @@ class AnalyticsEngine:
             category_data[key]["subcategory"] = txn.subcategory
 
         # Get monthly totals for percentage calculation
-        monthly_totals: dict[str, dict[str, Decimal]] = defaultdict(
-            lambda: {"Income": Decimal(0), "Expense": Decimal(0)},
-        )
-        for txn in transactions:
-            period_key = txn.date.strftime("%Y-%m")
-            monthly_totals[period_key][txn.type.value] += Decimal(str(txn.amount))
+        monthly_totals = self._monthly_type_totals(transactions)
 
         # Delete existing for this user and insert new
         del_stmt = delete(CategoryTrend)
@@ -705,6 +734,24 @@ class AnalyticsEngine:
             prev_amounts[prev_key] = total
 
         return count
+
+    @staticmethod
+    def _monthly_type_totals(
+        transactions: list,
+    ) -> dict[str, dict[str, Decimal]]:
+        """Aggregate transaction amounts by period and type.
+
+        Returns:
+            Mapping of period_key -> {type_value -> total_amount}.
+
+        """
+        totals: dict[str, dict[str, Decimal]] = defaultdict(
+            lambda: {"Income": Decimal(0), "Expense": Decimal(0)},
+        )
+        for txn in transactions:
+            period_key = txn.date.strftime("%Y-%m")
+            totals[period_key][txn.type.value] += Decimal(str(txn.amount))
+        return totals
 
     def _calculate_transfer_flows(self, transfers: list | None = None) -> int:
         """Calculate aggregated transfer flows between accounts."""
@@ -1022,18 +1069,7 @@ class AnalyticsEngine:
             all_transactions = self._user_transaction_query().all()
 
         # Track net position per account from all transactions
-        account_balances: dict[str, Decimal] = defaultdict(Decimal)
-
-        for txn in all_transactions:
-            if txn.type == TransactionType.TRANSFER:
-                if txn.from_account:
-                    account_balances[txn.from_account] -= Decimal(str(txn.amount))
-                if txn.to_account:
-                    account_balances[txn.to_account] += Decimal(str(txn.amount))
-            elif txn.type == TransactionType.INCOME:
-                account_balances[txn.account] += Decimal(str(txn.amount))
-            elif txn.type == TransactionType.EXPENSE:
-                account_balances[txn.account] -= Decimal(str(txn.amount))
+        account_balances = self._compute_account_balances(all_transactions)
 
         # Categorize accounts
         ac_query = self.db.query(AccountClassification)
@@ -1058,6 +1094,55 @@ class AnalyticsEngine:
         net_worth = total_assets - total_liabilities
 
         # Get previous snapshot for comparison
+        net_worth_change, net_worth_change_pct = self._get_net_worth_change(net_worth)
+
+        # Upsert snapshot — one per user per day (unique constraint)
+        self._upsert_net_worth_snapshot(
+            totals,
+            total_investments,
+            total_assets,
+            total_liabilities,
+            net_worth,
+            net_worth_change,
+            net_worth_change_pct,
+        )
+
+        return {
+            "net_worth": float(net_worth),
+            "total_assets": float(total_assets),
+            "total_liabilities": float(total_liabilities),
+            "change": float(net_worth_change),
+            "change_pct": net_worth_change_pct,
+        }
+
+    @staticmethod
+    def _compute_account_balances(
+        transactions: list,
+    ) -> dict[str, Decimal]:
+        """Derive net balance per account from a list of transactions."""
+        balances: dict[str, Decimal] = defaultdict(Decimal)
+        for txn in transactions:
+            if txn.type == TransactionType.TRANSFER:
+                if txn.from_account:
+                    balances[txn.from_account] -= Decimal(str(txn.amount))
+                if txn.to_account:
+                    balances[txn.to_account] += Decimal(str(txn.amount))
+            elif txn.type == TransactionType.INCOME:
+                balances[txn.account] += Decimal(str(txn.amount))
+            elif txn.type == TransactionType.EXPENSE:
+                balances[txn.account] -= Decimal(str(txn.amount))
+        return balances
+
+    def _get_net_worth_change(
+        self,
+        net_worth: Decimal,
+    ) -> tuple[Decimal, float]:
+        """Compare *net_worth* to the most recent persisted snapshot.
+
+        Returns:
+            (net_worth_change, net_worth_change_pct)
+
+        """
         prev_query = self.db.query(NetWorthSnapshot).order_by(NetWorthSnapshot.snapshot_date.desc())
         if self.user_id is not None:
             prev_query = prev_query.filter(NetWorthSnapshot.user_id == self.user_id)
@@ -1069,8 +1154,19 @@ class AnalyticsEngine:
             net_worth_change = net_worth - prev_snapshot.net_worth
             if prev_snapshot.net_worth is not None and prev_snapshot.net_worth != 0:
                 net_worth_change_pct = float(net_worth_change / prev_snapshot.net_worth * 100)
+        return net_worth_change, net_worth_change_pct
 
-        # Upsert snapshot — one per user per day (unique constraint)
+    def _upsert_net_worth_snapshot(
+        self,
+        totals: dict[str, Decimal],
+        total_investments: Decimal,
+        total_assets: Decimal,
+        total_liabilities: Decimal,
+        net_worth: Decimal,
+        net_worth_change: Decimal,
+        net_worth_change_pct: float,
+    ) -> None:
+        """Insert or update today's net-worth snapshot row."""
         now = datetime.now(UTC)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
@@ -1086,15 +1182,15 @@ class AnalyticsEngine:
         )
 
         if existing_snapshot:
-            existing_snapshot.cash_and_bank = cash_and_bank
+            existing_snapshot.cash_and_bank = totals["cash_and_bank"]
             existing_snapshot.investments = total_investments
-            existing_snapshot.mutual_funds = mutual_funds
-            existing_snapshot.stocks = stocks
-            existing_snapshot.fixed_deposits = fixed_deposits
-            existing_snapshot.ppf_epf = ppf_epf
-            existing_snapshot.other_assets = other_assets
-            existing_snapshot.credit_card_outstanding = credit_card_outstanding
-            existing_snapshot.loans_payable = loans_payable
+            existing_snapshot.mutual_funds = totals["mutual_funds"]
+            existing_snapshot.stocks = totals["stocks"]
+            existing_snapshot.fixed_deposits = totals["fixed_deposits"]
+            existing_snapshot.ppf_epf = totals["ppf_epf"]
+            existing_snapshot.other_assets = totals["other_assets"]
+            existing_snapshot.credit_card_outstanding = totals["credit_card_outstanding"]
+            existing_snapshot.loans_payable = totals["loans_payable"]
             existing_snapshot.other_liabilities = Decimal(0)
             existing_snapshot.total_assets = total_assets
             existing_snapshot.total_liabilities = total_liabilities
@@ -1107,15 +1203,15 @@ class AnalyticsEngine:
                 NetWorthSnapshot(
                     user_id=self.user_id,
                     snapshot_date=now,
-                    cash_and_bank=cash_and_bank,
+                    cash_and_bank=totals["cash_and_bank"],
                     investments=total_investments,
-                    mutual_funds=mutual_funds,
-                    stocks=stocks,
-                    fixed_deposits=fixed_deposits,
-                    ppf_epf=ppf_epf,
-                    other_assets=other_assets,
-                    credit_card_outstanding=credit_card_outstanding,
-                    loans_payable=loans_payable,
+                    mutual_funds=totals["mutual_funds"],
+                    stocks=totals["stocks"],
+                    fixed_deposits=totals["fixed_deposits"],
+                    ppf_epf=totals["ppf_epf"],
+                    other_assets=totals["other_assets"],
+                    credit_card_outstanding=totals["credit_card_outstanding"],
+                    loans_payable=totals["loans_payable"],
                     other_liabilities=Decimal(0),
                     total_assets=total_assets,
                     total_liabilities=total_liabilities,
@@ -1126,14 +1222,6 @@ class AnalyticsEngine:
                     source="upload",
                 )
             )
-
-        return {
-            "net_worth": float(net_worth),
-            "total_assets": float(total_assets),
-            "total_liabilities": float(total_liabilities),
-            "change": float(net_worth_change),
-            "change_pct": net_worth_change_pct,
-        }
 
     def _categorize_account_balances(
         self,

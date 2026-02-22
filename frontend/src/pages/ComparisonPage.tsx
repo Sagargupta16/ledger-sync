@@ -594,13 +594,13 @@ export default function ComparisonPage() {
                     labelFormatter={(label) => label}
                   />
                   <Bar dataKey="periodA" name={periodA.label} stackId="stack" radius={[4, 0, 0, 4]}>
-                    {butterflyData.map((_, i) => (
-                      <Cell key={`a-${i}`} fill={rawColors.ios.blue} />
+                    {butterflyData.map((entry) => (
+                      <Cell key={`a-${entry.name}`} fill={rawColors.ios.blue} />
                     ))}
                   </Bar>
                   <Bar dataKey="periodB" name={periodB.label} stackId="stack" radius={[0, 4, 4, 0]}>
-                    {butterflyData.map((_, i) => (
-                      <Cell key={`b-${i}`} fill={rawColors.ios.indigo} />
+                    {butterflyData.map((entry) => (
+                      <Cell key={`b-${entry.name}`} fill={rawColors.ios.indigo} />
                     ))}
                   </Bar>
                 </BarChart>

@@ -1,6 +1,6 @@
 """Reports API endpoints - Monthly financial report generation."""
 
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
@@ -19,9 +19,12 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 def get_monthly_report(
     current_user: CurrentUser,
     db: DatabaseSession,
-    year: int = Query(..., ge=2000, le=2100, description="Report year"),
-    month: int = Query(..., ge=1, le=12, description="Report month (1-12)"),
-    format: str = Query(default="html", pattern="^(html|json)$", description="Output format"),
+    year: Annotated[int, Query(..., ge=2000, le=2100, description="Report year")],
+    month: Annotated[int, Query(..., ge=1, le=12, description="Report month (1-12)")],
+    format: Annotated[
+        str,
+        Query(pattern="^(html|json)$", description="Output format"),
+    ] = "html",
 ) -> Any:
     """Generate a monthly financial report.
 

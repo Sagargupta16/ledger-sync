@@ -104,6 +104,42 @@ function getStreakColor(maxStreak: number): string {
   return rawColors.ios.green
 }
 
+/** Get streak dot color based on position in the streak */
+function getStreakDotColor(index: number): string {
+  if (index < 7) return rawColors.ios.green
+  if (index < 14) return rawColors.ios.blue
+  return rawColors.ios.purple
+}
+
+/** Mobile monthly summary — replaces heatmap on small screens */
+function MobileMonthlySummary({
+  mode,
+  monthlyExpense,
+  monthlyIncome,
+}: Readonly<{ mode: HeatmapMode; monthlyExpense: number[]; monthlyIncome: number[] }>) {
+  const maxVal = getMonthlyMax(mode, monthlyExpense, monthlyIncome)
+  return (
+    <div className="md:hidden grid grid-cols-3 gap-2">
+      {MONTHS_SHORT.map((m, i) => {
+        const val = getMonthlyValue(mode, monthlyExpense, monthlyIncome, i)
+        const level = getIntensityLevel(Math.abs(val), maxVal)
+        return (
+          <div
+            key={m}
+            className="p-3 rounded-xl text-center transition-colors"
+            style={{ backgroundColor: heatmapColors[mode][level] }}
+          >
+            <div className="text-xs text-muted-foreground mb-1">{m}</div>
+            <div className="text-sm font-semibold text-white">
+              {formatCurrencyCompact(Math.abs(val))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Extracted helpers (outside component to avoid cognitive complexity) ──
 
 /** Aggregate per-day expense/income totals from transactions within a date range. */
@@ -525,25 +561,7 @@ export default function YearInReviewPage() {
         </div>
 
         {/* Mobile monthly summary — replaces heatmap on small screens */}
-        <div className="md:hidden grid grid-cols-3 gap-2">
-          {MONTHS_SHORT.map((m, i) => {
-            const val = getMonthlyValue(mode, stats.monthlyExpense, stats.monthlyIncome, i)
-            const maxVal = getMonthlyMax(mode, stats.monthlyExpense, stats.monthlyIncome)
-            const level = getIntensityLevel(Math.abs(val), maxVal)
-            return (
-              <div
-                key={m}
-                className="p-3 rounded-xl text-center transition-colors"
-                style={{ backgroundColor: heatmapColors[mode][level] }}
-              >
-                <div className="text-xs text-muted-foreground mb-1">{m}</div>
-                <div className="text-sm font-semibold text-white">
-                  {formatCurrencyCompact(Math.abs(val))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <MobileMonthlySummary mode={mode} monthlyExpense={stats.monthlyExpense} monthlyIncome={stats.monthlyIncome} />
 
         {/* Inline day summary — always visible, no layout shift */}
         <div className="mt-4 pt-3 border-t border-border flex items-center gap-6 text-xs min-h-[28px]">
@@ -664,7 +682,7 @@ export default function YearInReviewPage() {
                       key={`streak-${i}`}
                       className="w-2 h-2 rounded-full"
                       style={{
-                        backgroundColor: i < 7 ? rawColors.ios.green : i < 14 ? rawColors.ios.blue : rawColors.ios.purple,
+                        backgroundColor: getStreakDotColor(i),
                         opacity: 0.5 + (i / Math.min(stats.maxStreak, 30)) * 0.5,
                       }}
                     />

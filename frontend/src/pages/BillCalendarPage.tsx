@@ -85,6 +85,78 @@ interface PlacedBill {
   day: number
 }
 
+/** Clamp a day to the valid range for a given month */
+function clampDay(d: number, daysInMonth: number): number {
+  return Math.min(Math.max(d, 1), daysInMonth)
+}
+
+/**
+ * Collect recurring days within a month by walking from a reference date
+ * at a given interval (in days).
+ */
+function getRecurringDaysInMonth(
+  nextExpected: string,
+  year: number,
+  month: number,
+  daysInMonth: number,
+  intervalDays: number,
+): number[] {
+  const nextDate = new Date(nextExpected)
+  const days: number[] = []
+  const monthStart = new Date(year, month, 1)
+  const monthEnd = new Date(year, month, daysInMonth)
+  const intervalMs = intervalDays * 24 * 60 * 60 * 1000
+
+  let current = new Date(nextDate)
+  while (current > monthStart) {
+    current = new Date(current.getTime() - intervalMs)
+  }
+  while (current <= monthEnd) {
+    if (current >= monthStart && current <= monthEnd) {
+      days.push(current.getDate())
+    }
+    current = new Date(current.getTime() + intervalMs)
+  }
+  return days
+}
+
+function getWeeklyDays(tx: RecurringTransaction, year: number, month: number, daysInMonth: number): number[] {
+  if (!tx.next_expected) return []
+  return getRecurringDaysInMonth(tx.next_expected, year, month, daysInMonth, 7)
+}
+
+function getMonthlyDays(tx: RecurringTransaction, daysInMonth: number): number[] {
+  if (tx.expected_day == null) return []
+  return [clampDay(tx.expected_day, daysInMonth)]
+}
+
+function getQuarterlyDays(tx: RecurringTransaction, month: number, daysInMonth: number): number[] {
+  if (tx.expected_day == null) return []
+  if (!tx.next_expected) {
+    if (month % 3 === 0) return [clampDay(tx.expected_day, daysInMonth)]
+    return []
+  }
+  const nextDate = new Date(tx.next_expected)
+  const nextMonth = nextDate.getMonth()
+  const diff = ((month - nextMonth) % 12 + 12) % 12
+  if (diff % 3 === 0) return [clampDay(tx.expected_day, daysInMonth)]
+  return []
+}
+
+function getYearlyDays(tx: RecurringTransaction, month: number, daysInMonth: number): number[] {
+  if (tx.expected_day == null || !tx.next_expected) return []
+  const nextDate = new Date(tx.next_expected)
+  if (nextDate.getMonth() === month) {
+    return [clampDay(tx.expected_day, daysInMonth)]
+  }
+  return []
+}
+
+function getFortnightlyDays(tx: RecurringTransaction, year: number, month: number, daysInMonth: number): number[] {
+  if (!tx.next_expected) return []
+  return getRecurringDaysInMonth(tx.next_expected, year, month, daysInMonth, 14)
+}
+
 /**
  * Determine which days in a given month a recurring transaction falls on.
  * Returns an array of day numbers (1-based).
@@ -95,95 +167,16 @@ function getBillDaysForMonth(
   month: number,
 ): number[] {
   const frequency = tx.frequency?.toLowerCase() ?? 'monthly'
-  const expectedDay = tx.expected_day
   const daysInMonth = getDaysInMonth(year, month)
 
-  // Clamp a day to valid range for this month
-  const clampDay = (d: number) => Math.min(Math.max(d, 1), daysInMonth)
-
-  if (frequency === 'weekly') {
-    // Place on every 7th day from next_expected
-    if (!tx.next_expected) return []
-    const nextDate = new Date(tx.next_expected)
-    const days: number[] = []
-
-    // Find the first occurrence in or before this month
-    const monthStart = new Date(year, month, 1)
-    const monthEnd = new Date(year, month, daysInMonth)
-
-    // Walk forward/backward from next_expected to find all occurrences in this month
-    let current = new Date(nextDate)
-
-    // First, go back to before the month start
-    while (current > monthStart) {
-      current = new Date(current.getTime() - 7 * 24 * 60 * 60 * 1000)
-    }
-
-    // Now walk forward and collect all days in this month
-    while (current <= monthEnd) {
-      if (current >= monthStart && current <= monthEnd) {
-        days.push(current.getDate())
-      }
-      current = new Date(current.getTime() + 7 * 24 * 60 * 60 * 1000)
-    }
-
-    return days
-  }
-
-  if (frequency === 'monthly') {
-    if (expectedDay == null) return []
-    return [clampDay(expectedDay)]
-  }
-
-  if (frequency === 'quarterly') {
-    // Place on expected_day every 3 months from the month of next_expected
-    if (expectedDay == null) return []
-    if (!tx.next_expected) {
-      // Fallback: place in months 0, 3, 6, 9
-      if (month % 3 === 0) return [clampDay(expectedDay)]
-      return []
-    }
-    const nextDate = new Date(tx.next_expected)
-    const nextMonth = nextDate.getMonth()
-    // Check if current month is a quarterly occurrence from the reference month
-    const diff = ((month - nextMonth) % 12 + 12) % 12
-    if (diff % 3 === 0) return [clampDay(expectedDay)]
-    return []
-  }
-
-  if (frequency === 'yearly' || frequency === 'annually') {
-    // Place on expected_day of the expected month
-    if (expectedDay == null || !tx.next_expected) return []
-    const nextDate = new Date(tx.next_expected)
-    if (nextDate.getMonth() === month) {
-      return [clampDay(expectedDay)]
-    }
-    return []
-  }
-
-  // Fortnightly / biweekly
-  if (frequency === 'fortnightly' || frequency === 'biweekly') {
-    if (!tx.next_expected) return []
-    const nextDate = new Date(tx.next_expected)
-    const days: number[] = []
-    const monthStart = new Date(year, month, 1)
-    const monthEnd = new Date(year, month, daysInMonth)
-
-    let current = new Date(nextDate)
-    while (current > monthStart) {
-      current = new Date(current.getTime() - 14 * 24 * 60 * 60 * 1000)
-    }
-    while (current <= monthEnd) {
-      if (current >= monthStart && current <= monthEnd) {
-        days.push(current.getDate())
-      }
-      current = new Date(current.getTime() + 14 * 24 * 60 * 60 * 1000)
-    }
-    return days
-  }
+  if (frequency === 'weekly') return getWeeklyDays(tx, year, month, daysInMonth)
+  if (frequency === 'monthly') return getMonthlyDays(tx, daysInMonth)
+  if (frequency === 'quarterly') return getQuarterlyDays(tx, month, daysInMonth)
+  if (frequency === 'yearly' || frequency === 'annually') return getYearlyDays(tx, month, daysInMonth)
+  if (frequency === 'fortnightly' || frequency === 'biweekly') return getFortnightlyDays(tx, year, month, daysInMonth)
 
   // Default: treat as monthly
-  if (expectedDay != null) return [clampDay(expectedDay)]
+  if (tx.expected_day != null) return [clampDay(tx.expected_day, daysInMonth)]
   return []
 }
 
@@ -301,6 +294,19 @@ function DayCell({
   const hasBills = bills.length > 0
   const maxDotsShown = 3
 
+  const opacityClass = isCurrentMonth ? '' : 'opacity-30'
+  const selectionClass = isSelected
+    ? 'bg-ios-blue/20 border border-ios-blue/40'
+    : 'hover:bg-white/8 border border-transparent'
+  const todayBorderClass = isToday && !isSelected ? 'border border-ios-blue/30' : ''
+
+  const dayNumberClass = (() => {
+    if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-ios-blue text-white'
+    if (isSelected) return 'text-ios-blue'
+    if (isCurrentMonth) return 'text-white'
+    return 'text-text-quaternary'
+  })()
+
   return (
     <button
       type="button"
@@ -308,25 +314,16 @@ function DayCell({
       className={`
         relative flex flex-col items-center justify-start p-1.5 sm:p-2 rounded-xl min-h-[60px] sm:min-h-[72px]
         transition-all duration-200 cursor-pointer group
-        ${isCurrentMonth ? '' : 'opacity-30'}
-        ${isSelected
-          ? 'bg-ios-blue/20 border border-ios-blue/40'
-          : 'hover:bg-white/8 border border-transparent'}
-        ${isToday && !isSelected ? 'border border-ios-blue/30' : ''}
+        ${opacityClass}
+        ${selectionClass}
+        ${todayBorderClass}
       `}
     >
       {/* Day number */}
       <span
         className={`
           text-sm font-medium leading-none
-          ${isToday
-            ? 'w-7 h-7 flex items-center justify-center rounded-full bg-ios-blue text-white'
-            : isSelected
-              ? 'text-ios-blue'
-              : isCurrentMonth
-                ? 'text-white'
-                : 'text-text-quaternary'
-          }
+          ${dayNumberClass}
         `}
       >
         {day}
@@ -352,6 +349,45 @@ function DayCell({
       )}
     </button>
   )
+}
+
+/** Find the first bill from a given start day through end of month */
+function findFirstBillFromDay(
+  billMap: Map<number, PlacedBill[]>,
+  startDay: number,
+  daysInMonth: number,
+): PlacedBill | null {
+  for (let d = startDay; d <= daysInMonth; d++) {
+    const dayBills = billMap.get(d)
+    if (dayBills && dayBills.length > 0) {
+      return dayBills[0]
+    }
+  }
+  return null
+}
+
+/** Find the next upcoming bill in the viewed month relative to today */
+function findNextUpcomingBill(
+  billMap: Map<number, PlacedBill[]>,
+  viewYear: number,
+  viewMonth: number,
+  now: Date,
+): PlacedBill | null {
+  const todayDate = now.getDate()
+  const todayMonth = now.getMonth()
+  const todayYear = now.getFullYear()
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth)
+
+  if (viewYear === todayYear && viewMonth === todayMonth) {
+    return findFirstBillFromDay(billMap, todayDate, daysInMonth)
+  }
+
+  const isFutureMonth = viewYear > todayYear || (viewYear === todayYear && viewMonth > todayMonth)
+  if (isFutureMonth) {
+    return findFirstBillFromDay(billMap, 1, daysInMonth)
+  }
+
+  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -470,43 +506,28 @@ export default function BillCalendarPage() {
     }
 
     // Find the next upcoming bill (today or later)
-    const today = now.getDate()
-    const todayMonth = now.getMonth()
-    const todayYear = now.getFullYear()
-    let nextBill: PlacedBill | null = null
-
-    if (viewYear === todayYear && viewMonth === todayMonth) {
-      // Look for bills from today onwards
-      for (let d = today; d <= getDaysInMonth(viewYear, viewMonth); d++) {
-        const dayBills = billMap.get(d)
-        if (dayBills && dayBills.length > 0) {
-          nextBill = dayBills[0]
-          break
-        }
-      }
-    } else if (viewYear > todayYear || (viewYear === todayYear && viewMonth > todayMonth)) {
-      // Future month -- first bill in the month
-      for (let d = 1; d <= getDaysInMonth(viewYear, viewMonth); d++) {
-        const dayBills = billMap.get(d)
-        if (dayBills && dayBills.length > 0) {
-          nextBill = dayBills[0]
-          break
-        }
-      }
-    }
+    const nextBill = findNextUpcomingBill(billMap, viewYear, viewMonth, now)
 
     return { totalDue, billCount, nextBill }
   }, [recurringTransactions, billMap, viewYear, viewMonth, now])
 
   // Bills for the selected day
   const selectedDayBills = useMemo(() => {
-    if (selectedDay == null) return []
+    if (selectedDay === null) return []
     return billMap.get(selectedDay) ?? []
   }, [billMap, selectedDay])
 
   const loadingPlaceholder = '...'
 
   const isCurrentViewToday = viewYear === now.getFullYear() && viewMonth === now.getMonth()
+
+  const nextBillValue = (() => {
+    if (isLoading) return loadingPlaceholder
+    if (summary.nextBill) {
+      return `${summary.nextBill.transaction.name} - ${formatCurrency(Math.abs(summary.nextBill.transaction.expected_amount))}`
+    }
+    return 'None upcoming'
+  })()
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
@@ -539,13 +560,7 @@ export default function BillCalendarPage() {
           <SummaryCard
             icon={Clock}
             label="Next Upcoming Bill"
-            value={
-              isLoading
-                ? loadingPlaceholder
-                : summary.nextBill
-                  ? `${summary.nextBill.transaction.name} - ${formatCurrency(Math.abs(summary.nextBill.transaction.expected_amount))}`
-                  : 'None upcoming'
-            }
+            value={nextBillValue}
             colorClass="text-ios-orange"
             bgClass="bg-ios-orange/20"
             shadowClass="shadow-ios-orange/30"
@@ -591,7 +606,7 @@ export default function BillCalendarPage() {
             </button>
           </div>
 
-          {isLoading ? (
+          {isLoading && (
             // Skeleton loader for calendar
             <div className="space-y-2">
               <div className="grid grid-cols-7 gap-1">
@@ -601,25 +616,27 @@ export default function BillCalendarPage() {
                   </div>
                 ))}
               </div>
-              {Array.from({ length: 5 }).map((_, row) => (
-                <div key={`skeleton-row-${row}`} className="grid grid-cols-7 gap-1">
-                  {Array.from({ length: 7 }).map((_, col) => (
+              {Array.from({ length: 5 }, (_, i) => `skeleton-row-${i}`).map((rowId) => (
+                <div key={rowId} className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: 7 }, (_, j) => `${rowId}-col-${j}`).map((cellId) => (
                     <div
-                      key={`skeleton-cell-${row}-${col}`}
+                      key={cellId}
                       className="min-h-[60px] sm:min-h-[72px] rounded-xl bg-white/5 animate-pulse"
                     />
                   ))}
                 </div>
               ))}
             </div>
-          ) : !recurringTransactions || recurringTransactions.length === 0 ? (
+          )}
+          {!isLoading && (!recurringTransactions || recurringTransactions.length === 0) && (
             <EmptyState
               icon={CalendarDays}
               title="No recurring transactions found"
               description="Once recurring payment patterns are detected from your transactions, they will appear on the calendar."
               variant="card"
             />
-          ) : (
+          )}
+          {!isLoading && recurringTransactions && recurringTransactions.length > 0 && (
             <>
               {/* Day name headers */}
               <div className="grid grid-cols-7 gap-1 mb-1">
@@ -667,7 +684,7 @@ export default function BillCalendarPage() {
 
         {/* Selected Day Detail Panel */}
         <AnimatePresence mode="wait">
-          {selectedDay != null && (
+          {selectedDay !== null && (
             <motion.div
               key={`detail-${selectedDay}`}
               initial={{ opacity: 0, y: 20, height: 0 }}

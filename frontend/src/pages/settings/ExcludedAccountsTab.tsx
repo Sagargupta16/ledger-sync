@@ -46,6 +46,10 @@ export default function ExcludedAccountsTab({
 
   const excludedCount = excludedAccounts.length
   const totalCount = accounts.length
+  const plural = totalCount === 1 ? '' : 's'
+  const summaryText = excludedCount === 0
+    ? 'No accounts excluded'
+    : `${excludedCount} of ${totalCount} account${plural} excluded`
 
   return (
     <div className="space-y-6">
@@ -60,11 +64,7 @@ export default function ExcludedAccountsTab({
       {/* Summary */}
       <div className="flex items-center gap-2 text-sm">
         <EyeOff className="w-4 h-4 text-ios-yellow" />
-        <span className="text-muted-foreground">
-          {excludedCount === 0
-            ? 'No accounts excluded'
-            : `${excludedCount} of ${totalCount} account${totalCount !== 1 ? 's' : ''} excluded`}
-        </span>
+        <span className="text-muted-foreground">{summaryText}</span>
       </div>
 
       {/* Account List */}

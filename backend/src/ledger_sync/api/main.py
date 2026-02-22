@@ -151,8 +151,8 @@ async def health() -> HealthResponse:
     return HealthResponse(status="healthy", version=APP_VERSION)
 
 
-@app.get("/health/db")
-async def health_db() -> dict:
+@app.get("/health/db", response_model=None)
+async def health_db() -> dict | JSONResponse:
     """Database connectivity check."""
     from sqlalchemy import text
 

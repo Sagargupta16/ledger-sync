@@ -28,6 +28,26 @@ function parseStringArray(raw: string[] | string | undefined): string[] {
   }
 }
 
+/** Return the English ordinal suffix for a number (1 -> 'st', 2 -> 'nd', etc.) */
+function getOrdinalSuffix(n: number): string {
+  if (n === 1) return 'st'
+  if (n === 2) return 'nd'
+  if (n === 3) return 'rd'
+  return 'th'
+}
+
+/** Check whether a transaction matches the fixed expense categories for the current month */
+function isFixedExpenseThisMonth(
+  tx: { type: string; date: string; category: string; subcategory?: string },
+  fixedSet: Set<string>,
+  currentMonthKey: string,
+): boolean {
+  if (tx.type !== 'Expense') return false
+  if (!tx.date.startsWith(currentMonthKey)) return false
+  const key = `${tx.category}::${tx.subcategory || ''}`.toLowerCase()
+  return fixedSet.has(key)
+}
+
 /** Compute days from today to the next occurrence of a payday (1-31) */
 function daysUntilPayday(payday: number): number {
   const today = new Date()
@@ -95,12 +115,7 @@ export default function DashboardPage() {
     const now = new Date()
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     return filteredTransactions
-      .filter((tx) => {
-        if (tx.type !== 'Expense') return false
-        if (!tx.date.startsWith(currentMonthKey)) return false
-        const key = `${tx.category}::${tx.subcategory || ''}`.toLowerCase()
-        return fixedSet.has(key)
-      })
+      .filter((tx) => isFixedExpenseThisMonth(tx, fixedSet, currentMonthKey))
       .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
   }, [filteredTransactions, fixedExpenseCategories])
 
@@ -187,7 +202,7 @@ export default function DashboardPage() {
           isLoading={isLoading}
           change={momChanges.savingsRate}
           changeLabel={momChanges.label ? `pts ${momChanges.label}` : 'pts vs prev month'}
-          subtitle={savingsGoalPercent !== 20 ? `Target: ${savingsGoalPercent}%` : undefined}
+          subtitle={savingsGoalPercent === 20 ? undefined : `Target: ${savingsGoalPercent}%`}
         />
       </div>
 
@@ -211,7 +226,7 @@ export default function DashboardPage() {
               icon={CalendarClock}
               color="teal"
               isLoading={isLoading}
-              subtitle={`Payday is on the ${payday}${payday === 1 ? 'st' : payday === 2 ? 'nd' : payday === 3 ? 'rd' : 'th'} of each month`}
+              subtitle={`Payday is on the ${payday}${getOrdinalSuffix(payday)} of each month`}
             />
           )}
         </div>

@@ -59,5 +59,9 @@ export async function downloadMonthlyReport(year: number, month: number) {
   })
   const html = await res.text()
   const win = window.open('', '_blank')
-  win?.document.write(html)
+  if (win) {
+    win.document.open()
+    win.document.write(html)
+    win.document.close()
+  }
 }

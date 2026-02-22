@@ -21,12 +21,12 @@ const DAYS_AHEAD_OPTIONS = [
 ]
 
 interface ToggleRowProps {
-  id: string
-  icon: React.ElementType
-  label: string
-  description: string
-  checked: boolean
-  onChange: (checked: boolean) => void
+  readonly id: string
+  readonly icon: React.ElementType
+  readonly label: string
+  readonly description: string
+  readonly checked: boolean
+  readonly onChange: (checked: boolean) => void
 }
 
 function ToggleRow({ id, icon: Icon, label, description, checked, onChange }: ToggleRowProps) {

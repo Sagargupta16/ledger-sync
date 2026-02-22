@@ -82,7 +82,7 @@ export default function Sparkline({
   if (data.length < 2 || !linePath) return null
 
   const lastPoint = points.at(-1)!
-  const hoverPoint = hoverIndex !== null ? points[hoverIndex] : null
+  const hoverPoint = hoverIndex === null ? null : points[hoverIndex]
   const gradId = `spark-grad-${color.replace('#', '')}`
 
   return (

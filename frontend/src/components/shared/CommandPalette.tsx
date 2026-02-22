@@ -96,6 +96,27 @@ const panelVariants = {
   exit: { opacity: 0, scale: 0.96, y: -10, transition: { duration: 0.15 } },
 }
 
+// ─── Search helpers ──────────────────────────────────────────────────────────
+
+function searchTransactions(
+  transactions: Transaction[] | undefined,
+  q: string,
+  limit: number = 5,
+): TransactionResult[] {
+  const results: TransactionResult[] = []
+  if (!transactions || transactions.length === 0) return results
+
+  for (const tx of transactions) {
+    if (results.length >= limit) break
+    const matchNote = tx.note && fuzzyMatch(tx.note, q)
+    const matchCategory = tx.category && fuzzyMatch(tx.category, q)
+    if (matchNote || matchCategory) {
+      results.push({ kind: 'transaction', transaction: tx })
+    }
+  }
+  return results
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function CommandPalette() {
@@ -104,7 +125,7 @@ export default function CommandPalette() {
   const [selectedIndex, setSelectedIndex] = useState(0)
 
   const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
 
   const navigate = useNavigate()
   const { data: transactions } = useTransactions()
@@ -191,18 +212,7 @@ export default function CommandPalette() {
     }
 
     // Search transactions (top 5 matches by note or category)
-    if (transactions && transactions.length > 0) {
-      let txCount = 0
-      for (const tx of transactions) {
-        if (txCount >= 5) break
-        const matchNote = tx.note && fuzzyMatch(tx.note, q)
-        const matchCategory = tx.category && fuzzyMatch(tx.category, q)
-        if (matchNote || matchCategory) {
-          items.push({ kind: 'transaction', transaction: tx })
-          txCount++
-        }
-      }
-    }
+    items.push(...searchTransactions(transactions, q))
 
     return items
   }, [query, transactions])
@@ -330,10 +340,9 @@ export default function CommandPalette() {
             </div>
 
             {/* Results list */}
-            <div
+            <ul
               ref={listRef}
-              className="max-h-[50vh] overflow-y-auto overflow-x-hidden py-2 scrollbar-none"
-              role="listbox"
+              className="max-h-[50vh] overflow-y-auto overflow-x-hidden py-2 scrollbar-none list-none m-0 p-0"
               aria-label="Search results"
             >
               {results.length === 0 && query.trim() !== '' && (
@@ -362,48 +371,50 @@ export default function CommandPalette() {
                       const isSelected = index === selectedIndex
 
                       return (
-                        <button
+                        <li
                           key={page.path}
                           data-index={index}
-                          role="option"
-                          aria-selected={isSelected}
-                          className="w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-100 cursor-pointer"
-                          style={{
-                            background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                          }}
-                          onClick={() => executeResult(result)}
-                          onMouseEnter={() => setSelectedIndex(index)}
                         >
-                          <div
-                            className="p-1.5 rounded-lg flex-shrink-0"
+                          <button
+                            aria-selected={isSelected}
+                            className="w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-100 cursor-pointer"
                             style={{
-                              background: isSelected
-                                ? `${rawColors.ios.blue}20`
-                                : 'rgba(255, 255, 255, 0.06)',
+                              background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
                             }}
+                            onClick={() => executeResult(result)}
+                            onMouseEnter={() => setSelectedIndex(index)}
                           >
-                            <Icon
-                              size={16}
+                            <div
+                              className="p-1.5 rounded-lg flex-shrink-0"
                               style={{
-                                color: isSelected ? rawColors.ios.blue : rawColors.text.secondary,
+                                background: isSelected
+                                  ? `${rawColors.ios.blue}20`
+                                  : 'rgba(255, 255, 255, 0.06)',
                               }}
-                            />
-                          </div>
-                          <span
-                            className="flex-1 text-sm font-medium"
-                            style={{
-                              color: isSelected ? '#ffffff' : rawColors.text.secondary,
-                            }}
-                          >
-                            {page.label}
-                          </span>
-                          {isSelected && (
-                            <ArrowRight
-                              size={14}
-                              style={{ color: rawColors.text.tertiary }}
-                            />
-                          )}
-                        </button>
+                            >
+                              <Icon
+                                size={16}
+                                style={{
+                                  color: isSelected ? rawColors.ios.blue : rawColors.text.secondary,
+                                }}
+                              />
+                            </div>
+                            <span
+                              className="flex-1 text-sm font-medium"
+                              style={{
+                                color: isSelected ? '#ffffff' : rawColors.text.secondary,
+                              }}
+                            >
+                              {page.label}
+                            </span>
+                            {isSelected && (
+                              <ArrowRight
+                                size={14}
+                                style={{ color: rawColors.text.tertiary }}
+                              />
+                            )}
+                          </button>
+                        </li>
                       )
                     })}
                 </div>
@@ -426,72 +437,76 @@ export default function CommandPalette() {
                       const isSelected = index === selectedIndex
                       const isIncome = tx.type === 'Income'
 
+                      let iconBgColor = 'rgba(255, 255, 255, 0.06)'
+                      if (isSelected) {
+                        iconBgColor = isIncome
+                          ? `${rawColors.ios.green}20`
+                          : `${rawColors.ios.red}20`
+                      }
+
+                      let iconColor = rawColors.text.secondary
+                      if (isSelected) {
+                        iconColor = isIncome
+                          ? rawColors.ios.green
+                          : rawColors.ios.red
+                      }
+
                       return (
-                        <button
+                        <li
                           key={tx.id}
                           data-index={index}
-                          role="option"
-                          aria-selected={isSelected}
-                          className="w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-100 cursor-pointer"
-                          style={{
-                            background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                          }}
-                          onClick={() => executeResult(result)}
-                          onMouseEnter={() => setSelectedIndex(index)}
                         >
-                          <div
-                            className="p-1.5 rounded-lg flex-shrink-0"
+                          <button
+                            aria-selected={isSelected}
+                            className="w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-100 cursor-pointer"
                             style={{
-                              background: isSelected
-                                ? isIncome
-                                  ? `${rawColors.ios.green}20`
-                                  : `${rawColors.ios.red}20`
-                                : 'rgba(255, 255, 255, 0.06)',
+                              background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
                             }}
+                            onClick={() => executeResult(result)}
+                            onMouseEnter={() => setSelectedIndex(index)}
                           >
-                            <Receipt
-                              size={16}
+                            <div
+                              className="p-1.5 rounded-lg flex-shrink-0"
+                              style={{ background: iconBgColor }}
+                            >
+                              <Receipt
+                                size={16}
+                                style={{ color: iconColor }}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className="text-sm font-medium truncate"
+                                style={{
+                                  color: isSelected ? '#ffffff' : rawColors.text.secondary,
+                                }}
+                              >
+                                {tx.note || tx.category}
+                              </p>
+                              <p
+                                className="text-xs truncate"
+                                style={{ color: rawColors.text.tertiary }}
+                              >
+                                {tx.category}
+                                {tx.account ? ` \u00b7 ${tx.account}` : ''}
+                              </p>
+                            </div>
+                            <span
+                              className="text-sm font-semibold flex-shrink-0"
                               style={{
-                                color: isSelected
-                                  ? isIncome
-                                    ? rawColors.ios.green
-                                    : rawColors.ios.red
-                                  : rawColors.text.secondary,
-                              }}
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p
-                              className="text-sm font-medium truncate"
-                              style={{
-                                color: isSelected ? '#ffffff' : rawColors.text.secondary,
+                                color: isIncome ? rawColors.ios.green : rawColors.ios.red,
                               }}
                             >
-                              {tx.note || tx.category}
-                            </p>
-                            <p
-                              className="text-xs truncate"
-                              style={{ color: rawColors.text.tertiary }}
-                            >
-                              {tx.category}
-                              {tx.account ? ` \u00b7 ${tx.account}` : ''}
-                            </p>
-                          </div>
-                          <span
-                            className="text-sm font-semibold flex-shrink-0"
-                            style={{
-                              color: isIncome ? rawColors.ios.green : rawColors.ios.red,
-                            }}
-                          >
-                            {isIncome ? '+' : '-'}
-                            {formatCurrency(Math.abs(tx.amount))}
-                          </span>
-                        </button>
+                              {isIncome ? '+' : '-'}
+                              {formatCurrency(Math.abs(tx.amount))}
+                            </span>
+                          </button>
+                        </li>
                       )
                     })}
                 </div>
               )}
-            </div>
+            </ul>
 
             {/* Footer with hints */}
             <div

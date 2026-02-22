@@ -18,6 +18,103 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, getAnalyticsDateRange, getDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { usePreferencesStore } from '@/store/preferencesStore'
 
+/** Return the fill color for a waterfall chart cell based on entry type and sign */
+function getWaterfallCellColor(
+  entry: { isTotal: boolean; value: number },
+  colors: { blue: string; red: string; green: string },
+): string {
+  if (entry.isTotal) {
+    return entry.value >= 0 ? colors.blue : colors.red
+  }
+  return entry.value >= 0 ? colors.green : colors.red
+}
+
+/** Format the waterfall chart tooltip label based on payload context */
+function formatWaterfallTooltip(
+  payload: { value?: number; isTotal?: boolean } | undefined,
+  name: string | undefined,
+  formatter: (v: number) => string,
+): [string, string] {
+  const v = payload?.value ?? 0
+  if (payload?.isTotal) {
+    return [formatter(Math.abs(v)), 'Net P&L']
+  }
+  const label = name === 'end' ? 'Amount' : ''
+  return [formatter(Math.abs(v)), label]
+}
+
+/** Filter transactions that match dividend keywords */
+function filterDividendTransactions(
+  transactions: Array<{ type: string; amount: number; category: string; note?: string; subcategory?: string }>,
+): number {
+  return transactions
+    .filter((tx) => {
+      const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
+      return tx.type === 'Income' && (lower.includes('dividend') || lower.includes('divid'))
+    })
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+}
+
+/** Filter transactions that match broker fee keywords (investment-related only) */
+function filterBrokerFees(
+  transactions: Array<{ type: string; amount: number; category: string; note?: string; subcategory?: string }>,
+): number {
+  return transactions
+    .filter((tx) => {
+      const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
+      const categoryLower = tx.category.toLowerCase()
+      if (tx.type !== 'Expense') return false
+      if (!categoryLower.includes('investment') && !categoryLower.includes('stock') && !categoryLower.includes('trading')) return false
+      return isBrokerFee(lower)
+    })
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+}
+
+/** Filter transactions that match interest income keywords */
+function filterInterestIncome(
+  transactions: Array<{ type: string; amount: number; category: string; note?: string; subcategory?: string }>,
+): number {
+  return transactions
+    .filter((tx) => {
+      const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
+      return tx.type === 'Income' && (
+        lower.includes('interest') || lower.includes('int.') ||
+        lower.includes('int cr') || lower.includes('int credit')
+      )
+    })
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+}
+
+/** Filter transactions that match investment profit keywords */
+function filterInvestmentProfit(
+  transactions: Array<{ type: string; amount: number; category: string; note?: string; subcategory?: string }>,
+): number {
+  return transactions
+    .filter((tx) => {
+      const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
+      return tx.type === 'Income' && (
+        lower.includes('profit') || lower.includes('gain') || lower.includes('realized')
+      )
+    })
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+}
+
+/** Filter transactions that match investment loss keywords (excluding broker fees) */
+function filterInvestmentLoss(
+  transactions: Array<{ type: string; amount: number; category: string; note?: string; subcategory?: string }>,
+): number {
+  return transactions
+    .filter((tx) => {
+      const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
+      const categoryLower = tx.category.toLowerCase()
+      if (tx.type !== 'Expense') return false
+      if (!categoryLower.includes('investment') && !categoryLower.includes('stock') && !categoryLower.includes('trading')) return false
+      if (lower.includes('broker') || lower.includes('brokerage')) return false
+      return lower.includes('loss') || lower.includes('write')
+    })
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+}
+
 const INVESTMENT_KEYWORDS = ['invest', 'mutual', 'stock', 'equity', 'sip', 'portfolio', 'fund', 'demat']
 
 const isInvestmentAccount = (accountName: string): boolean => {
@@ -147,86 +244,19 @@ export default function ReturnsAnalysisPage() {
   // }, [investmentAccounts])
 
   // Calculate Dividend Income from transactions
-  const dividendIncome = useMemo(() => {
-    const dividendTxs = transactions
-      .filter((tx) => {
-        const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
-        return tx.type === 'Income' && (
-          lower.includes('dividend') || 
-          lower.includes('divid')
-        )
-      })
-    
-    return dividendTxs.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-  }, [transactions])
+  const dividendIncome = useMemo(() => filterDividendTransactions(transactions), [transactions])
 
   // Calculate Broker Fees from transactions (investment-related only)
-  const brokerFees = useMemo(() => {
-    return transactions
-      .filter((tx) => {
-        const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
-        const categoryLower = tx.category.toLowerCase()
-        
-        if (tx.type !== 'Expense') return false
-        if (!categoryLower.includes('investment') && !categoryLower.includes('stock') && !categoryLower.includes('trading')) return false
-        
-        // Check for broker/brokerage keywords FIRST (more specific)
-        return (lower.includes('broker') && (lower.includes('charge') || lower.includes('fee'))) ||
-               lower.includes('brokerage') || 
-               (lower.includes('demat') && lower.includes('charge')) ||
-               (lower.includes('trading') && (lower.includes('charge') || lower.includes('fee'))) ||
-               (lower.includes('transaction') && lower.includes('charge'))
-      })
-      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-  }, [transactions])
+  const brokerFees = useMemo(() => filterBrokerFees(transactions), [transactions])
 
   // Calculate Interest Income from all accounts
-  const interestIncome = useMemo(() => {
-    return transactions
-      .filter((tx) => {
-        const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
-        return tx.type === 'Income' && (
-          lower.includes('interest') ||
-          lower.includes('int.') ||
-          lower.includes('int cr') ||
-          lower.includes('int credit')
-        )
-      })
-      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-  }, [transactions])
+  const interestIncome = useMemo(() => filterInterestIncome(transactions), [transactions])
 
   // Calculate actual Profit from investment sales/gains
-  const investmentProfit = useMemo(() => {
-    return transactions
-      .filter((tx) => {
-        const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
-        return tx.type === 'Income' && (
-          lower.includes('profit') || 
-          lower.includes('gain') ||
-          lower.includes('realized')
-        )
-      })
-      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-  }, [transactions])
+  const investmentProfit = useMemo(() => filterInvestmentProfit(transactions), [transactions])
 
   // Calculate actual Loss from investments (exclude broker fees)
-  const investmentLoss = useMemo(() => {
-    return transactions
-      .filter((tx) => {
-        const lower = `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase()
-        const categoryLower = tx.category.toLowerCase()
-        
-        if (tx.type !== 'Expense') return false
-        if (!categoryLower.includes('investment') && !categoryLower.includes('stock') && !categoryLower.includes('trading')) return false
-        
-        // Skip if it's a broker fee (check broker/brokerage keywords first)
-        if (lower.includes('broker') || lower.includes('brokerage')) return false
-        
-        // Now check for loss keywords
-        return lower.includes('loss') || lower.includes('write')
-      })
-      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-  }, [transactions])
+  const investmentLoss = useMemo(() => filterInvestmentLoss(transactions), [transactions])
 
   // Net Profit/Loss = Total Income - Total Expenses (including all fees and income sources)
   const netProfitLoss = useMemo(() => {
@@ -515,9 +545,8 @@ export default function ReturnsAnalysisPage() {
                   <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} />
                   <Tooltip
                     {...chartTooltipProps}
-                    formatter={(value: number | undefined, name: string | undefined, props: { payload?: { value?: number; isTotal?: boolean } }) => {
-                      const v = props.payload?.value ?? 0
-                      return [formatCurrency(Math.abs(v)), props.payload?.isTotal ? 'Net P&L' : name === 'end' ? 'Amount' : '']
+                    formatter={(_value: number | undefined, name: string | undefined, props: { payload?: { value?: number; isTotal?: boolean } }) => {
+                      return formatWaterfallTooltip(props.payload, name, formatCurrency)
                     }}
                     labelFormatter={(label: string) => label}
                   />
@@ -525,13 +554,10 @@ export default function ReturnsAnalysisPage() {
                   <Bar dataKey="start" stackId="waterfall" fill="transparent" isAnimationActive={false} />
                   {/* Visible bar from start to end */}
                   <Bar dataKey="value" stackId="waterfall" radius={[4, 4, 0, 0]}>
-                    {waterfallData.map((entry, i) => (
+                    {waterfallData.map((entry) => (
                       <Cell
-                        key={`cell-${i}`}
-                        fill={entry.isTotal
-                          ? (entry.value >= 0 ? rawColors.ios.blue : rawColors.ios.red)
-                          : (entry.value >= 0 ? rawColors.ios.green : rawColors.ios.red)
-                        }
+                        key={`cell-${entry.name}`}
+                        fill={getWaterfallCellColor(entry, rawColors.ios)}
                       />
                     ))}
                   </Bar>
