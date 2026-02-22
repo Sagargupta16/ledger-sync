@@ -164,10 +164,10 @@ for (const item of bottomItems) allItemsMap.set(item.path, item)
 function MobileToggleButton({
   isMobileOpen,
   onToggle,
-}: {
+}: Readonly<{
   isMobileOpen: boolean
   onToggle: () => void
-}) {
+}>) {
   return (
     <button
       onClick={onToggle}
@@ -186,12 +186,12 @@ function UserProfile({
   isCollapsed,
   onLogout,
   isPending,
-}: {
+}: Readonly<{
   user: { full_name?: string | null; email: string } | null
   isCollapsed: boolean
   onLogout: () => void
   isPending: boolean
-}) {
+}>) {
   return (
     <div className={cn(
       'border-t border-border',
@@ -268,7 +268,7 @@ function UserProfile({
 export default function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    if (typeof globalThis.window === 'undefined') {
+    if (globalThis.window === undefined) {
       return false
     }
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'

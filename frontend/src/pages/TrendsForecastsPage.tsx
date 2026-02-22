@@ -101,7 +101,7 @@ function TrendCard({
     return positiveGood ? 'text-ios-red' : 'text-ios-green'
   }
 
-  const secondStatValue = secondStatLabel === 'Best Month' ? metrics.highest : metrics.highest
+  const secondStatValue = metrics.highest
 
   return (
     <motion.div

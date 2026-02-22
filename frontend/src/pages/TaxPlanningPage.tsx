@@ -237,6 +237,118 @@ function resolveSelectedRegime(
   return preferredRegime === 'old' ? 'old' : 'new'
 }
 
+/** Tax regime toggle, year-end projection toggle, and FY navigation action bar */
+function TaxPageActions({
+  isNewRegime,
+  setRegimeOverride,
+  newRegimeAvailable,
+  isCurrentFY,
+  hasEmploymentIncome,
+  showProjection,
+  setShowProjection,
+  remainingMonths,
+  avgMonthlySalary,
+  selectedFY,
+  canGoBack,
+  canGoForward,
+  goToPreviousFY,
+  goToNextFY,
+}: Readonly<{
+  isNewRegime: boolean
+  setRegimeOverride: (regime: 'new' | 'old') => void
+  newRegimeAvailable: boolean
+  isCurrentFY: boolean
+  hasEmploymentIncome: boolean
+  showProjection: boolean
+  setShowProjection: (show: boolean) => void
+  remainingMonths: number
+  avgMonthlySalary: number
+  selectedFY: string
+  canGoBack: boolean
+  canGoForward: boolean
+  goToPreviousFY: () => void
+  goToNextFY: () => void
+}>) {
+  return (
+    <div className="flex items-center gap-4">
+      {/* Tax Regime Toggle — hidden for FYs before 2020-21 */}
+      {newRegimeAvailable && <div className="flex rounded-lg border border-border overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setRegimeOverride('new')}
+          className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+            isNewRegime
+              ? 'bg-primary text-white'
+              : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+          }`}
+        >
+          New Regime
+        </button>
+        <button
+          type="button"
+          onClick={() => setRegimeOverride('old')}
+          className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+            isNewRegime
+              ? 'bg-white/5 text-muted-foreground hover:bg-white/10'
+              : 'bg-primary text-white'
+          }`}
+        >
+          Old Regime
+        </button>
+      </div>}
+
+      {/* Year-End Projection Toggle — LEFT */}
+      {isCurrentFY && hasEmploymentIncome && (
+        <div className="flex flex-col items-end gap-1">
+          <button
+            onClick={() => setShowProjection(!showProjection)}
+            type="button"
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+              showProjection
+                ? 'bg-primary text-white shadow-lg shadow-primary/50'
+                : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
+            }`}
+          >
+            {showProjection ? 'Showing Projection' : 'Year-End Projection'}
+          </button>
+          {showProjection && remainingMonths > 0 && (
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              +{remainingMonths} mo @ {formatCurrency(avgMonthlySalary)}/mo
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* FY Navigation — RIGHT */}
+      <div className="flex items-center gap-2">
+        <motion.button
+          onClick={goToPreviousFY}
+          disabled={!canGoBack}
+          className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          whileTap={canGoBack ? { scale: 0.95 } : undefined}
+          aria-label="Previous FY"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </motion.button>
+
+        <span className="text-white font-medium min-w-28 text-center">
+          {selectedFY || 'Select FY'}
+        </span>
+
+        <motion.button
+          onClick={goToNextFY}
+          disabled={!canGoForward}
+          className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          whileTap={canGoForward ? { scale: 0.95 } : undefined}
+          aria-label="Next FY"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </motion.button>
+      </div>
+    </div>
+  )
+}
+
 export default function TaxPlanningPage() {
   const { data: allTransactions = [], isLoading } = useTransactions()
   const { data: preferences } = usePreferences()
@@ -419,82 +531,22 @@ export default function TaxPlanningPage() {
             title="Tax Planning"
             subtitle={`Estimate your tax liability — ${regimeLabel}`}
             action={
-              <div className="flex items-center gap-4">
-                {/* Tax Regime Toggle — hidden for FYs before 2020-21 */}
-                {newRegimeAvailable && <div className="flex rounded-lg border border-border overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setRegimeOverride('new')}
-                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                      isNewRegime
-                        ? 'bg-primary text-white'
-                        : 'bg-white/5 text-muted-foreground hover:bg-white/10'
-                    }`}
-                  >
-                    New Regime
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRegimeOverride('old')}
-                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                      isNewRegime
-                        ? 'bg-white/5 text-muted-foreground hover:bg-white/10'
-                        : 'bg-primary text-white'
-                    }`}
-                  >
-                    Old Regime
-                  </button>
-                </div>}
-
-                {/* Year-End Projection Toggle — LEFT */}
-                {isCurrentFY && hasEmploymentIncome && (
-                  <div className="flex flex-col items-end gap-1">
-                    <button
-                      onClick={() => setShowProjection(!showProjection)}
-                      type="button"
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                        showProjection
-                          ? 'bg-primary text-white shadow-lg shadow-primary/50'
-                          : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
-                      }`}
-                    >
-                      {showProjection ? 'Showing Projection' : 'Year-End Projection'}
-                    </button>
-                    {showProjection && remainingMonths > 0 && (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        +{remainingMonths} mo @ {formatCurrency(avgMonthlySalary)}/mo
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* FY Navigation — RIGHT */}
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    onClick={goToPreviousFY}
-                    disabled={!canGoBack}
-                    className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                    whileTap={canGoBack ? { scale: 0.95 } : undefined}
-                    aria-label="Previous FY"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </motion.button>
-
-                  <span className="text-white font-medium min-w-28 text-center">
-                    {selectedFY || 'Select FY'}
-                  </span>
-
-                  <motion.button
-                    onClick={goToNextFY}
-                    disabled={!canGoForward}
-                    className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                    whileTap={canGoForward ? { scale: 0.95 } : undefined}
-                    aria-label="Next FY"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </motion.button>
-                </div>
-              </div>
+              <TaxPageActions
+                isNewRegime={isNewRegime}
+                setRegimeOverride={setRegimeOverride}
+                newRegimeAvailable={newRegimeAvailable}
+                isCurrentFY={isCurrentFY}
+                hasEmploymentIncome={hasEmploymentIncome}
+                showProjection={showProjection}
+                setShowProjection={setShowProjection}
+                remainingMonths={remainingMonths}
+                avgMonthlySalary={avgMonthlySalary}
+                selectedFY={selectedFY}
+                canGoBack={canGoBack}
+                canGoForward={canGoForward}
+                goToPreviousFY={goToPreviousFY}
+                goToNextFY={goToNextFY}
+              />
             }
           />
         </motion.div>

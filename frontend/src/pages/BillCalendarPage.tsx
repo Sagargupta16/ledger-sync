@@ -649,7 +649,7 @@ export default function BillCalendarPage() {
 
               {/* Calendar grid */}
               <div className="grid grid-cols-7 gap-1">
-                {calendarGrid.map((cell, idx) => {
+                {calendarGrid.map((cell) => {
                   const bills = cell.isCurrentMonth ? (billMap.get(cell.day) ?? []) : []
                   const isToday = isSameDay(
                     cell.year,
@@ -663,7 +663,7 @@ export default function BillCalendarPage() {
 
                   return (
                     <DayCell
-                      key={`cell-${idx}`}
+                      key={`cell-${cell.year}-${cell.month}-${cell.day}`}
                       day={cell.day}
                       isToday={isToday}
                       isSelected={isSelected}
@@ -699,7 +699,7 @@ export default function BillCalendarPage() {
                 </h3>
                 {selectedDayBills.length > 0 && (
                   <span className="text-xs px-2.5 py-1 rounded-full bg-ios-blue/15 text-ios-blue font-medium">
-                    {selectedDayBills.length} bill{selectedDayBills.length !== 1 ? 's' : ''}
+                    {selectedDayBills.length} bill{selectedDayBills.length === 1 ? '' : 's'}
                   </span>
                 )}
               </div>

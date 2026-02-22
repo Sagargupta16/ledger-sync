@@ -183,6 +183,82 @@ function groupTransactionsByDay(
   return dailyData
 }
 
+/** P&L stat cards showing Net Profit/Loss, Dividend Income, and Broker Fees */
+function PLStatCards({
+  netProfitLoss,
+  dividendIncome,
+  brokerFees,
+}: Readonly<{
+  netProfitLoss: number
+  dividendIncome: number
+  brokerFees: number
+}>) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="glass rounded-xl border border-border p-6 shadow-lg"
+      >
+        <div className="flex items-center gap-3">
+          <div className={`p-3 rounded-xl shadow-lg ${netProfitLoss >= 0 ? 'bg-ios-green/20 shadow-ios-green/30' : 'bg-ios-red/20 shadow-ios-red/30'}`}>
+            {netProfitLoss >= 0 ? (
+              <TrendingUp className="w-6 h-6 text-ios-green" />
+            ) : (
+              <TrendingDown className="w-6 h-6 text-ios-red" />
+            )}
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Net Profit/Loss</p>
+            <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
+              {netProfitLoss >= 0 ? '' : '-'}{formatCurrency(Math.abs(netProfitLoss))}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="glass rounded-xl border border-border p-6 shadow-lg"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
+            <Banknote className="w-6 h-6 text-ios-green" />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Dividend Income</p>
+            <p className="text-2xl font-bold text-ios-green">
+              {formatCurrency(dividendIncome)}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45 }}
+        className="glass rounded-xl border border-border p-6 shadow-lg"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-ios-orange/20 rounded-xl shadow-lg shadow-ios-orange/30">
+            <Receipt className="w-6 h-6 text-ios-orange" />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Broker Fees</p>
+            <p className="text-2xl font-bold text-ios-orange">
+              {formatCurrency(brokerFees)}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
 export default function ReturnsAnalysisPage() {
   const dims = useChartDimensions()
   const { data: preferences } = usePreferences()
@@ -366,68 +442,7 @@ export default function ReturnsAnalysisPage() {
         />
 
         {/* P&L Stats Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-xl shadow-lg ${netProfitLoss >= 0 ? 'bg-ios-green/20 shadow-ios-green/30' : 'bg-ios-red/20 shadow-ios-red/30'}`}>
-                {netProfitLoss >= 0 ? (
-                  <TrendingUp className="w-6 h-6 text-ios-green" />
-                ) : (
-                  <TrendingDown className="w-6 h-6 text-ios-red" />
-                )}
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Net Profit/Loss</p>
-                <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
-                  {netProfitLoss >= 0 ? '' : '-'}{formatCurrency(Math.abs(netProfitLoss))}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
-                <Banknote className="w-6 h-6 text-ios-green" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Dividend Income</p>
-                <p className="text-2xl font-bold text-ios-green">
-                  {formatCurrency(dividendIncome)}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-ios-orange/20 rounded-xl shadow-lg shadow-ios-orange/30">
-                <Receipt className="w-6 h-6 text-ios-orange" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Broker Fees</p>
-                <p className="text-2xl font-bold text-ios-orange">
-                  {formatCurrency(brokerFees)}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
+        <PLStatCards netProfitLoss={netProfitLoss} dividendIncome={dividendIncome} brokerFees={brokerFees} />
 
         {/* Cumulative Returns Chart */}
         <motion.div

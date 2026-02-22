@@ -36,6 +36,11 @@ function getOrdinalSuffix(n: number): string {
   return 'th'
 }
 
+/** Return 's' for plural or '' for singular */
+function getOrdinalPlural(n: number): string {
+  return n === 1 ? '' : 's'
+}
+
 /** Check whether a transaction matches the fixed expense categories for the current month */
 function isFixedExpenseThisMonth(
   tx: { type: string; date: string; category: string; subcategory?: string },
@@ -222,7 +227,7 @@ export default function DashboardPage() {
           {daysToPayday !== null && (
             <MetricCard
               title="Days Until Payday"
-              value={daysToPayday === 0 ? 'Today!' : `${daysToPayday} day${daysToPayday === 1 ? '' : 's'}`}
+              value={daysToPayday === 0 ? 'Today!' : `${daysToPayday} day${getOrdinalPlural(daysToPayday)}`}
               icon={CalendarClock}
               color="teal"
               isLoading={isLoading}

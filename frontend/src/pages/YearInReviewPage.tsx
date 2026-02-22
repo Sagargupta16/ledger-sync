@@ -314,6 +314,35 @@ function HeatmapWeeks({ grid, mode, modeMax }: Readonly<{ grid: DayCell[]; mode:
   return <>{weeks}</>
 }
 
+/** Inline day summary shown below the heatmap when a day cell is hovered */
+function HeatmapDayDetail({ hoveredDay }: Readonly<{ hoveredDay: DayCell | null }>) {
+  if (hoveredDay) {
+    return (
+      <>
+        <span className="text-white font-medium">
+          {new Date(hoveredDay.date + 'T00:00:00').toLocaleDateString('en-IN', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })}
+        </span>
+        <span className="text-ios-red">Spending: {formatCurrency(hoveredDay.expense)}</span>
+        <span className="text-ios-green">Earning: {formatCurrency(hoveredDay.income)}</span>
+        <span className={hoveredDay.net >= 0 ? 'text-ios-blue' : 'text-ios-orange'}>
+          Savings: {hoveredDay.net >= 0 ? '+' : ''}{formatCurrency(hoveredDay.net)}
+        </span>
+      </>
+    )
+  }
+  return (
+    <>
+      <span className="text-text-tertiary hidden md:inline">Hover over a day to see details</span>
+      <span className="text-text-tertiary md:hidden">Tap a month to see details</span>
+    </>
+  )
+}
+
 // ─── Main Component ─────────────────────────────────────────────────
 export default function YearInReviewPage() {
   const dims = useChartDimensions()
@@ -565,28 +594,7 @@ export default function YearInReviewPage() {
 
         {/* Inline day summary — always visible, no layout shift */}
         <div className="mt-4 pt-3 border-t border-border flex items-center gap-6 text-xs min-h-[28px]">
-          {hoveredDay ? (
-            <>
-              <span className="text-white font-medium">
-                {new Date(hoveredDay.date + 'T00:00:00').toLocaleDateString('en-IN', {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                })}
-              </span>
-              <span className="text-ios-red">Spending: {formatCurrency(hoveredDay.expense)}</span>
-              <span className="text-ios-green">Earning: {formatCurrency(hoveredDay.income)}</span>
-              <span className={hoveredDay.net >= 0 ? 'text-ios-blue' : 'text-ios-orange'}>
-                Savings: {hoveredDay.net >= 0 ? '+' : ''}{formatCurrency(hoveredDay.net)}
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="text-text-tertiary hidden md:inline">Hover over a day to see details</span>
-              <span className="text-text-tertiary md:hidden">Tap a month to see details</span>
-            </>
-          )}
+          <HeatmapDayDetail hoveredDay={hoveredDay} />
         </div>
       </motion.div >
 

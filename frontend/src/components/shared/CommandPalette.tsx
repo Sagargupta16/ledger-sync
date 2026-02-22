@@ -376,7 +376,7 @@ export default function CommandPalette() {
                           data-index={index}
                         >
                           <button
-                            aria-selected={isSelected}
+                            data-selected={isSelected}
                             className="w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-100 cursor-pointer"
                             style={{
                               background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
@@ -457,7 +457,7 @@ export default function CommandPalette() {
                           data-index={index}
                         >
                           <button
-                            aria-selected={isSelected}
+                            data-selected={isSelected}
                             className="w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-100 cursor-pointer"
                             style={{
                               background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
