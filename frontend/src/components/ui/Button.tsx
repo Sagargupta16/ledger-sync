@@ -15,7 +15,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     'bg-ios-blue text-white hover:bg-ios-blue-vibrant shadow-lg shadow-ios-blue/30 active:scale-[0.98]',
   secondary:
-    'glass border border-border text-white hover:bg-white/10 hover:border-border-strong active:scale-[0.98]',
+    'glass border border-white/5 border-t-white/10 border-l-white/10 text-white shadow-lg shadow-black/30 hover:bg-white/10 hover:border-white/[0.12] active:scale-[0.98]',
   ghost: 'text-muted-foreground hover:text-white hover:bg-white/10 active:scale-[0.98]',
   danger:
     'bg-ios-red text-white hover:bg-ios-red-vibrant shadow-lg shadow-ios-red/30 active:scale-[0.98]',

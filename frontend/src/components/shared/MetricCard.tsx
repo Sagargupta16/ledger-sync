@@ -84,7 +84,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
 
   if (isLoading) {
     return (
-      <div className="p-6 glass rounded-2xl">
+      <div className="p-6 glass rounded-2xl border border-white/5 border-t-white/10 border-l-white/10 shadow-xl shadow-black/40">
         <div className="h-4 skeleton w-1/2 mb-4" />
         <div className="h-8 skeleton w-3/4 mb-2" />
         <div className="h-3 skeleton w-1/3" />
@@ -102,7 +102,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
         transition: { type: 'spring', stiffness: 300, damping: 30 },
         whileHover: cardHover,
       })}
-      className="relative p-6 glass rounded-2xl overflow-hidden group border border-border transition-shadow duration-300 hover:border-border-strong hover:shadow-xl hover:shadow-black/30"
+      className="relative p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10 shadow-xl shadow-black/40 transition-all duration-300 hover:border-white/[0.12] hover:shadow-2xl hover:shadow-black/50"
     >
       {/* Animated gradient glow on hover */}
       <div

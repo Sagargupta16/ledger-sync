@@ -26,9 +26,9 @@ export const Card = memo(function Card({
 }: CardProps) {
   const reducedMotion = useReducedMotion()
   const variantClasses = {
-    default: 'glass rounded-2xl border border-border p-6 shadow-lg shadow-black/20',
-    elevated: 'glass-strong rounded-2xl border border-white/[0.1] p-6 shadow-xl shadow-black/30',
-    interactive: 'glass rounded-2xl border border-border p-6 shadow-lg shadow-black/20 transition-colors duration-300 hover:bg-[rgba(38,38,40,0.6)] hover:border-border-strong hover:-translate-y-0.5 hover:shadow-xl'
+    default: 'glass rounded-2xl border border-white/5 border-t-white/10 border-l-white/10 p-6 shadow-xl shadow-black/40',
+    elevated: 'glass-strong rounded-2xl border border-white/[0.08] border-t-white/[0.14] border-l-white/[0.14] p-6 shadow-2xl shadow-black/50',
+    interactive: 'glass rounded-2xl border border-white/5 border-t-white/10 border-l-white/10 p-6 shadow-xl shadow-black/40 transition-all duration-300 hover:bg-[rgba(38,38,40,0.6)] hover:border-white/[0.12] hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-black/50'
   }
   
   if (animate && !reducedMotion) {
