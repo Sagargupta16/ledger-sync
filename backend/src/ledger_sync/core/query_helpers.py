@@ -34,9 +34,7 @@ def apply_earning_start_date(
         return current_start
 
     try:
-        earning_dt = datetime.strptime(
-            prefs.earning_start_date, "%Y-%m-%d"
-        ).replace(tzinfo=UTC)
+        earning_dt = datetime.strptime(prefs.earning_start_date, "%Y-%m-%d").replace(tzinfo=UTC)
     except (ValueError, TypeError):
         return current_start
 

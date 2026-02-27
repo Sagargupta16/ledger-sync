@@ -26,7 +26,6 @@ OptionalTransactionType = Annotated[
 ]
 
 
-
 @router.get("/categories/master")
 def get_master_categories(
     current_user: CurrentUser,
