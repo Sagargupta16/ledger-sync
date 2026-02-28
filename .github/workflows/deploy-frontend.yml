@@ -49,7 +49,7 @@ jobs:
         env:
           GITHUB_PAGES: 'true'
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-        run: pnpm run build
+        run: npx vite build
 
       # SPA routing: copy index.html to 404.html so GitHub Pages
       # serves the app for all routes instead of a 404 page.
