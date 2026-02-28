@@ -22,19 +22,19 @@ FastAPI backend for financial data processing and analytics.
 | Testing    | pytest         |
 | Linting    | Ruff           |
 | Type Check | mypy           |
-| Packaging  | Poetry         |
+| Packaging  | uv             |
 
 ## Quick Start
 
 ```bash
 # Install dependencies (including dev tools)
-poetry install --with dev
+uv sync --group dev
 
 # Initialize database
-poetry run alembic upgrade head
+uv run alembic upgrade head
 
 # Start development server
-poetry run uvicorn ledger_sync.api.main:app --reload --port 8000
+uv run uvicorn ledger_sync.api.main:app --reload --port 8000
 ```
 
 Backend available at http://localhost:8000
@@ -109,39 +109,39 @@ backend/
 
 ```bash
 # Run all tests
-poetry run pytest tests/ -v
+uv run pytest tests/ -v
 
 # Run with coverage
-poetry run pytest --cov=ledger_sync tests/
+uv run pytest --cov=ledger_sync tests/
 
 # Run specific test file
-poetry run pytest tests/unit/test_hash_id.py -v
+uv run pytest tests/unit/test_hash_id.py -v
 ```
 
 ### Linting & Type Checking
 
 ```bash
 # Lint
-poetry run ruff check .
+uv run ruff check .
 
 # Auto-fix lint issues
-poetry run ruff check --fix .
+uv run ruff check --fix .
 
 # Type check
-poetry run mypy src/
+uv run mypy src/
 ```
 
 ### Database Migrations
 
 ```bash
 # Apply migrations
-poetry run alembic upgrade head
+uv run alembic upgrade head
 
 # Create new migration
-poetry run alembic revision --autogenerate -m "description"
+uv run alembic revision --autogenerate -m "description"
 
 # Rollback one migration
-poetry run alembic downgrade -1
+uv run alembic downgrade -1
 ```
 
 ## API Documentation
