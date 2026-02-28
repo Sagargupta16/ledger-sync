@@ -182,3 +182,25 @@ export const useResetAccount = () => {
     },
   })
 }
+
+/**
+ * Hook for demo user login (one-click, no credentials needed)
+ */
+export const useDemoLogin = () => {
+  const queryClient = useQueryClient()
+  const { login, setTokens } = useAuthStore()
+
+  return useMutation({
+    mutationFn: async () => {
+      const tokens = await authApi.demoLogin()
+      setTokens(tokens)
+      const user = await authApi.getMe()
+      return { tokens, user }
+    },
+    onSuccess: ({ tokens, user }) => {
+      login(user, tokens)
+      queryClient.invalidateQueries()
+      prefetchCoreData()
+    },
+  })
+}

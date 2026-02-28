@@ -212,3 +212,25 @@ def reset_account(
     auth_service.verify_password_or_raise(current_user, confirmation.password)
     auth_service.reset_account(current_user)
     return MessageResponse(message="Account reset to fresh state. All data cleared.")
+
+
+# =============================================================================
+# Demo Login
+# =============================================================================
+
+
+@router.post("/demo-login")
+def demo_login(db: DatabaseSession) -> Token:
+    """Log in as the demo user with pre-populated sample data.
+
+    Creates the demo user if it doesn't exist, resets all data to a clean
+    state with 1000+ realistic transactions spanning 5 years, and returns
+    JWT tokens.
+    """
+    from ledger_sync.core.auth.tokens import create_tokens
+    from ledger_sync.core.demo_data import get_or_create_demo_user, reset_demo_user
+
+    user = get_or_create_demo_user(db)
+    reset_demo_user(db, user)
+
+    return create_tokens(user.id, user.email)

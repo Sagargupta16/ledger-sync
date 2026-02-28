@@ -84,3 +84,11 @@ export const resetAccount = async (): Promise<{ message: string }> => {
   const response = await apiClient.post<{ message: string }>(`${AUTH_BASE}/account/reset`)
   return response.data
 }
+
+/**
+ * Login as demo user with pre-populated sample data
+ */
+export const demoLogin = async (): Promise<AuthTokens> => {
+  const response = await apiClient.post<AuthTokens>(`${AUTH_BASE}/demo-login`)
+  return response.data
+}

@@ -19,7 +19,9 @@ import {
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
 import { useAuthStore } from '@/store/authStore'
+import { useDemoLogin } from '@/hooks/api/useAuth'
 import { AuthModal, LoginButton } from '@/components/shared/AuthModal'
+import { toast } from 'sonner'
 
 const features = [
   {
@@ -65,6 +67,7 @@ export default function HomePage() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const { isAuthenticated, user } = useAuthStore()
   const navigate = useNavigate()
+  const demoLoginMutation = useDemoLogin()
 
   const handleGetStarted = () => {
     if (isAuthenticated) {
@@ -72,6 +75,18 @@ export default function HomePage() {
     } else {
       setShowAuthModal(true)
     }
+  }
+
+  const handleDemoLogin = () => {
+    demoLoginMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast.success('Welcome! Exploring with 5 years of demo data.')
+        navigate(ROUTES.DASHBOARD)
+      },
+      onError: () => {
+        toast.error('Failed to load demo. Please try again.')
+      },
+    })
   }
 
   return (
@@ -202,6 +217,25 @@ export default function HomePage() {
                   {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
                   <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                 </button>
+                {!isAuthenticated && (
+                  <button
+                    onClick={handleDemoLogin}
+                    disabled={demoLoginMutation.isPending}
+                    className="flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong disabled:opacity-60 disabled:cursor-wait"
+                  >
+                    {demoLoginMutation.isPending ? (
+                      <>
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Preparing Demo...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-5 h-5" style={{ color: rawColors.ios.yellow }} />
+                        Try Demo
+                      </>
+                    )}
+                  </button>
+                )}
                 <a
                   href="#features"
                   className="flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
