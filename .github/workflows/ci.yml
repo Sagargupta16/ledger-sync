@@ -38,42 +38,69 @@ jobs:
         with:
           node-version: '22'
       - name: Get pnpm store directory
+        id: pnpm-cache
         shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
       - name: Cache pnpm dependencies
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         with:
-          path: ${{ env.STORE_PATH }}
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
           key: pnpm-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-
 
-      # ── Install all dependencies (backend + frontend + root) ────────
-      - name: Install dependencies
-        run: |
-          cd backend && poetry install --with dev && cd ..
-          cd frontend && pnpm install --frozen-lockfile && cd ..
-          pnpm install
+      # ── Install all dependencies ────────────────────────────────────
+      - name: Install backend dependencies
+        working-directory: backend
+        run: poetry install --with dev
 
-      # ── Dependency audit (both stacks in parallel) ──────────────────
-      - name: Dependency audit
-        run: |
-          cd backend && poetry run pip audit &
-          cd frontend && pnpm audit --prod || true
-          wait
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Install root dependencies
+        run: pnpm install
+
+      # ── Dependency audit ────────────────────────────────────────────
+      - name: Backend dependency audit
+        working-directory: backend
+        run: poetry run pip-audit
         continue-on-error: true
 
-      # ── Lint (both stacks in parallel via concurrently) ─────────────
-      - name: Lint
+      - name: Frontend dependency audit
+        working-directory: frontend
+        run: pnpm audit --prod
+        continue-on-error: true
+
+      # ── Lint ────────────────────────────────────────────────────────
+      - name: Backend lint
+        working-directory: backend
+        run: poetry run ruff check .
+
+      - name: Frontend lint
+        working-directory: frontend
         run: pnpm run lint
 
-      # ── Type check (both stacks in parallel via concurrently) ───────
-      - name: Type check
+      # ── Type check ─────────────────────────────────────────────────
+      - name: Backend type check
+        working-directory: backend
+        run: poetry run mypy src/
+
+      - name: Frontend type check
+        working-directory: frontend
         run: pnpm run type-check
 
-      # ── Test (both stacks in parallel via concurrently) ─────────────
-      - name: Test
-        run: pnpm run test
+      # ── Test ────────────────────────────────────────────────────────
+      - name: Backend tests
+        working-directory: backend
+        run: poetry run pytest tests/ -v
+
+      - name: Frontend tests
+        working-directory: frontend
+        run: pnpm test
 
       # ── Build frontend ─────────────────────────────────────────────
       - name: Build frontend
-        run: VITE_API_BASE_URL=https://placeholder.example.com pnpm run build
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://placeholder.example.com
+        run: pnpm run build

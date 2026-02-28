@@ -47,14 +47,10 @@ export const ROUTES = {
 
 const _apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
 
-if (!_apiBaseUrl && !import.meta.env.DEV) {
-  throw new Error(
-    '[ledger-sync] VITE_API_BASE_URL is not set. ' +
-    'This environment variable is required in production builds.'
-  )
-}
-
-export const API_BASE_URL = _apiBaseUrl || 'http://localhost:8000'
+// In development, default to localhost backend.
+// In production, fall back to same-origin (API served from same host).
+// Set VITE_API_BASE_URL at build time to point to a different API host.
+export const API_BASE_URL = _apiBaseUrl || (import.meta.env.DEV ? 'http://localhost:8000' : '')
 
 export const API_ENDPOINTS = {
   // Upload

@@ -28,7 +28,7 @@ export default function ChartContainer({
   height = '100%',
   children,
   ...rest
-}: ChartContainerProps) {
+}: Readonly<ChartContainerProps>) {
   return (
     <ResponsiveContainer
       width={width}
