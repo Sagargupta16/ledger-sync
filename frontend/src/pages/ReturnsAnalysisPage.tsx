@@ -182,6 +182,21 @@ function groupTransactionsByDay(
   return dailyData
 }
 
+/** Compute all investment metrics from transactions in a single pass */
+function computeInvestmentMetrics(transactions: Array<{ type: string; amount: number; category: string; note?: string; subcategory?: string }>) {
+  const dividendIncome = filterDividendTransactions(transactions)
+  const brokerFees = filterBrokerFees(transactions)
+  const interestIncome = filterInterestIncome(transactions)
+  const investmentProfit = filterInvestmentProfit(transactions)
+  const investmentLoss = filterInvestmentLoss(transactions)
+
+  const totalIncome = investmentProfit + dividendIncome + interestIncome
+  const totalExpenses = investmentLoss + brokerFees
+  const netProfitLoss = totalIncome - totalExpenses
+
+  return { dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss }
+}
+
 /** P&L stat cards showing Net Profit/Loss, Dividend Income, and Broker Fees */
 function PLStatCards({
   netProfitLoss,
@@ -297,27 +312,9 @@ export default function ReturnsAnalysisPage() {
   //   return investmentAccounts.reduce((sum, acc) => sum + acc.balance, 0)
   // }, [investmentAccounts])
 
-  // Calculate Dividend Income from transactions
-  const dividendIncome = useMemo(() => filterDividendTransactions(transactions), [transactions])
-
-  // Calculate Broker Fees from transactions (investment-related only)
-  const brokerFees = useMemo(() => filterBrokerFees(transactions), [transactions])
-
-  // Calculate Interest Income from all accounts
-  const interestIncome = useMemo(() => filterInterestIncome(transactions), [transactions])
-
-  // Calculate actual Profit from investment sales/gains
-  const investmentProfit = useMemo(() => filterInvestmentProfit(transactions), [transactions])
-
-  // Calculate actual Loss from investments (exclude broker fees)
-  const investmentLoss = useMemo(() => filterInvestmentLoss(transactions), [transactions])
-
-  // Net Profit/Loss = Total Income - Total Expenses (including all fees and income sources)
-  const netProfitLoss = useMemo(() => {
-    const totalIncome = investmentProfit + dividendIncome + interestIncome
-    const totalExpenses = investmentLoss + brokerFees
-    return totalIncome - totalExpenses
-  }, [investmentProfit, dividendIncome, interestIncome, investmentLoss, brokerFees])
+  // Calculate all investment metrics in one pass
+  const { dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss } =
+    useMemo(() => computeInvestmentMetrics(transactions), [transactions])
 
   // Calculate average CAGR from monthly data
   const monthlyDataArray = useMemo(() => {

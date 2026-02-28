@@ -4,7 +4,7 @@ services:
     runtime: python
     region: singapore
     rootDir: backend
-    buildCommand: pip install uv && uv sync
+    buildCommand: pip install uv && uv sync --no-group dev
     startCommand: uv run uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION

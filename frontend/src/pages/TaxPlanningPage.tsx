@@ -238,6 +238,118 @@ function resolveSelectedRegime(
   return preferredRegime === 'old' ? 'old' : 'new'
 }
 
+/** Compute gross income and tax breakdown for the selected FY and regime */
+function computeTaxForFY(
+  selectedFY: string,
+  netTaxableIncome: number,
+  salaryMonthsCount: number,
+  regimeOverride: 'new' | 'old' | null,
+  preferredRegime: string,
+) {
+  const fyYear = selectedFY ? parseFYStartYear(selectedFY) : 0
+  const newRegimeAvailable = fyYear >= 2020
+  const selectedRegime = resolveSelectedRegime(newRegimeAvailable, regimeOverride, preferredRegime)
+  const isNewRegime = selectedRegime === 'new'
+  const taxSlabs = getTaxSlabs(fyYear, selectedRegime)
+  const regimeLabel = isNewRegime ? 'New Tax Regime' : 'Old Tax Regime (with 80C)'
+  const standardDeduction = getStandardDeduction(fyYear)
+
+  const hasEmploymentIncome = netTaxableIncome > 0
+  const newRegimeSlabs = getNewRegimeSlabs(fyYear)
+
+  const grossTaxableIncome = calculateGrossFromNet(netTaxableIncome, {
+    slabs: newRegimeSlabs,
+    standardDeduction,
+    applyProfessionalTax: hasEmploymentIncome,
+    salaryMonthsCount,
+    isNewRegime: true,
+    fyStartYear: fyYear,
+  })
+
+  const taxResult = calculateTax(
+    grossTaxableIncome,
+    taxSlabs,
+    standardDeduction,
+    hasEmploymentIncome,
+    salaryMonthsCount,
+    isNewRegime,
+    fyYear,
+  )
+
+  return {
+    fyYear,
+    newRegimeAvailable,
+    isNewRegime,
+    taxSlabs,
+    regimeLabel,
+    standardDeduction,
+    hasEmploymentIncome,
+    grossTaxableIncome,
+    baseTax: taxResult.tax,
+    slabBreakdown: taxResult.slabBreakdown,
+    rebate87A: taxResult.rebate87A,
+    surcharge: taxResult.surcharge,
+    cess: taxResult.cess,
+    professionalTax: taxResult.professionalTax,
+    taxAlreadyPaid: taxResult.totalTax,
+  }
+}
+
+interface ProjectionAndDisplayInput {
+  showProjection: boolean
+  selectedFY: string
+  fiscalYearStartMonth: number
+  hasEmploymentIncome: boolean
+  currentFYData: FYData | null
+  netTaxableIncome: number
+  salaryMonthsCount: number
+  taxSlabs: TaxSlab[]
+  standardDeduction: number
+  isNewRegime: boolean
+  fyYear: number
+  actual: {
+    grossTaxableIncome: number
+    taxAlreadyPaid: number
+    baseTax: number
+    cess: number
+    professionalTax: number
+    slabBreakdown: SlabBreakdownEntry[]
+    income: number
+  }
+}
+
+/** Compute projection and resolve display values for actual vs projected */
+function computeProjectionAndDisplay(input: ProjectionAndDisplayInput) {
+  const { showProjection, selectedFY, fiscalYearStartMonth, hasEmploymentIncome,
+    currentFYData, netTaxableIncome, salaryMonthsCount, taxSlabs,
+    standardDeduction, isNewRegime, fyYear, actual } = input
+
+  const currentFYLabel = getFYFromDate(
+    new Date().toISOString().split('T')[0],
+    fiscalYearStartMonth,
+  )
+  const isCurrentFY = selectedFY === currentFYLabel
+  const useProjected = showProjection && isCurrentFY && hasEmploymentIncome
+
+  const projection = useProjected
+    ? calculateProjection(currentFYData, netTaxableIncome, salaryMonthsCount, taxSlabs, standardDeduction, isNewRegime, fyYear)
+    : null
+
+  const remainingMonths = projection?.remainingMonths ?? 0
+  const avgMonthlySalary = projection?.avgMonthlySalary ?? 0
+
+  const projectedTaxResult = useProjected && projection
+    ? calculateTax(projection.grossTaxableIncome, taxSlabs, standardDeduction, true, salaryMonthsCount + remainingMonths, isNewRegime, fyYear)
+    : null
+
+  const displayValues = resolveDisplayValues(projection, {
+    ...actual,
+    netTaxableIncome,
+  })
+
+  return { isCurrentFY, projection, projectedTaxResult, remainingMonths, avgMonthlySalary, displayValues }
+}
+
 /** Tax regime toggle, year-end projection toggle, and FY navigation action bar */
 function TaxPageActions({
   isNewRegime,
@@ -403,94 +515,35 @@ export default function TaxPlanningPage() {
       .reverse()
   }, [transactionsByFY])
 
-  // Set initial FY
-  if (!selectedFY && fyList.length > 0) {
-    setSelectedFY(fyList[0])
-  }
+  // Use first FY as default when none is explicitly selected
+  const effectiveFY = selectedFY || fyList[0] || ''
 
   // ── Derived values for selected FY ──────────────────────────────────
 
-  const currentFYData = selectedFY ? transactionsByFY[selectedFY] : null
+  const currentFYData = effectiveFY ? transactionsByFY[effectiveFY] : null
   const income = currentFYData?.income || 0
   const expense = currentFYData?.expense || 0
   const netTaxableIncome = currentFYData?.taxableIncome || 0
   const salaryMonthsCount = currentFYData?.salaryMonths?.size || 0
 
-  // Determine which tax slabs to use
-  const fyYear = selectedFY ? parseFYStartYear(selectedFY) : 0
-  // New Regime was introduced in FY 2020-21 (start year 2020)
-  const newRegimeAvailable = fyYear >= 2020
-  const selectedRegime = resolveSelectedRegime(newRegimeAvailable, regimeOverride, preferredRegime)
-  const isNewRegime = selectedRegime === 'new'
-  const taxSlabs = getTaxSlabs(fyYear, selectedRegime)
-  const regimeLabel = isNewRegime ? 'New Tax Regime' : 'Old Tax Regime (with 80C)'
-  const standardDeduction = getStandardDeduction(fyYear)
+  // ── Tax computation for selected FY ─────────────────────────────────
 
-  // Always compute gross using NEW regime (employer deducts TDS under new regime)
-  // This gross stays the same regardless of which regime the user views
-  const hasEmploymentIncome = netTaxableIncome > 0
-  const newRegimeSlabs = getNewRegimeSlabs(fyYear)
-
-  const grossTaxableIncome = calculateGrossFromNet(netTaxableIncome, {
-    slabs: newRegimeSlabs,
-    standardDeduction,
-    applyProfessionalTax: hasEmploymentIncome,
-    salaryMonthsCount,
-    isNewRegime: true,
-    fyStartYear: fyYear,
-  })
-
-  // Calculate tax using the SELECTED regime's slabs on the same gross
   const {
-    tax: baseTax,
-    slabBreakdown,
-    rebate87A,
-    surcharge,
-    cess,
-    professionalTax,
-    totalTax: taxAlreadyPaid,
-  } = calculateTax(
-    grossTaxableIncome,
-    taxSlabs,
-    standardDeduction,
-    hasEmploymentIncome,
-    salaryMonthsCount,
-    isNewRegime,
-    fyYear,
-  )
+    fyYear, newRegimeAvailable, isNewRegime, taxSlabs, regimeLabel,
+    standardDeduction, hasEmploymentIncome, grossTaxableIncome,
+    baseTax, slabBreakdown, rebate87A, surcharge, cess,
+    professionalTax, taxAlreadyPaid,
+  } = computeTaxForFY(effectiveFY, netTaxableIncome, salaryMonthsCount, regimeOverride, preferredRegime)
 
-  // ── Projection for remaining months ─────────────────────────────────
+  // ── Projection + display values ────────────────────────────────────
 
-  const currentFYLabel = getFYFromDate(
-    new Date().toISOString().split('T')[0],
-    fiscalYearStartMonth,
-  )
-  const isCurrentFY = selectedFY === currentFYLabel
-  const useProjected = showProjection && isCurrentFY && hasEmploymentIncome
-
-  const projection = useProjected
-    ? calculateProjection(currentFYData, netTaxableIncome, salaryMonthsCount, taxSlabs, standardDeduction, isNewRegime, fyYear)
-    : null
-
-  const remainingMonths = projection?.remainingMonths ?? 0
-  const avgMonthlySalary = projection?.avgMonthlySalary ?? 0
-
-  // Get full tax result for projected values (includes rebate/surcharge)
-  const projectedTaxResult = useProjected && projection
-    ? calculateTax(projection.grossTaxableIncome, taxSlabs, standardDeduction, true, salaryMonthsCount + remainingMonths, isNewRegime, fyYear)
-    : null
-
-  // ── Resolve "actual vs projected" display values ────────────────────
-
-  const displayValues = resolveDisplayValues(projection, {
-    grossTaxableIncome,
-    netTaxableIncome,
-    taxAlreadyPaid,
-    baseTax,
-    cess,
-    professionalTax,
-    slabBreakdown,
-    income,
+  const {
+    isCurrentFY, projectedTaxResult, remainingMonths, avgMonthlySalary, displayValues,
+  } = computeProjectionAndDisplay({
+    showProjection, selectedFY: effectiveFY, fiscalYearStartMonth,
+    hasEmploymentIncome, currentFYData, netTaxableIncome,
+    salaryMonthsCount, taxSlabs, standardDeduction, isNewRegime, fyYear,
+    actual: { grossTaxableIncome, taxAlreadyPaid, baseTax, cess, professionalTax, slabBreakdown, income },
   })
 
   const displayGross = displayValues.gross
@@ -504,7 +557,7 @@ export default function TaxPlanningPage() {
 
   // ── FY navigation ───────────────────────────────────────────────────
 
-  const currentIndex = fyList.indexOf(selectedFY)
+  const currentIndex = fyList.indexOf(effectiveFY)
   const canGoBack = currentIndex < fyList.length - 1
   const canGoForward = currentIndex > 0
 
@@ -540,7 +593,7 @@ export default function TaxPlanningPage() {
                 setShowProjection={setShowProjection}
                 remainingMonths={remainingMonths}
                 avgMonthlySalary={avgMonthlySalary}
-                selectedFY={selectedFY}
+                selectedFY={effectiveFY}
                 canGoBack={canGoBack}
                 canGoForward={canGoForward}
                 goToPreviousFY={goToPreviousFY}
@@ -584,7 +637,7 @@ export default function TaxPlanningPage() {
 
         <motion.div variants={fadeUpItem}>
           <TaxSummaryGrid
-            selectedFY={selectedFY}
+            selectedFY={effectiveFY}
             grossTaxableIncome={displayGross}
             taxAlreadyPaid={displayTotalTax}
             netTaxableIncome={displayNet}
@@ -604,7 +657,7 @@ export default function TaxPlanningPage() {
 
         <motion.div variants={fadeUpItem}>
           <TaxableIncomeTable
-            selectedFY={selectedFY}
+            selectedFY={effectiveFY}
             incomeGroups={currentFYData?.incomeGroups}
             netTaxableIncome={netTaxableIncome}
           />

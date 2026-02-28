@@ -10,6 +10,33 @@ import { getDateKey } from '@/lib/dateUtils'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { PageHeader, ChartContainer } from '@/components/ui'
 
+/** Guard against NaN values that Recharts passes for zero-value nodes */
+function safeNumber(value: number): number {
+  return Number.isFinite(value) ? value : 0
+}
+
+/** Determine the fill color for a Sankey node based on its position in the diagram */
+function getNodeFillColor(
+  index: number,
+  incomeCategoryCount: number,
+  totalIncomeNodeIndex: number,
+  savingsNodeIndex: number,
+  expensesNodeIndex: number,
+): string {
+  if (index < incomeCategoryCount) {
+    const greenColors = [rawColors.ios.green, rawColors.ios.green, '#84cc16', '#a3e635', '#6ee7b7']
+    return greenColors[index % greenColors.length]
+  }
+
+  if (index === totalIncomeNodeIndex) return rawColors.ios.indigoVibrant
+  if (index === savingsNodeIndex) return rawColors.ios.purple
+  if (index === expensesNodeIndex) return rawColors.ios.pink
+
+  const redColors = [rawColors.ios.red, rawColors.ios.orange, '#fb923c', '#f97316', rawColors.ios.redVibrant]
+  const expenseIndex = index - (incomeCategoryCount + 3)
+  return redColors[expenseIndex % redColors.length]
+}
+
 interface SankeyNodeRendererProps {
   readonly x: number
   readonly y: number
@@ -39,32 +66,14 @@ const SankeyNodeRenderer = ({
   expensesNodeIndex,
   totalIncome,
 }: SankeyNodeRendererProps) => {
-  // Recharts passes NaN when node dimensions can't be computed (zero-value nodes)
-  const x = Number.isFinite(rawX) ? rawX : 0
-  const y = Number.isFinite(rawY) ? rawY : 0
-  const width = Number.isFinite(rawWidth) ? rawWidth : 0
-  const height = Number.isFinite(rawHeight) ? rawHeight : 0
+  const x = safeNumber(rawX)
+  const y = safeNumber(rawY)
+  const width = safeNumber(rawWidth)
+  const height = safeNumber(rawHeight)
 
   const value = nodeValues.get(index) || 0
   const percentage = totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0'
-
-  // Determine color based on position
-  let fillColor: string
-  if (index < incomeCategoryCount) {
-    // Income nodes - green gradient
-    const greenColors = [rawColors.ios.green, rawColors.ios.green, '#84cc16', '#a3e635', '#6ee7b7']
-    fillColor = greenColors[index % greenColors.length]
-  } else if (index === totalIncomeNodeIndex || index === savingsNodeIndex || index === expensesNodeIndex) {
-    // Middle nodes - purple/blue
-    if (index === totalIncomeNodeIndex) fillColor = rawColors.ios.indigoVibrant
-    else if (index === savingsNodeIndex) fillColor = rawColors.ios.purple
-    else fillColor = rawColors.ios.pink
-  } else {
-    // Expense nodes - red/orange gradient
-    const redColors = [rawColors.ios.red, rawColors.ios.orange, '#fb923c', '#f97316', rawColors.ios.redVibrant]
-    const expenseIndex = index - (incomeCategoryCount + 3)
-    fillColor = redColors[expenseIndex % redColors.length]
-  }
+  const fillColor = getNodeFillColor(index, incomeCategoryCount, totalIncomeNodeIndex, savingsNodeIndex, expensesNodeIndex)
 
   return (
     <g>

@@ -1,6 +1,5 @@
 """Application settings and configuration."""
 
-import secrets
 import warnings
 from pathlib import Path
 
@@ -136,11 +135,15 @@ class Settings(BaseSettings):
 # Global settings instance
 settings = Settings()
 
-# In development, auto-generate a random secret if none configured
+# In development, use a stable dev-only secret so tokens survive hot-reloads.
+# This is NOT used in production — the startup validator blocks non-dev
+# environments that haven't set LEDGER_SYNC_JWT_SECRET_KEY.
 if settings.environment == "development" and (
     not settings.jwt_secret_key or settings.jwt_secret_key == _DEV_JWT_SECRET
 ):
-    settings.jwt_secret_key = secrets.token_urlsafe(64)
+    settings.jwt_secret_key = (
+        "dev-local-only-jwt-secret-not-for-production-" "abcdef0123456789abcdef0123456789"
+    )
 
 # Validate settings on import for any non-development environment
 if settings.environment != "development":

@@ -9,29 +9,14 @@ export const apiClient = axios.create({
   },
 })
 
-/**
- * Decode JWT payload and check if the token expires within `bufferSec` seconds.
- * Returns true when the token is still valid (or unparsable — let the server decide).
- */
-function isTokenFresh(token: string, bufferSec = 60): boolean {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    return payload.exp * 1000 > Date.now() + bufferSec * 1000
-  } catch {
-    return true // Can't decode — let the request proceed; server will reject if invalid
-  }
-}
-
-// Request interceptor - add auth token and proactively refresh if near-expiry
+// Request interceptor — always attach the token if one exists.
+// If it's expired, the server returns 401, and the response interceptor
+// handles the refresh transparently.
 apiClient.interceptors.request.use(
   (config) => {
     const token = getAccessToken()
     if (token) {
-      // Proactive check: if access token expires within 60s, skip attaching it
-      // so the 401 interceptor triggers a refresh before the server rejects it.
-      if (isTokenFresh(token)) {
-        config.headers.Authorization = `Bearer ${token}`
-      }
+      config.headers.Authorization = `Bearer ${token}`
     }
     return config
   },
