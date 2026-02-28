@@ -24,6 +24,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.query_helpers import fmt_year_month
 from ledger_sync.db.models import (
     AccountClassification,
     Anomaly,
@@ -42,7 +43,6 @@ from ledger_sync.db.models import (
     TransferFlow,
     UserPreferences,
 )
-from ledger_sync.core.query_helpers import fmt_year_month
 from ledger_sync.utils.logging import (
     get_analytics_logger,
     log_analytics_calculation,
