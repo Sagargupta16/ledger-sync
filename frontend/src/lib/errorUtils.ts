@@ -58,47 +58,12 @@ export function getApiErrorMessage(
 ): string {
   if (!error) return fallback
 
-  // Cast to our expected error shape
   const apiError = error as ApiError
-
-  // Try to get detail from response
   const data = apiError.response?.data
+
   if (data) {
-    // Case 1: detail is a string (FastAPI HTTPException)
-    if (typeof data.detail === 'string') {
-      return data.detail
-    }
-
-    // Case 2: detail is an array (FastAPI validation error)
-    if (Array.isArray(data.detail) && data.detail.length > 0) {
-      const firstError = data.detail[0] as ValidationError
-      // Format: "field: message" or just "message"
-      if (firstError.loc && firstError.loc.length > 1) {
-        // Skip 'body' from location path
-        const field = firstError.loc.slice(1).join('.')
-        return `${field}: ${firstError.msg}`
-      }
-      return firstError.msg
-    }
-
-    // Case 3: detail is an object with message
-    if (
-      typeof data.detail === 'object' &&
-      data.detail !== null &&
-      'message' in data.detail
-    ) {
-      return data.detail.message || fallback
-    }
-
-    // Case 4: message at top level
-    if (typeof data.message === 'string') {
-      return data.message
-    }
-
-    // Case 5: error at top level
-    if (typeof data.error === 'string') {
-      return data.error
-    }
+    const msg = extractFromResponseData(data)
+    if (msg) return msg
   }
 
   // Fallback to error.message (network errors, etc.)
@@ -107,6 +72,34 @@ export function getApiErrorMessage(
   }
 
   return fallback
+}
+
+/** Extract a message from the response data, trying each known format. */
+function extractFromResponseData(data: ApiErrorData): string | null {
+  // FastAPI HTTPException: { detail: "Error message" }
+  if (typeof data.detail === 'string') return data.detail
+
+  // FastAPI validation error: { detail: [{ loc, msg }, ...] }
+  if (Array.isArray(data.detail) && data.detail.length > 0) {
+    return formatValidationError(data.detail[0])
+  }
+
+  // Object detail with message: { detail: { message: "..." } }
+  if (typeof data.detail === 'object' && data.detail !== null && 'message' in data.detail) {
+    return data.detail.message || null
+  }
+
+  // Top-level message or error fields
+  return data.message ?? data.error ?? null
+}
+
+/** Format a single validation error as "field: message" or just "message". */
+function formatValidationError(err: ValidationError): string {
+  if (err.loc && err.loc.length > 1) {
+    const field = err.loc.slice(1).join('.')
+    return `${field}: ${err.msg}`
+  }
+  return err.msg
 }
 
 /**

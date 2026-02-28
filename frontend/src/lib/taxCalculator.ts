@@ -137,13 +137,13 @@ const SURCHARGE_OLD_REGIME: SurchargeRate[] = [
   { above: 50000000, rate: 0.37 },
   { above: 20000000, rate: 0.25 },
   { above: 10000000, rate: 0.15 },
-  { above: 5000000, rate: 0.10 },
+  { above: 5000000, rate: 0.1 },
 ]
 
 const SURCHARGE_NEW_REGIME: SurchargeRate[] = [
   { above: 20000000, rate: 0.25 },
   { above: 10000000, rate: 0.15 },
-  { above: 5000000, rate: 0.10 },
+  { above: 5000000, rate: 0.1 },
 ]
 
 function computeSurcharge(
@@ -250,6 +250,16 @@ export function calculateTax(
   }
 }
 
+export interface GrossFromNetOptions {
+  slabs: TaxSlab[]
+  standardDeduction?: number
+  applyProfessionalTax?: boolean
+  salaryMonthsCount?: number
+  maxIterations?: number
+  isNewRegime?: boolean
+  fyStartYear?: number
+}
+
 /**
  * Reverse-calculate gross income from net income (after tax).
  *
@@ -258,17 +268,19 @@ export function calculateTax(
  */
 export function calculateGrossFromNet(
   netIncome: number,
-  slabs: TaxSlab[],
-  standardDeduction: number = 0,
-  applyProfessionalTax: boolean = true,
-  salaryMonthsCount: number = 12,
-  maxIterations: number = 10,
-  isNewRegime: boolean = true,
-  fyStartYear: number = 2025,
+  options: GrossFromNetOptions,
 ): number {
-  if (netIncome <= 0) {
-    return 0
-  }
+  if (netIncome <= 0) return 0
+
+  const {
+    slabs,
+    standardDeduction = 0,
+    applyProfessionalTax = true,
+    salaryMonthsCount = 12,
+    maxIterations = 10,
+    isNewRegime = true,
+    fyStartYear = 2025,
+  } = options
 
   let grossIncome = netIncome
 
@@ -288,8 +300,8 @@ export function calculateGrossFromNet(
       return grossIncome
     }
 
-    const error = netIncome - calculatedNet
-    grossIncome += error
+    const diff = netIncome - calculatedNet
+    grossIncome += diff
   }
 
   return grossIncome

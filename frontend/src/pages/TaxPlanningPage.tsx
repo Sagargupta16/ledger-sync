@@ -154,16 +154,14 @@ function calculateProjection(
 
   // Always use New Regime slabs for gross calculation (employer deducts TDS under new regime)
   const newSlabs = getNewRegimeSlabs(fyYear)
-  const grossTaxableIncome = calculateGrossFromNet(
-    projectedNetTotal,
-    newSlabs,
+  const grossTaxableIncome = calculateGrossFromNet(projectedNetTotal, {
+    slabs: newSlabs,
     standardDeduction,
-    true,
-    projectedSalaryMonthsCount,
-    10,
-    true,
-    fyYear,
-  )
+    applyProfessionalTax: true,
+    salaryMonthsCount: projectedSalaryMonthsCount,
+    isNewRegime: true,
+    fyStartYear: fyYear,
+  })
   // Calculate tax using the SELECTED regime's slabs
   const projectedCalc = calculateTax(
     grossTaxableIncome,
@@ -430,16 +428,14 @@ export default function TaxPlanningPage() {
   const hasEmploymentIncome = netTaxableIncome > 0
   const newRegimeSlabs = getNewRegimeSlabs(fyYear)
 
-  const grossTaxableIncome = calculateGrossFromNet(
-    netTaxableIncome,
-    newRegimeSlabs,
+  const grossTaxableIncome = calculateGrossFromNet(netTaxableIncome, {
+    slabs: newRegimeSlabs,
     standardDeduction,
-    hasEmploymentIncome,
+    applyProfessionalTax: hasEmploymentIncome,
     salaryMonthsCount,
-    10,
-    true,
-    fyYear,
-  )
+    isNewRegime: true,
+    fyStartYear: fyYear,
+  })
 
   // Calculate tax using the SELECTED regime's slabs on the same gross
   const {
