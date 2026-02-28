@@ -3,11 +3,11 @@ import react from '@vitejs/plugin-react'
 import path from 'node:path'
 
 // https://vite.dev/config/
-const isProduction = process.env.GITHUB_PAGES === 'true' || process.env.NODE_ENV === 'production'
+const isGitHubPages = process.env.GITHUB_PAGES === 'true'
 
 export default defineConfig({
-  // Production (GitHub Pages / custom domain) serves from /ledger-sync/ subpath; dev uses root
-  base: isProduction ? '/ledger-sync/' : '/',
+  // GitHub Pages / custom domain serves from /ledger-sync/ subpath; local dev uses root
+  base: isGitHubPages ? '/ledger-sync/' : '/',
   plugins: [react()],
   resolve: {
     alias: {
