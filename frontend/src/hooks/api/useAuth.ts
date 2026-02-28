@@ -22,16 +22,14 @@ export const useLogin = () => {
   return useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
       const tokens = await authApi.login(credentials)
-      // Store tokens immediately so getMe() can use them
       setTokens(tokens)
-      // Get user after successful login
       const user = await authApi.getMe()
       return { tokens, user }
     },
     onSuccess: ({ tokens, user }) => {
+      // Clear all cached data from any previous session (e.g. demo user)
+      queryClient.clear()
       login(user, tokens)
-      queryClient.invalidateQueries()
-      // Prefetch all core data into cache so pages load instantly
       prefetchCoreData()
     },
   })
@@ -47,15 +45,14 @@ export const useRegister = () => {
   return useMutation({
     mutationFn: async (credentials: RegisterCredentials) => {
       const tokens = await authApi.register(credentials)
-      // Store tokens immediately so getMe() can use them
       setTokens(tokens)
-      // Get user after successful registration
       const user = await authApi.getMe()
       return { tokens, user }
     },
     onSuccess: ({ tokens, user }) => {
+      // Clear all cached data from any previous session (e.g. demo user)
+      queryClient.clear()
       login(user, tokens)
-      queryClient.invalidateQueries()
       prefetchCoreData()
     },
   })
@@ -198,8 +195,9 @@ export const useDemoLogin = () => {
       return { tokens, user }
     },
     onSuccess: ({ tokens, user }) => {
+      // Clear all cached data so demo data loads fresh
+      queryClient.clear()
       login(user, tokens)
-      queryClient.invalidateQueries()
       prefetchCoreData()
     },
   })
