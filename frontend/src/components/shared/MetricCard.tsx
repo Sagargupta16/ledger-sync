@@ -3,17 +3,15 @@ import type { LucideIcon } from 'lucide-react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import { type ReactNode, useEffect, useRef } from 'react'
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
-import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { cardHover } from '@/constants/animations'
 
 /** Animated number counter — extracts numeric part from formatted strings like "$1,234.56" */
-function AnimatedValue({ value, reducedMotion }: Readonly<{ value: string | number; reducedMotion: boolean }>) {
+function AnimatedValue({ value }: Readonly<{ value: string | number }>) {
   const ref = useRef<HTMLSpanElement>(null)
   const prevValue = useRef<string>(String(value))
 
   useEffect(() => {
-    if (reducedMotion || !ref.current) {
-      if (ref.current) ref.current.textContent = String(value)
+    if (!ref.current) {
       prevValue.current = String(value)
       return
     }
@@ -57,7 +55,7 @@ function AnimatedValue({ value, reducedMotion }: Readonly<{ value: string | numb
 
     prevValue.current = str
     return () => ctrl.stop()
-  }, [value, reducedMotion])
+  }, [value])
 
   return <span ref={ref}>{String(value)}</span>
 }
@@ -80,7 +78,6 @@ interface MetricCardProps {
 
 export default function MetricCard({ title, value, change, invertChange, changeLabel, icon: Icon, color = 'blue', isLoading, trend, subtitle }: Readonly<MetricCardProps>) {
   const colors = metricColorConfig[color]
-  const reducedMotion = useReducedMotion()
 
   if (isLoading) {
     return (
@@ -92,16 +89,12 @@ export default function MetricCard({ title, value, change, invertChange, changeL
     )
   }
 
-  const Wrapper = reducedMotion ? 'div' : motion.div
-
   return (
-    <Wrapper
-      {...(!reducedMotion && {
-        initial: { opacity: 0, y: 20 },
-        animate: { opacity: 1, y: 0 },
-        transition: { type: 'spring', stiffness: 300, damping: 30 },
-        whileHover: cardHover,
-      })}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      whileHover={cardHover}
       className="relative p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10 shadow-xl shadow-black/40 transition-all duration-300 hover:border-white/[0.12] hover:shadow-2xl hover:shadow-black/50"
     >
       {/* Animated gradient glow on hover */}
@@ -115,24 +108,15 @@ export default function MetricCard({ title, value, change, invertChange, changeL
       />
 
       {/* Icon with scale-in animation */}
-      {reducedMotion ? (
-        <div
-          className="inline-flex p-3 rounded-2xl mb-4 relative z-10"
-          style={{ background: colors.bg, boxShadow: `0 8px 24px ${colors.glow}` }}
-        >
-          <Icon className="w-6 h-6" style={{ color: colors.text }} />
-        </div>
-      ) : (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1, type: 'spring', stiffness: 400, damping: 20 }}
-          className="inline-flex p-3 rounded-2xl mb-4 relative z-10"
-          style={{ background: colors.bg, boxShadow: `0 8px 24px ${colors.glow}` }}
-        >
-          <Icon className="w-6 h-6" style={{ color: colors.text }} />
-        </motion.div>
-      )}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.1, type: 'spring', stiffness: 400, damping: 20 }}
+        className="inline-flex p-3 rounded-2xl mb-4 relative z-10"
+        style={{ background: colors.bg, boxShadow: `0 8px 24px ${colors.glow}` }}
+      >
+        <Icon className="w-6 h-6" style={{ color: colors.text }} />
+      </motion.div>
 
       {/* Title */}
       <h3 className="text-sm font-medium mb-1 relative z-10" style={{ color: rawColors.text.secondary }}>{title}</h3>
@@ -140,7 +124,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
       {/* Animated Value */}
       <div className="flex items-baseline gap-2 relative z-10">
         <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-white">
-          <AnimatedValue value={value} reducedMotion={reducedMotion} />
+          <AnimatedValue value={value} />
         </p>
       </div>
 
@@ -163,14 +147,11 @@ export default function MetricCard({ title, value, change, invertChange, changeL
           const isGood = invertChange ? !isPositive : isPositive
           const goodColor = rawColors.ios.green
           const badColor = rawColors.ios.red
-          const ChangeWrapper = reducedMotion ? 'div' : motion.div
           return (
-            <ChangeWrapper
-              {...(!reducedMotion && {
-                initial: { opacity: 0, x: -10 },
-                animate: { opacity: 1, x: 0 },
-                transition: { delay: 0.3, duration: 0.4 },
-              })}
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3, duration: 0.4 }}
               className="flex items-center gap-1.5 mt-3 relative z-10"
             >
               {isPositive ? (
@@ -187,10 +168,10 @@ export default function MetricCard({ title, value, change, invertChange, changeL
               <span className="text-xs ml-1" style={{ color: rawColors.text.tertiary }}>
                 {changeLabel || 'vs last month'}
               </span>
-            </ChangeWrapper>
+            </motion.div>
           )
         })()
       )}
-    </Wrapper>
+    </motion.div>
   )
 }

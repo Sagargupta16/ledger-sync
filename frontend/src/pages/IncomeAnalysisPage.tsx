@@ -8,8 +8,8 @@ import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine, PieChart, Pie, Cell } from 'recharts'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine, PieChart, Pie, Cell } from 'recharts'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { getDateKey } from '@/lib/dateUtils'
@@ -173,7 +173,7 @@ export default function IncomeAnalysisPage() {
           {incomeTypeChartData.length > 0 ? (
             <div className="flex flex-col lg:flex-row items-center gap-4 md:gap-6 lg:gap-8">
               <div className="w-64 h-64">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <ChartContainer>
                   <PieChart>
                     <Pie
                       data={incomeTypeChartData}
@@ -197,7 +197,7 @@ export default function IncomeAnalysisPage() {
                       formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                     />
                   </PieChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               </div>
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {incomeTypeChartData.map((item) => {
@@ -263,7 +263,7 @@ export default function IncomeAnalysisPage() {
               </div>
             )}
             {!isLoading && monthlyTrendData.length > 0 && (
-              <ResponsiveContainer width="100%" height={dims.chartHeight} minWidth={0} minHeight={0}>
+              <ChartContainer height={dims.chartHeight}>
                 <AreaChart data={monthlyTrendData} margin={dims.margin}>
                   <defs>
                     <linearGradient id="incomeTrendGradient" x1="0" y1="0" x2="0" y2="1">
@@ -320,7 +320,7 @@ export default function IncomeAnalysisPage() {
                     isAnimationActive={monthlyTrendData.length < CHART_ANIMATION_THRESHOLD}
                   />
                 </AreaChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             )}
             {!isLoading && monthlyTrendData.length === 0 && (
               <EmptyState

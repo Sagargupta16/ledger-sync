@@ -2,7 +2,6 @@ import { memo, type ReactNode } from 'react'
 import { rawColors } from '@/constants/colors'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/cn'
-import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { cardHover } from '@/constants/animations'
 
 interface CardProps {
@@ -24,14 +23,13 @@ export const Card = memo(function Card({
   delay = 0,
   variant = 'default'
 }: CardProps) {
-  const reducedMotion = useReducedMotion()
   const variantClasses = {
     default: 'glass rounded-2xl border border-white/5 border-t-white/10 border-l-white/10 p-6 shadow-xl shadow-black/40',
     elevated: 'glass-strong rounded-2xl border border-white/[0.08] border-t-white/[0.14] border-l-white/[0.14] p-6 shadow-2xl shadow-black/50',
     interactive: 'glass rounded-2xl border border-white/5 border-t-white/10 border-l-white/10 p-6 shadow-xl shadow-black/40 transition-all duration-300 hover:bg-[rgba(38,38,40,0.6)] hover:border-white/[0.12] hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-black/50'
   }
-  
-  if (animate && !reducedMotion) {
+
+  if (animate) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}

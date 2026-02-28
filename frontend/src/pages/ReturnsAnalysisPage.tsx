@@ -7,8 +7,8 @@ import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
@@ -421,7 +421,7 @@ export default function ReturnsAnalysisPage() {
           {cumulativeReturnsData.length === 0 ? (
             <ChartEmptyState height={320} />
           ) : (
-            <ResponsiveContainer width="100%" height={dims.chartHeight} minWidth={0} minHeight={0}>
+            <ChartContainer height={dims.chartHeight}>
               <AreaChart data={cumulativeReturnsData} margin={dims.margin}>
                 <defs>
                   <linearGradient id="positiveGradient" x1="0" y1="0" x2="0" y2="1">
@@ -468,7 +468,7 @@ export default function ReturnsAnalysisPage() {
                   isAnimationActive={cumulativeReturnsData.length < CHART_ANIMATION_THRESHOLD}
                 />
               </AreaChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           )}
         </motion.div>
 
@@ -519,7 +519,10 @@ export default function ReturnsAnalysisPage() {
             <h3 className="text-lg font-semibold text-white mb-6">Profit & Loss Breakdown</h3>
             {/* Waterfall Chart */}
             <div className="mb-6">
-              <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={0}>
+              {waterfallData.every(d => d.value === 0) ? (
+                <ChartEmptyState height={300} message="No investment income or expenses found for the selected period" />
+              ) : (
+              <ChartContainer height={300}>
                 <BarChart data={waterfallData} barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(waterfallData.length, dims.maxXLabels)} />
@@ -543,7 +546,8 @@ export default function ReturnsAnalysisPage() {
                     ))}
                   </Bar>
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartContainer>
+              )}
             </div>
             <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
               <motion.div variants={fadeUpItem} className="p-4 bg-ios-green/10 rounded-lg border border-ios-green/20">

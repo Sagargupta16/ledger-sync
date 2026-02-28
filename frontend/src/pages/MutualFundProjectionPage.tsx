@@ -5,7 +5,6 @@ import { TrendingUp, Calculator, Percent, BarChart3 } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import {
-  ResponsiveContainer,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -17,7 +16,8 @@ import {
 import { useState, useMemo, useEffect } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import type { Transaction } from '@/types'
 
 // Hide number input spinners
@@ -893,7 +893,10 @@ export default function MutualFundProjectionPage() {
               </div>
             </div>
             <div className="h-96" style={{ height: '384px' }}>
-              <ResponsiveContainer width="100%" height={384} minWidth={0} minHeight={0}>
+              {chartData.length === 0 ? (
+                <ChartEmptyState height={384} message="No SIP transactions found. Transfer data to a mutual fund account to see projections." />
+              ) : (
+              <ChartContainer height={384}>
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorInvested" x1="0" y1="0" x2="0" y2="1">
@@ -938,7 +941,8 @@ export default function MutualFundProjectionPage() {
                     strokeWidth={2}
                   />
                 </AreaChart>
-              </ResponsiveContainer>
+              </ChartContainer>
+              )}
             </div>
             <ChartStatsFooter
               isLoading={isLoading}

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { rawColors } from '@/constants/colors'
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
-import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { formatCurrencyShort } from '@/lib/formatters'
 
 interface SparklineProps {
@@ -20,7 +19,6 @@ export default function Sparkline({
   height = 48,
   showTooltip = true,
 }: Readonly<SparklineProps>) {
-  const reducedMotion = useReducedMotion()
   const width = 200
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
@@ -55,13 +53,13 @@ export default function Sparkline({
   const progress = useMotionValue(0)
 
   useEffect(() => {
-    if (linePath && !reducedMotion) {
+    if (linePath) {
       progress.set(0)
       const ctrl = animate(progress, 1, { duration: 1, ease: [0.25, 0.46, 0.45, 0.94] })
       return () => ctrl.stop()
     }
     progress.set(1)
-  }, [linePath, reducedMotion, progress])
+  }, [linePath, progress])
 
   const dashOffset = useTransform(progress, [0, 1], [1, 0])
   const areaOpacity = useTransform(progress, [0.3, 1], [0, 0.15])

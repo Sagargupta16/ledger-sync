@@ -3,8 +3,8 @@ import { Store } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
-import { chartTooltipProps } from '@/components/ui'
+import { PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { CHART_COLORS } from '@/constants/chartColors'
 
 interface MerchantData {
@@ -164,7 +164,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pie Chart */}
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+            <ChartContainer>
               <PieChart>
                 <Pie
                   data={pieData}
@@ -187,7 +187,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
                   }}
                 />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
 
           {/* Merchant List */}

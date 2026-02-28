@@ -19,6 +19,7 @@ import {
 import type { TaxSlab, SlabBreakdownEntry } from '@/lib/taxCalculator'
 import type { Transaction } from '@/types'
 import { PageHeader } from '@/components/ui'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import TaxSummaryCards from '@/components/analytics/TaxSummaryCards'
 import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
 import TaxSummaryGrid from '@/components/analytics/TaxSummaryGrid'
@@ -549,6 +550,12 @@ export default function TaxPlanningPage() {
           />
         </motion.div>
 
+        {fyList.length === 0 && !isLoading ? (
+          <motion.div variants={fadeUpItem}>
+            <ChartEmptyState height={300} message="No transaction data available. Upload your data to see tax estimates." />
+          </motion.div>
+        ) : (
+        <>
         <motion.div variants={fadeUpItem}>
           <TaxSummaryCards
             isLoading={isLoading}
@@ -664,6 +671,8 @@ export default function TaxPlanningPage() {
             salaryMonthsCount={salaryMonthsCount}
           />
         </motion.div>
+        )}
+        </>
         )}
       </motion.div>
     </div>

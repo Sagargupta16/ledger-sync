@@ -26,7 +26,6 @@ import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { getCurrentFY, getFYDateRange } from '@/lib/dateUtils'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import {
-  ResponsiveContainer,
   BarChart,
   Bar,
   XAxis,
@@ -36,7 +35,7 @@ import {
   Cell,
   LabelList,
 } from 'recharts'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -456,7 +455,7 @@ export default function BudgetPage() {
               {chartData.length === 0 ? (
                 <ChartEmptyState height={256} />
               ) : (
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <ChartContainer>
                   <BarChart data={chartData} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                     <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(chartData.length, dims.maxXLabels)} angle={dims.angleXLabels ? -20 : 0} textAnchor={dims.angleXLabels ? 'end' : 'middle'} height={50} />
@@ -475,7 +474,7 @@ export default function BudgetPage() {
                       ))}
                     </Bar>
                   </BarChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               )}
             </div>
           </motion.div>

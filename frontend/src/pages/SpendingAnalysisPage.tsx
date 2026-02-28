@@ -7,7 +7,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
-import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip } from 'recharts'
+import { PieChart as RechartsPie, Pie, Cell, Tooltip } from 'recharts'
 import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { filterTransactionsByDateRange, computeCategoryBreakdown } from '@/lib/transactionUtils'
@@ -21,7 +21,7 @@ import {
   RecurringTransactions,
   TopMerchants,
 } from '@/components/analytics'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
 // Color for Savings
@@ -281,7 +281,7 @@ export default function SpendingAnalysisPage() {
               {/* Pie Chart */}
               <div className="flex flex-col items-center">
                 <div className="w-48 h-48">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  <ChartContainer>
                     <RechartsPie>
                       <Pie
                         data={spendingChartData}
@@ -307,7 +307,7 @@ export default function SpendingAnalysisPage() {
                         formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                       />
                     </RechartsPie>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 </div>
                 <div className="flex gap-6 mt-4">
                   {spendingChartData.map((item, i) => (

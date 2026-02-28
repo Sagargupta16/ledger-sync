@@ -18,8 +18,8 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, type AnalyticsViewMode } from '@/lib/dateUtils'
@@ -610,10 +610,10 @@ export default function YearInReviewPage() {
         >
           <h2 className="text-lg font-semibold mb-4">Monthly Breakdown</h2>
           <div className="h-64">
-            {monthlyBarData.length === 0 ? (
+            {monthlyBarData.every(d => d.Spending === 0 && d.Earning === 0) ? (
               <ChartEmptyState height={256} />
             ) : (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <ChartContainer>
                 <BarChart data={monthlyBarData} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyBarData.length, dims.maxXLabels)} />
@@ -629,7 +629,7 @@ export default function YearInReviewPage() {
                     {dims.showBarLabels && <LabelList dataKey="Earning" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             )}
           </div>
         </motion.div >

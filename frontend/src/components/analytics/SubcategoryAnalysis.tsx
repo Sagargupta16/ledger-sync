@@ -2,11 +2,11 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { CHART_COLORS, CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
 import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
-import { chartTooltipProps } from '@/components/ui'
+import { chartTooltipProps, ChartContainer } from '@/components/ui'
 
 const COLORS = CHART_COLORS
 const COLOR_STYLES = COLORS.map(c => ({ backgroundColor: c }))
@@ -166,6 +166,9 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
       transition={{ delay: 0.7 }}
     >
       <h3 className="text-lg font-semibold text-white mb-4">Category Breakdown</h3>
+      {categoryData.length === 0 ? (
+        <div className="text-center text-muted-foreground py-8">No category data available for the selected period</div>
+      ) : (
       <div className="space-y-2">
         {categoryData.map((item, index) => (
           <div key={item.category}>
@@ -335,7 +338,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                     {subcategoryDetails.trendData.length > 0 && (
                       <div>
                         <h4 className="text-sm font-semibold text-foreground mb-2">Monthly Trend</h4>
-                        <ResponsiveContainer width="100%" height={200} minWidth={0} minHeight={0}>
+                        <ChartContainer height={200}>
                           <LineChart data={subcategoryDetails.trendData}>
                             <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
                             <XAxis
@@ -364,7 +367,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                               />
                             ))}
                           </LineChart>
-                        </ResponsiveContainer>
+                        </ChartContainer>
                       </div>
                     )}
                   </div>
@@ -374,6 +377,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
           </div>
         ))}
       </div>
+      )}
     </motion.div>
   )
 }

@@ -2,13 +2,13 @@ import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
 import { ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react'
 import { useMemo } from 'react'
-import { ResponsiveContainer, Sankey, Tooltip } from 'recharts'
+import { Sankey, Tooltip } from 'recharts'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getDateKey } from '@/lib/dateUtils'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
-import { PageHeader } from '@/components/ui'
+import { PageHeader, ChartContainer } from '@/components/ui'
 
 interface SankeyNodeRendererProps {
   readonly x: number
@@ -375,7 +375,7 @@ const IncomeExpenseFlowPage = () => {
         {!isLoading && sankeyData.nodes.length > 0 && (
           <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6 overflow-x-auto">
             <div style={{ minWidth: "min(1000px, 90vw)", height: '700px', position: 'relative' }}>
-              <ResponsiveContainer width="100%" height={globalThis.window !== undefined && globalThis.window.innerWidth < 768 ? 400 : 700} minWidth={0} minHeight={0}>
+              <ChartContainer height={globalThis.window !== undefined && globalThis.window.innerWidth < 768 ? 400 : 700}>
                 <Sankey
                   data={sankeyData as { nodes: Array<{ name: string }>; links: Array<{ source: number; target: number; value: number }> }}
                   nodeWidth={20}
@@ -426,7 +426,7 @@ const IncomeExpenseFlowPage = () => {
                     ]}
                   />
                 </Sankey>
-              </ResponsiveContainer>
+              </ChartContainer>
             </div>
 
             {/* Legend */}
