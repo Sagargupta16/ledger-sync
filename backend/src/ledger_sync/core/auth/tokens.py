@@ -1,12 +1,13 @@
 """JWT token utilities.
 
 Provides functions for creating, decoding, and verifying JWT tokens.
+Uses PyJWT (actively maintained, no vulnerable ecdsa dependency).
 """
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from jose import JWTError, jwt  # type: ignore[import-untyped]
+import jwt
 
 from ledger_sync.config.settings import settings
 from ledger_sync.schemas.auth import Token, TokenData, TokenPayload
@@ -30,7 +31,7 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
         expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
 
     to_encode.update({"exp": expire, "type": "access"})
-    return str(jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm))
+    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
 def create_refresh_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
@@ -51,7 +52,7 @@ def create_refresh_token(data: dict[str, Any], expires_delta: timedelta | None =
         expire = datetime.now(UTC) + timedelta(days=settings.jwt_refresh_token_expire_days)
 
     to_encode.update({"exp": expire, "type": "refresh"})
-    return str(jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm))
+    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
 def create_tokens(user_id: int, email: str) -> Token:
@@ -82,14 +83,16 @@ def decode_token(token: str) -> TokenPayload | None:
 
     """
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        payload: dict[str, Any] = jwt.decode(
+            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+        )
         return TokenPayload(
-            sub=payload.get("sub"),
-            email=payload.get("email"),
-            exp=datetime.fromtimestamp(payload.get("exp"), tz=UTC),
+            sub=payload.get("sub", ""),
+            email=payload.get("email", ""),
+            exp=datetime.fromtimestamp(payload.get("exp", 0), tz=UTC),
             type=payload.get("type", "access"),
         )
-    except JWTError:
+    except jwt.PyJWTError:
         return None
 
 
