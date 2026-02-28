@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: ledger-sync-api
+    runtime: python
+    region: singapore
+    rootDir: backend
+    buildCommand: pip install poetry && poetry install --no-root --only main && poetry install
+    startCommand: poetry run uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: POETRY_VIRTUALENVS_CREATE
+        value: "false"
+      - key: LEDGER_SYNC_ENVIRONMENT
+        value: production
+      - key: LEDGER_SYNC_DATABASE_URL
+        sync: false  # Set manually in Render dashboard (Neon connection string)
+      - key: LEDGER_SYNC_JWT_SECRET_KEY
+        generateValue: true  # Render auto-generates a random secret
+      - key: LEDGER_SYNC_CORS_ORIGINS
+        value: '["https://sagargupta16.github.io", "https://sagargupta.online", "https://www.sagargupta.online", "http://localhost:5173"]'
+    healthCheckPath: /health

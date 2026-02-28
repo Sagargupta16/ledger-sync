@@ -52,11 +52,15 @@ class Settings(BaseSettings):
     # Upload limits
     max_upload_size_bytes: int = MAX_UPLOAD_SIZE_BYTES
 
-    # CORS settings
+    # CORS settings — includes localhost for dev and GitHub Pages for production.
+    # Override with LEDGER_SYNC_CORS_ORIGINS env var (JSON array) for custom domains.
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:5174",
+        "https://sagargupta16.github.io",
+        "https://sagargupta.online",
+        "https://www.sagargupta.online",
     ]
 
     # Column name mappings (for normalization)
