@@ -1,7 +1,7 @@
 """Metadata API endpoints for dropdowns and filters."""
 
 from fastapi import APIRouter
-from sqlalchemy import union_all
+from sqlalchemy import select, union_all
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import Transaction, TransactionType
@@ -23,27 +23,19 @@ def get_accounts(
     db: DatabaseSession,
 ) -> dict[str, list[str]]:
     """Return unique accounts from transactions (including transfers)."""
-    q1 = (
-        db.query(Transaction.account.label("acct"))
-        .filter(Transaction.user_id == current_user.id, Transaction.is_deleted.is_(False))
-        .distinct()
+    base_filter = (
+        Transaction.user_id == current_user.id,
+        Transaction.is_deleted.is_(False),
     )
+    q1 = select(Transaction.account.label("acct")).filter(*base_filter).distinct()
     q2 = (
-        db.query(Transaction.from_account.label("acct"))
-        .filter(
-            Transaction.user_id == current_user.id,
-            Transaction.is_deleted.is_(False),
-            Transaction.from_account.isnot(None),
-        )
+        select(Transaction.from_account.label("acct"))
+        .filter(*base_filter, Transaction.from_account.isnot(None))
         .distinct()
     )
     q3 = (
-        db.query(Transaction.to_account.label("acct"))
-        .filter(
-            Transaction.user_id == current_user.id,
-            Transaction.is_deleted.is_(False),
-            Transaction.to_account.isnot(None),
-        )
+        select(Transaction.to_account.label("acct"))
+        .filter(*base_filter, Transaction.to_account.isnot(None))
         .distinct()
     )
 

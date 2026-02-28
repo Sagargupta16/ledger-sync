@@ -20,7 +20,7 @@ class InsightEngine:
             List of insight dictionaries with title, description, severity
 
         """
-        insights = []
+        insights: list[dict[str, str]] = []
 
         # Spending insights
         insights.extend(InsightEngine._spending_insights(transactions))
@@ -39,7 +39,7 @@ class InsightEngine:
     @staticmethod
     def _spending_insights(transactions: list[Transaction]) -> list[dict[str, str]]:
         """Generate spending-related insights."""
-        insights = []
+        insights: list[dict[str, str]] = []
         expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
 
         if not expenses:
@@ -95,7 +95,7 @@ class InsightEngine:
     @staticmethod
     def _category_insights(transactions: list[Transaction]) -> list[dict[str, str]]:
         """Generate category-related insights."""
-        insights = []
+        insights: list[dict[str, str]] = []
         expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
 
         if not expenses:
@@ -138,7 +138,7 @@ class InsightEngine:
     @staticmethod
     def _temporal_insights(transactions: list[Transaction]) -> list[dict[str, str]]:
         """Generate time-based insights."""
-        insights = []
+        insights: list[dict[str, str]] = []
 
         if not transactions:
             return insights
@@ -197,7 +197,7 @@ class InsightEngine:
     @staticmethod
     def _behavioral_insights(transactions: list[Transaction]) -> list[dict[str, str]]:
         """Generate behavioral pattern insights."""
-        insights = []
+        insights: list[dict[str, str]] = []
         expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
 
         if not expenses:

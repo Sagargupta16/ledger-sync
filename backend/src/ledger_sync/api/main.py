@@ -1,13 +1,16 @@
 """FastAPI application for ledger-sync web interface."""
 
+import secrets
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import OperationalError
 
 from ledger_sync.api.account_classifications import (
@@ -27,19 +30,42 @@ from ledger_sync.db.session import get_engine, init_db
 from ledger_sync.schemas.transactions import HealthResponse
 from ledger_sync.utils.logging import logger, setup_logging
 
+_MiddlewareCallNext = Callable[[Request], Awaitable[Response]]
+
 APP_VERSION = "1.0.0"
 
 # Initialize logging
 setup_logging("INFO")
 
 
+def _cleanup_stale_temp_files() -> None:
+    """Remove stale upload temp files older than 1 hour on startup."""
+    import tempfile
+    from pathlib import Path
+
+    temp_dir = Path(tempfile.gettempdir())
+    cutoff = time.time() - 3600  # 1 hour ago
+    cleaned = 0
+    for pattern in ("*.xlsx", "*.xls", "*.csv"):
+        for f in temp_dir.glob(pattern):
+            try:
+                if f.stat().st_mtime < cutoff:
+                    f.unlink()
+                    cleaned += 1
+            except OSError:
+                pass
+    if cleaned:
+        logger.info("Cleaned up %d stale temp files", cleaned)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan: initialize database on startup."""
+    """Application lifespan: initialize database and clean temp files on startup."""
     try:
         logger.info("Initializing database...")
         init_db()
         logger.info("Database initialized successfully")
+        _cleanup_stale_temp_files()
     except Exception as exc:
         logger.error("Database initialization failed: %s", exc)
         raise
@@ -52,6 +78,11 @@ app = FastAPI(
     version=APP_VERSION,
     lifespan=lifespan,
 )
+
+# ─── Rate Limiting ───────────────────────────────────────────────────────────
+
+# Register slowapi rate-limit exceeded handler (returns 429 Too Many Requests)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 # ─── Middleware (order matters: last added = first executed) ──────────────────
 
@@ -66,6 +97,38 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+
+# ─── Security Headers Middleware ─────────────────────────────────────────────
+
+
+@app.middleware("http")
+async def add_security_headers(
+    request: Request,
+    call_next: _MiddlewareCallNext,
+) -> Response:
+    """Add security headers to all responses (OWASP best practices)."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    if settings.environment == "production":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains; preload"
+        )
+    return response
 
 
 # ─── Global Exception Handlers ──────────────────────────────────────────────
@@ -83,38 +146,45 @@ async def database_error_handler(_request: Request, exc: OperationalError) -> JS
 
 @app.exception_handler(Exception)
 async def generic_error_handler(_request: Request, exc: Exception) -> JSONResponse:
-    """Catch-all handler — no raw tracebacks in responses."""
-    logger.error("Unhandled exception: %s: %s", type(exc).__name__, exc)
+    """Catch-all handler — no raw tracebacks in responses.
+
+    Returns a unique error_id for log correlation instead of leaking
+    internal details.
+    """
+    error_id = secrets.token_hex(8)
+    logger.error("Unhandled exception [%s]: %s: %s", error_id, type(exc).__name__, exc)
     return JSONResponse(
         status_code=500,
         content={
             "error": "Internal server error",
             "code": "INTERNAL_ERROR",
-            "detail": str(exc) if settings.environment == "development" else None,
+            "error_id": error_id,
         },
     )
 
 
 # ─── Cache-Control Middleware ────────────────────────────────────────────────
 
-# Analytics data only changes on upload — cache aggressively
-_CACHEABLE_PREFIXES = (
-    "/api/analytics",
-    "/api/calculations",
-    "/preferences",
-)
-
 
 @app.middleware("http")
-async def add_cache_headers(request: Request, call_next):
-    """Add Cache-Control headers to cacheable GET endpoints."""
+async def add_cache_headers(
+    request: Request,
+    call_next: _MiddlewareCallNext,
+) -> Response:
+    """Prevent browser HTTP cache from serving stale API data.
+
+    TanStack Query handles caching client-side. If the browser also caches
+    HTTP responses, a queryClient.clear() + refetch will still receive the
+    old cached response from the browser, causing charts to show stale data
+    after upload until the browser cache expires.
+    """
     response = await call_next(request)
 
     if request.method == "GET":
         path = request.url.path
-        if any(path.startswith(p) for p in _CACHEABLE_PREFIXES):
-            # Cache for 5 minutes — TanStack Query's staleTime handles revalidation
-            response.headers["Cache-Control"] = "private, max-age=300"
+        if path.startswith("/api/"):
+            # API data: no browser cache — TanStack Query manages freshness
+            response.headers["Cache-Control"] = "no-store"
         elif path == "/health":
             response.headers["Cache-Control"] = "no-cache"
 
@@ -125,7 +195,10 @@ async def add_cache_headers(request: Request, call_next):
 
 
 @app.middleware("http")
-async def add_timing_header(request: Request, call_next):
+async def add_timing_header(
+    request: Request,
+    call_next: _MiddlewareCallNext,
+) -> Response:
     """Add X-Response-Time header for performance monitoring."""
     start = time.perf_counter()
     response = await call_next(request)
@@ -158,7 +231,7 @@ async def health() -> HealthResponse:
 
 
 @app.get("/health/db", response_model=None)
-async def health_db() -> dict | JSONResponse:
+async def health_db() -> dict[str, str] | JSONResponse:
     """Database connectivity check."""
     from sqlalchemy import text
 
@@ -168,9 +241,10 @@ async def health_db() -> dict | JSONResponse:
             conn.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
     except Exception as e:
+        logger.error("Database health check failed: %s", e)
         return JSONResponse(
             status_code=503,
-            content={"status": "error", "database": str(e)},
+            content={"status": "error", "database": "unavailable"},
         )
 
 

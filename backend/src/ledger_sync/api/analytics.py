@@ -6,6 +6,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
 from sqlalchemy import case, func
+from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
@@ -99,14 +100,14 @@ def get_filtered_transactions(
 ) -> list[Transaction]:
     """Get non-deleted transactions filtered by time range at the DB level."""
     start_date, end_date = _get_time_range_dates(db, user, time_range)
-    return build_transaction_query(db, user, start_date, end_date).all()
+    return list(build_transaction_query(db, user, start_date, end_date).all())
 
 
 def _build_base_query(
     db: Session,
     user: User,
     time_range: TimeRange,
-) -> "Query":
+) -> SAQuery[Transaction]:
     """Build a filtered base query for the given user and time range.
 
     Returns a SQLAlchemy query on the Transaction table with user_id,
@@ -298,10 +299,10 @@ def get_overview(
     account_activity = _get_sql_account_totals(db, current_user, time_range)
 
     # Format asset allocation
-    asset_allocation = [
+    asset_allocation: list[dict[str, Any]] = [
         {"account": account, "balance": activity} for account, activity in account_activity.items()
     ]
-    asset_allocation.sort(key=lambda x: x["balance"], reverse=True)
+    asset_allocation.sort(key=lambda x: float(x["balance"]), reverse=True)
 
     return {
         "total_income": totals["total_income"],
@@ -361,12 +362,12 @@ def get_behavior(
     spending_frequency = len(expenses) / months_span if months_span > 0 else 0
 
     # Top spending categories
-    top_categories = [
+    top_categories: list[dict[str, Any]] = [
         {"category": cat, "amount": amt}
         for cat, amt in category_totals.items()
         if cat  # Only include expense categories
     ]
-    top_categories.sort(key=lambda x: x["amount"], reverse=True)
+    top_categories.sort(key=lambda x: float(x["amount"]), reverse=True)
 
     return {
         "avg_transaction_size": avg_transaction_size,

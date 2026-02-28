@@ -173,7 +173,7 @@ export default function IncomeAnalysisPage() {
           {incomeTypeChartData.length > 0 ? (
             <div className="flex flex-col lg:flex-row items-center gap-4 md:gap-6 lg:gap-8">
               <div className="w-64 h-64">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <PieChart>
                     <Pie
                       data={incomeTypeChartData}
@@ -263,7 +263,7 @@ export default function IncomeAnalysisPage() {
               </div>
             )}
             {!isLoading && monthlyTrendData.length > 0 && (
-              <ResponsiveContainer width="100%" height={dims.chartHeight}>
+              <ResponsiveContainer width="100%" height={dims.chartHeight} minWidth={0} minHeight={0}>
                 <AreaChart data={monthlyTrendData} margin={dims.margin}>
                   <defs>
                     <linearGradient id="incomeTrendGradient" x1="0" y1="0" x2="0" y2="1">

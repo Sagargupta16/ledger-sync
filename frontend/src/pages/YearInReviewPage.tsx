@@ -613,7 +613,7 @@ export default function YearInReviewPage() {
             {monthlyBarData.length === 0 ? (
               <ChartEmptyState height={256} />
             ) : (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={monthlyBarData} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyBarData.length, dims.maxXLabels)} />

@@ -116,7 +116,7 @@ def get_transactions(
     end_date: datetime | None = None,
 ) -> list[Transaction]:
     """Get non-deleted transactions for a user, optionally filtered by date range."""
-    return build_transaction_query(db, user, start_date, end_date).all()
+    return list(build_transaction_query(db, user, start_date, end_date).all())
 
 
 @router.get("/totals")

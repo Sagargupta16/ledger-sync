@@ -485,7 +485,7 @@ export default function NetWorthPage() {
             if (filteredNetWorthData.length > 0) {
               const formattedValue = (value: number | undefined) => value === undefined ? '' : formatCurrency(value)
               return (
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={320} minWidth={0} minHeight={0}>
                   <AreaChart data={filteredNetWorthData}>
                     <defs>
                       <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
@@ -582,7 +582,7 @@ export default function NetWorthPage() {
             {monthlyChanges.length === 0 ? (
               <ChartEmptyState height={280} />
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={0}>
                 <BarChart data={monthlyChanges}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="month" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyChanges.length, dims.maxXLabels)} />

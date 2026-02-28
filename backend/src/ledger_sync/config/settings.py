@@ -1,5 +1,6 @@
 """Application settings and configuration."""
 
+import secrets
 import warnings
 from pathlib import Path
 
@@ -10,6 +11,9 @@ _DEV_JWT_SECRET = "dev-only-secret-change-in-production-abc123"
 
 # Maximum upload file size (50 MB)
 MAX_UPLOAD_SIZE_BYTES: int = 50 * 1024 * 1024
+
+# Minimum password length (OWASP/NIST recommendation for financial apps)
+MIN_PASSWORD_LENGTH: int = 12
 
 
 class Settings(BaseSettings):
@@ -44,7 +48,7 @@ class Settings(BaseSettings):
 
     # JWT Authentication settings
     # SECURITY: Set LEDGER_SYNC_JWT_SECRET_KEY in production!
-    jwt_secret_key: str = _DEV_JWT_SECRET
+    jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30  # 30 minutes (industry standard)
     jwt_refresh_token_expire_days: int = 7
@@ -52,15 +56,12 @@ class Settings(BaseSettings):
     # Upload limits
     max_upload_size_bytes: int = MAX_UPLOAD_SIZE_BYTES
 
-    # CORS settings — includes localhost for dev and GitHub Pages for production.
-    # Override with LEDGER_SYNC_CORS_ORIGINS env var (JSON array) for custom domains.
+    # CORS settings — override with LEDGER_SYNC_CORS_ORIGINS env var (JSON array).
+    # Defaults include localhost origins for development only.
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:5174",
-        "https://sagargupta16.github.io",
-        "https://sagargupta.online",
-        "https://www.sagargupta.online",
     ]
 
     # Column name mappings (for normalization)
@@ -92,24 +93,28 @@ class Settings(BaseSettings):
         """
         issues: list[str] = []
 
-        # JWT secret must be changed from default in ANY non-development environment
-        if self.jwt_secret_key == _DEV_JWT_SECRET:
+        # JWT secret must be explicitly configured in ANY non-development environment
+        if not self.jwt_secret_key or self.jwt_secret_key == _DEV_JWT_SECRET:
             if self.environment != "development":
                 issues.append(
-                    "CRITICAL: jwt_secret_key is using development default. "
+                    "CRITICAL: jwt_secret_key is not configured. "
                     "Set LEDGER_SYNC_JWT_SECRET_KEY environment variable!"
                 )
 
         # JWT secret should be sufficiently long
-        if self.jwt_secret_key != _DEV_JWT_SECRET and len(self.jwt_secret_key) < 32:
-            issues.append("WARNING: jwt_secret_key should be at least 32 characters")
+        if (
+            self.jwt_secret_key
+            and self.jwt_secret_key != _DEV_JWT_SECRET
+            and len(self.jwt_secret_key) < 32
+        ):
+            issues.append("CRITICAL: jwt_secret_key must be at least 32 characters")
 
-        if self.environment == "production":
-            # SQLite not recommended for production
+        if self.environment in ("staging", "production"):
+            # SQLite not suitable for multi-user production
             if self.database_url.startswith("sqlite"):
                 issues.append(
-                    "WARNING: SQLite is not recommended for production. "
-                    "Consider PostgreSQL or MySQL."
+                    "CRITICAL: SQLite is not suitable for production. "
+                    "Use PostgreSQL: set LEDGER_SYNC_DATABASE_URL."
                 )
 
         return issues
@@ -119,9 +124,9 @@ class Settings(BaseSettings):
 
         Called during startup to alert developers.
         """
-        if self.jwt_secret_key == _DEV_JWT_SECRET:
+        if not self.jwt_secret_key or self.jwt_secret_key == _DEV_JWT_SECRET:
             warnings.warn(
-                "Using development JWT secret! Set LEDGER_SYNC_JWT_SECRET_KEY "
+                "Using auto-generated JWT secret! Set LEDGER_SYNC_JWT_SECRET_KEY "
                 "environment variable for production.",
                 UserWarning,
                 stacklevel=2,
@@ -131,10 +136,16 @@ class Settings(BaseSettings):
 # Global settings instance
 settings = Settings()
 
+# In development, auto-generate a random secret if none configured
+if settings.environment == "development" and (
+    not settings.jwt_secret_key or settings.jwt_secret_key == _DEV_JWT_SECRET
+):
+    settings.jwt_secret_key = secrets.token_urlsafe(64)
+
 # Validate settings on import for any non-development environment
 if settings.environment != "development":
-    issues = settings.validate_production_settings()
-    for issue in issues:
-        if issue.startswith("CRITICAL"):
-            raise RuntimeError(issue)
-        warnings.warn(issue, UserWarning, stacklevel=1)
+    _issues = settings.validate_production_settings()
+    for _issue in _issues:
+        if _issue.startswith("CRITICAL"):
+            raise RuntimeError(_issue)
+        warnings.warn(_issue, UserWarning, stacklevel=1)

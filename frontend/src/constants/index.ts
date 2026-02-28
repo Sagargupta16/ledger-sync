@@ -48,9 +48,9 @@ export const ROUTES = {
 const _apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
 
 if (!_apiBaseUrl && !import.meta.env.DEV) {
-  console.warn(
-    '[ledger-sync] VITE_API_BASE_URL is not set. Falling back to http://localhost:8000. ' +
-    'This is expected in development but should be configured in production.'
+  throw new Error(
+    '[ledger-sync] VITE_API_BASE_URL is not set. ' +
+    'This environment variable is required in production builds.'
   )
 }
 

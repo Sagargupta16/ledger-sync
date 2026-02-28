@@ -421,7 +421,7 @@ export default function ReturnsAnalysisPage() {
           {cumulativeReturnsData.length === 0 ? (
             <ChartEmptyState height={320} />
           ) : (
-            <ResponsiveContainer width="100%" height={dims.chartHeight}>
+            <ResponsiveContainer width="100%" height={dims.chartHeight} minWidth={0} minHeight={0}>
               <AreaChart data={cumulativeReturnsData} margin={dims.margin}>
                 <defs>
                   <linearGradient id="positiveGradient" x1="0" y1="0" x2="0" y2="1">
@@ -519,7 +519,7 @@ export default function ReturnsAnalysisPage() {
             <h3 className="text-lg font-semibold text-white mb-6">Profit & Loss Breakdown</h3>
             {/* Waterfall Chart */}
             <div className="mb-6">
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={0}>
                 <BarChart data={waterfallData} barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(waterfallData.length, dims.maxXLabels)} />

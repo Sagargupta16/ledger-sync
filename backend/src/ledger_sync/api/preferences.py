@@ -283,7 +283,7 @@ class UserPreferencesUpdate(BaseModel):
 # ----- Helper Functions -----
 
 
-def _parse_json_field(value: str | list | dict, default: Any = None) -> Any:
+def _parse_json_field(value: str | list[Any] | dict[str, Any], default: Any = None) -> Any:
     """Parse JSON field if it's a string."""
     if default is None:
         default = []

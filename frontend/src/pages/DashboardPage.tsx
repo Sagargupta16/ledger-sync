@@ -262,7 +262,7 @@ export default function DashboardPage() {
           {incomeChartData.length > 0 ? (
             <div className="space-y-4">
               <div className="h-10">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <BarChart layout="vertical" data={incomeBarData} barSize={32}>
                     <XAxis type="number" hide />
                     <YAxis type="category" dataKey="name" hide />
@@ -340,7 +340,7 @@ export default function DashboardPage() {
           {spendingChartData.length > 0 ? (
             <div className="space-y-4">
               <div className="h-10">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <BarChart layout="vertical" data={spendingBarData} barSize={32}>
                     <XAxis type="number" hide />
                     <YAxis type="category" dataKey="name" hide />

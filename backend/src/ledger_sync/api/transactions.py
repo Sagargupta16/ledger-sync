@@ -8,7 +8,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
-from sqlalchemy import or_
+from sqlalchemy import literal, or_
 from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,8 @@ from ledger_sync.schemas.transactions import (
     TransactionResponse,
     TransactionsListResponse,
 )
+
+_TxQuery = SAQuery[Transaction]
 
 # Query description constants
 START_DATE_DESC = "Start date (inclusive)"
@@ -52,7 +54,10 @@ class SearchFilters(BaseModel):
     end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None
 
 
-def _apply_search_filters(tx_query: SAQuery, filters: SearchFilters) -> SAQuery:
+def _apply_search_filters(
+    tx_query: _TxQuery,
+    filters: SearchFilters,
+) -> _TxQuery:
     """Apply all search filters from a SearchFilters instance to a SQLAlchemy query.
 
     Handles date range, amount range, category, subcategory, account,
@@ -71,7 +76,10 @@ def _apply_search_filters(tx_query: SAQuery, filters: SearchFilters) -> SAQuery:
     return tx_query
 
 
-def _apply_date_and_amount_filters(tx_query: SAQuery, filters: SearchFilters) -> SAQuery:
+def _apply_date_and_amount_filters(
+    tx_query: _TxQuery,
+    filters: SearchFilters,
+) -> _TxQuery:
     """Apply date range and amount range filters."""
     if filters.start_date:
         tx_query = tx_query.filter(Transaction.date >= filters.start_date)
@@ -84,7 +92,10 @@ def _apply_date_and_amount_filters(tx_query: SAQuery, filters: SearchFilters) ->
     return tx_query
 
 
-def _apply_field_filters(tx_query: SAQuery, filters: SearchFilters) -> SAQuery:
+def _apply_field_filters(
+    tx_query: _TxQuery,
+    filters: SearchFilters,
+) -> _TxQuery:
     """Apply category, subcategory, account, type, and text search filters."""
     if filters.category:
         tx_query = tx_query.filter(Transaction.category == filters.category)
@@ -101,7 +112,7 @@ def _apply_field_filters(tx_query: SAQuery, filters: SearchFilters) -> SAQuery:
         if tx_type is not None:
             tx_query = tx_query.filter(Transaction.type == tx_type)
         else:
-            tx_query = tx_query.filter(False)  # Invalid type returns empty
+            tx_query = tx_query.filter(literal(False))  # Invalid type returns empty
     if filters.query:
         search_term = f"%{filters.query}%"
         tx_query = tx_query.filter(
@@ -115,7 +126,11 @@ def _apply_field_filters(tx_query: SAQuery, filters: SearchFilters) -> SAQuery:
     return tx_query
 
 
-def _apply_sorting(tx_query: SAQuery, sort_by: str, sort_order: str) -> SAQuery:
+def _apply_sorting(
+    tx_query: _TxQuery,
+    sort_by: str,
+    sort_order: str,
+) -> _TxQuery:
     """Apply column sorting to a SQLAlchemy query.
 
     Args:
@@ -159,7 +174,7 @@ def _to_transaction_response(tx: Transaction) -> TransactionResponse:
     )
 
 
-def _base_transaction_query(db: Session, user_id: int) -> SAQuery:
+def _base_transaction_query(db: Session, user_id: int) -> SAQuery[Transaction]:
     """Create base query for non-deleted transactions filtered by user."""
     return db.query(Transaction).filter(
         Transaction.user_id == user_id,
@@ -168,11 +183,11 @@ def _base_transaction_query(db: Session, user_id: int) -> SAQuery:
 
 
 def _apply_date_range(
-    query: SAQuery,
+    query: SAQuery[Transaction],
     start_date: datetime | None,
     end_date: datetime | None,
     user: User | None = None,
-) -> SAQuery:
+) -> SAQuery[Transaction]:
     """Apply date range filters (converting datetime to date).
 
     When *user* is provided, clamps start_date to the earning start date preference.
@@ -312,7 +327,7 @@ async def export_transactions(
     db: DatabaseSession,
     start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None,
     end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
-):
+) -> Response:
     """Export all non-deleted transactions as CSV for the current user."""
     query = _base_transaction_query(db, current_user.id)
     query = _apply_date_range(query, start_date, end_date, user=current_user)

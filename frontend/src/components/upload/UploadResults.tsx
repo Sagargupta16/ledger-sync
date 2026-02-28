@@ -1,5 +1,5 @@
 import type { UploadStats } from '@/types'
-import { CheckCircle, AlertCircle, Trash2, Clock } from 'lucide-react'
+import { CheckCircle, AlertCircle, Trash2, Copy, Clock } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 interface UploadResultsProps {
@@ -59,8 +59,8 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
           bgColor="bg-ios-red/20"
         />
         <StatCard
-          icon={Clock}
-          label="Unchanged"
+          icon={Copy}
+          label="Skipped (Dupes)"
           value={stats.unchanged || 0}
           color="text-text-tertiary"
           bgColor="bg-muted-foreground/20"

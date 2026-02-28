@@ -335,7 +335,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                     {subcategoryDetails.trendData.length > 0 && (
                       <div>
                         <h4 className="text-sm font-semibold text-foreground mb-2">Monthly Trend</h4>
-                        <ResponsiveContainer width="100%" height={200}>
+                        <ResponsiveContainer width="100%" height={200} minWidth={0} minHeight={0}>
                           <LineChart data={subcategoryDetails.trendData}>
                             <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
                             <XAxis

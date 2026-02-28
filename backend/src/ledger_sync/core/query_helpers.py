@@ -8,7 +8,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import String, case, cast, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Query, Session
+from sqlalchemy.sql.selectable import Subquery
 
 from ledger_sync.config.settings import settings
 from ledger_sync.db.models import Transaction, TransactionType, User
@@ -88,7 +89,7 @@ def apply_earning_start_date(
 # ---------------------------------------------------------------------------
 
 
-def income_sum_col(subquery, *, label: str = "total_income"):
+def income_sum_col(subquery: Subquery, *, label: str = "total_income") -> Any:
     """Return a ``coalesce(sum(case(...)))`` column for INCOME rows.
 
     Works with both ``subquery.c`` (aliased sub-select) and model
@@ -113,7 +114,7 @@ def income_sum_col(subquery, *, label: str = "total_income"):
     ).label(label)
 
 
-def expense_sum_col(subquery, *, label: str = "total_expenses"):
+def expense_sum_col(subquery: Subquery, *, label: str = "total_expenses") -> Any:
     """Return a ``coalesce(sum(case(...)))`` column for EXPENSE rows.
 
     Parameters
@@ -149,7 +150,7 @@ def build_transaction_query(
     end_date: datetime | None = None,
     *,
     apply_earning_start: bool = True,
-):
+) -> Query[Transaction]:
     """Build a filtered ``Transaction`` query for *user*.
 
     Applies:

@@ -456,7 +456,7 @@ export default function BudgetPage() {
               {chartData.length === 0 ? (
                 <ChartEmptyState height={256} />
               ) : (
-                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <BarChart data={chartData} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                     <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(chartData.length, dims.maxXLabels)} angle={dims.angleXLabels ? -20 : 0} textAnchor={dims.angleXLabels ? 'end' : 'middle'} height={50} />

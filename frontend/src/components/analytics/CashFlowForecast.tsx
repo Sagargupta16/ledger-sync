@@ -166,7 +166,7 @@ export default function CashFlowForecast() {
 
       {/* Chart */}
       <div className="h-64 mb-6">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <AreaChart data={forecastData.combined}>
             <defs>
               <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">

@@ -12,7 +12,7 @@ import re
 import unicodedata
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import pandas as pd
 
@@ -103,13 +103,13 @@ class DataNormalizer:
 
         # Optionally shorten very long URLs to just domain
         # (keeps the info but reduces noise)
-        def shorten_url(match: re.Match) -> str:
+        def shorten_url(match: re.Match[str]) -> str:
             url = match.group(0)
             # Extract domain from URL
             domain_match = re.search(r"(?:https?://)?(?:www\.)?([^/\s]+)", url)
             if domain_match:
-                return f"[{domain_match.group(1)}]"
-            return url
+                return str(f"[{domain_match.group(1)}]")
+            return str(url)
 
         return self.URL_PATTERN.sub(shorten_url, note)
 
@@ -193,7 +193,10 @@ class DataNormalizer:
             return value
 
         try:
-            return pd.to_datetime(value)
+            result = pd.to_datetime(value)
+            if isinstance(result, pd.Timestamp):
+                return result.to_pydatetime()
+            return datetime(result.year, result.month, result.day)
         except (ValueError, TypeError) as e:
             msg = f"Cannot parse date '{value}': {e}"
             raise NormalizationError(msg) from e
@@ -487,7 +490,8 @@ class DataNormalizer:
                 normalized = self.normalize_row(row, column_mapping)
                 normalized_rows.append(normalized)
             except NormalizationError as e:
-                error_msg = f"Row {idx + 2}: {e}"  # +2 for Excel row number (1-indexed + header)
+                # +2 for Excel row number (1-indexed + header)
+                error_msg = f"Row {cast(int, idx) + 2}: {e}"
                 errors.append(error_msg)
                 logger.warning(error_msg)
 

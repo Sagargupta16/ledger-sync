@@ -32,6 +32,8 @@ jobs:
           restore-keys: poetry-${{ runner.os }}-
       - name: Install dependencies
         run: poetry install --with dev
+      - name: Dependency audit
+        run: poetry run pip audit
       - name: Lint
         run: poetry run ruff check .
       - name: Type check
@@ -63,9 +65,12 @@ jobs:
           restore-keys: pnpm-${{ runner.os }}-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Dependency audit
+        run: pnpm audit --prod
+        continue-on-error: true
       - name: Type check
         run: pnpm run type-check
       - name: Lint
         run: pnpm run lint
       - name: Build
-        run: pnpm run build
+        run: VITE_API_BASE_URL=https://placeholder.example.com pnpm run build

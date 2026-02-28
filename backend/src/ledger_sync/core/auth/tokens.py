@@ -6,7 +6,7 @@ Provides functions for creating, decoding, and verifying JWT tokens.
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from jose import JWTError, jwt
+from jose import JWTError, jwt  # type: ignore[import-untyped]
 
 from ledger_sync.config.settings import settings
 from ledger_sync.schemas.auth import Token, TokenData, TokenPayload
@@ -30,7 +30,7 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
         expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
 
     to_encode.update({"exp": expire, "type": "access"})
-    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return str(jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm))
 
 
 def create_refresh_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
@@ -51,7 +51,7 @@ def create_refresh_token(data: dict[str, Any], expires_delta: timedelta | None =
         expire = datetime.now(UTC) + timedelta(days=settings.jwt_refresh_token_expire_days)
 
     to_encode.update({"exp": expire, "type": "refresh"})
-    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return str(jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm))
 
 
 def create_tokens(user_id: int, email: str) -> Token:

@@ -26,10 +26,10 @@ interface SankeyNodeRendererProps {
 }
 
 const SankeyNodeRenderer = ({
-  x,
-  y,
-  width,
-  height,
+  x: rawX,
+  y: rawY,
+  width: rawWidth,
+  height: rawHeight,
   index,
   payload,
   nodeValues,
@@ -39,6 +39,12 @@ const SankeyNodeRenderer = ({
   expensesNodeIndex,
   totalIncome,
 }: SankeyNodeRendererProps) => {
+  // Recharts passes NaN when node dimensions can't be computed (zero-value nodes)
+  const x = Number.isFinite(rawX) ? rawX : 0
+  const y = Number.isFinite(rawY) ? rawY : 0
+  const width = Number.isFinite(rawWidth) ? rawWidth : 0
+  const height = Number.isFinite(rawHeight) ? rawHeight : 0
+
   const value = nodeValues.get(index) || 0
   const percentage = totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0'
 
@@ -369,7 +375,7 @@ const IncomeExpenseFlowPage = () => {
         {!isLoading && sankeyData.nodes.length > 0 && (
           <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6 overflow-x-auto">
             <div style={{ minWidth: "min(1000px, 90vw)", height: '700px', position: 'relative' }}>
-              <ResponsiveContainer width="100%" height={globalThis.window !== undefined && globalThis.window.innerWidth < 768 ? 400 : 700}>
+              <ResponsiveContainer width="100%" height={globalThis.window !== undefined && globalThis.window.innerWidth < 768 ? 400 : 700} minWidth={0} minHeight={0}>
                 <Sankey
                   data={sankeyData as { nodes: Array<{ name: string }>; links: Array<{ source: number; target: number; value: number }> }}
                   nodeWidth={20}

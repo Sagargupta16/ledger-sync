@@ -22,6 +22,7 @@ python-multipart = "^0.0.22"
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 bcrypt = "^4.0.1"
 psycopg2-binary = "^2.9.9"
+slowapi = "^0.1.9"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.0"
@@ -31,6 +32,7 @@ black = "^26.0.0"
 mypy = "^1.10.0"
 pandas-stubs = "^2.2.0"
 types-openpyxl = "^3.1.0"
+pip-audit = "^2.7.0"
 
 [tool.poetry.scripts]
 ledger-sync = "ledger_sync.cli.main:app"
@@ -73,6 +75,14 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 module = "openpyxl.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "slowapi.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "ledger_sync.db.migrations.*"
+ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

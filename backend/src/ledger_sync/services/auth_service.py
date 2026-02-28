@@ -4,6 +4,7 @@ Encapsulates all authentication business logic including user registration,
 login, token management, and profile updates.
 """
 
+import logging
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
@@ -16,13 +17,33 @@ from ledger_sync.core.auth import (
     verify_password,
     verify_token,
 )
-from ledger_sync.db.models import ImportLog, Transaction, User, UserPreferences
+from ledger_sync.db.models import (
+    AccountClassification,
+    Anomaly,
+    Budget,
+    CategoryTrend,
+    FinancialGoal,
+    FYSummary,
+    ImportLog,
+    MerchantIntelligence,
+    MonthlySummary,
+    NetWorthSnapshot,
+    RecurringTransaction,
+    ScheduledTransaction,
+    TaxRecord,
+    Transaction,
+    TransferFlow,
+    User,
+    UserPreferences,
+)
 from ledger_sync.schemas.auth import (
     Token,
     UserLogin,
     UserRegister,
     UserResponse,
 )
+
+logger = logging.getLogger("ledger_sync.auth")
 
 
 class AuthService:
@@ -77,10 +98,14 @@ class AuthService:
         self.session.add(preferences)
         self.session.commit()
 
+        logger.info("New user registered: user_id=%s", user.id)
         return create_tokens(user.id, user.email)
 
     def login(self, data: UserLogin) -> Token:
         """Authenticate user and return tokens.
+
+        Uses constant-time comparison to prevent user enumeration
+        via timing attacks (CWE-208).
 
         Args:
             data: User login credentials
@@ -94,7 +119,15 @@ class AuthService:
         """
         user = self._get_user_by_email(data.email)
 
-        if not user or not verify_password(data.password, user.hashed_password):
+        if user:
+            password_valid = verify_password(data.password, user.hashed_password)
+        else:
+            # Always run a hash to prevent timing-based user enumeration
+            get_password_hash(data.password)
+            password_valid = False
+
+        if not user or not password_valid:
+            logger.warning("Failed login attempt for email: %s", data.email)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
@@ -111,6 +144,7 @@ class AuthService:
         user.last_login = datetime.now(UTC)
         self.session.commit()
 
+        logger.info("Successful login for user_id=%s", user.id)
         return create_tokens(user.id, user.email)
 
     def refresh_tokens(self, refresh_token: str) -> Token:
@@ -222,59 +256,86 @@ class AuthService:
                 detail="Incorrect password",
             )
 
+    def _delete_all_user_data(self, user_id: int) -> None:
+        """Delete all user-scoped data across every table.
+
+        Deletes in FK-safe order: child tables first (anomalies reference
+        transactions), then transactions, then remaining tables.
+
+        Args:
+            user_id: ID of the user whose data to delete.
+
+        """
+        # Tables with FK to transactions — must be deleted first
+        self.session.query(Anomaly).filter(Anomaly.user_id == user_id).delete()
+
+        # Core data tables (no FK dependencies on each other)
+        self.session.query(Transaction).filter(Transaction.user_id == user_id).delete()
+        self.session.query(ImportLog).filter(ImportLog.user_id == user_id).delete()
+        self.session.query(RecurringTransaction).filter(
+            RecurringTransaction.user_id == user_id
+        ).delete()
+        self.session.query(ScheduledTransaction).filter(
+            ScheduledTransaction.user_id == user_id
+        ).delete()
+
+        # Analytics / aggregation tables
+        self.session.query(MonthlySummary).filter(MonthlySummary.user_id == user_id).delete()
+        self.session.query(CategoryTrend).filter(CategoryTrend.user_id == user_id).delete()
+        self.session.query(TransferFlow).filter(TransferFlow.user_id == user_id).delete()
+        self.session.query(NetWorthSnapshot).filter(NetWorthSnapshot.user_id == user_id).delete()
+        self.session.query(MerchantIntelligence).filter(
+            MerchantIntelligence.user_id == user_id
+        ).delete()
+        self.session.query(FYSummary).filter(FYSummary.user_id == user_id).delete()
+        self.session.query(TaxRecord).filter(TaxRecord.user_id == user_id).delete()
+
+        # Budgets & goals
+        self.session.query(Budget).filter(Budget.user_id == user_id).delete()
+        self.session.query(FinancialGoal).filter(FinancialGoal.user_id == user_id).delete()
+
+        # Account classifications
+        self.session.query(AccountClassification).filter(
+            AccountClassification.user_id == user_id
+        ).delete()
+
+        # User preferences
+        self.session.query(UserPreferences).filter(UserPreferences.user_id == user_id).delete()
+
     def delete_account(self, user: User) -> None:
         """Permanently delete a user account and all associated data.
 
-        This action is irreversible and removes:
-        - All transactions
-        - All import logs
-        - User preferences
-        - The user account itself
+        This action is irreversible and removes all user data
+        across every table, then deletes the user account itself.
 
         Args:
             user: User to delete
 
         """
         user_id = user.id
-
-        # Delete all user's transactions
-        self.session.query(Transaction).filter(Transaction.user_id == user_id).delete()
-
-        # Delete all user's import logs
-        self.session.query(ImportLog).filter(ImportLog.user_id == user_id).delete()
-
-        # Delete user preferences
-        self.session.query(UserPreferences).filter(UserPreferences.user_id == user_id).delete()
+        self._delete_all_user_data(user_id)
 
         # Delete the user
         self.session.delete(user)
         self.session.commit()
+        logger.info("Account deleted: user_id=%s", user_id)
 
     def reset_account(self, user: User) -> None:
         """Reset account to fresh state, keeping login credentials.
 
-        This removes all data but keeps the user account:
-        - Deletes all transactions
-        - Deletes all import logs
-        - Resets preferences to defaults
+        Removes all data across every table but preserves the user
+        account and creates fresh default preferences.
 
         Args:
             user: User to reset
 
         """
         user_id = user.id
-
-        # Delete all user's transactions
-        self.session.query(Transaction).filter(Transaction.user_id == user_id).delete()
-
-        # Delete all user's import logs
-        self.session.query(ImportLog).filter(ImportLog.user_id == user_id).delete()
-
-        # Reset preferences to defaults by deleting and recreating
-        self.session.query(UserPreferences).filter(UserPreferences.user_id == user_id).delete()
+        self._delete_all_user_data(user_id)
 
         # Create fresh default preferences
         preferences = UserPreferences(user_id=user_id)
         self.session.add(preferences)
 
         self.session.commit()
+        logger.info("Account reset: user_id=%s", user_id)

@@ -538,7 +538,7 @@ export default function TrendsForecastsPage() {
                 {monthlyTrendWithAvg.length === 0 ? (
                   <ChartEmptyState height={180} />
                 ) : (
-                  <ResponsiveContainer width="100%" height={180}>
+                  <ResponsiveContainer width="100%" height={180} minWidth={0} minHeight={0}>
                     <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
                       <defs>
                         <linearGradient id="trendIncomeGradient" x1="0" y1="0" x2="0" y2="1">
@@ -578,7 +578,7 @@ export default function TrendsForecastsPage() {
                 {monthlyTrendWithAvg.length === 0 ? (
                   <ChartEmptyState height={180} />
                 ) : (
-                  <ResponsiveContainer width="100%" height={180}>
+                  <ResponsiveContainer width="100%" height={180} minWidth={0} minHeight={0}>
                     <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
                       <defs>
                         <linearGradient id="trendExpenseGradient" x1="0" y1="0" x2="0" y2="1">
@@ -618,7 +618,7 @@ export default function TrendsForecastsPage() {
                 {monthlyTrendWithAvg.length === 0 ? (
                   <ChartEmptyState height={180} />
                 ) : (
-                  <ResponsiveContainer width="100%" height={180}>
+                  <ResponsiveContainer width="100%" height={180} minWidth={0} minHeight={0}>
                     <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
                       <defs>
                         <linearGradient id="trendSavingsGradient" x1="0" y1="0" x2="0" y2="1">
@@ -684,7 +684,7 @@ export default function TrendsForecastsPage() {
             dailySavingsData.length === 0 ? (
               <ChartEmptyState height={250} />
             ) : (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={250} minWidth={0} minHeight={0}>
                 <AreaChart data={dailySavingsData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} fontSize={dims.tickFontSize} tickFormatter={(v) => formatDateTick(v, dailySavingsData.length)} angle={dims.angleXLabels ? -45 : 0} textAnchor={dims.angleXLabels ? 'end' : 'middle'} height={70} interval={getSmartInterval(dailySavingsData.length, dims.maxXLabels)} />

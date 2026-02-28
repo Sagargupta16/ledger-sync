@@ -368,7 +368,7 @@ export default function InvestmentAnalyticsPage() {
             assetAllocation.length === 0 ? (
               <ChartEmptyState height={320} />
             ) : (
-              <ResponsiveContainer width="100%" height={320}>
+              <ResponsiveContainer width="100%" height={320} minWidth={0} minHeight={0}>
                 <RechartsPie>
                   <Pie
                     data={assetAllocation}
@@ -414,7 +414,7 @@ export default function InvestmentAnalyticsPage() {
             filteredGrowthData.length === 0 ? (
               <ChartEmptyState height={400} />
             ) : (
-              <ResponsiveContainer width="100%" height={400}>
+              <ResponsiveContainer width="100%" height={400} minWidth={0} minHeight={0}>
                 <AreaChart data={filteredGrowthData}>
                   <defs>
                     {INVESTMENT_CATEGORIES.map((category) => (

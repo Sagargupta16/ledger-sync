@@ -4,6 +4,7 @@ Provides JWT token handling and password utilities.
 """
 
 from ledger_sync.core.auth.passwords import get_password_hash, verify_password
+from ledger_sync.core.auth.token_blacklist import token_blacklist
 from ledger_sync.core.auth.tokens import (
     create_access_token,
     create_refresh_token,
@@ -18,6 +19,7 @@ __all__ = [
     "create_tokens",
     "decode_token",
     "get_password_hash",
+    "token_blacklist",
     "verify_password",
     "verify_token",
 ]

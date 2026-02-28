@@ -86,9 +86,10 @@ def _validate_file_content(content: bytes, filename: str) -> None:
 
 
 async def _create_temp_file(file: UploadFile, filename: str) -> Path:
-    """Read uploaded file content and write it to a temporary file.
+    """Read uploaded file in chunks and write to a temporary file.
 
-    Enforces file size limit and validates content magic bytes.
+    Reads in chunks to enforce file size limit without buffering the
+    entire file in memory first (prevents memory exhaustion DoS).
 
     Args:
         file: The uploaded file object.
@@ -101,15 +102,25 @@ async def _create_temp_file(file: UploadFile, filename: str) -> Path:
         HTTPException: If file exceeds size limit or content is invalid.
 
     """
-    content = await file.read()
+    max_size = settings.max_upload_size_bytes
+    chunk_size = 256 * 1024  # 256 KB chunks
+    total_size = 0
+    chunks: list[bytes] = []
 
-    # Enforce file size limit
-    if len(content) > settings.max_upload_size_bytes:
-        max_mb = settings.max_upload_size_bytes / (1024 * 1024)
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large. Maximum size is {max_mb:.0f} MB.",
-        )
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > max_size:
+            max_mb = max_size / (1024 * 1024)
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Maximum size is {max_mb:.0f} MB.",
+            )
+        chunks.append(chunk)
+
+    content = b"".join(chunks)
 
     # Validate file content magic bytes
     _validate_file_content(content, filename)
@@ -145,7 +156,7 @@ def _cleanup_temp_file(tmp_path: Path) -> None:
 
         atexit.register(cleanup_later)
     except OSError as cleanup_error:
-        logger.warning(f"Failed to clean up temp file {tmp_path}: {cleanup_error}")
+        logger.warning("Failed to clean up temp file %s: %s", tmp_path, cleanup_error)
 
 
 @router.post(
@@ -182,7 +193,7 @@ async def upload_excel(
     filename = _validate_upload_file(file.filename)
     tmp_path = await _create_temp_file(file, filename)
 
-    logger.info(f"Processing uploaded file: {filename} for user: {current_user.email}")
+    logger.info("Processing uploaded file: %s for user_id=%s", filename, current_user.id)
 
     try:
         engine = SyncEngine(db, user_id=current_user.id)
@@ -203,28 +214,28 @@ async def upload_excel(
         )
 
     except ValueError as e:
-        logger.warning(f"File already imported: {e}")
+        logger.warning("File already imported: %s", e)
         raise HTTPException(
             status_code=409,
             detail=str(e),
         ) from e
 
     except ValidationError as e:
-        logger.warning(f"Invalid Excel file: {e}")
+        logger.warning("Invalid Excel file: %s", e)
         raise HTTPException(
             status_code=422,
-            detail=f"Invalid Excel file: {e!s}",
+            detail="Invalid Excel file. Please check the file format.",
         ) from e
 
     except NormalizationError as e:
-        logger.warning(f"Data format issue: {e}")
+        logger.warning("Data format issue: %s", e)
         raise HTTPException(
             status_code=400,
-            detail=f"Data format issue: {e!s}",
+            detail="Data format issue. Please check the file format.",
         ) from e
 
     except (OSError, RuntimeError) as e:
-        logger.error(f"Unexpected error processing file: {e}", exc_info=True)
+        logger.error("Unexpected error processing file: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="Failed to process file. Please check the file format and try again.",

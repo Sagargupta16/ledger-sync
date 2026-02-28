@@ -100,7 +100,7 @@ export default function IncomeStabilityIndex() {
           </div>
 
           {/* Chart */}
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={0}>
             <BarChart data={sources} layout="vertical" margin={{ left: 10, right: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} horizontal={false} />
               <XAxis type="number" domain={[0, 100]} stroke={CHART_AXIS_COLOR} tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />

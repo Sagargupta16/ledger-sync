@@ -574,7 +574,7 @@ export default function ComparisonPage() {
               </div>
             </div>
             <div style={{ height: Math.max(300, butterflyData.length * 36) }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ left: 10, right: 10 }}>
                   <XAxis
                     type="number"

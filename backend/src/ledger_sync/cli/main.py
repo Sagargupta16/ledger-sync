@@ -135,7 +135,8 @@ def init() -> None:
         init_db()
         console.print("[bold green]✓ Database initialized successfully![/bold green]")
     except (OSError, RuntimeError) as e:
-        console.print(f"[bold red]Error:[/bold red] {e}", err=True)
+        err_console = Console(stderr=True)
+        err_console.print(f"[bold red]Error:[/bold red] {e}")
         logger.exception("Error initializing database")
         raise typer.Exit(code=1) from None
 
