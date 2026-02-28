@@ -55,8 +55,10 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 | ---------------- | ---------------------------------------------------------------------------- |
 | **Frontend**     | React 19, TypeScript 5.9, Vite 7, Tailwind CSS 4, Recharts 3, Framer Motion 12 |
 | **Backend**      | Python 3.11+, FastAPI, SQLAlchemy 2, Alembic                                |
-| **Database**     | SQLite (default), PostgreSQL ready                                           |
+| **Database**     | SQLite (dev), Neon PostgreSQL 17 (prod)                                      |
 | **State**        | TanStack Query 5, Zustand 5                                                 |
+| **Deployment**   | GitHub Pages (frontend), Render (backend), Neon (database)                   |
+| **CI/CD**        | GitHub Actions (lint, type-check, build, deploy)                             |
 | **Package Mgmt** | pnpm 10 (frontend), Poetry (backend)                                        |
 
 ## Quick Start
