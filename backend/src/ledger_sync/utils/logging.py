@@ -27,50 +27,54 @@ def setup_logging(log_level: str | None = None) -> logging.Logger:
     """
     level = log_level or settings.log_level
 
-    # Create logs directory next to database or in current dir
-    db_url = settings.database_url
-    if db_url.startswith("sqlite:///"):
-        db_path = Path(db_url.replace("sqlite:///", ""))
-        log_dir = db_path.parent / "logs"
-    else:
-        log_dir = Path("./logs")
-    log_dir.mkdir(exist_ok=True)
-
     # Main app logger
     main_logger = logging.getLogger("ledger_sync")
     main_logger.setLevel(level)
     main_logger.handlers = []  # Clear existing handlers
 
-    # Console handler with formatting
+    # Console handler with formatting (always works, even in containers)
     console_format = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
     console_handler.setFormatter(logging.Formatter(console_format, datefmt="%H:%M:%S"))
     main_logger.addHandler(console_handler)
 
-    # File handler for persistent logs (rotating, max 10MB, keep 5 files)
-    file_format = "%(asctime)s - %(levelname)s - %(name)s - %(funcName)s:%(lineno)d - %(message)s"
-    file_handler = RotatingFileHandler(
-        log_dir / "ledger_sync.log",
-        maxBytes=10 * 1024 * 1024,  # 10MB
-        backupCount=5,
-    )
-    file_handler.setLevel(logging.DEBUG)  # Always capture DEBUG to file
-    file_handler.setFormatter(logging.Formatter(file_format))
-    main_logger.addHandler(file_handler)
+    # File handlers — optional, skip gracefully in production/containers
+    try:
+        db_url = settings.database_url
+        if db_url.startswith("sqlite:///"):
+            db_path = Path(db_url.replace("sqlite:///", ""))
+            log_dir = db_path.parent / "logs"
+        else:
+            log_dir = Path("./logs")
+        log_dir.mkdir(exist_ok=True)
 
-    # Analytics-specific logger for detailed import/calculation tracking
-    analytics_logger = logging.getLogger("ledger_sync.analytics")
-    analytics_logger.setLevel(logging.DEBUG)
+        file_format = "%(asctime)s - %(levelname)s - %(name)s - %(funcName)s:%(lineno)d - %(message)s"
+        file_handler = RotatingFileHandler(
+            log_dir / "ledger_sync.log",
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=5,
+        )
+        file_handler.setLevel(logging.DEBUG)  # Always capture DEBUG to file
+        file_handler.setFormatter(logging.Formatter(file_format))
+        main_logger.addHandler(file_handler)
 
-    analytics_handler = RotatingFileHandler(
-        log_dir / "analytics.log",
-        maxBytes=10 * 1024 * 1024,  # 10MB
-        backupCount=3,
-    )
-    analytics_handler.setLevel(logging.DEBUG)
-    analytics_handler.setFormatter(logging.Formatter(file_format))
-    analytics_logger.addHandler(analytics_handler)
+        # Analytics-specific logger for detailed import/calculation tracking
+        analytics_logger = logging.getLogger("ledger_sync.analytics")
+        analytics_logger.setLevel(logging.DEBUG)
+
+        analytics_handler = RotatingFileHandler(
+            log_dir / "analytics.log",
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=3,
+        )
+        analytics_handler.setLevel(logging.DEBUG)
+        analytics_handler.setFormatter(logging.Formatter(file_format))
+        analytics_logger.addHandler(analytics_handler)
+    except OSError:
+        # File logging unavailable (read-only filesystem, container, etc.)
+        # Console logging still works — this is fine for production.
+        main_logger.info("File logging unavailable, using console only")
 
     return main_logger
 

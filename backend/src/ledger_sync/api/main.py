@@ -1,5 +1,8 @@
 """FastAPI application for ledger-sync web interface."""
 
+# Early startup message — prints before any app imports that could crash
+print("[ledger-sync] Starting application...", flush=True)  # noqa: T201
+
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -36,7 +39,13 @@ setup_logging("INFO")
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan: initialize database on startup."""
-    init_db()
+    try:
+        logger.info("Initializing database...")
+        init_db()
+        logger.info("Database initialized successfully")
+    except Exception as exc:
+        logger.error("Database initialization failed: %s", exc)
+        raise
     yield
 
 
