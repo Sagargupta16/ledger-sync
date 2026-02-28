@@ -14,6 +14,7 @@ from ledger_sync.core.query_helpers import (
     apply_earning_start_date,
     build_transaction_query,
     expense_sum_col,
+    fmt_year_month,
     income_sum_col,
 )
 from ledger_sync.core.time_filter import TimeRange
@@ -155,7 +156,7 @@ def _get_sql_monthly_data(
     ``FinancialCalculator.group_by_month``.
     """
     base = _build_base_query(db, user, time_range).subquery()
-    month_col = func.strftime("%Y-%m", base.c.date).label("month")
+    month_col = fmt_year_month(base.c.date).label("month")
 
     rows = (
         db.query(

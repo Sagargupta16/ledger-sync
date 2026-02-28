@@ -42,6 +42,7 @@ from ledger_sync.db.models import (
     TransferFlow,
     UserPreferences,
 )
+from ledger_sync.core.query_helpers import fmt_year_month
 from ledger_sync.utils.logging import (
     get_analytics_logger,
     log_analytics_calculation,
@@ -1568,7 +1569,7 @@ class AnalyticsEngine:
         sym = self._currency_symbol
         monthly_query = (
             self.db.query(
-                func.strftime("%Y-%m", Transaction.date).label("period"),
+                fmt_year_month(Transaction.date).label("period"),
                 func.sum(Transaction.amount).label("total"),
             )
             .filter(Transaction.is_deleted.is_(False))
@@ -1576,7 +1577,7 @@ class AnalyticsEngine:
         )
         if self.user_id is not None:
             monthly_query = monthly_query.filter(Transaction.user_id == self.user_id)
-        monthly_expenses = monthly_query.group_by(func.strftime("%Y-%m", Transaction.date)).all()
+        monthly_expenses = monthly_query.group_by(fmt_year_month(Transaction.date)).all()
 
         if len(monthly_expenses) <= 3:
             return
@@ -1668,7 +1669,7 @@ class AnalyticsEngine:
             self.db.query(Transaction.category, func.sum(Transaction.amount).label("total"))
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
-            .filter(func.strftime("%Y-%m", Transaction.date) == current_period)
+            .filter(fmt_year_month(Transaction.date) == current_period)
             .group_by(Transaction.category)
         )
         if self.user_id is not None:

@@ -12,6 +12,10 @@ from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.query_helpers import (
     build_transaction_query,
     expense_sum_col,
+    fmt_date,
+    fmt_month,
+    fmt_year,
+    fmt_year_month,
     income_sum_col,
 )
 from ledger_sync.db.models import Transaction, TransactionType, User
@@ -154,7 +158,7 @@ def get_monthly_aggregation(
 ) -> dict[str, Any]:
     """Calculate monthly income and expense aggregation."""
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
-    month_col = func.strftime("%Y-%m", base.c.date).label("month")
+    month_col = fmt_year_month(base.c.date).label("month")
 
     rows = (
         db.query(
@@ -190,7 +194,7 @@ def get_yearly_aggregation(
 ) -> dict[str, Any]:
     """Calculate yearly income and expense aggregation."""
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
-    year_col = func.strftime("%Y", base.c.date).label("year")
+    year_col = fmt_year(base.c.date).label("year")
 
     rows = (
         db.query(
@@ -206,8 +210,8 @@ def get_yearly_aggregation(
     # Fetch distinct months per year for the "months" list
     month_detail_rows = (
         db.query(
-            func.strftime("%Y", base.c.date).label("year"),
-            func.strftime("%m", base.c.date).label("month"),
+            fmt_year(base.c.date).label("year"),
+            fmt_month(base.c.date).label("month"),
         )
         .distinct()
         .all()
@@ -528,7 +532,7 @@ def get_daily_net_worth(
 ) -> dict[str, Any]:
     """Calculate daily income and expense data for net worth trends."""
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
-    date_col = func.strftime("%Y-%m-%d", base.c.date).label("date_key")
+    date_col = fmt_date(base.c.date).label("date_key")
 
     rows = (
         db.query(
