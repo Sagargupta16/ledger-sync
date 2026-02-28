@@ -5,6 +5,7 @@
  * - User session
  * - JWT tokens
  * - Login/logout functionality
+ * - Session ID to prevent stale token refresh races
  */
 
 import { create } from 'zustand'
@@ -20,6 +21,10 @@ export interface AuthState {
   // Token management
   accessToken: string | null
   refreshToken: string | null
+
+  // Session guard — incremented on every login/logout to prevent
+  // stale 401 interceptor refreshes from overwriting new tokens.
+  sessionId: number
 
   // Actions
   setUser: (user: User | null) => void
@@ -39,6 +44,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: true,
       accessToken: null,
       refreshToken: null,
+      sessionId: 0,
 
       // Set user
       setUser: (user) =>
@@ -47,7 +53,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: !!user && !!get().accessToken,
         }),
 
-      // Set tokens
+      // Set tokens (used by 401 interceptor for refresh)
       setTokens: (tokens) => {
         if (tokens) {
           set({
@@ -67,7 +73,7 @@ export const useAuthStore = create<AuthState>()(
       // Set loading state
       setLoading: (loading) => set({ isLoading: loading }),
 
-      // Login action
+      // Login action — increments sessionId to invalidate any in-flight 401 refreshes
       login: (user, tokens) => {
         set({
           user,
@@ -75,10 +81,11 @@ export const useAuthStore = create<AuthState>()(
           refreshToken: tokens.refresh_token,
           isAuthenticated: true,
           isLoading: false,
+          sessionId: get().sessionId + 1,
         })
       },
 
-      // Logout action
+      // Logout action — increments sessionId to invalidate any in-flight 401 refreshes
       logout: () => {
         set({
           user: null,
@@ -86,6 +93,7 @@ export const useAuthStore = create<AuthState>()(
           refreshToken: null,
           isAuthenticated: false,
           isLoading: false,
+          sessionId: get().sessionId + 1,
         })
       },
 
@@ -120,6 +128,7 @@ export const useAuthStore = create<AuthState>()(
 // Utility functions for non-React contexts (e.g., Axios interceptors)
 export const getAccessToken = () => useAuthStore.getState().accessToken
 export const getRefreshToken = () => useAuthStore.getState().refreshToken
+export const getSessionId = () => useAuthStore.getState().sessionId
 export const isAuthenticated = () => {
   const state = useAuthStore.getState()
   return !!state.accessToken && !!state.user

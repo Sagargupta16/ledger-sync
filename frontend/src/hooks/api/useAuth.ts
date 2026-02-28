@@ -26,6 +26,8 @@ export const useLogin = () => {
       return { tokens, user }
     },
     onSuccess: ({ tokens, user }) => {
+      // Cancel in-flight queries, then wipe cache to prevent stale data
+      queryClient.cancelQueries()
       queryClient.clear()
       login(user, tokens)
     },
@@ -47,6 +49,7 @@ export const useRegister = () => {
       return { tokens, user }
     },
     onSuccess: ({ tokens, user }) => {
+      queryClient.cancelQueries()
       queryClient.clear()
       login(user, tokens)
     },
@@ -188,6 +191,7 @@ export const useDemoLogin = () => {
       return { tokens, user }
     },
     onSuccess: ({ tokens, user }) => {
+      queryClient.cancelQueries()
       queryClient.clear()
       login(user, tokens)
     },
