@@ -9,6 +9,8 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 ![React](https://img.shields.io/badge/react-19-blue.svg)
 ![TypeScript](https://img.shields.io/badge/typescript-5.9-blue.svg)
 
+**Live:** [sagargupta.online/ledger-sync](https://sagargupta.online/ledger-sync/) | **API:** [ledger-sync.onrender.com](https://ledger-sync.onrender.com/docs)
+
 ## Features
 
 ### Smart Upload & Sync
@@ -129,19 +131,32 @@ ledger-sync/
 | **Year in Review**         | Annual financial summary                            |
 | **Settings**               | Preferences, account mappings, categories           |
 
+## Deployment
+
+The app is deployed for free using three services:
+
+| Service | Platform | Details |
+|---------|----------|---------|
+| Frontend | GitHub Pages | Auto-deploys on push via GitHub Actions |
+| Backend | Render (free tier) | FastAPI on Python 3.12, ~30s cold start after idle |
+| Database | Neon PostgreSQL | Free tier, 0.5 GB, Singapore region |
+
+See [Deployment Guide](docs/DEPLOYMENT.md) for full setup instructions.
+
 ## Configuration
 
 ### Backend Environment (`.env`)
 
 ```env
-LEDGER_SYNC_DATABASE_URL=sqlite:///./ledger_sync.db
-LEDGER_SYNC_LOG_LEVEL=INFO
+LEDGER_SYNC_DATABASE_URL=sqlite:///./ledger_sync.db   # Local dev (SQLite)
+LEDGER_SYNC_JWT_SECRET_KEY=your-secret-key             # Required in production
+LEDGER_SYNC_ENVIRONMENT=development                     # development | production
 ```
 
-### Frontend Environment (`.env`)
+### Frontend Environment
 
 ```env
-VITE_API_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8000                # Set in GitHub Actions variable for production
 ```
 
 ## Documentation
