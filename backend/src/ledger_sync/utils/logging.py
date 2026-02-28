@@ -49,7 +49,9 @@ def setup_logging(log_level: str | None = None) -> logging.Logger:
             log_dir = Path("./logs")
         log_dir.mkdir(exist_ok=True)
 
-        file_format = "%(asctime)s - %(levelname)s - %(name)s - %(funcName)s:%(lineno)d - %(message)s"
+        file_format = (
+            "%(asctime)s - %(levelname)s - %(name)s - %(funcName)s:%(lineno)d - %(message)s"
+        )
         file_handler = RotatingFileHandler(
             log_dir / "ledger_sync.log",
             maxBytes=10 * 1024 * 1024,  # 10MB

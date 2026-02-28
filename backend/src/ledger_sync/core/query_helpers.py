@@ -6,7 +6,7 @@ aggregation columns and the base filtered-transaction query builder.
 
 from datetime import UTC, datetime
 
-from sqlalchemy import case, cast, func, String
+from sqlalchemy import String, case, cast, func
 from sqlalchemy.orm import Session
 
 from ledger_sync.config.settings import settings
@@ -48,6 +48,7 @@ def fmt_date(date_col):
     if _is_sqlite:
         return func.strftime("%Y-%m-%d", date_col)
     return cast(date_col, String)
+
 
 # ---------------------------------------------------------------------------
 # Earning-start-date clamping

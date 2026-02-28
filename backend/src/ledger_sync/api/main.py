@@ -1,8 +1,5 @@
 """FastAPI application for ledger-sync web interface."""
 
-# Early startup message — prints before any app imports that could crash
-print("[ledger-sync] Starting application...", flush=True)  # noqa: T201
-
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
