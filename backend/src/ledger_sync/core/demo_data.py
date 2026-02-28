@@ -465,11 +465,13 @@ def seed_demo_data(db: Session, user: User) -> int:
         if existing:
             existing.account_type = acct_type
         else:
-            db.add(AccountClassification(
-                user_id=user_id,
-                account_name=acct_name,
-                account_type=acct_type,
-            ))
+            db.add(
+                AccountClassification(
+                    user_id=user_id,
+                    account_name=acct_name,
+                    account_type=acct_type,
+                )
+            )
 
     # Seed user preferences
     _seed_preferences(db, user_id)
