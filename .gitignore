@@ -107,11 +107,9 @@ next-env.d.ts
 .env.production.local
 .env*.local
 
-# Package managers
+# Package managers (unused lock files only — keep pnpm-lock.yaml and poetry.lock)
 package-lock.json
 yarn.lock
-pnpm-lock.yaml
-poetry.lock
 
 # Logs
 logs/
