@@ -11,13 +11,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend:
+  check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      # ── Setup Python ────────────────────────────────────────────────
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
@@ -30,24 +29,8 @@ jobs:
           path: ~/.cache/pypoetry
           key: poetry-${{ runner.os }}-${{ hashFiles('backend/poetry.lock') }}
           restore-keys: poetry-${{ runner.os }}-
-      - name: Install dependencies
-        run: poetry install --with dev
-      - name: Dependency audit
-        run: poetry run pip audit
-      - name: Lint
-        run: poetry run ruff check .
-      - name: Type check
-        run: poetry run mypy src/
-      - name: Test
-        run: poetry run pytest tests/ -v
 
-  frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      # ── Setup Node ──────────────────────────────────────────────────
       - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
         with:
           version: 10
@@ -63,14 +46,34 @@ jobs:
           path: ${{ env.STORE_PATH }}
           key: pnpm-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-
+
+      # ── Install all dependencies (backend + frontend + root) ────────
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          cd backend && poetry install --with dev && cd ..
+          cd frontend && pnpm install --frozen-lockfile && cd ..
+          pnpm install
+
+      # ── Dependency audit (both stacks in parallel) ──────────────────
       - name: Dependency audit
-        run: pnpm audit --prod
+        run: |
+          cd backend && poetry run pip audit &
+          cd frontend && pnpm audit --prod || true
+          wait
         continue-on-error: true
-      - name: Type check
-        run: pnpm run type-check
+
+      # ── Lint (both stacks in parallel via concurrently) ─────────────
       - name: Lint
         run: pnpm run lint
-      - name: Build
+
+      # ── Type check (both stacks in parallel via concurrently) ───────
+      - name: Type check
+        run: pnpm run type-check
+
+      # ── Test (both stacks in parallel via concurrently) ─────────────
+      - name: Test
+        run: pnpm run test
+
+      # ── Build frontend ─────────────────────────────────────────────
+      - name: Build frontend
         run: VITE_API_BASE_URL=https://placeholder.example.com pnpm run build

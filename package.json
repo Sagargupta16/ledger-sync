@@ -9,9 +9,20 @@
     "dev": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
     "dev:backend": "cd backend && python -m uvicorn ledger_sync.api.main:app --reload --reload-dir src --reload-include \"*.py\" --port 8000",
     "dev:frontend": "cd frontend && pnpm run dev",
+    "lint": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run lint:backend\" \"pnpm run lint:frontend\"",
+    "lint:backend": "cd backend && python -m poetry run ruff check .",
+    "lint:frontend": "cd frontend && pnpm run lint",
+    "type-check": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run type-check:backend\" \"pnpm run type-check:frontend\"",
+    "type-check:backend": "cd backend && python -m poetry run mypy src/",
+    "type-check:frontend": "cd frontend && pnpm run type-check",
+    "test": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run test:backend\" \"pnpm run test:frontend\"",
+    "test:backend": "cd backend && python -m poetry run pytest tests/ -v",
+    "test:frontend": "cd frontend && pnpm test",
+    "check": "concurrently -n \"lint,types,test\" -c \"bgYellow.bold,bgCyan.bold,bgGreen.bold\" \"pnpm run lint\" \"pnpm run type-check\" \"pnpm run test\"",
     "format": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run format:backend\" \"pnpm run format:frontend\"",
     "format:backend": "cd backend && python -m black src/ tests/ && python -m ruff check --fix src/ tests/",
-    "format:frontend": "cd frontend && pnpm run format"
+    "format:frontend": "cd frontend && pnpm run format",
+    "build": "cd frontend && pnpm run build"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
