@@ -5,6 +5,7 @@ aggregation columns and the base filtered-transaction query builder.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import String, case, cast, func
 from sqlalchemy.orm import Session
@@ -19,7 +20,7 @@ from ledger_sync.db.models import Transaction, TransactionType, User
 _is_sqlite = "sqlite" in settings.database_url
 
 
-def fmt_year_month(date_col):
+def fmt_year_month(date_col: Any) -> Any:
     """Return a SQL expression that formats a date column as 'YYYY-MM'.
 
     Uses strftime for SQLite, to_char for PostgreSQL.
@@ -29,21 +30,21 @@ def fmt_year_month(date_col):
     return func.to_char(date_col, "YYYY-MM")
 
 
-def fmt_year(date_col):
+def fmt_year(date_col: Any) -> Any:
     """Return a SQL expression that formats a date column as 'YYYY'."""
     if _is_sqlite:
         return func.strftime("%Y", date_col)
     return func.to_char(date_col, "YYYY")
 
 
-def fmt_month(date_col):
+def fmt_month(date_col: Any) -> Any:
     """Return a SQL expression that formats a date column as 'MM' (zero-padded)."""
     if _is_sqlite:
         return func.strftime("%m", date_col)
     return func.to_char(date_col, "MM")
 
 
-def fmt_date(date_col):
+def fmt_date(date_col: Any) -> Any:
     """Return a SQL expression that formats a date column as 'YYYY-MM-DD'."""
     if _is_sqlite:
         return func.strftime("%Y-%m-%d", date_col)
