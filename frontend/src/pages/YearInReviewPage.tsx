@@ -623,10 +623,10 @@ export default function YearInReviewPage() {
                     formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
                   />
                   <Bar dataKey="Spending" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} opacity={0.8}>
-                    {dims.showBarLabels && <LabelList dataKey="Spending" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
+                    {dims.showBarLabels && <LabelList dataKey="Spending" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
                   <Bar dataKey="Earning" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} opacity={0.8}>
-                    {dims.showBarLabels && <LabelList dataKey="Earning" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
+                    {dims.showBarLabels && <LabelList dataKey="Earning" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

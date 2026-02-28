@@ -593,10 +593,10 @@ export default function NetWorthPage() {
                   />
                   <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
                   <Bar dataKey="positive" name="Increase" fill={rawColors.ios.green} radius={[4, 4, 0, 0]}>
-                    {dims.showBarLabels && <LabelList dataKey="positive" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
+                    {dims.showBarLabels && <LabelList dataKey="positive" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
                   <Bar dataKey="negative" name="Decrease" fill={rawColors.ios.red} radius={[4, 4, 0, 0]}>
-                    {dims.showBarLabels && <LabelList dataKey="negative" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
+                    {dims.showBarLabels && <LabelList dataKey="negative" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

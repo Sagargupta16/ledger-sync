@@ -529,7 +529,7 @@ export default function ReturnsAnalysisPage() {
                     formatter={(_value: number | undefined, name: string | undefined, props: { payload?: { value?: number; isTotal?: boolean } }) => {
                       return formatWaterfallTooltip(props.payload, name, formatCurrency)
                     }}
-                    labelFormatter={(label: string) => label}
+                    labelFormatter={(label: unknown) => String(label)}
                   />
                   {/* Invisible bar for the "start" offset */}
                   <Bar dataKey="start" stackId="waterfall" fill="transparent" isAnimationActive={false} />

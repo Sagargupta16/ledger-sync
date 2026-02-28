@@ -612,7 +612,7 @@ export default function MutualFundProjectionPage() {
 
   // Load mutual fund accounts
   useEffect(() => {
-    loadMutualFundAccountsData(balanceData)
+    loadMutualFundAccountsData(balanceData as Record<string, unknown> | undefined)
       .then(setMutualFundAccounts)
       .catch(() => setMutualFundAccounts([]))
   }, [balanceData])

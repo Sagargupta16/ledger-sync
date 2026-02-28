@@ -92,7 +92,7 @@ const overlayVariants = {
 
 const panelVariants = {
   hidden: { opacity: 0, scale: 0.96, y: -10 },
-  visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', damping: 30, stiffness: 400 } },
+  visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring' as const, damping: 30, stiffness: 400 } },
   exit: { opacity: 0, scale: 0.96, y: -10, transition: { duration: 0.15 } },
 }
 

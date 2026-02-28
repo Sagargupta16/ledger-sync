@@ -158,7 +158,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubca
         <TimeSeriesLineChart
           chartData={chartData}
           seriesKeys={subcategories}
-          colors={COLORS}
+          colors={[...COLORS]}
           legendFormatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
           emptyMessage={`No data available for ${selectedCategory}`}
         />

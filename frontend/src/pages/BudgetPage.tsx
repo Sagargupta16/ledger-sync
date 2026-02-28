@@ -466,10 +466,10 @@ export default function BudgetPage() {
                       formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
                     />
                     <Bar dataKey="Budget" fill={rawColors.ios.blue} radius={[4, 4, 0, 0]} opacity={0.5}>
-                      {dims.showBarLabels && <LabelList dataKey="Budget" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
+                      {dims.showBarLabels && <LabelList dataKey="Budget" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                     </Bar>
                     <Bar dataKey="Spent" radius={[4, 4, 0, 0]} onClick={(data: { name?: string }) => { if (data?.name) navigate(`/transactions?category=${encodeURIComponent(data.name)}`) }} style={{ cursor: 'pointer' }}>
-                      {dims.showBarLabels && <LabelList dataKey="Spent" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: number) => v === 0 ? '' : formatCurrencyShort(v)} />}
+                      {dims.showBarLabels && <LabelList dataKey="Spent" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                       {chartData.map((entry) => (
                         <Cell key={entry.name} fill={statusConfig[entry.status].color} />
                       ))}

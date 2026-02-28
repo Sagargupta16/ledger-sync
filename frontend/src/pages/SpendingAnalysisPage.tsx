@@ -138,6 +138,8 @@ export default function SpendingAnalysisPage() {
   const { data: transactions } = useTransactions()
   const { data: preferences } = usePreferences()
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(transactions)
+  // Convert null to undefined for component compatibility
+  const dateRangeCompat = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
 
   // Filter transactions by date range
   const filteredTransactions = useMemo(
@@ -381,22 +383,22 @@ export default function SpendingAnalysisPage() {
 
         {/* Expense Treemap */}
         <motion.div {...SCROLL_FADE_UP}>
-          <ExpenseTreemap dateRange={dateRange} />
+          <ExpenseTreemap dateRange={dateRangeCompat} />
         </motion.div>
 
         {/* Top Merchants */}
         <motion.div {...SCROLL_FADE_UP}>
-          <TopMerchants dateRange={dateRange} />
+          <TopMerchants dateRange={dateRangeCompat} />
         </motion.div>
 
         {/* Multi-Category Time Analysis */}
         <motion.div {...SCROLL_FADE_UP}>
-          <MultiCategoryTimeAnalysis dateRange={dateRange} />
+          <MultiCategoryTimeAnalysis dateRange={dateRangeCompat} />
         </motion.div>
 
         {/* Subcategory Deep-Dive */}
         <motion.div {...SCROLL_FADE_UP}>
-          <EnhancedSubcategoryAnalysis dateRange={dateRange} />
+          <EnhancedSubcategoryAnalysis dateRange={dateRangeCompat} />
         </motion.div>
 
         {/* Year-over-Year & Recurring */}

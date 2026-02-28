@@ -16,6 +16,8 @@ import {
   getTaxSlabs,
   getNewRegimeSlabs,
 } from '@/lib/taxCalculator'
+import type { TaxSlab, SlabBreakdownEntry } from '@/lib/taxCalculator'
+import type { Transaction } from '@/types'
 import { PageHeader } from '@/components/ui'
 import TaxSummaryCards from '@/components/analytics/TaxSummaryCards'
 import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
@@ -27,7 +29,7 @@ import TaxableIncomeTable from '@/components/analytics/TaxableIncomeTable'
 interface IncomeGroupAccumulator {
   [key: string]: {
     total: number
-    transactions: Array<{ date: string; type: string; amount: number; category: string; note?: string; subcategory?: string }>
+    transactions: Transaction[]
   }
 }
 
@@ -36,13 +38,13 @@ interface FYData {
   expense: number
   taxableIncome: number
   salaryMonths: Set<string>
-  transactions: Array<{ date: string; type: string; amount: number; category: string; note?: string; subcategory?: string }>
+  transactions: Transaction[]
   incomeGroups: IncomeGroupAccumulator
 }
 
 /** Classify and accumulate an income transaction into the FY group */
 function classifyAndAccumulateIncome(
-  tx: { date: string; type: string; amount: number; category: string; note?: string; subcategory?: string },
+  tx: Transaction,
   fyData: FYData,
   incomeClassification: { taxable: string[]; investmentReturns: string[]; nonTaxable: string[]; other: string[] },
 ): void {
@@ -105,7 +107,7 @@ interface ProjectionResult {
   baseTax: number
   cess: number
   professionalTax: number
-  slabBreakdown: Array<{ slab: string; taxableAmount: number; tax: number }>
+  slabBreakdown: SlabBreakdownEntry[]
   remainingMonths: number
   avgMonthlySalary: number
   projectedAdditionalIncome: number
@@ -116,7 +118,7 @@ function calculateProjection(
   currentFYData: FYData | null,
   netTaxableIncome: number,
   salaryMonthsCount: number,
-  taxSlabs: Array<{ min: number; max: number; rate: number }>,
+  taxSlabs: TaxSlab[],
   standardDeduction: number,
   isNewRegime: boolean = true,
   fyYear: number = 2025,
@@ -196,7 +198,7 @@ function resolveDisplayValues(
     baseTax: number
     cess: number
     professionalTax: number
-    slabBreakdown: Array<{ slab: string; taxableAmount: number; tax: number }>
+    slabBreakdown: SlabBreakdownEntry[]
     income: number
   },
 ) {

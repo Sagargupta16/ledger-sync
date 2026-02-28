@@ -285,7 +285,7 @@ export default function IncomeAnalysisPage() {
                   />
                   <Tooltip
                     {...chartTooltipProps}
-                    labelFormatter={(_label: string, payload: Array<{ payload?: { month?: string } }>) => {
+                    labelFormatter={(_label: unknown, payload: ReadonlyArray<{ payload?: { month?: string } }>) => {
                       const month = payload?.[0]?.payload?.month
                       return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
                     }}
