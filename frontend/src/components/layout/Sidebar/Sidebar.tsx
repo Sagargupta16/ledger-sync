@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   Upload,
@@ -28,7 +28,7 @@ import {
   CreditCard,
   Search,
   Star,
-  Settings,
+  Settings2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants'
@@ -39,6 +39,7 @@ import SidebarItem from './SidebarItem'
 import { useAuthStore } from '@/store/authStore'
 import { useLogout } from '@/hooks/api/useAuth'
 import NotificationCenter from '@/components/shared/NotificationCenter'
+import ProfileModal from '@/components/shared/ProfileModal'
 import { useBudgets, useAnomalies, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 
 // ─── Storage keys ───────────────────────────────────────────────────────────
@@ -135,7 +136,7 @@ const navigationGroups: NavGroup[] = [
 
 const bottomItems: NavItem[] = [
   { path: ROUTES.UPLOAD, label: 'Upload & Sync', icon: Upload },
-  { path: ROUTES.SETTINGS, label: 'Settings', icon: Settings },
+  { path: ROUTES.SETTINGS, label: 'Settings', icon: Settings2 },
 ]
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -181,84 +182,82 @@ function MobileToggleButton({
   )
 }
 
-function UserProfile({
+function UserProfileButton({
   user,
   isCollapsed,
+  onOpenProfile,
   onLogout,
   isPending,
 }: Readonly<{
   user: { full_name?: string | null; email: string } | null
   isCollapsed: boolean
+  onOpenProfile: () => void
   onLogout: () => void
   isPending: boolean
 }>) {
+  if (!user) return null
+
+  const initials = (user.full_name || user.email)[0].toUpperCase()
+
   return (
     <div className={cn(
       'border-t border-border',
       isCollapsed ? 'p-2' : 'p-3',
     )}>
-      {user && (
-        <div className={cn(
-          'rounded-xl transition-colors duration-200',
-          isCollapsed ? 'p-2' : 'p-3 bg-white/5 hover:bg-white/10',
-        )}>
-          <div className={cn(
-            'flex items-center gap-3',
-            isCollapsed && 'justify-center',
-          )}>
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${rawColors.ios.purple}, ${rawColors.ios.pink})`,
-                boxShadow: `0 4px 12px ${rawColors.ios.purple}40`,
-              }}
-            >
-              <span className="text-white font-semibold text-sm">
-                {(user.full_name || user.email)[0].toUpperCase()}
-              </span>
-            </div>
-            {!isCollapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">
-                  {user.full_name || user.email.split('@')[0]}
-                </p>
-                <p className="text-xs truncate" style={{ color: rawColors.text.tertiary }}>
-                  {user.email}
-                </p>
-              </div>
-            )}
-          </div>
-          {!isCollapsed && (
-            <button
-              onClick={onLogout}
-              disabled={isPending}
-              className={cn(
-                'w-full flex items-center justify-center gap-2 mt-3 px-3 py-2 rounded-lg transition-colors duration-200',
-                'text-ios-red-vibrant/80 hover:text-ios-red-vibrant bg-ios-red-vibrant/5 hover:bg-ios-red-vibrant/10',
-                'text-xs font-medium',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
-              )}
-            >
-              <LogOut size={14} />
-              <span>{isPending ? 'Signing out...' : 'Sign Out'}</span>
-            </button>
-          )}
-        </div>
-      )}
-      {isCollapsed && (
+      <div className={cn(
+        'flex items-center',
+        isCollapsed ? 'flex-col gap-2' : 'gap-3',
+      )}>
+        {/* Avatar — always clickable */}
         <button
+          type="button"
+          onClick={onOpenProfile}
+          className="flex-shrink-0 group/avatar"
+          title="View Profile"
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover/avatar:scale-105"
+            style={{
+              background: `linear-gradient(135deg, ${rawColors.ios.purple}, ${rawColors.ios.pink})`,
+              boxShadow: `0 4px 12px ${rawColors.ios.purple}40`,
+            }}
+          >
+            <span className="text-white font-semibold text-sm">{initials}</span>
+          </div>
+        </button>
+
+        {/* Expanded: name + "View Profile" */}
+        {!isCollapsed && (
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            className="flex-1 min-w-0 text-left group/profile"
+          >
+            <p className="text-sm font-semibold text-white truncate">
+              {user.full_name || user.email.split('@')[0]}
+            </p>
+            <p className="text-xs text-muted-foreground group-hover/profile:text-primary transition-colors">
+              View Profile
+            </p>
+          </button>
+        )}
+
+        {/* Sign Out quick button */}
+        <button
+          type="button"
           onClick={onLogout}
           disabled={isPending}
           className={cn(
-            'w-full flex items-center justify-center mt-2 p-2 rounded-xl transition-colors duration-200',
-            'text-ios-red-vibrant hover:bg-ios-red-vibrant/10',
+            'flex items-center justify-center rounded-lg transition-colors duration-200',
+            'text-ios-red-vibrant/70 hover:text-ios-red-vibrant hover:bg-ios-red-vibrant/10',
             'disabled:opacity-50 disabled:cursor-not-allowed',
+            isCollapsed ? 'w-10 h-10' : 'w-9 h-9 flex-shrink-0',
           )}
           title="Sign out"
         >
-          <LogOut size={18} />
+          <LogOut size={isCollapsed ? 18 : 16} />
         </button>
-      )}
+      </div>
     </div>
   )
 }
@@ -280,6 +279,7 @@ export default function Sidebar() {
     () => loadSet(FAVORITES_KEY),
   )
   const [scrollState, setScrollState] = useState({ top: false, bottom: false })
+  const [showProfile, setShowProfile] = useState(false)
 
   const navRef = useRef<HTMLElement>(null)
   const { user } = useAuthStore()
@@ -551,57 +551,54 @@ export default function Sidebar() {
             )}
           </div>
 
-          {/* Bottom-pinned Settings */}
-          <div className={cn(
-            'border-t border-border',
-            isCollapsed ? 'p-2' : 'px-3 py-2',
-          )}>
-            <div className={cn(
-              'space-y-0.5',
-              !isCollapsed && 'rounded-xl bg-white/5 p-1',
-            )}>
+          {/* Bottom-pinned: compact icon buttons + collapse + notifications */}
+          <div className="border-t border-border p-2 space-y-1">
+            {/* Upload & Settings — compact icon-only row */}
+            <div className="flex items-center gap-2 justify-center">
               {bottomItems.map((item) => (
-                <SidebarItem
+                <NavLink
                   key={item.path}
                   to={item.path}
-                  icon={item.icon}
-                  label={item.label}
-                  isCollapsed={isCollapsed}
-                  isFavorite={favorites.has(item.path)}
-                  onToggleFavorite={() => toggleFavorite(item.path)}
-                  onNavigate={closeMobile}
-                />
+                  onClick={closeMobile}
+                  className={({ isActive }) =>
+                    cn(
+                      'w-9 h-9 rounded-lg flex items-center justify-center relative group/bottom transition-colors duration-200',
+                      isActive
+                        ? 'bg-primary/20 text-primary'
+                        : 'text-muted-foreground hover:bg-white/10 hover:text-white',
+                    )
+                  }
+                  title={item.label}
+                >
+                  <item.icon size={18} />
+                  {/* Tooltip */}
+                  <span className="absolute left-full ml-2 px-2 py-1 rounded bg-surface-tooltip text-xs text-white whitespace-nowrap opacity-0 group-hover/bottom:opacity-100 transition-opacity pointer-events-none border border-border shadow-lg z-50">
+                    {item.label}
+                  </span>
+                </NavLink>
               ))}
-            </div>
-          </div>
 
-          {/* Collapse Toggle & Notifications */}
-          <div className="p-2 border-t border-border space-y-1">
-            <button
-              onClick={toggleCollapse}
-              className={cn(
-                'w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors duration-200',
-                'text-muted-foreground hover:bg-white/10 hover:text-white hover:scale-[1.02]',
-                isCollapsed && 'justify-center px-2',
-              )}
-              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {isCollapsed ? (
-                <ChevronsRight size={18} />
-              ) : (
-                <>
-                  <ChevronsLeft size={18} />
-                  <span className="text-sm">Collapse</span>
-                </>
-              )}
-            </button>
+              {/* Collapse toggle */}
+              <button
+                onClick={toggleCollapse}
+                className="w-9 h-9 rounded-lg flex items-center justify-center relative group/bottom text-muted-foreground hover:bg-white/10 hover:text-white transition-colors duration-200"
+                title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {isCollapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
+                <span className="absolute left-full ml-2 px-2 py-1 rounded bg-surface-tooltip text-xs text-white whitespace-nowrap opacity-0 group-hover/bottom:opacity-100 transition-opacity pointer-events-none border border-border shadow-lg z-50">
+                  {isCollapsed ? 'Expand' : 'Collapse'}
+                </span>
+              </button>
+            </div>
+
             <NotificationCenter isCollapsed={isCollapsed} />
           </div>
 
           {/* User Profile & Logout */}
-          <UserProfile
+          <UserProfileButton
             user={user}
             isCollapsed={isCollapsed}
+            onOpenProfile={() => setShowProfile(true)}
             onLogout={handleLogout}
             isPending={logout.isPending}
           />
@@ -618,6 +615,9 @@ export default function Sidebar() {
           onKeyDown={(e) => e.key === 'Escape' && setIsMobileOpen(false)}
         />
       )}
+
+      {/* Profile Modal */}
+      <ProfileModal open={showProfile} onOpenChange={setShowProfile} />
     </>
   )
 }

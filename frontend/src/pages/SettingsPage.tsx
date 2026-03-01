@@ -1,17 +1,18 @@
 /**
  * Comprehensive Settings Page
  *
- * Thin shell that manages shared state and tab navigation,
- * delegating rendering to grouped tab components:
+ * Single scrollable page with a sticky TOC sidebar, delegating rendering
+ * to grouped section components:
  * 1. Accounts (Account Classifications + Investment Mappings + Excluded Accounts)
  * 2. Categories (Essential Categories + Fixed Expenses + Income Classification)
  * 3. Financial (Financial Targets + Spending Rule + Budget Defaults + Credit Card Limits)
  * 4. Preferences (Display + Fiscal Year + Earning Start Date + Notifications + Anomaly + Recurring)
- * 5. Account Management
+ *
+ * Account management (profile, reset, delete) has moved to ProfileModal in the sidebar.
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   Save,
   RotateCcw,
@@ -19,7 +20,6 @@ import {
   Tags,
   Target,
   Settings2,
-  UserCog,
 } from 'lucide-react'
 import { useAccountBalances, useMasterCategories } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
@@ -31,22 +31,18 @@ import {
   CategoriesTab,
   FinancialTab,
   PreferencesTab,
-  AccountManagementTab,
 } from './settings'
 import type { LocalPrefs, LocalPrefKey } from './settings'
 import type { IncomeClassificationType } from './settings/types'
 import { INCOME_CLASSIFICATION_KEY_MAP } from './settings/types'
 
-// Tab definitions — consolidated from 10 to 5
-const TABS = [
-  { id: 'accounts', label: 'Accounts', icon: Wallet },
-  { id: 'categories', label: 'Categories', icon: Tags },
-  { id: 'financial', label: 'Financial', icon: Target },
-  { id: 'preferences', label: 'Preferences', icon: Settings2 },
-  { id: 'account-management', label: 'Account', icon: UserCog },
+// Section definitions for TOC sidebar navigation
+const SECTIONS = [
+  { id: 'settings-accounts', label: 'Accounts', icon: Wallet },
+  { id: 'settings-categories', label: 'Categories', icon: Tags },
+  { id: 'settings-financial', label: 'Financial', icon: Target },
+  { id: 'settings-preferences', label: 'Preferences', icon: Settings2 },
 ] as const
-
-type TabId = (typeof TABS)[number]['id']
 
 /** Derive default account classifications from account names by keyword matching */
 function getDefaultClassifications(accountNames: string[]): Record<string, string> {
@@ -71,7 +67,7 @@ function getDefaultClassifications(accountNames: string[]): Record<string, strin
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<TabId>('accounts')
+  const [activeSection, setActiveSection] = useState('settings-accounts')
 
   // Preferences data
   const { data: preferences, isLoading: preferencesLoading } = usePreferences()
@@ -196,8 +192,29 @@ export default function SettingsPage() {
     return () => { cancelled = true }
   }, [accounts])
 
+  // IntersectionObserver for active section tracking
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id)
+          }
+        }
+      },
+      { rootMargin: '-20% 0px -70% 0px' }
+    )
+
+    for (const section of SECTIONS) {
+      const el = document.getElementById(section.id)
+      if (el) observer.observe(el)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
   // ---------------------------------------------------------------------------
-  // Drag-and-drop handlers (shared across tabs)
+  // Drag-and-drop handlers (shared across sections)
   // ---------------------------------------------------------------------------
 
   const handleDragStart = (item: string, type: 'account' | 'category' | 'income-category') => {
@@ -329,18 +346,16 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      // Save account classifications (in parallel)
-      if (activeTab === 'accounts') {
-        const original = await accountClassificationsService.getAllClassifications()
-        const changedEntries = Object.entries(classifications).filter(
-          ([accountName, accountType]) => original[accountName] !== accountType
+      // Always save account classifications
+      const original = await accountClassificationsService.getAllClassifications()
+      const changedEntries = Object.entries(classifications).filter(
+        ([accountName, accountType]) => original[accountName] !== accountType
+      )
+      await Promise.all(
+        changedEntries.map(([accountName, accountType]) =>
+          accountClassificationsService.setClassification(accountName, accountType)
         )
-        await Promise.all(
-          changedEntries.map(([accountName, accountType]) =>
-            accountClassificationsService.setClassification(accountName, accountType)
-          )
-        )
-      }
+      )
 
       // Save preferences
       if (localPrefs) {
@@ -365,6 +380,14 @@ export default function SettingsPage() {
     } catch {
       toast.error('Failed to reset settings')
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scroll-to-section helper
+  // ---------------------------------------------------------------------------
+
+  const scrollToSection = (sectionId: string) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   // ---------------------------------------------------------------------------
@@ -396,85 +419,120 @@ export default function SettingsPage() {
           <p className="text-muted-foreground mt-2">Configure your financial tracking preferences</p>
         </motion.div>
 
-        {/* Tabs — horizontal scroll, no wrapping */}
-        <div className="flex overflow-x-auto scrollbar-none gap-2 p-1 bg-white/5 rounded-xl border border-border">
-          {TABS.map((tab) => (
+        {/* Mobile section nav */}
+        <div className="lg:hidden flex overflow-x-auto scrollbar-none gap-2 pb-4">
+          {SECTIONS.map((s) => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 ${
-                activeTab === tab.id
-                  ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg border-b-2 border-primary'
-                  : 'text-muted-foreground hover:text-white hover:bg-white/10 border-b-2 border-transparent'
+              key={s.id}
+              onClick={() => scrollToSection(s.id)}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors ${
+                activeSection === s.id
+                  ? 'bg-primary/15 text-primary font-medium'
+                  : 'bg-white/5 text-muted-foreground hover:text-white hover:bg-white/10'
               }`}
             >
-              <tab.icon className="w-4 h-4" />
-              <span className="text-sm font-medium">{tab.label}</span>
+              <s.icon className="w-3 h-3" />
+              {s.label}
             </button>
           ))}
         </div>
 
-        {/* Tab Content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="glass rounded-xl border border-border p-6"
-          >
-            {activeTab === 'accounts' && localPrefs && (
-              <AccountsTab
-                accounts={accounts}
-                classifications={classifications}
-                balanceData={balanceData}
-                balancesLoading={balancesLoading}
-                dragType={dragType}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragOver={handleDragOver}
-                onDropOnAccountCategory={handleDropOnAccountCategory}
-                localPrefs={localPrefs}
-                investmentAccounts={investmentAccounts}
-                onDropOnInvestmentType={handleDropOnInvestmentType}
-                onRemoveInvestmentMapping={handleRemoveInvestmentMapping}
-                updateLocalPref={updateLocalPref}
-              />
-            )}
+        {/* Main layout: TOC sidebar + content */}
+        <div className="flex gap-8">
+          {/* Sticky TOC sidebar - hidden on mobile */}
+          <nav className="hidden lg:block w-48 shrink-0 sticky top-6 self-start space-y-1">
+            {SECTIONS.map((section) => (
+              <button
+                key={section.id}
+                onClick={() => scrollToSection(section.id)}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  activeSection === section.id
+                    ? 'bg-primary/15 text-primary font-medium'
+                    : 'text-muted-foreground hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <section.icon className="w-4 h-4" />
+                {section.label}
+              </button>
+            ))}
+          </nav>
 
-            {activeTab === 'categories' && localPrefs && (
-              <CategoriesTab
-                localPrefs={localPrefs}
-                allExpenseCategories={allExpenseCategories}
-                allIncomeCategories={allIncomeCategories}
-                dragType={dragType}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragOver={handleDragOver}
-                onDropOnEssential={handleDropOnEssential}
-                onRemoveFromEssential={handleRemoveFromEssential}
-                onDropOnFixedExpenses={handleDropOnFixedExpenses}
-                onRemoveFromFixedExpenses={handleRemoveFromFixedExpenses}
-                onDropOnIncomeClassification={handleDropOnIncomeClassification}
-                onRemoveIncomeClassification={handleRemoveIncomeClassification}
-              />
-            )}
+          {/* Content */}
+          <div className="flex-1 min-w-0 space-y-10">
+            {/* Section: Accounts */}
+            <section id="settings-accounts">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-primary" /> Accounts
+              </h2>
+              {localPrefs && (
+                <AccountsTab
+                  accounts={accounts}
+                  classifications={classifications}
+                  balanceData={balanceData}
+                  balancesLoading={balancesLoading}
+                  dragType={dragType}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={handleDragOver}
+                  onDropOnAccountCategory={handleDropOnAccountCategory}
+                  localPrefs={localPrefs}
+                  investmentAccounts={investmentAccounts}
+                  onDropOnInvestmentType={handleDropOnInvestmentType}
+                  onRemoveInvestmentMapping={handleRemoveInvestmentMapping}
+                  updateLocalPref={updateLocalPref}
+                />
+              )}
+            </section>
 
-            {activeTab === 'financial' && localPrefs && (
-              <FinancialTab
-                localPrefs={localPrefs}
-                updateLocalPref={updateLocalPref}
-                creditCardAccounts={creditCardAccounts}
-              />
-            )}
+            {/* Section: Categories */}
+            <section id="settings-categories">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Tags className="w-5 h-5 text-primary" /> Categories
+              </h2>
+              {localPrefs && (
+                <CategoriesTab
+                  localPrefs={localPrefs}
+                  allExpenseCategories={allExpenseCategories}
+                  allIncomeCategories={allIncomeCategories}
+                  dragType={dragType}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={handleDragOver}
+                  onDropOnEssential={handleDropOnEssential}
+                  onRemoveFromEssential={handleRemoveFromEssential}
+                  onDropOnFixedExpenses={handleDropOnFixedExpenses}
+                  onRemoveFromFixedExpenses={handleRemoveFromFixedExpenses}
+                  onDropOnIncomeClassification={handleDropOnIncomeClassification}
+                  onRemoveIncomeClassification={handleRemoveIncomeClassification}
+                />
+              )}
+            </section>
 
-            {activeTab === 'preferences' && localPrefs && (
-              <PreferencesTab localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
-            )}
+            {/* Section: Financial */}
+            <section id="settings-financial">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Target className="w-5 h-5 text-primary" /> Financial
+              </h2>
+              {localPrefs && (
+                <FinancialTab
+                  localPrefs={localPrefs}
+                  updateLocalPref={updateLocalPref}
+                  creditCardAccounts={creditCardAccounts}
+                />
+              )}
+            </section>
 
-            {activeTab === 'account-management' && <AccountManagementTab />}
-          </motion.div>
-        </AnimatePresence>
+            {/* Section: Preferences */}
+            <section id="settings-preferences">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Settings2 className="w-5 h-5 text-primary" /> Preferences
+              </h2>
+              {localPrefs && (
+                <PreferencesTab localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
+              )}
+            </section>
+          </div>
+        </div>
 
         {/* Action Buttons - Fixed at bottom */}
         <motion.div

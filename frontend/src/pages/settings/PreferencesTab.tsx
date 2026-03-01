@@ -10,6 +10,7 @@
  * 6. Recurring Transactions (from OtherSettingsTab)
  */
 
+import { useState } from 'react'
 import {
   Settings2,
   Calendar,
@@ -20,10 +21,42 @@ import {
   Receipt,
   Clock,
   Check,
+  Palette,
+  LayoutGrid,
 } from 'lucide-react'
 import CollapsibleSection from '@/components/ui/CollapsibleSection'
 import type { LocalPrefs, LocalPrefKey } from './types'
 import { MONTHS, TIME_RANGE_OPTIONS, ANOMALY_TYPES } from './types'
+
+// Dashboard widget names for visibility toggles
+const DASHBOARD_WIDGETS = [
+  { key: 'savings_rate', label: 'Savings Rate' },
+  { key: 'top_spending', label: 'Top Spending Category' },
+  { key: 'top_income', label: 'Top Income Source' },
+  { key: 'cashback', label: 'Net Cashback Earned' },
+  { key: 'total_transactions', label: 'Total Transactions' },
+  { key: 'biggest_transaction', label: 'Biggest Transaction' },
+  { key: 'median_transaction', label: 'Median Transaction' },
+  { key: 'daily_spending', label: 'Average Daily Spending' },
+  { key: 'weekend_spending', label: 'Weekend Spending' },
+  { key: 'peak_day', label: 'Peak Spending Day' },
+  { key: 'burn_rate', label: 'Monthly Burn Rate' },
+  { key: 'spending_diversity', label: 'Spending Diversity' },
+  { key: 'avg_transaction', label: 'Avg Transaction Amount' },
+  { key: 'total_transfers', label: 'Total Internal Transfers' },
+] as const
+
+function getStoredWidgets(): string[] {
+  try {
+    const raw = localStorage.getItem('ledger-sync-visible-widgets')
+    if (raw) return JSON.parse(raw)
+  } catch { /* use defaults */ }
+  return DASHBOARD_WIDGETS.map((w) => w.key)
+}
+
+function getStoredTheme(): 'dark' | 'system' {
+  return (localStorage.getItem('ledger-sync-theme') as 'dark' | 'system') || 'dark'
+}
 
 interface PreferencesTabProps {
   localPrefs: LocalPrefs
@@ -81,6 +114,8 @@ export default function PreferencesTab({
   localPrefs,
   updateLocalPref,
 }: Readonly<PreferencesTabProps>) {
+  const [theme, setTheme] = useState<'dark' | 'system'>(getStoredTheme)
+  const [visibleWidgets, setVisibleWidgets] = useState<string[]>(getStoredWidgets)
   const toggleAnomalyType = (type: string) => {
     const enabled = localPrefs.anomaly_types_enabled.includes(type)
     updateLocalPref(
@@ -392,7 +427,92 @@ export default function PreferencesTab({
         </div>
       </CollapsibleSection>
 
-      {/* Section 6: Recurring Transactions */}
+      {/* Section 6: Appearance */}
+      <CollapsibleSection title="Appearance" icon={Palette} defaultExpanded={false}>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">Choose your preferred theme. Dark mode is optimized for OLED screens.</p>
+          <div className="flex gap-3">
+            {(['dark', 'system'] as const).map((t) => (
+              <label
+                key={t}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-colors border ${
+                  theme === t
+                    ? 'bg-primary/15 border-primary text-white'
+                    : 'bg-white/5 border-border-strong text-muted-foreground hover:text-white'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="theme"
+                  value={t}
+                  checked={theme === t}
+                  onChange={() => {
+                    setTheme(t)
+                    localStorage.setItem('ledger-sync-theme', t)
+                  }}
+                  className="sr-only"
+                />
+                <span className="text-sm font-medium capitalize">{t === 'system' ? 'System (Auto)' : 'Dark'}</span>
+              </label>
+            ))}
+          </div>
+          {theme === 'system' && (
+            <p className="text-xs text-ios-yellow">Light theme coming soon. Currently defaults to dark.</p>
+          )}
+        </div>
+      </CollapsibleSection>
+
+      {/* Section 7: Dashboard Widgets */}
+      <CollapsibleSection title="Dashboard Widgets" icon={LayoutGrid} defaultExpanded={false}>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">Choose which Quick Insight cards appear on your Dashboard.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {DASHBOARD_WIDGETS.map((widget) => {
+              const isVisible = visibleWidgets.includes(widget.key)
+              return (
+                <label
+                  key={widget.key}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
+                    isVisible ? 'bg-white/5 hover:bg-white/10' : 'opacity-50 hover:opacity-75'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = isVisible
+                        ? visibleWidgets.filter((w) => w !== widget.key)
+                        : [...visibleWidgets, widget.key]
+                      setVisibleWidgets(next)
+                      localStorage.setItem('ledger-sync-visible-widgets', JSON.stringify(next))
+                    }}
+                    className={`w-5 h-5 rounded flex items-center justify-center shrink-0 transition-colors ${
+                      isVisible
+                        ? 'bg-primary/20 text-primary border border-primary/50'
+                        : 'bg-white/5 border border-border-strong'
+                    }`}
+                  >
+                    {isVisible && <Check className="w-3 h-3" />}
+                  </button>
+                  <span className="text-sm text-white">{widget.label}</span>
+                </label>
+              )
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const all = DASHBOARD_WIDGETS.map((w) => w.key)
+              setVisibleWidgets(all)
+              localStorage.setItem('ledger-sync-visible-widgets', JSON.stringify(all))
+            }}
+            className="text-xs text-primary hover:underline"
+          >
+            Show all widgets
+          </button>
+        </div>
+      </CollapsibleSection>
+
+      {/* Section 8: Recurring Transactions */}
       <CollapsibleSection
         title="Recurring Transactions"
         icon={RefreshCw}
