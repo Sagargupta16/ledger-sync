@@ -142,7 +142,7 @@ if settings.environment == "development" and (
     not settings.jwt_secret_key or settings.jwt_secret_key == _DEV_JWT_SECRET
 ):
     settings.jwt_secret_key = (
-        "dev-local-only-jwt-secret-not-for-production-" "abcdef0123456789abcdef0123456789"
+        "dev-local-only-jwt-secret-not-for-production-abcdef0123456789abcdef0123456789"
     )
 
 # Validate settings on import for any non-development environment

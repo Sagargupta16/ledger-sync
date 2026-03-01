@@ -107,8 +107,15 @@ async def add_security_headers(
     request: Request,
     call_next: _MiddlewareCallNext,
 ) -> Response:
-    """Add security headers to all responses (OWASP best practices)."""
+    """Add security headers to all responses (OWASP best practices).
+
+    Skips CORS preflight (OPTIONS) so CORSMiddleware can handle them cleanly.
+    """
     response = await call_next(request)
+
+    # Don't modify CORS preflight responses
+    if request.method == "OPTIONS":
+        return response
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -120,6 +127,7 @@ async def add_security_headers(
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data:; "
         "font-src 'self'; "
+        "connect-src 'self' https:; "
         "frame-ancestors 'none'; "
         "base-uri 'self'; "
         "form-action 'self'"

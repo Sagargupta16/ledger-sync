@@ -20,7 +20,7 @@
     "test:frontend": "cd frontend && pnpm test",
     "check": "concurrently -n \"lint,types,test\" -c \"bgYellow.bold,bgCyan.bold,bgGreen.bold\" \"pnpm run lint\" \"pnpm run type-check\" \"pnpm run test\"",
     "format": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run format:backend\" \"pnpm run format:frontend\"",
-    "format:backend": "cd backend && uv run black src/ tests/ && uv run ruff check --fix src/ tests/",
+    "format:backend": "cd backend && uv run ruff format src/ tests/ && uv run ruff check --fix src/ tests/",
     "format:frontend": "cd frontend && pnpm run format",
     "build": "cd frontend && pnpm run build"
   },

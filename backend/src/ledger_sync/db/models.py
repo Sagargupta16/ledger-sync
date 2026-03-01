@@ -223,11 +223,7 @@ class ImportLog(Base):
 
     def __repr__(self) -> str:
         """Return string representation."""
-        return (
-            f"<ImportLog(id={self.id}, "
-            f"file={self.file_name}, "
-            f"imported_at={self.imported_at})>"
-        )
+        return f"<ImportLog(id={self.id}, file={self.file_name}, imported_at={self.imported_at})>"
 
 
 class AccountClassification(Base):

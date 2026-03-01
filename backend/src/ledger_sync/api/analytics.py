@@ -463,8 +463,7 @@ def get_yearly_wrapped(
             "title": "Total Spending",
             "value": f"₹{totals['total_expenses']:,.2f}",
             "description": (
-                f"You spent ₹{totals['total_expenses']:,.2f} "
-                f"across {len(expenses)} transactions"
+                f"You spent ₹{totals['total_expenses']:,.2f} across {len(expenses)} transactions"
             ),
         },
     )
@@ -488,8 +487,7 @@ def get_yearly_wrapped(
                 "title": "Biggest Expense",
                 "value": f"₹{float(biggest.amount):,.2f}",
                 "description": (
-                    f"Your largest expense was ₹{float(biggest.amount):,.2f} "
-                    f"in {biggest.category}"
+                    f"Your largest expense was ₹{float(biggest.amount):,.2f} in {biggest.category}"
                 ),
             },
         )
@@ -516,8 +514,7 @@ def get_yearly_wrapped(
                 "title": "Best Month",
                 "value": best["month"],
                 "description": (
-                    f"Your best month was {best['month']} "
-                    f"with a surplus of ₹{best['surplus']:,.2f}"
+                    f"Your best month was {best['month']} with a surplus of ₹{best['surplus']:,.2f}"
                 ),
             },
         )

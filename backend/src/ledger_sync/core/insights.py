@@ -159,7 +159,7 @@ class InsightEngine:
                         "title": "Spending Trending Upward",
                         "description": (
                             f"Your last 3 months average (₹{recent_avg:,.0f}) is "
-                            f"{((recent_avg/overall_avg - 1) * 100):.1f}% higher "
+                            f"{((recent_avg / overall_avg - 1) * 100):.1f}% higher "
                             f"than your overall average."
                         ),
                         "severity": "warning",
@@ -171,7 +171,7 @@ class InsightEngine:
                         "title": "Spending Trending Downward",
                         "description": (
                             f"Your last 3 months average (₹{recent_avg:,.0f}) is "
-                            f"{((1 - recent_avg/overall_avg) * 100):.1f}% lower "
+                            f"{((1 - recent_avg / overall_avg) * 100):.1f}% lower "
                             f"than your overall average."
                         ),
                         "severity": "positive",
