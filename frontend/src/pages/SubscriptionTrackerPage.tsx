@@ -173,7 +173,7 @@ function StatusBadge({ status }: Readonly<{ status: 'active' | 'possibly_inactiv
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-ios-yellow/15 text-ios-yellow">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
       <AlertTriangle className="w-3 h-3" />
       Possibly Inactive
     </span>
@@ -189,7 +189,7 @@ function SubscriptionCard({ sub }: Readonly<{ sub: RecurringTransaction }>) {
   return (
     <motion.div
       variants={fadeUpItem}
-      className="glass rounded-xl border border-border p-5 hover:border-white/20 transition-colors duration-200"
+      className="glass rounded-xl border border-border p-5 hover:border-white/20 hover:bg-white/[0.04] transition-colors duration-200"
     >
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         {/* Left side: name, category, account */}

@@ -249,7 +249,7 @@ function BillDetailItem({ bill }: Readonly<{ bill: PlacedBill }>) {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className="flex items-center justify-between gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/8 transition-colors"
+      className="flex items-center justify-between gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/[0.04] transition-colors"
     >
       <div className="flex items-center gap-3 min-w-0">
         <div
@@ -298,7 +298,7 @@ function DayCell({
   const selectionClass = isSelected
     ? 'bg-ios-blue/20 border border-ios-blue/40'
     : 'hover:bg-white/8 border border-transparent'
-  const todayBorderClass = isToday && !isSelected ? 'border border-ios-blue/30' : ''
+  const todayBorderClass = isToday && !isSelected ? 'ring-2 ring-ios-blue/50' : ''
 
   const dayNumberClass = (() => {
     if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-ios-blue text-white'

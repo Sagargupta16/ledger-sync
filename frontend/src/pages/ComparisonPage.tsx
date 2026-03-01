@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Equal, Upload, Lightbulb } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Equal, Upload, Lightbulb, Calendar } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -770,7 +770,10 @@ function PeriodSelector({
 
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <span className="text-xs text-muted-foreground font-medium">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground font-medium">{label}</span>
+      </div>
       {mode === 'month' && (
         <select className={selectClass} value={month} onChange={(e) => onMonth(e.target.value)}>
           {monthOptions.map((m) => (

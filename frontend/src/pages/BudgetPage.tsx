@@ -309,8 +309,8 @@ export default function BudgetPage() {
             <motion.button
               onClick={() => setIsAdding(true)}
               whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-              style={{ backgroundColor: `${rawColors.ios.green}22`, color: rawColors.ios.green }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors shadow-lg"
+              style={{ background: `linear-gradient(135deg, ${rawColors.ios.green}, ${rawColors.ios.teal})` }}
             >
               <Plus className="w-4 h-4" /> Add Budget
             </motion.button>
@@ -491,7 +491,7 @@ export default function BudgetPage() {
                   key={key}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`glass rounded-2xl border p-5 ${cfg.border} ${cfg.bg}`}
+                  className={`glass rounded-2xl border p-5 hover:bg-white/[0.04] transition-colors ${cfg.border} ${cfg.bg}`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">

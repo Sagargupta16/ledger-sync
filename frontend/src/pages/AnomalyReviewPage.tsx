@@ -24,10 +24,10 @@ const ANOMALY_TYPE_ICONS: Record<Anomaly['anomaly_type'], typeof TrendingUp> = {
   budget_exceeded: AlertTriangle,
 }
 
-const SEVERITY_STYLES: Record<Anomaly['severity'], { bg: string; text: string; border: string }> = {
-  high: { bg: 'bg-ios-red/10', text: 'text-ios-red', border: 'border-ios-red/20' },
-  medium: { bg: 'bg-ios-yellow/10', text: 'text-ios-yellow', border: 'border-ios-yellow/20' },
-  low: { bg: 'bg-ios-blue/10', text: 'text-ios-blue', border: 'border-ios-blue/20' },
+const SEVERITY_STYLES: Record<Anomaly['severity'], { bg: string; text: string; border: string; borderLeft: string }> = {
+  high: { bg: 'bg-ios-red/15', text: 'text-ios-red', border: 'border-ios-red/20', borderLeft: 'border-l-4 border-l-ios-red' },
+  medium: { bg: 'bg-ios-orange/15', text: 'text-ios-orange', border: 'border-ios-orange/20', borderLeft: 'border-l-4 border-l-ios-orange' },
+  low: { bg: 'bg-ios-yellow/15', text: 'text-ios-yellow', border: 'border-ios-yellow/20', borderLeft: 'border-l-4 border-l-ios-yellow' },
 }
 
 export default function AnomalyReviewPage() {
@@ -156,7 +156,7 @@ export default function AnomalyReviewPage() {
                 key={anomaly.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`glass rounded-2xl border p-5 ${anomaly.is_reviewed ? 'border-border opacity-60' : 'border-border'}`}
+                className={`glass rounded-2xl border p-5 ${severity.borderLeft} ${anomaly.is_reviewed ? 'border-border opacity-60' : 'border-border'}`}
               >
                 {/* Header Row */}
                 <div className="flex items-start justify-between gap-4">

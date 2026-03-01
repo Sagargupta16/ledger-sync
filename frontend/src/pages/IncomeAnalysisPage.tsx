@@ -144,6 +144,10 @@ export default function IncomeAnalysisPage() {
 
   const isLoading = !transactions
 
+  let growthColor: 'green' | 'red' | 'blue' = 'blue'
+  if (growthRate > 0) growthColor = 'green'
+  else if (growthRate < 0) growthColor = 'red'
+
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -158,7 +162,7 @@ export default function IncomeAnalysisPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <MetricCard title="Total Income" value={formatCurrency(totalIncome)} icon={DollarSign} color="green" isLoading={isLoading} />
           <MetricCard title="Primary Income Type" value={primaryIncomeType} icon={Activity} color="blue" isLoading={isLoading} />
-          <MetricCard title="Growth Rate" value={formatPercent(growthRate, true)} icon={TrendingUp} color="blue" isLoading={isLoading} />
+          <MetricCard title="Growth Rate" value={formatPercent(growthRate, true)} icon={TrendingUp} color={growthColor} isLoading={isLoading} />
           <MetricCard title="Cashbacks Earned" value={formatCurrency(cashbacksTotal)} icon={Wallet} color="teal" isLoading={isLoading} />
         </div>
 
@@ -208,17 +212,20 @@ export default function IncomeAnalysisPage() {
                   return (
                     <div
                       key={item.name}
-                      className="p-4 rounded-lg bg-surface-dropdown/30 hover:bg-surface-dropdown/50 transition-colors"
+                      className="p-4 rounded-lg bg-surface-dropdown/30 hover:bg-white/[0.04] transition-colors"
                     >
                       <div className="flex items-center gap-3 mb-2">
                         <div
                           className="p-2 rounded-lg"
                           style={{ backgroundColor: `${item.color}20` }}
                         >
-                          <Icon className="w-5 h-5" />
+                          <div style={{ color: item.color }}><Icon className="w-5 h-5" /></div>
                         </div>
                         <div>
-                          <p className="font-medium text-white">{item.name}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: item.color }} />
+                            <p className="font-medium text-white">{item.name}</p>
+                          </div>
                           <p className="text-xs text-muted-foreground">{percentage}% of income</p>
                         </div>
                       </div>

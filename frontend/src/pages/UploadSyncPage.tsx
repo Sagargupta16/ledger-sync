@@ -144,7 +144,7 @@ export default function UploadSyncPage() {
                     'hover:border-primary hover:bg-primary/10',
                     isDragActive && 'border-primary bg-primary/20 scale-[1.02]',
                     uploadMutation.isPending && 'opacity-50 cursor-not-allowed',
-                    selectedFile ? 'border-primary' : 'border-border-strong'
+                    selectedFile ? 'border-primary' : 'border-white/20'
                   )}
                 >
                   <input {...getInputProps()} />
@@ -158,7 +158,7 @@ export default function UploadSyncPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-white">Uploading...</p>
-                        <p className="text-sm text-muted-foreground">{selectedFile?.name}</p>
+                        <p className="font-mono text-sm text-muted-foreground">{selectedFile?.name}</p>
                       </div>
                     </div>
                   ) : (
@@ -197,7 +197,7 @@ export default function UploadSyncPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="p-5 rounded-xl bg-ios-yellow/10 border border-ios-yellow/30 flex items-center gap-4"
+            className="p-5 rounded-xl bg-ios-yellow/10 border border-ios-yellow/30 flex items-center gap-4 glow-error"
           >
             <div className="p-3 rounded-full bg-ios-yellow/20">
               <AlertTriangle className="w-6 h-6 text-ios-yellow" />
@@ -205,7 +205,7 @@ export default function UploadSyncPage() {
             <div className="flex-1">
               <h3 className="font-semibold text-ios-yellow">File Already Uploaded</h3>
               <p className="text-sm text-muted-foreground">
-                <span className="text-white">{conflictError.file.name}</span> was imported before. Re-upload to sync changes.
+                <span className="font-mono text-sm text-white">{conflictError.file.name}</span> was imported before. Re-upload to sync changes.
               </p>
             </div>
             <button

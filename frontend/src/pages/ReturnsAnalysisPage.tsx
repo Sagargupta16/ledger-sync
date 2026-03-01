@@ -477,29 +477,29 @@ export default function ReturnsAnalysisPage() {
         >
           <h3 className="text-lg font-semibold text-white mb-6">Returns Metrics</h3>
           <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border hover:bg-white/[0.08] transition-colors">
               <p className="text-xs text-muted-foreground mb-2">CAGR</p>
-              <p className="text-2xl font-bold text-ios-green">{isLoading ? '...' : formatPercent(estimatedCAGR)}</p>
+              <p className={`text-2xl font-bold ${estimatedCAGR >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>{isLoading ? '...' : formatPercent(estimatedCAGR)}</p>
             </motion.div>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border hover:bg-white/[0.08] transition-colors">
               <p className="text-xs text-muted-foreground mb-2">Monthly ROI</p>
-              <p className="text-2xl font-bold text-ios-blue">{isLoading ? '...' : formatPercent(roi)}</p>
+              <p className={`text-2xl font-bold ${roi >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>{isLoading ? '...' : formatPercent(roi)}</p>
             </motion.div>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border hover:bg-white/[0.08] transition-colors">
               <p className="text-xs text-muted-foreground mb-2">Net P&L</p>
               <p className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
                 {formatCurrency(Math.abs(netProfitLoss))}
               </p>
             </motion.div>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border hover:bg-white/[0.08] transition-colors">
               <p className="text-xs text-muted-foreground mb-2">Dividends</p>
               <p className="text-2xl font-bold text-ios-green">{formatCurrency(dividendIncome)}</p>
             </motion.div>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border hover:bg-white/[0.08] transition-colors">
               <p className="text-xs text-muted-foreground mb-2">Fees Paid</p>
-              <p className="text-2xl font-bold text-ios-orange">{formatCurrency(brokerFees)}</p>
+              <p className="text-2xl font-bold text-muted-foreground">{formatCurrency(brokerFees)}</p>
             </motion.div>
-            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border">
+            <motion.div variants={fadeUpItem} className="p-4 bg-white/5 rounded-lg border border-border hover:bg-white/[0.08] transition-colors">
               <p className="text-xs text-muted-foreground mb-2">Interest Income</p>
               <p className="text-2xl font-bold text-teal-400">{formatCurrency(interestIncome)}</p>
             </motion.div>
@@ -586,7 +586,7 @@ export default function ReturnsAnalysisPage() {
                 </div>
               </motion.div>
             </motion.div>
-            <div className="mt-4 p-4 bg-white/5 rounded-lg border border-border">
+            <div className="mt-4 p-4 bg-white/5 rounded-lg border border-border hover:bg-white/[0.08] transition-colors">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-white">Net Profit/Loss</span>
                 <span className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>

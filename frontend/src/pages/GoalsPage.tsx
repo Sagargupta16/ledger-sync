@@ -205,7 +205,8 @@ export default function GoalsPage() {
                 <button
                   type="submit"
                   disabled={createGoal.isPending}
-                  className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-ios-green hover:bg-ios-green transition-colors disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50"
+                  style={{ background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})` }}
                 >
                   {createGoal.isPending ? 'Creating...' : 'Create Goal'}
                 </button>
@@ -245,7 +246,7 @@ export default function GoalsPage() {
                 key={goal.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass rounded-2xl border border-border p-6"
+                className="glass rounded-2xl border border-border p-6 hover:scale-[1.01] transition-all duration-300"
               >
                 {/* Header */}
                 <div className="flex items-start justify-between">

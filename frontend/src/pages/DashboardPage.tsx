@@ -253,7 +253,7 @@ export default function DashboardPage() {
       <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
         {/* Income Sources Breakdown */}
         <div
-          className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-green shadow-xl"
+          className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-green shadow-xl glow-income"
         >
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Wallet className="w-5 h-5 text-ios-green" />
@@ -331,7 +331,7 @@ export default function DashboardPage() {
 
         {/* Essential vs Discretionary Spending */}
         <div
-          className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-red shadow-xl"
+          className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-red shadow-xl glow-expense"
         >
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-ios-red" />
