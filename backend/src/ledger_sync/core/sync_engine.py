@@ -76,8 +76,7 @@ class SyncEngine:
         if existing_import and not force:
             logger.info(f"File already imported at {existing_import.imported_at}")
             msg = (
-                f"File already imported at {existing_import.imported_at}. "
-                "Use --force to re-import."
+                f"File already imported at {existing_import.imported_at}. Use --force to re-import."
             )
             raise ValueError(msg)
 

@@ -9,8 +9,15 @@ from sqlalchemy.orm import Session, sessionmaker
 from ledger_sync.config.settings import settings
 from ledger_sync.db.base import Base
 
+# Normalise the database URL to use psycopg (v3) driver for PostgreSQL.
+# Users may set postgresql:// or postgresql+psycopg2:// — both map to psycopg v3.
+_db_url = settings.database_url
+if _db_url.startswith(("postgresql://", "postgresql+psycopg2://")):
+    _db_url = _db_url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+    _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+
 # Create engine
-_is_sqlite = "sqlite" in settings.database_url
+_is_sqlite = "sqlite" in _db_url
 _engine_kwargs: dict[str, object] = {
     "echo": settings.database_echo,
 }
@@ -23,7 +30,7 @@ else:
     _engine_kwargs["pool_pre_ping"] = True
     _engine_kwargs["connect_args"] = {"connect_timeout": 10}
 
-engine = create_engine(settings.database_url, **_engine_kwargs)
+engine = create_engine(_db_url, **_engine_kwargs)
 
 
 # Connection-level settings — applied on every new connection via event listener.
