@@ -3,18 +3,18 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
-// ── Suppress harmless third-party console warnings ──────────────────────────
-// Recharts: "width(-1) and height(-1) should be greater than 0" fires during
-//   initial layout when ResponsiveContainer momentarily has zero dimensions.
-//   Charts render correctly once layout resolves.
-// Framer Motion: "Reduced Motion enabled" fires on devices with that OS setting.
-//   We've removed our own reduced-motion overrides; this is framer's own warning.
+// ── Suppress known harmless third-party console warnings ─────────────────────
+// These are noise from upstream libraries that cannot be fixed on our side.
+// - Recharts: Negative dimension during initial responsive layout pass
+// - Framer Motion: Reduced motion accessibility notification
+const SUPPRESSED_PATTERNS = [
+  'should be greater than 0',  // Recharts ResponsiveContainer
+  'Reduced Motion',            // Framer Motion a11y
+]
 const _origWarn = console.warn.bind(console)
 console.warn = (...args: unknown[]) => {
-  if (typeof args[0] === 'string') {
-    if (args[0].includes('should be greater than 0')) return
-    if (args[0].includes('Reduced Motion')) return
-  }
+  const msg = typeof args[0] === 'string' ? args[0] : ''
+  if (SUPPRESSED_PATTERNS.some((p) => msg.includes(p))) return
   _origWarn(...args)
 }
 

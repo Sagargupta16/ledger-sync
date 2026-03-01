@@ -542,7 +542,7 @@ export default function BudgetPage() {
                           <button onClick={() => setEditKey(key)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
                             <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
                           </button>
-                          <button onClick={() => removeBudget(key)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-ios-red">
+                          <button onClick={() => { if (globalThis.confirm('Delete this budget? This cannot be undone.')) removeBudget(key) }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-ios-red">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </>

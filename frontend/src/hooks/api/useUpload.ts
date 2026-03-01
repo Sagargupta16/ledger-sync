@@ -20,8 +20,5 @@ export function useUpload() {
       //    instead of showing zeros while waiting for a lazy fetch.
       prefetchCoreData()
     },
-    onError: () => {
-      // Don't show toast here - let the component handle it for better control
-    },
   })
 }

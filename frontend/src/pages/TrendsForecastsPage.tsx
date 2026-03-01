@@ -8,7 +8,7 @@ import { getSmartInterval } from '@/lib/chartUtils'
 import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine } from 'recharts'
 import { getDateKey } from '@/lib/dateUtils'
 import { useState, useMemo } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick, percentChange } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
@@ -290,17 +290,17 @@ export default function TrendsForecastsPage() {
     // Calculate spending metrics
     const expenses = trends.map(t => t.expenses)
     const spendingChange = latest.expenses - previous.expenses
-    const spendingChangePercent = previous.expenses > 0 ? (spendingChange / previous.expenses) * 100 : 0
+    const spendingChangePercent = percentChange(latest.expenses, previous.expenses) ?? 0
 
     // Calculate income metrics
     const incomes = trends.map(t => t.income)
     const incomeChange = latest.income - previous.income
-    const incomeChangePercent = previous.income > 0 ? (incomeChange / previous.income) * 100 : 0
+    const incomeChangePercent = percentChange(latest.income, previous.income) ?? 0
 
     // Calculate savings metrics
     const surpluses = trends.map(t => t.surplus)
     const savingsChange = latest.surplus - previous.surplus
-    const savingsChangePercent = previous.surplus === 0 ? 0 : (savingsChange / Math.abs(previous.surplus)) * 100
+    const savingsChangePercent = percentChange(latest.surplus, previous.surplus) ?? 0
 
     const getDirection = (change: number): TrendDirection => {
       if (Math.abs(change) < 2) return 'stable'
@@ -350,8 +350,8 @@ export default function TrendsForecastsPage() {
       const rawSavingsRate = t.income > 0 ? (t.surplus / t.income) * 100 : 0
       return {
         ...t,
-        spendingChange: index > 0 ? ((t.expenses - prev.expenses) / prev.expenses) * 100 : 0,
-        incomeChange: index > 0 ? ((t.income - prev.income) / prev.income) * 100 : 0,
+        spendingChange: index > 0 ? (percentChange(t.expenses, prev.expenses) ?? 0) : 0,
+        incomeChange: index > 0 ? (percentChange(t.income, prev.income) ?? 0) : 0,
         rawSavingsRate,
         // Clamp negative savings rate to 0 for cleaner visualization
         savingsRate: Math.max(0, rawSavingsRate),

@@ -3,7 +3,7 @@ import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Equal, U
 import { useState, useMemo } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, percentChange } from '@/lib/formatters'
 import {
   getCurrentYear,
   getCurrentFY,
@@ -62,10 +62,8 @@ function changeBadgeClass(change: number, isGood: boolean): string {
   return 'text-ios-red bg-ios-red/10'
 }
 
-const pctChange = (curr: number, prev: number): number => {
-  if (prev === 0) return curr === 0 ? 0 : 100
-  return ((curr - prev) / Math.abs(prev)) * 100
-}
+const pctChange = (curr: number, prev: number): number =>
+  percentChange(curr, prev) ?? (curr === 0 ? 0 : 100)
 
 const getMonthOptions = (transactions: Array<{ date: string }>) => {
   const months = new Set<string>()

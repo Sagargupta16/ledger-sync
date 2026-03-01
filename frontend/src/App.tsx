@@ -6,6 +6,7 @@ import { Toaster } from 'sonner'
 import { ROUTES } from '@/constants'
 import AppLayout from '@/components/layout/AppLayout'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
+import { ChunkErrorBoundary } from '@/components/shared/ChunkErrorBoundary'
 import { PreferencesProvider } from '@/components/shared/PreferencesProvider'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { useAuthStore } from '@/store/authStore'
@@ -79,6 +80,16 @@ function prefetchAllPages() {
   }
 }
 
+/** Reusable loading spinner */
+function Spinner({ label = 'Loading...', className = '' }: Readonly<{ label?: string; className?: string }>) {
+  return (
+    <div className={`flex flex-col items-center gap-3 ${className}`}>
+      <div className="w-8 h-8 border-2 border-ios-blue/30 border-t-ios-blue rounded-full animate-spin" />
+      <span className="text-sm text-muted-foreground">{label}</span>
+    </div>
+  )
+}
+
 /**
  * Minimal Suspense fallback — only shows after 150ms delay
  * so fast chunk loads produce zero visible flash.
@@ -95,10 +106,7 @@ function PageLoader() {
 
   return (
     <div className="flex items-center justify-center min-h-[50vh]" aria-label="Loading page">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-ios-blue/30 border-t-ios-blue rounded-full animate-spin" />
-        <span className="text-sm text-muted-foreground">Loading...</span>
-      </div>
+      <Spinner />
     </div>
   )
 }
@@ -150,10 +158,7 @@ function LandingPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black" aria-label="Authenticating">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-ios-blue/30 border-t-ios-blue rounded-full animate-spin" />
-          <span className="text-sm text-muted-foreground">Loading...</span>
-        </div>
+        <Spinner />
       </div>
     )
   }
@@ -182,6 +187,7 @@ function App() {
         <AuthInitializer>
           <PreferencesProvider>
             <BrowserRouter basename={import.meta.env.BASE_URL}>
+              <ChunkErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   {/* Public routes */}
@@ -224,6 +230,7 @@ function App() {
                   </Route>
                 </Routes>
               </Suspense>
+              </ChunkErrorBoundary>
             </BrowserRouter>
             <Toaster
               position="bottom-right"

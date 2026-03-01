@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { ClipboardCheck } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, percentChange } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 
 type Grade = 'A' | 'B' | 'C' | 'D' | 'F'
@@ -79,7 +79,7 @@ function computePrevMonth(selectedMonth: string): string {
 }
 
 function computeGrowth(current: number, previous: number): number {
-  return previous > 0 ? ((current - previous) / previous) * 100 : 0
+  return percentChange(current, previous) ?? 0
 }
 
 export default function MonthlyFinancialReportCard() {

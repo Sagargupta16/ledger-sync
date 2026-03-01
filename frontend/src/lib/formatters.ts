@@ -107,6 +107,21 @@ export const formatPercent = (value: number, showSign = false): string => {
 }
 
 /**
+ * Calculate the percentage change between two values.
+ *
+ * Uses `Math.abs(previous)` as the denominator so that sign-flips
+ * (e.g. savings going from -1000 to +500) produce sensible results.
+ *
+ * @param current  - The current (newer) value
+ * @param previous - The previous (older) value
+ * @returns The percentage change, or `null` when `previous` is 0
+ */
+export const percentChange = (current: number, previous: number): number | null => {
+  if (previous === 0) return null
+  return ((current - previous) / Math.abs(previous)) * 100
+}
+
+/**
  * Format a YYYY-MM-DD date string for chart axis ticks.
  * Adapts to data density: shows "Jan '24" for large ranges, "Jan 15" for shorter ones.
  * @param dateStr - Date string in YYYY-MM-DD format

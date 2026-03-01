@@ -3,7 +3,7 @@ import { ArrowUpRight, ArrowDownRight, Minus, Calendar } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, percentChange } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
@@ -84,9 +84,9 @@ export default function YearOverYearComparison() {
     const current = fyData[fyData.length - 1]
     const previous = fyData[fyData.length - 2]
 
-    const incomeChange = previous.income > 0 ? ((current.income - previous.income) / previous.income) * 100 : 0
-    const expenseChange = previous.expense > 0 ? ((current.expense - previous.expense) / previous.expense) * 100 : 0
-    const savingsChange = previous.savings === 0 ? 0 : ((current.savings - previous.savings) / previous.savings) * 100
+    const incomeChange = percentChange(current.income, previous.income) ?? 0
+    const expenseChange = percentChange(current.expense, previous.expense) ?? 0
+    const savingsChange = percentChange(current.savings, previous.savings) ?? 0
 
     // Category comparison
     const categoryChanges: Array<{ category: string; current: number; previous: number; change: number }> = []
@@ -94,14 +94,7 @@ export default function YearOverYearComparison() {
     allCats.forEach((cat) => {
       const curr = current.categories[cat] || 0
       const prev = previous.categories[cat] || 0
-      let change: number
-      if (prev > 0) {
-        change = ((curr - prev) / prev) * 100
-      } else if (curr > 0) {
-        change = 100
-      } else {
-        change = 0
-      }
+      const change = percentChange(curr, prev) ?? (curr > 0 ? 100 : 0)
       categoryChanges.push({ category: cat, current: curr, previous: prev, change })
     })
 

@@ -122,11 +122,11 @@ export default function MetricCard({ title, value, change, invertChange, changeL
       <h3 className="text-sm font-medium mb-1 relative z-10" style={{ color: rawColors.text.secondary }}>{title}</h3>
 
       {/* Animated Value */}
-      <div className="flex items-baseline gap-2 relative z-10">
+      <output className="flex items-baseline gap-2 relative z-10" aria-live="polite">
         <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-white">
           <AnimatedValue value={value} />
         </p>
-      </div>
+      </output>
 
       {/* Subtitle */}
       {subtitle && (
