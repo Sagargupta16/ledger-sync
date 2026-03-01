@@ -40,21 +40,21 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
 
-      // Set user
+      // Set user (uses callback form to read consistent state)
       setUser: (user) =>
-        set({
+        set((state) => ({
           user,
-          isAuthenticated: !!user && !!get().accessToken,
-        }),
+          isAuthenticated: !!user && !!state.accessToken,
+        })),
 
-      // Set tokens
+      // Set tokens (uses callback form to read consistent state)
       setTokens: (tokens) => {
         if (tokens) {
-          set({
+          set((state) => ({
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token,
-            isAuthenticated: !!get().user && !!tokens.access_token,
-          })
+            isAuthenticated: !!state.user && !!tokens.access_token,
+          }))
         } else {
           set({
             accessToken: null,

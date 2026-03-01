@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
 import { CHART_AXIS_COLOR } from '@/constants/chartColors'
-import { TrendingUp, PieChart, DollarSign, LineChart } from 'lucide-react'
+import { TrendingUp, PieChart, DollarSign, LineChart, Target } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import { useMemo, useState } from 'react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
@@ -135,6 +135,28 @@ export default function InvestmentAnalyticsPage() {
   
   // Simple return calculation based on category breakdown of income
   const investmentReturns = totalInvestmentValue * 0.05 // Assume 5% average returns
+
+  // Monthly investment target from preferences
+  const monthlyInvestmentTarget = preferences?.monthly_investment_target ?? 0
+
+  // Current month's total investment (transfers IN to investment accounts)
+  const currentMonthInvestment = useMemo(() => {
+    if (!transactions.length || !investmentAccounts.length) return 0
+    const now = new Date()
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    let total = 0
+    for (const tx of transactions) {
+      if (!tx.date.startsWith(currentMonthKey)) continue
+      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
+        total += tx.amount
+      }
+    }
+    return total
+  }, [transactions, investmentAccounts])
+
+  const targetProgress = monthlyInvestmentTarget > 0
+    ? Math.min((currentMonthInvestment / monthlyInvestmentTarget) * 100, 100)
+    : 0
 
   // Group by 4 investment categories - based on filtered data
   const investmentTypeBreakdown = useMemo(() => {
@@ -343,10 +365,45 @@ export default function InvestmentAnalyticsPage() {
           }
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
           <MetricCard title="Total Investment Value" value={formatCurrency(totalInvestmentValue)} icon={TrendingUp} color="green" isLoading={isLoading} />
           <MetricCard title="Portfolio Assets" value={investmentAccounts.length} icon={PieChart} color="blue" isLoading={isLoading} />
           <MetricCard title="Est. Returns (5%)" value={formatCurrency(investmentReturns)} icon={DollarSign} color="purple" isLoading={isLoading} />
+          {monthlyInvestmentTarget > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="relative p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10 shadow-xl shadow-black/40"
+            >
+              <div className="inline-flex p-3 rounded-2xl mb-4 bg-ios-orange/15" style={{ boxShadow: '0 8px 24px rgba(255,159,10,0.15)' }}>
+                <Target className="w-6 h-6 text-ios-orange" />
+              </div>
+              <h3 className="text-sm font-medium mb-1 text-text-secondary">Monthly Target</h3>
+              <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-white">
+                {formatCurrency(monthlyInvestmentTarget)}
+              </p>
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-tertiary">
+                    {formatCurrency(currentMonthInvestment)} invested
+                  </span>
+                  <span className={targetProgress >= 100 ? 'text-ios-green font-medium' : 'text-ios-orange font-medium'}>
+                    {targetProgress.toFixed(0)}%
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: targetProgress >= 100 ? rawColors.ios.green : rawColors.ios.orange }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${targetProgress}%` }}
+                    transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
 
         <motion.div

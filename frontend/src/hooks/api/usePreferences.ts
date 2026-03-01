@@ -22,6 +22,16 @@ import { useAuthStore } from '@/store/authStore'
 
 const PREFERENCES_KEY = ['preferences']
 
+/** Invalidate preferences and all downstream queries that depend on them */
+function invalidatePreferenceDependents(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY })
+  queryClient.invalidateQueries({ queryKey: ['analytics'] })
+  queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
+  queryClient.invalidateQueries({ queryKey: ['transactions'] })
+  queryClient.invalidateQueries({ queryKey: ['calculations'] })
+  queryClient.invalidateQueries({ queryKey: ['kpis'] })
+}
+
 /**
  * Fetch user preferences and hydrate the store
  */
@@ -58,13 +68,7 @@ export function useUpdatePreferences() {
   return useMutation({
     mutationFn: (updates: UserPreferencesUpdate) => preferencesService.updatePreferences(updates),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY })
-      // Preferences (especially earning start date) affect all data — invalidate broadly
-      queryClient.invalidateQueries({ queryKey: ['analytics'] })
-      queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['calculations'] })
-      queryClient.invalidateQueries({ queryKey: ['kpis'] })
+      invalidatePreferenceDependents(queryClient)
       hydrateFromApi(data)
     },
   })
@@ -80,23 +84,18 @@ export function useResetPreferences() {
   return useMutation({
     mutationFn: () => preferencesService.resetPreferences(),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY })
-      queryClient.invalidateQueries({ queryKey: ['analytics'] })
-      queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['calculations'] })
-      queryClient.invalidateQueries({ queryKey: ['kpis'] })
+      invalidatePreferenceDependents(queryClient)
       hydrateFromApi(data)
     },
   })
 }
 
-// Section-specific mutations
+// Section-specific mutations — each cascades to dependent queries
 export function useUpdateFiscalYear() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (config: FiscalYearConfig) => preferencesService.updateFiscalYear(config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY }),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
   })
 }
 
@@ -104,7 +103,7 @@ export function useUpdateEssentialCategories() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (config: EssentialCategoriesConfig) => preferencesService.updateEssentialCategories(config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY }),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
   })
 }
 
@@ -112,7 +111,7 @@ export function useUpdateInvestmentMappings() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (config: InvestmentMappingsConfig) => preferencesService.updateInvestmentMappings(config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY }),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
   })
 }
 
@@ -120,7 +119,7 @@ export function useUpdateIncomeSources() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (config: IncomeSourcesConfig) => preferencesService.updateIncomeSources(config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY }),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
   })
 }
 
@@ -128,7 +127,7 @@ export function useUpdateBudgetDefaults() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (config: BudgetDefaultsConfig) => preferencesService.updateBudgetDefaults(config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY }),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
   })
 }
 
@@ -136,7 +135,7 @@ export function useUpdateDisplayPreferences() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (config: DisplayPreferencesConfig) => preferencesService.updateDisplayPreferences(config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY }),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
   })
 }
 
@@ -144,7 +143,7 @@ export function useUpdateAnomalySettings() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (config: AnomalySettingsConfig) => preferencesService.updateAnomalySettings(config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY }),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
   })
 }
 
@@ -152,6 +151,6 @@ export function useUpdateRecurringSettings() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (config: RecurringSettingsConfig) => preferencesService.updateRecurringSettings(config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY }),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
   })
 }

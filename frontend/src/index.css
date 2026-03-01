@@ -79,6 +79,10 @@
   --color-text-tertiary: #636366;
   --color-text-quaternary: #48484a;
 
+  /* ===== DISABLED STATE ===== */
+  --color-disabled: rgba(99, 99, 102, 0.3);
+  --color-disabled-foreground: rgba(142, 142, 147, 0.5);
+
   /* ===== GLOW/SHADOW ===== */
   --glow-opacity: 0.15;
   --glow-opacity-strong: 0.25;
@@ -124,6 +128,13 @@ body {
 /* ===== GLASS / SURFACE SYSTEM ===== */
 /* Dark-mode glassmorphism: moderate blur, crisp edge lighting, deep shadows */
 
+.glass,
+.glass-strong,
+.glass-ultra,
+.glass-thin {
+  transition: border-color 200ms ease, box-shadow 300ms ease;
+}
+
 .glass {
   background: var(--color-surface-1);
   backdrop-filter: blur(12px) saturate(150%);
@@ -135,6 +146,12 @@ body {
     0 4px 6px -2px rgba(0, 0, 0, 0.25);
 }
 
+.glass:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.5),
+    0 6px 12px -4px rgba(0, 0, 0, 0.3);
+}
+
 .glass-strong {
   background: var(--color-surface-2);
   backdrop-filter: blur(16px) saturate(160%);
@@ -144,6 +161,12 @@ body {
   border-left-color: rgba(255, 255, 255, 0.14);
   box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5),
     0 8px 10px -5px rgba(0, 0, 0, 0.3);
+}
+
+.glass-strong:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 25px 50px -10px rgba(0, 0, 0, 0.6),
+    0 10px 15px -5px rgba(0, 0, 0, 0.35);
 }
 
 .glass-ultra {
@@ -187,6 +210,14 @@ body {
   box-shadow: 0 0 40px rgba(74, 158, 255, 0.08), inset 0 1px 0 rgba(74, 158, 255, 0.06);
 }
 
+.glow-error {
+  box-shadow: 0 0 40px rgba(255, 87, 87, 0.10), inset 0 1px 0 rgba(255, 87, 87, 0.06);
+}
+
+.glow-warning {
+  box-shadow: 0 0 40px rgba(255, 159, 10, 0.10), inset 0 1px 0 rgba(255, 159, 10, 0.06);
+}
+
 /* ===== SCROLLBAR ===== */
 
 ::-webkit-scrollbar {
@@ -219,17 +250,10 @@ body {
 /* ===== ANIMATIONS ===== */
 
 @keyframes glow {
-
-  0%,
-  100% {
-    opacity: 0.3;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.6;
-    transform: scale(1.05);
-  }
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  25% { opacity: 0.42; transform: scale(1.02); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+  75% { opacity: 0.42; transform: scale(1.02); }
 }
 
 @keyframes float {

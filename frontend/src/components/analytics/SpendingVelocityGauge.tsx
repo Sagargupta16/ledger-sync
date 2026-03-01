@@ -3,7 +3,7 @@ import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { motion } from 'framer-motion'
 import { Gauge } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, percentChange } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 
 export default function SpendingVelocityGauge() {
@@ -33,7 +33,7 @@ export default function SpendingVelocityGauge() {
 
     const rate = dayOfMonth > 0 ? currentExpenses / dayOfMonth : 0
     const projected = rate * totalDays
-    const paceVsPrev = prevExpenses > 0 ? ((projected - prevExpenses) / prevExpenses) * 100 : 0
+    const paceVsPrev = percentChange(projected, prevExpenses) ?? 0
 
     return {
       dailyRate: rate,

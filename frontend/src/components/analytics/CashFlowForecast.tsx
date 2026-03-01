@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { useMemo } from 'react'
 import { useMonthlyAggregation } from '@/hooks/useAnalytics'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
+import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS, CHART_AXIS_COLOR } from '@/constants/chartColors'
@@ -102,7 +102,17 @@ export default function CashFlowForecast() {
     return {
       historical,
       forecast,
-      combined: [...historical, ...forecast],
+      combined: [...historical, ...forecast].map((d, i, arr) => {
+        // For the last historical point and all forecast points, add forecast keys
+        // so dashed overlay lines connect from the boundary
+        const isLastHistorical = !d.isForecast && arr[i + 1]?.isForecast
+        const showForecast = d.isForecast || isLastHistorical
+        return {
+          ...d,
+          forecastIncome: showForecast ? d.income : undefined,
+          forecastExpense: showForecast ? d.expense : undefined,
+        }
+      }),
       insights: {
         avgIncome,
         avgExpense,
@@ -208,6 +218,8 @@ export default function CashFlowForecast() {
             />
             <Area type="natural" dataKey="income" stroke={SEMANTIC_COLORS.income} fill="url(#incomeGradient)" strokeWidth={2} />
             <Area type="natural" dataKey="expense" stroke={SEMANTIC_COLORS.expense} fill="url(#expenseGradient)" strokeWidth={2} />
+            <Line type="natural" dataKey="forecastIncome" stroke={SEMANTIC_COLORS.income} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} legendType="none" />
+            <Line type="natural" dataKey="forecastExpense" stroke={SEMANTIC_COLORS.expense} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} legendType="none" />
           </AreaChart>
         </ChartContainer>
       </div>

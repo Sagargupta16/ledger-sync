@@ -477,7 +477,7 @@ function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionProps>) {
             value={currentValueInput || ''}
             placeholder={formatCurrency(currentBalance).replace('\u20B9', '').trim()}
             onChange={(e) => onCurrentValueChange(Number(e.target.value))}
-            className="w-full bg-background border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 focus:border-ios-blue/30 transition-colors"
             min="0"
             step="1000"
           />
@@ -737,7 +737,7 @@ export default function MutualFundProjectionPage() {
                     setMonthlySIP(Number(e.target.value))
                     setUserModifiedSIP(true)
                   }}
-                  className="w-full bg-background border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 focus:border-ios-blue/30 transition-colors"
                   min="0"
                   step="1000"
                 />
@@ -755,7 +755,7 @@ export default function MutualFundProjectionPage() {
                   type="number"
                   value={expectedReturn}
                   onChange={(e) => setExpectedReturn(Number(e.target.value))}
-                  className="w-full bg-background border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 focus:border-ios-blue/30 transition-colors"
                   min="0"
                   max="50"
                   step="0.5"
@@ -771,7 +771,7 @@ export default function MutualFundProjectionPage() {
                   type="number"
                   value={projectionYears}
                   onChange={(e) => setProjectionYears(Number(e.target.value))}
-                  className="w-full bg-background border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 focus:border-ios-blue/30 transition-colors"
                   min="1"
                   max="40"
                 />
@@ -786,7 +786,7 @@ export default function MutualFundProjectionPage() {
                   type="number"
                   value={sipGrowthRate}
                   onChange={(e) => setSipGrowthRate(Number(e.target.value))}
-                  className="w-full bg-background border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 focus:border-ios-blue/30 transition-colors"
                   min="0"
                   max="20"
                   step="1"

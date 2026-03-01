@@ -80,9 +80,16 @@ export function useChartDimensions(): ChartDimensions {
   )
 
   useEffect(() => {
-    const onResize = () => setBp(getBreakpoint(globalThis.window.innerWidth))
+    let timer: ReturnType<typeof setTimeout>
+    const onResize = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => setBp(getBreakpoint(globalThis.window.innerWidth)), 150)
+    }
     globalThis.window.addEventListener('resize', onResize)
-    return () => globalThis.window.removeEventListener('resize', onResize)
+    return () => {
+      clearTimeout(timer)
+      globalThis.window.removeEventListener('resize', onResize)
+    }
   }, [])
 
   return { breakpoint: bp, ...DIMENSIONS[bp] }

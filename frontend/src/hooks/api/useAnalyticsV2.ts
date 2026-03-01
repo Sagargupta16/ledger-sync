@@ -23,25 +23,25 @@ import type {
   TransferFlow,
 } from '../../services/api/analyticsV2'
 
-// Query keys
+// Query keys — filter properties spread directly to avoid object reference mismatches
 export const analyticsV2Keys = {
   all: ['analyticsV2'] as const,
   monthlySummaries: () => [...analyticsV2Keys.all, 'monthly-summaries'] as const,
   categoryTrends: (filters?: { category?: string; subcategory?: string }) =>
-    [...analyticsV2Keys.all, 'category-trends', filters] as const,
+    [...analyticsV2Keys.all, 'category-trends', filters?.category, filters?.subcategory] as const,
   transferFlows: () => [...analyticsV2Keys.all, 'transfer-flows'] as const,
   recurringTransactions: (filters?: { active_only?: boolean; min_confidence?: number }) =>
-    [...analyticsV2Keys.all, 'recurring-transactions', filters] as const,
+    [...analyticsV2Keys.all, 'recurring-transactions', filters?.active_only, filters?.min_confidence] as const,
   merchantIntelligence: (filters?: { min_transactions?: number; recurring_only?: boolean }) =>
-    [...analyticsV2Keys.all, 'merchant-intelligence', filters] as const,
+    [...analyticsV2Keys.all, 'merchant-intelligence', filters?.min_transactions, filters?.recurring_only] as const,
   netWorth: () => [...analyticsV2Keys.all, 'net-worth'] as const,
   fySummaries: () => [...analyticsV2Keys.all, 'fy-summaries'] as const,
   anomalies: (filters?: { type?: string; severity?: string; include_reviewed?: boolean }) =>
-    [...analyticsV2Keys.all, 'anomalies', filters] as const,
+    [...analyticsV2Keys.all, 'anomalies', filters?.type, filters?.severity, filters?.include_reviewed] as const,
   budgets: (filters?: { active_only?: boolean }) =>
-    [...analyticsV2Keys.all, 'budgets', filters] as const,
+    [...analyticsV2Keys.all, 'budgets', filters?.active_only] as const,
   goals: (filters?: { goal_type?: string; include_achieved?: boolean }) =>
-    [...analyticsV2Keys.all, 'goals', filters] as const,
+    [...analyticsV2Keys.all, 'goals', filters?.goal_type, filters?.include_achieved] as const,
 }
 
 // Monthly Summaries
@@ -154,7 +154,7 @@ export function useReviewAnomaly() {
     mutationFn: ({ anomalyId, data }: { anomalyId: number; data: { dismiss: boolean; notes?: string } }) =>
       analyticsV2Service.reviewAnomaly(anomalyId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: analyticsV2Keys.anomalies() })
+      queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'anomalies'] })
     },
   })
 }
@@ -179,7 +179,7 @@ export function useCreateBudget() {
       alert_threshold?: number
     }) => analyticsV2Service.createBudget(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: analyticsV2Keys.budgets() })
+      queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'budgets'] })
     },
   })
 }
@@ -205,7 +205,7 @@ export function useCreateGoal() {
       notes?: string
     }) => analyticsV2Service.createGoal(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: analyticsV2Keys.goals() })
+      queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'goals'] })
     },
   })
 }

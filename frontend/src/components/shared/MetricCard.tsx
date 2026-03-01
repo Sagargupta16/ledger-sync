@@ -99,11 +99,11 @@ export default function MetricCard({ title, value, change, invertChange, changeL
     >
       {/* Animated gradient glow on hover */}
       <div
-        className="absolute top-0 right-0 w-40 h-40 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-50"
+        className="absolute top-0 right-0 w-40 h-40 opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-50"
         style={{ background: colors.glow }}
       />
       <div
-        className="absolute bottom-0 left-0 w-24 h-24 opacity-0 blur-3xl transition-opacity duration-700 group-hover:opacity-30"
+        className="absolute bottom-0 left-0 w-24 h-24 opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-30"
         style={{ background: colors.glow }}
       />
 
@@ -122,11 +122,11 @@ export default function MetricCard({ title, value, change, invertChange, changeL
       <h3 className="text-sm font-medium mb-1 relative z-10" style={{ color: rawColors.text.secondary }}>{title}</h3>
 
       {/* Animated Value */}
-      <div className="flex items-baseline gap-2 relative z-10">
+      <output className="flex items-baseline gap-2 relative z-10" aria-live="polite">
         <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-white">
           <AnimatedValue value={value} />
         </p>
-      </div>
+      </output>
 
       {/* Subtitle */}
       {subtitle && (
@@ -152,20 +152,22 @@ export default function MetricCard({ title, value, change, invertChange, changeL
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-              className="flex items-center gap-1.5 mt-3 relative z-10"
+              className="flex items-center gap-2 mt-3 relative z-10"
             >
-              {isPositive ? (
-                <TrendingUp className="w-4 h-4" style={{ color: isGood ? goodColor : badColor }} />
-              ) : (
-                <TrendingDown className="w-4 h-4" style={{ color: isGood ? goodColor : badColor }} />
-              )}
-              <span
-                className="text-sm font-medium"
-                style={{ color: isGood ? goodColor : badColor }}
-              >
-                {change > 0 ? '+' : ''}{change}%
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${isGood ? 'bg-ios-green/10' : 'bg-ios-red/10'}`}>
+                {isPositive ? (
+                  <TrendingUp className="w-4 h-4" style={{ color: isGood ? goodColor : badColor }} />
+                ) : (
+                  <TrendingDown className="w-4 h-4" style={{ color: isGood ? goodColor : badColor }} />
+                )}
+                <span
+                  className="text-sm font-medium"
+                  style={{ color: isGood ? goodColor : badColor }}
+                >
+                  {change > 0 ? '+' : ''}{change}%
+                </span>
               </span>
-              <span className="text-xs ml-1" style={{ color: rawColors.text.tertiary }}>
+              <span className="text-xs" style={{ color: rawColors.text.tertiary }}>
                 {changeLabel || 'vs last month'}
               </span>
             </motion.div>

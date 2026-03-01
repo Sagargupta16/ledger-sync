@@ -6,7 +6,7 @@
  */
 
 import type { Transaction } from '@/types'
-import { getDateKey } from '@/lib/dateUtils'
+import { filterTransactionsByDateRange as dateFilterImpl } from '@/lib/dateUtils'
 
 /**
  * Compute the min/max date range from an array of transactions.
@@ -22,18 +22,16 @@ export function computeDataDateRange(
 
 /**
  * Filter transactions by an optional start/end date range.
- * Uses YYYY-MM-DD string comparison (via getDateKey) for consistency.
+ * Delegates to the generic implementation in dateUtils, with a null-safe wrapper.
  */
 export function filterTransactionsByDateRange(
   transactions: Transaction[] | undefined,
   dateRange: { start_date?: string | null; end_date?: string | null },
 ): Transaction[] {
   if (!transactions) return []
-  if (!dateRange.start_date) return transactions
-
-  return transactions.filter((t) => {
-    const txDate = getDateKey(t.date)
-    return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
+  return dateFilterImpl(transactions, {
+    start_date: dateRange.start_date ?? undefined,
+    end_date: dateRange.end_date ?? undefined,
   })
 }
 

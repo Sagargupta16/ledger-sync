@@ -11,6 +11,37 @@ import LoadingSkeleton from './LoadingSkeleton'
 import { formatCurrency } from '@/lib/formatters'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 
+/** Maps insight titles to widget keys used in Settings → Dashboard Widgets */
+const TITLE_TO_WIDGET_KEY: Record<string, string> = {
+  'Savings Rate': 'savings_rate',
+  'Top Spending Category': 'top_spending',
+  'Top Income Source': 'top_income',
+  'Net Cashback Earned': 'cashback',
+  'Total Transactions': 'total_transactions',
+  'Biggest Transaction': 'biggest_transaction',
+  'Median Transaction': 'median_transaction',
+  'Average Daily Spending': 'daily_spending',
+  'Weekend Spending': 'weekend_spending',
+  'Peak Spending Day': 'peak_day',
+  'Monthly Burn Rate': 'burn_rate',
+  'Spending Diversity': 'spending_diversity',
+  'Avg Transaction Amount': 'avg_transaction',
+  'Total Internal Transfers': 'total_transfers',
+}
+
+function getVisibleWidgetKeys(): Set<string> | null {
+  try {
+    const raw = localStorage.getItem('ledger-sync-visible-widgets')
+    if (raw) {
+      const arr = JSON.parse(raw) as string[]
+      // If all 14 widgets are visible, treat as "no filter"
+      if (arr.length >= Object.keys(TITLE_TO_WIDGET_KEY).length) return null
+      return new Set(arr)
+    }
+  } catch { /* defaults */ }
+  return null // null = show all
+}
+
 interface QuickInsightsProps {
   readonly dateRange?: { start_date?: string; end_date?: string }
 }
@@ -326,6 +357,15 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     totalTransfers, transferTransactions.length,
   ])
 
+  // Filter insights by user's visible widget preferences
+  const visibleKeys = useMemo(() => getVisibleWidgetKeys(), [])
+  const filteredInsights = useMemo(
+    () => visibleKeys
+      ? insights.filter((i) => visibleKeys.has(TITLE_TO_WIDGET_KEY[i.title] ?? ''))
+      : insights,
+    [insights, visibleKeys],
+  )
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -343,7 +383,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       initial="hidden"
       animate="visible"
     >
-      {insights.map((insight) => (
+      {filteredInsights.map((insight) => (
         <motion.div
           key={insight.title}
           variants={fadeUpItem}

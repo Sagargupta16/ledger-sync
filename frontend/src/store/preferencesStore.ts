@@ -168,31 +168,43 @@ export const usePreferencesStore = create<PreferencesState>()(
       setInvestmentAccountMappings: (mappings) =>
         set({ investmentAccountMappings: mappings }),
 
-      // Hydrate from API response
-      hydrateFromApi: (apiPrefs) =>
+      // Hydrate from API response (with validation)
+      hydrateFromApi: (apiPrefs) => {
+        if (!apiPrefs || typeof apiPrefs !== 'object') return
+
+        const ensureArray = (v: unknown): string[] => Array.isArray(v) ? v : []
+        const fySm = Number(apiPrefs.fiscal_year_start_month)
+        const clampPercent = (v: unknown, fallback: number) => {
+          const n = Number(v)
+          return Number.isFinite(n) && n >= 0 && n <= 100 ? n : fallback
+        }
+
         set({
           displayPreferences: {
-            numberFormat: apiPrefs.number_format,
-            currencySymbol: apiPrefs.currency_symbol,
-            currencySymbolPosition: apiPrefs.currency_symbol_position,
-            defaultTimeRange: apiPrefs.default_time_range,
+            numberFormat: apiPrefs.number_format === 'international' ? 'international' : 'indian',
+            currencySymbol: typeof apiPrefs.currency_symbol === 'string' ? apiPrefs.currency_symbol : '₹',
+            currencySymbolPosition: apiPrefs.currency_symbol_position === 'after' ? 'after' : 'before',
+            defaultTimeRange: typeof apiPrefs.default_time_range === 'string' ? apiPrefs.default_time_range : 'all_time',
           },
-          fiscalYearStartMonth: apiPrefs.fiscal_year_start_month,
-          essentialCategories: apiPrefs.essential_categories,
+          fiscalYearStartMonth: fySm >= 1 && fySm <= 12 ? fySm : 4,
+          essentialCategories: ensureArray(apiPrefs.essential_categories),
           incomeClassification: {
-            taxable: apiPrefs.taxable_income_categories || [],
-            investmentReturns: apiPrefs.investment_returns_categories || [],
-            nonTaxable: apiPrefs.non_taxable_income_categories || [],
-            other: apiPrefs.other_income_categories || [],
+            taxable: ensureArray(apiPrefs.taxable_income_categories),
+            investmentReturns: ensureArray(apiPrefs.investment_returns_categories),
+            nonTaxable: ensureArray(apiPrefs.non_taxable_income_categories),
+            other: ensureArray(apiPrefs.other_income_categories),
           },
-          investmentAccountMappings: apiPrefs.investment_account_mappings || {},
-          needsTargetPercent: apiPrefs.needs_target_percent ?? 50,
-          wantsTargetPercent: apiPrefs.wants_target_percent ?? 30,
-          savingsTargetPercent: apiPrefs.savings_target_percent ?? 20,
-          creditCardLimits: apiPrefs.credit_card_limits || {},
-          earningStartDate: apiPrefs.earning_start_date ?? null,
-          useEarningStartDate: apiPrefs.use_earning_start_date ?? false,
-        }),
+          investmentAccountMappings: apiPrefs.investment_account_mappings && typeof apiPrefs.investment_account_mappings === 'object'
+            ? apiPrefs.investment_account_mappings : {},
+          needsTargetPercent: clampPercent(apiPrefs.needs_target_percent, 50),
+          wantsTargetPercent: clampPercent(apiPrefs.wants_target_percent, 30),
+          savingsTargetPercent: clampPercent(apiPrefs.savings_target_percent, 20),
+          creditCardLimits: apiPrefs.credit_card_limits && typeof apiPrefs.credit_card_limits === 'object'
+            ? apiPrefs.credit_card_limits : {},
+          earningStartDate: typeof apiPrefs.earning_start_date === 'string' ? apiPrefs.earning_start_date : null,
+          useEarningStartDate: apiPrefs.use_earning_start_date === true,
+        })
+      },
     }),
     {
       name: 'ledger-sync-preferences',

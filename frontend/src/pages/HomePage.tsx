@@ -192,10 +192,10 @@ export default function HomePage() {
               >
                 <button
                   onClick={handleGetStarted}
-                  className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl"
+                  className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
                   style={{
                     background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
-                    boxShadow: `0 10px 30px ${rawColors.ios.blue}30`,
+                    boxShadow: `0 10px 30px ${rawColors.ios.blue}50`,
                   }}
                 >
                   <Target className="w-5 h-5" />
@@ -216,7 +216,7 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="mt-16 flex flex-wrap justify-center gap-4"
+              className="mt-16 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
             >
               {highlights.map((item, index) => (
                 <motion.div
@@ -423,7 +423,7 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-start gap-4 p-6 rounded-2xl glass border border-border hover:border-border-strong transition-colors"
+                  className="flex items-start gap-4 p-6 rounded-2xl glass border border-border hover:border-border-strong hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/20 transition-all duration-300"
                 >
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -465,10 +465,10 @@ export default function HomePage() {
               </p>
               <button
                 onClick={handleGetStarted}
-                className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl"
+                className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
                 style={{
                   background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
-                  boxShadow: `0 10px 30px ${rawColors.ios.blue}30`,
+                  boxShadow: `0 10px 30px ${rawColors.ios.blue}50`,
                 }}
               >
                 <Upload className="w-5 h-5" />

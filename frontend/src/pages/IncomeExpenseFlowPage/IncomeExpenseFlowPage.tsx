@@ -313,7 +313,7 @@ const IncomeExpenseFlowPage = () => {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
       >
-        <div className="glass rounded-xl border border-border p-6 shadow-lg">
+        <div className="glass rounded-xl border border-border border-l-4 border-l-ios-green p-6 shadow-lg">
           <div className="flex items-center gap-3 mb-2">
             <TrendingUp className="w-5 h-5 text-ios-green" />
             <p className="text-sm text-muted-foreground">Total Income</p>
@@ -323,7 +323,7 @@ const IncomeExpenseFlowPage = () => {
           </p>
         </div>
 
-        <div className="glass rounded-xl border border-border p-6 shadow-lg">
+        <div className="glass rounded-xl border border-border border-l-4 border-l-ios-red p-6 shadow-lg">
           <div className="flex items-center gap-3 mb-2">
             <TrendingDown className="w-5 h-5 text-ios-red" />
             <p className="text-sm text-muted-foreground">Total Expense</p>

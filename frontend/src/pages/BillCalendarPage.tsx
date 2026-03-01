@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft,
@@ -7,6 +7,8 @@ import {
   DollarSign,
   Hash,
   Clock,
+  UserPlus,
+  CheckCircle2,
 } from 'lucide-react'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
@@ -15,6 +17,34 @@ import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { SCROLL_FADE_UP, fadeUpWithDelay } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
+import type { ManualSubscription } from './SubscriptionTrackerPage'
+
+// ---------------------------------------------------------------------------
+// localStorage keys (shared with SubscriptionTrackerPage)
+// ---------------------------------------------------------------------------
+
+const CONFIRMED_SUBS_KEY = 'ledger-sync-confirmed-subscriptions'
+const MANUAL_SUBS_KEY = 'ledger-sync-manual-subscriptions'
+
+function loadConfirmedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(CONFIRMED_SUBS_KEY)
+    if (!raw) return new Set()
+    return new Set(JSON.parse(raw) as string[])
+  } catch {
+    return new Set()
+  }
+}
+
+function loadManualSubscriptions(): ManualSubscription[] {
+  try {
+    const raw = localStorage.getItem(MANUAL_SUBS_KEY)
+    if (!raw) return []
+    return JSON.parse(raw) as ManualSubscription[]
+  } catch {
+    return []
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Calendar Helpers
@@ -58,6 +88,12 @@ function isSameDay(
   return y1 === y2 && m1 === m2 && d1 === d2
 }
 
+/** Capitalize first letter */
+function capitalize(str: string | null): string {
+  if (!str) return 'Unknown'
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+}
+
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 // Category -> color mapping for visual differentiation
@@ -77,13 +113,24 @@ function getCategoryColor(category: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Bill Placement Logic
+// Unified Bill type (supports both detected and manual subscriptions)
 // ---------------------------------------------------------------------------
 
 interface PlacedBill {
-  transaction: RecurringTransaction
+  /** Unique key for rendering */
+  key: string
+  name: string
+  amount: number
+  category: string
+  frequency: string | null
+  account: string | null
   day: number
+  source: 'detected' | 'confirmed' | 'manual'
 }
+
+// ---------------------------------------------------------------------------
+// Bill Placement Logic (detected recurring transactions)
+// ---------------------------------------------------------------------------
 
 /** Clamp a day to the valid range for a given month */
 function clampDay(d: number, daysInMonth: number): number {
@@ -180,22 +227,105 @@ function getBillDaysForMonth(
   return []
 }
 
+// ---------------------------------------------------------------------------
+// Manual subscription placement logic
+// ---------------------------------------------------------------------------
+
 /**
- * Build a map from day number -> list of bills for that day
+ * Calculate which days in a given month a manual subscription falls on.
+ * Based on its frequency and next_due date.
  */
+function getManualBillDaysForMonth(
+  sub: ManualSubscription,
+  year: number,
+  month: number,
+): number[] {
+  if (!sub.next_due) return []
+
+  const nextDue = new Date(sub.next_due)
+  const daysInMonth = getDaysInMonth(year, month)
+  const frequency = sub.frequency?.toLowerCase() ?? 'monthly'
+  const dueDay = nextDue.getDate()
+  const dueMonth = nextDue.getMonth()
+  const dueYear = nextDue.getFullYear()
+
+  if (frequency === 'monthly') {
+    // Show on the same day each month
+    return [clampDay(dueDay, daysInMonth)]
+  }
+
+  if (frequency === 'quarterly') {
+    // Every 3 months from the due date month
+    const diff = ((month - dueMonth) % 12 + 12) % 12
+    if (diff % 3 === 0 && (year > dueYear || (year === dueYear && month >= dueMonth))) {
+      return [clampDay(dueDay, daysInMonth)]
+    }
+    return []
+  }
+
+  if (frequency === 'yearly') {
+    // Only in the same month as the due date
+    if (month === dueMonth && year >= dueYear) {
+      return [clampDay(dueDay, daysInMonth)]
+    }
+    return []
+  }
+
+  // Fallback: treat as monthly
+  return [clampDay(dueDay, daysInMonth)]
+}
+
+// ---------------------------------------------------------------------------
+// Build unified bill map
+// ---------------------------------------------------------------------------
+
 function buildBillMap(
   transactions: RecurringTransaction[],
+  confirmedIds: Set<string>,
+  manualSubs: ManualSubscription[],
   year: number,
   month: number,
 ): Map<number, PlacedBill[]> {
   const map = new Map<number, PlacedBill[]>()
 
+  const addBill = (day: number, bill: PlacedBill) => {
+    const existing = map.get(day) ?? []
+    existing.push(bill)
+    map.set(day, existing)
+  }
+
+  // Add detected recurring transactions (only confirmed ones get special styling)
   for (const tx of transactions) {
     const days = getBillDaysForMonth(tx, year, month)
+    const isConfirmed = confirmedIds.has(String(tx.id))
     for (const day of days) {
-      const existing = map.get(day) ?? []
-      existing.push({ transaction: tx, day })
-      map.set(day, existing)
+      addBill(day, {
+        key: `detected-${tx.id}-${day}`,
+        name: tx.name,
+        amount: Math.abs(tx.expected_amount),
+        category: tx.category,
+        frequency: tx.frequency,
+        account: tx.account,
+        day,
+        source: isConfirmed ? 'confirmed' : 'detected',
+      })
+    }
+  }
+
+  // Add manual subscriptions
+  for (const sub of manualSubs) {
+    const days = getManualBillDaysForMonth(sub, year, month)
+    for (const day of days) {
+      addBill(day, {
+        key: `manual-${sub.id}-${day}`,
+        name: sub.name,
+        amount: Math.abs(sub.amount),
+        category: sub.category ?? 'Manual',
+        frequency: sub.frequency,
+        account: null,
+        day,
+        source: 'manual',
+      })
     }
   }
 
@@ -239,17 +369,44 @@ function SummaryCard({
   )
 }
 
+/** Get the dot color for a bill based on source and category */
+function getBillDotColor(bill: PlacedBill): string {
+  if (bill.source === 'manual') return rawColors.ios.purple
+  if (bill.source === 'confirmed') return rawColors.ios.green
+  return getCategoryColor(bill.category)
+}
+
+/** Source badge for bill detail items */
+function SourceBadge({ source }: Readonly<{ source: PlacedBill['source'] }>) {
+  if (source === 'confirmed') {
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-ios-green/15 text-ios-green">
+        <CheckCircle2 className="w-2.5 h-2.5" />
+        Confirmed
+      </span>
+    )
+  }
+  if (source === 'manual') {
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-ios-purple/15 text-ios-purple">
+        <UserPlus className="w-2.5 h-2.5" />
+        Manual
+      </span>
+    )
+  }
+  return null
+}
+
 /** Single bill item in the detail panel */
 function BillDetailItem({ bill }: Readonly<{ bill: PlacedBill }>) {
-  const tx = bill.transaction
-  const color = getCategoryColor(tx.category)
+  const color = getBillDotColor(bill)
 
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className="flex items-center justify-between gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/8 transition-colors"
+      className="flex items-center justify-between gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/[0.04] transition-colors"
     >
       <div className="flex items-center gap-3 min-w-0">
         <div
@@ -257,19 +414,27 @@ function BillDetailItem({ bill }: Readonly<{ bill: PlacedBill }>) {
           style={{ backgroundColor: color }}
         />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-white truncate">{tx.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-white truncate">{bill.name}</p>
+            <SourceBadge source={bill.source} />
+          </div>
           <p className="text-xs text-muted-foreground">
-            {tx.category}
-            {tx.frequency && (
+            {bill.category}
+            {bill.frequency && (
               <span className="ml-2 text-text-tertiary">
-                {tx.frequency.charAt(0).toUpperCase() + tx.frequency.slice(1).toLowerCase()}
+                {capitalize(bill.frequency)}
+              </span>
+            )}
+            {bill.account && (
+              <span className="ml-2 text-text-tertiary">
+                {bill.account}
               </span>
             )}
           </p>
         </div>
       </div>
       <p className="text-sm font-semibold text-ios-red whitespace-nowrap">
-        {formatCurrency(Math.abs(tx.expected_amount))}
+        {formatCurrency(bill.amount)}
       </p>
     </motion.div>
   )
@@ -298,7 +463,7 @@ function DayCell({
   const selectionClass = isSelected
     ? 'bg-ios-blue/20 border border-ios-blue/40'
     : 'hover:bg-white/8 border border-transparent'
-  const todayBorderClass = isToday && !isSelected ? 'border border-ios-blue/30' : ''
+  const todayBorderClass = isToday && !isSelected ? 'ring-2 ring-ios-blue/50' : ''
 
   const dayNumberClass = (() => {
     if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-ios-blue text-white'
@@ -334,10 +499,10 @@ function DayCell({
         <div className="flex items-center gap-0.5 mt-1.5 flex-wrap justify-center">
           {bills.slice(0, maxDotsShown).map((bill) => (
             <div
-              key={`${bill.transaction.id}-dot`}
+              key={bill.key}
               className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: getCategoryColor(bill.transaction.category) }}
-              title={bill.transaction.name}
+              style={{ backgroundColor: getBillDotColor(bill) }}
+              title={bill.name}
             />
           ))}
           {bills.length > maxDotsShown && (
@@ -397,10 +562,26 @@ function findNextUpcomingBill(
 export default function BillCalendarPage() {
   const { data: recurringTransactions, isLoading } = useRecurringTransactions({ active_only: true })
 
-  const now = new Date()
-  const [viewYear, setViewYear] = useState(now.getFullYear())
-  const [viewMonth, setViewMonth] = useState(now.getMonth())
+  const now = useMemo(() => new Date(), [])
+  const [viewYear, setViewYear] = useState(() => now.getFullYear())
+  const [viewMonth, setViewMonth] = useState(() => now.getMonth())
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(loadConfirmedIds)
+  const [manualSubs, setManualSubs] = useState<ManualSubscription[]>(loadManualSubscriptions)
+
+  // Also listen for storage events from other tabs/pages
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === CONFIRMED_SUBS_KEY) {
+        setConfirmedIds(loadConfirmedIds())
+      }
+      if (e.key === MANUAL_SUBS_KEY) {
+        setManualSubs(loadManualSubscriptions())
+      }
+    }
+    globalThis.addEventListener('storage', handleStorage)
+    return () => globalThis.removeEventListener('storage', handleStorage)
+  }, [])
 
   const goToPrevMonth = () => {
     setSelectedDay(null)
@@ -428,11 +609,11 @@ export default function BillCalendarPage() {
     setViewMonth(now.getMonth())
   }
 
-  // Build the bill map for the current month view
+  // Build the unified bill map for the current month view
   const billMap = useMemo(() => {
-    if (!recurringTransactions) return new Map<number, PlacedBill[]>()
-    return buildBillMap(recurringTransactions, viewYear, viewMonth)
-  }, [recurringTransactions, viewYear, viewMonth])
+    const transactions = recurringTransactions ?? []
+    return buildBillMap(transactions, confirmedIds, manualSubs, viewYear, viewMonth)
+  }, [recurringTransactions, confirmedIds, manualSubs, viewYear, viewMonth])
 
   // Build the calendar grid: days from prev month, current month, next month
   const calendarGrid = useMemo(() => {
@@ -488,19 +669,18 @@ export default function BillCalendarPage() {
     return cells
   }, [viewYear, viewMonth])
 
+  // Whether we have any data to show at all (detected transactions or manual subs)
+  const hasAnyData = (recurringTransactions && recurringTransactions.length > 0) || manualSubs.length > 0
+
   // Summary calculations
   const summary = useMemo(() => {
-    if (!recurringTransactions || recurringTransactions.length === 0) {
-      return { totalDue: 0, billCount: 0, nextBill: null as PlacedBill | null }
-    }
-
     let totalDue = 0
     let billCount = 0
 
     // Tally up all bills in this month
     for (const [, bills] of billMap) {
       for (const bill of bills) {
-        totalDue += Math.abs(bill.transaction.expected_amount)
+        totalDue += bill.amount
         billCount++
       }
     }
@@ -509,7 +689,7 @@ export default function BillCalendarPage() {
     const nextBill = findNextUpcomingBill(billMap, viewYear, viewMonth, now)
 
     return { totalDue, billCount, nextBill }
-  }, [recurringTransactions, billMap, viewYear, viewMonth, now])
+  }, [billMap, viewYear, viewMonth, now])
 
   // Bills for the selected day
   const selectedDayBills = useMemo(() => {
@@ -524,7 +704,7 @@ export default function BillCalendarPage() {
   const nextBillValue = (() => {
     if (isLoading) return loadingPlaceholder
     if (summary.nextBill) {
-      return `${summary.nextBill.transaction.name} - ${formatCurrency(Math.abs(summary.nextBill.transaction.expected_amount))}`
+      return `${summary.nextBill.name} - ${formatCurrency(summary.nextBill.amount)}`
     }
     return 'None upcoming'
   })()
@@ -628,15 +808,15 @@ export default function BillCalendarPage() {
               ))}
             </div>
           )}
-          {!isLoading && (!recurringTransactions || recurringTransactions.length === 0) && (
+          {!isLoading && !hasAnyData && (
             <EmptyState
               icon={CalendarDays}
               title="No recurring transactions found"
-              description="Once recurring payment patterns are detected from your transactions, they will appear on the calendar."
+              description="Once recurring payment patterns are detected from your transactions, they will appear on the calendar. You can also add manual subscriptions from the Subscription Tracker page."
               variant="card"
             />
           )}
-          {!isLoading && recurringTransactions && recurringTransactions.length > 0 && (
+          {!isLoading && hasAnyData && (
             <>
               {/* Day name headers */}
               <div className="grid grid-cols-7 gap-1 mb-1">
@@ -678,6 +858,23 @@ export default function BillCalendarPage() {
                   )
                 })}
               </div>
+
+              {/* Legend for bill sources */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4 pt-3 border-t border-white/5">
+                <span className="text-xs text-text-tertiary">Legend:</span>
+                <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.ios.green }} />
+                  <span>Confirmed</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.ios.purple }} />
+                  <span>Manual</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.ios.blue }} />
+                  <span>Detected</span>
+                </div>
+              </div>
             </>
           )}
         </motion.div>
@@ -711,7 +908,7 @@ export default function BillCalendarPage() {
               ) : (
                 <div className="space-y-2">
                   {selectedDayBills.map((bill) => (
-                    <BillDetailItem key={bill.transaction.id} bill={bill} />
+                    <BillDetailItem key={bill.key} bill={bill} />
                   ))}
                   {/* Day total */}
                   <div className="flex items-center justify-between pt-3 mt-3 border-t border-white/10">
@@ -719,7 +916,7 @@ export default function BillCalendarPage() {
                     <span className="text-sm font-bold text-white">
                       {formatCurrency(
                         selectedDayBills.reduce(
-                          (sum, b) => sum + Math.abs(b.transaction.expected_amount),
+                          (sum, b) => sum + b.amount,
                           0,
                         ),
                       )}

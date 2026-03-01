@@ -53,7 +53,8 @@ export const useInvestmentAccountStore = create<InvestmentAccountStore>()(
               },
               version: parsed.version,
             }
-          } catch {
+          } catch (e) {
+            console.warn('[investmentAccountStore] Failed to parse cached data:', e)
             return null
           }
         },

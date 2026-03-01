@@ -9,7 +9,6 @@ export * from './chartPeriodUtils'
 export * from './errorUtils'
 export * from './exportCsv'
 export * from './preferencesUtils'
-// taxCalculator and transactionUtils have overlapping exports with dateUtils
-// (getFYFromDate, filterTransactionsByDateRange) — import them directly:
+// taxCalculator and transactionUtils are imported directly to avoid barrel conflicts:
 //   import { calculateTax } from '@/lib/taxCalculator'
 //   import { computeCategoryBreakdown } from '@/lib/transactionUtils'

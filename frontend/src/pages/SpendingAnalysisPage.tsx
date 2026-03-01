@@ -257,7 +257,7 @@ export default function SpendingAnalysisPage() {
           }
         />
 
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${fixedVariableBreakdown ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${fixedVariableBreakdown ? 'lg:grid-cols-3 xl:grid-cols-5' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
           <MetricCard title="Total Spending" value={formatCurrency(totalSpending)} icon={TrendingDown} color="red" isLoading={isLoading} />
           <MetricCard title="Top Category" value={topCategory} icon={Tag} color="blue" isLoading={isLoading} />
           <MetricCard title="Categories Tracked" value={categoriesCount} icon={PieChart} color="blue" isLoading={isLoading} />

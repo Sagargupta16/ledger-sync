@@ -32,7 +32,9 @@ export interface Transaction {
   category: string
   subcategory?: string
   account: string
+  /** Only populated when type is 'Transfer', 'Transfer-In', or 'Transfer-Out' */
   from_account?: string
+  /** Only populated when type is 'Transfer', 'Transfer-In', or 'Transfer-Out' */
   to_account?: string
   note?: string
   bucket?: string
@@ -115,6 +117,7 @@ export interface AuthTokens {
   access_token: string
   refresh_token: string
   token_type: string
+  expires_in?: number
 }
 
 // OAuth types

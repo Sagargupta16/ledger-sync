@@ -163,7 +163,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
         {/* Desktop skeleton */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-muted/20 border-b border-border">
+            <thead className="bg-muted/20 border-b border-border sticky top-0 z-10 backdrop-blur-sm">
               <tr>
                 {Array.from({ length: 6 }, (_, i) => (
                   <th key={`skeleton-header-${i}`} className="px-6 py-3 text-left">
@@ -228,7 +228,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
       <div className="hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-muted/20 border-b border-border">
+            <thead className="bg-muted/20 border-b border-border sticky top-0 z-10 backdrop-blur-sm">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
