@@ -46,7 +46,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
 }
 
 /** Inner content — mounts/unmounts with modal so local state resets naturally */
-function ProfileModalContent({ onClose }: { onClose: () => void }) {
+function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
   const { user } = useAuthStore()
   const logout = useLogout()
   const updateProfile = useUpdateProfile()

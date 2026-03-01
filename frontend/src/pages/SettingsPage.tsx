@@ -162,14 +162,14 @@ function Section({
   description,
   children,
   defaultCollapsed = false,
-}: {
+}: Readonly<{
   index: number
   icon: React.ElementType
   title: string
   description?: string
   children: React.ReactNode
   defaultCollapsed?: boolean
-}) {
+}>) {
   const [expanded, setExpanded] = useState(!defaultCollapsed)
 
   return (
@@ -195,7 +195,7 @@ function Section({
           )}
         </div>
         <ChevronDown
-          className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${!expanded ? '-rotate-90' : ''}`}
+          className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${expanded ? '' : '-rotate-90'}`}
         />
       </button>
       <AnimatePresence initial={false}>
@@ -223,11 +223,11 @@ function Toggle({
   checked,
   onChange,
   id,
-}: {
+}: Readonly<{
   checked: boolean
   onChange: (val: boolean) => void
   id?: string
-}) {
+}>) {
   return (
     <button
       id={id}
@@ -252,7 +252,7 @@ function Toggle({
 // Form field helpers
 // ---------------------------------------------------------------------------
 
-function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
+function FieldLabel({ htmlFor, children }: Readonly<{ htmlFor?: string; children: React.ReactNode }>) {
   return (
     <label htmlFor={htmlFor} className="block text-sm font-medium text-foreground mb-1.5">
       {children}
@@ -260,7 +260,7 @@ function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: React.R
   )
 }
 
-function FieldHint({ children }: { children: React.ReactNode }) {
+function FieldHint({ children }: Readonly<{ children: React.ReactNode }>) {
   return <p className="text-xs text-muted-foreground mt-1">{children}</p>
 }
 
@@ -632,9 +632,9 @@ export default function SettingsPage() {
     return (
       <div className="min-h-screen p-4 md:p-6 lg:p-8">
         <div className="max-w-5xl mx-auto space-y-4">
-          {[...Array(4)].map((_, i) => (
+          {['skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4'].map((id) => (
             <div
-              key={i}
+              key={id}
               className="glass rounded-2xl border border-border h-24 animate-pulse opacity-30"
             />
           ))}
@@ -659,7 +659,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-3">
               {hasChanges && (
                 <span className="text-sm text-ios-yellow flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-ios-yellow animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-ios-yellow animate-pulse" />{' '}
                   Unsaved
                 </span>
               )}
@@ -697,7 +697,7 @@ export default function SettingsPage() {
           {unclassifiedAccounts.length > 0 && (
             <div className="bg-ios-yellow/10 border border-ios-yellow/30 rounded-xl p-4">
               <p className="text-sm font-medium text-ios-yellow mb-2">
-                {unclassifiedAccounts.length} Unassigned Account{unclassifiedAccounts.length !== 1 && 's'}
+                {unclassifiedAccounts.length}{' '}Unassigned Account{unclassifiedAccounts.length !== 1 && 's'}
               </p>
               <div className="flex flex-wrap gap-2">
                 {unclassifiedAccounts.map((name) => (
@@ -727,7 +727,7 @@ export default function SettingsPage() {
             {ACCOUNT_TYPES.map((category) => (
               <div
                 key={category}
-                role="listbox"
+                role="group"
                 aria-label={`Drop zone for ${category} accounts`}
                 onDragOver={handleDragOver}
                 onDrop={() => handleDropOnAccountCategory(category)}
@@ -742,7 +742,7 @@ export default function SettingsPage() {
                 >
                   <h4 className="text-xs font-semibold text-white">{category}</h4>
                   <p className="text-[10px] text-white/70">
-                    {accountsByCategory[category]?.length || 0} accounts
+                    {accountsByCategory[category]?.length || 0}{' '}accounts
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -828,11 +828,11 @@ export default function SettingsPage() {
               {/* Legend */}
               <div className="flex items-center gap-4 mb-3">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="w-3 h-3 rounded-sm bg-ios-green/30 border border-ios-green/50" />
+                  <span className="w-3 h-3 rounded-sm bg-ios-green/30 border border-ios-green/50" />{' '}
                   Essential
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="w-3 h-3 rounded-sm bg-ios-orange/30 border border-ios-orange/50" />
+                  <span className="w-3 h-3 rounded-sm bg-ios-orange/30 border border-ios-orange/50" />{' '}
                   Fixed
                 </span>
               </div>
@@ -1109,8 +1109,9 @@ export default function SettingsPage() {
                 <FieldLabel>Spending Rule</FieldLabel>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Needs %</label>
+                    <label htmlFor="needs-percent" className="text-xs text-muted-foreground mb-1 block">Needs %</label>
                     <input
+                      id="needs-percent"
                       type="number"
                       min="0"
                       max="100"
@@ -1122,8 +1123,9 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Wants %</label>
+                    <label htmlFor="wants-percent" className="text-xs text-muted-foreground mb-1 block">Wants %</label>
                     <input
+                      id="wants-percent"
                       type="number"
                       min="0"
                       max="100"
@@ -1135,8 +1137,9 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Savings %</label>
+                    <label htmlFor="savings-percent" className="text-xs text-muted-foreground mb-1 block">Savings %</label>
                     <input
+                      id="savings-percent"
                       type="number"
                       min="0"
                       max="100"
@@ -1153,12 +1156,12 @@ export default function SettingsPage() {
                     localPrefs.needs_target_percent +
                     localPrefs.wants_target_percent +
                     localPrefs.savings_target_percent
-                  return sum !== 100 ? (
+                  return sum === 100 ? (
+                    <FieldHint>Default: 50 / 30 / 20</FieldHint>
+                  ) : (
                     <p className="mt-1.5 text-xs text-ios-yellow">
                       Totals {sum}% (should be 100%)
                     </p>
-                  ) : (
-                    <FieldHint>Default: 50 / 30 / 20</FieldHint>
                   )
                 })()}
               </div>

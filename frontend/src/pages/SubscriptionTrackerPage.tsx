@@ -486,7 +486,7 @@ function ManualSubscriptionForm({
   isEdit?: boolean
 }>) {
   const [name, setName] = useState(initial?.name ?? '')
-  const [amount, setAmount] = useState(initial?.amount != null ? String(initial.amount) : '')
+  const [amount, setAmount] = useState(initial?.amount == null ? '' : String(initial.amount))
   const [frequency, setFrequency] = useState(initial?.frequency ?? 'monthly')
   const [nextDue, setNextDue] = useState(initial?.next_due ?? '')
   const [category, setCategory] = useState(initial?.category ?? '')
@@ -675,7 +675,7 @@ export default function SubscriptionTrackerPage() {
     (data: Omit<ManualSubscription, 'id'>) => {
       const newSub: ManualSubscription = {
         ...data,
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        id: crypto.randomUUID(),
       }
       const updated = [...manualSubs, newSub]
       setManualSubs(updated)
