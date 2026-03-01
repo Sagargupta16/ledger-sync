@@ -18,7 +18,7 @@ Modern financial analytics dashboard built with React 19, TypeScript 5.9, and Vi
 
 ```
 src/
-├── pages/                    # Page components (20 pages)
+├── pages/                    # Page components (22 pages)
 │   ├── HomePage.tsx
 │   ├── DashboardPage.tsx
 │   ├── UploadSyncPage.tsx
@@ -38,6 +38,8 @@ src/
 │   ├── InsightsPage.tsx
 │   ├── AnomalyReviewPage.tsx
 │   ├── YearInReviewPage.tsx
+│   ├── SubscriptionTrackerPage.tsx  # Recurring expense tracking
+│   ├── BillCalendarPage.tsx         # Monthly bill calendar
 │   └── SettingsPage.tsx
 ├── components/
 │   ├── analytics/      # Analytics components (25+)
@@ -99,6 +101,8 @@ src/
 - **Insights** - Spending velocity, income stability, savings milestones
 - **Anomaly Review** - Flag and review unusual transactions
 - **Year in Review** - Annual financial summary
+- **Subscription Tracker** - Recurring expense detection, confirm/add manually
+- **Bill Calendar** - Monthly calendar view of upcoming bills
 
 ## Getting Started
 
@@ -138,7 +142,8 @@ VITE_API_BASE_URL=http://localhost:8000
 
 ### Zustand (Client State)
 
-- `preferencesStore` - User display preferences
+- `authStore` - JWT tokens with persist middleware
+- `preferencesStore` - User display preferences (hydrated from API)
 - `accountStore` - Account mappings
 - `investmentAccountStore` - Investment category mappings
 - `budgetStore` - Budget settings

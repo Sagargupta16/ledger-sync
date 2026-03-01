@@ -81,7 +81,7 @@ ix_transactions_user_date_type (user_id, date, type)
 The database also includes these models (see `backend/src/ledger_sync/db/models.py`):
 
 - **User** — OAuth authentication (Google, GitHub) with JWT tokens. Fields: `email`, `full_name`, `auth_provider`, `auth_provider_id`, `is_verified`, timestamps
-- **UserPreferences** — Fiscal year, essential categories, income classifications, anomaly thresholds
+- **UserPreferences** — 17 sections: fiscal year, essential categories, investment mappings, income classification, budget defaults, display format, anomaly settings, recurring settings, spending rule targets, credit card limits, earning start date, fixed expenses, savings/investment targets, payday, tax regime, excluded accounts, notification preferences
 - **AccountClassification** — User-defined account type mappings (Bank, Investment, Credit Card, etc.)
 - **MonthlySummary** — Pre-calculated monthly income/expense/savings aggregations
 - **CategoryTrend** — Category-level trends over time periods
@@ -92,6 +92,7 @@ The database also includes these models (see `backend/src/ledger_sync/db/models.
 - **FYSummary** — Fiscal year summaries with YoY changes
 - **Anomaly** — Detected anomalies (high expenses, budget exceeded)
 - **Budget** — User-defined budget limits per category
+- **FinancialGoal** — Savings goals with target amounts and dates
 - **AuditLog** — Operation audit trail
 
 ## Database Operations
@@ -363,27 +364,9 @@ For high-availability production deployments:
 # SQLAlchemy automatically uses PostgreSQL features
 ```
 
-### Additional Tables (Future)
+### Note on Existing Tables
 
-```python
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    username = Column(String(100), unique=True)
-    email = Column(String(100), unique=True)
-
-class Account(Base):
-    __tablename__ = "accounts"
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100))
-    user_id = Column(Integer, ForeignKey("users.id"))
-
-class Category(Base):
-    __tablename__ = "categories"
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100))
-    type = Column(String(20))  # Income, Expense
-```
+The `User` model already exists with full OAuth support (Google, GitHub). Account data is derived from transactions (no separate `accounts` table). Categories are also derived from transaction data and managed via `UserPreferences.essential_categories`.
 
 ## Connection String
 

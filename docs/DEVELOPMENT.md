@@ -246,7 +246,7 @@ print(f"Elapsed: {end - start:.3f}s")
 ```
 frontend/
 ├── src/
-│   ├── pages/           # Page components (20 pages)
+│   ├── pages/           # Page components (22 pages)
 │   ├── components/      # UI components
 │   │   ├── analytics/   # Analytics components (25+, including CategoryBreakdown)
 │   │   ├── layout/      # Layout components

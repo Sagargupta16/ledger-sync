@@ -222,6 +222,28 @@ class UserPreferencesResponse(BaseModel):
     earning_start_date: str | None = None
     use_earning_start_date: bool = False
 
+    # 12. Fixed/Mandatory Monthly Expenses
+    fixed_expense_categories: list[str] = []
+
+    # 13. Savings & Investment Targets
+    savings_goal_percent: float = 20.0
+    monthly_investment_target: float = 0.0
+
+    # 14. Payday Configuration
+    payday: int = 1
+
+    # 15. Tax Regime Preference
+    preferred_tax_regime: str = "new"
+
+    # 16. Excluded Accounts
+    excluded_accounts: list[str] = []
+
+    # 17. Notification Preferences
+    notify_budget_alerts: bool = True
+    notify_anomalies: bool = True
+    notify_upcoming_bills: bool = True
+    notify_days_ahead: int = 7
+
     # Metadata
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -279,6 +301,28 @@ class UserPreferencesUpdate(BaseModel):
     earning_start_date: str | None = None
     use_earning_start_date: bool | None = None
 
+    # 12. Fixed/Mandatory Monthly Expenses
+    fixed_expense_categories: list[str] | None = None
+
+    # 13. Savings & Investment Targets
+    savings_goal_percent: float | None = None
+    monthly_investment_target: float | None = None
+
+    # 14. Payday Configuration
+    payday: int | None = None
+
+    # 15. Tax Regime Preference
+    preferred_tax_regime: str | None = None
+
+    # 16. Excluded Accounts
+    excluded_accounts: list[str] | None = None
+
+    # 17. Notification Preferences
+    notify_budget_alerts: bool | None = None
+    notify_anomalies: bool | None = None
+    notify_upcoming_bills: bool | None = None
+    notify_days_ahead: int | None = None
+
 
 # ----- Helper Functions -----
 
@@ -324,6 +368,16 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
         credit_card_limits=_parse_json_field(prefs.credit_card_limits, {}),
         earning_start_date=prefs.earning_start_date,
         use_earning_start_date=prefs.use_earning_start_date,
+        fixed_expense_categories=_parse_json_field(prefs.fixed_expense_categories),
+        savings_goal_percent=prefs.savings_goal_percent,
+        monthly_investment_target=prefs.monthly_investment_target,
+        payday=prefs.payday,
+        preferred_tax_regime=prefs.preferred_tax_regime,
+        excluded_accounts=_parse_json_field(prefs.excluded_accounts),
+        notify_budget_alerts=prefs.notify_budget_alerts,
+        notify_anomalies=prefs.notify_anomalies,
+        notify_upcoming_bills=prefs.notify_upcoming_bills,
+        notify_days_ahead=prefs.notify_days_ahead,
         created_at=prefs.created_at,
         updated_at=prefs.updated_at,
     )
@@ -447,6 +501,16 @@ def reset_preferences(
     prefs.credit_card_limits = json.dumps({})
     prefs.earning_start_date = None
     prefs.use_earning_start_date = False
+    prefs.fixed_expense_categories = json.dumps([])
+    prefs.savings_goal_percent = 20.0
+    prefs.monthly_investment_target = 0.0
+    prefs.payday = 1
+    prefs.preferred_tax_regime = "new"
+    prefs.excluded_accounts = json.dumps([])
+    prefs.notify_budget_alerts = True
+    prefs.notify_anomalies = True
+    prefs.notify_upcoming_bills = True
+    prefs.notify_days_ahead = 7
     prefs.updated_at = datetime.now(UTC)
 
     session.commit()
