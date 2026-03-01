@@ -13,6 +13,8 @@ import {
   Save,
   X,
   PiggyBank,
+  Trash2,
+  Edit3,
 } from 'lucide-react'
 import { PageHeader, StatCard } from '@/components/ui'
 import { useGoals, useCreateGoal, useMonthlySummaries } from '@/hooks/api/useAnalyticsV2'
@@ -29,6 +31,8 @@ import EmptyState from '@/components/shared/EmptyState'
 // ---------------------------------------------------------------------------
 
 const ALLOCATION_STORAGE_KEY = 'ledger-sync-goal-allocations'
+const DELETED_GOALS_STORAGE_KEY = 'ledger-sync-deleted-goals'
+const GOAL_OVERRIDES_STORAGE_KEY = 'ledger-sync-goal-overrides'
 
 const GOAL_TYPE_COLORS: Record<FinancialGoal['goal_type'], string> = {
   savings: rawColors.ios.green,
@@ -160,6 +164,48 @@ function saveAllocations(allocations: Record<string, number>): void {
   }
 }
 
+/** Read hidden (deleted) goal IDs from localStorage. */
+function loadDeletedGoals(): Set<number> {
+  try {
+    const raw = localStorage.getItem(DELETED_GOALS_STORAGE_KEY)
+    if (!raw) return new Set()
+    return new Set(JSON.parse(raw) as number[])
+  } catch {
+    return new Set()
+  }
+}
+
+/** Persist hidden (deleted) goal IDs to localStorage. */
+function saveDeletedGoals(ids: Set<number>): void {
+  try {
+    localStorage.setItem(DELETED_GOALS_STORAGE_KEY, JSON.stringify([...ids]))
+  } catch {
+    // Storage full or unavailable; ignore
+  }
+}
+
+type GoalOverride = { name: string; target_amount: number; target_date: string }
+
+/** Read goal overrides from localStorage. */
+function loadGoalOverrides(): Record<number, GoalOverride> {
+  try {
+    const raw = localStorage.getItem(GOAL_OVERRIDES_STORAGE_KEY)
+    if (!raw) return {}
+    return JSON.parse(raw) as Record<number, GoalOverride>
+  } catch {
+    return {}
+  }
+}
+
+/** Persist goal overrides to localStorage. */
+function saveGoalOverrides(overrides: Record<number, GoalOverride>): void {
+  try {
+    localStorage.setItem(GOAL_OVERRIDES_STORAGE_KEY, JSON.stringify(overrides))
+  } catch {
+    // Storage full or unavailable; ignore
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Projection types
 // ---------------------------------------------------------------------------
@@ -252,7 +298,7 @@ function SavingsPoolSummary({
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-2xl border border-border p-6"
     >
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-center gap-3 mb-4">
         <div
           className="flex items-center justify-center w-9 h-9 rounded-xl"
           style={{ backgroundColor: `${rawColors.ios.purple}20` }}
@@ -262,7 +308,7 @@ function SavingsPoolSummary({
         <h3 className="text-lg font-semibold text-white">Savings Pool</h3>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         <div>
           <p className="text-xs text-text-tertiary mb-1">Total Net Savings</p>
           <p className="text-xl font-bold text-white">{formatCurrencyCompact(netSavings)}</p>
@@ -335,7 +381,7 @@ function FeasibilityWarning({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-start gap-3 rounded-xl border px-5 py-4"
+      className="flex items-start gap-3 rounded-xl border px-4 py-3"
       style={{
         borderColor: `${rawColors.ios.orange}40`,
         backgroundColor: `${rawColors.ios.orange}08`,
@@ -428,6 +474,103 @@ function UpdateProgressForm({
 }
 
 // ---------------------------------------------------------------------------
+// Inline Edit Goal Form
+// ---------------------------------------------------------------------------
+
+function EditGoalForm({
+  goal,
+  onSave,
+  onCancel,
+}: Readonly<{
+  goal: FinancialGoal
+  onSave: (goalId: number, updates: { name: string; target_amount: number; target_date: string }) => void
+  onCancel: () => void
+}>) {
+  const [name, setName] = useState(goal.name)
+  const [targetAmount, setTargetAmount] = useState(String(goal.target_amount))
+  const [targetDate, setTargetDate] = useState(goal.target_date.slice(0, 10))
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      toast.error('Goal name is required')
+      return
+    }
+    const numAmount = Number(targetAmount)
+    if (Number.isNaN(numAmount) || numAmount <= 0) {
+      toast.error('Please enter a valid positive target amount')
+      return
+    }
+    if (!targetDate) {
+      toast.error('Target date is required')
+      return
+    }
+    onSave(goal.id, { name: name.trim(), target_amount: numAmount, target_date: targetDate })
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      className="overflow-hidden"
+    >
+      <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+        <div>
+          <label htmlFor={`edit-name-${goal.id}`} className="text-xs text-text-tertiary mb-1 block">Goal Name</label>
+          <input
+            id={`edit-name-${goal.id}`}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+            autoFocus
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor={`edit-amount-${goal.id}`} className="text-xs text-text-tertiary mb-1 block">Target Amount</label>
+            <input
+              id={`edit-amount-${goal.id}`}
+              type="number"
+              min={0}
+              step="any"
+              value={targetAmount}
+              onChange={(e) => setTargetAmount(e.target.value)}
+              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+            />
+          </div>
+          <div>
+            <label htmlFor={`edit-date-${goal.id}`} className="text-xs text-text-tertiary mb-1 block">Target Date</label>
+            <input
+              id={`edit-date-${goal.id}`}
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white transition-colors hover:opacity-90"
+            style={{ background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})` }}
+          >
+            <Save className="w-3.5 h-3.5" /> Save Changes
+          </button>
+          <button
+            onClick={onCancel}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-muted-foreground bg-white/5 border border-border hover:bg-white/10 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" /> Cancel
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Goal Card
 // ---------------------------------------------------------------------------
 
@@ -437,18 +580,26 @@ function GoalCard({
   projection,
   avgMonthlySavings,
   isEditing,
+  isEditingDetails,
   onStartEdit,
+  onStartEditDetails,
   onSaveAllocation,
+  onSaveDetails,
   onCancelEdit,
+  onDelete,
 }: Readonly<{
   goal: FinancialGoal
   effectiveAmount: number
   projection: GoalProjection
   avgMonthlySavings: number | null
   isEditing: boolean
+  isEditingDetails: boolean
   onStartEdit: () => void
+  onStartEditDetails: () => void
   onSaveAllocation: (goalId: number, amount: number) => void
+  onSaveDetails: (goalId: number, updates: { name: string; target_amount: number; target_date: string }) => void
   onCancelEdit: () => void
+  onDelete: (goalId: number) => void
 }>) {
   const color = GOAL_TYPE_COLORS[goal.goal_type]
   const progressPct = goal.target_amount > 0 ? (effectiveAmount / goal.target_amount) * 100 : 0
@@ -462,8 +613,26 @@ function GoalCard({
     >
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div>
-          <h4 className="text-lg font-semibold text-white">{goal.name}</h4>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-lg font-semibold text-white truncate">{goal.name}</h4>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={onStartEditDetails}
+                title="Edit goal"
+                className="p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onDelete(goal.id)}
+                title="Delete goal"
+                className="p-1.5 rounded-lg text-text-tertiary hover:text-ios-red hover:bg-red-500/10 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
           <span
             className="inline-block mt-1 px-2.5 py-0.5 text-xs rounded-full font-medium"
             style={{ backgroundColor: `${color}20`, color }}
@@ -471,7 +640,7 @@ function GoalCard({
             {GOAL_TYPE_LABELS[goal.goal_type]}
           </span>
         </div>
-        <div className="relative flex items-center justify-center">
+        <div className="relative flex items-center justify-center flex-shrink-0 ml-3">
           <CircularProgress progress={progressPct} color={color} />
           <span className="absolute text-sm font-bold text-white">{Math.round(progressPct)}%</span>
         </div>
@@ -582,7 +751,7 @@ function GoalCard({
 
       {goal.notes && <p className="mt-3 text-xs text-text-tertiary italic">{goal.notes}</p>}
 
-      {/* Inline Edit Form */}
+      {/* Inline Edit Forms */}
       <AnimatePresence>
         {isEditing && (
           <UpdateProgressForm
@@ -590,6 +759,13 @@ function GoalCard({
             currentAmount={effectiveAmount}
             targetAmount={goal.target_amount}
             onSave={onSaveAllocation}
+            onCancel={onCancelEdit}
+          />
+        )}
+        {isEditingDetails && (
+          <EditGoalForm
+            goal={goal}
+            onSave={onSaveDetails}
             onCancel={onCancelEdit}
           />
         )}
@@ -605,7 +781,10 @@ function GoalCard({
 export default function GoalsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingGoalId, setEditingGoalId] = useState<number | null>(null)
+  const [editingDetailsGoalId, setEditingDetailsGoalId] = useState<number | null>(null)
   const [allocations, setAllocations] = useState<Record<string, number>>(loadAllocations)
+  const [deletedGoalIds, setDeletedGoalIds] = useState<Set<number>>(loadDeletedGoals)
+  const [goalOverrides, setGoalOverrides] = useState<Record<number, GoalOverride>>(loadGoalOverrides)
   const [formData, setFormData] = useState({
     name: '',
     goal_type: 'savings',
@@ -614,7 +793,20 @@ export default function GoalsPage() {
     notes: '',
   })
 
-  const { data: goals = [], isLoading: goalsLoading } = useGoals({ include_achieved: true })
+  const { data: rawGoals = [], isLoading: goalsLoading } = useGoals({ include_achieved: true })
+
+  // Filter out locally-deleted goals and apply local overrides
+  const goals = useMemo(
+    () =>
+      rawGoals
+        .filter((g) => !deletedGoalIds.has(g.id))
+        .map((g) => {
+          const override = goalOverrides[g.id]
+          if (!override) return g
+          return { ...g, name: override.name, target_amount: override.target_amount, target_date: override.target_date }
+        }),
+    [rawGoals, deletedGoalIds, goalOverrides],
+  )
   const createGoal = useCreateGoal()
   const { data: totals, isLoading: totalsLoading } = useTotals()
   const { data: monthlySummaries = [] } = useMonthlySummaries()
@@ -671,6 +863,21 @@ export default function GoalsPage() {
     return map
   }, [goals, effectiveAmounts, avgMonthlySavings])
 
+  // Sort goals: soonest deadline first, achieved goals at the bottom
+  const sortedGoals = useMemo(() => {
+    return [...goals].sort((a, b) => {
+      const aAchieved = a.is_achieved || (effectiveAmounts[a.id] ?? 0) >= a.target_amount
+      const bAchieved = b.is_achieved || (effectiveAmounts[b.id] ?? 0) >= b.target_amount
+
+      // Achieved goals go to the bottom
+      if (aAchieved && !bAchieved) return 1
+      if (!aAchieved && bAchieved) return -1
+
+      // Sort by target_date ascending (soonest first)
+      return new Date(a.target_date).getTime() - new Date(b.target_date).getTime()
+    })
+  }, [goals, effectiveAmounts])
+
   // Handlers
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
@@ -713,10 +920,33 @@ export default function GoalsPage() {
 
   const handleCancelEdit = useCallback(() => {
     setEditingGoalId(null)
+    setEditingDetailsGoalId(null)
   }, [])
 
+  const handleDeleteGoal = useCallback(
+    (goalId: number) => {
+      const updated = new Set(deletedGoalIds)
+      updated.add(goalId)
+      setDeletedGoalIds(updated)
+      saveDeletedGoals(updated)
+      toast.success('Goal removed')
+    },
+    [deletedGoalIds],
+  )
+
+  const handleSaveDetails = useCallback(
+    (goalId: number, updates: { name: string; target_amount: number; target_date: string }) => {
+      const updated = { ...goalOverrides, [goalId]: updates }
+      setGoalOverrides(updated)
+      saveGoalOverrides(updated)
+      setEditingDetailsGoalId(null)
+      toast.success('Goal updated')
+    },
+    [goalOverrides],
+  )
+
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
+    <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6">
       <PageHeader
         title="Financial Goals"
         subtitle="Track progress toward your financial targets"
@@ -732,7 +962,7 @@ export default function GoalsPage() {
       />
 
       {/* Summary Cards */}
-      <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <motion.div variants={fadeUpItem}>
           <StatCard title="Total Goals" value={String(summary.total)} icon={<Target className="w-5 h-5" />} iconColor={rawColors.ios.blue} />
         </motion.div>
@@ -846,7 +1076,7 @@ export default function GoalsPage() {
       )}
       {!isLoading && goals.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {goals.map((goal) => (
+          {sortedGoals.map((goal) => (
             <GoalCard
               key={goal.id}
               goal={goal}
@@ -865,9 +1095,13 @@ export default function GoalsPage() {
               }
               avgMonthlySavings={avgMonthlySavings}
               isEditing={editingGoalId === goal.id}
-              onStartEdit={() => setEditingGoalId(goal.id)}
+              isEditingDetails={editingDetailsGoalId === goal.id}
+              onStartEdit={() => { setEditingGoalId(goal.id); setEditingDetailsGoalId(null) }}
+              onStartEditDetails={() => { setEditingDetailsGoalId(goal.id); setEditingGoalId(null) }}
               onSaveAllocation={handleSaveAllocation}
+              onSaveDetails={handleSaveDetails}
               onCancelEdit={handleCancelEdit}
+              onDelete={handleDeleteGoal}
             />
           ))}
         </div>
