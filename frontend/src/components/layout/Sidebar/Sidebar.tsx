@@ -473,7 +473,7 @@ export default function Sidebar() {
           <div className="relative flex-1 min-h-0">
             {/* Top scroll indicator */}
             {scrollState.top && (
-              <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-black/30 to-transparent pointer-events-none z-10" />
+              <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-[rgba(18,18,18,0.9)] to-transparent pointer-events-none z-10" />
             )}
 
             <nav
@@ -497,7 +497,7 @@ export default function Sidebar() {
                   )}
                   <div className={cn(
                     'space-y-0.5',
-                    !isCollapsed && 'rounded-xl bg-ios-yellow/[0.04] p-1',
+                    !isCollapsed && 'rounded-xl bg-ios-yellow/[0.08] border border-ios-yellow/20 p-1',
                   )}>
                     {favoriteItems.map((item) => (
                       <SidebarItem
@@ -547,7 +547,7 @@ export default function Sidebar() {
 
             {/* Bottom scroll indicator */}
             {scrollState.bottom && (
-              <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-black/30 to-transparent pointer-events-none z-10" />
+              <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-[rgba(18,18,18,0.9)] to-transparent pointer-events-none z-10" />
             )}
           </div>
 

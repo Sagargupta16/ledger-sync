@@ -417,8 +417,8 @@ export default function SettingsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg'
-                  : 'text-muted-foreground hover:text-white hover:bg-white/10'
+                  ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg border-b-2 border-primary'
+                  : 'text-muted-foreground hover:text-white hover:bg-white/10 border-b-2 border-transparent'
               }`}
             >
               <tab.icon className="w-4 h-4" />
