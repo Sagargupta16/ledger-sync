@@ -60,20 +60,31 @@ The connection string is set as `LEDGER_SYNC_DATABASE_URL` in Render's environme
 |---------|-------|
 | Runtime | Python |
 | Root Directory | `backend` |
-| Build Command | `pip install uv && uv sync` |
+| Build Command | `pip install uv && uv sync --no-group dev && (uv run alembic upgrade head 2>/dev/null \|\| (uv run alembic stamp af63e055055a && uv run alembic upgrade head))` |
 | Start Command | `uv run uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT` |
 | Health Check | `/health` |
 | Auto-Deploy | Yes (on push to `main`) |
 
 **Environment variables:**
 
-| Variable | Value | Notes |
-|----------|-------|-------|
-| `PYTHON_VERSION` | `3.12.0` | Must include patch version |
-| `LEDGER_SYNC_DATABASE_URL` | `postgresql://...@...neon.tech/neondb?sslmode=require` | Neon connection string |
-| `LEDGER_SYNC_JWT_SECRET_KEY` | (random 64+ char string) | Generate with `openssl rand -hex 32` |
-| `LEDGER_SYNC_ENVIRONMENT` | `production` | Enables production validation |
-| `UV_PROJECT_ENVIRONMENT` | `/opt/render/project/src/.venv` | uv venv location on Render |
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `PYTHON_VERSION` | Yes | `3.12.0` (must include patch version) |
+| `LEDGER_SYNC_DATABASE_URL` | Yes | Neon connection string (`postgresql://...?sslmode=require`) |
+| `LEDGER_SYNC_JWT_SECRET_KEY` | Yes | Generate with `openssl rand -hex 32` |
+| `LEDGER_SYNC_ENVIRONMENT` | Yes | `production` |
+| `LEDGER_SYNC_CORS_ORIGINS` | Yes | JSON array: `["https://yourdomain.com", "http://localhost:5173"]` |
+| `LEDGER_SYNC_FRONTEND_URL` | Yes | Frontend base URL for OAuth redirects (e.g., `https://yourdomain.com/ledger-sync`) |
+| `LEDGER_SYNC_GOOGLE_CLIENT_ID` | For Google login | Google OAuth client ID |
+| `LEDGER_SYNC_GOOGLE_CLIENT_SECRET` | For Google login | Google OAuth client secret |
+| `LEDGER_SYNC_GITHUB_CLIENT_ID` | For GitHub login | GitHub OAuth client ID (create a **separate** prod app) |
+| `LEDGER_SYNC_GITHUB_CLIENT_SECRET` | For GitHub login | GitHub OAuth client secret |
+
+**OAuth redirect URIs** (must be registered in provider consoles):
+- Google: `https://yourdomain.com/ledger-sync/auth/callback/google`
+- GitHub: `https://yourdomain.com/ledger-sync/auth/callback/github`
+
+> **Note:** GitHub only allows one callback URL per OAuth app. Create separate apps for local dev and production.
 
 A `render.yaml` blueprint is included in the repo root for reference, but the service was created manually.
 
@@ -179,9 +190,13 @@ git push origin main
 | `LEDGER_SYNC_JWT_SECRET_KEY` | Yes (prod) | dev default | JWT signing secret (min 32 chars) |
 | `LEDGER_SYNC_ENVIRONMENT` | No | `development` | `development`, `staging`, or `production` |
 | `LEDGER_SYNC_CORS_ORIGINS` | No | See settings.py | JSON array of allowed origins |
+| `LEDGER_SYNC_FRONTEND_URL` | Yes (prod) | `http://localhost:5173` | Frontend base URL for OAuth redirects |
+| `LEDGER_SYNC_GOOGLE_CLIENT_ID` | No | - | Google OAuth client ID |
+| `LEDGER_SYNC_GOOGLE_CLIENT_SECRET` | No | - | Google OAuth client secret |
+| `LEDGER_SYNC_GITHUB_CLIENT_ID` | No | - | GitHub OAuth client ID |
+| `LEDGER_SYNC_GITHUB_CLIENT_SECRET` | No | - | GitHub OAuth client secret |
 | `LEDGER_SYNC_LOG_LEVEL` | No | `INFO` | Python log level |
 | `PYTHON_VERSION` | Yes (Render) | - | Must be `X.Y.Z` format (e.g., `3.12.0`) |
-| `UV_PROJECT_ENVIRONMENT` | No (Render) | - | uv venv location |
 
 ### Frontend (GitHub Actions)
 

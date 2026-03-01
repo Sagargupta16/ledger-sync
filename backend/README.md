@@ -4,20 +4,21 @@ FastAPI backend for financial data processing and analytics.
 
 ## Features
 
+- OAuth authentication (Google, GitHub) with JWT tokens
 - Excel file ingestion with duplicate detection
 - SHA-256 based transaction reconciliation
 - Financial analytics and calculations
-- SQLite database with SQLAlchemy ORM
+- SQLite (dev) / PostgreSQL (prod) with SQLAlchemy ORM
 - Alembic database migrations
 
 ## Tech Stack
 
 | Component  | Technology     |
 | ---------- | -------------- |
-| Language   | Python 3.11+   |
+| Language   | Python 3.12    |
 | Framework  | FastAPI        |
 | ORM        | SQLAlchemy 2.0 |
-| Database   | SQLite         |
+| Database   | SQLite (dev) / PostgreSQL (prod) |
 | Migrations | Alembic        |
 | Testing    | pytest         |
 | Linting    | Ruff           |
@@ -46,6 +47,8 @@ backend/
 ├── src/ledger_sync/
 │   ├── api/              # FastAPI endpoints
 │   │   ├── main.py       # Application entry point
+│   │   ├── auth.py       # Token refresh, logout, profile
+│   │   ├── oauth.py      # Google/GitHub OAuth login
 │   │   ├── analytics.py  # Analytics endpoints
 │   │   ├── analytics_v2.py # V2 analytics
 │   │   ├── calculations.py # Calculations
@@ -151,10 +154,19 @@ uv run alembic downgrade -1
 
 ## Configuration
 
-Environment variables (optional):
+Environment variables (prefix: `LEDGER_SYNC_`):
 
-- `LEDGER_SYNC_DATABASE_URL` - Database connection string (default: `sqlite:///./ledger_sync.db`)
-- `LEDGER_SYNC_LOG_LEVEL` - Log level (default: `INFO`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `sqlite:///./ledger_sync.db` | Database connection string |
+| `LOG_LEVEL` | `INFO` | Python log level |
+| `GOOGLE_CLIENT_ID` | - | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | - | Google OAuth client secret |
+| `GITHUB_CLIENT_ID` | - | GitHub OAuth client ID |
+| `GITHUB_CLIENT_SECRET` | - | GitHub OAuth client secret |
+| `FRONTEND_URL` | `http://localhost:5173` | Frontend URL for OAuth redirects |
+| `JWT_SECRET_KEY` | dev default | JWT signing secret (required in production) |
+| `ENVIRONMENT` | `development` | `development` or `production` |
 
 ## License
 

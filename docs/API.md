@@ -8,7 +8,31 @@ http://localhost:8000
 
 ## Authentication
 
-The API requires JWT Bearer token authentication. All endpoints use the `get_current_user` dependency.
+OAuth-only authentication via Google and GitHub. The API issues JWT Bearer tokens after OAuth login.
+
+### OAuth Flow
+
+1. `GET /api/auth/oauth/providers` — Returns enabled OAuth providers (Google, GitHub) with authorize URLs
+2. Frontend redirects user to provider's authorize URL
+3. Provider redirects back to `{frontend_url}/auth/callback/{provider}?code=...`
+4. Frontend sends code to `POST /api/auth/oauth/{provider}/callback`
+5. Backend exchanges code for user info, creates/links user, returns JWT tokens
+
+### OAuth Endpoints
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/auth/oauth/providers` | No | List enabled OAuth providers |
+| POST | `/api/auth/oauth/google/callback` | No | Exchange Google auth code for JWT |
+| POST | `/api/auth/oauth/github/callback` | No | Exchange GitHub auth code for JWT |
+| POST | `/api/auth/refresh` | No | Refresh access token |
+| GET | `/api/auth/me` | Yes | Get current user profile |
+| PUT | `/api/auth/me` | Yes | Update profile (name) |
+| POST | `/api/auth/logout` | Yes | Logout (blacklist token) |
+| DELETE | `/api/auth/account` | Yes | Delete account permanently |
+| POST | `/api/auth/account/reset` | Yes | Reset account data |
+
+All other endpoints require `Authorization: Bearer <access_token>` header.
 
 ## Common Response Format
 

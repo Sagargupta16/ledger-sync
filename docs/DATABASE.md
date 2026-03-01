@@ -29,10 +29,9 @@ class Transaction(Base):
     category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    # Transfer-specific
+    # Transfer-specific (only used when type=Transfer)
     from_account: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     to_account: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    is_transfer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Optional
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -60,7 +59,6 @@ class Transaction(Base):
 | subcategory      | VARCHAR(255)    | NULL        | NO    | Sub-category                     |
 | from_account     | VARCHAR(255)    | NULL        | YES   | Transfer source account          |
 | to_account       | VARCHAR(255)    | NULL        | YES   | Transfer destination account     |
-| is_transfer      | BOOLEAN         | DEFAULT 0   | NO    | Transfer flag                    |
 | note             | TEXT            | NULL        | NO    | Transaction note                 |
 | source_file      | VARCHAR(500)    | NOT NULL    | NO    | Source Excel filename            |
 | last_seen_at     | TIMESTAMP       | NOT NULL    | YES   | Last import time                 |
@@ -82,7 +80,7 @@ ix_transactions_user_date_type (user_id, date, type)
 
 The database also includes these models (see `backend/src/ledger_sync/db/models.py`):
 
-- **User** — Authentication with hashed passwords and JWT tokens
+- **User** — OAuth authentication (Google, GitHub) with JWT tokens. Fields: `email`, `full_name`, `auth_provider`, `auth_provider_id`, `is_verified`, timestamps
 - **UserPreferences** — Fiscal year, essential categories, income classifications, anomaly thresholds
 - **AccountClassification** — User-defined account type mappings (Bank, Investment, Credit Card, etc.)
 - **MonthlySummary** — Pre-calculated monthly income/expense/savings aggregations
@@ -104,14 +102,14 @@ Insert a new transaction:
 
 ```python
 transaction = Transaction(
-    hash_id="abc123...",
+    transaction_id="abc123...",
     date=datetime(2025, 1, 15),
     amount=5000.00,
-    type="Expense",
+    type=TransactionType.EXPENSE,
     category="Groceries",
     account="Checking",
-    description="Weekly groceries",
-    file_source="MoneyManager.xlsx"
+    note="Weekly groceries",
+    source_file="MoneyManager.xlsx"
 )
 session.add(transaction)
 session.commit()
@@ -141,9 +139,9 @@ active = session.query(Transaction).filter(
     Transaction.is_deleted == False
 ).all()
 
-# Get by hash_id (for deduplication check)
+# Get by transaction_id (for deduplication check)
 existing = session.query(Transaction).filter(
-    Transaction.hash_id == hash_id
+    Transaction.transaction_id == transaction_id
 ).first()
 
 # Aggregations
@@ -159,7 +157,7 @@ Update an existing transaction:
 
 ```python
 transaction = session.query(Transaction).filter(
-    Transaction.hash_id == hash_id
+    Transaction.transaction_id == transaction_id
 ).first()
 
 if transaction:
@@ -175,7 +173,7 @@ Mark transaction as deleted instead of removing:
 
 ```python
 transaction = session.query(Transaction).filter(
-    Transaction.hash_id == hash_id
+    Transaction.transaction_id == transaction_id
 ).first()
 
 if transaction:
@@ -230,7 +228,7 @@ Transaction IDs are generated using SHA-256 hash of:
 
 ```python
 hash_input = f"{date}|{amount}|{category}|{account}"
-hash_id = hashlib.sha256(hash_input.encode()).hexdigest()
+transaction_id = hashlib.sha256(hash_input.encode()).hexdigest()
 ```
 
 **Benefits:**
@@ -244,7 +242,7 @@ hash_id = hashlib.sha256(hash_input.encode()).hexdigest()
 
 ### Constraints
 
-1. **Unique hash_id** - No duplicate transactions
+1. **Unique transaction_id** - No duplicate transactions
 2. **Non-null date** - Every transaction must have a date
 3. **Non-null amount** - Every transaction must have an amount
 4. **Non-null type** - Transaction type is required
@@ -264,7 +262,7 @@ Currently, no foreign keys (no cascading deletes).
 
 ### Current Indexes
 
-- `hash_id` - O(1) lookup for duplicates
+- `transaction_id` - O(1) lookup for duplicates
 - `date` - Fast range queries
 - `category` - Fast filtering by category
 - `account` - Fast filtering by account
