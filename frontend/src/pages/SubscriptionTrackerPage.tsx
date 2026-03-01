@@ -758,6 +758,12 @@ export default function SubscriptionTrackerPage() {
         return sorted.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
       case 'name':
         return sorted.sort((a, b) => a.name.localeCompare(b.name))
+      case 'last_occurrence':
+        return sorted.sort((a, b) => {
+          if (!a.next_due) return 1
+          if (!b.next_due) return -1
+          return new Date(b.next_due).getTime() - new Date(a.next_due).getTime()
+        })
       case 'annual_cost':
         return sorted.sort((a, b) => {
           const aCost = Math.abs(a.amount) * getAnnualFactor(a.frequency)

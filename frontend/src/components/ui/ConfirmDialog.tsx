@@ -17,7 +17,7 @@ interface ConfirmDialogProps {
   readonly confirmLabel?: string
   readonly cancelLabel?: string
   readonly variant?: 'danger' | 'warning'
-  readonly onConfirm: () => void
+  readonly onConfirm: () => void | Promise<void>
 }
 
 export default function ConfirmDialog({
@@ -77,8 +77,8 @@ export default function ConfirmDialog({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  onConfirm()
+                onClick={async () => {
+                  await onConfirm()
                   handleClose()
                 }}
                 className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${confirmColors}`}

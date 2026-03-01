@@ -109,6 +109,10 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
       onSuccess: () => {
         toast.success('Account deleted successfully')
         handleClose()
+        logout.mutate(undefined, {
+          onSuccess: () => { navigate('/') },
+          onSettled: () => { navigate('/') },
+        })
       },
       onError: () => toast.error('Failed to delete account.'),
     })
