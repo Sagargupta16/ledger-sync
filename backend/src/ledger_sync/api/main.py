@@ -5,6 +5,7 @@ import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -61,7 +62,7 @@ def _cleanup_stale_temp_files() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan: initialize database and clean temp files on startup."""
+    """Application lifespan: initialize database, HTTP client, and clean temp files."""
     try:
         logger.info("Initializing database...")
         init_db()
@@ -70,7 +71,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as exc:
         logger.error("Database initialization failed: %s", exc)
         raise
+
+    # Shared httpx client for OAuth calls — connection-pooled and reused
+    _app.state.http_client = httpx.AsyncClient(timeout=10.0)
     yield
+    await _app.state.http_client.aclose()
 
 
 app = FastAPI(

@@ -20,7 +20,7 @@ import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import StatCard from '@/pages/year-in-review/StatCard'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useBudgetStore } from '@/store/budgetStore'
-import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent, parseStringArray } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { getCurrentFY, getFYDateRange } from '@/lib/dateUtils'
@@ -71,23 +71,10 @@ export default function BudgetPage() {
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
   const alertThreshold = preferences?.default_budget_alert_threshold ?? 80
 
-  // Parse fixed_expense_categories from preferences (may be JSON string or array)
-  const fixedExpenseCategories = useMemo<Set<string>>(() => {
-    const raw = preferences?.fixed_expense_categories
-    if (!raw) return new Set()
-    let arr: string[]
-    if (Array.isArray(raw)) {
-      arr = raw
-    } else {
-      try {
-        const parsed = JSON.parse(raw)
-        arr = Array.isArray(parsed) ? parsed : []
-      } catch {
-        arr = []
-      }
-    }
-    return new Set(arr.map((c) => c.toLowerCase()))
-  }, [preferences?.fixed_expense_categories])
+  const fixedExpenseCategories = useMemo<Set<string>>(
+    () => new Set(parseStringArray(preferences?.fixed_expense_categories).map((c) => c.toLowerCase())),
+    [preferences?.fixed_expense_categories],
+  )
 
   const getStatus = useCallback((pct: number): BudgetRow['status'] => {
     if (pct >= 100) return 'exceeded'

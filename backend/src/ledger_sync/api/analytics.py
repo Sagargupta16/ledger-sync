@@ -10,7 +10,7 @@ from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.core.calculator import FinancialCalculator
+from ledger_sync.core import calculator
 from ledger_sync.core.query_helpers import (
     apply_earning_start_date,
     build_transaction_query,
@@ -154,7 +154,7 @@ def _get_sql_monthly_data(
     """Return monthly income/expenses using SQL GROUP BY.
 
     Keys are ``"YYYY-MM"`` strings.  Values match the shape returned by
-    ``FinancialCalculator.group_by_month``.
+    ``calculator.group_by_month``.
     """
     base = _build_base_query(db, user, time_range).subquery()
     month_col = fmt_year_month(base.c.date).label("month")
@@ -182,7 +182,7 @@ def _get_sql_category_totals(
     """Return expense totals grouped by category using SQL.
 
     Only ``EXPENSE`` transactions are included, matching the behaviour of
-    ``FinancialCalculator.group_by_category``.
+    ``calculator.group_by_category``.
     """
     base = (
         _build_base_query(db, user, time_range)
@@ -211,7 +211,7 @@ def _get_sql_account_totals(
 
     Income adds to an account, expenses subtract.  Transfers debit the
     source (``from_account``) and credit the destination (``to_account``).
-    The result matches ``FinancialCalculator.group_by_account``.
+    The result matches ``calculator.group_by_account``.
     """
     base = _build_base_query(db, user, time_range).subquery()
 
@@ -295,7 +295,7 @@ def get_overview(
 
     # SQL-based aggregations
     monthly_data = _get_sql_monthly_data(db, current_user, time_range)
-    best_worst = FinancialCalculator.find_best_worst_months(monthly_data)
+    best_worst = calculator.find_best_worst_months(monthly_data)
     account_activity = _get_sql_account_totals(db, current_user, time_range)
 
     # Format asset allocation
@@ -336,10 +336,10 @@ def get_behavior(
         }
 
     # Use calculator for metrics
-    lifestyle_inf = FinancialCalculator.calculate_lifestyle_inflation(transactions)
-    convenience_data = FinancialCalculator.calculate_convenience_spending(transactions)
+    lifestyle_inf = calculator.calculate_lifestyle_inflation(transactions)
+    convenience_data = calculator.calculate_convenience_spending(transactions)
     convenience_pct = convenience_data["convenience_pct"]
-    category_totals = FinancialCalculator.group_by_category(transactions)
+    category_totals = calculator.group_by_category(transactions)
 
     # Calculate average transaction size and frequency (specific to this endpoint)
     expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
@@ -397,9 +397,9 @@ def get_trends(
         }
 
     # Use calculator for metrics
-    monthly_data = FinancialCalculator.group_by_month(transactions)
+    monthly_data = calculator.group_by_month(transactions)
     monthly_expenses = [data["expenses"] for data in monthly_data.values()]
-    consistency_score = FinancialCalculator.calculate_consistency_score(monthly_expenses)
+    consistency_score = calculator.calculate_consistency_score(monthly_expenses)
 
     # Format monthly trends
     monthly_trends = [
@@ -443,14 +443,14 @@ def get_yearly_wrapped(
         return {"insights": []}
 
     # Use calculator for metrics
-    totals = FinancialCalculator.calculate_totals(transactions)
-    monthly_data = FinancialCalculator.group_by_month(transactions)
-    best_worst = FinancialCalculator.find_best_worst_months(monthly_data)
-    savings_rate = FinancialCalculator.calculate_savings_rate(
+    totals = calculator.calculate_totals(transactions)
+    monthly_data = calculator.group_by_month(transactions)
+    best_worst = calculator.find_best_worst_months(monthly_data)
+    savings_rate = calculator.calculate_savings_rate(
         totals["total_income"],
         totals["total_expenses"],
     )
-    daily_rate = FinancialCalculator.calculate_daily_spending_rate(transactions)
+    daily_rate = calculator.calculate_daily_spending_rate(transactions)
 
     expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
     income_txns = [t for t in transactions if t.type == TransactionType.INCOME]
@@ -566,27 +566,27 @@ def get_kpis(
             "convenience_spending_pct": 0,
         }
 
-    totals = FinancialCalculator.calculate_totals(transactions)
-    monthly_data = FinancialCalculator.group_by_month(transactions)
+    totals = calculator.calculate_totals(transactions)
+    monthly_data = calculator.group_by_month(transactions)
     monthly_expenses = [data["expenses"] for data in monthly_data.values()]
-    category_totals = FinancialCalculator.group_by_category(transactions)
-    spending_velocity = FinancialCalculator.calculate_spending_velocity(transactions)
-    convenience_data = FinancialCalculator.calculate_convenience_spending(transactions)
+    category_totals = calculator.group_by_category(transactions)
+    spending_velocity = calculator.calculate_spending_velocity(transactions)
+    convenience_data = calculator.calculate_convenience_spending(transactions)
 
     return {
-        "savings_rate": FinancialCalculator.calculate_savings_rate(
+        "savings_rate": calculator.calculate_savings_rate(
             totals["total_income"],
             totals["total_expenses"],
         ),
-        "daily_spending_rate": FinancialCalculator.calculate_daily_spending_rate(transactions),
-        "monthly_burn_rate": FinancialCalculator.calculate_monthly_burn_rate(transactions),
+        "daily_spending_rate": calculator.calculate_daily_spending_rate(transactions),
+        "monthly_burn_rate": calculator.calculate_monthly_burn_rate(transactions),
         "spending_velocity": spending_velocity["velocity_ratio"]
         * 100,  # Convert ratio to percentage
-        "category_concentration": FinancialCalculator.calculate_category_concentration(
+        "category_concentration": calculator.calculate_category_concentration(
             category_totals,
         ),
-        "consistency_score": FinancialCalculator.calculate_consistency_score(monthly_expenses),
-        "lifestyle_inflation": FinancialCalculator.calculate_lifestyle_inflation(transactions),
+        "consistency_score": calculator.calculate_consistency_score(monthly_expenses),
+        "lifestyle_inflation": calculator.calculate_lifestyle_inflation(transactions),
         "convenience_spending_pct": convenience_data["convenience_pct"],
     }
 

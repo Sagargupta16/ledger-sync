@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from ledger_sync.core.calculator import calculator
+from ledger_sync.core import calculator
 from ledger_sync.db.models import Transaction, TransactionType
 
 
@@ -289,7 +289,3 @@ class InsightEngine:
                 totals["total_expenses"],
             ),
         }
-
-
-# Global insight engine instance
-insight_engine = InsightEngine()
