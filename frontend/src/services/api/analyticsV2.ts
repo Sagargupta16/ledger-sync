@@ -316,7 +316,7 @@ export const analyticsV2Service = {
     monthly_limit: number
     alert_threshold?: number
   }) {
-    const response = await apiClient.post('/api/analytics/v2/budgets', null, { params: data })
+    const response = await apiClient.post('/api/analytics/v2/budgets', data)
     return response.data
   },
 
@@ -333,7 +333,7 @@ export const analyticsV2Service = {
     target_date: string
     notes?: string
   }) {
-    const response = await apiClient.post('/api/analytics/v2/goals', null, { params: data })
+    const response = await apiClient.post('/api/analytics/v2/goals', data)
     return response.data
   },
 }
