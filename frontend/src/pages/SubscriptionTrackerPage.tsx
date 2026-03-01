@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   CreditCard,
@@ -21,7 +21,7 @@ import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 import { PageHeader } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { SCROLL_FADE_UP, staggerContainer, fadeUpItem, fadeUpWithDelay } from '@/constants/animations'
+import { SCROLL_FADE_UP, fadeUpWithDelay } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
 import { toast } from 'sonner'
 
@@ -304,8 +304,7 @@ function SubscriptionCard({
   const status = getSubscriptionStatus(sub.last_occurrence, sub.frequency)
 
   return (
-    <motion.div
-      variants={fadeUpItem}
+    <div
       className={`glass rounded-xl border p-5 hover:border-white/20 hover:bg-white/[0.04] transition-colors duration-200 ${
         isConfirmed ? 'border-ios-green/20' : 'border-border'
       }`}
@@ -383,7 +382,7 @@ function SubscriptionCard({
           <span className="text-ios-yellow">Missed: {sub.times_missed}x</span>
         )}
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -401,10 +400,7 @@ function ManualSubscriptionCard({
   const annualCost = Math.abs(sub.amount) * getAnnualFactor(sub.frequency)
 
   return (
-    <motion.div
-      variants={fadeUpItem}
-      className="glass rounded-xl border border-ios-purple/20 p-5 hover:border-ios-purple/30 hover:bg-white/[0.04] transition-colors duration-200"
-    >
+    <div className="glass rounded-xl border border-ios-purple/20 p-5 hover:border-ios-purple/30 hover:bg-white/[0.04] transition-colors duration-200">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         {/* Left side */}
         <div className="flex-1 min-w-0 space-y-2">
@@ -473,7 +469,7 @@ function ManualSubscriptionCard({
           </span>
         )}
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -642,18 +638,12 @@ function SortButton({
 // ---------------------------------------------------------------------------
 
 export default function SubscriptionTrackerPage() {
-  const { data: recurringTransactions, isLoading } = useRecurringTransactions({ active_only: true })
+  const { data: recurringTransactions, isLoading } = useRecurringTransactions({ active_only: false, min_confidence: 0 })
   const [sortBy, setSortBy] = useState<SortKey>('amount')
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(loadConfirmedIds)
   const [manualSubs, setManualSubs] = useState<ManualSubscription[]>(loadManualSubscriptions)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingManualId, setEditingManualId] = useState<string | null>(null)
-
-  // Sync from localStorage on mount
-  useEffect(() => {
-    setConfirmedIds(loadConfirmedIds())
-    setManualSubs(loadManualSubscriptions())
-  }, [])
 
   // Filter for expense subscriptions only
   const subscriptions = useMemo(() => {
@@ -902,12 +892,7 @@ export default function SubscriptionTrackerPage() {
             />
           )}
           {!isLoading && hasAnySubs && (
-            <motion.div
-              className="space-y-4"
-              variants={staggerContainer}
-              initial="hidden"
-              animate="visible"
-            >
+            <div className="space-y-4">
               {/* Section: Confirmed active subscriptions */}
               {sortedConfirmed.length > 0 && (
                 <>
@@ -917,13 +902,19 @@ export default function SubscriptionTrackerPage() {
                       Confirmed ({sortedConfirmed.length})
                     </span>
                   </div>
-                  {sortedConfirmed.map((sub) => (
-                    <SubscriptionCard
-                      key={sub.id}
-                      sub={sub}
-                      isConfirmed
-                      onToggleConfirm={() => handleToggleConfirm(String(sub.id))}
-                    />
+                  {sortedConfirmed.map((sub, i) => (
+                    <motion.div
+                      key={`confirmed-${sub.id}`}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: i * 0.04 }}
+                    >
+                      <SubscriptionCard
+                        sub={sub}
+                        isConfirmed
+                        onToggleConfirm={() => handleToggleConfirm(String(sub.id))}
+                      />
+                    </motion.div>
                   ))}
                 </>
               )}
@@ -969,17 +960,23 @@ export default function SubscriptionTrackerPage() {
                       Detected ({sortedUnconfirmed.length})
                     </span>
                   </div>
-                  {sortedUnconfirmed.map((sub) => (
-                    <SubscriptionCard
-                      key={sub.id}
-                      sub={sub}
-                      isConfirmed={false}
-                      onToggleConfirm={() => handleToggleConfirm(String(sub.id))}
-                    />
+                  {sortedUnconfirmed.map((sub, i) => (
+                    <motion.div
+                      key={`detected-${sub.id}`}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: i * 0.04 }}
+                    >
+                      <SubscriptionCard
+                        sub={sub}
+                        isConfirmed={false}
+                        onToggleConfirm={() => handleToggleConfirm(String(sub.id))}
+                      />
+                    </motion.div>
                   ))}
                 </>
               )}
-            </motion.div>
+            </div>
           )}
         </motion.div>
       </div>

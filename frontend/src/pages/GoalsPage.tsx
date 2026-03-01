@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Target,
@@ -812,11 +812,6 @@ export default function GoalsPage() {
   const { data: monthlySummaries = [] } = useMonthlySummaries()
 
   const isLoading = goalsLoading
-
-  // Sync allocations from localStorage on mount
-  useEffect(() => {
-    setAllocations(loadAllocations())
-  }, [])
 
   // Calculate effective amounts (max of backend + localStorage)
   const effectiveAmounts = useMemo(() => {

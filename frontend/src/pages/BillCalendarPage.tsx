@@ -562,18 +562,12 @@ function findNextUpcomingBill(
 export default function BillCalendarPage() {
   const { data: recurringTransactions, isLoading } = useRecurringTransactions({ active_only: true })
 
-  const now = new Date()
-  const [viewYear, setViewYear] = useState(now.getFullYear())
-  const [viewMonth, setViewMonth] = useState(now.getMonth())
+  const now = useMemo(() => new Date(), [])
+  const [viewYear, setViewYear] = useState(() => now.getFullYear())
+  const [viewMonth, setViewMonth] = useState(() => now.getMonth())
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(loadConfirmedIds)
   const [manualSubs, setManualSubs] = useState<ManualSubscription[]>(loadManualSubscriptions)
-
-  // Re-read localStorage on mount (in case SubscriptionTrackerPage updated it)
-  useEffect(() => {
-    setConfirmedIds(loadConfirmedIds())
-    setManualSubs(loadManualSubscriptions())
-  }, [])
 
   // Also listen for storage events from other tabs/pages
   useEffect(() => {
