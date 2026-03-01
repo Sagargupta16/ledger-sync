@@ -2,13 +2,12 @@
  * Comprehensive Settings Page
  *
  * Thin shell that manages shared state and tab navigation,
- * delegating rendering to individual tab components:
- * 1. Account Classifications
- * 2. Essential Categories (drag-and-drop)
- * 3. Investment Mappings (drag-and-drop)
- * 4. Income Source Categories (drag-and-drop)
- * 5. Other Settings (Fiscal, Budget, Display, Anomaly, Recurring)
- * 6. Account Management
+ * delegating rendering to grouped tab components:
+ * 1. Accounts (Account Classifications + Investment Mappings + Excluded Accounts)
+ * 2. Categories (Essential Categories + Fixed Expenses + Income Classification)
+ * 3. Financial (Financial Targets + Spending Rule + Budget Defaults + Credit Card Limits)
+ * 4. Preferences (Display + Fiscal Year + Earning Start Date + Notifications + Anomaly + Recurring)
+ * 5. Account Management
  */
 
 import { useState, useEffect, useMemo } from 'react'
@@ -17,46 +16,33 @@ import {
   Save,
   RotateCcw,
   Wallet,
-  TrendingUp,
-  DollarSign,
+  Tags,
+  Target,
   Settings2,
   UserCog,
-  Receipt,
-  Target,
-  Bell,
-  EyeOff,
 } from 'lucide-react'
 import { useAccountBalances, useMasterCategories } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { usePreferences, useUpdatePreferences, useResetPreferences } from '@/hooks/api/usePreferences'
 import { toast } from 'sonner'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import {
-  AccountClassificationsTab,
-  EssentialCategoriesTab,
-  InvestmentMappingsTab,
-  IncomeClassificationTab,
-  OtherSettingsTab,
+  AccountsTab,
+  CategoriesTab,
+  FinancialTab,
+  PreferencesTab,
   AccountManagementTab,
-  FixedExpensesTab,
-  FinancialTargetsTab,
-  NotificationPreferencesTab,
-  ExcludedAccountsTab,
 } from './settings'
 import type { LocalPrefs, LocalPrefKey } from './settings'
 import type { IncomeClassificationType } from './settings/types'
 import { INCOME_CLASSIFICATION_KEY_MAP } from './settings/types'
 
-// Tab definitions
+// Tab definitions — consolidated from 10 to 5
 const TABS = [
-  { id: 'accounts', label: 'Account Types', icon: Wallet },
-  { id: 'categories', label: 'Essential Categories', icon: TrendingUp },
-  { id: 'fixed-expenses', label: 'Fixed Expenses', icon: Receipt },
-  { id: 'investments', label: 'Investment Mappings', icon: DollarSign },
-  { id: 'income', label: 'Income Sources', icon: DollarSign },
-  { id: 'financial-targets', label: 'Financial Targets', icon: Target },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'excluded-accounts', label: 'Excluded Accounts', icon: EyeOff },
-  { id: 'others', label: 'Other Settings', icon: Settings2 },
+  { id: 'accounts', label: 'Accounts', icon: Wallet },
+  { id: 'categories', label: 'Categories', icon: Tags },
+  { id: 'financial', label: 'Financial', icon: Target },
+  { id: 'preferences', label: 'Preferences', icon: Settings2 },
   { id: 'account-management', label: 'Account', icon: UserCog },
 ] as const
 
@@ -109,6 +95,7 @@ export default function SettingsPage() {
 
   const [hasChanges, setHasChanges] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   // Calculate accounts from balance data
   const accounts = useMemo(() => {
@@ -409,13 +396,13 @@ export default function SettingsPage() {
           <p className="text-muted-foreground mt-2">Configure your financial tracking preferences</p>
         </motion.div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2 p-1 bg-white/5 rounded-xl border border-border">
+        {/* Tabs — horizontal scroll, no wrapping */}
+        <div className="flex overflow-x-auto scrollbar-none gap-2 p-1 bg-white/5 rounded-xl border border-border">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 activeTab === tab.id
                   ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg border-b-2 border-primary'
                   : 'text-muted-foreground hover:text-white hover:bg-white/10 border-b-2 border-transparent'
@@ -436,8 +423,8 @@ export default function SettingsPage() {
             exit={{ opacity: 0, y: -10 }}
             className="glass rounded-xl border border-border p-6"
           >
-            {activeTab === 'accounts' && (
-              <AccountClassificationsTab
+            {activeTab === 'accounts' && localPrefs && (
+              <AccountsTab
                 accounts={accounts}
                 classifications={classifications}
                 balanceData={balanceData}
@@ -447,75 +434,42 @@ export default function SettingsPage() {
                 onDragEnd={handleDragEnd}
                 onDragOver={handleDragOver}
                 onDropOnAccountCategory={handleDropOnAccountCategory}
+                localPrefs={localPrefs}
+                investmentAccounts={investmentAccounts}
+                onDropOnInvestmentType={handleDropOnInvestmentType}
+                onRemoveInvestmentMapping={handleRemoveInvestmentMapping}
+                updateLocalPref={updateLocalPref}
               />
             )}
 
             {activeTab === 'categories' && localPrefs && (
-              <EssentialCategoriesTab
+              <CategoriesTab
                 localPrefs={localPrefs}
                 allExpenseCategories={allExpenseCategories}
+                allIncomeCategories={allIncomeCategories}
                 dragType={dragType}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
                 onDragOver={handleDragOver}
                 onDropOnEssential={handleDropOnEssential}
                 onRemoveFromEssential={handleRemoveFromEssential}
-              />
-            )}
-
-            {activeTab === 'fixed-expenses' && localPrefs && (
-              <FixedExpensesTab
-                localPrefs={localPrefs}
-                allExpenseCategories={allExpenseCategories}
-                dragType={dragType}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragOver={handleDragOver}
                 onDropOnFixedExpenses={handleDropOnFixedExpenses}
                 onRemoveFromFixedExpenses={handleRemoveFromFixedExpenses}
-              />
-            )}
-
-            {activeTab === 'investments' && localPrefs && (
-              <InvestmentMappingsTab
-                localPrefs={localPrefs}
-                investmentAccounts={investmentAccounts}
-                dragType={dragType}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragOver={handleDragOver}
-                onDropOnInvestmentType={handleDropOnInvestmentType}
-                onRemoveInvestmentMapping={handleRemoveInvestmentMapping}
-              />
-            )}
-
-            {activeTab === 'income' && localPrefs && (
-              <IncomeClassificationTab
-                localPrefs={localPrefs}
-                allIncomeCategories={allIncomeCategories}
-                dragType={dragType}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragOver={handleDragOver}
                 onDropOnIncomeClassification={handleDropOnIncomeClassification}
                 onRemoveIncomeClassification={handleRemoveIncomeClassification}
               />
             )}
 
-            {activeTab === 'financial-targets' && localPrefs && (
-              <FinancialTargetsTab localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
+            {activeTab === 'financial' && localPrefs && (
+              <FinancialTab
+                localPrefs={localPrefs}
+                updateLocalPref={updateLocalPref}
+                creditCardAccounts={creditCardAccounts}
+              />
             )}
 
-            {activeTab === 'notifications' && localPrefs && (
-              <NotificationPreferencesTab localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
-            )}
-
-            {activeTab === 'excluded-accounts' && localPrefs && (
-              <ExcludedAccountsTab localPrefs={localPrefs} accounts={accounts} updateLocalPref={updateLocalPref} />
-            )}
-
-            {activeTab === 'others' && localPrefs && (
-              <OtherSettingsTab localPrefs={localPrefs} updateLocalPref={updateLocalPref} creditCardAccounts={creditCardAccounts} />
+            {activeTab === 'preferences' && localPrefs && (
+              <PreferencesTab localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
             )}
 
             {activeTab === 'account-management' && <AccountManagementTab />}
@@ -528,9 +482,16 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent p-4 md:p-8 border-t border-border"
         >
-          <div className="max-w-7xl mx-auto flex gap-3 justify-end">
+          <div className="max-w-7xl mx-auto flex gap-3 justify-end items-center">
+            {/* Unsaved changes indicator */}
+            {hasChanges && (
+              <div className="flex items-center gap-2 mr-auto">
+                <span className="w-2 h-2 rounded-full bg-ios-yellow animate-pulse" />
+                <span className="text-sm text-ios-yellow">Unsaved changes</span>
+              </div>
+            )}
             <motion.button
-              onClick={handleReset}
+              onClick={() => setShowResetConfirm(true)}
               whileTap={{ scale: 0.97 }}
               className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
             >
@@ -548,6 +509,18 @@ export default function SettingsPage() {
             </motion.button>
           </div>
         </motion.div>
+
+        {/* Reset Confirmation Dialog */}
+        <ConfirmDialog
+          open={showResetConfirm}
+          onOpenChange={setShowResetConfirm}
+          title="Reset All Settings"
+          description="This will reset all your preferences to their default values. Account classifications will not be affected. This action cannot be undone."
+          confirmLabel="Reset to Defaults"
+          cancelLabel="Cancel"
+          variant="warning"
+          onConfirm={handleReset}
+        />
       </div>
     </div>
   )
