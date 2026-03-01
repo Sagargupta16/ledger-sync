@@ -1,11 +1,12 @@
 """Authentication-related Pydantic schemas.
 
 Contains all request/response models for authentication operations.
+OAuth-only authentication — no email/password endpoints.
 """
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # =============================================================================
 # Token Schemas
@@ -47,26 +48,6 @@ class RefreshTokenRequest(BaseModel):
 # =============================================================================
 
 
-class UserRegister(BaseModel):
-    """User registration request."""
-
-    email: EmailStr
-    password: str = Field(
-        ...,
-        min_length=12,
-        max_length=128,
-        description="Min 12 chars, with uppercase, lowercase, and digit",
-    )
-    full_name: str | None = None
-
-
-class UserLogin(BaseModel):
-    """User login request."""
-
-    email: EmailStr
-    password: str
-
-
 class UserResponse(BaseModel):
     """User response model (public user data)."""
 
@@ -75,6 +56,7 @@ class UserResponse(BaseModel):
     full_name: str | None = None
     is_active: bool
     is_verified: bool
+    auth_provider: str | None = None
     created_at: str
     last_login: str | None = None
 
@@ -87,10 +69,25 @@ class UserUpdate(BaseModel):
     full_name: str | None = None
 
 
-class ConfirmAction(BaseModel):
-    """Request model requiring password confirmation for destructive actions."""
+# =============================================================================
+# OAuth Schemas
+# =============================================================================
 
-    password: str = Field(..., description="Current password for confirmation")
+
+class OAuthCallbackRequest(BaseModel):
+    """Request model for OAuth callback with authorization code."""
+
+    code: str = Field(..., description="Authorization code from OAuth provider")
+
+
+class OAuthProviderConfig(BaseModel):
+    """OAuth provider configuration (returned to frontend)."""
+
+    provider: str
+    client_id: str
+    authorize_url: str
+    scope: str
+    redirect_uri: str
 
 
 class MessageResponse(BaseModel):

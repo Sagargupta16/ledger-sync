@@ -1,65 +1,16 @@
 /**
- * Authentication Hook
+ * Authentication Hooks
  *
- * React Query hooks for authentication operations
+ * React Query hooks for authentication operations.
+ * OAuth-only — login is handled via OAuth callback page.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import * as authApi from '@/services/api/auth'
 import { prefetchCoreData } from '@/lib/prefetch'
-import type { LoginCredentials, RegisterCredentials } from '@/types'
 
 export const AUTH_QUERY_KEY = ['auth', 'user']
-
-/**
- * Hook for user login
- */
-export const useLogin = () => {
-  const queryClient = useQueryClient()
-  const { login, setTokens } = useAuthStore()
-
-  return useMutation({
-    mutationFn: async (credentials: LoginCredentials) => {
-      const tokens = await authApi.login(credentials)
-      // Store tokens immediately so getMe() can use them
-      setTokens(tokens)
-      // Get user after successful login
-      const user = await authApi.getMe()
-      return { tokens, user }
-    },
-    onSuccess: ({ tokens, user }) => {
-      login(user, tokens)
-      queryClient.invalidateQueries()
-      // Prefetch all core data into cache so pages load instantly
-      prefetchCoreData()
-    },
-  })
-}
-
-/**
- * Hook for user registration
- */
-export const useRegister = () => {
-  const queryClient = useQueryClient()
-  const { login, setTokens } = useAuthStore()
-
-  return useMutation({
-    mutationFn: async (credentials: RegisterCredentials) => {
-      const tokens = await authApi.register(credentials)
-      // Store tokens immediately so getMe() can use them
-      setTokens(tokens)
-      // Get user after successful registration
-      const user = await authApi.getMe()
-      return { tokens, user }
-    },
-    onSuccess: ({ tokens, user }) => {
-      login(user, tokens)
-      queryClient.invalidateQueries()
-      prefetchCoreData()
-    },
-  })
-}
 
 /**
  * Hook for logout

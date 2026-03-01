@@ -14,6 +14,7 @@ import { useAuthInit } from '@/hooks/api/useAuth'
 // Eagerly loaded — core pages the user hits immediately
 import HomePage from '@/pages/HomePage'
 import DashboardPage from '@/pages/DashboardPage'
+import OAuthCallbackPage from '@/pages/OAuthCallbackPage'
 
 // Lazy-loaded — heavier pages, prefetched in background after initial load
 const pageImports = {
@@ -183,8 +184,9 @@ function App() {
             <BrowserRouter basename={import.meta.env.BASE_URL}>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
-                  {/* Public route - Landing/Auth */}
+                  {/* Public routes */}
                   <Route path="/" element={<LandingPage />} />
+                  <Route path="/auth/callback/:provider" element={<OAuthCallbackPage />} />
 
                   {/* Protected routes with layout */}
                   <Route

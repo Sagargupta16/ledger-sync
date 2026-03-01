@@ -55,6 +55,18 @@ class Settings(BaseSettings):
     # Upload limits
     max_upload_size_bytes: int = MAX_UPLOAD_SIZE_BYTES
 
+    # OAuth settings — set client ID and secret for each provider to enable.
+    # Google: https://console.cloud.google.com/apis/credentials
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    # GitHub: https://github.com/settings/developers
+    github_client_id: str = ""
+    github_client_secret: str = ""
+
+    # Frontend URL for OAuth redirect callbacks.
+    # Dev: http://localhost:5173 | Prod: your actual frontend URL.
+    frontend_url: str = "http://localhost:5173"
+
     # CORS settings — override with LEDGER_SYNC_CORS_ORIGINS env var (JSON array).
     # Defaults include localhost origins for development only.
     cors_origins: list[str] = [

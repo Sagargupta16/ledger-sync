@@ -1,33 +1,14 @@
 /**
  * Authentication API Service
  *
- * Handles all authentication-related API calls
+ * OAuth-only authentication. Handles token refresh, user profile,
+ * account management, and OAuth provider interactions.
  */
 
 import { apiClient } from './client'
-import type { User, AuthTokens, LoginCredentials, RegisterCredentials } from '@/types'
+import type { User, AuthTokens, OAuthProviderConfig } from '@/types'
 
 const AUTH_BASE = '/api/auth'
-
-export interface RefreshTokenRequest {
-  refresh_token: string
-}
-
-/**
- * Register a new user
- */
-export const register = async (credentials: RegisterCredentials): Promise<AuthTokens> => {
-  const response = await apiClient.post<AuthTokens>(`${AUTH_BASE}/register`, credentials)
-  return response.data
-}
-
-/**
- * Login with email and password
- */
-export const login = async (credentials: LoginCredentials): Promise<AuthTokens> => {
-  const response = await apiClient.post<AuthTokens>(`${AUTH_BASE}/login`, credentials)
-  return response.data
-}
 
 /**
  * Refresh access token using refresh token
@@ -71,22 +52,34 @@ export const updateProfile = async (fullName: string): Promise<User> => {
 /**
  * Delete user account and all data permanently
  * WARNING: This action is irreversible!
- * Requires password confirmation.
  */
-export const deleteAccount = async (password: string): Promise<{ message: string }> => {
-  const response = await apiClient.delete<{ message: string }>(`${AUTH_BASE}/account`, {
-    data: { password },
-  })
+export const deleteAccount = async (): Promise<{ message: string }> => {
+  const response = await apiClient.delete<{ message: string }>(`${AUTH_BASE}/account`)
   return response.data
 }
 
 /**
- * Reset account to fresh state (keeps credentials, removes all data)
- * Requires password confirmation.
+ * Reset account to fresh state (keeps OAuth login, removes all data)
  */
-export const resetAccount = async (password: string): Promise<{ message: string }> => {
-  const response = await apiClient.post<{ message: string }>(`${AUTH_BASE}/account/reset`, {
-    password,
+export const resetAccount = async (): Promise<{ message: string }> => {
+  const response = await apiClient.post<{ message: string }>(`${AUTH_BASE}/account/reset`)
+  return response.data
+}
+
+/**
+ * Get enabled OAuth provider configurations
+ */
+export const getOAuthProviders = async (): Promise<OAuthProviderConfig[]> => {
+  const response = await apiClient.get<OAuthProviderConfig[]>(`${AUTH_BASE}/oauth/providers`)
+  return response.data
+}
+
+/**
+ * Exchange OAuth authorization code for JWT tokens
+ */
+export const oauthCallback = async (provider: string, code: string): Promise<AuthTokens> => {
+  const response = await apiClient.post<AuthTokens>(`${AUTH_BASE}/oauth/${provider}/callback`, {
+    code,
   })
   return response.data
 }
