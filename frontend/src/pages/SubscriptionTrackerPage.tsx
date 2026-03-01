@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
+import { useMemo, useState, useCallback, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   CreditCard,
   DollarSign,
@@ -9,6 +9,12 @@ import {
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
+  Plus,
+  Save,
+  X,
+  Pencil,
+  Trash2,
+  UserPlus,
 } from 'lucide-react'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
@@ -17,6 +23,67 @@ import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { SCROLL_FADE_UP, staggerContainer, fadeUpItem, fadeUpWithDelay } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
+import { toast } from 'sonner'
+
+// ---------------------------------------------------------------------------
+// localStorage keys (shared with BillCalendarPage)
+// ---------------------------------------------------------------------------
+
+const CONFIRMED_SUBS_KEY = 'ledger-sync-confirmed-subscriptions'
+const MANUAL_SUBS_KEY = 'ledger-sync-manual-subscriptions'
+
+// ---------------------------------------------------------------------------
+// Manual subscription type
+// ---------------------------------------------------------------------------
+
+export interface ManualSubscription {
+  id: string
+  name: string
+  amount: number
+  frequency: string
+  next_due: string
+  category?: string
+}
+
+// ---------------------------------------------------------------------------
+// localStorage helpers
+// ---------------------------------------------------------------------------
+
+function loadConfirmedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(CONFIRMED_SUBS_KEY)
+    if (!raw) return new Set()
+    return new Set(JSON.parse(raw) as string[])
+  } catch {
+    return new Set()
+  }
+}
+
+function saveConfirmedIds(ids: Set<string>): void {
+  try {
+    localStorage.setItem(CONFIRMED_SUBS_KEY, JSON.stringify([...ids]))
+  } catch {
+    // Storage full or unavailable; ignore
+  }
+}
+
+function loadManualSubscriptions(): ManualSubscription[] {
+  try {
+    const raw = localStorage.getItem(MANUAL_SUBS_KEY)
+    if (!raw) return []
+    return JSON.parse(raw) as ManualSubscription[]
+  } catch {
+    return []
+  }
+}
+
+function saveManualSubscriptions(subs: ManualSubscription[]): void {
+  try {
+    localStorage.setItem(MANUAL_SUBS_KEY, JSON.stringify(subs))
+  } catch {
+    // Storage full or unavailable; ignore
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -162,7 +229,7 @@ function ConfidenceIndicator({ confidence }: Readonly<{ confidence: number }>) {
   )
 }
 
-/** Status badge */
+/** Status badge for detected subscriptions */
 function StatusBadge({ status }: Readonly<{ status: 'active' | 'possibly_inactive' }>) {
   if (status === 'active') {
     return (
@@ -180,8 +247,58 @@ function StatusBadge({ status }: Readonly<{ status: 'active' | 'possibly_inactiv
   )
 }
 
-/** Single subscription card */
-function SubscriptionCard({ sub }: Readonly<{ sub: RecurringTransaction }>) {
+/** Confirm/unconfirm badge toggle button */
+function ConfirmBadge({
+  isConfirmed,
+  onToggle,
+}: Readonly<{
+  isConfirmed: boolean
+  onToggle: () => void
+}>) {
+  if (isConfirmed) {
+    return (
+      <button
+        onClick={onToggle}
+        title="Confirmed as active subscription. Click to unconfirm."
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-ios-green/15 text-ios-green hover:bg-ios-green/25 transition-colors"
+      >
+        <CheckCircle2 className="w-3 h-3" />
+        Confirmed
+      </button>
+    )
+  }
+  return (
+    <button
+      onClick={onToggle}
+      title="Click to confirm as active subscription"
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-white transition-colors"
+    >
+      <CheckCircle2 className="w-3 h-3" />
+      Detected
+    </button>
+  )
+}
+
+/** "Manual" badge for manually added subscriptions */
+function ManualBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-ios-purple/15 text-ios-purple">
+      <UserPlus className="w-3 h-3" />
+      Manual
+    </span>
+  )
+}
+
+/** Single detected subscription card */
+function SubscriptionCard({
+  sub,
+  isConfirmed,
+  onToggleConfirm,
+}: Readonly<{
+  sub: RecurringTransaction
+  isConfirmed: boolean
+  onToggleConfirm: () => void
+}>) {
   const monthlyAmount = toMonthlyAmount(sub.expected_amount, sub.frequency)
   const annualCost = Math.abs(sub.expected_amount) * getAnnualFactor(sub.frequency)
   const status = getSubscriptionStatus(sub.last_occurrence, sub.frequency)
@@ -189,7 +306,9 @@ function SubscriptionCard({ sub }: Readonly<{ sub: RecurringTransaction }>) {
   return (
     <motion.div
       variants={fadeUpItem}
-      className="glass rounded-xl border border-border p-5 hover:border-white/20 hover:bg-white/[0.04] transition-colors duration-200"
+      className={`glass rounded-xl border p-5 hover:border-white/20 hover:bg-white/[0.04] transition-colors duration-200 ${
+        isConfirmed ? 'border-ios-green/20' : 'border-border'
+      }`}
     >
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         {/* Left side: name, category, account */}
@@ -205,7 +324,10 @@ function SubscriptionCard({ sub }: Readonly<{ sub: RecurringTransaction }>) {
               <CreditCard className="w-5 h-5 text-ios-purple" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold text-white truncate">{sub.name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-white truncate">{sub.name}</h3>
+                <ConfirmBadge isConfirmed={isConfirmed} onToggle={onToggleConfirm} />
+              </div>
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <span className="text-xs text-muted-foreground bg-white/5 px-2 py-0.5 rounded-md">
                   {sub.category}
@@ -265,6 +387,228 @@ function SubscriptionCard({ sub }: Readonly<{ sub: RecurringTransaction }>) {
   )
 }
 
+/** Manual subscription card */
+function ManualSubscriptionCard({
+  sub,
+  onEdit,
+  onDelete,
+}: Readonly<{
+  sub: ManualSubscription
+  onEdit: () => void
+  onDelete: () => void
+}>) {
+  const monthlyAmount = toMonthlyAmount(sub.amount, sub.frequency)
+  const annualCost = Math.abs(sub.amount) * getAnnualFactor(sub.frequency)
+
+  return (
+    <motion.div
+      variants={fadeUpItem}
+      className="glass rounded-xl border border-ios-purple/20 p-5 hover:border-ios-purple/30 hover:bg-white/[0.04] transition-colors duration-200"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        {/* Left side */}
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-start gap-3">
+            <div
+              className="p-2.5 rounded-xl flex-shrink-0"
+              style={{
+                backgroundColor: `${rawColors.ios.teal}1a`,
+                boxShadow: `0 4px 12px ${rawColors.ios.teal}20`,
+              }}
+            >
+              <CreditCard className="w-5 h-5 text-ios-teal" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-white truncate">{sub.name}</h3>
+                <ManualBadge />
+              </div>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                {sub.category && (
+                  <span className="text-xs text-muted-foreground bg-white/5 px-2 py-0.5 rounded-md">
+                    {sub.category}
+                  </span>
+                )}
+                <span className="text-xs text-text-tertiary">
+                  Frequency: {capitalize(sub.frequency)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right side */}
+        <div className="flex flex-col items-end gap-2 shrink-0 sm:text-right">
+          <div>
+            <p className="text-lg font-bold text-ios-red">{formatCurrency(Math.abs(sub.amount))}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatCurrency(monthlyAmount)}/mo &middot; {formatCurrency(annualCost)}/yr
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onEdit}
+              title="Edit subscription"
+              className="p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={onDelete}
+              title="Delete subscription"
+              className="p-1.5 rounded-lg text-text-tertiary hover:text-ios-red hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer row: next due */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 mt-3 pt-3 border-t border-white/5 text-xs text-text-tertiary pl-[52px]">
+        {sub.next_due && (
+          <span className="flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            Next due: {formatDate(sub.next_due)}
+          </span>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+/** Inline form for creating / editing a manual subscription */
+function ManualSubscriptionForm({
+  initial,
+  onSave,
+  onCancel,
+  isEdit,
+}: Readonly<{
+  initial?: ManualSubscription
+  onSave: (data: Omit<ManualSubscription, 'id'>) => void
+  onCancel: () => void
+  isEdit?: boolean
+}>) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [amount, setAmount] = useState(initial?.amount != null ? String(initial.amount) : '')
+  const [frequency, setFrequency] = useState(initial?.frequency ?? 'monthly')
+  const [nextDue, setNextDue] = useState(initial?.next_due ?? '')
+  const [category, setCategory] = useState(initial?.category ?? '')
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      toast.error('Subscription name is required')
+      return
+    }
+    const numAmount = Number(amount)
+    if (Number.isNaN(numAmount) || numAmount <= 0) {
+      toast.error('Please enter a valid positive amount')
+      return
+    }
+    onSave({
+      name: name.trim(),
+      amount: numAmount,
+      frequency,
+      next_due: nextDue,
+      category: category.trim() || undefined,
+    })
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      className="overflow-hidden"
+    >
+      <div className="glass rounded-2xl border border-border p-6 space-y-4">
+        <h3 className="text-lg font-semibold text-white">
+          {isEdit ? 'Edit Subscription' : 'Add Manual Subscription'}
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="manual-sub-name" className="text-xs text-text-tertiary mb-1 block">Name *</label>
+            <input
+              id="manual-sub-name"
+              type="text"
+              placeholder="e.g. Netflix, Spotify"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label htmlFor="manual-sub-amount" className="text-xs text-text-tertiary mb-1 block">Amount *</label>
+            <input
+              id="manual-sub-amount"
+              type="number"
+              placeholder="Amount per cycle"
+              min={0}
+              step="any"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+            />
+          </div>
+          <div>
+            <label htmlFor="manual-sub-frequency" className="text-xs text-text-tertiary mb-1 block">Frequency</label>
+            <select
+              id="manual-sub-frequency"
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value)}
+              className="w-full px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+            >
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="manual-sub-due" className="text-xs text-text-tertiary mb-1 block">Next Due Date</label>
+            <input
+              id="manual-sub-due"
+              type="date"
+              value={nextDue}
+              onChange={(e) => setNextDue(e.target.value)}
+              className="w-full px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+            />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="manual-sub-category" className="text-xs text-text-tertiary mb-1 block">Category (optional)</label>
+          <input
+            id="manual-sub-category"
+            type="text"
+            placeholder="e.g. Entertainment, Bills & Utilities"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+          />
+        </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={handleSave}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white transition-colors hover:opacity-90"
+            style={{ background: `linear-gradient(135deg, ${rawColors.ios.green}, ${rawColors.ios.teal})` }}
+          >
+            <Save className="w-4 h-4" />
+            {isEdit ? 'Save Changes' : 'Add Subscription'}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm text-muted-foreground bg-white/5 border border-border hover:bg-white/10 transition-colors"
+          >
+            <X className="w-4 h-4" /> Cancel
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 /** Sort button */
 function SortButton({
   label,
@@ -300,6 +644,16 @@ function SortButton({
 export default function SubscriptionTrackerPage() {
   const { data: recurringTransactions, isLoading } = useRecurringTransactions({ active_only: true })
   const [sortBy, setSortBy] = useState<SortKey>('amount')
+  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(loadConfirmedIds)
+  const [manualSubs, setManualSubs] = useState<ManualSubscription[]>(loadManualSubscriptions)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editingManualId, setEditingManualId] = useState<string | null>(null)
+
+  // Sync from localStorage on mount
+  useEffect(() => {
+    setConfirmedIds(loadConfirmedIds())
+    setManualSubs(loadManualSubscriptions())
+  }, [])
 
   // Filter for expense subscriptions only
   const subscriptions = useMemo(() => {
@@ -309,49 +663,145 @@ export default function SubscriptionTrackerPage() {
     )
   }, [recurringTransactions])
 
-  // Sort subscriptions
-  const sortedSubscriptions = useMemo(() => {
-    const list = [...subscriptions]
+  // Toggle confirmed status for a detected subscription
+  const handleToggleConfirm = useCallback(
+    (id: string) => {
+      const updated = new Set(confirmedIds)
+      if (updated.has(id)) {
+        updated.delete(id)
+        toast.success('Subscription unconfirmed')
+      } else {
+        updated.add(id)
+        toast.success('Subscription confirmed as active')
+      }
+      setConfirmedIds(updated)
+      saveConfirmedIds(updated)
+    },
+    [confirmedIds],
+  )
+
+  // Add manual subscription
+  const handleAddManual = useCallback(
+    (data: Omit<ManualSubscription, 'id'>) => {
+      const newSub: ManualSubscription = {
+        ...data,
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      }
+      const updated = [...manualSubs, newSub]
+      setManualSubs(updated)
+      saveManualSubscriptions(updated)
+      setShowCreateForm(false)
+      toast.success('Manual subscription added')
+    },
+    [manualSubs],
+  )
+
+  // Edit manual subscription
+  const handleEditManual = useCallback(
+    (id: string, data: Omit<ManualSubscription, 'id'>) => {
+      const updated = manualSubs.map((s) => (s.id === id ? { ...s, ...data } : s))
+      setManualSubs(updated)
+      saveManualSubscriptions(updated)
+      setEditingManualId(null)
+      toast.success('Subscription updated')
+    },
+    [manualSubs],
+  )
+
+  // Delete manual subscription
+  const handleDeleteManual = useCallback(
+    (id: string) => {
+      const updated = manualSubs.filter((s) => s.id !== id)
+      setManualSubs(updated)
+      saveManualSubscriptions(updated)
+      toast.success('Subscription removed')
+    },
+    [manualSubs],
+  )
+
+  // Split detected subscriptions into confirmed and unconfirmed
+  const confirmedDetected = useMemo(
+    () => subscriptions.filter((s) => confirmedIds.has(String(s.id))),
+    [subscriptions, confirmedIds],
+  )
+  const unconfirmedDetected = useMemo(
+    () => subscriptions.filter((s) => !confirmedIds.has(String(s.id))),
+    [subscriptions, confirmedIds],
+  )
+
+  // Sort a list of detected subscriptions
+  const sortDetected = useCallback(
+    (list: RecurringTransaction[]) => {
+      const sorted = [...list]
+      switch (sortBy) {
+        case 'amount':
+          return sorted.sort((a, b) => Math.abs(b.expected_amount) - Math.abs(a.expected_amount))
+        case 'name':
+          return sorted.sort((a, b) => a.name.localeCompare(b.name))
+        case 'last_occurrence':
+          return sorted.sort((a, b) => {
+            if (!a.last_occurrence) return 1
+            if (!b.last_occurrence) return -1
+            return new Date(b.last_occurrence).getTime() - new Date(a.last_occurrence).getTime()
+          })
+        case 'annual_cost':
+          return sorted.sort((a, b) => {
+            const aCost = Math.abs(a.expected_amount) * getAnnualFactor(a.frequency)
+            const bCost = Math.abs(b.expected_amount) * getAnnualFactor(b.frequency)
+            return bCost - aCost
+          })
+        default:
+          return sorted
+      }
+    },
+    [sortBy],
+  )
+
+  const sortedConfirmed = useMemo(() => sortDetected(confirmedDetected), [confirmedDetected, sortDetected])
+  const sortedUnconfirmed = useMemo(() => sortDetected(unconfirmedDetected), [unconfirmedDetected, sortDetected])
+
+  // Sort manual subscriptions by amount descending (matching default)
+  const sortedManual = useMemo(() => {
+    const sorted = [...manualSubs]
     switch (sortBy) {
       case 'amount':
-        return list.sort((a, b) => Math.abs(b.expected_amount) - Math.abs(a.expected_amount))
+        return sorted.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
       case 'name':
-        return list.sort((a, b) => a.name.localeCompare(b.name))
-      case 'last_occurrence':
-        return list.sort((a, b) => {
-          if (!a.last_occurrence) return 1
-          if (!b.last_occurrence) return -1
-          return new Date(b.last_occurrence).getTime() - new Date(a.last_occurrence).getTime()
-        })
+        return sorted.sort((a, b) => a.name.localeCompare(b.name))
       case 'annual_cost':
-        return list.sort((a, b) => {
-          const aCost = Math.abs(a.expected_amount) * getAnnualFactor(a.frequency)
-          const bCost = Math.abs(b.expected_amount) * getAnnualFactor(b.frequency)
+        return sorted.sort((a, b) => {
+          const aCost = Math.abs(a.amount) * getAnnualFactor(a.frequency)
+          const bCost = Math.abs(b.amount) * getAnnualFactor(b.frequency)
           return bCost - aCost
         })
       default:
-        return list
+        return sorted
     }
-  }, [subscriptions, sortBy])
+  }, [manualSubs, sortBy])
 
-  // Summary calculations
+  // Summary calculations: include confirmed detected + manual subscriptions
   const summary = useMemo(() => {
-    if (subscriptions.length === 0) {
-      return { totalMonthly: 0, totalAnnual: 0, count: 0, average: 0 }
-    }
-    const totalMonthly = subscriptions.reduce(
+    const confirmedMonthly = confirmedDetected.reduce(
       (sum, s) => sum + toMonthlyAmount(s.expected_amount, s.frequency),
       0,
     )
+    const manualMonthly = manualSubs.reduce(
+      (sum, s) => sum + toMonthlyAmount(s.amount, s.frequency),
+      0,
+    )
+    const totalMonthly = confirmedMonthly + manualMonthly
+    const activeCount = confirmedDetected.length + manualSubs.length
     return {
       totalMonthly,
       totalAnnual: totalMonthly * 12,
-      count: subscriptions.length,
-      average: totalMonthly / subscriptions.length,
+      activeCount,
+      totalDetected: subscriptions.length,
+      average: activeCount > 0 ? totalMonthly / activeCount : 0,
     }
-  }, [subscriptions])
+  }, [confirmedDetected, manualSubs, subscriptions])
 
   const loadingPlaceholder = '...'
+  const hasAnySubs = subscriptions.length > 0 || manualSubs.length > 0
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
@@ -359,13 +809,22 @@ export default function SubscriptionTrackerPage() {
         <PageHeader
           title="Subscription Tracker"
           subtitle="Track recurring expenses, subscriptions, and bills"
+          action={
+            <button
+              onClick={() => { setShowCreateForm(!showCreateForm); setEditingManualId(null) }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors hover:opacity-90"
+              style={{ background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})` }}
+            >
+              <Plus className="w-4 h-4" /> Add Subscription
+            </button>
+          }
         />
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <SummaryCard
             icon={DollarSign}
-            label="Monthly Cost"
+            label="Active Monthly Cost"
             value={isLoading ? loadingPlaceholder : formatCurrency(summary.totalMonthly)}
             colorClass="text-ios-red"
             bgClass="bg-ios-red/20"
@@ -384,7 +843,7 @@ export default function SubscriptionTrackerPage() {
           <SummaryCard
             icon={Hash}
             label="Active Subscriptions"
-            value={isLoading ? loadingPlaceholder : String(summary.count)}
+            value={isLoading ? loadingPlaceholder : `${summary.activeCount} active`}
             colorClass="text-ios-blue"
             bgClass="bg-ios-blue/20"
             shadowClass="shadow-ios-blue/30"
@@ -400,6 +859,16 @@ export default function SubscriptionTrackerPage() {
             delay={0.4}
           />
         </div>
+
+        {/* Create Manual Subscription Form */}
+        <AnimatePresence>
+          {showCreateForm && (
+            <ManualSubscriptionForm
+              onSave={handleAddManual}
+              onCancel={() => setShowCreateForm(false)}
+            />
+          )}
+        </AnimatePresence>
 
         {/* Subscription List */}
         <motion.div className="glass p-6 rounded-xl border border-border" {...SCROLL_FADE_UP}>
@@ -424,24 +893,92 @@ export default function SubscriptionTrackerPage() {
               ))}
             </div>
           )}
-          {!isLoading && sortedSubscriptions.length === 0 && (
+          {!isLoading && !hasAnySubs && (
             <EmptyState
               icon={CreditCard}
               title="No recurring expenses found"
-              description="Once recurring expense patterns are detected from your transactions, they will appear here as subscriptions."
+              description="Once recurring expense patterns are detected from your transactions, they will appear here. You can also add subscriptions manually."
               variant="card"
             />
           )}
-          {!isLoading && sortedSubscriptions.length > 0 && (
+          {!isLoading && hasAnySubs && (
             <motion.div
               className="space-y-4"
               variants={staggerContainer}
               initial="hidden"
               animate="visible"
             >
-              {sortedSubscriptions.map((sub) => (
-                <SubscriptionCard key={sub.id} sub={sub} />
-              ))}
+              {/* Section: Confirmed active subscriptions */}
+              {sortedConfirmed.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 pt-1">
+                    <CheckCircle2 className="w-4 h-4 text-ios-green" />
+                    <span className="text-sm font-medium text-ios-green">
+                      Confirmed ({sortedConfirmed.length})
+                    </span>
+                  </div>
+                  {sortedConfirmed.map((sub) => (
+                    <SubscriptionCard
+                      key={sub.id}
+                      sub={sub}
+                      isConfirmed
+                      onToggleConfirm={() => handleToggleConfirm(String(sub.id))}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* Section: Manual subscriptions */}
+              {sortedManual.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 pt-3">
+                    <UserPlus className="w-4 h-4 text-ios-purple" />
+                    <span className="text-sm font-medium text-ios-purple">
+                      Manual ({sortedManual.length})
+                    </span>
+                  </div>
+                  {sortedManual.map((sub) => (
+                    <div key={sub.id}>
+                      {editingManualId === sub.id ? (
+                        <AnimatePresence>
+                          <ManualSubscriptionForm
+                            initial={sub}
+                            isEdit
+                            onSave={(data) => handleEditManual(sub.id, data)}
+                            onCancel={() => setEditingManualId(null)}
+                          />
+                        </AnimatePresence>
+                      ) : (
+                        <ManualSubscriptionCard
+                          sub={sub}
+                          onEdit={() => { setEditingManualId(sub.id); setShowCreateForm(false) }}
+                          onDelete={() => handleDeleteManual(sub.id)}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {/* Section: Unconfirmed detected subscriptions */}
+              {sortedUnconfirmed.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 pt-3">
+                    <AlertTriangle className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Detected ({sortedUnconfirmed.length})
+                    </span>
+                  </div>
+                  {sortedUnconfirmed.map((sub) => (
+                    <SubscriptionCard
+                      key={sub.id}
+                      sub={sub}
+                      isConfirmed={false}
+                      onToggleConfirm={() => handleToggleConfirm(String(sub.id))}
+                    />
+                  ))}
+                </>
+              )}
             </motion.div>
           )}
         </motion.div>
