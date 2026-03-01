@@ -34,25 +34,25 @@ backend/tests/
 cd backend
 
 # Run all tests
-poetry run pytest tests/ -v
+uv run pytest tests/ -v
 
 # Run specific test file
-poetry run pytest tests/unit/test_hash_id.py
+uv run pytest tests/unit/test_hash_id.py
 
 # Run specific test function
-poetry run pytest tests/unit/test_hash_id.py::test_hash_generation
+uv run pytest tests/unit/test_hash_id.py::test_hash_generation
 
 # Run with coverage
-poetry run pytest --cov=ledger_sync tests/
+uv run pytest --cov=ledger_sync tests/
 
 # Run with coverage and HTML report
-poetry run pytest --cov=ledger_sync --cov-report=html tests/
+uv run pytest --cov=ledger_sync --cov-report=html tests/
 
 # Run only failing tests
-poetry run pytest --lf
+uv run pytest --lf
 
 # Run with detailed output
-poetry run pytest -vv --tb=long
+uv run pytest -vv --tb=long
 ```
 
 ### Writing Unit Tests
@@ -241,7 +241,7 @@ def test_api_call_with_mock():
 
 ```bash
 # Generate coverage report
-poetry run pytest --cov=ledger_sync --cov-report=html tests/
+uv run pytest --cov=ledger_sync --cov-report=html tests/
 
 # View HTML report
 open htmlcov/index.html  # macOS
@@ -254,8 +254,8 @@ xdg-open htmlcov/index.html # Linux
 The project uses GitHub Actions for CI. See `.github/workflows/ci.yml` for the full workflow. Backend tests run with:
 
 ```bash
-poetry install --with dev
-poetry run pytest tests/ -v
+uv sync --group dev
+uv run pytest tests/ -v
 ```
 
 ## Frontend Testing
@@ -503,7 +503,7 @@ npx cypress open
 // cypress/e2e/file-upload.cy.ts
 describe("File Upload", () => {
   it("uploads file successfully", () => {
-    cy.visit("http://localhost:3000");
+    cy.visit("http://localhost:5173");
     cy.get("[data-testid=file-input]").selectFile("test.xlsx");
     cy.get("[data-testid=upload-button]").click();
     cy.contains("Upload successful").should("be.visible");

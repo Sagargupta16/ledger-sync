@@ -60,8 +60,8 @@ The connection string is set as `LEDGER_SYNC_DATABASE_URL` in Render's environme
 |---------|-------|
 | Runtime | Python |
 | Root Directory | `backend` |
-| Build Command | `pip install poetry && poetry install` |
-| Start Command | `poetry run uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT` |
+| Build Command | `pip install uv && uv sync` |
+| Start Command | `uv run uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT` |
 | Health Check | `/health` |
 | Auto-Deploy | Yes (on push to `main`) |
 
@@ -73,7 +73,7 @@ The connection string is set as `LEDGER_SYNC_DATABASE_URL` in Render's environme
 | `LEDGER_SYNC_DATABASE_URL` | `postgresql://...@...neon.tech/neondb?sslmode=require` | Neon connection string |
 | `LEDGER_SYNC_JWT_SECRET_KEY` | (random 64+ char string) | Generate with `openssl rand -hex 32` |
 | `LEDGER_SYNC_ENVIRONMENT` | `production` | Enables production validation |
-| `POETRY_VIRTUALENVS_CREATE` | `false` | Install into system Python |
+| `UV_PROJECT_ENVIRONMENT` | `/opt/render/project/src/.venv` | uv venv location on Render |
 
 A `render.yaml` blueprint is included in the repo root for reference, but the service was created manually.
 
@@ -181,7 +181,7 @@ git push origin main
 | `LEDGER_SYNC_CORS_ORIGINS` | No | See settings.py | JSON array of allowed origins |
 | `LEDGER_SYNC_LOG_LEVEL` | No | `INFO` | Python log level |
 | `PYTHON_VERSION` | Yes (Render) | - | Must be `X.Y.Z` format (e.g., `3.12.0`) |
-| `POETRY_VIRTUALENVS_CREATE` | Yes (Render) | - | Set to `false` |
+| `UV_PROJECT_ENVIRONMENT` | No (Render) | - | uv venv location |
 
 ### Frontend (GitHub Actions)
 
@@ -199,8 +199,8 @@ git push origin main
 1. Check **Render logs** for the actual Python traceback
 2. Common issues:
    - `PYTHON_VERSION` must be `X.Y.Z` (not just `3.12`)
-   - `poetry.lock` must be committed and in sync with `pyproject.toml`
-   - Missing dependencies (run `poetry lock` locally and push)
+   - `uv.lock` must be committed and in sync with `pyproject.toml`
+   - Missing dependencies (run `uv lock` locally and push)
 
 ### CORS errors in browser
 
@@ -256,7 +256,7 @@ After=network.target
 Type=notify
 User=deploy
 WorkingDirectory=/home/deploy/ledger-sync/backend
-ExecStart=poetry run uvicorn ledger_sync.api.main:app --host 127.0.0.1 --port 8000
+ExecStart=uv run uvicorn ledger_sync.api.main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=10
 Environment=LEDGER_SYNC_DATABASE_URL=postgresql://...

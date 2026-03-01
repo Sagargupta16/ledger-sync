@@ -95,7 +95,7 @@ def log_import_start(source_file: str) -> None:
     logger.info("=" * 60)
 
 
-def log_import_stats(stats: dict) -> None:
+def log_import_stats(stats: dict[str, object]) -> None:
     """Log import statistics."""
     logger = get_analytics_logger()
     logger.info("Import Statistics:")
@@ -121,7 +121,7 @@ def log_column_mapping(original: str, mapped: str, source_file: str | None = Non
     logger.debug("Column mapping%s: '%s' -> '%s'", file_str, original, mapped)
 
 
-def log_warning(message: str, context: dict | None = None) -> None:
+def log_warning(message: str, context: dict[str, object] | None = None) -> None:
     """Log a warning with optional context."""
     logger = get_analytics_logger()
     logger.warning(message)
@@ -133,7 +133,7 @@ def log_warning(message: str, context: dict | None = None) -> None:
 def log_error(
     message: str,
     exception: Exception | None = None,
-    context: dict | None = None,
+    context: dict[str, object] | None = None,
 ) -> None:
     """Log an error with optional exception and context."""
     logger = get_analytics_logger()

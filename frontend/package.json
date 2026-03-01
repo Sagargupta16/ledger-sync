@@ -11,7 +11,7 @@
     "type-check": "tsc -b --noEmit",
     "format": "eslint . --fix",
     "clean": "rimraf dist node_modules/.vite",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
   "dependencies": {

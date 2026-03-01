@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { uploadService } from '@/services/api/upload'
+import { prefetchCoreData } from '@/lib/prefetch'
 
 interface UploadParams {
   file: File
@@ -12,10 +13,12 @@ export function useUpload() {
   return useMutation({
     mutationFn: ({ file, force = false }: UploadParams) => uploadService.uploadFile(file, force),
     onSuccess: () => {
-      // Remove all cached data and force refetch for any active queries.
-      // resetQueries clears the cache entirely so that navigating to any
-      // page triggers a fresh fetch instead of serving stale data.
-      queryClient.resetQueries()
+      // 1. Clear ALL cached query data so no stale results linger
+      queryClient.clear()
+      // 2. Re-prefetch core data for all pages (runs in parallel)
+      //    This ensures pages you navigate to next have fresh data
+      //    instead of showing zeros while waiting for a lazy fetch.
+      prefetchCoreData()
     },
     onError: () => {
       // Don't show toast here - let the component handle it for better control

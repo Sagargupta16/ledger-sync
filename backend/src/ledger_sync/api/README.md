@@ -131,7 +131,7 @@ Invoke-WebRequest -Uri "http://localhost:8000/api/upload?force=false" -Method Po
 
 By default, the API allows requests from:
 
-- `http://localhost:3000` (Next.js default)
+- `http://localhost:3000` (legacy fallback)
 - `http://localhost:5173` (Vite default)
 
 To modify CORS settings, edit `src/ledger_sync/api/main.py`:

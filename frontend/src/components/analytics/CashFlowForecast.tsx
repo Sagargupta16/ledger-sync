@@ -2,9 +2,9 @@ import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { useMemo } from 'react'
 import { useMonthlyAggregation } from '@/hooks/useAnalytics'
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { chartTooltipProps } from '@/components/ui'
+import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS, CHART_AXIS_COLOR } from '@/constants/chartColors'
 
 export default function CashFlowForecast() {
@@ -166,7 +166,7 @@ export default function CashFlowForecast() {
 
       {/* Chart */}
       <div className="h-64 mb-6">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ChartContainer>
           <AreaChart data={forecastData.combined}>
             <defs>
               <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
@@ -209,7 +209,7 @@ export default function CashFlowForecast() {
             <Area type="natural" dataKey="income" stroke={SEMANTIC_COLORS.income} fill="url(#incomeGradient)" strokeWidth={2} />
             <Area type="natural" dataKey="expense" stroke={SEMANTIC_COLORS.expense} fill="url(#expenseGradient)" strokeWidth={2} />
           </AreaChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </div>
 
       {/* Insights */}

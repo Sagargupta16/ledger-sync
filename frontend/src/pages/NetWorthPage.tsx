@@ -8,8 +8,8 @@ import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, LabelList } from 'recharts'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, LabelList } from 'recharts'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
@@ -485,7 +485,7 @@ export default function NetWorthPage() {
             if (filteredNetWorthData.length > 0) {
               const formattedValue = (value: number | undefined) => value === undefined ? '' : formatCurrency(value)
               return (
-                <ResponsiveContainer width="100%" height={320}>
+                <ChartContainer height={320}>
                   <AreaChart data={filteredNetWorthData}>
                     <defs>
                       <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
@@ -551,7 +551,7 @@ export default function NetWorthPage() {
                       />
                     )}
                   </AreaChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               )
             }
             return (
@@ -582,7 +582,7 @@ export default function NetWorthPage() {
             {monthlyChanges.length === 0 ? (
               <ChartEmptyState height={280} />
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
+              <ChartContainer height={280}>
                 <BarChart data={monthlyChanges}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="month" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyChanges.length, dims.maxXLabels)} />
@@ -599,7 +599,7 @@ export default function NetWorthPage() {
                     {dims.showBarLabels && <LabelList dataKey="negative" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             )}
           </motion.div>
         )}

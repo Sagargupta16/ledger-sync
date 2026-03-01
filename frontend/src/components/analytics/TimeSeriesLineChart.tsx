@@ -1,8 +1,8 @@
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
 import { CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
-import { chartTooltipProps } from '@/components/ui'
+import { chartTooltipProps, ChartContainer } from '@/components/ui'
 
 interface TimeSeriesLineChartProps {
   readonly chartData: Array<Record<string, number | string>>
@@ -28,7 +28,7 @@ export default function TimeSeriesLineChart({
   }
 
   return (
-    <ResponsiveContainer width="100%" height={400}>
+    <ChartContainer height={400}>
       <LineChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
         <XAxis
@@ -69,6 +69,6 @@ export default function TimeSeriesLineChart({
           />
         ))}
       </LineChart>
-    </ResponsiveContainer>
+    </ChartContainer>
   )
 }

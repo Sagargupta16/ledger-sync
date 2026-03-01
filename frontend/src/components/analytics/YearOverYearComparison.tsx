@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion'
 import { ArrowUpRight, ArrowDownRight, Minus, Calendar } from 'lucide-react'
 import { useState, useMemo } from 'react'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { chartTooltipProps } from '@/components/ui'
+import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
 // Get Financial Year from date (April to March)
@@ -237,7 +237,7 @@ export default function YearOverYearComparison() {
 
       {/* Chart */}
       <div className="h-64 mb-6">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ChartContainer>
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
@@ -257,7 +257,7 @@ export default function YearOverYearComparison() {
               <Bar dataKey={selectedCategory} fill={SEMANTIC_COLORS.savings} radius={[4, 4, 0, 0]} />
             )}
           </BarChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </div>
 
       {/* Category Changes */}

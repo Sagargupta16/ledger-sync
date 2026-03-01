@@ -2,13 +2,19 @@
 
 This module handles user authentication including registration, login,
 token refresh, and profile management.
+
+Rate-limited to prevent brute-force attacks (CWE-307).
 """
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.config.settings import settings
+from ledger_sync.core.auth.token_blacklist import token_blacklist
 from ledger_sync.schemas.auth import (
     ConfirmAction,
     MessageResponse,
@@ -22,6 +28,9 @@ from ledger_sync.schemas.auth import (
 from ledger_sync.services.auth_service import AuthService
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
+
+# Rate limiter — keyed by client IP address
+limiter = Limiter(key_func=get_remote_address)
 
 
 # =============================================================================
@@ -54,10 +63,12 @@ AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 
 
 @router.post("/register", status_code=201)
-def register(user_data: UserRegister, auth_service: AuthServiceDep) -> Token:
+@limiter.limit("5/minute")
+def register(request: Request, user_data: UserRegister, auth_service: AuthServiceDep) -> Token:
     """Register a new user.
 
     Args:
+        request: FastAPI request (used by rate limiter)
         user_data: User registration data
         auth_service: Authentication service
 
@@ -72,10 +83,12 @@ def register(user_data: UserRegister, auth_service: AuthServiceDep) -> Token:
 
 
 @router.post("/login")
-def login(credentials: UserLogin, auth_service: AuthServiceDep) -> Token:
+@limiter.limit("10/minute")
+def login(request: Request, credentials: UserLogin, auth_service: AuthServiceDep) -> Token:
     """Login with email and password.
 
     Args:
+        request: FastAPI request (used by rate limiter)
         credentials: Login credentials
         auth_service: Authentication service
 
@@ -90,11 +103,17 @@ def login(credentials: UserLogin, auth_service: AuthServiceDep) -> Token:
 
 
 @router.post("/refresh")
-def refresh_token(request: RefreshTokenRequest, auth_service: AuthServiceDep) -> Token:
+@limiter.limit("20/minute")
+def refresh_token(
+    request: Request,
+    token_request: RefreshTokenRequest,
+    auth_service: AuthServiceDep,
+) -> Token:
     """Refresh access token using refresh token.
 
     Args:
-        request: Refresh token request
+        request: FastAPI request (used by rate limiter)
+        token_request: Refresh token request
         auth_service: Authentication service
 
     Returns:
@@ -104,7 +123,7 @@ def refresh_token(request: RefreshTokenRequest, auth_service: AuthServiceDep) ->
         HTTPException: If refresh token is invalid
 
     """
-    return auth_service.refresh_tokens(request.refresh_token)
+    return auth_service.refresh_tokens(token_request.refresh_token)
 
 
 @router.get("/me")
@@ -123,19 +142,25 @@ def get_me(current_user: CurrentUser, auth_service: AuthServiceDep) -> UserRespo
 
 
 @router.post("/logout")
-def logout(current_user: CurrentUser) -> MessageResponse:
-    """Logout current user.
+def logout(request: Request, current_user: CurrentUser) -> MessageResponse:
+    """Logout current user and invalidate current access token.
 
-    Note: JWT tokens are stateless, so this endpoint just returns success.
-    The client should delete the tokens from storage.
+    Blacklists the current access token so it cannot be reused.
 
     Args:
+        request: FastAPI request (to extract the token)
         current_user: Current authenticated user
 
     Returns:
         Success message
 
     """
+    # Extract and blacklist the current access token
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        access_token = auth_header[7:]
+        # Blacklist for remaining access token lifetime (30 min max)
+        token_blacklist.add(access_token, settings.jwt_access_token_expire_minutes * 60)
     return MessageResponse(message="Successfully logged out")
 
 

@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp } from 'lucide-react'
 import {
-  ResponsiveContainer,
   AreaChart,
   Area,
   XAxis,
@@ -17,7 +16,8 @@ import type { TaxSlab } from '@/lib/taxCalculator'
 import { formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { CHART_AXIS_COLOR } from '@/constants/chartColors'
-import { chartTooltipProps } from '@/components/ui'
+import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { fadeUpItem } from '@/constants/animations'
 
 interface EffectiveTaxRateChartProps {
@@ -122,7 +122,10 @@ export default function EffectiveTaxRateChart({
       </div>
 
       <div style={{ height: 350 }}>
-        <ResponsiveContainer width="100%" height="100%">
+        {fyYear === 0 ? (
+          <ChartEmptyState height={350} message="Select a financial year to view effective tax rates" />
+        ) : (
+        <ChartContainer>
           <AreaChart data={chartData} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
             <defs>
               <linearGradient id="newRegimeGrad" x1="0" y1="0" x2="0" y2="1">
@@ -211,7 +214,8 @@ export default function EffectiveTaxRateChart({
               </>
             )}
           </AreaChart>
-        </ResponsiveContainer>
+        </ChartContainer>
+        )}
       </div>
 
       {/* Legend + Range selector */}

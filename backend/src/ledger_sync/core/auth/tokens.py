@@ -1,12 +1,13 @@
 """JWT token utilities.
 
 Provides functions for creating, decoding, and verifying JWT tokens.
+Uses PyJWT (actively maintained, no vulnerable ecdsa dependency).
 """
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from jose import JWTError, jwt
+import jwt
 
 from ledger_sync.config.settings import settings
 from ledger_sync.schemas.auth import Token, TokenData, TokenPayload
@@ -82,14 +83,16 @@ def decode_token(token: str) -> TokenPayload | None:
 
     """
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        payload: dict[str, Any] = jwt.decode(
+            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+        )
         return TokenPayload(
-            sub=payload.get("sub"),
-            email=payload.get("email"),
-            exp=datetime.fromtimestamp(payload.get("exp"), tz=UTC),
+            sub=payload.get("sub", ""),
+            email=payload.get("email", ""),
+            exp=datetime.fromtimestamp(payload.get("exp", 0), tz=UTC),
             type=payload.get("type", "access"),
         )
-    except JWTError:
+    except jwt.PyJWTError:
         return None
 
 

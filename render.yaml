@@ -4,13 +4,11 @@ services:
     runtime: python
     region: singapore
     rootDir: backend
-    buildCommand: pip install poetry && poetry install --no-root --only main && poetry install
-    startCommand: poetry run uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install uv && uv sync --no-group dev
+    startCommand: uv run uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"
-      - key: POETRY_VIRTUALENVS_CREATE
-        value: "false"
       - key: LEDGER_SYNC_ENVIRONMENT
         value: production
       - key: LEDGER_SYNC_DATABASE_URL

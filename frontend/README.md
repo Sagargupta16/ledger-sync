@@ -125,15 +125,15 @@ pnpm run test
 ## Environment Variables
 
 ```env
-VITE_API_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
 ## State Management
 
 ### TanStack Query (Server State)
 
-- Automatic caching with 5min staleTime
-- Background refetching
+- Automatic caching with `staleTime: Infinity` (data only refetches on explicit invalidation)
+- Cache invalidated after uploads and mutations
 - Query invalidation on mutations
 
 ### Zustand (Client State)

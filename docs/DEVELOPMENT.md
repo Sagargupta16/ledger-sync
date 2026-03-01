@@ -5,7 +5,7 @@
 ### Prerequisites
 
 - Python 3.11+
-- Node.js 18+ (with pnpm)
+- Node.js 22+ (with pnpm)
 - Git
 - VS Code (recommended)
 
@@ -30,7 +30,7 @@ cd ledger-sync
 
 # 2. Install Python dependencies
 cd backend
-poetry install --with dev
+uv sync --group dev
 cd ..
 
 # 3. Install Node dependencies
@@ -40,7 +40,7 @@ cd ..
 
 # 4. Initialize database
 cd backend
-poetry run alembic upgrade head
+uv run alembic upgrade head
 cd ..
 ```
 
@@ -59,7 +59,7 @@ pnpm run dev
 
 ```bash
 cd backend
-poetry run uvicorn ledger_sync.api.main:app --reload --port 8000
+uv run uvicorn ledger_sync.api.main:app --reload --port 8000
 ```
 
 **Terminal 2 - Frontend:**
@@ -88,7 +88,7 @@ backend/
 │   └── utils/            # Utilities
 ├── tests/                # Test suite
 ├── alembic/              # Migrations
-└── pyproject.toml        # Dependencies (Poetry)
+└── pyproject.toml        # Dependencies (uv)
 ```
 
 ### Hot Reload
@@ -144,29 +144,29 @@ class NewModel(Base):
 2. **Create migration**:
 
 ```bash
-poetry run alembic revision --autogenerate -m "Add new_table"
+uv run alembic revision --autogenerate -m "Add new_table"
 ```
 
 3. **Apply migration**:
 
 ```bash
-poetry run alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ### Testing Backend
 
 ```bash
 # Run all tests
-poetry run pytest tests/ -v
+uv run pytest tests/ -v
 
 # Run specific test file
-poetry run pytest tests/unit/test_hash_id.py
+uv run pytest tests/unit/test_hash_id.py
 
 # Run with coverage
-poetry run pytest --cov=ledger_sync tests/
+uv run pytest --cov=ledger_sync tests/
 
 # Run with verbose output
-poetry run pytest -v
+uv run pytest -v
 ```
 
 ### Writing Tests
@@ -366,7 +366,7 @@ export function useMyData(timeRange?: string) {
   return useQuery({
     queryKey: ["myData", timeRange],
     queryFn: () => api.getMyData(timeRange),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: Infinity, // Data is stable; only refetched on explicit invalidation
   });
 }
 ```
@@ -377,7 +377,7 @@ export function useMyData(timeRange?: string) {
 
 ```typescript
 // src/services/api/myApi.ts
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export interface MyDataResponse {
   data: MyData[];
@@ -547,8 +547,8 @@ git push origin feature/new-feature
 
 ```bash
 cd backend
-poetry show --outdated
-poetry update package_name
+uv pip list --outdated
+uv lock --upgrade-package package_name && uv sync
 ```
 
 **Frontend:**
@@ -566,13 +566,13 @@ pnpm install new-package
 cd backend
 
 # Create migration
-poetry run alembic revision --autogenerate -m "Description"
+uv run alembic revision --autogenerate -m "Description"
 
 # Apply
-poetry run alembic upgrade head
+uv run alembic upgrade head
 
 # Rollback
-poetry run alembic downgrade -1
+uv run alembic downgrade -1
 ```
 
 ### Environment Variables
@@ -589,7 +589,7 @@ LEDGER_SYNC_LOG_LEVEL=INFO
 **frontend/.env**
 
 ```
-VITE_API_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
 ### Git Workflow
@@ -616,7 +616,7 @@ git push origin feature/my-feature
 ### Backend won't start
 
 1. Check Python version: `python --version`
-2. Install dependencies: `cd backend && poetry install --with dev`
+2. Install dependencies: `cd backend && uv sync --group dev`
 4. Check port 8000 is available
 5. Check database permissions
 
@@ -625,13 +625,13 @@ git push origin feature/my-feature
 1. Check Node version: `node --version`
 2. Install dependencies: `pnpm install`
 3. Clear node_modules: `rm -rf node_modules && pnpm install`
-4. Check port 3000 is available
+4. Check port 5173 is available
 5. Clear Vite cache: `pnpm run clean`
 
 ### Database errors
 
 1. Check SQLite file exists
-2. Run migrations: `poetry run alembic upgrade head`
+2. Run migrations: `uv run alembic upgrade head`
 3. Check permissions on database file
 4. Reset database: delete `.db` file and re-run migrations
 
@@ -681,7 +681,7 @@ Add to `.vscode/settings.json`:
 
 ```json
 {
-  "python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python",
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/Scripts/python",
   "python.linting.enabled": true,
   "python.linting.pylintEnabled": true,
   "editor.formatOnSave": true,

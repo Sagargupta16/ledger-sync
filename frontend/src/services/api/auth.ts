@@ -71,16 +71,22 @@ export const updateProfile = async (fullName: string): Promise<User> => {
 /**
  * Delete user account and all data permanently
  * WARNING: This action is irreversible!
+ * Requires password confirmation.
  */
-export const deleteAccount = async (): Promise<{ message: string }> => {
-  const response = await apiClient.delete<{ message: string }>(`${AUTH_BASE}/account`)
+export const deleteAccount = async (password: string): Promise<{ message: string }> => {
+  const response = await apiClient.delete<{ message: string }>(`${AUTH_BASE}/account`, {
+    data: { password },
+  })
   return response.data
 }
 
 /**
  * Reset account to fresh state (keeps credentials, removes all data)
+ * Requires password confirmation.
  */
-export const resetAccount = async (): Promise<{ message: string }> => {
-  const response = await apiClient.post<{ message: string }>(`${AUTH_BASE}/account/reset`)
+export const resetAccount = async (password: string): Promise<{ message: string }> => {
+  const response = await apiClient.post<{ message: string }>(`${AUTH_BASE}/account/reset`, {
+    password,
+  })
   return response.data
 }

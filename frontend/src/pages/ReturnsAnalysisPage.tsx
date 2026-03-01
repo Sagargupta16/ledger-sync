@@ -7,8 +7,8 @@ import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
@@ -182,6 +182,21 @@ function groupTransactionsByDay(
   return dailyData
 }
 
+/** Compute all investment metrics from transactions in a single pass */
+function computeInvestmentMetrics(transactions: Array<{ type: string; amount: number; category: string; note?: string; subcategory?: string }>) {
+  const dividendIncome = filterDividendTransactions(transactions)
+  const brokerFees = filterBrokerFees(transactions)
+  const interestIncome = filterInterestIncome(transactions)
+  const investmentProfit = filterInvestmentProfit(transactions)
+  const investmentLoss = filterInvestmentLoss(transactions)
+
+  const totalIncome = investmentProfit + dividendIncome + interestIncome
+  const totalExpenses = investmentLoss + brokerFees
+  const netProfitLoss = totalIncome - totalExpenses
+
+  return { dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss }
+}
+
 /** P&L stat cards showing Net Profit/Loss, Dividend Income, and Broker Fees */
 function PLStatCards({
   netProfitLoss,
@@ -297,27 +312,9 @@ export default function ReturnsAnalysisPage() {
   //   return investmentAccounts.reduce((sum, acc) => sum + acc.balance, 0)
   // }, [investmentAccounts])
 
-  // Calculate Dividend Income from transactions
-  const dividendIncome = useMemo(() => filterDividendTransactions(transactions), [transactions])
-
-  // Calculate Broker Fees from transactions (investment-related only)
-  const brokerFees = useMemo(() => filterBrokerFees(transactions), [transactions])
-
-  // Calculate Interest Income from all accounts
-  const interestIncome = useMemo(() => filterInterestIncome(transactions), [transactions])
-
-  // Calculate actual Profit from investment sales/gains
-  const investmentProfit = useMemo(() => filterInvestmentProfit(transactions), [transactions])
-
-  // Calculate actual Loss from investments (exclude broker fees)
-  const investmentLoss = useMemo(() => filterInvestmentLoss(transactions), [transactions])
-
-  // Net Profit/Loss = Total Income - Total Expenses (including all fees and income sources)
-  const netProfitLoss = useMemo(() => {
-    const totalIncome = investmentProfit + dividendIncome + interestIncome
-    const totalExpenses = investmentLoss + brokerFees
-    return totalIncome - totalExpenses
-  }, [investmentProfit, dividendIncome, interestIncome, investmentLoss, brokerFees])
+  // Calculate all investment metrics in one pass
+  const { dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss } =
+    useMemo(() => computeInvestmentMetrics(transactions), [transactions])
 
   // Calculate average CAGR from monthly data
   const monthlyDataArray = useMemo(() => {
@@ -421,7 +418,7 @@ export default function ReturnsAnalysisPage() {
           {cumulativeReturnsData.length === 0 ? (
             <ChartEmptyState height={320} />
           ) : (
-            <ResponsiveContainer width="100%" height={dims.chartHeight}>
+            <ChartContainer height={dims.chartHeight}>
               <AreaChart data={cumulativeReturnsData} margin={dims.margin}>
                 <defs>
                   <linearGradient id="positiveGradient" x1="0" y1="0" x2="0" y2="1">
@@ -468,7 +465,7 @@ export default function ReturnsAnalysisPage() {
                   isAnimationActive={cumulativeReturnsData.length < CHART_ANIMATION_THRESHOLD}
                 />
               </AreaChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           )}
         </motion.div>
 
@@ -519,7 +516,10 @@ export default function ReturnsAnalysisPage() {
             <h3 className="text-lg font-semibold text-white mb-6">Profit & Loss Breakdown</h3>
             {/* Waterfall Chart */}
             <div className="mb-6">
-              <ResponsiveContainer width="100%" height={300}>
+              {waterfallData.every(d => d.value === 0) ? (
+                <ChartEmptyState height={300} message="No investment income or expenses found for the selected period" />
+              ) : (
+              <ChartContainer height={300}>
                 <BarChart data={waterfallData} barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(waterfallData.length, dims.maxXLabels)} />
@@ -543,7 +543,8 @@ export default function ReturnsAnalysisPage() {
                     ))}
                   </Bar>
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartContainer>
+              )}
             </div>
             <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
               <motion.div variants={fadeUpItem} className="p-4 bg-ios-green/10 rounded-lg border border-ios-green/20">

@@ -44,8 +44,12 @@ export default function UploadSyncPage() {
       
       // Show success toast with stats
       const { inserted, updated, deleted, unchanged } = result.stats
+      const parts = [`${inserted} inserted`]
+      if (updated > 0) parts.push(`${updated} updated`)
+      if (deleted > 0) parts.push(`${deleted} deleted`)
+      if (unchanged > 0) parts.push(`${unchanged} skipped (duplicates)`)
       toast.success('Upload Successful!', {
-        description: `${inserted} inserted, ${updated} updated, ${deleted} deleted, ${unchanged} unchanged`,
+        description: parts.join(', '),
         duration: 5000,
       })
     } catch (error) {

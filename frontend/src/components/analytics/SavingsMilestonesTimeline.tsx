@@ -5,9 +5,9 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import { CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
-import { chartTooltipProps } from '@/components/ui'
+import { chartTooltipProps, ChartContainer } from '@/components/ui'
 
 const MILESTONES = [10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000]
 
@@ -72,7 +72,7 @@ export default function SavingsMilestonesTimeline() {
       ) : (
         <>
           {/* Chart */}
-          <ResponsiveContainer width="100%" height={350}>
+          <ChartContainer height={350}>
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="savingsGradient" x1="0" y1="0" x2="0" y2="1">
@@ -127,7 +127,7 @@ export default function SavingsMilestonesTimeline() {
                 isAnimationActive={chartData.length < CHART_ANIMATION_THRESHOLD}
               />
             </AreaChart>
-          </ResponsiveContainer>
+          </ChartContainer>
 
           {/* Milestone Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">

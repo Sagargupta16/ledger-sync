@@ -15,6 +15,8 @@ export default defineConfig({
     },
   },
   build: {
+    // Never ship source maps to production — exposes original source (CWE-615)
+    sourcemap: false,
     rollupOptions: {
       output: {
         manualChunks: {

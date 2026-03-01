@@ -3,10 +3,10 @@ import { analyticsService } from '@/services/api/analytics'
 import { calculationsApi } from '@/services/api/calculations'
 import type { TimeRange } from '@/types'
 
-// Data only changes on upload (which invalidates all queries).
-// Use a large but finite stale time so data eventually refreshes,
-// while still keeping page navigations instant.
-const STABLE_STALE_TIME = 5 * 60 * 1000 // 5 minutes
+// Data only changes on upload (which clears the cache and re-prefetches).
+// staleTime: Infinity means queries never auto-refetch — cache is only
+// cleared by explicit mutation (upload / settings save).
+const STABLE_STALE_TIME = Infinity
 
 // KPIs and Dashboard
 export function useKPIs(params?: { start_date?: string; end_date?: string }) {

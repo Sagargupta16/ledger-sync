@@ -22,7 +22,7 @@ from statistics import mean, stdev
 from typing import Any
 
 from sqlalchemy import delete, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Query, Session
 
 from ledger_sync.core.query_helpers import fmt_year_month
 from ledger_sync.db.models import (
@@ -105,7 +105,11 @@ class AnalyticsEngine:
             self.logger.warning("Could not load preferences: %s, using defaults", e)
             self._preferences = None
 
-    def _parse_json_field(self, value: str | list | dict | None, default: Any) -> Any:
+    def _parse_json_field(
+        self,
+        value: str | list[Any] | dict[str, Any] | None,
+        default: Any,
+    ) -> Any:
         """Parse JSON field from preferences."""
         if value is None:
             return default
@@ -142,10 +146,11 @@ class AnalyticsEngine:
     def investment_account_patterns(self) -> dict[str, str]:
         """Get investment account mappings from preferences or defaults."""
         if self._preferences and self._preferences.investment_account_mappings:
-            return self._parse_json_field(
+            result: dict[str, str] = self._parse_json_field(
                 self._preferences.investment_account_mappings,
                 DEFAULT_INVESTMENT_ACCOUNT_PATTERNS,
             )
+            return result
         return DEFAULT_INVESTMENT_ACCOUNT_PATTERNS
 
     @property
@@ -166,7 +171,11 @@ class AnalyticsEngine:
             "Business/Self Employment Income::Gig Work Income",
         ]
         if self._preferences and self._preferences.taxable_income_categories:
-            return self._parse_json_field(self._preferences.taxable_income_categories, default)
+            result: list[str] = self._parse_json_field(
+                self._preferences.taxable_income_categories,
+                default,
+            )
+            return result
         return default
 
     @property
@@ -179,7 +188,11 @@ class AnalyticsEngine:
             "Investment Income::Stock Market Profits",
         ]
         if self._preferences and self._preferences.investment_returns_categories:
-            return self._parse_json_field(self._preferences.investment_returns_categories, default)
+            result: list[str] = self._parse_json_field(
+                self._preferences.investment_returns_categories,
+                default,
+            )
+            return result
         return default
 
     @property
@@ -193,7 +206,11 @@ class AnalyticsEngine:
             "Employment Income::Expense Reimbursement",
         ]
         if self._preferences and self._preferences.non_taxable_income_categories:
-            return self._parse_json_field(self._preferences.non_taxable_income_categories, default)
+            result: list[str] = self._parse_json_field(
+                self._preferences.non_taxable_income_categories,
+                default,
+            )
+            return result
         return default
 
     @property
@@ -207,7 +224,11 @@ class AnalyticsEngine:
             "Other::Other",
         ]
         if self._preferences and self._preferences.other_income_categories:
-            return self._parse_json_field(self._preferences.other_income_categories, default)
+            result: list[str] = self._parse_json_field(
+                self._preferences.other_income_categories,
+                default,
+            )
+            return result
         return default
 
     @property
@@ -326,7 +347,7 @@ class AnalyticsEngine:
         self.logger.info("Timestamp: %s", datetime.now(UTC).isoformat())
         self.logger.info("=" * 60)
 
-        results = {}
+        results: dict[str, Any] = {}
         start_time = time.time()
 
         try:
@@ -444,7 +465,7 @@ class AnalyticsEngine:
 
         return results
 
-    def _user_transaction_query(self):
+    def _user_transaction_query(self) -> Query[Transaction]:
         """Base query for transactions scoped to current user.
 
         Excludes transactions from accounts listed in the user's
@@ -458,7 +479,7 @@ class AnalyticsEngine:
             query = query.filter(Transaction.account.notin_(excluded))
         return query
 
-    def _calculate_monthly_summaries(self, transactions: list | None = None) -> int:
+    def _calculate_monthly_summaries(self, transactions: list[Transaction] | None = None) -> int:
         """Calculate and persist monthly summary aggregations."""
         # Get all non-deleted transactions for this user
         if transactions is None:
@@ -666,7 +687,7 @@ class AnalyticsEngine:
             elif self._is_investment_account(txn.from_account):
                 data["net_investment_flow"] += amount  # Money coming from investments
 
-    def _calculate_category_trends(self, all_transactions: list | None = None) -> int:
+    def _calculate_category_trends(self, all_transactions: list[Transaction] | None = None) -> int:
         """Calculate category-level trends over time."""
         transactions = [
             t
@@ -675,7 +696,7 @@ class AnalyticsEngine:
         ]
 
         # Group by period + category + type
-        category_data: dict[tuple, dict[str, Any]] = defaultdict(
+        category_data: dict[tuple[str, str, str], dict[str, Any]] = defaultdict(
             lambda: {
                 "amounts": [],
                 "subcategory": None,
@@ -698,7 +719,7 @@ class AnalyticsEngine:
         self.db.execute(del_stmt)
 
         count = 0
-        prev_amounts: dict[tuple, float] = {}
+        prev_amounts: dict[tuple[str, str], float] = {}
 
         for (period_key, category, txn_type), data in sorted(category_data.items()):
             amounts = data["amounts"]
@@ -738,7 +759,7 @@ class AnalyticsEngine:
 
     @staticmethod
     def _monthly_type_totals(
-        transactions: list,
+        transactions: list[Transaction],
     ) -> dict[str, dict[str, Decimal]]:
         """Aggregate transaction amounts by period and type.
 
@@ -754,7 +775,7 @@ class AnalyticsEngine:
             totals[period_key][txn.type.value] += Decimal(str(txn.amount))
         return totals
 
-    def _calculate_transfer_flows(self, transfers: list | None = None) -> int:
+    def _calculate_transfer_flows(self, transfers: list[Transaction] | None = None) -> int:
         """Calculate aggregated transfer flows between accounts."""
         if transfers is None:
             transfers = (
@@ -770,7 +791,7 @@ class AnalyticsEngine:
         classifications = {ac.account_name: ac.account_type.value for ac in ac_query.all()}
 
         # Aggregate flows
-        flows: dict[tuple, dict[str, Any]] = defaultdict(
+        flows: dict[tuple[str, str], dict[str, Any]] = defaultdict(
             lambda: {
                 "total_amount": Decimal(0),
                 "count": 0,
@@ -816,7 +837,7 @@ class AnalyticsEngine:
 
         return count
 
-    def _extract_merchant_intelligence(self, expenses: list | None = None) -> int:
+    def _extract_merchant_intelligence(self, expenses: list[Transaction] | None = None) -> int:
         """Extract and aggregate merchant/vendor data from transaction notes."""
         if expenses is None:
             expenses = (
@@ -838,7 +859,7 @@ class AnalyticsEngine:
 
         for txn in expenses:
             # Extract merchant name (first word or known patterns)
-            merchant_name = self._extract_merchant_name(txn.note)
+            merchant_name = self._extract_merchant_name(txn.note or "")
             if merchant_name:
                 merchants[merchant_name]["amounts"].append(float(txn.amount))
                 merchants[merchant_name]["dates"].append(txn.date)
@@ -952,7 +973,7 @@ class AnalyticsEngine:
 
         return None
 
-    def _detect_recurring_transactions(self, transactions: list | None = None) -> int:
+    def _detect_recurring_transactions(self, transactions: list[Transaction] | None = None) -> int:
         """Detect recurring transaction patterns."""
         if transactions is None:
             transactions = (
@@ -965,7 +986,7 @@ class AnalyticsEngine:
             transactions = sorted(transactions, key=lambda t: t.date)
 
         # Group by category + account + approximate amount
-        patterns: dict[tuple, list] = defaultdict(list)
+        patterns: dict[tuple[str, str, int, str], list[Transaction]] = defaultdict(list)
         for txn in transactions:
             # Round amount to nearest 100 for grouping
             amount_bucket = round(float(txn.amount) / 100) * 100
@@ -1024,7 +1045,7 @@ class AnalyticsEngine:
 
     def _detect_frequency(
         self,
-        dates: list,
+        dates: list[datetime],
     ) -> tuple[RecurrenceFrequency | None, float, int | None]:
         """Detect recurrence frequency from a list of dates."""
         if len(dates) < 3:
@@ -1040,7 +1061,7 @@ class AnalyticsEngine:
 
         # Detect frequency based on average interval
         frequency = None
-        confidence = 0
+        confidence: float = 0
         expected_day = None
 
         if 25 <= avg_diff <= 35 and std_diff < 10:
@@ -1064,7 +1085,10 @@ class AnalyticsEngine:
 
         return frequency, confidence, expected_day
 
-    def _calculate_net_worth_snapshot(self, all_transactions: list | None = None) -> dict[str, Any]:
+    def _calculate_net_worth_snapshot(
+        self,
+        all_transactions: list[Transaction] | None = None,
+    ) -> dict[str, Any]:
         """Calculate and store a net worth snapshot."""
         if all_transactions is None:
             all_transactions = self._user_transaction_query().all()
@@ -1118,7 +1142,7 @@ class AnalyticsEngine:
 
     @staticmethod
     def _compute_account_balances(
-        transactions: list,
+        transactions: list[Transaction],
     ) -> dict[str, Decimal]:
         """Derive net balance per account from a list of transactions."""
         balances: dict[str, Decimal] = defaultdict(Decimal)
@@ -1316,7 +1340,7 @@ class AnalyticsEngine:
         key = inv_type_to_key.get(inv_type, "other_assets")
         result[key] += balance
 
-    def _calculate_fy_summaries(self, transactions: list | None = None) -> int:
+    def _calculate_fy_summaries(self, transactions: list[Transaction] | None = None) -> int:
         """Calculate fiscal year summaries using configurable start month."""
         if transactions is None:
             transactions = self._user_transaction_query().all()
@@ -1665,7 +1689,7 @@ class AnalyticsEngine:
         now = datetime.now(UTC)
         current_period = now.strftime("%Y-%m")
 
-        current_spending = (
+        spending_query = (
             self.db.query(Transaction.category, func.sum(Transaction.amount).label("total"))
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
@@ -1673,8 +1697,8 @@ class AnalyticsEngine:
             .group_by(Transaction.category)
         )
         if self.user_id is not None:
-            current_spending = current_spending.filter(Transaction.user_id == self.user_id)
-        current_spending = current_spending.all()
+            spending_query = spending_query.filter(Transaction.user_id == self.user_id)
+        current_spending = spending_query.all()
         spending_map = {c.category: float(c.total) for c in current_spending}
 
         count = 0

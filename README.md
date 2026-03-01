@@ -59,7 +59,7 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 | **State**        | TanStack Query 5, Zustand 5                                                 |
 | **Deployment**   | GitHub Pages (frontend), Render (backend), Neon (database)                   |
 | **CI/CD**        | GitHub Actions (lint, type-check, build, deploy)                             |
-| **Package Mgmt** | pnpm 10 (frontend), Poetry (backend)                                        |
+| **Package Mgmt** | pnpm 10 (frontend), uv (backend)                                            |
 
 ## Quick Start
 
@@ -77,8 +77,6 @@ pnpm run setup
 # Start both servers
 pnpm run dev
 ```
-
-> **Note:** The backend setup uses `python -m poetry` instead of bare `poetry` for PATH compatibility on Windows.
 
 **Access the app:**
 
@@ -104,7 +102,6 @@ ledger-sync/
 │       ├── hooks/        # React Query hooks
 │       ├── constants/    # Colors, animations, chart config
 │       └── services/     # API client
-├── docs/                 # Documentation
 └── .github/workflows/    # CI pipeline
 ```
 

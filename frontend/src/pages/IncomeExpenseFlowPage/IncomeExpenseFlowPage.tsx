@@ -2,13 +2,40 @@ import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
 import { ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react'
 import { useMemo } from 'react'
-import { ResponsiveContainer, Sankey, Tooltip } from 'recharts'
+import { Sankey, Tooltip } from 'recharts'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getDateKey } from '@/lib/dateUtils'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
-import { PageHeader } from '@/components/ui'
+import { PageHeader, ChartContainer } from '@/components/ui'
+
+/** Guard against NaN values that Recharts passes for zero-value nodes */
+function safeNumber(value: number): number {
+  return Number.isFinite(value) ? value : 0
+}
+
+/** Determine the fill color for a Sankey node based on its position in the diagram */
+function getNodeFillColor(
+  index: number,
+  incomeCategoryCount: number,
+  totalIncomeNodeIndex: number,
+  savingsNodeIndex: number,
+  expensesNodeIndex: number,
+): string {
+  if (index < incomeCategoryCount) {
+    const greenColors = [rawColors.ios.green, rawColors.ios.green, '#84cc16', '#a3e635', '#6ee7b7']
+    return greenColors[index % greenColors.length]
+  }
+
+  if (index === totalIncomeNodeIndex) return rawColors.ios.indigoVibrant
+  if (index === savingsNodeIndex) return rawColors.ios.purple
+  if (index === expensesNodeIndex) return rawColors.ios.pink
+
+  const redColors = [rawColors.ios.red, rawColors.ios.orange, '#fb923c', '#f97316', rawColors.ios.redVibrant]
+  const expenseIndex = index - (incomeCategoryCount + 3)
+  return redColors[expenseIndex % redColors.length]
+}
 
 interface SankeyNodeRendererProps {
   readonly x: number
@@ -26,10 +53,10 @@ interface SankeyNodeRendererProps {
 }
 
 const SankeyNodeRenderer = ({
-  x,
-  y,
-  width,
-  height,
+  x: rawX,
+  y: rawY,
+  width: rawWidth,
+  height: rawHeight,
   index,
   payload,
   nodeValues,
@@ -39,26 +66,14 @@ const SankeyNodeRenderer = ({
   expensesNodeIndex,
   totalIncome,
 }: SankeyNodeRendererProps) => {
+  const x = safeNumber(rawX)
+  const y = safeNumber(rawY)
+  const width = safeNumber(rawWidth)
+  const height = safeNumber(rawHeight)
+
   const value = nodeValues.get(index) || 0
   const percentage = totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0'
-
-  // Determine color based on position
-  let fillColor: string
-  if (index < incomeCategoryCount) {
-    // Income nodes - green gradient
-    const greenColors = [rawColors.ios.green, rawColors.ios.green, '#84cc16', '#a3e635', '#6ee7b7']
-    fillColor = greenColors[index % greenColors.length]
-  } else if (index === totalIncomeNodeIndex || index === savingsNodeIndex || index === expensesNodeIndex) {
-    // Middle nodes - purple/blue
-    if (index === totalIncomeNodeIndex) fillColor = rawColors.ios.indigoVibrant
-    else if (index === savingsNodeIndex) fillColor = rawColors.ios.purple
-    else fillColor = rawColors.ios.pink
-  } else {
-    // Expense nodes - red/orange gradient
-    const redColors = [rawColors.ios.red, rawColors.ios.orange, '#fb923c', '#f97316', rawColors.ios.redVibrant]
-    const expenseIndex = index - (incomeCategoryCount + 3)
-    fillColor = redColors[expenseIndex % redColors.length]
-  }
+  const fillColor = getNodeFillColor(index, incomeCategoryCount, totalIncomeNodeIndex, savingsNodeIndex, expensesNodeIndex)
 
   return (
     <g>
@@ -369,7 +384,7 @@ const IncomeExpenseFlowPage = () => {
         {!isLoading && sankeyData.nodes.length > 0 && (
           <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6 overflow-x-auto">
             <div style={{ minWidth: "min(1000px, 90vw)", height: '700px', position: 'relative' }}>
-              <ResponsiveContainer width="100%" height={globalThis.window !== undefined && globalThis.window.innerWidth < 768 ? 400 : 700}>
+              <ChartContainer height={globalThis.window !== undefined && globalThis.window.innerWidth < 768 ? 400 : 700}>
                 <Sankey
                   data={sankeyData as { nodes: Array<{ name: string }>; links: Array<{ source: number; target: number; value: number }> }}
                   nodeWidth={20}
@@ -420,7 +435,7 @@ const IncomeExpenseFlowPage = () => {
                     ]}
                   />
                 </Sankey>
-              </ResponsiveContainer>
+              </ChartContainer>
             </div>
 
             {/* Legend */}

@@ -7,8 +7,8 @@ import { useMemo, useState } from 'react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
@@ -368,7 +368,7 @@ export default function InvestmentAnalyticsPage() {
             assetAllocation.length === 0 ? (
               <ChartEmptyState height={320} />
             ) : (
-              <ResponsiveContainer width="100%" height={320}>
+              <ChartContainer height={320}>
                 <RechartsPie>
                   <Pie
                     data={assetAllocation}
@@ -390,7 +390,7 @@ export default function InvestmentAnalyticsPage() {
                   />
                   <Legend />
                 </RechartsPie>
-              </ResponsiveContainer>
+              </ChartContainer>
             )
           )}
         </motion.div>
@@ -414,7 +414,7 @@ export default function InvestmentAnalyticsPage() {
             filteredGrowthData.length === 0 ? (
               <ChartEmptyState height={400} />
             ) : (
-              <ResponsiveContainer width="100%" height={400}>
+              <ChartContainer height={400}>
                 <AreaChart data={filteredGrowthData}>
                   <defs>
                     {INVESTMENT_CATEGORIES.map((category) => (
@@ -461,7 +461,7 @@ export default function InvestmentAnalyticsPage() {
                     />
                   ))}
                 </AreaChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             )
           )}
         </motion.div>

@@ -4,9 +4,9 @@ import { Shield } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
 import { CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
-import { chartTooltipProps } from '@/components/ui'
+import { chartTooltipProps, ChartContainer } from '@/components/ui'
 
 function getStabilityColor(score: number): string {
   if (score >= 70) return rawColors.ios.green
@@ -100,7 +100,7 @@ export default function IncomeStabilityIndex() {
           </div>
 
           {/* Chart */}
-          <ResponsiveContainer width="100%" height={280}>
+          <ChartContainer height={280}>
             <BarChart data={sources} layout="vertical" margin={{ left: 10, right: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} horizontal={false} />
               <XAxis type="number" domain={[0, 100]} stroke={CHART_AXIS_COLOR} tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
@@ -125,7 +125,7 @@ export default function IncomeStabilityIndex() {
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
 
           {/* Legend */}
           <div className="flex items-center gap-4 mt-4 justify-center">

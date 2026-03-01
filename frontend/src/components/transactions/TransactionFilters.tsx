@@ -56,11 +56,12 @@ export default function TransactionFilters({ onFilterChange, categories, account
       isFirstRender.current = false
       return
     }
-    setFilters((prev) => {
-      const newFilters = { ...prev, query: debouncedSearchQuery || undefined }
-      onFilterChangeRef.current(newFilters)
-      return newFilters
-    })
+    const newFilters = { ...filters, query: debouncedSearchQuery || undefined }
+    setFilters(newFilters)
+    // Notify parent after state update (not inside a setter) to avoid
+    // "Cannot update a component while rendering a different component"
+    onFilterChangeRef.current(newFilters)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to debounced query changes
   }, [debouncedSearchQuery])
 
   const handleFilterChange = useCallback((key: keyof FilterValues, value: string | number | undefined) => {

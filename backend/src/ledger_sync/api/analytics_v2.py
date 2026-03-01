@@ -712,7 +712,7 @@ def create_goal(
         parsed_target_date = datetime.fromisoformat(body.target_date)
 
     # Calculate monthly target if target date provided
-    monthly_target = 0
+    monthly_target: float = 0
     if parsed_target_date:
         months_remaining = (parsed_target_date.year - datetime.now(UTC).year) * 12 + (
             parsed_target_date.month - datetime.now(UTC).month

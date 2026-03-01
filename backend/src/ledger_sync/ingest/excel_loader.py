@@ -68,7 +68,10 @@ class ExcelLoader:
             msg = f"Failed to read Excel file: {e}"
             raise ValidationError(msg) from e
 
-        # Validate
+        # Validate - cast df since pd.read_excel may return DataFrame | dict
+        if not isinstance(df, pd.DataFrame):
+            msg = "Expected a single DataFrame but got multiple sheets"
+            raise ValidationError(msg)
         column_mapping = self.validator.validate(file_path, df)
         logger.info("Excel file validation passed")
 

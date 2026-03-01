@@ -1,8 +1,9 @@
 """Database session management."""
 
 from collections.abc import Generator
+from typing import Any
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 from ledger_sync.config.settings import settings
@@ -10,7 +11,7 @@ from ledger_sync.db.base import Base
 
 # Create engine
 _is_sqlite = "sqlite" in settings.database_url
-_engine_kwargs: dict = {
+_engine_kwargs: dict[str, object] = {
     "echo": settings.database_echo,
 }
 if _is_sqlite:
@@ -20,6 +21,11 @@ else:
     _engine_kwargs["pool_size"] = 20
     _engine_kwargs["max_overflow"] = 10
     _engine_kwargs["pool_pre_ping"] = True
+    # Query timeout: abort queries running longer than 30 seconds
+    _engine_kwargs["connect_args"] = {
+        "connect_timeout": 10,
+        "options": "-c statement_timeout=30000",
+    }
 
 engine = create_engine(settings.database_url, **_engine_kwargs)
 
@@ -28,7 +34,7 @@ engine = create_engine(settings.database_url, **_engine_kwargs)
 if _is_sqlite:
 
     @event.listens_for(engine, "connect")
-    def _set_sqlite_pragmas(dbapi_connection, _connection_record):
+    def _set_sqlite_pragmas(dbapi_connection: Any, _connection_record: Any) -> None:
         cursor = dbapi_connection.cursor()
         # WAL mode: allows concurrent reads during writes
         cursor.execute("PRAGMA journal_mode=WAL")
@@ -74,6 +80,6 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
 
 
-def get_engine():
+def get_engine() -> Engine:
     """Get SQLAlchemy engine."""
     return engine

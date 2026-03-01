@@ -14,7 +14,6 @@ import {
 import { rawColors } from '@/constants/colors'
 import EmptyState from '@/components/shared/EmptyState'
 import {
-  ResponsiveContainer,
   Tooltip,
   BarChart,
   Bar,
@@ -22,7 +21,7 @@ import {
   YAxis,
   Cell,
 } from 'recharts'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -574,7 +573,7 @@ export default function ComparisonPage() {
               </div>
             </div>
             <div style={{ height: Math.max(300, butterflyData.length * 36) }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartContainer>
                 <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ left: 10, right: 10 }}>
                   <XAxis
                     type="number"
@@ -604,7 +603,7 @@ export default function ComparisonPage() {
                     ))}
                   </Bar>
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             </div>
           </motion.div>
         )

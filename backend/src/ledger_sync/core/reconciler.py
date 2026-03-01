@@ -74,7 +74,7 @@ class Reconciler:
 
         """
         if hasattr(value, "value"):
-            return value.value
+            return str(value.value)
         if value:
             return str(value)
         return None
@@ -326,7 +326,7 @@ class Reconciler:
             .execution_options(synchronize_session="fetch")
         )
         result = self.session.execute(stmt)
-        count = result.rowcount
+        count = int(result.rowcount)  # type: ignore[attr-defined]
 
         if count > 0:
             logger.info(f"Marked {count} transactions as deleted")
@@ -598,7 +598,7 @@ class Reconciler:
             .execution_options(synchronize_session="fetch")
         )
         result = self.session.execute(stmt)
-        count = result.rowcount
+        count = int(result.rowcount)  # type: ignore[attr-defined]
 
         if count > 0:
             logger.info(f"Marked {count} transfers as deleted")

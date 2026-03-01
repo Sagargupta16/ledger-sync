@@ -1,0 +1,11 @@
+// API services barrel — re-exports for cleaner imports
+export { apiClient } from './client'
+export * as authApi from './auth'
+export { analyticsService } from './analytics'
+export { analyticsV2Service } from './analyticsV2'
+export { calculationsApi } from './calculations'
+export { preferencesService } from './preferences'
+export { transactionsService } from './transactions'
+export { uploadService } from './upload'
+export { reportsApi } from './reports'
+export { accountClassificationsService } from './accountClassifications'

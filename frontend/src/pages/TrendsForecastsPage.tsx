@@ -5,11 +5,11 @@ import { TrendingUp, TrendingDown, Minus, Wallet, PiggyBank, CreditCard, LineCha
 import { useTrends } from '@/hooks/useAnalytics'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { getSmartInterval } from '@/lib/chartUtils'
-import { ResponsiveContainer, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine } from 'recharts'
+import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine } from 'recharts'
 import { getDateKey } from '@/lib/dateUtils'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
@@ -538,7 +538,7 @@ export default function TrendsForecastsPage() {
                 {monthlyTrendWithAvg.length === 0 ? (
                   <ChartEmptyState height={180} />
                 ) : (
-                  <ResponsiveContainer width="100%" height={180}>
+                  <ChartContainer height={180}>
                     <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
                       <defs>
                         <linearGradient id="trendIncomeGradient" x1="0" y1="0" x2="0" y2="1">
@@ -565,7 +565,7 @@ export default function TrendsForecastsPage() {
                       <Area type="monotone" dataKey="income" stroke={rawColors.ios.green} fill="url(#trendIncomeGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
                       <Line type="monotone" dataKey="incomeAvg" stroke={rawColors.ios.green} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Income (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
                     </AreaChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 )}
               </div>
 
@@ -578,7 +578,7 @@ export default function TrendsForecastsPage() {
                 {monthlyTrendWithAvg.length === 0 ? (
                   <ChartEmptyState height={180} />
                 ) : (
-                  <ResponsiveContainer width="100%" height={180}>
+                  <ChartContainer height={180}>
                     <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
                       <defs>
                         <linearGradient id="trendExpenseGradient" x1="0" y1="0" x2="0" y2="1">
@@ -605,7 +605,7 @@ export default function TrendsForecastsPage() {
                       <Area type="monotone" dataKey="expenses" stroke={rawColors.ios.red} fill="url(#trendExpenseGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
                       <Line type="monotone" dataKey="expensesAvg" stroke={rawColors.ios.red} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Spending (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
                     </AreaChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 )}
               </div>
 
@@ -618,7 +618,7 @@ export default function TrendsForecastsPage() {
                 {monthlyTrendWithAvg.length === 0 ? (
                   <ChartEmptyState height={180} />
                 ) : (
-                  <ResponsiveContainer width="100%" height={180}>
+                  <ChartContainer height={180}>
                     <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
                       <defs>
                         <linearGradient id="trendSavingsGradient" x1="0" y1="0" x2="0" y2="1">
@@ -645,7 +645,7 @@ export default function TrendsForecastsPage() {
                       <Area type="monotone" dataKey="savings" stroke={rawColors.ios.purple} fill="url(#trendSavingsGradient)" strokeWidth={1.5} isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
                       <Line type="monotone" dataKey="savingsAvg" stroke={rawColors.ios.purple} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Savings (3m avg)" isAnimationActive={monthlyTrendWithAvg.length < CHART_ANIMATION_THRESHOLD} />
                     </AreaChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 )}
               </div>
             </div>
@@ -684,7 +684,7 @@ export default function TrendsForecastsPage() {
             dailySavingsData.length === 0 ? (
               <ChartEmptyState height={250} />
             ) : (
-              <ResponsiveContainer width="100%" height={250}>
+              <ChartContainer height={250}>
                 <AreaChart data={dailySavingsData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} fontSize={dims.tickFontSize} tickFormatter={(v) => formatDateTick(v, dailySavingsData.length)} angle={dims.angleXLabels ? -45 : 0} textAnchor={dims.angleXLabels ? 'end' : 'middle'} height={70} interval={getSmartInterval(dailySavingsData.length, dims.maxXLabels)} />
@@ -725,7 +725,7 @@ export default function TrendsForecastsPage() {
                     isAnimationActive={dailySavingsData.length < CHART_ANIMATION_THRESHOLD}
                   />
                 </AreaChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             )
           )}
           {!isLoading && dailySavingsData.length === 0 && (

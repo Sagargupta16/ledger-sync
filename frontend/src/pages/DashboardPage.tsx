@@ -10,8 +10,8 @@ import Sparkline from '@/components/shared/Sparkline'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore, PeriodComparison } from '@/components/analytics'
 import { formatCurrency } from '@/lib/formatters'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
-import { chartTooltipProps, PageHeader } from '@/components/ui'
+import { BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
+import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -262,7 +262,7 @@ export default function DashboardPage() {
           {incomeChartData.length > 0 ? (
             <div className="space-y-4">
               <div className="h-10">
-                <ResponsiveContainer width="100%" height="100%">
+                <ChartContainer>
                   <BarChart layout="vertical" data={incomeBarData} barSize={32}>
                     <XAxis type="number" hide />
                     <YAxis type="category" dataKey="name" hide />
@@ -280,7 +280,7 @@ export default function DashboardPage() {
                       />
                     ))}
                   </BarChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               </div>
               <div className="space-y-2">
                 {incomeChartData.map((item, i) => (
@@ -340,7 +340,7 @@ export default function DashboardPage() {
           {spendingChartData.length > 0 ? (
             <div className="space-y-4">
               <div className="h-10">
-                <ResponsiveContainer width="100%" height="100%">
+                <ChartContainer>
                   <BarChart layout="vertical" data={spendingBarData} barSize={32}>
                     <XAxis type="number" hide />
                     <YAxis type="category" dataKey="name" hide />
@@ -358,7 +358,7 @@ export default function DashboardPage() {
                       />
                     ))}
                   </BarChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               </div>
               <div className="space-y-3">
                 {spendingChartData.map((item, i) => {

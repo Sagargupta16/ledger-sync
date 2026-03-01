@@ -9,7 +9,9 @@ export const apiClient = axios.create({
   },
 })
 
-// Request interceptor - add auth token to requests
+// Request interceptor — always attach the token if one exists.
+// If it's expired, the server returns 401, and the response interceptor
+// handles the refresh transparently.
 apiClient.interceptors.request.use(
   (config) => {
     const token = getAccessToken()
