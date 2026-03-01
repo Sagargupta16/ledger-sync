@@ -16,8 +16,13 @@ from ledger_sync.db.base import Base
 # this is the Alembic Config object
 config = context.config
 
-# Set SQLAlchemy URL from application settings
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Set SQLAlchemy URL from application settings.
+# Normalise to psycopg (v3) driver — same logic as session.py.
+_db_url = settings.database_url
+if _db_url.startswith(("postgresql://", "postgresql+psycopg2://")):
+    _db_url = _db_url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+    _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+config.set_main_option("sqlalchemy.url", _db_url)
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:
