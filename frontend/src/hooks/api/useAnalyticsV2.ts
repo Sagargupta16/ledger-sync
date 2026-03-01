@@ -154,7 +154,7 @@ export function useReviewAnomaly() {
     mutationFn: ({ anomalyId, data }: { anomalyId: number; data: { dismiss: boolean; notes?: string } }) =>
       analyticsV2Service.reviewAnomaly(anomalyId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: analyticsV2Keys.anomalies() })
+      queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'anomalies'] })
     },
   })
 }
@@ -179,7 +179,7 @@ export function useCreateBudget() {
       alert_threshold?: number
     }) => analyticsV2Service.createBudget(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: analyticsV2Keys.budgets() })
+      queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'budgets'] })
     },
   })
 }
@@ -205,7 +205,7 @@ export function useCreateGoal() {
       notes?: string
     }) => analyticsV2Service.createGoal(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: analyticsV2Keys.goals() })
+      queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'goals'] })
     },
   })
 }
