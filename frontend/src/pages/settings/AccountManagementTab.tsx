@@ -1,8 +1,8 @@
 /**
  * Account Management Tab
  *
- * User account info display, account reset, and account deletion
- * with password confirmation flows.
+ * User account info display, account reset, and account deletion.
+ * No password confirmation needed — user is already authenticated via OAuth.
  */
 
 import { useState } from 'react'
@@ -18,8 +18,6 @@ export default function AccountManagementTab() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
-  const [resetPassword, setResetPassword] = useState('')
-  const [deletePassword, setDeletePassword] = useState('')
 
   return (
     <div className="space-y-6">
@@ -37,6 +35,10 @@ export default function AccountManagementTab() {
           <div className="flex justify-between items-center py-2 border-b border-border">
             <span className="text-muted-foreground">Name</span>
             <span className="text-white">{user?.full_name || 'Not set'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-border">
+            <span className="text-muted-foreground">Sign-in Method</span>
+            <span className="text-white capitalize">{user?.auth_provider || 'Email'}</span>
           </div>
           <div className="flex justify-between items-center py-2 border-b border-border">
             <span className="text-muted-foreground">Account Status</span>
@@ -63,45 +65,34 @@ export default function AccountManagementTab() {
         </h3>
         <p className="text-muted-foreground text-sm mb-4">
           This will delete all your transactions, import history, and reset preferences to defaults.
-          Your login credentials will be preserved.
+          Your account and login method will be preserved.
         </p>
         {showResetConfirm ? (
           <div className="space-y-3 p-4 bg-ios-orange/10 rounded-lg border border-ios-orange/30">
             <p className="text-ios-orange text-sm font-medium">
-              Enter your password to confirm account reset:
+              Are you sure you want to reset all data?
             </p>
-            <input
-              type="password"
-              value={resetPassword}
-              onChange={(e) => setResetPassword(e.target.value)}
-              placeholder="Enter your password"
-              className="w-full px-3 py-2 bg-white/5 border border-ios-orange/30 rounded-lg text-white text-sm focus:border-ios-orange"
-            />
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  resetAccount.mutate(resetPassword, {
+                  resetAccount.mutate(undefined, {
                     onSuccess: () => {
                       toast.success('Account reset successfully. All data cleared.')
                       setShowResetConfirm(false)
-                      setResetPassword('')
                       globalThis.location.reload()
                     },
                     onError: () => {
-                      toast.error('Failed to reset account. Check your password.')
+                      toast.error('Failed to reset account.')
                     },
                   })
                 }}
-                disabled={!resetPassword || resetAccount.isPending}
+                disabled={resetAccount.isPending}
                 className="flex items-center gap-2 px-4 py-2 bg-ios-orange text-black rounded-lg hover:bg-ios-orange transition-colors disabled:opacity-50"
               >
                 {resetAccount.isPending ? 'Resetting...' : 'Yes, Reset Everything'}
               </button>
               <button
-                onClick={() => {
-                  setShowResetConfirm(false)
-                  setResetPassword('')
-                }}
+                onClick={() => setShowResetConfirm(false)}
                 className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
               >
                 Cancel
@@ -132,8 +123,7 @@ export default function AccountManagementTab() {
           <div className="space-y-3 p-4 bg-ios-red/10 rounded-lg border border-ios-red/30">
             <p className="text-ios-red text-sm font-medium">
               This is permanent! Type{' '}
-              <span className="font-mono bg-ios-red/20 px-1 rounded">DELETE</span> and enter your
-              password to confirm:
+              <span className="font-mono bg-ios-red/20 px-1 rounded">DELETE</span> to confirm:
             </p>
             <input
               type="text"
@@ -142,28 +132,19 @@ export default function AccountManagementTab() {
               placeholder="Type DELETE to confirm"
               className="w-full px-3 py-2 bg-white/5 border border-ios-red/30 rounded-lg text-white text-sm focus:border-ios-red"
             />
-            <input
-              type="password"
-              value={deletePassword}
-              onChange={(e) => setDeletePassword(e.target.value)}
-              placeholder="Enter your password"
-              className="w-full px-3 py-2 bg-white/5 border border-ios-red/30 rounded-lg text-white text-sm focus:border-ios-red"
-            />
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  deleteAccount.mutate(deletePassword, {
+                  deleteAccount.mutate(undefined, {
                     onSuccess: () => {
                       toast.success('Account deleted successfully')
                     },
                     onError: () => {
-                      toast.error('Failed to delete account. Check your password.')
+                      toast.error('Failed to delete account.')
                     },
                   })
                 }}
-                disabled={
-                  deleteConfirmText !== 'DELETE' || !deletePassword || deleteAccount.isPending
-                }
+                disabled={deleteConfirmText !== 'DELETE' || deleteAccount.isPending}
                 className="flex items-center gap-2 px-4 py-2 bg-ios-red text-white rounded-lg hover:bg-ios-red transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {deleteAccount.isPending ? 'Deleting...' : 'Permanently Delete'}
@@ -172,7 +153,6 @@ export default function AccountManagementTab() {
                 onClick={() => {
                   setShowDeleteConfirm(false)
                   setDeleteConfirmText('')
-                  setDeletePassword('')
                 }}
                 className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
               >

@@ -106,6 +106,7 @@ export interface User {
   full_name: string | null
   is_active: boolean
   is_verified: boolean
+  auth_provider: string | null
   created_at: string
   last_login: string | null
 }
@@ -116,15 +117,17 @@ export interface AuthTokens {
   token_type: string
 }
 
-export interface LoginCredentials {
-  email: string
-  password: string
+// OAuth types
+export interface OAuthProviderConfig {
+  provider: string
+  client_id: string
+  authorize_url: string
+  scope: string
+  redirect_uri: string
 }
 
-export interface RegisterCredentials {
-  email: string
-  password: string
-  full_name?: string
+export interface OAuthCallbackRequest {
+  code: string
 }
 
 // Analytics response types

@@ -6,12 +6,12 @@ validation, keeping them separate from business logic and database models.
 
 from ledger_sync.schemas.auth import (
     MessageResponse,
+    OAuthCallbackRequest,
+    OAuthProviderConfig,
     RefreshTokenRequest,
     Token,
     TokenData,
     TokenPayload,
-    UserLogin,
-    UserRegister,
     UserResponse,
     UserUpdate,
 )
@@ -25,6 +25,8 @@ from ledger_sync.schemas.transactions import (
 __all__ = [
     "HealthResponse",
     "MessageResponse",
+    "OAuthCallbackRequest",
+    "OAuthProviderConfig",
     "RefreshTokenRequest",
     "Token",
     "TokenData",
@@ -32,8 +34,6 @@ __all__ = [
     "TransactionResponse",
     "TransactionsListResponse",
     "UploadResponse",
-    "UserLogin",
-    "UserRegister",
     "UserResponse",
     "UserUpdate",
 ]

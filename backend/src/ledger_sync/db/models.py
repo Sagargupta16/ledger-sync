@@ -30,16 +30,25 @@ USER_FK = "users.id"
 
 
 class User(Base):
-    """User model for authentication."""
+    """User model for authentication.
+
+    Supports both email/password and OAuth (Google, GitHub) login.
+    OAuth users have auth_provider and auth_provider_id set, and may
+    have an empty hashed_password (they authenticate via the provider).
+    """
 
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # OAuth fields — null for email/password users
+    auth_provider: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    auth_provider_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

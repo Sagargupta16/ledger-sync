@@ -21,6 +21,7 @@ from ledger_sync.api.analytics_v2 import router as analytics_v2_router
 from ledger_sync.api.auth import router as auth_router
 from ledger_sync.api.calculations import router as calculations_router
 from ledger_sync.api.meta import router as meta_router
+from ledger_sync.api.oauth import router as oauth_router
 from ledger_sync.api.preferences import router as preferences_router
 from ledger_sync.api.reports import router as reports_router
 from ledger_sync.api.transactions import router as transactions_router
@@ -218,6 +219,7 @@ async def add_timing_header(
 # ─── Include Routers ─────────────────────────────────────────────────────────
 
 app.include_router(auth_router)
+app.include_router(oauth_router)
 app.include_router(analytics_router)
 app.include_router(analytics_v2_router)
 app.include_router(calculations_router)
