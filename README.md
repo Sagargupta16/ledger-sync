@@ -98,7 +98,7 @@ ledger-sync/
 │   └── tests/            # pytest tests
 ├── frontend/             # React + TypeScript frontend
 │   └── src/
-│       ├── pages/        # 20 page components
+│       ├── pages/        # 22 page components
 │       ├── components/   # UI & analytics components (60+)
 │       ├── hooks/        # React Query hooks
 │       ├── constants/    # Colors, animations, chart config
@@ -129,6 +129,8 @@ ledger-sync/
 | **Insights**               | Advanced analytics (velocity, stability, milestones)|
 | **Anomaly Review**         | Flag and review unusual transactions                |
 | **Year in Review**         | Annual financial summary                            |
+| **Subscription Tracker**   | Recurring expense detection, confirm/add manually   |
+| **Bill Calendar**          | Monthly calendar view of upcoming bills             |
 | **Settings**               | Preferences, account mappings, categories           |
 
 ## Deployment

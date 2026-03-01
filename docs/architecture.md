@@ -177,7 +177,7 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
 #### 1. **Pages Layer** (`src/pages/`)
 
 - **Responsibility**: Screen-level components, layout, page composition
-- **Components** (19 pages):
+- **Components** (22 pages):
   - `HomePage` - Landing page
   - `DashboardPage` - Main dashboard with KPIs, sparklines, and quick insights
   - `UploadSyncPage` - Hero upload UI with sample format preview
@@ -193,18 +193,20 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
   - `TaxPlanningPage` - Tax planning tools
   - `NetWorthPage` - Net worth tracking
   - `BudgetPage` - Budget tracking and monitoring
-  - `GoalsPage` - Financial goal setting and progress
+  - `GoalsPage` - Financial goal setting with savings allocation
   - `InsightsPage` - Advanced analytics (velocity, stability, milestones)
   - `AnomalyReviewPage` - Flag and review unusual transactions
   - `YearInReviewPage` - Annual financial summary
-  - `SettingsPage` - App settings and preferences
+  - `SubscriptionTrackerPage` - Recurring expense detection and manual tracking
+  - `BillCalendarPage` - Monthly calendar of upcoming bills
+  - `SettingsPage` - Single-page settings with collapsible sections
 
 #### 2. **Components Layer** (`src/components/`)
 
 - **Responsibility**: Reusable UI components organized by domain
 - **Modules**:
   - `analytics/` - Analytics visualization components
-    - `FinancialHealthScore` - Comprehensive health score (6 metrics)
+    - `FinancialHealthScore` - Comprehensive health score (8 metrics across 4 pillars)
     - `YearOverYearComparison` - YoY financial comparison
     - `PeriodComparison` - Month-to-month comparison with selectors
     - `CashFlowForecast` - Future cash flow predictions
@@ -241,8 +243,11 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
 
 - **Responsibility**: Global state management with Zustand
 - **Stores**:
+  - `authStore` - JWT tokens with persist middleware
+  - `preferencesStore` - User display/financial preferences (hydrated from API)
   - `accountStore` - Account settings and preferences
   - `investmentAccountStore` - Investment account classifications
+  - `budgetStore` - Budget settings
 
 #### 6. **Utils Layer** (`src/lib/`)
 
@@ -444,7 +449,6 @@ GET    /api/meta/*                      - Metadata endpoints
 
 - Implement caching (Redis) for analytics
 - Async database operations
-- API rate limiting
 - Virtual scrolling for large transaction tables
 
 ## Performance Optimizations

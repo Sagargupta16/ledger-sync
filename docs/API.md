@@ -600,6 +600,53 @@ Get all accounts of a specific type.
 
 ---
 
+## Analytics V2 Endpoints
+
+Pre-aggregated analytics data. All require authentication.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/analytics/v2/monthly-summaries` | Monthly income/expense/savings |
+| GET | `/api/analytics/v2/category-trends` | Category-level trends over time |
+| GET | `/api/analytics/v2/transfer-flows` | Account-to-account transfer flows |
+| GET | `/api/analytics/v2/recurring-transactions` | Detected recurring patterns |
+| GET | `/api/analytics/v2/merchant-intelligence` | Merchant spending insights |
+| GET | `/api/analytics/v2/net-worth` | Net worth snapshots over time |
+| GET | `/api/analytics/v2/fy-summaries` | Fiscal year summaries |
+| GET | `/api/analytics/v2/anomalies` | Detected spending anomalies |
+| GET | `/api/analytics/v2/budgets` | Budget tracking data |
+| GET | `/api/analytics/v2/goals` | Financial goals and progress |
+| POST | `/api/analytics/v2/budgets` | Create a new budget |
+| POST | `/api/analytics/v2/goals` | Create a new financial goal |
+| POST | `/api/analytics/v2/anomalies/{id}/review` | Mark anomaly as reviewed |
+
+---
+
+## Preferences Endpoints
+
+User preference management. All require authentication.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/preferences` | Get all preferences |
+| PUT | `/api/preferences` | Update preferences (partial) |
+| POST | `/api/preferences/reset` | Reset to defaults |
+| PUT | `/api/preferences/fiscal-year` | Update fiscal year |
+| PUT | `/api/preferences/essential-categories` | Update essential categories |
+| PUT | `/api/preferences/investment-mappings` | Update investment mappings |
+| PUT | `/api/preferences/income-sources` | Update income classification |
+| PUT | `/api/preferences/budget-defaults` | Update budget defaults |
+| PUT | `/api/preferences/display` | Update display preferences |
+| PUT | `/api/preferences/anomaly-settings` | Update anomaly settings |
+| PUT | `/api/preferences/recurring-settings` | Update recurring settings |
+| PUT | `/api/preferences/spending-rule` | Update 50/30/20 targets |
+| PUT | `/api/preferences/credit-card-limits` | Update credit card limits |
+| PUT | `/api/preferences/earning-start-date` | Update earning start date |
+
+Preferences include 17 sections: fiscal year, essential categories, investment mappings, income classification, budget defaults, display format, anomaly settings, recurring settings, spending rule targets, credit card limits, earning start date, fixed expense categories, savings/investment targets, payday, tax regime, excluded accounts, and notification preferences.
+
+---
+
 ## Chart Data Endpoints
 
 ### Income/Expense Chart
@@ -728,19 +775,20 @@ Get AI-generated financial insights and recommendations.
 
 ## Rate Limiting
 
-Currently no rate limiting is implemented. For production use, add rate limiting via middleware.
+Rate limiting is implemented using **slowapi** (based on limits). Endpoints are rate-limited per user/IP to prevent abuse.
 
 ---
 
 ## CORS
 
-CORS is enabled for cross-origin requests from frontend during development.
+CORS is enabled for cross-origin requests. Allowed origins are configurable via the `LEDGER_SYNC_CORS_ORIGINS` environment variable (JSON array).
 
-Allowed Origins (configurable):
+Default origins (development):
 
-- http://localhost:3000
 - http://localhost:5173
 - http://localhost:5174
+
+Production origins are set via environment variable on Render.
 
 ---
 

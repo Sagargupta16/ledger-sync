@@ -4,12 +4,12 @@ FastAPI-based REST API for Excel file ingestion and database reconciliation.
 
 ## 🚀 Quick Start
 
-```powershell
-# Install dependencies
-pip install -r requirements.txt
+```bash
+# Install dependencies (using uv)
+uv sync --group dev
 
 # Start server
-python -m uvicorn ledger_sync.api.main:app --reload
+uv run uvicorn ledger_sync.api.main:app --reload --port 8000
 
 # Access API
 # - Base URL: http://localhost:8000
@@ -310,24 +310,18 @@ Logs are written to:
 - Console (stdout)
 - Log files (if configured)
 
-## 🔒 Security Considerations
+## 🔒 Security
 
-### Current Implementation
+### Implemented
 
+- ✅ OAuth 2.0 authentication (Google, GitHub) with JWT tokens
+- ✅ Rate limiting (slowapi)
+- ✅ Security headers (CSP, HSTS, X-Frame-Options)
+- ✅ Token blacklist on logout
 - ✅ File type validation
-- ✅ Temporary file cleanup
-- ✅ CORS configuration
-- ✅ Error message sanitization
-
-### Production Recommendations
-
-- 🔐 Add authentication (JWT, OAuth2)
-- 🔐 Implement rate limiting
-- 🔐 Add file size limits
-- 🔐 Use HTTPS only
-- 🔐 Validate file content
-- 🔐 Add request ID tracking
-- 🔐 Implement API keys
+- ✅ CORS configuration (configurable origins)
+- ✅ Chunked file uploads
+- ✅ All data user-scoped (multi-tenant)
 
 ## 📚 Additional Resources
 
@@ -348,22 +342,22 @@ uvicorn ledger_sync.api.main:app --reload --port 8001
 
 ```bash
 # Reinstall dependencies
-pip install -r requirements.txt
+uv sync --group dev
 ```
 
 ### CORS errors
 
-Check that your frontend URL is in the `allow_origins` list in `main.py`.
+Check that your frontend URL is in `LEDGER_SYNC_CORS_ORIGINS` env var or `settings.cors_origins`.
 
 ### Database errors
 
 Ensure database is initialized:
 
 ```bash
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ---
 
 **API Version:** 1.0.0
-**Last Updated:** January 2026
+**Last Updated:** March 2026
