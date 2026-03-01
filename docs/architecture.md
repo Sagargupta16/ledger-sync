@@ -49,10 +49,14 @@ Ledger Sync is a full-stack financial management application with a clear separa
 
 - **Responsibility**: HTTP endpoints, request/response handling
 - **Components**:
-  - `main.py` - FastAPI application setup, middleware, CORS
+  - `main.py` - FastAPI application setup, middleware, CORS, security headers
+  - `auth.py` - Token refresh, logout, profile management
+  - `oauth.py` - OAuth login via Google and GitHub (authorization code exchange via `httpx`)
   - `analytics.py` - Analytics endpoints (overview, KPIs, trends, behavior)
   - `calculations.py` - Financial calculation endpoints
+  - `deps.py` - JWT authentication dependency (`get_current_user`)
   - Routes requests to business logic and return JSON responses
+- **Authentication**: OAuth-only (no email/password). Google/GitHub OAuth providers configured via environment variables. Backend exchanges authorization codes for user info, then issues JWT access/refresh tokens.
 
 #### 2. **Core/Business Logic Layer** (`src/ledger_sync/core/`)
 

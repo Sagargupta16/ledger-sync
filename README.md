@@ -54,6 +54,7 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 | Layer            | Technology                                                                   |
 | ---------------- | ---------------------------------------------------------------------------- |
 | **Frontend**     | React 19, TypeScript 5.9, Vite 7, Tailwind CSS 4, Recharts 3, Framer Motion 12 |
+| **Auth**         | OAuth 2.0 (Google, GitHub), JWT tokens (PyJWT)                              |
 | **Backend**      | Python 3.11+, FastAPI, SQLAlchemy 2, Alembic                                |
 | **Database**     | SQLite (dev), Neon PostgreSQL 17 (prod)                                      |
 | **State**        | TanStack Query 5, Zustand 5                                                 |
@@ -142,14 +143,41 @@ The app is deployed for free using three services:
 
 See [Deployment Guide](docs/DEPLOYMENT.md) for full setup instructions.
 
-## Configuration
+## Authentication
 
-### Backend Environment (`.env`)
+Ledger Sync uses **OAuth 2.0** for authentication — no passwords to manage.
+
+- **Google Sign-In** and **GitHub Sign-In** buttons on the login page
+- Backend exchanges OAuth codes for user info, then issues JWT tokens
+- OAuth providers are configurable via environment variables
+- Buttons only appear for providers that are configured
+
+### Setting Up OAuth (Local Dev)
+
+1. Create OAuth apps at [Google Cloud Console](https://console.cloud.google.com/apis/credentials) and/or [GitHub Developer Settings](https://github.com/settings/developers)
+2. Set redirect URIs to `http://localhost:5173/auth/callback/google` and `http://localhost:5173/auth/callback/github`
+3. Add credentials to `backend/.env`:
 
 ```env
-LEDGER_SYNC_DATABASE_URL=sqlite:///./ledger_sync.db   # Local dev (SQLite)
-LEDGER_SYNC_JWT_SECRET_KEY=your-secret-key             # Required in production
+LEDGER_SYNC_GOOGLE_CLIENT_ID=your-google-client-id
+LEDGER_SYNC_GOOGLE_CLIENT_SECRET=your-google-secret
+LEDGER_SYNC_GITHUB_CLIENT_ID=your-github-client-id
+LEDGER_SYNC_GITHUB_CLIENT_SECRET=your-github-secret
+LEDGER_SYNC_FRONTEND_URL=http://localhost:5173
+```
+
+## Configuration
+
+### Backend Environment (`backend/.env`)
+
+```env
+LEDGER_SYNC_DATABASE_URL=sqlite:///./ledger_sync.db    # Local dev (SQLite)
 LEDGER_SYNC_ENVIRONMENT=development                     # development | production
+LEDGER_SYNC_GOOGLE_CLIENT_ID=...                        # OAuth (optional)
+LEDGER_SYNC_GOOGLE_CLIENT_SECRET=...
+LEDGER_SYNC_GITHUB_CLIENT_ID=...
+LEDGER_SYNC_GITHUB_CLIENT_SECRET=...
+LEDGER_SYNC_FRONTEND_URL=http://localhost:5173          # OAuth redirect base URL
 ```
 
 ### Frontend Environment

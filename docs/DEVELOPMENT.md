@@ -584,6 +584,13 @@ Create `.env` files:
 ```
 LEDGER_SYNC_DATABASE_URL=sqlite:///./ledger_sync.db
 LEDGER_SYNC_LOG_LEVEL=INFO
+
+# OAuth — at least one provider required for login
+LEDGER_SYNC_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+LEDGER_SYNC_GOOGLE_CLIENT_SECRET=your-google-client-secret
+LEDGER_SYNC_GITHUB_CLIENT_ID=your-github-client-id
+LEDGER_SYNC_GITHUB_CLIENT_SECRET=your-github-client-secret
+LEDGER_SYNC_FRONTEND_URL=http://localhost:5173
 ```
 
 **frontend/.env**
@@ -591,6 +598,24 @@ LEDGER_SYNC_LOG_LEVEL=INFO
 ```
 VITE_API_BASE_URL=http://localhost:8000
 ```
+
+### OAuth Setup (Required for Login)
+
+Authentication uses OAuth only (no email/password). You need at least one provider configured:
+
+**Google:**
+1. Go to [Google Cloud Console > Credentials](https://console.cloud.google.com/apis/credentials)
+2. Create an OAuth 2.0 Client ID (Web application)
+3. Add authorized redirect URI: `http://localhost:5173/auth/callback/google`
+4. Add authorized JavaScript origin: `http://localhost:5173`
+5. Copy Client ID and Secret to `backend/.env`
+
+**GitHub:**
+1. Go to [GitHub Developer Settings > OAuth Apps](https://github.com/settings/developers)
+2. Create a new OAuth App
+3. Set callback URL: `http://localhost:5173/auth/callback/github`
+4. Copy Client ID and generate a Client Secret
+5. Add both to `backend/.env`
 
 ### Git Workflow
 
