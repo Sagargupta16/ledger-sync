@@ -21,31 +21,32 @@ else:
     _engine_kwargs["pool_size"] = 20
     _engine_kwargs["max_overflow"] = 10
     _engine_kwargs["pool_pre_ping"] = True
-    # Query timeout: abort queries running longer than 30 seconds
-    _engine_kwargs["connect_args"] = {
-        "connect_timeout": 10,
-        "options": "-c statement_timeout=30000",
-    }
+    _engine_kwargs["connect_args"] = {"connect_timeout": 10}
 
 engine = create_engine(settings.database_url, **_engine_kwargs)
 
 
-# SQLite performance PRAGMAs — applied on every new connection
+# Connection-level settings — applied on every new connection via event listener.
+# This is compatible with Neon's pooled connections (which reject startup parameters).
 if _is_sqlite:
 
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragmas(dbapi_connection: Any, _connection_record: Any) -> None:
         cursor = dbapi_connection.cursor()
-        # WAL mode: allows concurrent reads during writes
         cursor.execute("PRAGMA journal_mode=WAL")
-        # NORMAL sync: 2-3x faster writes, safe with WAL
         cursor.execute("PRAGMA synchronous=NORMAL")
-        # Increase cache to 64MB (default is 2MB)
         cursor.execute("PRAGMA cache_size=-65536")
-        # Store temp tables in memory
         cursor.execute("PRAGMA temp_store=MEMORY")
-        # Enable FK enforcement
         cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+else:
+
+    @event.listens_for(engine, "connect")
+    def _set_pg_timeout(dbapi_connection: Any, _connection_record: Any) -> None:
+        """Set statement timeout per-connection (compatible with Neon pooler)."""
+        cursor = dbapi_connection.cursor()
+        cursor.execute("SET statement_timeout = '30s'")
         cursor.close()
 
 
