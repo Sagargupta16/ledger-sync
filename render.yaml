@@ -18,7 +18,7 @@ services:
       - key: LEDGER_SYNC_CORS_ORIGINS
         value: '["https://sagargupta16.github.io", "https://sagargupta.online", "https://www.sagargupta.online", "http://localhost:5173"]'
       - key: LEDGER_SYNC_FRONTEND_URL
-        value: "https://sagargupta.online"
+        value: "https://sagargupta.online/ledger-sync"
       # OAuth (optional — set in Render dashboard to enable)
       - key: LEDGER_SYNC_GOOGLE_CLIENT_ID
         sync: false
