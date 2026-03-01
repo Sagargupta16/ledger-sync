@@ -1,5 +1,1 @@
-export { default as AccountsTab } from './AccountsTab'
-export { default as CategoriesTab } from './CategoriesTab'
-export { default as FinancialTab } from './FinancialTab'
-export { default as PreferencesTab } from './PreferencesTab'
 export type { LocalPrefs, LocalPrefKey } from './types'

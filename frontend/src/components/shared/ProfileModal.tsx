@@ -38,6 +38,15 @@ interface ProfileModalProps {
 }
 
 export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
+  return (
+    <AnimatePresence>
+      {open && <ProfileModalContent onClose={() => onOpenChange(false)} />}
+    </AnimatePresence>
+  )
+}
+
+/** Inner content — mounts/unmounts with modal so local state resets naturally */
+function ProfileModalContent({ onClose }: { onClose: () => void }) {
   const { user } = useAuthStore()
   const logout = useLogout()
   const updateProfile = useUpdateProfile()
@@ -45,9 +54,9 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   const resetAccount = useResetAccount()
   const navigate = useNavigate()
 
-  // Edit name state
+  // Edit name state (resets on mount)
   const [isEditingName, setIsEditingName] = useState(false)
-  const [nameInput, setNameInput] = useState('')
+  const [nameInput, setNameInput] = useState(user?.full_name || '')
 
   // Reset account state
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -56,28 +65,16 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
-  const handleClose = useCallback(() => onOpenChange(false), [onOpenChange])
+  const handleClose = useCallback(() => onClose(), [onClose])
 
   // Close on Escape
   useEffect(() => {
-    if (!open) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [open, handleClose])
-
-  // Reset local state when modal opens
-  useEffect(() => {
-    if (open) {
-      setIsEditingName(false)
-      setNameInput(user?.full_name || '')
-      setShowResetConfirm(false)
-      setShowDeleteConfirm(false)
-      setDeleteConfirmText('')
-    }
-  }, [open, user?.full_name])
+  }, [handleClose])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -147,8 +144,6 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     : 'Email'
 
   return (
-    <AnimatePresence>
-      {open && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -428,7 +423,5 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
             </div>
           </motion.div>
         </motion.div>
-      )}
-    </AnimatePresence>
   )
 }
