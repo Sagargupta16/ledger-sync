@@ -9,37 +9,13 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import Sparkline from '@/components/shared/Sparkline'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore, PeriodComparison } from '@/components/analytics'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, getOrdinalSuffix, parseStringArray } from '@/lib/formatters'
 import { BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { usePreferences } from '@/hooks/api/usePreferences'
 
-/** Parse fixed_expense_categories (may be JSON string or array) */
-function parseStringArray(raw: string[] | string | undefined): string[] {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw
-  try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-/** Return the English ordinal suffix for a number (1 -> 'st', 2 -> 'nd', etc.) */
-function getOrdinalSuffix(n: number): string {
-  if (n === 1) return 'st'
-  if (n === 2) return 'nd'
-  if (n === 3) return 'rd'
-  return 'th'
-}
-
-/** Return 's' for plural or '' for singular */
-function getOrdinalPlural(n: number): string {
-  return n === 1 ? '' : 's'
-}
 
 /** Check whether a transaction matches the fixed expense categories for the current month */
 function isFixedExpenseThisMonth(
@@ -129,6 +105,10 @@ export default function DashboardPage() {
     if (!payday || payday <= 0) return null
     return daysUntilPayday(payday)
   }, [payday])
+
+  let paydayLabel = ''
+  if (daysToPayday === 0) paydayLabel = 'Today!'
+  else if (daysToPayday !== null) paydayLabel = `${daysToPayday} day${daysToPayday === 1 ? '' : 's'}`
 
   const incomeBarData = useMemo(() => incomeChartData.length > 0
     ? [Object.fromEntries([['name', 'Income'], ...incomeChartData.map(d => [d.name, d.value])])]
@@ -227,7 +207,7 @@ export default function DashboardPage() {
           {daysToPayday !== null && (
             <MetricCard
               title="Days Until Payday"
-              value={daysToPayday === 0 ? 'Today!' : `${daysToPayday} day${getOrdinalPlural(daysToPayday)}`}
+              value={paydayLabel}
               icon={CalendarClock}
               color="teal"
               isLoading={isLoading}

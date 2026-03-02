@@ -11,9 +11,6 @@ _DEV_JWT_SECRET = "dev-only-secret-change-in-production-abc123"
 # Maximum upload file size (50 MB)
 MAX_UPLOAD_SIZE_BYTES: int = 50 * 1024 * 1024
 
-# Minimum password length (OWASP/NIST recommendation for financial apps)
-MIN_PASSWORD_LENGTH: int = 12
-
 
 class Settings(BaseSettings):
     """Application settings.

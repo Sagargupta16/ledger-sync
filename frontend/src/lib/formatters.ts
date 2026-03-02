@@ -136,3 +136,23 @@ export const formatDateTick = (dateStr: string, totalPoints: number): string => 
   }
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
+
+/** Return the English ordinal suffix for a day number (1→'st', 2→'nd', 3→'rd', etc.) */
+export function getOrdinalSuffix(n: number): string {
+  if (n === 1 || n === 21 || n === 31) return 'st'
+  if (n === 2 || n === 22) return 'nd'
+  if (n === 3 || n === 23) return 'rd'
+  return 'th'
+}
+
+/** Safely parse a value that may be a JSON string array or already an array. */
+export function parseStringArray(raw: string[] | string | undefined): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}

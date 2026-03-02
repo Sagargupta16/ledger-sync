@@ -6,7 +6,8 @@ Centralizing dependencies here prevents circular imports and improves testabilit
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+import httpx
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -99,7 +100,14 @@ def get_optional_user(
     return user
 
 
+def get_http_client(request: Request) -> httpx.AsyncClient:
+    """Get the shared httpx client from app state (created in lifespan)."""
+    client: httpx.AsyncClient = request.app.state.http_client
+    return client
+
+
 # Type aliases for dependency injection
 CurrentUser = Annotated[User, Depends(get_current_user)]
 OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 DatabaseSession = Annotated[Session, Depends(get_session)]
+HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]

@@ -36,7 +36,7 @@ import { useAccountBalances, useMasterCategories } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { usePreferences, useUpdatePreferences, useResetPreferences } from '@/hooks/api/usePreferences'
 import { toast } from 'sonner'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, getOrdinalSuffix } from '@/lib/formatters'
 import PageHeader from '@/components/ui/PageHeader'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { LocalPrefs, LocalPrefKey, IncomeClassificationType } from './settings/types'
@@ -84,13 +84,6 @@ const DASHBOARD_WIDGETS = [
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getOrdinalSuffix(day: number): string {
-  if (day === 1 || day === 21 || day === 31) return 'st'
-  if (day === 2 || day === 22) return 'nd'
-  if (day === 3 || day === 23) return 'rd'
-  return 'th'
-}
 
 /** Derive default account classifications from account names by keyword matching */
 function getDefaultClassifications(accountNames: string[]): Record<string, string> {
