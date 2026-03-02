@@ -7,7 +7,7 @@ aggregation columns and the base filtered-transaction query builder.
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import String, case, cast, func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql.selectable import Subquery
 
@@ -49,7 +49,7 @@ def fmt_date(date_col: Any) -> Any:
     """Return a SQL expression that formats a date column as 'YYYY-MM-DD'."""
     if _is_sqlite:
         return func.strftime("%Y-%m-%d", date_col)
-    return cast(date_col, String)
+    return func.to_char(date_col, "YYYY-MM-DD")
 
 
 # ---------------------------------------------------------------------------

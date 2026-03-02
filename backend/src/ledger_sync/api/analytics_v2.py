@@ -16,6 +16,7 @@ from sqlalchemy import desc
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import (
     Anomaly,
+    AnomalyType,
     Budget,
     CategoryTrend,
     FinancialGoal,
@@ -24,6 +25,7 @@ from ledger_sync.db.models import (
     MonthlySummary,
     NetWorthSnapshot,
     RecurringTransaction,
+    TransactionType,
     TransferFlow,
     User,
 )
@@ -173,7 +175,11 @@ def get_category_trends(
     if category:
         query = query.filter(CategoryTrend.category == category)
     if transaction_type:
-        query = query.filter(CategoryTrend.transaction_type == transaction_type)
+        try:
+            tx_type = TransactionType(transaction_type)
+        except ValueError:
+            tx_type = transaction_type
+        query = query.filter(CategoryTrend.transaction_type == tx_type)
     if start_period:
         query = query.filter(CategoryTrend.period_key >= start_period)
     if end_period:
@@ -524,7 +530,11 @@ def get_anomalies(
     )
 
     if anomaly_type:
-        query = query.filter(Anomaly.anomaly_type == anomaly_type)
+        try:
+            at = AnomalyType(anomaly_type)
+        except ValueError:
+            at = anomaly_type
+        query = query.filter(Anomaly.anomaly_type == at)
     if severity:
         query = query.filter(Anomaly.severity == severity)
     if not include_reviewed:

@@ -258,18 +258,19 @@ def get_category_breakdown(
 
     base = query.subquery()
 
+    # Reuse the same expression objects so PostgreSQL sees identical GROUP BY / SELECT
+    cat_col = func.coalesce(base.c.category, "Uncategorized")
+    subcat_col = func.coalesce(base.c.subcategory, "Other")
+
     # Aggregate by category and subcategory in SQL
     rows = (
         db.query(
-            func.coalesce(base.c.category, "Uncategorized").label("category"),
-            func.coalesce(base.c.subcategory, "Other").label("subcategory"),
+            cat_col.label("category"),
+            subcat_col.label("subcategory"),
             func.coalesce(func.sum(base.c.amount), 0).label("total"),
             func.count().label("count"),
         )
-        .group_by(
-            func.coalesce(base.c.category, "Uncategorized"),
-            func.coalesce(base.c.subcategory, "Other"),
-        )
+        .group_by(cat_col, subcat_col)
         .all()
     )
 

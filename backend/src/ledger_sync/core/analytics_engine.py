@@ -1591,9 +1591,10 @@ class AnalyticsEngine:
 
         """
         sym = self._currency_symbol
+        period_col = fmt_year_month(Transaction.date)
         monthly_query = (
             self.db.query(
-                fmt_year_month(Transaction.date).label("period"),
+                period_col.label("period"),
                 func.sum(Transaction.amount).label("total"),
             )
             .filter(Transaction.is_deleted.is_(False))
@@ -1601,7 +1602,7 @@ class AnalyticsEngine:
         )
         if self.user_id is not None:
             monthly_query = monthly_query.filter(Transaction.user_id == self.user_id)
-        monthly_expenses = monthly_query.group_by(fmt_year_month(Transaction.date)).all()
+        monthly_expenses = monthly_query.group_by(period_col).all()
 
         if len(monthly_expenses) <= 3:
             return
