@@ -68,6 +68,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Initializing database...")
         init_db()
         logger.info("Database initialized successfully")
+        logger.info("CORS allowed origins: %s", _cors_origins)
         _cleanup_stale_temp_files()
     except Exception as exc:
         logger.error("Database initialization failed: %s", exc)
@@ -95,24 +96,6 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty
 
 # GZip compression — reduces JSON payload sizes by ~80%
 app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-# CORS for frontend
-# Auto-include the origin derived from frontend_url so CORS works when
-# LEDGER_SYNC_FRONTEND_URL is set (e.g. https://sagargupta.online/ledger-sync).
-_cors_origins = list(settings.cors_origins)
-if settings.frontend_url:
-    _parsed = urlparse(settings.frontend_url)
-    _frontend_origin = f"{_parsed.scheme}://{_parsed.netloc}"
-    if _frontend_origin and _frontend_origin not in _cors_origins:
-        _cors_origins.append(_frontend_origin)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
-)
 
 
 # ─── Security Headers Middleware ─────────────────────────────────────────────
@@ -229,6 +212,24 @@ async def add_timing_header(
     elapsed_ms = (time.perf_counter() - start) * 1000
     response.headers["X-Response-Time"] = f"{elapsed_ms:.1f}ms"
     return response
+
+
+# ─── CORS (added last = outermost, so ALL responses get CORS headers) ────────
+
+_cors_origins = list(settings.cors_origins)
+if settings.frontend_url:
+    _parsed = urlparse(settings.frontend_url)
+    _frontend_origin = f"{_parsed.scheme}://{_parsed.netloc}"
+    if _frontend_origin and _frontend_origin not in _cors_origins:
+        _cors_origins.append(_frontend_origin)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 
 # ─── Include Routers ─────────────────────────────────────────────────────────
