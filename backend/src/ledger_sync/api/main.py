@@ -4,6 +4,7 @@ import secrets
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import FastAPI, Request, Response
@@ -96,9 +97,18 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # CORS for frontend
+# Auto-include the origin derived from frontend_url so CORS works when
+# LEDGER_SYNC_FRONTEND_URL is set (e.g. https://sagargupta.online/ledger-sync).
+_cors_origins = list(settings.cors_origins)
+if settings.frontend_url:
+    _parsed = urlparse(settings.frontend_url)
+    _frontend_origin = f"{_parsed.scheme}://{_parsed.netloc}"
+    if _frontend_origin and _frontend_origin not in _cors_origins:
+        _cors_origins.append(_frontend_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
