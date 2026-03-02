@@ -83,7 +83,10 @@ def get_oauth_providers() -> list[OAuthProviderConfig]:
 
 
 async def _oauth_get(
-    client: Any, url: str, *, headers: dict[str, str] | None = None,
+    client: Any,
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
     error_detail: str = "OAuth request failed",
 ) -> dict[str, Any]:
     """GET with standard error handling for OAuth APIs."""
@@ -145,7 +148,9 @@ async def google_callback(
 
     # Fetch user profile
     user_info = await _oauth_get(
-        client, _GOOGLE_USERINFO_URL, headers=_bearer(access_token),
+        client,
+        _GOOGLE_USERINFO_URL,
+        headers=_bearer(access_token),
         error_detail="Failed to fetch Google user profile",
     )
     email = user_info.get("email")
@@ -212,7 +217,9 @@ async def github_callback(
 
     # Fetch user profile
     user_info = await _oauth_get(
-        client, _GITHUB_USER_URL, headers=_bearer(access_token),
+        client,
+        _GITHUB_USER_URL,
+        headers=_bearer(access_token),
         error_detail="Failed to fetch GitHub user profile",
     )
     email = user_info.get("email")

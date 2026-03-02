@@ -141,13 +141,15 @@ def calculate_lifestyle_inflation(transactions: list[Transaction]) -> float:
 
     first_date = expenses[0].date
     first_3_months = [
-        t for t in expenses
+        t
+        for t in expenses
         if (t.date.year - first_date.year) * 12 + (t.date.month - first_date.month) < 3
     ]
 
     last_date = expenses[-1].date
     last_3_months = [
-        t for t in expenses
+        t
+        for t in expenses
         if (last_date.year - t.date.year) * 12 + (last_date.month - t.date.month) < 3
     ]
 
@@ -211,8 +213,12 @@ def find_best_worst_months(monthly_data: dict[str, dict[str, float]]) -> dict[st
         return {"best_month": None, "worst_month": None}
 
     def _to_entry(month: str, data: dict[str, float]) -> dict[str, Any]:
-        return {"month": month, "income": data["income"], "expenses": data["expenses"],
-                "surplus": data["income"] - data["expenses"]}
+        return {
+            "month": month,
+            "income": data["income"],
+            "expenses": data["expenses"],
+            "surplus": data["income"] - data["expenses"],
+        }
 
     entries = [_to_entry(m, d) for m, d in monthly_data.items()]
     return {
@@ -226,12 +232,21 @@ def calculate_convenience_spending(transactions: list[Transaction]) -> dict[str,
     expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
 
     convenience_categories = {
-        "shopping", "entertainment", "food", "dining", "restaurant", "movie", "games",
+        "shopping",
+        "entertainment",
+        "food",
+        "dining",
+        "restaurant",
+        "movie",
+        "games",
     }
 
     convenience_spending = sum(
-        (_to_decimal(t.amount) for t in expenses
-         if t.category and t.category.lower() in convenience_categories),
+        (
+            _to_decimal(t.amount)
+            for t in expenses
+            if t.category and t.category.lower() in convenience_categories
+        ),
         Decimal(0),
     )
     total_spending = sum((_to_decimal(t.amount) for t in expenses), Decimal(0))
