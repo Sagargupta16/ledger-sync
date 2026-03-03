@@ -216,10 +216,13 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
     - `TopMerchants` - Top merchants/vendors analysis
     - `EnhancedSubcategoryAnalysis` - Advanced subcategory analysis
     - `MultiCategoryTimeAnalysis` - Time-based category analysis
+    - `StandardBarChart` - Reusable bar chart wrapper with consistent theming and defaults
+    - `StandardAreaChart` - Reusable area chart wrapper with gradient fills and consistent styling
+    - `StandardPieChart` - Reusable pie/donut chart wrapper with legend defaults
   - `layout/` - Layout components (AppLayout, Sidebar)
   - `shared/` - Shared components (EmptyState, AnalyticsTimeFilter, MetricCard)
   - `transactions/` - Transaction table components
-  - `ui/` - Base UI components (shadcn-style)
+  - `ui/` - Base UI components (shadcn-style), including `chartDefaults.tsx` which exports shared Recharts configuration tokens (`GRID_DEFAULTS`, `xAxisDefaults`, `yAxisDefaults`, `LEGEND_DEFAULTS`, `BAR_RADIUS`, `shouldAnimate`, `areaGradient`, etc.) used by all chart components for consistent styling
   - `upload/` - File upload components (DropZone)
 
 #### 3. **Hooks Layer** (`src/hooks/`)

@@ -95,6 +95,10 @@ The database also includes these models (see `backend/src/ledger_sync/db/models.
 - **FinancialGoal** — Savings goals with target amounts and dates
 - **AuditLog** — Operation audit trail
 
+## Auto-Initialization
+
+The database is automatically initialized on application startup. The `init_db()` function in `db/session.py` runs when the FastAPI app starts (via the lifespan handler in `api/main.py`) and creates all tables defined by SQLAlchemy models if they do not already exist. This means you do not need to manually create tables for a fresh install -- simply starting the backend is sufficient. For schema changes after the initial setup, use Alembic migrations (see below).
+
 ## Database Operations
 
 ### Create (Insert)
