@@ -314,7 +314,7 @@ server {
 
 </details>
 
-### Docker
+### Docker — Alternative (not currently used in production)
 
 <details>
 <summary>Docker Compose setup</summary>
