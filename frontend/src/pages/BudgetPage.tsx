@@ -32,8 +32,16 @@ import {
   Tooltip,
   Cell,
   LabelList,
+  AreaChart,
+  Area,
+  Line,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS, areaGradient, areaGradientUrl } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -213,6 +221,59 @@ export default function BudgetPage() {
       Budget: r.limit,
       Spent: r.spent,
       status: r.status,
+    }))
+  }, [filteredRows])
+
+  // ─── Burn-down chart data ──────────────────────────────────────
+  const burndownData = useMemo(() => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1 // 1-based
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
+
+    // Total monthly budget across all filtered rows
+    const totalBudget = filteredRows
+      .filter((r) => r.period === 'monthly')
+      .reduce((sum, r) => sum + r.limit, 0)
+
+    if (totalBudget === 0) return []
+
+    // Build daily cumulative expense for the current month
+    const dailyExpense: number[] = new Array(daysInMonth).fill(0)
+    for (const tx of transactions) {
+      if (tx.type !== 'Expense') continue
+      if (!tx.date.startsWith(currentMonthKey)) continue
+      const dayNum = Number.parseInt(tx.date.substring(8, 10), 10)
+      if (dayNum >= 1 && dayNum <= daysInMonth) {
+        dailyExpense[dayNum - 1] += Math.abs(tx.amount)
+      }
+    }
+
+    // Cumulative sum
+    const cumulative: number[] = []
+    let runningTotal = 0
+    for (let i = 0; i < daysInMonth; i++) {
+      runningTotal += dailyExpense[i]
+      cumulative.push(runningTotal)
+    }
+
+    const todayDay = now.getDate()
+
+    return Array.from({ length: daysInMonth }, (_, i) => ({
+      day: i + 1,
+      ideal: Math.round(totalBudget - (totalBudget / daysInMonth) * (i + 1)),
+      actual: i < todayDay ? Math.round(totalBudget - cumulative[i]) : undefined,
+    }))
+  }, [filteredRows, transactions, currentMonthKey])
+
+  // ─── Radar chart data ──────────────────────────────────────────
+  const radarData = useMemo(() => {
+    return filteredRows.map((r) => ({
+      category: (r.subcategory || r.category).length > 10
+        ? (r.subcategory || r.category).slice(0, 10) + '\u2026'
+        : (r.subcategory || r.category),
+      usage: Math.round(r.percentage),
+      fullMark: 100,
     }))
   }, [filteredRows])
 
@@ -463,6 +524,132 @@ export default function BudgetPage() {
               )}
             </div>
           </motion.div>
+
+          {/* Burn-down Chart + Radar Chart */}
+          {(burndownData.length > 0 || radarData.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Budget Burn-down Chart */}
+              {burndownData.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="glass rounded-2xl border border-border p-6 shadow-xl"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-lg font-semibold">Budget Burn-down</h2>
+                      <p className="text-xs text-muted-foreground">Remaining budget pace for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-4 h-0 border-t-2 border-dashed" style={{ borderColor: '#71717a' }} />
+                        Ideal
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-4 h-0.5 rounded-full" style={{ backgroundColor: rawColors.ios.green }} />
+                        Actual
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-64">
+                    <ChartContainer>
+                      <AreaChart data={burndownData}>
+                        <defs>
+                          {areaGradient('burnActual', rawColors.ios.green, 0.35, 0.02)}
+                        </defs>
+                        <CartesianGrid {...GRID_DEFAULTS} />
+                        <XAxis
+                          {...xAxisDefaults(burndownData.length)}
+                          dataKey="day"
+                          tickFormatter={(v: number) => `${v}`}
+                        />
+                        <YAxis {...yAxisDefaults()} />
+                        <Tooltip
+                          {...chartTooltipProps}
+                          labelFormatter={(label) => `Day ${label}`}
+                          formatter={(value: number | undefined, name: string | undefined) => [
+                            value === undefined ? '' : formatCurrency(value),
+                            name === 'ideal' ? 'Ideal Pace' : 'Actual Remaining',
+                          ]}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="actual"
+                          stroke={rawColors.ios.green}
+                          fill={areaGradientUrl('burnActual')}
+                          strokeWidth={2}
+                          dot={false}
+                          connectNulls={false}
+                          isAnimationActive={shouldAnimate(burndownData.length)}
+                          animationDuration={600}
+                          animationEasing="ease-out"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="ideal"
+                          stroke="#71717a"
+                          strokeWidth={1.5}
+                          strokeDasharray="6 4"
+                          dot={false}
+                          isAnimationActive={shouldAnimate(burndownData.length)}
+                          animationDuration={600}
+                          animationEasing="ease-out"
+                        />
+                      </AreaChart>
+                    </ChartContainer>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Category Budget Radar */}
+              {radarData.length >= 3 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="glass rounded-2xl border border-border p-6 shadow-xl"
+                >
+                  <div className="mb-4">
+                    <h2 className="text-lg font-semibold">Category Usage Radar</h2>
+                    <p className="text-xs text-muted-foreground">Budget utilization (%) across all categories</p>
+                  </div>
+                  <div className="h-64 flex items-center justify-center">
+                    <ChartContainer>
+                      <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+                        <PolarGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+                        <PolarAngleAxis
+                          dataKey="category"
+                          tick={{ fill: '#71717a', fontSize: 10 }}
+                        />
+                        <PolarRadiusAxis
+                          angle={30}
+                          domain={[0, Math.max(100, ...radarData.map((d) => d.usage))]}
+                          tick={{ fill: '#52525b', fontSize: 9 }}
+                          axisLine={false}
+                        />
+                        <Radar
+                          dataKey="usage"
+                          stroke={rawColors.ios.blue}
+                          fill={rawColors.ios.blue}
+                          fillOpacity={0.15}
+                          strokeWidth={2}
+                          dot={{ r: 3, fill: rawColors.ios.blue }}
+                          isAnimationActive={shouldAnimate(radarData.length)}
+                          animationDuration={800}
+                          animationEasing="ease-out"
+                        />
+                        <Tooltip
+                          {...chartTooltipProps}
+                          formatter={(v: number | undefined) => (v === undefined ? '' : `${v}%`)}
+                        />
+                      </RadarChart>
+                    </ChartContainer>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          )}
 
           {/* Budget Rows */}
           <div className="space-y-3">
