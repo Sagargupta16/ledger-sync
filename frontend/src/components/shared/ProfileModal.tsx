@@ -60,6 +60,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
 
   // Reset account state
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetConfirmText, setResetConfirmText] = useState('')
 
   // Delete account state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -278,19 +279,19 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
               <div className="rounded-xl border border-orange-500/15 bg-orange-500/5 p-4">
                 <button
                   type="button"
-                  onClick={() => setShowResetConfirm((v) => !v)}
+                  onClick={() => { setShowResetConfirm((v) => !v); setResetConfirmText('') }}
                   className="w-full flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2">
-                    <RotateCcw size={14} className="text-ios-orange" />
-                    <span className="text-sm font-medium text-ios-orange">
+                    <RotateCcw size={14} className="text-orange-400" />
+                    <span className="text-sm font-medium text-orange-400">
                       Reset Account
                     </span>
                   </div>
                   {showResetConfirm ? (
-                    <ChevronUp size={14} className="text-ios-orange" />
+                    <ChevronUp size={14} className="text-orange-400" />
                   ) : (
-                    <ChevronDown size={14} className="text-ios-orange" />
+                    <ChevronDown size={14} className="text-orange-400" />
                   )}
                 </button>
 
@@ -305,15 +306,30 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                     >
                       <div className="pt-3 space-y-3">
                         <p className="text-xs text-zinc-400">
-                          This will delete all transactions, import history, and reset
+                          This will permanently delete all transactions, subscriptions,
+                          budgets, goals, import history, investment data, and reset
                           preferences. Your account and login method will be preserved.
                         </p>
+                        <p className="text-orange-400 text-xs font-medium">
+                          Type{' '}
+                          <span className="font-mono bg-orange-500/20 px-1 rounded">
+                            RESET
+                          </span>{' '}
+                          to confirm:
+                        </p>
+                        <input
+                          type="text"
+                          value={resetConfirmText}
+                          onChange={(e) => setResetConfirmText(e.target.value)}
+                          placeholder="Type RESET to confirm"
+                          className="w-full px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-white text-sm focus:border-orange-500/50 focus:outline-none transition-colors duration-150 ease-out"
+                        />
                         <div className="flex gap-2">
                           <button
                             type="button"
                             onClick={handleReset}
-                            disabled={resetAccount.isPending}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-orange-500/90 hover:bg-orange-500 text-white text-sm rounded-lg transition-colors duration-150 ease-out disabled:opacity-50"
+                            disabled={resetConfirmText !== 'RESET' || resetAccount.isPending}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-orange-500/90 hover:bg-orange-500 text-white text-sm rounded-lg transition-colors duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {resetAccount.isPending
                               ? 'Resetting...'
@@ -321,7 +337,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setShowResetConfirm(false)}
+                            onClick={() => { setShowResetConfirm(false); setResetConfirmText('') }}
                             className="px-3 py-1.5 bg-white/[0.06] border border-white/[0.08] text-zinc-200 text-sm rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out"
                           >
                             Cancel
@@ -341,15 +357,15 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                   className="w-full flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2">
-                    <Trash2 size={14} className="text-ios-red" />
-                    <span className="text-sm font-medium text-ios-red">
+                    <Trash2 size={14} className="text-red-400" />
+                    <span className="text-sm font-medium text-red-400">
                       Delete Account
                     </span>
                   </div>
                   {showDeleteConfirm ? (
-                    <ChevronUp size={14} className="text-ios-red" />
+                    <ChevronUp size={14} className="text-red-400" />
                   ) : (
-                    <ChevronDown size={14} className="text-ios-red" />
+                    <ChevronDown size={14} className="text-red-400" />
                   )}
                 </button>
 
@@ -367,9 +383,9 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                           Permanently delete your account and all associated data.
                           This action cannot be undone.
                         </p>
-                        <p className="text-ios-red text-xs font-medium">
+                        <p className="text-red-400 text-xs font-medium">
                           Type{' '}
-                          <span className="font-mono bg-ios-red/20 px-1 rounded">
+                          <span className="font-mono bg-red-500/20 px-1 rounded">
                             DELETE
                           </span>{' '}
                           to confirm:

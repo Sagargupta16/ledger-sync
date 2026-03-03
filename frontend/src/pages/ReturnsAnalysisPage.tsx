@@ -5,13 +5,13 @@ import { TrendingUp, TrendingDown, Banknote, Receipt, Activity } from 'lucide-re
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import {
-  AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis,
-  CartesianGrid, Tooltip, Line, PieChart, Pie, Legend,
+  AreaChart, Area, XAxis, YAxis,
+  CartesianGrid, Tooltip, Line, ReferenceLine,
 } from 'recharts'
 import {
-  chartTooltipProps, PageHeader, ChartContainer,
-  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
-  areaGradient, areaGradientUrl, shouldAnimate, BAR_RADIUS, ACTIVE_DOT, LEGEND_DEFAULTS,
+  PageHeader, ChartContainer,
+  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl,
+  shouldAnimate, ACTIVE_DOT,
 } from '@/components/ui'
 import { useMemo, useCallback } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
@@ -19,7 +19,6 @@ import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getDateKey } from '@/lib/dateUtils'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
-import { getChartColor } from '@/constants/chartColors'
 
 // ─── Helpers (unchanged business logic) ─────────────────────────────────────
 
@@ -170,16 +169,7 @@ export default function ReturnsAnalysisPage() {
   // 1. Monthly combo chart: bars for monthly P&L + cumulative line
   const monthlyComboData = useMemo(() => groupTransactionsByMonth(transactions), [transactions])
 
-  // 2. Donut chart: P&L composition
-  const compositionData = useMemo(() => [
-    { name: 'Profit', value: investmentProfit, color: rawColors.ios.green },
-    { name: 'Dividends', value: dividendIncome, color: rawColors.ios.teal },
-    { name: 'Interest', value: interestIncome, color: rawColors.ios.blue },
-    { name: 'Losses', value: investmentLoss, color: rawColors.ios.red },
-    { name: 'Fees', value: brokerFees, color: rawColors.ios.orange },
-  ].filter(d => d.value > 0), [investmentProfit, dividendIncome, interestIncome, investmentLoss, brokerFees])
-
-  // 3. Monthly returns heatmap
+  // 2. Monthly returns heatmap
   const monthlyReturns = useMemo(() => {
     return monthlyComboData.map(d => ({
       month: d.month,
@@ -221,12 +211,12 @@ export default function ReturnsAnalysisPage() {
         />
 
         {/* ── Hero Section: Big Net P&L + Composition Donut ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Left: Hero metric + quick stats */}
+        <div>
+          {/* Hero metric + quick stats */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="lg:col-span-3 glass rounded-xl p-6"
+            className="glass rounded-xl p-6"
           >
             <div className="flex items-center gap-4 mb-6">
               <div className={`p-4 rounded-2xl ${netProfitLoss >= 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
@@ -256,51 +246,6 @@ export default function ReturnsAnalysisPage() {
               ))}
             </div>
           </motion.div>
-
-          {/* Right: P&L Composition Donut */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="lg:col-span-2 glass rounded-xl p-6"
-          >
-            <p className="text-sm font-medium text-zinc-300 mb-2">P&L Composition</p>
-            {compositionData.length === 0 ? (
-              <ChartEmptyState height={220} />
-            ) : (
-              <ChartContainer height={220}>
-                <PieChart>
-                  <Pie
-                    data={compositionData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="50%"
-                    outerRadius="78%"
-                    paddingAngle={3}
-                    strokeWidth={0}
-                    isAnimationActive={shouldAnimate(compositionData.length)}
-                    animationDuration={600}
-                  >
-                    {compositionData.map((d, i) => (
-                      <Cell key={d.name} fill={d.color ?? getChartColor(i)} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    {...chartTooltipProps}
-                    formatter={(v: number | undefined) => formatCurrency(v ?? 0)}
-                  />
-                  <Legend
-                    {...LEGEND_DEFAULTS}
-                    layout="horizontal"
-                    align="center"
-                    verticalAlign="bottom"
-                  />
-                </PieChart>
-              </ChartContainer>
-            )}
-          </motion.div>
         </div>
 
         {/* ── Monthly P&L Combo Chart: Bars + Cumulative Line ── */}
@@ -321,35 +266,52 @@ export default function ReturnsAnalysisPage() {
             <ChartEmptyState height={360} />
           ) : (
             <ChartContainer height={360}>
-              <BarChart data={monthlyComboData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
+              <AreaChart
+                data={monthlyComboData.map(d => ({
+                  ...d,
+                  pos: Math.max(d.net, 0),
+                  neg: Math.min(d.net, 0),
+                }))}
+                margin={{ top: 8, right: 12, bottom: 8, left: 4 }}
+              >
                 <defs>
-                  {areaGradient('cumLine', rawColors.ios.blue, 0.15, 0)}
+                  {areaGradient('gain', rawColors.ios.green, 0.35, 0.02)}
+                  {areaGradient('loss', rawColors.ios.red, 0.35, 0.02)}
                 </defs>
                 <CartesianGrid {...GRID_DEFAULTS} />
                 <XAxis {...xAxisDefaults(monthlyComboData.length)} dataKey="month" />
                 <YAxis {...yAxisDefaults()} />
-                <Tooltip content={renderComboTooltip as never} cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }} />
-                {/* Monthly net bars — green for positive, red for negative */}
-                <Bar dataKey="net" name="Net" radius={BAR_RADIUS} maxBarSize={32}
-                  isAnimationActive={shouldAnimate(monthlyComboData.length)} animationDuration={600} animationEasing="ease-out"
-                >
-                  {monthlyComboData.map((d) => (
-                    <Cell key={d.month} fill={d.net >= 0 ? rawColors.ios.green : rawColors.ios.red} fillOpacity={0.7} />
-                  ))}
-                </Bar>
+                <Tooltip content={renderComboTooltip as never} />
+                <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
+                {/* Green area above zero */}
+                <Area
+                  type="monotone" dataKey="pos" name="net"
+                  stroke={rawColors.ios.green} strokeWidth={2}
+                  fill={areaGradientUrl('gain')} fillOpacity={1}
+                  dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.green }}
+                  isAnimationActive={shouldAnimate(monthlyComboData.length)}
+                  animationDuration={800} animationEasing="ease-out"
+                  connectNulls
+                />
+                {/* Red area below zero */}
+                <Area
+                  type="monotone" dataKey="neg" name="net"
+                  stroke={rawColors.ios.red} strokeWidth={2}
+                  fill={areaGradientUrl('loss')} fillOpacity={1}
+                  dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.red }}
+                  isAnimationActive={shouldAnimate(monthlyComboData.length)}
+                  animationDuration={800} animationEasing="ease-out"
+                  connectNulls
+                />
                 {/* Cumulative line overlay */}
                 <Line
-                  type="monotone"
-                  dataKey="cumulative"
-                  name="Cumulative"
-                  stroke={rawColors.ios.blue}
-                  strokeWidth={2.5}
-                  dot={false}
-                  activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.blue }}
+                  type="monotone" dataKey="cumulative" name="Cumulative"
+                  stroke={rawColors.ios.blue} strokeWidth={2} strokeDasharray="6 3"
+                  dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.blue }}
                   isAnimationActive={shouldAnimate(monthlyComboData.length)}
                   animationDuration={800}
                 />
-              </BarChart>
+              </AreaChart>
             </ChartContainer>
           )}
         </motion.div>
@@ -385,41 +347,6 @@ export default function ReturnsAnalysisPage() {
                 )
               })}
             </div>
-          </motion.div>
-        )}
-
-        {/* ── Cumulative Returns Area Chart ── */}
-        {monthlyComboData.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-            className="glass rounded-xl p-6"
-          >
-            <h3 className="text-lg font-semibold text-zinc-200 mb-6">Cumulative Returns</h3>
-            <ChartContainer height={280}>
-              <AreaChart data={monthlyComboData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
-                <defs>
-                  {areaGradient('cumArea', rawColors.ios.blue)}
-                </defs>
-                <CartesianGrid {...GRID_DEFAULTS} />
-                <XAxis {...xAxisDefaults(monthlyComboData.length)} dataKey="month" />
-                <YAxis {...yAxisDefaults()} />
-                <Tooltip {...chartTooltipProps} formatter={(v: number | undefined) => formatCurrency(v ?? 0)} />
-                <Area
-                  type="monotone"
-                  dataKey="cumulative"
-                  stroke={rawColors.ios.blue}
-                  strokeWidth={2}
-                  fill={areaGradientUrl('cumArea')}
-                  fillOpacity={1}
-                  dot={false}
-                  activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.blue }}
-                  isAnimationActive={shouldAnimate(monthlyComboData.length)}
-                  animationDuration={800}
-                />
-              </AreaChart>
-            </ChartContainer>
           </motion.div>
         )}
 

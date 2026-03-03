@@ -6,7 +6,6 @@ import {
   Wallet2,
   AlertTriangle,
   CalendarClock,
-  ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { rawColors } from '@/constants/colors'
@@ -317,36 +316,23 @@ export default function NotificationCenter() {
         ref={buttonRef}
         onClick={() => setIsOpen((v) => !v)}
         className={cn(
-          'w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 ease-out text-sm',
-          'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200',
+          'w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150 ease-out relative',
+          'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06]',
           isOpen && 'bg-white/[0.08] text-white',
         )}
         title="Notifications"
         aria-label={`Notifications${unreadSuffix}`}
       >
-        <div className="relative">
-          <Bell size={18} />
-          {totalCount > 0 && (
-            <span
-              className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center px-1 rounded-full text-[10px] font-bold text-white"
-              style={{
-                background: `linear-gradient(135deg, ${rawColors.ios.red}, ${rawColors.ios.pink})`,
-                boxShadow: `0 2px 8px ${rawColors.ios.red}60`,
-              }}
-            >
-              {totalCount > 99 ? '99+' : totalCount}
-            </span>
-          )}
-        </div>
-        <span className="text-sm">Notifications</span>
+        <Bell size={18} />
         {totalCount > 0 && (
-          <ChevronRight
-            size={14}
-            className={cn(
-              'ml-auto transition-transform duration-200',
-              isOpen && 'rotate-90',
-            )}
-          />
+          <span
+            className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 flex items-center justify-center px-0.5 rounded-full text-[9px] font-bold text-white"
+            style={{
+              background: `linear-gradient(135deg, ${rawColors.ios.red}, ${rawColors.ios.pink})`,
+            }}
+          >
+            {totalCount > 9 ? '9+' : totalCount}
+          </span>
         )}
       </button>
 

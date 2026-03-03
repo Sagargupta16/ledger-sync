@@ -2,18 +2,23 @@ import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { useMemo } from 'react'
 import { useMonthlyAggregation } from '@/hooks/useAnalytics'
-import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { SEMANTIC_COLORS } from '@/constants/chartColors'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate } from '@/components/ui/chartDefaults'
+import { rawColors } from '@/constants/colors'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, ACTIVE_DOT } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+
+function formatMonth(v: string) {
+  const d = new Date(v + '-01')
+  return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+}
 
 export default function CashFlowForecast() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
 
   const forecastData = useMemo(() => {
-    if (!monthlyData) return { historical: [], forecast: [], combined: [], insights: null }
+    if (!monthlyData) return null
 
     const months = Object.entries(monthlyData)
       .map(([month, data]) => ({
@@ -22,125 +27,137 @@ export default function CashFlowForecast() {
       }))
       .sort((a, b) => a.month.localeCompare(b.month))
 
-    if (months.length < 3) return { historical: [], forecast: [], combined: [], insights: null }
+    if (months.length < 3) return null
 
-    // Determine if current month is incomplete
+    // Exclude incomplete current month
     const today = new Date()
     const currentMonth = today.toISOString().slice(0, 7)
-    const dayOfMonth = today.getDate()
+    const isIncomplete = today.getDate() < 25
+    const last = months.at(-1)!
+    const historicalMonths = (last.month === currentMonth && isIncomplete)
+      ? months.slice(0, -1) : months
+    const lastComplete = historicalMonths.at(-1)!
 
-    // Exclude current month from historical data if it's incomplete (< 25 days)
-    const isCurrentMonthIncomplete = dayOfMonth < 25
-    const lastMonth = months.at(-1)!
+    if (historicalMonths.length < 3) return null
 
-    let historicalMonths = months
-    let lastCompleteMonth = lastMonth
-
-    if (lastMonth.month === currentMonth && isCurrentMonthIncomplete) {
-      historicalMonths = months.slice(0, -1)
-      lastCompleteMonth = historicalMonths.at(-1)!
-    }
-
-    if (historicalMonths.length < 3) return { historical: [], forecast: [], combined: [], insights: null }
-
-    // Calculate trends using linear regression on last 6 complete months
-    const recentMonths = historicalMonths.slice(-6)
-
-    const avgIncome = recentMonths.reduce((sum, m) => sum + m.income, 0) / recentMonths.length
-    const avgExpense = recentMonths.reduce((sum, m) => sum + m.expense, 0) / recentMonths.length
+    // Trend from last 6 complete months
+    const recent = historicalMonths.slice(-6)
+    const avgIncome = recent.reduce((s, m) => s + m.income, 0) / recent.length
+    const avgExpense = recent.reduce((s, m) => s + m.expense, 0) / recent.length
     const avgSavings = avgIncome - avgExpense
 
-    // Calculate growth rates
-    const incomeGrowth =
-      recentMonths.length > 1 && recentMonths[0].income > 0
-        ? (recentMonths.at(-1)!.income - recentMonths[0].income) /
-          recentMonths[0].income /
-          (recentMonths.length - 1)
-        : 0
-    const expenseGrowth =
-      recentMonths.length > 1 && recentMonths[0].expense > 0
-        ? (recentMonths.at(-1)!.expense - recentMonths[0].expense) /
-          recentMonths[0].expense /
-          (recentMonths.length - 1)
-        : 0
+    const incomeGrowth = recent.length > 1 && recent[0].income > 0
+      ? (recent.at(-1)!.income - recent[0].income) / recent[0].income / (recent.length - 1) : 0
+    const expenseGrowth = recent.length > 1 && recent[0].expense > 0
+      ? (recent.at(-1)!.expense - recent[0].expense) / recent[0].expense / (recent.length - 1) : 0
 
-    // Generate 6-month forecast starting from the month AFTER the last complete month
-    const lastDate = new Date(lastCompleteMonth.month + '-01')
+    // Volatility for confidence bands
+    const savingsValues = recent.map(m => m.income - m.expense)
+    const savingsAvg = savingsValues.reduce((s, v) => s + v, 0) / savingsValues.length
+    const variance = savingsValues.reduce((s, v) => s + (v - savingsAvg) ** 2, 0) / savingsValues.length
+    const stdDev = Math.sqrt(variance)
+
+    // Generate 6-month forecast
+    const lastDate = new Date(lastComplete.month + '-01')
+    const offset = (last.month === currentMonth && isIncomplete) ? 0 : 1
     const forecast = []
-    let projectedIncome = lastCompleteMonth.income
-    let projectedExpense = lastCompleteMonth.expense
+    let projIncome = lastComplete.income
+    let projExpense = lastComplete.expense
 
-    // If current month is incomplete, include it as first forecast month
-    const forecastStartOffset = lastMonth.month === currentMonth && isCurrentMonthIncomplete ? 0 : 1
-
-    for (let i = forecastStartOffset; i <= forecastStartOffset + 5; i++) {
-      const forecastDate = new Date(lastDate)
-      forecastDate.setMonth(forecastDate.getMonth() + i)
-      const monthStr = forecastDate.toISOString().slice(0, 7)
-
-      // Apply growth with some dampening
-      projectedIncome = projectedIncome * (1 + incomeGrowth * 0.5)
-      projectedExpense = projectedExpense * (1 + expenseGrowth * 0.5)
-
+    for (let i = offset; i <= offset + 11; i++) {
+      const fd = new Date(lastDate)
+      fd.setMonth(fd.getMonth() + i)
+      const ms = fd.toISOString().slice(0, 7)
+      projIncome = projIncome * (1 + incomeGrowth * 0.5)
+      projExpense = projExpense * (1 + expenseGrowth * 0.5)
+      const net = projIncome - projExpense
+      const monthsOut = i - offset + 1
+      // Confidence band widens over time
+      const band = stdDev * 0.8 * Math.sqrt(monthsOut)
       forecast.push({
-        month: monthStr,
-        income: Math.round(projectedIncome),
-        expense: Math.round(projectedExpense),
-        net_savings: Math.round(projectedIncome - projectedExpense),
+        month: ms,
+        income: Math.round(projIncome),
+        expense: Math.round(projExpense),
+        net: Math.round(net),
+        upper: Math.round(net + band),
+        lower: Math.round(net - band),
         isForecast: true,
       })
     }
 
-    // Historical data (last 12 complete months)
-    const historical = historicalMonths.slice(-12).map((m) => ({
-      ...m,
+    // Historical (last 12)
+    const historical = historicalMonths.slice(-12).map(m => ({
+      month: m.month,
+      income: m.income,
+      expense: m.expense,
+      net: m.income - m.expense,
       isForecast: false,
     }))
 
-    // Calculate insights
-    const totalForecastSavings = forecast.reduce((sum, f) => sum + f.net_savings, 0)
-    const monthsUntilNegative = forecast.findIndex((f) => f.net_savings < 0)
+    // Combined data with income, expense, net + forecast variants
+    const lastHist = historical.at(-1)!
+    type CombinedPoint = {
+      month: string; label: string; isForecast: boolean
+      income: number | undefined; expense: number | undefined; net: number | undefined
+      forecastIncome: number | undefined; forecastExpense: number | undefined; forecastNet: number | undefined
+      upper: number | undefined; lower: number | undefined
+    }
+    const combined: CombinedPoint[] = [
+      ...historical.map(h => ({
+        month: h.month, label: formatMonth(h.month), isForecast: false,
+        income: h.income, expense: h.expense, net: h.net,
+        forecastIncome: undefined as number | undefined, forecastExpense: undefined as number | undefined,
+        forecastNet: undefined as number | undefined,
+        upper: undefined as number | undefined, lower: undefined as number | undefined,
+      })),
+      // Bridge point
+      {
+        month: lastHist.month, label: formatMonth(lastHist.month), isForecast: false,
+        income: lastHist.income, expense: lastHist.expense, net: lastHist.net,
+        forecastIncome: lastHist.income, forecastExpense: lastHist.expense, forecastNet: lastHist.net,
+        upper: lastHist.net, lower: lastHist.net,
+      },
+      ...forecast.map(f => ({
+        month: f.month, label: formatMonth(f.month), isForecast: true,
+        income: undefined as number | undefined, expense: undefined as number | undefined, net: undefined as number | undefined,
+        forecastIncome: f.income, forecastExpense: f.expense, forecastNet: f.net,
+        upper: f.upper, lower: f.lower,
+      })),
+    ]
+    // Remove duplicate bridge
+    combined.splice(historical.length - 1, 1)
+
+    // Bar data — last 6 historical + 6 forecast
+    const barData = [
+      ...historical.slice(-6).map(h => ({ month: h.month, label: formatMonth(h.month), income: h.income, expense: h.expense, isForecast: false })),
+      ...forecast.map(f => ({ month: f.month, label: formatMonth(f.month), income: f.income, expense: f.expense, isForecast: true })),
+    ]
+
+    const totalForecastSavings = forecast.reduce((s, f) => s + f.net, 0)
+    const monthsUntilNegative = forecast.findIndex(f => f.net < 0)
 
     return {
-      historical,
-      forecast,
-      combined: [...historical, ...forecast].map((d, i, arr) => {
-        // For the last historical point and all forecast points, add forecast keys
-        // so dashed overlay lines connect from the boundary
-        const isLastHistorical = !d.isForecast && arr[i + 1]?.isForecast
-        const showForecast = d.isForecast || isLastHistorical
-        return {
-          ...d,
-          forecastIncome: showForecast ? d.income : undefined,
-          forecastExpense: showForecast ? d.expense : undefined,
-        }
-      }),
+      combined, barData,
+      forecastStartMonth: forecast[0]?.month,
       insights: {
-        avgIncome,
-        avgExpense,
-        avgSavings,
+        avgIncome, avgExpense, avgSavings,
         incomeGrowth: incomeGrowth * 100,
         expenseGrowth: expenseGrowth * 100,
-        projectedSavings6m: totalForecastSavings,
+        projectedSavings: totalForecastSavings,
         monthsUntilNegative: monthsUntilNegative === -1 ? null : monthsUntilNegative + 1,
-        trend: avgSavings > 0 ? 'positive' : 'negative',
+        trend: avgSavings > 0 ? 'positive' as const : 'negative' as const,
       },
     }
   }, [monthlyData])
 
   if (isLoading) {
-    return (
-      <div className="glass rounded-2xl border border-border p-6 animate-pulse">
-        <div className="h-8 bg-muted rounded w-1/3 mb-4" />
-        <div className="h-64 bg-muted rounded" />
-      </div>
-    )
+    return <div className="glass rounded-2xl p-6 animate-pulse"><div className="h-8 bg-white/[0.04] rounded w-1/3 mb-4" /><div className="h-64 bg-white/[0.04] rounded" /></div>
   }
 
-  if (!forecastData.combined?.length) {
+  if (!forecastData) {
     return (
-      <div className="glass rounded-2xl border border-border p-6">
-        <h3 className="text-lg font-semibold mb-2">Cash Flow Forecast</h3>
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-semibold text-zinc-200 mb-2">Cash Flow Forecast</h3>
         <ChartEmptyState message="Need at least 3 months of data for forecasting." />
       </div>
     )
@@ -149,103 +166,127 @@ export default function CashFlowForecast() {
   const { insights } = forecastData
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6 shadow-xl"
-    >
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl ${insights?.trend === 'positive' ? 'bg-ios-green/20' : 'bg-ios-red/20'}`}>
-            {insights?.trend === 'positive' ? (
-              <TrendingUp className="w-6 h-6 text-ios-green" />
-            ) : (
-              <TrendingDown className="w-6 h-6 text-ios-red" />
-            )}
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      {/* ── Header ────────────────────────────────────────────────── */}
+      <div className="glass rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className={`p-3 rounded-xl ${insights.trend === 'positive' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+              {insights.trend === 'positive'
+                ? <TrendingUp className="w-6 h-6 text-green-400" />
+                : <TrendingDown className="w-6 h-6 text-red-400" />}
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-zinc-200">Future Cash Flow Forecast</h3>
+              <p className="text-xs text-zinc-500">Projected income, expenses & net savings</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold">6-Month Cash Flow Forecast</h3>
-            <p className="text-sm text-muted-foreground">Based on your spending patterns</p>
-          </div>
+          {insights.monthsUntilNegative && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-medium">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Deficit in {insights.monthsUntilNegative}mo
+            </div>
+          )}
         </div>
-        {insights?.monthsUntilNegative && (
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-ios-yellow/20 text-ios-yellow text-sm">
-            <AlertTriangle className="w-4 h-4" />
-            <span>Deficit in {insights.monthsUntilNegative} months</span>
-          </div>
-        )}
-      </div>
 
-      {/* Chart */}
-      <div className="h-64 mb-6">
-        <ChartContainer>
-          <AreaChart data={forecastData.combined}>
+        {/* ── Net Savings Chart with Confidence Cone ──────────────── */}
+        <ChartContainer height={280}>
+          <AreaChart data={forecastData.combined} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <defs>
-              {areaGradient('income', SEMANTIC_COLORS.income)}
-              {areaGradient('expense', SEMANTIC_COLORS.expense)}
+              {areaGradient('netSavings', rawColors.ios.blue, 0.2, 0.02)}
+              <linearGradient id="gradient-cone" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={rawColors.ios.blue} stopOpacity={0.12} />
+                <stop offset="100%" stopColor={rawColors.ios.blue} stopOpacity={0.02} />
+              </linearGradient>
             </defs>
             <CartesianGrid {...GRID_DEFAULTS} />
-            <XAxis
-              {...xAxisDefaults(forecastData.combined.length)}
-              dataKey="month"
-              tickFormatter={(v) => {
-                const d = new Date(v + '-01')
-                return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-              }}
-            />
+            <XAxis {...xAxisDefaults(forecastData.combined.length)} dataKey="label" />
             <YAxis {...yAxisDefaults()} />
             <Tooltip
               {...chartTooltipProps}
-              formatter={(value: number | undefined, name: string | undefined) => [
-                value === undefined ? '' : formatCurrency(value),
-                name === 'income' ? 'Income' : 'Expenses',
-              ]}
-              labelFormatter={(label) => {
-                const d = new Date(label + '-01')
-                const isForecast = forecastData.forecast.some((f) => f.month === label)
-                return `${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}${isForecast ? ' (Forecast)' : ''}`
+              formatter={(value: number | undefined, name: string | undefined) => {
+                if (value === undefined) return ['', '']
+                const labels: Record<string, string> = {
+                  income: 'Income', expense: 'Expenses', net: 'Net Savings',
+                  forecastIncome: 'Income (Forecast)', forecastExpense: 'Expenses (Forecast)',
+                  forecastNet: 'Net (Forecast)', upper: 'Optimistic', lower: 'Conservative',
+                }
+                return [formatCurrency(value), labels[name ?? ''] ?? name]
               }}
             />
-            <ReferenceLine
-              x={forecastData.historical.at(-1)?.month}
-              stroke="rgba(255,255,255,0.3)"
-              strokeDasharray="3 3"
-              label={{ value: 'Forecast →', position: 'top', fill: '#71717a', fontSize: 10 }}
-            />
-            <Area type="monotone" dataKey="income" stroke={SEMANTIC_COLORS.income} fill={areaGradientUrl('income')} strokeWidth={2} dot={false} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(forecastData.combined.length)} />
-            <Area type="monotone" dataKey="expense" stroke={SEMANTIC_COLORS.expense} fill={areaGradientUrl('expense')} strokeWidth={2} dot={false} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(forecastData.combined.length)} />
-            <Line type="monotone" dataKey="forecastIncome" stroke={SEMANTIC_COLORS.income} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} legendType="none" />
-            <Line type="monotone" dataKey="forecastExpense" stroke={SEMANTIC_COLORS.expense} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} legendType="none" />
+            <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
+            {forecastData.forecastStartMonth && (
+              <ReferenceLine
+                x={formatMonth(forecastData.forecastStartMonth)}
+                stroke="rgba(255,255,255,0.2)"
+                strokeDasharray="4 4"
+              />
+            )}
+            {/* Confidence band (upper/lower) */}
+            <Area type="monotone" dataKey="upper" stroke="none" fill="url(#gradient-cone)" fillOpacity={1} connectNulls isAnimationActive={false} legendType="none" />
+            <Area type="monotone" dataKey="lower" stroke="none" fill="#000" fillOpacity={0.8} connectNulls isAnimationActive={false} legendType="none" />
+            {/* Historical income/expense lines */}
+            <Area type="monotone" dataKey="income" stroke={rawColors.ios.green} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={800} strokeOpacity={0.5} legendType="none" />
+            <Area type="monotone" dataKey="expense" stroke={rawColors.ios.red} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={800} strokeOpacity={0.5} legendType="none" />
+            {/* Forecast income/expense (dashed, faded) */}
+            <Area type="monotone" dataKey="forecastIncome" stroke={rawColors.ios.green} strokeWidth={1.5} strokeDasharray="6 4" fill="none" dot={false} connectNulls isAnimationActive={false} strokeOpacity={0.35} legendType="none" />
+            <Area type="monotone" dataKey="forecastExpense" stroke={rawColors.ios.red} strokeWidth={1.5} strokeDasharray="6 4" fill="none" dot={false} connectNulls isAnimationActive={false} strokeOpacity={0.35} legendType="none" />
+            {/* Historical net savings (main line) */}
+            <Area type="monotone" dataKey="net" stroke={rawColors.ios.blue} strokeWidth={2.5} fill={areaGradientUrl('netSavings')} fillOpacity={1} dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.blue }} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={800} legendType="none" />
+            {/* Forecast net savings (dashed) */}
+            <Area type="monotone" dataKey="forecastNet" stroke={rawColors.ios.purple} strokeWidth={2} strokeDasharray="8 4" fill="none" dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.purple }} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={800} legendType="none" />
           </AreaChart>
         </ChartContainer>
+
+        {/* Legend */}
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-3 text-[11px] text-zinc-500">
+          <span className="flex items-center gap-1.5">{' '}
+            <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: rawColors.ios.green, opacity: 0.5 }} />{' '}
+            Income
+          </span>
+          <span className="flex items-center gap-1.5">{' '}
+            <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: rawColors.ios.red, opacity: 0.5 }} />{' '}
+            Expenses
+          </span>
+          <span className="flex items-center gap-1.5">{' '}
+            <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: rawColors.ios.blue }} />{' '}
+            Net Savings
+          </span>
+          <span className="flex items-center gap-1.5">{' '}
+            <span className="w-3 h-0 border-t border-dashed" style={{ borderColor: rawColors.ios.purple }} />{' '}
+            Forecast
+          </span>
+          <span className="flex items-center gap-1.5">{' '}
+            <span className="w-3 h-1.5 rounded-sm bg-blue-500/15" />{' '}
+            Confidence
+          </span>
+        </div>
       </div>
 
-      {/* Insights */}
-      {insights && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="p-3 rounded-xl bg-ios-green/10 border border-ios-green/20">
-            <p className="text-xs text-muted-foreground mb-1">Avg Monthly Income</p>
-            <p className="text-lg font-bold text-ios-green">{formatCurrencyShort(insights.avgIncome)}</p>
-            <p className="text-xs text-muted-foreground">
-              {insights.incomeGrowth > 0 ? '↑' : '↓'} {Math.abs(insights.incomeGrowth).toFixed(1)}% trend
-            </p>
-          </div>
-          <div className="p-3 rounded-xl bg-ios-red/10 border border-ios-red/20">
-            <p className="text-xs text-muted-foreground mb-1">Avg Monthly Expenses</p>
-            <p className="text-lg font-bold text-ios-red">{formatCurrencyShort(insights.avgExpense)}</p>
-            <p className="text-xs text-muted-foreground">
-              {insights.expenseGrowth > 0 ? '↑' : '↓'} {Math.abs(insights.expenseGrowth).toFixed(1)}% trend
-            </p>
-          </div>
-          <div className="p-3 rounded-xl bg-ios-blue/10 border border-ios-blue/20">
-            <p className="text-xs text-muted-foreground mb-1">6-Month Projected Savings</p>
-            <p className={`text-lg font-bold ${insights.projectedSavings6m >= 0 ? 'text-ios-blue' : 'text-ios-red'}`}>
-              {formatCurrencyShort(insights.projectedSavings6m)}
-            </p>
-            <p className="text-xs text-muted-foreground">Based on current trends</p>
-          </div>
+      {/* ── Insight Cards ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">Avg Monthly Income</p>
+          <p className="text-xl font-bold text-green-400">{formatCurrencyShort(insights.avgIncome)}</p>
+          <p className="text-xs text-zinc-500 mt-1">
+            {insights.incomeGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.incomeGrowth).toFixed(1)}% monthly trend
+          </p>
         </div>
-      )}
+        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">Avg Monthly Expenses</p>
+          <p className="text-xl font-bold text-red-400">{formatCurrencyShort(insights.avgExpense)}</p>
+          <p className="text-xs text-zinc-500 mt-1">
+            {insights.expenseGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.expenseGrowth).toFixed(1)}% monthly trend
+          </p>
+        </div>
+        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">1-Year Projected Savings</p>
+          <p className={`text-xl font-bold ${insights.projectedSavings >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+            {insights.projectedSavings >= 0 ? '+' : ''}{formatCurrencyShort(insights.projectedSavings)}
+          </p>
+          <p className="text-xs text-zinc-500 mt-1">Based on current trends</p>
+        </div>
+      </div>
     </motion.div>
   )
 }

@@ -30,7 +30,6 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants'
-import { rawColors } from '@/constants/colors'
 import { cn } from '@/lib/cn'
 import SidebarSection from './SidebarSection'
 import SidebarItem from './SidebarItem'
@@ -150,74 +149,6 @@ function BrandHeader({
   )
 }
 
-function UserFooter({
-  user,
-  onOpenProfile,
-  onLogout,
-  isPending,
-}: Readonly<{
-  user: { full_name?: string | null; email: string } | null
-  onOpenProfile: () => void
-  onLogout: () => void
-  isPending: boolean
-}>) {
-  if (!user) return null
-
-  const initials = (user.full_name || user.email)[0].toUpperCase()
-
-  return (
-    <div className="border-t border-white/[0.06] p-3">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onOpenProfile}
-          className="flex-shrink-0 group/avatar"
-          title="View Profile"
-        >
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover/avatar:scale-105"
-            style={{
-              background: `linear-gradient(135deg, ${rawColors.ios.purple}, ${rawColors.ios.pink})`,
-            }}
-          >
-            <span className="text-white font-semibold text-xs">{initials}</span>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenProfile}
-          className="flex-1 min-w-0 text-left"
-        >
-          <p className="text-[13px] font-semibold text-white truncate leading-tight">
-            {user.full_name || user.email.split('@')[0]}
-          </p>
-          <p className="text-xs text-zinc-500 truncate leading-tight">
-            {user.email}
-          </p>
-        </button>
-
-        <Link
-          to={ROUTES.SETTINGS}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.06] transition-colors duration-150"
-          title="Settings"
-        >
-          <Settings2 size={15} />
-        </Link>
-
-        <button
-          type="button"
-          onClick={onLogout}
-          disabled={isPending}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 disabled:opacity-50"
-          title="Sign out"
-        >
-          <LogOut size={15} />
-        </button>
-      </div>
-    </div>
-  )
-}
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -351,27 +282,32 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          {/* Bottom utility section */}
-          <div className="border-t border-white/[0.06] px-2 py-2 space-y-0.5">
-            <NotificationCenter />
-            {utilityItems.map((item) => (
-              <SidebarItem
-                key={item.path}
-                to={item.path}
-                icon={item.icon}
-                label={item.label}
-                onNavigate={closeMobile}
-              />
-            ))}
+          {/* Bottom icon bar */}
+          <div className="border-t border-white/[0.06] px-3 py-2.5">
+            <div className="flex items-center justify-center gap-1">
+              <NotificationCenter />
+              {utilityItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={closeMobile}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors duration-150"
+                  title={item.label}
+                >
+                  <item.icon size={18} />
+                </Link>
+              ))}
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={logout.isPending}
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 disabled:opacity-50"
+                title="Sign out"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
           </div>
-
-          {/* User profile footer */}
-          <UserFooter
-            user={user}
-            onOpenProfile={() => setShowProfile(true)}
-            onLogout={handleLogout}
-            isPending={logout.isPending}
-          />
         </div>
       </aside>
 
