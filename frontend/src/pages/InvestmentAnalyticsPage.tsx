@@ -131,8 +131,42 @@ export default function InvestmentAnalyticsPage() {
   // Calculate portfolio metrics - use filtered totals
   const totalInvestmentValue = filteredInvestmentTotals.total
   
-  // Simple return calculation based on category breakdown of income
-  const investmentReturns = totalInvestmentValue * 0.05 // Assume 5% average returns
+  // Compute actual Net Investment P&L — same logic as ReturnsAnalysisPage
+  const netInvestmentPL = useMemo(() => {
+    const txText = (tx: { category: string; note?: string; subcategory?: string }) =>
+      `${tx.category} ${tx.note ?? ''} ${tx.subcategory ?? ''}`.toLowerCase()
+
+    const filterSum = (type: string, test: (l: string) => boolean, investOnly = false) =>
+      transactions
+        .filter(tx => {
+          if (tx.type !== type) return false
+          const lower = txText(tx)
+          if (investOnly) {
+            const cat = tx.category.toLowerCase()
+            if (!cat.includes('investment') && !cat.includes('stock') && !cat.includes('trading')) return false
+          }
+          return test(lower)
+        })
+        .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+
+    const dividendIncome = filterSum('Income', l => l.includes('dividend') || l.includes('divid'))
+    const interestIncome = filterSum('Income', l => l.includes('interest') || l.includes('int.') || l.includes('int cr'))
+    const investmentProfit = filterSum('Income', l => l.includes('profit') || l.includes('gain') || l.includes('realized'))
+    const brokerFees = filterSum('Expense', l =>
+      (l.includes('broker') && (l.includes('charge') || l.includes('fee'))) ||
+      l.includes('brokerage') ||
+      (l.includes('demat') && l.includes('charge')) ||
+      (l.includes('trading') && (l.includes('charge') || l.includes('fee'))) ||
+      (l.includes('transaction') && l.includes('charge')),
+      true)
+    const investmentLoss = filterSum('Expense', l =>
+      !l.includes('broker') && !l.includes('brokerage') && (l.includes('loss') || l.includes('write')),
+      true)
+
+    return (investmentProfit + dividendIncome + interestIncome) - (investmentLoss + brokerFees)
+  }, [transactions])
+
+  const plPercent = totalInvestmentValue > 0 ? (netInvestmentPL / totalInvestmentValue) * 100 : 0
 
   // Monthly investment target from preferences
   const monthlyInvestmentTarget = preferences?.monthly_investment_target ?? 0
@@ -366,7 +400,7 @@ export default function InvestmentAnalyticsPage() {
         <div className={`grid grid-cols-1 sm:grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
           <MetricCard title="Total Investment Value" value={formatCurrency(totalInvestmentValue)} icon={TrendingUp} color="green" isLoading={isLoading} />
           <MetricCard title="Portfolio Assets" value={investmentAccounts.length} icon={PieChart} color="blue" isLoading={isLoading} />
-          <MetricCard title="Est. Returns (5%)" value={formatCurrency(investmentReturns)} icon={DollarSign} color="purple" isLoading={isLoading} />
+          <MetricCard title="Net Investment P&L" value={`${netInvestmentPL >= 0 ? '+' : ''}${formatCurrency(netInvestmentPL)}`} subtitle={`${plPercent >= 0 ? '+' : ''}${formatPercent(plPercent)} of portfolio`} icon={DollarSign} color={netInvestmentPL >= 0 ? 'green' : 'red'} isLoading={isLoading} />
           {monthlyInvestmentTarget > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}

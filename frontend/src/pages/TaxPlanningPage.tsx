@@ -18,7 +18,9 @@ import {
 } from '@/lib/taxCalculator'
 import type { TaxSlab, SlabBreakdownEntry } from '@/lib/taxCalculator'
 import type { Transaction } from '@/types'
-import { PageHeader } from '@/components/ui'
+import { PageHeader, ChartContainer, chartTooltipProps, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS, ACTIVE_DOT } from '@/components/ui'
+import { BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import TaxSummaryCards from '@/components/analytics/TaxSummaryCards'
 import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
@@ -664,7 +666,7 @@ export default function TaxPlanningPage() {
         </motion.div>
 
         {/* ── Tax Saving Suggestions ─────────────────────────────── */}
-        <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl mt-6">
+        <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 md:p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2.5 bg-ios-green/20 rounded-xl">
               <TrendingUp className="w-5 h-5 text-ios-green" />
@@ -702,9 +704,73 @@ export default function TaxPlanningPage() {
           </div>
         </motion.div>
 
+        {/* ── Yearly Tax History Chart ──────────────────────────── */}
+        {fyList.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="glass rounded-2xl border border-border p-4 md:p-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-blue-500/10 rounded-xl">
+                <TrendingUp className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Tax Paid Per Year</h3>
+                <p className="text-xs text-muted-foreground">Annual tax with cumulative trend</p>
+              </div>
+            </div>
+            {(() => {
+              const yearlyTaxData = fyList.slice().reverse().map(fy => {
+                const data = transactionsByFY[fy]
+                if (!data) return { fy, tax: 0, income: 0, cumulative: 0 }
+                // Use taxableIncome if classified, otherwise fall back to total income
+                const taxableAmt = (data.taxableIncome > 0) ? data.taxableIncome : data.income
+                const salaryMonths = data.salaryMonths?.size || 0
+                const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
+                return { fy, tax: Math.round(computed.taxAlreadyPaid), income: Math.round(computed.grossTaxableIncome), cumulative: 0 }
+              })
+              let cum = 0
+              for (const d of yearlyTaxData) { cum += d.tax; d.cumulative = cum }
+              if (yearlyTaxData.every(d => d.tax === 0 && d.income === 0)) return <ChartEmptyState height={280} message="No tax liability found across years" />
+              return (
+                <ChartContainer height={300}>
+                  <BarChart data={yearlyTaxData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
+                    <CartesianGrid {...GRID_DEFAULTS} />
+                    <XAxis {...xAxisDefaults(yearlyTaxData.length)} dataKey="fy" />
+                    <YAxis {...yAxisDefaults()} />
+                    <Tooltip
+                      {...chartTooltipProps}
+                      formatter={(value: number | undefined, name: string | undefined) => {
+                        if (value === undefined) return ['', '']
+                        const labels: Record<string, string> = { tax: 'Tax Paid', cumulative: 'Cumulative', income: 'Income' }
+                        return [formatCurrency(value), labels[name ?? ''] ?? name]
+                      }}
+                      cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                    />
+                    <Bar dataKey="tax" name="tax" fill={rawColors.ios.red} fillOpacity={0.7} radius={BAR_RADIUS} maxBarSize={40}
+                      isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={600} animationEasing="ease-out"
+                    />
+                    <Line type="monotone" dataKey="cumulative" name="cumulative" stroke={rawColors.ios.blue} strokeWidth={2} strokeDasharray="6 3"
+                      dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.blue }}
+                      isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={800}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              )
+            })()}
+          </motion.div>
+        )}
+
         {/* ── Regime Comparison: When Old is Better ──────────────── */}
         {newRegimeAvailable && (
-        <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl mt-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="glass rounded-2xl border border-border p-4 md:p-6"
+        >
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2.5 bg-ios-purple/20 rounded-xl">
               <ChevronRight className="w-5 h-5 text-ios-purple" />
