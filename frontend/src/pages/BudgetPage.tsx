@@ -1,5 +1,4 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import {
   Target,
   Plus,
@@ -15,7 +14,6 @@ import {
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { getSmartInterval } from '@/lib/chartUtils'
 import { useCategoryBreakdown } from '@/hooks/useAnalytics'
 import StatCard from '@/pages/year-in-review/StatCard'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -35,7 +33,7 @@ import {
   Cell,
   LabelList,
 } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -444,17 +442,17 @@ export default function BudgetPage() {
               ) : (
                 <ChartContainer>
                   <BarChart data={chartData} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(chartData.length, dims.maxXLabels)} angle={dims.angleXLabels ? -20 : 0} textAnchor={dims.angleXLabels ? 'end' : 'middle'} height={50} />
-                    <YAxis tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} />
+                    <CartesianGrid {...GRID_DEFAULTS} />
+                    <XAxis {...xAxisDefaults(chartData.length, { angle: dims.angleXLabels ? -20 : undefined, height: 50 })} dataKey="name" />
+                    <YAxis {...yAxisDefaults()} />
                     <Tooltip
                       {...chartTooltipProps}
                       formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
                     />
-                    <Bar dataKey="Budget" fill={rawColors.ios.blue} radius={[4, 4, 0, 0]} opacity={0.5}>
+                    <Bar dataKey="Budget" fill={rawColors.ios.blue} radius={BAR_RADIUS} opacity={0.5} isAnimationActive={shouldAnimate(chartData.length)} animationDuration={600} animationEasing="ease-out">
                       {dims.showBarLabels && <LabelList dataKey="Budget" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                     </Bar>
-                    <Bar dataKey="Spent" radius={[4, 4, 0, 0]} onClick={(data: { name?: string }) => { if (data?.name) navigate(`/transactions?category=${encodeURIComponent(data.name)}`) }} style={{ cursor: 'pointer' }}>
+                    <Bar dataKey="Spent" radius={BAR_RADIUS} isAnimationActive={shouldAnimate(chartData.length)} animationDuration={600} animationEasing="ease-out" onClick={(data: { name?: string }) => { if (data?.name) navigate(`/transactions?category=${encodeURIComponent(data.name)}`) }} style={{ cursor: 'pointer' }}>
                       {dims.showBarLabels && <LabelList dataKey="Spent" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                       {chartData.map((entry) => (
                         <Cell key={entry.name} fill={statusConfig[entry.status].color} />

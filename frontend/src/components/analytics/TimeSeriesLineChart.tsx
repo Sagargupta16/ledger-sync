@@ -1,8 +1,10 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
-import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
-import { CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
-import { CHART_ANIMATION_THRESHOLD } from '@/constants'
+import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import {
+  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, LEGEND_DEFAULTS, shouldAnimate,
+} from '@/components/ui/chartDefaults'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface TimeSeriesLineChartProps {
   readonly chartData: Array<Record<string, number | string>>
@@ -10,6 +12,7 @@ interface TimeSeriesLineChartProps {
   readonly colors: string[]
   readonly legendFormatter?: (value: string) => string
   readonly emptyMessage?: string
+  readonly height?: number
 }
 
 export default function TimeSeriesLineChart({
@@ -18,44 +21,31 @@ export default function TimeSeriesLineChart({
   colors,
   legendFormatter,
   emptyMessage = 'No data available',
+  height = 400,
 }: TimeSeriesLineChartProps) {
   if (chartData.length === 0 || seriesKeys.length === 0) {
-    return (
-      <div className="h-100 flex items-center justify-center text-muted-foreground">
-        {emptyMessage}
-      </div>
-    )
+    return <ChartEmptyState message={emptyMessage} height={height} />
   }
 
+  const animate = shouldAnimate(chartData.length)
+
   return (
-    <ChartContainer height={400}>
-      <LineChart data={chartData}>
-        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+    <ChartContainer height={height}>
+      <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 20, left: 4 }}>
+        <CartesianGrid {...GRID_DEFAULTS} />
         <XAxis
           dataKey="displayPeriod"
-          stroke={CHART_AXIS_COLOR}
-          tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-          tickFormatter={(v) => formatDateTick(v, chartData.length)}
-          angle={-45}
-          textAnchor="end"
+          {...xAxisDefaults(chartData.length, { angle: -45, dateFormatter: true })}
           height={80}
-          interval={Math.max(1, Math.floor(chartData.length / 20))}
         />
-        <YAxis
-          stroke={CHART_AXIS_COLOR}
-          tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-          tickFormatter={(value) => formatCurrencyShort(value)}
-        />
+        <YAxis {...yAxisDefaults()} />
         <Tooltip
           {...chartTooltipProps}
           labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
           itemSorter={(item) => -(item.value as number)}
         />
-        <Legend
-          wrapperStyle={{ paddingTop: '20px' }}
-          formatter={legendFormatter}
-        />
+        <Legend {...LEGEND_DEFAULTS} formatter={legendFormatter} />
         {seriesKeys.map((key, index) => (
           <Line
             key={key}
@@ -65,7 +55,9 @@ export default function TimeSeriesLineChart({
             strokeWidth={2}
             dot={false}
             connectNulls
-            isAnimationActive={chartData.length < CHART_ANIMATION_THRESHOLD}
+            isAnimationActive={animate}
+            animationDuration={600}
+            animationEasing="ease-out"
           />
         ))}
       </LineChart>

@@ -1,19 +1,16 @@
 import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, LabelList } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, BAR_RADIUS, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
-import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
@@ -488,18 +485,9 @@ export default function NetWorthPage() {
                 <ChartContainer height={320}>
                   <AreaChart data={filteredNetWorthData}>
                     <defs>
-                      <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={rawColors.ios.purple} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={rawColors.ios.purple} stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.6} />
-                        <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0.1} />
-                      </linearGradient>
-                      <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={rawColors.ios.red} stopOpacity={0.6} />
-                        <stop offset="95%" stopColor={rawColors.ios.red} stopOpacity={0.1} />
-                      </linearGradient>
+                      {areaGradient('netWorth', rawColors.ios.purple)}
+                      {areaGradient('income', rawColors.ios.green, 0.6, 0.1)}
+                      {areaGradient('expenses', rawColors.ios.red, 0.6, 0.1)}
                       {/* Dynamic gradients for each category */}
                       {allCategories.map((cat) => {
                         const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
@@ -511,15 +499,15 @@ export default function NetWorthPage() {
                         )
                       })}
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                    <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} tickFormatter={(v) => formatDateTick(v, filteredNetWorthData.length)} angle={dims.angleXLabels ? -45 : 0} textAnchor={dims.angleXLabels ? 'end' : 'middle'} height={80} interval={getSmartInterval(filteredNetWorthData.length, dims.maxXLabels)} />
-                    <YAxis stroke={CHART_AXIS_COLOR} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} tickFormatter={(value: number) => formatCurrencyShort(value)} />
+                    <CartesianGrid {...GRID_DEFAULTS} />
+                    <XAxis {...xAxisDefaults(filteredNetWorthData.length, { angle: dims.angleXLabels ? -45 : undefined, height: 80, dateFormatter: true })} dataKey="date" />
+                    <YAxis {...yAxisDefaults()} />
                     <Tooltip
                       {...chartTooltipProps}
                       formatter={formattedValue}
                       labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                     />
-                    {dims.showLegend && <Legend />}
+                    {dims.showLegend && <Legend {...LEGEND_DEFAULTS} />}
                     {showStacked ? (
                       <>
                         {allCategories.map((cat) => {
@@ -534,7 +522,9 @@ export default function NetWorthPage() {
                               fillOpacity={1}
                               fill={`url(#color-${cat.replaceAll(/\s+/g, '')})`}
                               name={config.label}
-                              isAnimationActive={filteredNetWorthData.length < CHART_ANIMATION_THRESHOLD}
+                              isAnimationActive={shouldAnimate(filteredNetWorthData.length)}
+                              animationDuration={600}
+                              animationEasing="ease-out"
                             />
                           )
                         })}
@@ -545,9 +535,11 @@ export default function NetWorthPage() {
                         dataKey="netWorth"
                         stroke={rawColors.ios.purple}
                         fillOpacity={1}
-                        fill="url(#colorNetWorth)"
+                        fill={areaGradientUrl('netWorth')}
                         name="Net Worth"
-                        isAnimationActive={filteredNetWorthData.length < CHART_ANIMATION_THRESHOLD}
+                        isAnimationActive={shouldAnimate(filteredNetWorthData.length)}
+                        animationDuration={600}
+                        animationEasing="ease-out"
                       />
                     )}
                   </AreaChart>
@@ -584,18 +576,18 @@ export default function NetWorthPage() {
             ) : (
               <ChartContainer height={280}>
                 <BarChart data={monthlyChanges}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="month" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyChanges.length, dims.maxXLabels)} />
-                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} />
+                  <CartesianGrid {...GRID_DEFAULTS} />
+                  <XAxis {...xAxisDefaults(monthlyChanges.length)} dataKey="month" />
+                  <YAxis {...yAxisDefaults()} />
                   <Tooltip
                     {...chartTooltipProps}
                     formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                   />
                   <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
-                  <Bar dataKey="positive" name="Increase" fill={rawColors.ios.green} radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="positive" name="Increase" fill={rawColors.ios.green} radius={BAR_RADIUS} isAnimationActive={shouldAnimate(monthlyChanges.length)} animationDuration={600} animationEasing="ease-out">
                     {dims.showBarLabels && <LabelList dataKey="positive" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
-                  <Bar dataKey="negative" name="Decrease" fill={rawColors.ios.red} radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="negative" name="Decrease" fill={rawColors.ios.red} radius={BAR_RADIUS} isAnimationActive={shouldAnimate(monthlyChanges.length)} animationDuration={600} animationEasing="ease-out">
                     {dims.showBarLabels && <LabelList dataKey="negative" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
                 </BarChart>

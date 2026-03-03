@@ -21,7 +21,7 @@ import {
   YAxis,
   Cell,
 } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, shouldAnimate } from '@/components/ui'
 import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -590,12 +590,12 @@ export default function ComparisonPage() {
                     formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(Math.abs(value))}
                     labelFormatter={(label) => label}
                   />
-                  <Bar dataKey="periodA" name={periodA.label} stackId="stack" radius={[4, 0, 0, 4]}>
+                  <Bar dataKey="periodA" name={periodA.label} stackId="stack" radius={[4, 0, 0, 4]} isAnimationActive={shouldAnimate(butterflyData.length)} animationDuration={600} animationEasing="ease-out">
                     {butterflyData.map((entry) => (
                       <Cell key={`a-${entry.name}`} fill={rawColors.ios.blue} />
                     ))}
                   </Bar>
-                  <Bar dataKey="periodB" name={periodB.label} stackId="stack" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="periodB" name={periodB.label} stackId="stack" radius={[0, 4, 4, 0]} isAnimationActive={shouldAnimate(butterflyData.length)} animationDuration={600} animationEasing="ease-out">
                     {butterflyData.map((entry) => (
                       <Cell key={`b-${entry.name}`} fill={rawColors.ios.indigo} />
                     ))}

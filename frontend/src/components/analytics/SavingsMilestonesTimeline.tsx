@@ -2,12 +2,12 @@ import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Flag, CheckCircle, Circle } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
-import { CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate } from '@/components/ui/chartDefaults'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 const MILESTONES = [10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000]
 
@@ -66,36 +66,21 @@ export default function SavingsMilestonesTimeline() {
       </div>
 
       {chartData.length === 0 ? (
-        <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-          No transaction data available
-        </div>
+        <ChartEmptyState height={192} message="No transaction data available" />
       ) : (
         <>
           {/* Chart */}
           <ChartContainer height={350}>
             <AreaChart data={chartData}>
               <defs>
-                <linearGradient id="savingsGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0} />
-                </linearGradient>
+                {areaGradient('savings', rawColors.ios.green)}
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+              <CartesianGrid {...GRID_DEFAULTS} />
               <XAxis
+                {...xAxisDefaults(chartData.length, { angle: -45, height: 80, dateFormatter: true })}
                 dataKey="date"
-                stroke={CHART_AXIS_COLOR}
-                tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-                tickFormatter={(v) => formatDateTick(v, chartData.length)}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                interval={Math.max(1, Math.floor(chartData.length / 20))}
               />
-              <YAxis
-                stroke={CHART_AXIS_COLOR}
-                tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-                tickFormatter={(value) => formatCurrencyShort(value)}
-              />
+              <YAxis {...yAxisDefaults()} />
               <Tooltip
                 {...chartTooltipProps}
                 labelFormatter={(label) =>
@@ -123,8 +108,10 @@ export default function SavingsMilestonesTimeline() {
                 dataKey="savings"
                 stroke={rawColors.ios.green}
                 strokeWidth={2}
-                fill="url(#savingsGradient)"
-                isAnimationActive={chartData.length < CHART_ANIMATION_THRESHOLD}
+                fill={areaGradientUrl('savings')}
+                isAnimationActive={shouldAnimate(chartData.length)}
+                animationDuration={600}
+                animationEasing="ease-out"
               />
             </AreaChart>
           </ChartContainer>

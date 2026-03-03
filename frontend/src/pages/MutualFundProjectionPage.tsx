@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, Calculator, Percent, BarChart3 } from 'lucide-react'
 import { useAccountBalances } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
@@ -16,7 +15,7 @@ import {
 import { useState, useMemo, useEffect } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import type { Transaction } from '@/types'
 
@@ -899,46 +898,42 @@ export default function MutualFundProjectionPage() {
               <ChartContainer height={384}>
                 <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id="colorInvested" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={rawColors.ios.blue} stopOpacity={0.8} />
-                      <stop offset="95%" stopColor={rawColors.ios.blue} stopOpacity={0.1} />
-                    </linearGradient>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.8} />
-                      <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0.1} />
-                    </linearGradient>
+                    {areaGradient('invested', rawColors.ios.blue, 0.8, 0.1)}
+                    {areaGradient('value', rawColors.ios.green, 0.8, 0.1)}
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <CartesianGrid {...GRID_DEFAULTS} />
                   <XAxis
+                    {...xAxisDefaults(chartData.length)}
                     dataKey="month"
-                    stroke={CHART_AXIS_COLOR}
-                    tick={{ fontSize: 11 }}
                     interval="preserveStartEnd"
                   />
-                  <YAxis
-                    stroke={CHART_AXIS_COLOR}
-                    tickFormatter={(v) => formatCurrencyShort(v)}
-                  />
+                  <YAxis {...yAxisDefaults()} />
                   <Tooltip
                     {...chartTooltipProps}
                     formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                   />
-                  <Legend />
+                  <Legend {...LEGEND_DEFAULTS} />
                   <Area
                     type="natural"
                     dataKey="invested"
                     name="Invested Amount"
                     stroke={rawColors.ios.blue}
-                    fill="url(#colorInvested)"
+                    fill={areaGradientUrl('invested')}
                     strokeWidth={2}
+                    isAnimationActive={shouldAnimate(chartData.length)}
+                    animationDuration={600}
+                    animationEasing="ease-out"
                   />
                   <Area
                     type="natural"
                     dataKey="value"
                     name="Portfolio Value"
                     stroke={rawColors.ios.green}
-                    fill="url(#colorValue)"
+                    fill={areaGradientUrl('value')}
                     strokeWidth={2}
+                    isAnimationActive={shouldAnimate(chartData.length)}
+                    animationDuration={600}
+                    animationEasing="ease-out"
                   />
                 </AreaChart>
               </ChartContainer>

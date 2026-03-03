@@ -5,7 +5,9 @@ import { useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { SEMANTIC_COLORS, CHART_AXIS_COLOR } from '@/constants/chartColors'
+import { SEMANTIC_COLORS } from '@/constants/chartColors'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate } from '@/components/ui/chartDefaults'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 export default function CashFlowForecast() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
@@ -139,7 +141,7 @@ export default function CashFlowForecast() {
     return (
       <div className="glass rounded-2xl border border-border p-6">
         <h3 className="text-lg font-semibold mb-2">Cash Flow Forecast</h3>
-        <p className="text-muted-foreground">Need at least 3 months of data for forecasting.</p>
+        <ChartEmptyState message="Need at least 3 months of data for forecasting." />
       </div>
     )
   }
@@ -179,25 +181,19 @@ export default function CashFlowForecast() {
         <ChartContainer>
           <AreaChart data={forecastData.combined}>
             <defs>
-              <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={SEMANTIC_COLORS.income} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={SEMANTIC_COLORS.income} stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={SEMANTIC_COLORS.expense} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={SEMANTIC_COLORS.expense} stopOpacity={0} />
-              </linearGradient>
+              {areaGradient('income', SEMANTIC_COLORS.income)}
+              {areaGradient('expense', SEMANTIC_COLORS.expense)}
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+            <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis
+              {...xAxisDefaults(forecastData.combined.length)}
               dataKey="month"
-              tick={{ fontSize: 10, fill: CHART_AXIS_COLOR }}
               tickFormatter={(v) => {
                 const d = new Date(v + '-01')
                 return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
               }}
             />
-            <YAxis tickFormatter={(v) => formatCurrencyShort(v)} tick={{ fontSize: 10, fill: CHART_AXIS_COLOR }} />
+            <YAxis {...yAxisDefaults()} />
             <Tooltip
               {...chartTooltipProps}
               formatter={(value: number | undefined, name: string | undefined) => [
@@ -214,10 +210,10 @@ export default function CashFlowForecast() {
               x={forecastData.historical.at(-1)?.month}
               stroke="rgba(255,255,255,0.3)"
               strokeDasharray="3 3"
-              label={{ value: 'Forecast →', position: 'top', fill: CHART_AXIS_COLOR, fontSize: 10 }}
+              label={{ value: 'Forecast →', position: 'top', fill: '#71717a', fontSize: 10 }}
             />
-            <Area type="natural" dataKey="income" stroke={SEMANTIC_COLORS.income} fill="url(#incomeGradient)" strokeWidth={2} />
-            <Area type="natural" dataKey="expense" stroke={SEMANTIC_COLORS.expense} fill="url(#expenseGradient)" strokeWidth={2} />
+            <Area type="natural" dataKey="income" stroke={SEMANTIC_COLORS.income} fill={areaGradientUrl('income')} strokeWidth={2} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(forecastData.combined.length)} />
+            <Area type="natural" dataKey="expense" stroke={SEMANTIC_COLORS.expense} fill={areaGradientUrl('expense')} strokeWidth={2} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(forecastData.combined.length)} />
             <Line type="natural" dataKey="forecastIncome" stroke={SEMANTIC_COLORS.income} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} legendType="none" />
             <Line type="natural" dataKey="forecastExpense" stroke={SEMANTIC_COLORS.expense} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} legendType="none" />
           </AreaChart>

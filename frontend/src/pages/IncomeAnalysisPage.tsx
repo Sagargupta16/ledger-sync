@@ -4,16 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine, PieChart, Pie, Cell } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl } from '@/components/ui'
 import { useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { getDateKey } from '@/lib/dateUtils'
-import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import CategoryBreakdown from '@/components/analytics/CategoryBreakdown'
@@ -187,6 +185,9 @@ export default function IncomeAnalysisPage() {
                       outerRadius={90}
                       dataKey="value"
                       stroke="none"
+                      isAnimationActive={shouldAnimate(incomeTypeChartData.length)}
+                      animationDuration={600}
+                      animationEasing="ease-out"
                       onClick={(data: { name?: string }) => {
                         if (data?.name) navigate(`/transactions?type=Income&category=${encodeURIComponent(data.name)}`)
                       }}
@@ -273,23 +274,14 @@ export default function IncomeAnalysisPage() {
               <ChartContainer height={dims.chartHeight}>
                 <AreaChart data={monthlyTrendData} margin={dims.margin}>
                   <defs>
-                    <linearGradient id="incomeTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0}/>
-                    </linearGradient>
+                    {areaGradient('incomeTrend', rawColors.ios.green, 0.4, 0)}
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                  <CartesianGrid {...GRID_DEFAULTS} />
                   <XAxis
+                    {...xAxisDefaults(monthlyTrendData.length)}
                     dataKey="label"
-                    stroke={CHART_AXIS_COLOR}
-                    tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }}
-                    interval={getSmartInterval(monthlyTrendData.length, dims.maxXLabels)}
                   />
-                  <YAxis
-                    stroke={CHART_AXIS_COLOR}
-                    tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }}
-                    tickFormatter={(value) => formatCurrencyShort(value)}
-                  />
+                  <YAxis {...yAxisDefaults()} />
                   <Tooltip
                     {...chartTooltipProps}
                     labelFormatter={(_label: unknown, payload: ReadonlyArray<{ payload?: { month?: string } }>) => {
@@ -312,9 +304,11 @@ export default function IncomeAnalysisPage() {
                     type="monotone"
                     dataKey="income"
                     stroke={rawColors.ios.green}
-                    fill="url(#incomeTrendGradient)"
+                    fill={areaGradientUrl('incomeTrend')}
                     strokeWidth={1.5}
-                    isAnimationActive={monthlyTrendData.length < CHART_ANIMATION_THRESHOLD}
+                    isAnimationActive={shouldAnimate(monthlyTrendData.length)}
+                    animationDuration={600}
+                    animationEasing="ease-out"
                   />
                   <Line
                     type="monotone"
@@ -324,7 +318,9 @@ export default function IncomeAnalysisPage() {
                     strokeDasharray="6 3"
                     dot={false}
                     name="Income (3m avg)"
-                    isAnimationActive={monthlyTrendData.length < CHART_ANIMATION_THRESHOLD}
+                    isAnimationActive={shouldAnimate(monthlyTrendData.length)}
+                    animationDuration={600}
+                    animationEasing="ease-out"
                   />
                 </AreaChart>
               </ChartContainer>

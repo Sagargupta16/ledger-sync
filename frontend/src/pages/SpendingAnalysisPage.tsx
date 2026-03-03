@@ -21,7 +21,7 @@ import {
   RecurringTransactions,
   TopMerchants,
 } from '@/components/analytics'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, shouldAnimate } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
 // Color for Savings
@@ -291,6 +291,9 @@ export default function SpendingAnalysisPage() {
                         outerRadius={75}
                         dataKey="value"
                         stroke="none"
+                        isAnimationActive={shouldAnimate(spendingChartData.length)}
+                        animationDuration={600}
+                        animationEasing="ease-out"
                         onClick={(data: { name?: string }) => {
                           if (data?.name && data.name !== 'Savings') {
                             navigate(`/transactions?type=Expense&spending_type=${encodeURIComponent(data.name)}`)

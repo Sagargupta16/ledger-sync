@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import {
   Flame,
   TrendingDown,
@@ -13,13 +12,12 @@ import {
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getCurrentYear, getCurrentMonth, getCurrentFY, type AnalyticsViewMode } from '@/lib/dateUtils'
@@ -615,17 +613,17 @@ export default function YearInReviewPage() {
             ) : (
               <ChartContainer>
                 <BarChart data={monthlyBarData} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(monthlyBarData.length, dims.maxXLabels)} />
-                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} />
+                  <CartesianGrid {...GRID_DEFAULTS} />
+                  <XAxis {...xAxisDefaults(monthlyBarData.length)} dataKey="name" />
+                  <YAxis {...yAxisDefaults()} />
                   <RechartsTooltip
                     {...chartTooltipProps}
                     formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
                   />
-                  <Bar dataKey="Spending" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} opacity={0.8}>
+                  <Bar dataKey="Spending" fill={rawColors.ios.red} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(monthlyBarData.length)} animationDuration={600} animationEasing="ease-out">
                     {dims.showBarLabels && <LabelList dataKey="Spending" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
-                  <Bar dataKey="Earning" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} opacity={0.8}>
+                  <Bar dataKey="Earning" fill={rawColors.ios.green} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(monthlyBarData.length)} animationDuration={600} animationEasing="ease-out">
                     {dims.showBarLabels && <LabelList dataKey="Earning" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
                 </BarChart>

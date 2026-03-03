@@ -10,5 +10,17 @@ export {
   CHART_TOOLTIP_STYLE,
   CHART_TOOLTIP_LABEL_STYLE,
   CHART_TOOLTIP_ITEM_STYLE,
+  CHART_CURSOR_STYLE,
   chartTooltipProps,
 } from './ChartTooltip'
+export {
+  GRID_DEFAULTS,
+  xAxisDefaults,
+  yAxisDefaults,
+  areaGradient,
+  areaGradientUrl,
+  BAR_RADIUS,
+  BAR_RADIUS_SM,
+  shouldAnimate,
+  LEGEND_DEFAULTS,
+} from './chartDefaults'

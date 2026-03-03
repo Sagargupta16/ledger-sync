@@ -15,9 +15,9 @@ import { calculateTax, getTaxSlabs } from '@/lib/taxCalculator'
 import type { TaxSlab } from '@/lib/taxCalculator'
 import { formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate } from '@/components/ui/chartDefaults'
 import { fadeUpItem } from '@/constants/animations'
 
 interface EffectiveTaxRateChartProps {
@@ -128,23 +128,17 @@ export default function EffectiveTaxRateChart({
         <ChartContainer>
           <AreaChart data={chartData} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
             <defs>
-              <linearGradient id="newRegimeGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={rawColors.ios.orange} stopOpacity={0.25} />
-                <stop offset="95%" stopColor={rawColors.ios.orange} stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="oldRegimeGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={rawColors.ios.blue} stopOpacity={0.15} />
-                <stop offset="95%" stopColor={rawColors.ios.blue} stopOpacity={0} />
-              </linearGradient>
+              {areaGradient('newRegime', rawColors.ios.orange, 0.25)}
+              {areaGradient('oldRegime', rawColors.ios.blue, 0.15)}
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis
+              {...xAxisDefaults(chartData.length)}
               dataKey="income"
-              tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }}
               tickFormatter={(v: number) => formatCurrencyShort(v)}
             />
             <YAxis
-              tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }}
+              {...yAxisDefaults({ currency: false })}
               tickFormatter={(v: number) => `${v}%`}
               domain={[0, 'auto']}
             />
@@ -161,19 +155,25 @@ export default function EffectiveTaxRateChart({
               type="monotone"
               dataKey="oldRegimeRate"
               stroke={rawColors.ios.blue}
-              fill="url(#oldRegimeGrad)"
+              fill={areaGradientUrl('oldRegime')}
               strokeWidth={1.5}
               strokeDasharray="6 3"
               name="oldRegimeRate"
+              animationDuration={600}
+              animationEasing="ease-out"
+              isAnimationActive={shouldAnimate(chartData.length)}
             />
             {/* New Regime — orange solid */}
             <Area
               type="monotone"
               dataKey="newRegimeRate"
               stroke={rawColors.ios.orange}
-              fill="url(#newRegimeGrad)"
+              fill={areaGradientUrl('newRegime')}
               strokeWidth={2}
               name="newRegimeRate"
+              animationDuration={600}
+              animationEasing="ease-out"
+              isAnimationActive={shouldAnimate(chartData.length)}
             />
             {/* Crossover marker */}
             {crossoverIncome && crossoverIncome <= maxIncome && (

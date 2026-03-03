@@ -11,7 +11,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore, PeriodComparison } from '@/components/analytics'
 import { formatCurrency, getOrdinalSuffix, parseStringArray } from '@/lib/formatters'
 import { BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, shouldAnimate } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -257,6 +257,9 @@ export default function DashboardPage() {
                         stackId="a"
                         fill={item.color}
                         radius={stackedBarRadius(i, incomeChartData.length)}
+                        isAnimationActive={shouldAnimate(incomeBarData.length)}
+                        animationDuration={600}
+                        animationEasing="ease-out"
                       />
                     ))}
                   </BarChart>
@@ -335,6 +338,9 @@ export default function DashboardPage() {
                         stackId="a"
                         fill={item.color}
                         radius={stackedBarRadius(i, spendingChartData.length)}
+                        isAnimationActive={shouldAnimate(spendingBarData.length)}
+                        animationDuration={600}
+                        animationEasing="ease-out"
                       />
                     ))}
                   </BarChart>
