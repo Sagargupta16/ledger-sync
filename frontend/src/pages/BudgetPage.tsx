@@ -542,12 +542,12 @@ export default function BudgetPage() {
                       <p className="text-xs text-muted-foreground">Remaining budget pace for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-0 border-t-2 border-dashed" style={{ borderColor: '#71717a' }} />
+                      <span className="flex items-center gap-1.5">{' '}
+                        <span className="w-4 h-0 border-t-2 border-dashed" style={{ borderColor: '#71717a' }} />{' '}
                         Ideal
                       </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-0.5 rounded-full" style={{ backgroundColor: rawColors.ios.green }} />
+                      <span className="flex items-center gap-1.5">{' '}
+                        <span className="w-4 h-0.5 rounded-full" style={{ backgroundColor: rawColors.ios.green }} />{' '}
                         Actual
                       </span>
                     </div>

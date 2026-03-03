@@ -422,6 +422,24 @@ export default function NetWorthPage() {
     })
   }, [filteredNetWorthData])
 
+  const renderWaterfallTooltip = useCallback(({ active, payload, label }: { active?: boolean; payload?: Array<{ payload?: { change: number; endValue: number } }>; label?: string }) => {
+    if (!active || !payload?.length) return null
+    const item = payload[0]?.payload
+    if (!item) return null
+    const isPositive = item.change >= 0
+    return (
+      <div style={{ background: 'rgba(26, 26, 28, 0.95)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px 16px', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)' }}>
+        <p style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '6px' }}>{label}</p>
+        <p style={{ color: isPositive ? rawColors.ios.green : rawColors.ios.red, fontSize: '16px', fontWeight: 700 }}>
+          {isPositive ? '+' : ''}{formatCurrency(item.change)}
+        </p>
+        <p style={{ color: '#71717a', fontSize: '11px', marginTop: '4px' }}>
+          Net Worth: {formatCurrency(item.endValue)}
+        </p>
+      </div>
+    )
+  }, [])
+
   const toggleCategory = (
     setter: React.Dispatch<React.SetStateAction<Set<string>>>,
     category: string,
@@ -602,29 +620,7 @@ export default function NetWorthPage() {
                   <YAxis {...yAxisDefaults()} />
                   <Tooltip
                     {...chartTooltipProps}
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload?.length) return null
-                      const item = payload[0]?.payload as (typeof monthlyChanges)[number] | undefined
-                      if (!item) return null
-                      const isPositive = item.change >= 0
-                      return (
-                        <div style={{
-                          background: 'rgba(26, 26, 28, 0.95)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          borderRadius: '10px',
-                          padding: '12px 16px',
-                          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
-                        }}>
-                          <p style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '6px' }}>{label}</p>
-                          <p style={{ color: isPositive ? rawColors.ios.green : rawColors.ios.red, fontSize: '16px', fontWeight: 700 }}>
-                            {isPositive ? '+' : ''}{formatCurrency(item.change)}
-                          </p>
-                          <p style={{ color: '#71717a', fontSize: '11px', marginTop: '4px' }}>
-                            Net Worth: {formatCurrency(item.endValue)}
-                          </p>
-                        </div>
-                      )
-                    }}
+                    content={renderWaterfallTooltip as never}
                   />
                   {/* Invisible base bar — positions the visible bars at the right height */}
                   <Bar dataKey="base" stackId="waterfall" fill="transparent" isAnimationActive={false} />

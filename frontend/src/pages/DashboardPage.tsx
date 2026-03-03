@@ -249,8 +249,8 @@ export default function DashboardPage() {
                       paddingAngle={2}
                       strokeWidth={0}
                     >
-                      {incomeChartData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
+                      {incomeChartData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip {...chartTooltipProps} formatter={(v: number | undefined) => formatCurrency(v ?? 0)} />
@@ -334,8 +334,8 @@ export default function DashboardPage() {
                       paddingAngle={2}
                       strokeWidth={0}
                     >
-                      {spendingChartData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
+                      {spendingChartData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip {...chartTooltipProps} formatter={(v: number | undefined) => formatCurrency(v ?? 0)} />

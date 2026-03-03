@@ -76,7 +76,7 @@ export default function StandardAreaChart({
   }
 
   const animate = shouldAnimate(data.length)
-  const xDefaults = xAxisDefaults(data.length, xAngle !== undefined ? { angle: xAngle } : undefined)
+  const xDefaults = xAxisDefaults(data.length, xAngle === undefined ? undefined : { angle: xAngle })
   const yDefaults = yAxisDefaults()
 
   return (
@@ -87,7 +87,7 @@ export default function StandardAreaChart({
       >
         <defs>
           {areas.map((area) =>
-            (area.showFill !== false) && areaGradient(area.key, area.color, area.fillOpacity ?? 0.3),
+            (area.showFill ?? true) && areaGradient(area.key, area.color, area.fillOpacity ?? 0.3),
           )}
         </defs>
         <CartesianGrid {...GRID_DEFAULTS} />
@@ -105,9 +105,9 @@ export default function StandardAreaChart({
         {showLegend && areas.length > 1 && (
           <Legend {...LEGEND_DEFAULTS} />
         )}
-        {referenceLines?.map((ref, i) => (
+        {referenceLines?.map((ref) => (
           <ReferenceLine
-            key={i}
+            key={`${ref.y ?? ''}${ref.x ?? ''}${ref.label ?? ''}`}
             y={ref.y}
             x={ref.x}
             stroke={ref.color ?? 'rgba(255,255,255,0.2)'}
@@ -128,7 +128,7 @@ export default function StandardAreaChart({
             name={area.label ?? area.key}
             stroke={area.color}
             strokeWidth={area.strokeWidth ?? 2}
-            fill={area.showFill !== false ? areaGradientUrl(area.key) : 'transparent'}
+            fill={(area.showFill ?? true) ? areaGradientUrl(area.key) : 'transparent'}
             fillOpacity={1}
             dot={false}
             activeDot={{ ...ACTIVE_DOT, fill: area.color }}

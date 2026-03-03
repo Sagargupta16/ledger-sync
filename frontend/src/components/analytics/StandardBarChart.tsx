@@ -71,7 +71,7 @@ export default function StandardBarChart({
   }
 
   const animate = shouldAnimate(data.length)
-  const xDefaults = xAxisDefaults(data.length, xAngle !== undefined ? { angle: xAngle } : undefined)
+  const xDefaults = xAxisDefaults(data.length, xAngle === undefined ? undefined : { angle: xAngle })
   const yDefaults = yAxisDefaults()
 
   return (
@@ -111,8 +111,8 @@ export default function StandardBarChart({
             maxBarSize={barSize ?? 48}
             stackId={stacked ? 'stack' : bar.stackId}
           >
-            {bar.cellColors && bar.cellColors.map((c, i) => (
-              <Cell key={i} fill={c} />
+            {bar.cellColors?.map((c) => (
+              <Cell key={c} fill={c} />
             ))}
             {showLabels && (
               <LabelList

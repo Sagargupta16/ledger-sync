@@ -100,7 +100,7 @@ function groupTransactionsByMonth(
     const isInvCat = cat.includes('investment') || cat.includes('stock') || cat.includes('trading')
     if (tx.type === 'Expense' && isInvCat && (isBrokerFee(lower) || isInvestmentLoss(lower))) monthly[monthKey].expenses += amount
   }
-  const sorted = Object.keys(monthly).sort()
+  const sorted = Object.keys(monthly).sort((a, b) => a.localeCompare(b))
   let cumulative = 0
   return sorted.map(m => {
     const net = monthly[m].income - monthly[m].expenses
@@ -196,11 +196,11 @@ export default function ReturnsAnalysisPage() {
     return (
       <div style={{ backgroundColor: 'rgba(26,26,28,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
         <p style={{ color: '#a1a1aa', fontSize: 12, marginBottom: 6 }}>{label}</p>
-        {payload.map((p, i) => {
+        {payload.map((p) => {
           const val = p.value ?? 0
           const labels: Record<string, string> = { income: 'Income', expenses: 'Expenses', net: 'Net', cumulative: 'Cumulative' }
           return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+            <div key={p.dataKey ?? p.color} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
               <span style={{ color: '#71717a', fontSize: 11 }}>{labels[p.dataKey ?? ''] ?? p.dataKey}</span>
               <span style={{ color: '#fafafa', fontSize: 12, fontWeight: 600, marginLeft: 'auto' }}>{formatCurrency(val)}</span>
@@ -333,8 +333,8 @@ export default function ReturnsAnalysisPage() {
                 <Bar dataKey="net" name="Net" radius={BAR_RADIUS} maxBarSize={32}
                   isAnimationActive={shouldAnimate(monthlyComboData.length)} animationDuration={600} animationEasing="ease-out"
                 >
-                  {monthlyComboData.map((d, i) => (
-                    <Cell key={i} fill={d.net >= 0 ? rawColors.ios.green : rawColors.ios.red} fillOpacity={0.7} />
+                  {monthlyComboData.map((d) => (
+                    <Cell key={d.month} fill={d.net >= 0 ? rawColors.ios.green : rawColors.ios.red} fillOpacity={0.7} />
                   ))}
                 </Bar>
                 {/* Cumulative line overlay */}
