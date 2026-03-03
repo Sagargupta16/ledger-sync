@@ -227,7 +227,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: PiggyBank,
       color: 'text-ios-green',
-      bg: 'bg-ios-green/20',
+      bg: 'bg-ios-green/10',
       title: 'Savings Rate',
       value: `${savingsRate.toFixed(1)}%`,
       subtitle: totalIncome > 0
@@ -237,7 +237,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: ShoppingBag,
       color: 'text-ios-purple',
-      bg: 'bg-ios-purple/20',
+      bg: 'bg-ios-purple/10',
       title: 'Top Spending Category',
       value: topCategory ? topCategory[0] : 'N/A',
       subtitle: topCategory
@@ -247,7 +247,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: Landmark,
       color: 'text-sky-400',
-      bg: 'bg-sky-500/20',
+      bg: 'bg-sky-500/10',
       title: 'Top Income Source',
       value: topIncomeSource ? topIncomeSource[0] : 'N/A',
       subtitle: topIncomeSource ? formatCurrency(topIncomeSource[1]) : '',
@@ -255,7 +255,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: Gift,
       color: 'text-ios-green',
-      bg: 'bg-ios-green/20',
+      bg: 'bg-ios-green/10',
       title: 'Net Cashback Earned',
       value: formatCurrency(netCashback),
       subtitle: `From ${cashbackTransactions.length} cashback transactions`,
@@ -263,7 +263,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: Activity,
       color: 'text-ios-blue',
-      bg: 'bg-ios-blue/20',
+      bg: 'bg-ios-blue/10',
       title: 'Total Transactions',
       value: totalTransactions.toLocaleString('en-IN'),
       subtitle: mostFrequentCategory ? `Most frequent: ${mostFrequentCategory[0]}` : '',
@@ -271,7 +271,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: TrendingUp,
       color: 'text-ios-red',
-      bg: 'bg-ios-red/20',
+      bg: 'bg-ios-red/10',
       title: 'Biggest Transaction',
       value: formatCurrency(Math.abs(biggestTransaction?.amount || 0)),
       subtitle: biggestTransaction?.category || '',
@@ -279,7 +279,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: BarChart3,
       color: 'text-ios-purple',
-      bg: 'bg-ios-purple/20',
+      bg: 'bg-ios-purple/10',
       title: 'Median Transaction',
       value: formatCurrency(medianTransaction),
       subtitle: avgTransactionAmount > medianTransaction
@@ -289,7 +289,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: Zap,
       color: 'text-ios-yellow',
-      bg: 'bg-ios-yellow/20',
+      bg: 'bg-ios-yellow/10',
       title: 'Average Daily Spending',
       value: formatCurrency(avgDailySpending),
       subtitle: `Over ${daysInRange} days`,
@@ -297,7 +297,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: Calendar,
       color: 'text-ios-red',
-      bg: 'bg-ios-red/20',
+      bg: 'bg-ios-red/10',
       title: 'Weekend Spending',
       value: `${weekendPercent.toFixed(0)}%`,
       subtitle: `${formatCurrency(weekendSpending)} on weekends vs ${formatCurrency(weekdaySpending)} weekdays`,
@@ -305,7 +305,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: Clock,
       color: 'text-ios-orange',
-      bg: 'bg-ios-orange/20',
+      bg: 'bg-ios-orange/10',
       title: 'Peak Spending Day',
       value: peakDay.name,
       subtitle: `${formatCurrency(peakDay.total)} total on ${peakDay.name}s`,
@@ -313,7 +313,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: Flame,
       color: 'text-ios-orange',
-      bg: 'bg-ios-orange/20',
+      bg: 'bg-ios-orange/10',
       title: 'Monthly Burn Rate',
       value: formatCurrency(monthlyBurnRate),
       subtitle: `Avg per month over ${monthsInRange.toFixed(1)} months`,
@@ -321,7 +321,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: Layers,
       color: 'text-ios-teal',
-      bg: 'bg-ios-teal/20',
+      bg: 'bg-ios-teal/10',
       title: 'Spending Diversity',
       value: `${uniqueCategories} categories`,
       subtitle: `Across ${uniqueSubcategories} subcategories`,
@@ -329,7 +329,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: Receipt,
       color: 'text-ios-teal',
-      bg: 'bg-ios-teal/20',
+      bg: 'bg-ios-teal/10',
       title: 'Avg Transaction Amount',
       value: formatCurrency(avgTransactionAmount),
       subtitle: `Per transaction`,
@@ -337,7 +337,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     {
       icon: ArrowLeftRight,
       color: 'text-ios-indigo',
-      bg: 'bg-ios-indigo/20',
+      bg: 'bg-ios-indigo/10',
       title: 'Total Internal Transfers',
       value: formatCurrency(totalTransfers),
       subtitle: `${transferTransactions.length} transfer transactions`,
@@ -387,16 +387,16 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
         <motion.div
           key={insight.title}
           variants={fadeUpItem}
-          className="flex items-center gap-4 p-4 glass rounded-lg border border-border hover:border-primary/30 transition-colors"
+          className="flex items-center gap-4 p-4 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-150"
         >
           <div className={`p-3 ${insight.bg} rounded-lg`}>
             <insight.icon className={`w-5 h-5 ${insight.color}`} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground">{insight.title}</p>
+            <p className="text-xs text-zinc-300">{insight.title}</p>
             <p className="text-lg font-semibold text-white truncate">{insight.value}</p>
             {insight.subtitle && (
-              <p className="text-xs text-text-tertiary truncate">{insight.subtitle}</p>
+              <p className="text-xs text-zinc-500 truncate">{insight.subtitle}</p>
             )}
           </div>
         </motion.div>

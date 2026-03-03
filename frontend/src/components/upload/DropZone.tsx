@@ -52,14 +52,14 @@ function IconBubble({ selectedFile, isDragActive, compact }: Readonly<IconBubble
 
   return (
     <div className={cn(
-      'rounded-full transition-colors duration-300',
-      hasHighlight ? 'bg-primary/20 shadow-lg shadow-primary/30' : 'bg-primary/10',
+      'rounded-full transition-colors duration-150',
+      hasHighlight ? 'bg-white/[0.08]' : 'bg-white/[0.04]',
       compact ? 'p-2' : 'p-4'
     )}>
       {selectedFile ? (
-        <FileSpreadsheet className={cn('text-primary', compact ? 'w-6 h-6' : 'w-12 h-12 animate-pulse')} />
+        <FileSpreadsheet className={cn('text-zinc-400', compact ? 'w-6 h-6' : 'w-12 h-12 animate-pulse')} />
       ) : (
-        <Upload className={cn('text-primary transition-transform', isDragActive && 'scale-110', compact ? 'w-6 h-6' : 'w-12 h-12')} />
+        <Upload className={cn('text-zinc-400 transition-transform', isDragActive && 'scale-110', compact ? 'w-6 h-6' : 'w-12 h-12')} />
       )}
     </div>
   )
@@ -69,10 +69,10 @@ function FileSelectedView({ selectedFile, compact, isUploading, onClear }: Reado
   return (
     <div className={compact ? 'flex-1 text-left' : 'space-y-2'}>
       <div className={cn(
-        'flex items-center gap-2 glass-strong rounded-lg border border-border-strong',
-        compact ? 'px-2 py-1' : 'px-4 py-2 shadow-lg'
+        'flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-lg',
+        compact ? 'px-2 py-1' : 'px-4 py-2'
       )}>
-        <FileSpreadsheet className={cn('text-primary', compact ? 'w-4 h-4' : 'w-5 h-5')} />
+        <FileSpreadsheet className={cn('text-zinc-400', compact ? 'w-4 h-4' : 'w-5 h-5')} />
         <span className={cn('font-medium truncate', compact ? 'text-xs max-w-[120px]' : '')}>{selectedFile.name}</span>
         <button
           onClick={onClear}
@@ -83,7 +83,7 @@ function FileSelectedView({ selectedFile, compact, isUploading, onClear }: Reado
         </button>
       </div>
       {!compact && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-zinc-500">
           {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
         </p>
       )}
@@ -99,14 +99,14 @@ function EmptyStateView({ isDragActive, compact }: Readonly<EmptyStateViewProps>
           {getHeadingText(isDragActive, compact)}
         </h3>
         {!compact && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-zinc-500">
             Drag and drop your Excel file here, or click to browse
           </p>
         )}
       </div>
 
       {!compact && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4">
+        <div className="flex items-center gap-2 text-xs text-zinc-500 mt-4">
           <FileSpreadsheet className="w-4 h-4" />
           <span>Supports .xlsx and .xls files</span>
         </div>
@@ -121,9 +121,9 @@ function UploadingOverlay({ isUploading }: Readonly<UploadingOverlayProps>) {
   }
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center glass-strong rounded-2xl">
+    <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
       <div className="flex flex-col items-center gap-2">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full shadow-lg shadow-primary/50" />
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
         <p className="text-sm font-medium">Uploading...</p>
       </div>
     </div>
@@ -166,12 +166,12 @@ export default function DropZone({ onFileSelect, isUploading, compact }: Readonl
       <div
         {...getRootProps()}
         className={cn(
-          'relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors duration-300 glass',
-          'hover:border-primary hover:bg-primary/10 hover:shadow-xl hover:shadow-primary/20',
-          isDragActive && 'border-primary bg-primary/20 scale-[1.02] shadow-xl shadow-primary/30',
+          'relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-150 ease-out',
+          'hover:border-white/[0.15] hover:bg-white/[0.02]',
+          isDragActive && 'border-blue-400/50 bg-blue-500/5 scale-[1.01]',
           isUploading && 'opacity-50 cursor-not-allowed',
-          selectedFile ? 'border-primary bg-primary/10' : 'border-border/50',
-          compact ? 'p-4' : 'p-12 rounded-2xl hover:shadow-2xl'
+          selectedFile ? 'border-white/[0.15] bg-white/[0.02]' : 'border-white/[0.10]',
+          compact ? 'p-4' : 'p-12 rounded-2xl'
         )}
       >
         <input {...getInputProps()} />

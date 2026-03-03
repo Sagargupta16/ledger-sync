@@ -13,14 +13,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-ios-blue text-white hover:bg-ios-blue-vibrant shadow-lg shadow-ios-blue/30 active:scale-[0.98]',
+    'bg-blue-500 text-white hover:bg-blue-400 active:scale-[0.98]',
   secondary:
-    'glass border border-white/5 border-t-white/10 border-l-white/10 text-white shadow-lg shadow-black/30 hover:bg-white/10 hover:border-white/[0.12] active:scale-[0.98]',
-  ghost: 'text-muted-foreground hover:text-white hover:bg-white/10 active:scale-[0.98]',
+    'bg-white/[0.06] border border-white/[0.08] text-zinc-200 hover:bg-white/[0.10] hover:text-white active:scale-[0.98]',
+  ghost:
+    'text-zinc-400 hover:text-white hover:bg-white/[0.06] active:scale-[0.98]',
   danger:
-    'bg-ios-red text-white hover:bg-ios-red-vibrant shadow-lg shadow-ios-red/30 active:scale-[0.98]',
+    'bg-red-500/90 text-white hover:bg-red-500 active:scale-[0.98]',
   outline:
-    'border border-border text-white hover:bg-white/10 hover:border-border-strong active:scale-[0.98]',
+    'border border-white/[0.10] text-zinc-200 hover:bg-white/[0.06] hover:text-white active:scale-[0.98]',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -30,8 +31,8 @@ const sizeClasses: Record<ButtonSize, string> = {
 }
 
 /**
- * iOS-style button with consistent styling across the app.
- * Replaces inline button classes and btn-ios/btn-ios-primary CSS classes.
+ * Button component with consistent styling across the app.
+ * Supports primary, secondary, ghost, danger, and outline variants.
  */
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = 'primary', size = 'md', icon, isLoading, className, children, disabled, ...props },
@@ -42,9 +43,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       ref={ref}
       disabled={disabled || isLoading}
       className={cn(
-        'inline-flex items-center justify-center font-medium transition-colors duration-200',
+        'inline-flex items-center justify-center font-medium transition-all duration-150 ease-out',
         'disabled:opacity-50 disabled:pointer-events-none',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ios-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         variantClasses[variant],
         sizeClasses[size],
         className

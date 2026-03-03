@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react'
-import { rawColors } from '@/constants/colors'
 
 /**
  * Shared chart tooltip styling for Recharts.
@@ -16,23 +15,23 @@ import { rawColors } from '@/constants/colors'
  */
 
 export const CHART_TOOLTIP_STYLE: CSSProperties = {
-  backgroundColor: 'rgba(17, 24, 39, 0.95)',
-  border: '1px solid rgba(255, 255, 255, 0.12)',
-  borderRadius: '12px',
+  backgroundColor: 'rgba(26, 26, 28, 0.95)',
+  border: '1px solid rgba(255, 255, 255, 0.08)',
+  borderRadius: '10px',
   backdropFilter: 'blur(12px)',
-  color: '#fff',
+  color: '#fafafa',
   padding: '12px 16px',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
 }
 
 export const CHART_TOOLTIP_LABEL_STYLE: CSSProperties = {
-  color: rawColors.text.secondary,
+  color: '#a1a1aa',
   marginBottom: '4px',
   fontWeight: 500,
 }
 
 export const CHART_TOOLTIP_ITEM_STYLE: CSSProperties = {
-  color: '#fff',
+  color: '#fafafa',
   padding: '2px 0',
 }
 

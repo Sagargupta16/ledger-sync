@@ -287,21 +287,20 @@ export default function CommandPalette() {
           initial="hidden"
           animate="visible"
           exit="hidden"
-          transition={{ duration: 0.15 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0"
-            style={{ background: 'rgba(0, 0, 0, 0.60)', backdropFilter: 'blur(12px)' }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={close}
             aria-hidden="true"
           />
 
           {/* Panel */}
           <motion.div
-            className="relative w-full max-w-xl mx-4 rounded-2xl overflow-hidden shadow-2xl glass-strong border border-white/10"
+            className="relative w-full max-w-xl mx-4 rounded-2xl overflow-hidden shadow-2xl bg-[#1a1a1c]/95 backdrop-blur-lg border border-white/[0.08]"
             style={{
-              boxShadow: `0 25px 60px rgba(0, 0, 0, 0.5), 0 0 80px ${rawColors.ios.blue}15`,
+              boxShadow: `0 25px 60px rgba(0, 0, 0, 0.5), 0 0 80px ${rawColors.ios.blue}10`,
             }}
             variants={panelVariants}
             initial="hidden"
@@ -312,7 +311,7 @@ export default function CommandPalette() {
             aria-label="Command palette"
           >
             {/* Search input */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.08]">
               <Search
                 size={20}
                 className="flex-shrink-0"
@@ -325,17 +324,12 @@ export default function CommandPalette() {
                 onChange={(e) => { setQuery(e.target.value); setSelectedIndex(0) }}
                 onKeyDown={handleKeyDown}
                 placeholder="Search pages, transactions..."
-                className="flex-1 bg-transparent text-white text-base placeholder:text-white/30 outline-none"
+                className="flex-1 bg-transparent text-white text-base placeholder:text-zinc-600 outline-none"
                 autoComplete="off"
                 spellCheck={false}
               />
               <kbd
-                className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium"
-                style={{
-                  color: rawColors.text.tertiary,
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                }}
+                className="hidden sm:flex items-center gap-1 px-2 py-1 rounded bg-white/[0.06] border border-white/[0.08] text-xs font-medium text-zinc-500"
               >
                 ESC
               </kbd>
@@ -349,7 +343,7 @@ export default function CommandPalette() {
             >
               {results.length === 0 && query.trim() !== '' && (
                 <div className="px-5 py-8 text-center">
-                  <p className="text-sm" style={{ color: rawColors.text.secondary }}>
+                  <p className="text-sm text-zinc-500">
                     No results for "{query}"
                   </p>
                 </div>
@@ -358,10 +352,7 @@ export default function CommandPalette() {
               {/* Page results section */}
               {results.some((r) => r.kind === 'page') && (
                 <div>
-                  <div
-                    className="px-5 py-1.5 text-xs font-semibold uppercase tracking-wider"
-                    style={{ color: rawColors.text.tertiary }}
-                  >
+                  <div className="px-5 py-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500">
                     Pages
                   </div>
                   {results
@@ -379,10 +370,7 @@ export default function CommandPalette() {
                         >
                           <button
                             data-selected={isSelected}
-                            className="w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-100 cursor-pointer"
-                            style={{
-                              background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                            }}
+                            className={`w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-150 ease-out cursor-pointer ${isSelected ? 'bg-white/[0.08]' : 'hover:bg-white/[0.06]'}`}
                             onClick={() => executeResult(result)}
                             onMouseEnter={() => setSelectedIndex(index)}
                           >
@@ -402,17 +390,14 @@ export default function CommandPalette() {
                               />
                             </div>
                             <span
-                              className="flex-1 text-sm font-medium"
-                              style={{
-                                color: isSelected ? '#ffffff' : rawColors.text.secondary,
-                              }}
+                              className={`flex-1 text-sm font-medium ${isSelected ? 'text-white' : 'text-zinc-200'}`}
                             >
                               {page.label}
                             </span>
                             {isSelected && (
                               <ArrowRight
                                 size={14}
-                                style={{ color: rawColors.text.tertiary }}
+                                className="text-zinc-500"
                               />
                             )}
                           </button>
@@ -425,10 +410,7 @@ export default function CommandPalette() {
               {/* Transaction results section */}
               {results.some((r) => r.kind === 'transaction') && (
                 <div>
-                  <div
-                    className="px-5 py-1.5 mt-1 text-xs font-semibold uppercase tracking-wider"
-                    style={{ color: rawColors.text.tertiary }}
-                  >
+                  <div className="px-5 py-1.5 mt-1 text-xs font-medium uppercase tracking-wider text-zinc-500">
                     Transactions
                   </div>
                   {results
@@ -460,10 +442,7 @@ export default function CommandPalette() {
                         >
                           <button
                             data-selected={isSelected}
-                            className="w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-100 cursor-pointer"
-                            style={{
-                              background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                            }}
+                            className={`w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-150 ease-out cursor-pointer ${isSelected ? 'bg-white/[0.08]' : 'hover:bg-white/[0.06]'}`}
                             onClick={() => executeResult(result)}
                             onMouseEnter={() => setSelectedIndex(index)}
                           >
@@ -478,17 +457,11 @@ export default function CommandPalette() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p
-                                className="text-sm font-medium truncate"
-                                style={{
-                                  color: isSelected ? '#ffffff' : rawColors.text.secondary,
-                                }}
+                                className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-zinc-200'}`}
                               >
                                 {tx.note || tx.category}
                               </p>
-                              <p
-                                className="text-xs truncate"
-                                style={{ color: rawColors.text.tertiary }}
-                              >
+                              <p className="text-xs truncate text-zinc-500">
                                 {tx.category}
                                 {tx.account ? ` \u00b7 ${tx.account}` : ''}
                               </p>
@@ -511,52 +484,25 @@ export default function CommandPalette() {
             </ul>
 
             {/* Footer with hints */}
-            <div
-              className="flex items-center justify-between px-5 py-3 border-t border-white/10"
-              style={{ background: 'rgba(0, 0, 0, 0.15)' }}
-            >
+            <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.08] bg-black/10">
               <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1 text-xs" style={{ color: rawColors.text.tertiary }}>
-                  <kbd
-                    className="inline-flex items-center justify-center w-5 h-5 rounded"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      fontSize: '10px',
-                      color: rawColors.text.tertiary,
-                    }}
-                  >
+                <span className="flex items-center gap-1 text-xs text-zinc-500">
+                  <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-white/[0.06] border border-white/[0.08] text-[10px] text-zinc-500">
                     &uarr;
                   </kbd>
-                  <kbd
-                    className="inline-flex items-center justify-center w-5 h-5 rounded"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      fontSize: '10px',
-                      color: rawColors.text.tertiary,
-                    }}
-                  >
+                  <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-white/[0.06] border border-white/[0.08] text-[10px] text-zinc-500">
                     &darr;
                   </kbd>
                   <span className="ml-1">Navigate</span>
                 </span>
-                <span className="flex items-center gap-1 text-xs" style={{ color: rawColors.text.tertiary }}>
-                  <kbd
-                    className="inline-flex items-center justify-center px-1.5 h-5 rounded"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      fontSize: '10px',
-                      color: rawColors.text.tertiary,
-                    }}
-                  >
+                <span className="flex items-center gap-1 text-xs text-zinc-500">
+                  <kbd className="inline-flex items-center justify-center px-1.5 h-5 rounded bg-white/[0.06] border border-white/[0.08] text-[10px] text-zinc-500">
                     &crarr;
                   </kbd>
                   <span className="ml-1">Open</span>
                 </span>
               </div>
-              <span className="flex items-center gap-1 text-xs" style={{ color: rawColors.text.quaternary }}>
+              <span className="flex items-center gap-1 text-xs text-zinc-600">
                 <Command size={12} />
                 <span>K to toggle</span>
               </span>

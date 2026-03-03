@@ -30,10 +30,6 @@ interface Notification {
   meta?: Record<string, unknown>
 }
 
-interface NotificationCenterProps {
-  isCollapsed: boolean
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -230,7 +226,7 @@ function SeverityDot({ severity }: Readonly<{ severity: Notification['severity']
 // Component
 // ---------------------------------------------------------------------------
 
-export default function NotificationCenter({ isCollapsed }: Readonly<NotificationCenterProps>) {
+export default function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false)
   const [dismissed, setDismissed] = useState<Set<string>>(loadDismissed)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -321,10 +317,9 @@ export default function NotificationCenter({ isCollapsed }: Readonly<Notificatio
         ref={buttonRef}
         onClick={() => setIsOpen((v) => !v)}
         className={cn(
-          'w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors duration-200',
-          'text-muted-foreground hover:bg-white/10 hover:text-white',
-          isCollapsed && 'justify-center px-2',
-          isOpen && 'bg-white/10 text-white',
+          'w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 ease-out text-sm',
+          'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200',
+          isOpen && 'bg-white/[0.08] text-white',
         )}
         title="Notifications"
         aria-label={`Notifications${unreadSuffix}`}
@@ -343,8 +338,8 @@ export default function NotificationCenter({ isCollapsed }: Readonly<Notificatio
             </span>
           )}
         </div>
-        {!isCollapsed && <span className="text-sm">Notifications</span>}
-        {!isCollapsed && totalCount > 0 && (
+        <span className="text-sm">Notifications</span>
+        {totalCount > 0 && (
           <ChevronRight
             size={14}
             className={cn(

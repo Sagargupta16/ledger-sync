@@ -97,9 +97,9 @@ export default function CategoryBreakdown({
 
   if (isLoading) {
     return (
-      <div className="glass p-6 rounded-xl border border-border">
+      <div className="bg-white/[0.03] p-6 rounded-xl border border-white/[0.06]">
         <div className="h-64 flex items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Loading breakdown...</div>
+          <div className="animate-pulse text-zinc-500">Loading breakdown...</div>
         </div>
       </div>
     )
@@ -107,7 +107,7 @@ export default function CategoryBreakdown({
 
   if (categories.length === 0) {
     return (
-      <div className="glass p-6 rounded-xl border border-border">
+      <div className="bg-white/[0.03] p-6 rounded-xl border border-white/[0.06]">
         <EmptyState
           icon={emptyIcon}
           title={emptyTitle}
@@ -121,14 +121,14 @@ export default function CategoryBreakdown({
   }
 
   return (
-    <div className="glass p-6 rounded-xl border border-border">
+    <div className="bg-white/[0.03] p-6 rounded-xl border border-white/[0.06]">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
           <HeaderIcon className={`w-5 h-5 ${headerIconColor}`} />
           <div>
             <h3 className="text-lg font-semibold text-white">{headerTitle}</h3>
-            <p className="text-xs text-text-tertiary">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
+            <p className="text-xs text-zinc-500">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
           </div>
         </div>
       </div>
@@ -150,7 +150,7 @@ export default function CategoryBreakdown({
       </div>
 
       {/* Category rows */}
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {categories.map((cat, i) => {
           const isExpanded = expandedCategory === cat.name
           const hasSubcategories = cat.subcategories.length > 0
@@ -161,9 +161,9 @@ export default function CategoryBreakdown({
               <button
                 type="button"
                 onClick={() => hasSubcategories && toggleExpand(cat.name)}
-                className={`w-full text-left px-4 py-3 rounded-xl transition-colors group ${
+                className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-150 group ${
                   hasSubcategories ? 'cursor-pointer' : 'cursor-default'
-                } ${isExpanded ? 'bg-white/5' : 'hover:bg-white/10'}`}
+                } ${isExpanded ? 'bg-white/[0.05] border border-white/[0.08]' : 'bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] hover:border-white/[0.10]'}`}
               >
                 <div className="flex items-center gap-3">
                   {/* Color dot */}
@@ -173,15 +173,15 @@ export default function CategoryBreakdown({
                   />
 
                   {/* Name */}
-                  <span className="text-sm font-medium text-white flex-1 truncate">
+                  <span className="text-sm font-medium text-zinc-200 flex-1 truncate">
                     {cat.name}
                   </span>
 
                   {/* Percentage + Amount */}
-                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                  <span className="text-xs text-zinc-400 tabular-nums shrink-0">
                     {cat.percent.toFixed(1)}%
                   </span>
-                  <span className="text-sm font-semibold text-white tabular-nums shrink-0 w-28 text-right">
+                  <span className="text-sm font-semibold text-zinc-200 tabular-nums shrink-0 w-28 text-right">
                     {formatCurrency(cat.total)}
                   </span>
 
@@ -190,7 +190,7 @@ export default function CategoryBreakdown({
                     <motion.div
                       animate={{ rotate: isExpanded ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
-                      className="text-text-tertiary group-hover:text-foreground"
+                      className="text-zinc-500 group-hover:text-zinc-300"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </motion.div>
@@ -223,7 +223,7 @@ export default function CategoryBreakdown({
                       {cat.subcategories.map((sub, si) => (
                         <div
                           key={sub.name}
-                          className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/[0.05] transition-colors duration-150"
                         >
                           {/* Indent marker */}
                           <div
@@ -231,7 +231,7 @@ export default function CategoryBreakdown({
                             style={{ backgroundColor: cat.color }}
                           />
 
-                          <span className="text-xs text-foreground flex-1 truncate">
+                          <span className="text-xs text-zinc-300 flex-1 truncate">
                             {sub.name}
                           </span>
 
@@ -246,10 +246,10 @@ export default function CategoryBreakdown({
                             />
                           </div>
 
-                          <span className="text-xs text-text-tertiary tabular-nums shrink-0 w-10 text-right">
+                          <span className="text-xs text-zinc-500 tabular-nums shrink-0 w-10 text-right">
                             {sub.percent.toFixed(0)}%
                           </span>
-                          <span className="text-xs font-medium text-foreground tabular-nums shrink-0 w-24 text-right">
+                          <span className="text-xs font-medium text-zinc-300 tabular-nums shrink-0 w-24 text-right">
                             {formatCurrency(sub.amount)}
                           </span>
                         </div>

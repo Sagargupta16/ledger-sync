@@ -6,7 +6,6 @@ import {
   X,
   LogIn,
 } from 'lucide-react'
-import { rawColors } from '@/constants/colors'
 import * as authApi from '@/services/api/auth'
 import type { OAuthProviderConfig } from '@/types'
 
@@ -93,35 +92,24 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50 p-4"
           >
-            <div
-              className="relative backdrop-blur-2xl rounded-3xl p-8 border shadow-2xl"
-              style={{
-                background: 'rgba(30, 30, 35, 0.95)',
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-              }}
-            >
+            <div className="relative bg-[#1a1a1c] rounded-2xl p-8 border border-white/[0.08] shadow-2xl">
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
+                className="absolute top-4 right-4 p-2 rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors duration-150 ease-out"
               >
                 <X className="w-5 h-5" />
               </button>
 
               {/* Header */}
               <div className="flex flex-col items-center mb-8">
-                <div
-                  className="p-3 rounded-2xl shadow-xl mb-3"
-                  style={{
-                    background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
-                  }}
-                >
-                  <PiggyBank className="w-8 h-8 text-white" />
+                <div className="p-3 rounded-xl bg-blue-500/10 mb-3">
+                  <PiggyBank className="w-8 h-8 text-blue-400" />
                 </div>
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-xl font-semibold text-white">
                   Welcome to Ledger Sync
                 </h2>
-                <p className="text-muted-foreground text-sm mt-1">
+                <p className="text-zinc-400 text-sm mt-1">
                   Sign in to manage your finances
                 </p>
               </div>
@@ -137,7 +125,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                     <button
                       type="button"
                       onClick={() => handleOAuthLogin(googleProvider)}
-                      className="w-full py-3 px-4 rounded-xl font-medium text-white flex items-center justify-center gap-3 transition-all bg-white/5 border border-border hover:bg-white/10 hover:border-white/20"
+                      className="w-full py-3 px-4 rounded-xl font-medium text-white flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10]"
                     >
                       <GoogleIcon className="w-5 h-5" />
                       Continue with Google
@@ -147,7 +135,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                     <button
                       type="button"
                       onClick={() => handleOAuthLogin(githubProvider)}
-                      className="w-full py-3 px-4 rounded-xl font-medium text-white flex items-center justify-center gap-3 transition-all bg-white/5 border border-border hover:bg-white/10 hover:border-white/20"
+                      className="w-full py-3 px-4 rounded-xl font-medium text-white flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10]"
                     >
                       <GitHubIcon className="w-5 h-5" />
                       Continue with GitHub
@@ -156,17 +144,17 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                 </div>
               ) : (
                 <div className="text-center py-4">
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-zinc-400 text-sm">
                     OAuth sign-in is not configured yet.
                   </p>
-                  <p className="text-text-tertiary text-xs mt-1">
+                  <p className="text-zinc-500 text-xs mt-1">
                     Contact the administrator to enable Google or GitHub login.
                   </p>
                 </div>
               )}
 
               {/* Footer */}
-              <p className="text-text-tertiary text-xs text-center mt-6">
+              <p className="text-zinc-500 text-xs text-center mt-6 border-t border-white/[0.06] pt-5">
                 By signing in, you agree to our terms of service.
                 Your data stays private and secure.
               </p>

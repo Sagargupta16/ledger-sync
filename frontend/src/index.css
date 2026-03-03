@@ -84,8 +84,8 @@
   --color-disabled-foreground: rgba(142, 142, 147, 0.5);
 
   /* ===== GLOW/SHADOW ===== */
-  --glow-opacity: 0.15;
-  --glow-opacity-strong: 0.25;
+  --glow-opacity: 0.10;
+  --glow-opacity-strong: 0.18;
 
   /* ===== Z-INDEX SCALE ===== */
   --z-base: 0;
@@ -114,7 +114,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.10) transparent;
 }
 
 body {
@@ -137,36 +137,26 @@ body {
 
 .glass {
   background: var(--color-surface-1);
-  backdrop-filter: blur(12px) saturate(150%);
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-top-color: rgba(255, 255, 255, 0.10);
-  border-left-color: rgba(255, 255, 255, 0.10);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4),
-    0 4px 6px -2px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
 }
 
 .glass:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.5),
-    0 6px 12px -4px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.10);
 }
 
 .glass-strong {
   background: var(--color-surface-2);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-top-color: rgba(255, 255, 255, 0.14);
-  border-left-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5),
-    0 8px 10px -5px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
 }
 
 .glass-strong:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 25px 50px -10px rgba(0, 0, 0, 0.6),
-    0 10px 15px -5px rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .glass-ultra {
@@ -183,46 +173,44 @@ body {
   background: var(--color-surface-thin);
   backdrop-filter: blur(8px) saturate(130%);
   -webkit-backdrop-filter: blur(8px) saturate(130%);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-top-color: rgba(255, 255, 255, 0.08);
-  border-left-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* ===== CONTEXTUAL GLOW — Financial card accents ===== */
 
 .glow-income {
-  box-shadow: 0 0 40px rgba(48, 209, 88, 0.08), inset 0 1px 0 rgba(48, 209, 88, 0.06);
+  box-shadow: 0 0 30px rgba(48, 209, 88, 0.05);
 }
 
 .glow-expense {
-  box-shadow: 0 0 40px rgba(255, 87, 87, 0.08), inset 0 1px 0 rgba(255, 87, 87, 0.06);
+  box-shadow: 0 0 30px rgba(255, 87, 87, 0.05);
 }
 
 .glow-savings {
-  box-shadow: 0 0 40px rgba(167, 139, 250, 0.08), inset 0 1px 0 rgba(167, 139, 250, 0.06);
+  box-shadow: 0 0 30px rgba(167, 139, 250, 0.05);
 }
 
 .glow-transfer {
-  box-shadow: 0 0 40px rgba(90, 200, 245, 0.08), inset 0 1px 0 rgba(90, 200, 245, 0.06);
+  box-shadow: 0 0 30px rgba(90, 200, 245, 0.05);
 }
 
 .glow-investment {
-  box-shadow: 0 0 40px rgba(74, 158, 255, 0.08), inset 0 1px 0 rgba(74, 158, 255, 0.06);
+  box-shadow: 0 0 30px rgba(74, 158, 255, 0.05);
 }
 
 .glow-error {
-  box-shadow: 0 0 40px rgba(255, 87, 87, 0.10), inset 0 1px 0 rgba(255, 87, 87, 0.06);
+  box-shadow: 0 0 30px rgba(255, 87, 87, 0.07);
 }
 
 .glow-warning {
-  box-shadow: 0 0 40px rgba(255, 159, 10, 0.10), inset 0 1px 0 rgba(255, 159, 10, 0.06);
+  box-shadow: 0 0 30px rgba(255, 159, 10, 0.07);
 }
 
 /* ===== SCROLLBAR ===== */
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -230,12 +218,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.10);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .scrollbar-none {
@@ -250,10 +238,10 @@ body {
 /* ===== ANIMATIONS ===== */
 
 @keyframes glow {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  25% { opacity: 0.42; transform: scale(1.02); }
-  50% { opacity: 0.6; transform: scale(1.05); }
-  75% { opacity: 0.42; transform: scale(1.02); }
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  25% { opacity: 0.32; transform: scale(1.01); }
+  50% { opacity: 0.4; transform: scale(1.02); }
+  75% { opacity: 0.32; transform: scale(1.01); }
 }
 
 @keyframes float {
@@ -298,6 +286,22 @@ body {
   animation: float 10s ease-in-out infinite;
 }
 
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.35s ease-out both;
+}
+
 /* ===== PAGE TRANSITION ===== */
 
 .page-enter {
@@ -314,7 +318,7 @@ body {
 /* ===== COMPONENT PATTERNS ===== */
 
 .skeleton {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 100%);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.03) 100%);
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
   border-radius: 0.5rem;
@@ -387,9 +391,9 @@ option {
 
 select:focus,
 input:not([type="checkbox"]):not([type="radio"]):focus {
-  border-color: var(--color-ios-blue);
+  border-color: rgba(74, 158, 255, 0.5);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.15);
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.12);
 }
 
 /* ===== RECHARTS OVERRIDES ===== */
@@ -408,7 +412,7 @@ button:focus-visible,
   outline: none;
   box-shadow:
     0 0 0 2px var(--color-background),
-    0 0 0 4px var(--color-ios-blue);
+    0 0 0 3px rgba(74, 158, 255, 0.5);
   border-radius: 8px;
 }
 
