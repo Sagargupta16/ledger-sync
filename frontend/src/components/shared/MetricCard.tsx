@@ -4,44 +4,47 @@ import { TrendingUp, TrendingDown } from 'lucide-react'
 import { type ReactNode, useEffect, useRef } from 'react'
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
 
-/** Animated number counter — extracts numeric part from formatted strings like "$1,234.56" */
+/** Parse a formatted string like "$1,234.56" or "₹12,345" into { prefix, number, suffix, decimals } */
+function parseFormattedNumber(str: string) {
+  const match = /[\d,.]+/.exec(str)
+  if (!match) return null
+
+  const numericStr = match[0].replaceAll(',', '')
+  const target = Number.parseFloat(numericStr)
+  if (Number.isNaN(target)) return null
+
+  const prefix = str.slice(0, match.index)
+  const suffix = str.slice((match.index ?? 0) + match[0].length)
+  const hasDecimals = numericStr.includes('.')
+  const decimalPlaces = hasDecimals ? (numericStr.split('.')[1]?.length ?? 0) : 0
+
+  return { prefix, suffix, target, decimalPlaces }
+}
+
+/** Animated number counter — counts from previous value to new value with ease-out cubic */
 function AnimatedValue({ value }: Readonly<{ value: string | number }>) {
   const ref = useRef<HTMLSpanElement>(null)
-  const prevValue = useRef<string>(String(value))
+  const prevNumeric = useRef<number>(0)
 
   useEffect(() => {
-    if (!ref.current) {
-      prevValue.current = String(value)
-      return
-    }
+    if (!ref.current) return
 
     const str = String(value)
-    // Extract the numeric portion (supports $1,234.56 / ₹12,345 / 99.5% etc.)
-    const match = /[\d,.]+/.exec(str)
-    if (!match) {
+    const parsed = parseFormattedNumber(str)
+
+    if (!parsed) {
+      // Non-numeric value — just set text directly
       ref.current.textContent = str
-      prevValue.current = str
       return
     }
 
-    const numericStr = match[0].replaceAll(',', '')
-    const target = Number.parseFloat(numericStr)
-    if (Number.isNaN(target)) {
-      ref.current.textContent = str
-      prevValue.current = str
-      return
-    }
+    const { prefix, suffix, target, decimalPlaces } = parsed
+    const startFrom = prevNumeric.current
 
-    // Extract prefix (like "$" or "₹") and suffix (like "%")
-    const prefix = str.slice(0, match.index)
-    const suffix = str.slice((match.index ?? 0) + match[0].length)
-    const hasDecimals = numericStr.includes('.')
-    const decimalPlaces = hasDecimals ? (numericStr.split('.')[1]?.length ?? 0) : 0
-
-    const motionVal = { v: 0 }
+    const motionVal = { v: startFrom }
     const ctrl = animate(motionVal, { v: target }, {
-      duration: 0.8,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      duration: 0.6,
+      ease: [0.16, 1, 0.3, 1], // ease-out expo — fast start, smooth deceleration
       onUpdate: () => {
         if (!ref.current) return
         const formatted = motionVal.v.toLocaleString(undefined, {
@@ -52,7 +55,7 @@ function AnimatedValue({ value }: Readonly<{ value: string | number }>) {
       },
     })
 
-    prevValue.current = str
+    prevNumeric.current = target
     return () => ctrl.stop()
   }, [value])
 
@@ -108,9 +111,15 @@ export default function MetricCard({ title, value, change, invertChange, changeL
 
       {/* Animated Value */}
       <output className="flex items-baseline gap-2" aria-live="polite">
-        <p className="text-2xl font-bold text-white">
+        <motion.p
+          key={String(value)}
+          initial={{ opacity: 0.6, scale: 0.97, filter: 'blur(2px)' }}
+          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+          transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="text-2xl font-bold text-white"
+        >
           <AnimatedValue value={value} />
-        </p>
+        </motion.p>
       </output>
 
       {/* Subtitle */}

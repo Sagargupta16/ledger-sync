@@ -22,5 +22,6 @@ export {
   BAR_RADIUS,
   BAR_RADIUS_SM,
   shouldAnimate,
+  ACTIVE_DOT,
   LEGEND_DEFAULTS,
 } from './chartDefaults'

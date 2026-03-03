@@ -112,6 +112,16 @@ export function shouldAnimate(dataLength: number): boolean {
   return dataLength < CHART_ANIMATION_THRESHOLD
 }
 
+// ─── Active dot (hover glow) ────────────────────────────────────────────────
+
+/** Active dot style for hover state on Line/Area charts */
+export const ACTIVE_DOT = {
+  r: 6,
+  strokeWidth: 2,
+  stroke: 'rgba(255, 255, 255, 0.3)',
+  fill: 'currentColor', // inherits from the line/area color
+} as const
+
 // ─── Legend defaults ────────────────────────────────────────────────────────
 
 export const LEGEND_DEFAULTS = {

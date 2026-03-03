@@ -22,8 +22,8 @@ export default function Sparkline({
   const width = 200
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
-  const { linePath, areaPath, points } = useMemo(() => {
-    if (data.length < 2) return { linePath: '', areaPath: '', points: [] }
+  const { linePath, areaPath, points, avgY } = useMemo(() => {
+    if (data.length < 2) return { linePath: '', areaPath: '', points: [], avgY: 0 }
 
     const min = Math.min(...data)
     const max = Math.max(...data)
@@ -47,7 +47,11 @@ export default function Sparkline({
     const last = pts.at(-1)!
     const area = `${line} L ${last.x},${height} L ${pts[0].x},${height} Z`
 
-    return { linePath: line, areaPath: area, points: pts }
+    // Average value and its Y coordinate for the reference line
+    const avg = data.reduce((sum, v) => sum + v, 0) / data.length
+    const averageY = padding + ((max - avg) / range) * (height - padding * 2)
+
+    return { linePath: line, areaPath: area, points: pts, avgY: averageY }
   }, [data, height])
 
   const progress = useMotionValue(0)
@@ -81,7 +85,9 @@ export default function Sparkline({
 
   const lastPoint = points.at(-1)!
   const hoverPoint = hoverIndex === null ? null : points[hoverIndex]
-  const gradId = `spark-grad-${color.replace('#', '')}`
+  const colorKey = color.replace('#', '')
+  const gradId = `spark-grad-${colorKey}`
+  const glowId = `spark-glow-${colorKey}`
 
   return (
     <div className="relative group">
@@ -98,10 +104,29 @@ export default function Sparkline({
             <stop offset="0%" stopColor={color} stopOpacity={0.4} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
+          {/* Glow filter for active hover dot */}
+          <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation={3} result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
         </defs>
 
         {/* Gradient fill */}
         <motion.path d={areaPath} fill={`url(#${gradId})`} style={{ opacity: areaOpacity }} />
+
+        {/* Average reference line */}
+        <line
+          x1={0}
+          y1={avgY}
+          x2={width}
+          y2={avgY}
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+        />
 
         {/* Line */}
         <motion.path
@@ -120,7 +145,7 @@ export default function Sparkline({
         {/* End dot */}
         <circle cx={lastPoint.x} cy={lastPoint.y} r={3} fill={color} />
 
-        {/* Hover crosshair + dot */}
+        {/* Hover crosshair + glowing active dot */}
         {hoverPoint && (
           <>
             <line
@@ -128,11 +153,28 @@ export default function Sparkline({
               y1={0}
               x2={hoverPoint.x}
               y2={height}
-              stroke="rgba(255,255,255,0.2)"
+              stroke="rgba(255,255,255,0.15)"
               strokeWidth={1}
               strokeDasharray="3 3"
             />
-            <circle cx={hoverPoint.x} cy={hoverPoint.y} r={4} fill={color} stroke="#000" strokeWidth={1.5} />
+            {/* Outer glow ring */}
+            <circle
+              cx={hoverPoint.x}
+              cy={hoverPoint.y}
+              r={6}
+              fill={color}
+              opacity={0.25}
+              filter={`url(#${glowId})`}
+            />
+            {/* Inner dot */}
+            <circle
+              cx={hoverPoint.x}
+              cy={hoverPoint.y}
+              r={4}
+              fill={color}
+              stroke="rgba(0,0,0,0.6)"
+              strokeWidth={1.5}
+            />
           </>
         )}
       </svg>

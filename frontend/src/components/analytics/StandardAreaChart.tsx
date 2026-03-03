@@ -18,7 +18,7 @@ import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import {
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
-  areaGradient, areaGradientUrl, LEGEND_DEFAULTS, shouldAnimate,
+  areaGradient, areaGradientUrl, LEGEND_DEFAULTS, shouldAnimate, ACTIVE_DOT,
 } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
@@ -131,6 +131,7 @@ export default function StandardAreaChart({
             fill={area.showFill !== false ? areaGradientUrl(area.key) : 'transparent'}
             fillOpacity={1}
             dot={false}
+            activeDot={{ ...ACTIVE_DOT, fill: area.color }}
             connectNulls
             isAnimationActive={animate}
             animationDuration={800}

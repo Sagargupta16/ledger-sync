@@ -2,7 +2,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'r
 import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import {
-  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, LEGEND_DEFAULTS, shouldAnimate,
+  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, LEGEND_DEFAULTS, shouldAnimate, ACTIVE_DOT,
 } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
@@ -54,6 +54,7 @@ export default function TimeSeriesLineChart({
             stroke={colors[index % colors.length]}
             strokeWidth={2}
             dot={false}
+            activeDot={{ ...ACTIVE_DOT, fill: colors[index % colors.length] }}
             connectNulls
             isAnimationActive={animate}
             animationDuration={600}

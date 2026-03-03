@@ -278,17 +278,42 @@ export default function SpendingAnalysisPage() {
           <h3 className="text-lg font-semibold text-white mb-4">{needsTarget}/{wantsTarget}/{savingsTarget} Budget Rule Analysis</h3>
           {spendingChartData.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Pie Chart */}
+              {/* Nested Donut Chart: Inner = Target, Outer = Actual */}
               <div className="flex flex-col items-center">
-                <div className="w-48 h-48">
+                <div className="w-56 h-56">
                   <ChartContainer>
                     <RechartsPie>
+                      {/* Inner ring: Target split */}
+                      <Pie
+                        data={[
+                          { name: `Needs (${needsTarget}%)`, value: needsTarget, color: SPENDING_TYPE_COLORS.essential },
+                          { name: `Wants (${wantsTarget}%)`, value: wantsTarget, color: SPENDING_TYPE_COLORS.discretionary },
+                          { name: `Savings (${savingsTarget}%)`, value: savingsTarget, color: SAVINGS_COLOR },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius="30%"
+                        outerRadius="45%"
+                        dataKey="value"
+                        strokeWidth={0}
+                        paddingAngle={2}
+                        opacity={0.4}
+                        isAnimationActive={shouldAnimate(3)}
+                        animationDuration={600}
+                        animationEasing="ease-out"
+                      >
+                        <Cell fill={SPENDING_TYPE_COLORS.essential} />
+                        <Cell fill={SPENDING_TYPE_COLORS.discretionary} />
+                        <Cell fill={SAVINGS_COLOR} />
+                      </Pie>
+
+                      {/* Outer ring: Actual breakdown */}
                       <Pie
                         data={spendingChartData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={45}
-                        outerRadius={75}
+                        innerRadius="55%"
+                        outerRadius="80%"
                         dataKey="value"
                         strokeWidth={0}
                         paddingAngle={2}
@@ -306,13 +331,21 @@ export default function SpendingAnalysisPage() {
                           <Cell key={`cell-${entry.name}`} fill={entry.color} />
                         ))}
                       </Pie>
+
                       <Tooltip
                         {...chartTooltipProps}
                         formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                       />
+
+                      {/* Center label */}
+                      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+                        <tspan x="50%" dy="-6" fill="#71717a" fontSize="11">Actual vs</tspan>
+                        <tspan x="50%" dy="16" fill="#71717a" fontSize="11">{needsTarget}/{wantsTarget}/{savingsTarget}</tspan>
+                      </text>
                     </RechartsPie>
                   </ChartContainer>
                 </div>
+                {/* Category legend */}
                 <div className="flex gap-6 mt-4">
                   {spendingChartData.map((item, i) => (
                     <div key={item.name} className="flex items-center gap-2">
@@ -323,6 +356,17 @@ export default function SpendingAnalysisPage() {
                       <span className="text-sm text-foreground">{item.name}</span>
                     </div>
                   ))}
+                </div>
+                {/* Ring legend */}
+                <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-2 rounded-sm bg-white/20" />
+                    <span>Inner = Target</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-2 rounded-sm bg-white/50" />
+                    <span>Outer = Actual</span>
+                  </div>
                 </div>
               </div>
 
