@@ -176,7 +176,7 @@ def get_category_trends(
         query = query.filter(CategoryTrend.category == category)
     if transaction_type:
         try:
-            tx_type = TransactionType(transaction_type)
+            tx_type: TransactionType | str = TransactionType(transaction_type)
         except ValueError:
             tx_type = transaction_type
         query = query.filter(CategoryTrend.transaction_type == tx_type)
@@ -531,7 +531,7 @@ def get_anomalies(
 
     if anomaly_type:
         try:
-            at = AnomalyType(anomaly_type)
+            at: AnomalyType | str = AnomalyType(anomaly_type)
         except ValueError:
             at = anomaly_type
         query = query.filter(Anomaly.anomaly_type == at)
