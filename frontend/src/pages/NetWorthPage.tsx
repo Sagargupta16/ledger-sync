@@ -6,10 +6,10 @@ import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, LabelList } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, BAR_RADIUS, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
@@ -404,15 +404,20 @@ export default function NetWorthPage() {
     const months = Object.keys(monthlyValues).sort((a, b) => a.localeCompare(b))
     if (months.length < 2) return []
 
+    // Build waterfall data: invisible base + visible change bar
+    let runningTotal = monthlyValues[months[0]]
     return months.slice(1).map((month, i) => {
       const prevMonth = months[i]
       const change = monthlyValues[month] - monthlyValues[prevMonth]
+      const base = change >= 0 ? runningTotal : runningTotal + change
+      runningTotal += change
       return {
         month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
         change,
-        positive: Math.max(change, 0),
-        negative: Math.max(-change, 0),
-        fill: change >= 0 ? rawColors.ios.green : rawColors.ios.red,
+        base, // invisible bar that positions the change bar
+        increase: Math.max(change, 0),
+        decrease: Math.max(-change, 0),
+        endValue: runningTotal,
       }
     })
   }, [filteredNetWorthData])
@@ -571,29 +576,82 @@ export default function NetWorthPage() {
             transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="glass rounded-xl border border-border p-6 shadow-lg"
           >
-            <div className="flex items-center gap-3 mb-6">
-              <BarChart3 className="w-5 h-5 text-ios-purple" />
-              <h3 className="text-lg font-semibold text-white">Monthly Net Worth Changes</h3>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="w-5 h-5 text-ios-purple" />
+                <h3 className="text-lg font-semibold text-white">Monthly Net Worth Changes</h3>
+              </div>
+              <div className="flex items-center gap-4 text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: rawColors.ios.green }} />
+                  <span className="text-zinc-400">Increase</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: rawColors.ios.red }} />
+                  <span className="text-zinc-400">Decrease</span>
+                </span>
+              </div>
             </div>
             {monthlyChanges.length === 0 ? (
-              <ChartEmptyState height={280} />
+              <ChartEmptyState height={320} />
             ) : (
-              <ChartContainer height={280}>
-                <BarChart data={monthlyChanges}>
+              <ChartContainer height={320}>
+                <BarChart data={monthlyChanges} barCategoryGap="20%">
                   <CartesianGrid {...GRID_DEFAULTS} />
                   <XAxis {...xAxisDefaults(monthlyChanges.length)} dataKey="month" />
                   <YAxis {...yAxisDefaults()} />
                   <Tooltip
                     {...chartTooltipProps}
-                    formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null
+                      const item = payload[0]?.payload as (typeof monthlyChanges)[number] | undefined
+                      if (!item) return null
+                      const isPositive = item.change >= 0
+                      return (
+                        <div style={{
+                          background: 'rgba(26, 26, 28, 0.95)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '10px',
+                          padding: '12px 16px',
+                          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+                        }}>
+                          <p style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '6px' }}>{label}</p>
+                          <p style={{ color: isPositive ? rawColors.ios.green : rawColors.ios.red, fontSize: '16px', fontWeight: 700 }}>
+                            {isPositive ? '+' : ''}{formatCurrency(item.change)}
+                          </p>
+                          <p style={{ color: '#71717a', fontSize: '11px', marginTop: '4px' }}>
+                            Net Worth: {formatCurrency(item.endValue)}
+                          </p>
+                        </div>
+                      )
+                    }}
                   />
-                  <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
-                  <Bar dataKey="positive" name="Increase" fill={rawColors.ios.green} radius={BAR_RADIUS} isAnimationActive={shouldAnimate(monthlyChanges.length)} animationDuration={600} animationEasing="ease-out">
-                    {dims.showBarLabels && <LabelList dataKey="positive" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
-                  </Bar>
-                  <Bar dataKey="negative" name="Decrease" fill={rawColors.ios.red} radius={BAR_RADIUS} isAnimationActive={shouldAnimate(monthlyChanges.length)} animationDuration={600} animationEasing="ease-out">
-                    {dims.showBarLabels && <LabelList dataKey="negative" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
-                  </Bar>
+                  {/* Invisible base bar — positions the visible bars at the right height */}
+                  <Bar dataKey="base" stackId="waterfall" fill="transparent" isAnimationActive={false} />
+                  {/* Green increase bars */}
+                  <Bar
+                    dataKey="increase"
+                    stackId="waterfall"
+                    name="Increase"
+                    fill={rawColors.ios.green}
+                    fillOpacity={0.85}
+                    radius={[4, 4, 4, 4]}
+                    isAnimationActive={shouldAnimate(monthlyChanges.length)}
+                    animationDuration={800}
+                    animationEasing="ease-out"
+                  />
+                  {/* Red decrease bars */}
+                  <Bar
+                    dataKey="decrease"
+                    stackId="waterfall"
+                    name="Decrease"
+                    fill={rawColors.ios.red}
+                    fillOpacity={0.85}
+                    radius={[4, 4, 4, 4]}
+                    isAnimationActive={shouldAnimate(monthlyChanges.length)}
+                    animationDuration={800}
+                    animationEasing="ease-out"
+                  />
                 </BarChart>
               </ChartContainer>
             )}
