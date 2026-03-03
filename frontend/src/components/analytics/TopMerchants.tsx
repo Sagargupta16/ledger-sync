@@ -6,6 +6,8 @@ import { formatCurrency } from '@/lib/formatters'
 import { PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { CHART_COLORS } from '@/constants/chartColors'
+import { shouldAnimate } from '@/components/ui/chartDefaults'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface MerchantData {
   name: string
@@ -157,9 +159,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
       </div>
 
       {merchantData.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">
-          No merchant data available. Transaction notes help identify merchants.
-        </p>
+        <ChartEmptyState message="No merchant data available. Transaction notes help identify merchants." />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pie Chart */}
@@ -173,7 +173,11 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
                   innerRadius={60}
                   outerRadius={80}
                   paddingAngle={2}
+                  strokeWidth={0}
                   dataKey="value"
+                  isAnimationActive={shouldAnimate(pieData.length)}
+                  animationDuration={600}
+                  animationEasing="ease-out"
                 >
                   {pieData.map((entry, index) => (
                     <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />

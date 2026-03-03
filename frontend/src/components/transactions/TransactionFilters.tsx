@@ -85,24 +85,24 @@ export default function TransactionFilters({ onFilterChange, categories, account
   return (
     <div className="space-y-4">
       {/* Search Bar */}
-      <div className="glass rounded-xl border border-border p-4 shadow-lg">
+      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
         <div className="flex items-center gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" aria-hidden="true" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" aria-hidden="true" />
             <input
               type="text"
               placeholder="Search transactions by note, category, or account..."
               value={searchQuery}
               onChange={(e) => handleFilterChange('query', e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-transparent border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
+              className="w-full pl-10 pr-4 py-2 bg-transparent border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
               aria-label="Search transactions"
             />
           </div>
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${showAdvanced
-                ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                : 'bg-white/5 hover:bg-white/10 border border-border'
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-150 ${showAdvanced
+                ? 'bg-white/[0.08] text-white'
+                : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
               }`}
             aria-expanded={showAdvanced}
             aria-controls="advanced-filters"
@@ -114,7 +114,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-ios-red/20 text-ios-red hover:bg-ios-red/30 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-white/[0.06] transition-colors duration-150"
               aria-label="Clear all filters"
             >
               <X className="w-4 h-4" aria-hidden="true" />
@@ -132,24 +132,24 @@ export default function TransactionFilters({ onFilterChange, categories, account
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg space-y-4 overflow-hidden"
+            className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-6 space-y-4 overflow-hidden"
             role="region"
             aria-label="Advanced filters"
           >
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Filter className="w-5 h-5 text-primary" aria-hidden="true" />
+            <h3 className="text-lg font-semibold flex items-center gap-2 text-zinc-300">
+              <Filter className="w-5 h-5 text-zinc-400" aria-hidden="true" />
               Advanced Filters
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Type Filter */}
               <div className="space-y-2">
-                <label htmlFor="filter-type" className="text-sm font-medium text-muted-foreground">Type</label>
+                <label htmlFor="filter-type" className="text-sm font-medium text-zinc-400">Type</label>
                 <select
                   id="filter-type"
                   value={filters.type || ''}
                   onChange={(e) => handleFilterChange('type', e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors text-white"
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                   aria-label="Filter by transaction type"
                 >
                   <option value="" className="bg-background text-white">All Types</option>
@@ -163,12 +163,12 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Category Filter */}
               <div className="space-y-2">
-                <label htmlFor="filter-category" className="text-sm font-medium text-muted-foreground">Category</label>
+                <label htmlFor="filter-category" className="text-sm font-medium text-zinc-400">Category</label>
                 <select
                   id="filter-category"
                   value={filters.category || ''}
                   onChange={(e) => handleFilterChange('category', e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors text-white"
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 >
                   <option value="" className="bg-background text-white">All Categories</option>
                   {categories.map((category) => (
@@ -181,12 +181,12 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Account Filter */}
               <div className="space-y-2">
-                <label htmlFor="filter-account" className="text-sm font-medium text-muted-foreground">Account</label>
+                <label htmlFor="filter-account" className="text-sm font-medium text-zinc-400">Account</label>
                 <select
                   id="filter-account"
                   value={filters.account || ''}
                   onChange={(e) => handleFilterChange('account', e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors text-white"
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 >
                   <option value="" className="bg-background text-white">All Accounts</option>
                   {accounts.map((account) => (
@@ -199,7 +199,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Start Date */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <label className="text-sm font-medium text-zinc-400 flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   Start Date
                 </label>
@@ -207,13 +207,13 @@ export default function TransactionFilters({ onFilterChange, categories, account
                   type="date"
                   value={filters.start_date || ''}
                   onChange={(e) => handleFilterChange('start_date', e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 />
               </div>
 
               {/* End Date */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <label className="text-sm font-medium text-zinc-400 flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   End Date
                 </label>
@@ -221,31 +221,31 @@ export default function TransactionFilters({ onFilterChange, categories, account
                   type="date"
                   value={filters.end_date || ''}
                   onChange={(e) => handleFilterChange('end_date', e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 />
               </div>
 
               {/* Min Amount */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Min Amount ({currencySymbol})</label>
+                <label className="text-sm font-medium text-zinc-400">Min Amount ({currencySymbol})</label>
                 <input
                   type="number"
                   placeholder="0"
                   value={filters.min_amount || ''}
                   onChange={(e) => handleFilterChange('min_amount', e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full px-3 py-2 bg-white/5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 />
               </div>
 
               {/* Max Amount */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Max Amount ({currencySymbol})</label>
+                <label className="text-sm font-medium text-zinc-400">Max Amount ({currencySymbol})</label>
                 <input
                   type="number"
                   placeholder="∞"
                   value={filters.max_amount || ''}
                   onChange={(e) => handleFilterChange('max_amount', e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full px-3 py-2 bg-white/5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 />
               </div>
             </div>

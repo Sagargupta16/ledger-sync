@@ -40,14 +40,14 @@ const columns: ColumnDef<Transaction>[] = [
     header: ({ column }) => (
       <button
         onClick={() => column.toggleSorting()}
-        className="flex items-center gap-2 hover:text-primary transition-colors"
+        className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors duration-150"
       >
         Date
         <ArrowUpDown className="w-4 h-4" />
       </button>
     ),
     cell: ({ row }) => (
-      <span className="text-sm">{format(new Date(row.original.date), 'MMM dd, yyyy')}</span>
+      <span className="text-sm text-zinc-500">{format(new Date(row.original.date), 'MMM dd, yyyy')}</span>
     ),
   },
   {
@@ -73,9 +73,9 @@ const columns: ColumnDef<Transaction>[] = [
     header: 'Category',
     cell: ({ row }) => (
       <div className="space-y-0.5">
-        <div className="text-sm font-medium">{row.original.category}</div>
+        <div className="text-sm font-medium text-zinc-400">{row.original.category}</div>
         {row.original.subcategory && (
-          <div className="text-xs text-muted-foreground">{row.original.subcategory}</div>
+          <div className="text-xs text-zinc-500">{row.original.subcategory}</div>
         )}
       </div>
     ),
@@ -83,14 +83,14 @@ const columns: ColumnDef<Transaction>[] = [
   {
     accessorKey: 'account',
     header: 'Account',
-    cell: ({ row }) => <span className="text-sm">{row.original.account}</span>,
+    cell: ({ row }) => <span className="text-sm text-zinc-400">{row.original.account}</span>,
   },
   {
     accessorKey: 'amount',
     header: ({ column }) => (
       <button
         onClick={() => column.toggleSorting()}
-        className="flex items-center gap-2 hover:text-primary transition-colors"
+        className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors duration-150"
       >
         Amount
         <ArrowUpDown className="w-4 h-4" />
@@ -103,9 +103,9 @@ const columns: ColumnDef<Transaction>[] = [
       const isTransfer = type === 'Transfer'
 
       const colorClass = (() => {
-        if (isTransfer) return 'text-ios-blue'
-        if (isIncome) return 'text-ios-green'
-        return 'text-ios-red'
+        if (isTransfer) return 'text-teal-400'
+        if (isIncome) return 'text-green-400'
+        return 'text-red-400'
       })()
 
       const prefix = (() => {
@@ -126,7 +126,7 @@ const columns: ColumnDef<Transaction>[] = [
     accessorKey: 'note',
     header: 'Note',
     cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
+      <span className="text-sm text-zinc-500 truncate max-w-[200px] block">
         {row.original.note || '-'}
       </span>
     ),
@@ -159,11 +159,11 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
 
   if (isLoading) {
     return (
-      <div className="glass rounded-xl border border-border overflow-hidden">
+      <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl overflow-hidden">
         {/* Desktop skeleton */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-muted/20 border-b border-border sticky top-0 z-10 backdrop-blur-sm">
+            <thead className="bg-white/[0.04] border-b border-white/[0.04] sticky top-0 z-10">
               <tr>
                 {Array.from({ length: 6 }, (_, i) => (
                   <th key={`skeleton-header-${i}`} className="px-6 py-3 text-left">
@@ -174,7 +174,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
             </thead>
             <tbody>
               {Array.from({ length: 10 }, (_, i) => (
-                <tr key={`skeleton-row-${i}`} className="border-b border-border">
+                <tr key={`skeleton-row-${i}`} className="border-b border-white/[0.04]">
                   {Array.from({ length: 6 }, (_, j) => (
                     <td key={`skeleton-cell-${i}-${j}`} className="px-6 py-4">
                       <div className="h-4 skeleton w-full" />
@@ -188,7 +188,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
         {/* Mobile skeleton */}
         <div className="md:hidden divide-y divide-white/5 p-4 space-y-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={`skeleton-card-${i}`} className="p-4 rounded-xl bg-white/5 space-y-3">
+            <div key={`skeleton-card-${i}`} className="p-4 rounded-lg bg-white/[0.03] border border-white/[0.06] space-y-3">
               <div className="flex justify-between">
                 <div className="h-4 skeleton w-24" />
                 <div className="h-5 skeleton w-20" />
@@ -207,7 +207,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
 
   if (transactions.length === 0) {
     return (
-      <div className="glass rounded-xl border border-border shadow-lg">
+      <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl">
         <EmptyState
           icon={Search}
           title="No transactions found"
@@ -222,13 +222,13 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-xl border border-border overflow-hidden shadow-xl"
+      className="bg-white/[0.02] border border-white/[0.06] rounded-xl overflow-hidden"
     >
       {/* Desktop table */}
       <div className="hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-muted/20 border-b border-border sticky top-0 z-10 backdrop-blur-sm">
+            <thead className="bg-white/[0.04] border-b border-white/[0.04] sticky top-0 z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -249,7 +249,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
               {table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b border-border hover:bg-white/10 transition-colors"
+                  className="border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors duration-150"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-6 py-4">
@@ -284,8 +284,8 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
             return (
               <div key={dateKey}>
                 {/* Day header */}
-                <div className="sticky top-0 z-10 px-4 py-2 bg-background/90 backdrop-blur-sm flex items-center justify-between border-b border-border">
-                  <span className="text-xs font-semibold text-muted-foreground">
+                <div className="sticky top-0 z-10 px-4 py-2 bg-background/90 backdrop-blur-sm flex items-center justify-between border-b border-white/[0.04]">
+                  <span className="text-xs font-semibold text-zinc-500">
                     {format(new Date(dateKey), 'EEE, MMM dd yyyy')}
                   </span>
                   <span className={`text-xs font-semibold ${dayTotal >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
@@ -303,7 +303,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                     const TypeIcon = isIncome ? TrendingUp : TrendingDown
 
                     return (
-                      <div key={row.id} className="p-4 hover:bg-white/10 transition-colors">
+                      <div key={row.id} className="p-4 hover:bg-white/[0.04] transition-colors duration-150">
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2">
                             {isTransfer ? (
@@ -313,15 +313,15 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                             )}
                             <span className="text-sm font-medium">{tx.category}</span>
                             {tx.subcategory && (
-                              <span className="text-xs text-muted-foreground">/ {tx.subcategory}</span>
+                              <span className="text-xs text-zinc-500">/ {tx.subcategory}</span>
                             )}
                           </div>
                           <span className={`text-sm font-semibold ${amountColor}`}>
                             {prefix}{formatCurrency(Math.abs(tx.amount))}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{tx.account}</span>
+                        <div className="flex items-center justify-between text-xs text-zinc-500">
+                          <span className="text-zinc-400">{tx.account}</span>
                           {tx.note && <span className="truncate max-w-[150px]">{tx.note}</span>}
                         </div>
                       </div>

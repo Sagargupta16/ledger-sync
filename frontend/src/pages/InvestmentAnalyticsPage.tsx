@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { TrendingUp, PieChart, DollarSign, LineChart, Target } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import { useMemo, useState } from 'react'
@@ -8,10 +7,9 @@ import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
-import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
@@ -434,7 +432,8 @@ export default function InvestmentAnalyticsPage() {
                     labelLine={false}
                     label={({ name, payload }) => `${name} (${payload.percentage}%)`}
                     outerRadius={100}
-                    fill="#8884d8"
+                    strokeWidth={0}
+                    paddingAngle={2}
                     dataKey="value"
                   >
                     {assetAllocation.map((entry) => (
@@ -445,7 +444,7 @@ export default function InvestmentAnalyticsPage() {
                     {...chartTooltipProps}
                     formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
                   />
-                  <Legend />
+                  <Legend {...LEGEND_DEFAULTS} />
                 </RechartsPie>
               </ChartContainer>
             )
@@ -481,20 +480,9 @@ export default function InvestmentAnalyticsPage() {
                       </linearGradient>
                     ))}
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis
-                    dataKey="date"
-                    stroke={CHART_AXIS_COLOR}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    tickFormatter={(v) => formatDateTick(v, filteredGrowthData.length)}
-                    interval={Math.max(1, Math.floor(filteredGrowthData.length / 20))}
-                  />
-                  <YAxis
-                    stroke={CHART_AXIS_COLOR}
-                    tickFormatter={(value) => formatCurrencyShort(value)}
-                  />
+                  <CartesianGrid {...GRID_DEFAULTS} />
+                  <XAxis {...xAxisDefaults(filteredGrowthData.length, { angle: -45, height: 80, dateFormatter: true })} dataKey="date" />
+                  <YAxis {...yAxisDefaults()} />
                   <Tooltip
                     {...chartTooltipProps}
                     formatter={(value: number | undefined, name: string | undefined) => [
@@ -503,18 +491,21 @@ export default function InvestmentAnalyticsPage() {
                     ]}
                     labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   />
-                  <Legend />
+                  <Legend {...LEGEND_DEFAULTS} />
                   {INVESTMENT_CATEGORIES.map((category) => (
                     <Area
                       key={category}
-                      type="natural"
+                      type="monotone"
                       dataKey={category}
                       stackId="1"
                       stroke={CATEGORY_COLORS[category]}
                       strokeWidth={2}
+                      dot={false}
                       fillOpacity={1}
                       fill={`url(#color-${category.replaceAll(/[\s/]/g, '-')})`}
-                      isAnimationActive={filteredGrowthData.length < CHART_ANIMATION_THRESHOLD}
+                      isAnimationActive={shouldAnimate(filteredGrowthData.length)}
+                      animationDuration={600}
+                      animationEasing="ease-out"
                     />
                   ))}
                 </AreaChart>

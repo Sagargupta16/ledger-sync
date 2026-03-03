@@ -1,7 +1,7 @@
 /**
  * CollapsibleSection
  *
- * A reusable collapsible section with glass-card styling,
+ * A reusable collapsible section with premium design system styling,
  * animated expand/collapse via framer-motion, and an optional badge pill.
  */
 
@@ -28,23 +28,23 @@ export default function CollapsibleSection({
   const [expanded, setExpanded] = useState<boolean>(defaultExpanded)
 
   return (
-    <div className="glass rounded-lg border border-border">
+    <div className="bg-white/[0.03] rounded-xl border border-white/[0.06]">
       {/* Header button */}
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex items-center gap-3 w-full px-5 py-4 text-left hover:bg-white/5 transition-colors rounded-lg"
+        className="flex items-center gap-3 w-full px-5 py-4 text-left hover:bg-white/[0.04] transition-colors duration-150 rounded-xl"
       >
-        <Icon className="w-5 h-5 text-primary shrink-0" />
-        <span className="text-base font-semibold text-white flex-1">{title}</span>
+        <Icon className="w-5 h-5 text-zinc-400 shrink-0" />
+        <span className="text-base font-semibold text-zinc-200 flex-1">{title}</span>
         {badge !== undefined && (
-          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">
+          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/15 text-blue-400">
             {badge}
           </span>
         )}
         <ChevronDown
           className={cn(
-            'w-4 h-4 text-muted-foreground transition-transform duration-200',
+            'w-4 h-4 text-zinc-500 transition-transform duration-150',
             !expanded && '-rotate-90',
           )}
         />

@@ -1,45 +1,39 @@
 import { memo, type ReactNode } from 'react'
 import { rawColors } from '@/constants/colors'
-import { motion } from 'framer-motion'
 import { cn } from '@/lib/cn'
-import { cardHover } from '@/constants/animations'
 
 interface CardProps {
   children: ReactNode
   className?: string
   animate?: boolean
   delay?: number
-  variant?: 'default' | 'elevated' | 'interactive'
+  variant?: 'default' | 'interactive'
 }
 
 /**
- * iOS-style frosted glass card component
- * Provides consistent styling across the application
+ * Frosted glass card component with restrained styling.
+ * Provides consistent card appearance across the application.
  */
-export const Card = memo(function Card({ 
-  children, 
+export const Card = memo(function Card({
+  children,
   className,
   animate = true,
   delay = 0,
   variant = 'default'
 }: CardProps) {
   const variantClasses = {
-    default: 'glass rounded-2xl border border-white/5 border-t-white/10 border-l-white/10 p-6 shadow-xl shadow-black/40',
-    elevated: 'glass-strong rounded-2xl border border-white/[0.08] border-t-white/[0.14] border-l-white/[0.14] p-6 shadow-2xl shadow-black/50',
-    interactive: 'glass rounded-2xl border border-white/5 border-t-white/10 border-l-white/10 p-6 shadow-xl shadow-black/40 transition-all duration-300 hover:bg-[rgba(38,38,40,0.6)] hover:border-white/[0.12] hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-black/50'
+    default: 'glass rounded-2xl border border-white/[0.06] p-6',
+    interactive: 'glass rounded-2xl border border-white/[0.06] p-6 transition-all duration-150 ease-out hover:border-white/[0.10]'
   }
 
   if (animate) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay, type: 'spring', stiffness: 300, damping: 30 }}
-        whileHover={variant === 'interactive' ? cardHover : undefined}
-        className={cn(variantClasses[variant], className)}
+      <div
+        className={cn(variantClasses[variant], 'animate-fade-up', className)}
+        style={{ animationDelay: `${delay * 1000}ms` }}
       >
         {children}
-      </motion.div>
+      </div>
     )
   }
 
@@ -58,26 +52,27 @@ interface CardHeaderProps {
 }
 
 /**
- * Card header with title, optional icon, and action slot
+ * Card header with title, optional icon, and action slot.
+ * Clean typographic hierarchy with restrained icon backgrounds.
  */
-export const CardHeader = memo(function CardHeader({ 
-  title, 
-  subtitle, 
-  icon, 
-  action 
+export const CardHeader = memo(function CardHeader({
+  title,
+  subtitle,
+  icon,
+  action
 }: CardHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-3">
         {icon && (
-          <div className="p-2.5 bg-ios-blue-vibrant/20 rounded-xl">
+          <div className="p-2.5 bg-blue-500/10 rounded-xl">
             {icon}
           </div>
         )}
         <div>
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          <h3 className="text-sm font-medium text-zinc-300">{title}</h3>
           {subtitle && (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <p className="text-xs text-zinc-500">{subtitle}</p>
           )}
         </div>
       </div>
@@ -100,7 +95,8 @@ interface StatCardProps {
 }
 
 /**
- * iOS-style statistic card for displaying KPIs
+ * Statistic card for displaying KPIs with clean typography
+ * and restrained icon backgrounds.
  */
 export const StatCard = memo(function StatCard({
   title,
@@ -115,28 +111,27 @@ export const StatCard = memo(function StatCard({
     <Card delay={delay} variant="interactive">
       <div className="flex items-center gap-3">
         {icon && (
-          <div 
+          <div
             className="p-3 rounded-2xl"
-            style={{ 
-              background: `${iconColor}20`,
-              boxShadow: `0 8px 24px ${iconColor}30`
+            style={{
+              background: `${iconColor}10`
             }}
           >
             <div style={{ color: iconColor }}>{icon}</div>
           </div>
         )}
         <div className="flex-1">
-          <p className="text-sm text-muted-foreground">{title}</p>
+          <p className="text-sm text-zinc-500">{title}</p>
           <p className="text-2xl font-semibold text-white">{value}</p>
           {subtitle && (
-            <p className="text-xs text-text-tertiary mt-1">{subtitle}</p>
+            <p className="text-xs text-zinc-600 mt-1">{subtitle}</p>
           )}
           {trend && (
             <p className={cn(
               'text-xs mt-1 font-medium',
-              trend.isPositive ? 'text-ios-green-vibrant' : 'text-ios-red-vibrant'
+              trend.isPositive ? 'text-green-400' : 'text-red-400'
             )}>
-              {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
+              {trend.isPositive ? '\u2191' : '\u2193'} {Math.abs(trend.value)}%
             </p>
           )}
         </div>

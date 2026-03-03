@@ -41,7 +41,7 @@ function ActionButton({ actionLabel, actionHref, onAction, isCompact }: Readonly
   isCompact: boolean
 }>) {
   const sizeClass = getSizeClass(isCompact, 'text-xs', 'text-sm')
-  const baseClass = `inline-flex items-center gap-2 px-5 py-2.5 bg-ios-blue-vibrant text-white rounded-xl font-medium hover:bg-ios-blue active:scale-[0.98] transition-colors shadow-lg shadow-ios-blue-vibrant/30 ${sizeClass}`
+  const baseClass = `inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-400 active:scale-[0.98] transition-colors duration-150 ${sizeClass}`
 
   if (actionHref) {
     return (
@@ -76,22 +76,22 @@ export default function EmptyState({
       <div className={`py-8 px-6 text-center ${className}`}>
         {/* Faux chart skeleton */}
         <div className="mx-auto max-w-sm mb-4">
-          <div className="flex items-end gap-1 h-24 border-l border-b border-border pl-2 pb-1">
+          <div className="flex items-end gap-1 h-24 border-l border-b border-white/[0.06] pl-2 pb-1">
             {[40, 65, 30, 80, 55, 45, 70, 35, 60, 50].map((h) => (
               <div
                 key={`empty-bar-${h}`}
-                className="flex-1 rounded-t bg-white/5"
+                className="flex-1 rounded-t bg-white/[0.06]"
                 style={{ height: `${h}%` }}
               />
             ))}
           </div>
         </div>
         <div className="flex flex-col items-center gap-2">
-          {Icon && <Icon className="w-8 h-8 text-text-quaternary" />}
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
-          {description && <p className="text-sm text-text-tertiary max-w-sm">{description}</p>}
+          {Icon && <Icon className="w-8 h-8 text-zinc-500" />}
+          <h3 className="text-base font-medium text-zinc-200">{title}</h3>
+          {description && <p className="text-sm text-zinc-500 max-w-sm">{description}</p>}
           {actionLabel && actionHref && (
-            <a href={actionHref} className="mt-2 text-sm text-primary hover:underline">{actionLabel}</a>
+            <a href={actionHref} className="mt-2 text-sm text-blue-400 hover:text-blue-300 transition-colors duration-150">{actionLabel}</a>
           )}
         </div>
       </div>
@@ -104,24 +104,23 @@ export default function EmptyState({
       animate={{ opacity: 1, y: 0 }}
       className={`flex flex-col items-center justify-center text-center ${paddingClasses[variant]}`}
     >
-      {/* Icon - iOS style */}
+      {/* Icon */}
       <div
-        className={`rounded-2xl bg-ios-blue-vibrant/15 flex items-center justify-center mb-4 ${
+        className={`rounded-xl bg-white/[0.06] flex items-center justify-center mb-4 ${
           getSizeClass(isCompact, 'w-12 h-12', 'w-16 h-16')
         }`}
-        style={{ boxShadow: '0 8px 32px rgba(10, 132, 255, 0.15)' }}
       >
-        <Icon className={`text-ios-blue-vibrant ${getSizeClass(isCompact, 'w-6 h-6', 'w-8 h-8')}`} />
+        <Icon className={`text-zinc-400 ${getSizeClass(isCompact, 'w-6 h-6', 'w-8 h-8')}`} />
       </div>
 
       {/* Title */}
-      <h3 className={`font-semibold text-white mb-1 ${getSizeClass(isCompact, 'text-sm', 'text-lg')}`}>
+      <h3 className={`font-medium text-zinc-200 mb-1 ${getSizeClass(isCompact, 'text-sm', 'text-base')}`}>
         {title}
       </h3>
 
       {/* Description */}
       {description && (
-        <p className={`text-muted-foreground max-w-xs ${getSizeClass(isCompact, 'text-xs', 'text-sm')}`}>
+        <p className={`text-zinc-500 max-w-xs ${getSizeClass(isCompact, 'text-xs', 'text-sm')}`}>
           {description}
         </p>
       )}
@@ -142,7 +141,7 @@ export default function EmptyState({
 
   if (variant === 'card') {
     return (
-      <div className="glass rounded-2xl border border-border shadow-lg shadow-black/20">
+      <div className="glass rounded-2xl">
         {content}
       </div>
     )

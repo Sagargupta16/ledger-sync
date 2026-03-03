@@ -1,12 +1,12 @@
 export default function LoadingSkeleton({ className = '' }: Readonly<{ className?: string }>) {
   return (
-    <div className={`animate-pulse bg-gradient-to-r from-white/5 via-white/10 to-white/5 bg-[length:200%_100%] rounded-lg ${className}`} />
+    <div className={`animate-pulse bg-white/[0.04] rounded-lg ${className}`} />
   )
 }
 
 export function MetricCardSkeleton() {
   return (
-    <div className="glass rounded-xl border border-border p-6 shadow-lg">
+    <div className="glass rounded-2xl p-6">
       <div className="flex items-center gap-3">
         <LoadingSkeleton className="w-12 h-12 rounded-xl" />
         <div className="flex-1 space-y-2">
@@ -20,7 +20,7 @@ export function MetricCardSkeleton() {
 
 export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>) {
   return (
-    <div className={`glass rounded-xl border border-border p-6 shadow-lg ${height}`}>
+    <div className={`glass rounded-xl p-6 ${height}`}>
       <div className="space-y-4 h-full">
         <div className="flex items-center gap-3">
           <LoadingSkeleton className="w-5 h-5 rounded" />
@@ -43,8 +43,8 @@ export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>
 
 export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
   return (
-    <div className="glass rounded-xl border border-border overflow-hidden">
-      <div className="bg-white/5 p-4 border-b border-border">
+    <div className="glass rounded-xl overflow-hidden">
+      <div className="bg-white/[0.04] p-4 border-b border-white/[0.06]">
         <div className="flex gap-4">
           <LoadingSkeleton className="h-4 w-24" />
           <LoadingSkeleton className="h-4 w-32" />

@@ -6,6 +6,8 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort, percentChange } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, BAR_RADIUS, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui/chartDefaults'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 // Get Financial Year from date (April to March)
 const getFY = (date: string): string => {
@@ -151,7 +153,7 @@ export default function YearOverYearComparison() {
     return (
       <div className="glass rounded-2xl border border-border p-6">
         <h3 className="text-lg font-semibold mb-2">Year-over-Year Comparison</h3>
-        <p className="text-muted-foreground">Need at least 2 financial years of data for comparison.</p>
+        <ChartEmptyState message="Need at least 2 financial years of data for comparison." />
       </div>
     )
   }
@@ -232,22 +234,22 @@ export default function YearOverYearComparison() {
       <div className="h-64 mb-6">
         <ChartContainer>
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-            <YAxis tickFormatter={(v) => formatCurrencyShort(v)} tick={{ fontSize: 12 }} />
+            <CartesianGrid {...GRID_DEFAULTS} />
+            <XAxis {...xAxisDefaults(chartData.length)} dataKey="name" />
+            <YAxis {...yAxisDefaults()} />
             <Tooltip
               {...chartTooltipProps}
               formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
             />
-            <Legend />
+            <Legend {...LEGEND_DEFAULTS} />
             {selectedCategory === 'all' ? (
               <>
-                <Bar dataKey="Income" fill={SEMANTIC_COLORS.income} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Expenses" fill={SEMANTIC_COLORS.expense} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Savings" fill={SEMANTIC_COLORS.investment} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Income" fill={SEMANTIC_COLORS.income} radius={BAR_RADIUS} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(chartData.length)} />
+                <Bar dataKey="Expenses" fill={SEMANTIC_COLORS.expense} radius={BAR_RADIUS} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(chartData.length)} />
+                <Bar dataKey="Savings" fill={SEMANTIC_COLORS.investment} radius={BAR_RADIUS} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(chartData.length)} />
               </>
             ) : (
-              <Bar dataKey={selectedCategory} fill={SEMANTIC_COLORS.savings} radius={[4, 4, 0, 0]} />
+              <Bar dataKey={selectedCategory} fill={SEMANTIC_COLORS.savings} radius={BAR_RADIUS} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(chartData.length)} />
             )}
           </BarChart>
         </ChartContainer>

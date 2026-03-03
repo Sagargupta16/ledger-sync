@@ -20,8 +20,9 @@ import {
   XAxis,
   YAxis,
   Cell,
+  CartesianGrid,
 } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, shouldAnimate, GRID_DEFAULTS } from '@/components/ui'
 import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -573,10 +574,13 @@ export default function ComparisonPage() {
             <div style={{ height: Math.max(300, butterflyData.length * 36) }}>
               <ChartContainer>
                 <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ left: 10, right: 10 }}>
+                  <CartesianGrid {...GRID_DEFAULTS} horizontal={false} vertical={true} />
                   <XAxis
                     type="number"
                     domain={[-maxVal, maxVal]}
                     tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }}
+                    tickLine={false}
+                    axisLine={{ stroke: 'rgba(255, 255, 255, 0.06)' }}
                     tickFormatter={(v: number) => formatCurrencyShort(Math.abs(v))}
                   />
                   <YAxis
@@ -584,18 +588,20 @@ export default function ComparisonPage() {
                     dataKey="name"
                     width={100}
                     tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={{ stroke: 'rgba(255, 255, 255, 0.06)' }}
                   />
                   <Tooltip
                     {...chartTooltipProps}
                     formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(Math.abs(value))}
                     labelFormatter={(label) => label}
                   />
-                  <Bar dataKey="periodA" name={periodA.label} stackId="stack" radius={[4, 0, 0, 4]}>
+                  <Bar dataKey="periodA" name={periodA.label} stackId="stack" radius={[4, 0, 0, 4]} isAnimationActive={shouldAnimate(butterflyData.length)} animationDuration={600} animationEasing="ease-out">
                     {butterflyData.map((entry) => (
                       <Cell key={`a-${entry.name}`} fill={rawColors.ios.blue} />
                     ))}
                   </Bar>
-                  <Bar dataKey="periodB" name={periodB.label} stackId="stack" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="periodB" name={periodB.label} stackId="stack" radius={[0, 4, 4, 0]} isAnimationActive={shouldAnimate(butterflyData.length)} animationDuration={600} animationEasing="ease-out">
                     {butterflyData.map((entry) => (
                       <Cell key={`b-${entry.name}`} fill={rawColors.ios.indigo} />
                     ))}

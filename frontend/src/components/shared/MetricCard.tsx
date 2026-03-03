@@ -3,46 +3,48 @@ import type { LucideIcon } from 'lucide-react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import { type ReactNode, useEffect, useRef } from 'react'
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
-import { cardHover } from '@/constants/animations'
 
-/** Animated number counter — extracts numeric part from formatted strings like "$1,234.56" */
+/** Parse a formatted string like "$1,234.56" or "₹12,345" into { prefix, number, suffix, decimals } */
+function parseFormattedNumber(str: string) {
+  const match = /[\d,.]+/.exec(str)
+  if (!match) return null
+
+  const numericStr = match[0].replaceAll(',', '')
+  const target = Number.parseFloat(numericStr)
+  if (Number.isNaN(target)) return null
+
+  const prefix = str.slice(0, match.index)
+  const suffix = str.slice((match.index ?? 0) + match[0].length)
+  const hasDecimals = numericStr.includes('.')
+  const decimalPlaces = hasDecimals ? (numericStr.split('.')[1]?.length ?? 0) : 0
+
+  return { prefix, suffix, target, decimalPlaces }
+}
+
+/** Animated number counter — counts from previous value to new value with ease-out cubic */
 function AnimatedValue({ value }: Readonly<{ value: string | number }>) {
   const ref = useRef<HTMLSpanElement>(null)
-  const prevValue = useRef<string>(String(value))
+  const prevNumeric = useRef<number>(0)
 
   useEffect(() => {
-    if (!ref.current) {
-      prevValue.current = String(value)
-      return
-    }
+    if (!ref.current) return
 
     const str = String(value)
-    // Extract the numeric portion (supports $1,234.56 / ₹12,345 / 99.5% etc.)
-    const match = /[\d,.]+/.exec(str)
-    if (!match) {
+    const parsed = parseFormattedNumber(str)
+
+    if (!parsed) {
+      // Non-numeric value — just set text directly
       ref.current.textContent = str
-      prevValue.current = str
       return
     }
 
-    const numericStr = match[0].replaceAll(',', '')
-    const target = Number.parseFloat(numericStr)
-    if (Number.isNaN(target)) {
-      ref.current.textContent = str
-      prevValue.current = str
-      return
-    }
+    const { prefix, suffix, target, decimalPlaces } = parsed
+    const startFrom = prevNumeric.current
 
-    // Extract prefix (like "$" or "₹") and suffix (like "%")
-    const prefix = str.slice(0, match.index)
-    const suffix = str.slice((match.index ?? 0) + match[0].length)
-    const hasDecimals = numericStr.includes('.')
-    const decimalPlaces = hasDecimals ? (numericStr.split('.')[1]?.length ?? 0) : 0
-
-    const motionVal = { v: 0 }
+    const motionVal = { v: startFrom }
     const ctrl = animate(motionVal, { v: target }, {
-      duration: 0.8,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      duration: 0.6,
+      ease: [0.16, 1, 0.3, 1], // ease-out expo — fast start, smooth deceleration
       onUpdate: () => {
         if (!ref.current) return
         const formatted = motionVal.v.toLocaleString(undefined, {
@@ -53,7 +55,7 @@ function AnimatedValue({ value }: Readonly<{ value: string | number }>) {
       },
     })
 
-    prevValue.current = str
+    prevNumeric.current = target
     return () => ctrl.stop()
   }, [value])
 
@@ -81,66 +83,58 @@ export default function MetricCard({ title, value, change, invertChange, changeL
 
   if (isLoading) {
     return (
-      <div className="p-6 glass rounded-2xl border border-white/5 border-t-white/10 border-l-white/10 shadow-xl shadow-black/40">
-        <div className="h-4 skeleton w-1/2 mb-4" />
-        <div className="h-8 skeleton w-3/4 mb-2" />
-        <div className="h-3 skeleton w-1/3" />
+      <div className="p-6 glass rounded-2xl">
+        <div className="h-4 bg-white/[0.06] animate-pulse rounded w-1/2 mb-4" />
+        <div className="h-8 bg-white/[0.06] animate-pulse rounded w-3/4 mb-2" />
+        <div className="h-3 bg-white/[0.06] animate-pulse rounded w-1/3" />
       </div>
     )
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      whileHover={cardHover}
-      className="relative p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10 shadow-xl shadow-black/40 transition-all duration-300 hover:border-white/[0.12] hover:shadow-2xl hover:shadow-black/50"
+      transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className="relative p-6 glass rounded-2xl transition-colors duration-150 ease-out hover:border-white/[0.08]"
     >
-      {/* Animated gradient glow on hover */}
+      {/* Icon */}
       <div
-        className="absolute top-0 right-0 w-40 h-40 opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-50"
-        style={{ background: colors.glow }}
-      />
-      <div
-        className="absolute bottom-0 left-0 w-24 h-24 opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-30"
-        style={{ background: colors.glow }}
-      />
-
-      {/* Icon with scale-in animation */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.5 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.1, type: 'spring', stiffness: 400, damping: 20 }}
-        className="inline-flex p-3 rounded-2xl mb-4 relative z-10"
-        style={{ background: colors.bg, boxShadow: `0 8px 24px ${colors.glow}` }}
+        className="inline-flex p-3 rounded-xl mb-4"
+        style={{ background: colors.bg }}
       >
         <Icon className="w-6 h-6" style={{ color: colors.text }} />
-      </motion.div>
+      </div>
 
       {/* Title */}
-      <h3 className="text-sm font-medium mb-1 relative z-10" style={{ color: rawColors.text.secondary }}>{title}</h3>
+      <h3 className="text-sm font-medium text-zinc-400 mb-1">{title}</h3>
 
       {/* Animated Value */}
-      <output className="flex items-baseline gap-2 relative z-10" aria-live="polite">
-        <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-white">
+      <output className="flex items-baseline gap-2" aria-live="polite">
+        <motion.p
+          key={String(value)}
+          initial={{ opacity: 0.6, scale: 0.97, filter: 'blur(2px)' }}
+          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+          transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="text-2xl font-bold text-white"
+        >
           <AnimatedValue value={value} />
-        </p>
+        </motion.p>
       </output>
 
       {/* Subtitle */}
       {subtitle && (
-        <p className="text-xs mt-1 relative z-10" style={{ color: rawColors.text.tertiary }}>{subtitle}</p>
+        <p className="text-xs text-zinc-500 mt-1">{subtitle}</p>
       )}
 
       {/* Sparkline/Trend */}
       {trend && (
-        <div className="mt-3 relative z-10 opacity-80">
+        <div className="mt-3 opacity-80">
           {trend}
         </div>
       )}
 
-      {/* Change indicator with entrance animation */}
+      {/* Change indicator */}
       {change !== undefined && (
         (() => {
           const isPositive = change >= 0
@@ -149,16 +143,16 @@ export default function MetricCard({ title, value, change, invertChange, changeL
           const badColor = rawColors.ios.red
           return (
             <motion.div
-              initial={{ opacity: 0, x: -10 }}
+              initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3, duration: 0.4 }}
-              className="flex items-center gap-2 mt-3 relative z-10"
+              transition={{ delay: 0.2, duration: 0.3, ease: 'easeOut' }}
+              className="flex items-center gap-2 mt-3"
             >
               <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${isGood ? 'bg-ios-green/10' : 'bg-ios-red/10'}`}>
                 {isPositive ? (
-                  <TrendingUp className="w-4 h-4" style={{ color: isGood ? goodColor : badColor }} />
+                  <TrendingUp className="w-3.5 h-3.5" style={{ color: isGood ? goodColor : badColor }} />
                 ) : (
-                  <TrendingDown className="w-4 h-4" style={{ color: isGood ? goodColor : badColor }} />
+                  <TrendingDown className="w-3.5 h-3.5" style={{ color: isGood ? goodColor : badColor }} />
                 )}
                 <span
                   className="text-sm font-medium"
@@ -167,7 +161,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
                   {change > 0 ? '+' : ''}{change}%
                 </span>
               </span>
-              <span className="text-xs" style={{ color: rawColors.text.tertiary }}>
+              <span className="text-xs text-zinc-500">
                 {changeLabel || 'vs last month'}
               </span>
             </motion.div>

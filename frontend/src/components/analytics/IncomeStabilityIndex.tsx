@@ -5,8 +5,9 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
-import { CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate } from '@/components/ui/chartDefaults'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 function getStabilityColor(score: number): string {
   if (score >= 70) return rawColors.ios.green
@@ -80,9 +81,7 @@ export default function IncomeStabilityIndex() {
       </div>
 
       {sources.length === 0 ? (
-        <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-          Need at least 2 months of income data
-        </div>
+        <ChartEmptyState height={192} message="Need at least 2 months of income data" />
       ) : (
         <>
           {/* Overall Score */}
@@ -102,14 +101,12 @@ export default function IncomeStabilityIndex() {
           {/* Chart */}
           <ChartContainer height={280}>
             <BarChart data={sources} layout="vertical" margin={{ left: 10, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} horizontal={false} />
-              <XAxis type="number" domain={[0, 100]} stroke={CHART_AXIS_COLOR} tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
+              <CartesianGrid {...GRID_DEFAULTS} horizontal={false} />
+              <XAxis {...xAxisDefaults(sources.length)} type="number" domain={[0, 100]} tickFormatter={undefined} />
               <YAxis
+                {...yAxisDefaults({ currency: false, width: 120 })}
                 dataKey="name"
                 type="category"
-                width={120}
-                stroke={CHART_AXIS_COLOR}
-                tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
                 tickFormatter={(v: string) => v.length > 15 ? `${v.substring(0, 12)}...` : v}
               />
               <Tooltip
@@ -119,7 +116,7 @@ export default function IncomeStabilityIndex() {
                   entry.payload?.name ?? '',
                 ]}
               />
-              <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={20}>
+              <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={20} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(sources.length)}>
                 {sources.map((s) => (
                   <Cell key={s.name} fill={getStabilityColor(s.score)} />
                 ))}

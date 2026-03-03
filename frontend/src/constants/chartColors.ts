@@ -67,7 +67,7 @@ export const SEMANTIC_COLORS = {
 
 // Chart axis and grid colors
 export const CHART_AXIS_COLOR = '#9ca3af'
-export const CHART_GRID_COLOR = '#374151'
+export const CHART_GRID_COLOR = '#2a2a2e'
 
 // Get color by index with wrap-around
 export const getChartColor = (index: number): string => {

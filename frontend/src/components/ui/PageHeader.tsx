@@ -26,7 +26,7 @@ const PageHeader = memo(function PageHeader({ title, subtitle, action }: PageHea
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="sticky top-0 z-20 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-3 md:py-4 transition-all duration-300 backdrop-blur-xl bg-background/80"
+      className="sticky top-0 z-20 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-3 md:py-4 transition-all duration-150 ease-out backdrop-blur-md bg-black/80"
       style={{
         paddingTop: scrolled ? '0.75rem' : '1rem',
         paddingBottom: scrolled ? '0.75rem' : '1rem',
@@ -35,14 +35,14 @@ const PageHeader = memo(function PageHeader({ title, subtitle, action }: PageHea
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
           <h1
-            className="text-page-title text-white tracking-tight transition-all duration-300"
+            className="text-page-title text-white tracking-tight transition-all duration-150 ease-out"
             style={{ fontSize: scrolled ? '1.25rem' : undefined }}
           >
             {title}
           </h1>
           {subtitle && (
             <p
-              className="mt-1 text-sm text-muted-foreground transition-all duration-300"
+              className="mt-1 text-sm text-zinc-400 transition-all duration-150 ease-out"
               style={{
                 opacity: scrolled ? 0 : 1,
                 maxHeight: scrolled ? 0 : '2rem',

@@ -5,7 +5,7 @@
  * reset account, delete account), and sign-out.  Migrated from the old
  * AccountManagementTab so all account operations live in one place.
  *
- * Overlay + glass-card pattern matches ConfirmDialog.
+ * Overlay + premium design system pattern matches ConfirmDialog.
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -159,24 +159,24 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="max-w-lg w-full glass-strong rounded-2xl border border-border p-0 overflow-hidden shadow-2xl"
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="max-w-lg w-full bg-[#1a1a1c] rounded-2xl border border-white/[0.08] p-0 overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* ─── Profile Header ─────────────────────────────────────── */}
             <div
               className="relative px-6 pt-6 pb-5"
               style={{
-                background: `linear-gradient(135deg, ${rawColors.ios.purple}30, ${rawColors.ios.indigo}20, transparent)`,
+                background: `linear-gradient(135deg, ${rawColors.ios.purple}20, ${rawColors.ios.indigo}12, transparent)`,
               }}
             >
               {/* Close button */}
               <button
                 type="button"
                 onClick={handleClose}
-                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-transparent hover:bg-white/[0.06] flex items-center justify-center transition-colors duration-150 ease-out"
               >
-                <X size={16} className="text-white" />
+                <X size={16} className="text-zinc-500 hover:text-white" />
               </button>
 
               <div className="flex items-center gap-4">
@@ -196,16 +196,16 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                   <h2 className="text-lg font-semibold text-white truncate">
                     {displayName}
                   </h2>
-                  <p className="text-sm text-muted-foreground truncate">
+                  <p className="text-sm text-zinc-400 truncate">
                     {user?.email}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/10 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-xs text-zinc-400">
                       <Shield size={10} />
                       {providerLabel}
                     </span>
                     {memberSince && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-zinc-500">
                         Since {memberSince}
                       </span>
                     )}
@@ -217,11 +217,11 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             {/* ─── Account Actions ────────────────────────────────────── */}
             <div className="px-6 py-4 space-y-3">
               {/* Edit Name */}
-              <div className="rounded-xl bg-white/5 border border-border p-4">
+              <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Pencil size={14} className="text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Display Name</span>
+                    <Pencil size={14} className="text-zinc-400" />
+                    <span className="text-sm text-zinc-400">Display Name</span>
                   </div>
                   {!isEditingName && (
                     <button
@@ -230,7 +230,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                         setNameInput(user?.full_name || '')
                         setIsEditingName(true)
                       }}
-                      className="text-xs text-primary hover:text-primary/80 transition-colors"
+                      className="text-xs text-blue-400 hover:text-blue-300 transition-colors duration-150 ease-out"
                     >
                       Edit
                     </button>
@@ -248,21 +248,21 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                         if (e.key === 'Escape') setIsEditingName(false)
                       }}
                       autoFocus
-                      className="flex-1 px-3 py-1.5 bg-white/5 border border-border rounded-lg text-white text-sm focus:border-primary focus:outline-none"
+                      className="flex-1 px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-white text-sm focus:border-blue-500/50 focus:outline-none transition-colors duration-150 ease-out"
                       placeholder="Your name"
                     />
                     <button
                       type="button"
                       onClick={handleSaveName}
                       disabled={updateProfile.isPending}
-                      className="p-1.5 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors disabled:opacity-50"
+                      className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors duration-150 ease-out disabled:opacity-50"
                     >
                       <Check size={14} />
                     </button>
                     <button
                       type="button"
                       onClick={() => setIsEditingName(false)}
-                      className="p-1.5 rounded-lg bg-white/10 text-muted-foreground hover:bg-white/20 transition-colors"
+                      className="p-1.5 rounded-lg bg-white/[0.06] text-zinc-400 hover:bg-white/[0.10] transition-colors duration-150 ease-out"
                     >
                       <X size={14} />
                     </button>
@@ -275,7 +275,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
               </div>
 
               {/* Reset Account */}
-              <div className="rounded-xl border border-ios-orange/30 bg-ios-orange/5 p-4">
+              <div className="rounded-xl border border-orange-500/15 bg-orange-500/5 p-4">
                 <button
                   type="button"
                   onClick={() => setShowResetConfirm((v) => !v)}
@@ -304,7 +304,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                       className="overflow-hidden"
                     >
                       <div className="pt-3 space-y-3">
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-zinc-400">
                           This will delete all transactions, import history, and reset
                           preferences. Your account and login method will be preserved.
                         </p>
@@ -313,7 +313,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                             type="button"
                             onClick={handleReset}
                             disabled={resetAccount.isPending}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-ios-orange text-black text-sm rounded-lg hover:bg-ios-orange/90 transition-colors disabled:opacity-50"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-orange-500/90 hover:bg-orange-500 text-white text-sm rounded-lg transition-colors duration-150 ease-out disabled:opacity-50"
                           >
                             {resetAccount.isPending
                               ? 'Resetting...'
@@ -322,7 +322,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                           <button
                             type="button"
                             onClick={() => setShowResetConfirm(false)}
-                            className="px-3 py-1.5 bg-white/10 text-white text-sm rounded-lg hover:bg-white/20 transition-colors"
+                            className="px-3 py-1.5 bg-white/[0.06] border border-white/[0.08] text-zinc-200 text-sm rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out"
                           >
                             Cancel
                           </button>
@@ -334,7 +334,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
               </div>
 
               {/* Delete Account */}
-              <div className="rounded-xl border border-ios-red/30 bg-ios-red/5 p-4">
+              <div className="rounded-xl border border-red-500/15 bg-red-500/5 p-4">
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm((v) => !v)}
@@ -363,7 +363,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                       className="overflow-hidden"
                     >
                       <div className="pt-3 space-y-3">
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-zinc-400">
                           Permanently delete your account and all associated data.
                           This action cannot be undone.
                         </p>
@@ -379,7 +379,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                           value={deleteConfirmText}
                           onChange={(e) => setDeleteConfirmText(e.target.value)}
                           placeholder="Type DELETE to confirm"
-                          className="w-full px-3 py-1.5 bg-white/5 border border-ios-red/30 rounded-lg text-white text-sm focus:border-ios-red focus:outline-none"
+                          className="w-full px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-white text-sm focus:border-red-500/50 focus:outline-none transition-colors duration-150 ease-out"
                         />
                         <div className="flex gap-2">
                           <button
@@ -389,7 +389,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                               deleteConfirmText !== 'DELETE' ||
                               deleteAccount.isPending
                             }
-                            className="flex items-center gap-2 px-3 py-1.5 bg-ios-red text-white text-sm rounded-lg hover:bg-ios-red/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-red-500/90 hover:bg-red-500 text-white text-sm rounded-lg transition-colors duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {deleteAccount.isPending
                               ? 'Deleting...'
@@ -401,7 +401,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                               setShowDeleteConfirm(false)
                               setDeleteConfirmText('')
                             }}
-                            className="px-3 py-1.5 bg-white/10 text-white text-sm rounded-lg hover:bg-white/20 transition-colors"
+                            className="px-3 py-1.5 bg-white/[0.06] border border-white/[0.08] text-zinc-200 text-sm rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out"
                           >
                             Cancel
                           </button>
@@ -414,12 +414,12 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             </div>
 
             {/* ─── Sign Out Footer ────────────────────────────────────── */}
-            <div className="px-6 py-4 border-t border-border">
+            <div className="px-6 py-4 border-t border-white/[0.06]">
               <button
                 type="button"
                 onClick={handleLogout}
                 disabled={logout.isPending}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-ios-red/10 text-ios-red hover:bg-ios-red/20 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/15 transition-colors duration-150 ease-out text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <LogOut size={16} />
                 <span>{logout.isPending ? 'Signing out...' : 'Sign Out'}</span>

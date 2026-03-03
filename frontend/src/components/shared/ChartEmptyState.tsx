@@ -15,11 +15,13 @@ export default function ChartEmptyState({
 }: ChartEmptyStateProps) {
   return (
     <div
-      className="flex flex-col items-center justify-center gap-3 text-muted-foreground rounded-xl border border-border"
+      className="flex flex-col items-center justify-center gap-3 rounded-xl border border-white/[0.06]"
       style={{ height }}
     >
-      <BarChart3 className="w-10 h-10 opacity-30" />
-      <p className="text-sm">{message}</p>
+      <div className="p-3 rounded-xl bg-white/[0.04]">
+        <BarChart3 className="w-6 h-6 text-zinc-500" />
+      </div>
+      <p className="text-sm text-zinc-500">{message}</p>
     </div>
   )
 }

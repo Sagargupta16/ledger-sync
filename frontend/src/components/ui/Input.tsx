@@ -8,8 +8,8 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 /**
- * iOS-style input with frosted glass effect.
- * Replaces inline input-ios class and scattered input styling.
+ * Input component with clean, minimal styling.
+ * Supports label, error state, and leading icon.
  */
 const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { label, error, icon, className, id, ...props },
@@ -20,13 +20,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-muted-foreground">
+        <label htmlFor={inputId} className="block text-sm font-medium text-zinc-400">
           {label}
         </label>
       )}
       <div className="relative">
         {icon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" aria-hidden="true">
             {icon}
           </span>
         )}
@@ -34,13 +34,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full bg-input backdrop-blur-[20px] px-4 py-3 rounded-xl',
-            'border border-border text-white placeholder-text-quaternary',
-            'transition-colors duration-200',
-            'focus:border-ios-blue focus:outline-none focus:ring-2 focus:ring-ios-blue/20',
+            'w-full bg-white/[0.04] px-4 py-3 rounded-lg',
+            'border border-white/[0.08] text-white placeholder:text-zinc-600',
+            'transition-all duration-150 ease-out',
+            'focus:border-blue-400/50 focus:outline-none focus:ring-1 focus:ring-blue-400/20',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             icon && 'pl-10',
-            error && 'border-ios-red focus:border-ios-red focus:ring-ios-red/20',
+            error && 'border-red-400/50 focus:border-red-400/50 focus:ring-red-400/20',
             className
           )}
           aria-invalid={error ? 'true' : undefined}
@@ -49,7 +49,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         />
       </div>
       {error && (
-        <p id={inputId ? `${inputId}-error` : undefined} className="text-xs text-ios-red" role="alert">
+        <p id={inputId ? `${inputId}-error` : undefined} className="text-xs text-red-400" role="alert">
           {error}
         </p>
       )}
@@ -66,7 +66,8 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 /**
- * iOS-style select with frosted glass effect.
+ * Select component with clean, minimal styling.
+ * Matches Input styling for visual consistency.
  */
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
   { label, error, options, className, id, ...props },
@@ -77,7 +78,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={selectId} className="block text-sm font-medium text-muted-foreground">
+        <label htmlFor={selectId} className="block text-sm font-medium text-zinc-400">
           {label}
         </label>
       )}
@@ -85,12 +86,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         ref={ref}
         id={selectId}
         className={cn(
-          'w-full bg-input backdrop-blur-[20px] px-4 py-3 rounded-xl',
-          'border border-border text-white',
-          'transition-colors duration-200',
-          'focus:border-ios-blue focus:outline-none focus:ring-2 focus:ring-ios-blue/20',
+          'w-full bg-white/[0.04] px-4 py-3 rounded-lg',
+          'border border-white/[0.08] text-white',
+          'transition-all duration-150 ease-out',
+          'focus:border-blue-400/50 focus:outline-none focus:ring-1 focus:ring-blue-400/20',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          error && 'border-ios-red focus:border-ios-red focus:ring-ios-red/20',
+          error && 'border-red-400/50 focus:border-red-400/50 focus:ring-red-400/20',
           className
         )}
         aria-invalid={error ? 'true' : undefined}
@@ -104,7 +105,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         ))}
       </select>
       {error && (
-        <p id={selectId ? `${selectId}-error` : undefined} className="text-xs text-ios-red" role="alert">
+        <p id={selectId ? `${selectId}-error` : undefined} className="text-xs text-red-400" role="alert">
           {error}
         </p>
       )}

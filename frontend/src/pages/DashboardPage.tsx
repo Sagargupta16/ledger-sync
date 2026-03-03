@@ -9,8 +9,8 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import Sparkline from '@/components/shared/Sparkline'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore, PeriodComparison } from '@/components/analytics'
-import { formatCurrency, getOrdinalSuffix, parseStringArray } from '@/lib/formatters'
-import { BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
+import { formatCurrency, formatCurrencyCompact, getOrdinalSuffix, parseStringArray } from '@/lib/formatters'
+import { PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
@@ -110,19 +110,15 @@ export default function DashboardPage() {
   if (daysToPayday === 0) paydayLabel = 'Today!'
   else if (daysToPayday !== null) paydayLabel = `${daysToPayday} day${daysToPayday === 1 ? '' : 's'}`
 
-  const incomeBarData = useMemo(() => incomeChartData.length > 0
-    ? [Object.fromEntries([['name', 'Income'], ...incomeChartData.map(d => [d.name, d.value])])]
-    : [], [incomeChartData])
+  const incomeTotal = useMemo(
+    () => incomeChartData.reduce((sum, d) => sum + d.value, 0),
+    [incomeChartData],
+  )
 
-  const spendingBarData = useMemo(() => spendingChartData.length > 0
-    ? [Object.fromEntries([['name', 'Spending'], ...spendingChartData.map(d => [d.name, d.value])])]
-    : [], [spendingChartData])
-
-  const stackedBarRadius = (index: number, total: number): [number, number, number, number] | number => {
-    if (index === 0) return [4, 0, 0, 4]
-    if (index === total - 1) return [0, 4, 4, 0]
-    return 0
-  }
+  const spendingTotal = useMemo(
+    () => spendingChartData.reduce((sum, d) => sum + d.value, 0),
+    [spendingChartData],
+  )
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
@@ -241,25 +237,32 @@ export default function DashboardPage() {
           </h2>
           {incomeChartData.length > 0 ? (
             <div className="space-y-4">
-              <div className="h-10">
+              <div className="h-[180px]">
                 <ChartContainer>
-                  <BarChart layout="vertical" data={incomeBarData} barSize={32}>
-                    <XAxis type="number" hide />
-                    <YAxis type="category" dataKey="name" hide />
-                    <Tooltip
-                      {...chartTooltipProps}
-                      formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
-                    />
-                    {incomeChartData.map((item, i) => (
-                      <Bar
-                        key={item.name}
-                        dataKey={item.name}
-                        stackId="a"
-                        fill={item.color}
-                        radius={stackedBarRadius(i, incomeChartData.length)}
-                      />
-                    ))}
-                  </BarChart>
+                  <PieChart>
+                    <Pie
+                      data={incomeChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius="55%"
+                      outerRadius="80%"
+                      paddingAngle={2}
+                      strokeWidth={0}
+                    >
+                      {incomeChartData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip {...chartTooltipProps} formatter={(v: number | undefined) => formatCurrency(v ?? 0)} />
+                    <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+                      <tspan x="50%" dy="-6" fill="#fafafa" fontSize="16" fontWeight="700">
+                        {formatCurrencyCompact(incomeTotal)}
+                      </tspan>
+                      <tspan x="50%" dy="18" fill="#71717a" fontSize="11">
+                        Total
+                      </tspan>
+                    </text>
+                  </PieChart>
                 </ChartContainer>
               </div>
               <div className="space-y-2">
@@ -319,25 +322,32 @@ export default function DashboardPage() {
           </h2>
           {spendingChartData.length > 0 ? (
             <div className="space-y-4">
-              <div className="h-10">
+              <div className="h-[180px]">
                 <ChartContainer>
-                  <BarChart layout="vertical" data={spendingBarData} barSize={32}>
-                    <XAxis type="number" hide />
-                    <YAxis type="category" dataKey="name" hide />
-                    <Tooltip
-                      {...chartTooltipProps}
-                      formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
-                    />
-                    {spendingChartData.map((item, i) => (
-                      <Bar
-                        key={item.name}
-                        dataKey={item.name}
-                        stackId="a"
-                        fill={item.color}
-                        radius={stackedBarRadius(i, spendingChartData.length)}
-                      />
-                    ))}
-                  </BarChart>
+                  <PieChart>
+                    <Pie
+                      data={spendingChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius="55%"
+                      outerRadius="80%"
+                      paddingAngle={2}
+                      strokeWidth={0}
+                    >
+                      {spendingChartData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip {...chartTooltipProps} formatter={(v: number | undefined) => formatCurrency(v ?? 0)} />
+                    <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+                      <tspan x="50%" dy="-6" fill="#fafafa" fontSize="16" fontWeight="700">
+                        {formatCurrencyCompact(spendingTotal)}
+                      </tspan>
+                      <tspan x="50%" dy="18" fill="#71717a" fontSize="11">
+                        Total
+                      </tspan>
+                    </text>
+                  </PieChart>
                 </ChartContainer>
               </div>
               <div className="space-y-3">

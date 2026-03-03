@@ -1,7 +1,7 @@
 /**
  * ConfirmDialog
  *
- * A modal confirmation dialog with glass-card styling,
+ * A modal confirmation dialog with premium design system styling,
  * animated entrance via framer-motion, and danger/warning variants.
  * Closes on overlay click or Escape key.
  */
@@ -44,8 +44,8 @@ export default function ConfirmDialog({
 
   const confirmColors =
     variant === 'danger'
-      ? 'bg-ios-red hover:bg-ios-red/90 text-white'
-      : 'bg-ios-orange hover:bg-ios-orange/90 text-black'
+      ? 'bg-red-500/90 hover:bg-red-500 text-white'
+      : 'bg-orange-500/90 hover:bg-orange-500 text-white'
 
   return (
     <AnimatePresence>
@@ -61,17 +61,17 @@ export default function ConfirmDialog({
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="glass rounded-xl border border-border p-6 max-w-md w-full shadow-2xl"
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="bg-[#1a1a1c] rounded-2xl border border-white/[0.08] p-6 max-w-md w-full shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
-            <p className="text-sm text-muted-foreground mb-6">{description}</p>
+            <p className="text-sm text-zinc-400 mb-6">{description}</p>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors text-sm"
+                className="px-4 py-2 bg-white/[0.06] border border-white/[0.08] text-zinc-200 rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out text-sm"
               >
                 {cancelLabel}
               </button>
@@ -81,7 +81,7 @@ export default function ConfirmDialog({
                   await onConfirm()
                   handleClose()
                 }}
-                className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${confirmColors}`}
+                className={`px-4 py-2 rounded-lg transition-colors duration-150 ease-out text-sm font-medium ${confirmColors}`}
               >
                 {confirmLabel}
               </button>

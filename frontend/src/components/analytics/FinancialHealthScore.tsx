@@ -1,5 +1,8 @@
 import { motion } from 'framer-motion'
 import {
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
+} from 'recharts'
+import {
   Shield,
   TrendingUp,
   TrendingDown,
@@ -13,6 +16,7 @@ import { memo, useMemo, useState } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
+import { ChartContainer, chartTooltipProps } from '@/components/ui'
 import type { Transaction } from '@/types'
 import {
   type FinHealthTier,
@@ -54,9 +58,8 @@ interface ScoreHeaderProps {
   readonly overallScore: number
 }
 
-interface CircularProgressProps {
-  readonly overallScore: number
-  readonly statusColor: string
+interface RadarVisualizationProps {
+  readonly metrics: HealthMetric[]
 }
 
 interface PillarHeaderProps {
@@ -119,32 +122,59 @@ const ScoreHeader = memo(function ScoreHeader({
   )
 })
 
-const CircularProgress = memo(function CircularProgress({
-  overallScore,
-  statusColor,
-}: CircularProgressProps) {
+/** Short labels for the radar chart axes */
+const METRIC_SHORT_LABELS: Record<string, string> = {
+  'Spend Less Than Income': 'Savings Rate',
+  'Essential Expense Ratio': 'Expense Control',
+  'Emergency Fund': 'Emergency Fund',
+  'Investment Regularity': 'Investing',
+  'Debt-to-Income': 'Debt Ratio',
+  'Debt Trend': 'Debt Trend',
+  'Savings Consistency': 'Consistency',
+  'Income Stability': 'Income Stability',
+}
+
+const RadarVisualization = memo(function RadarVisualization({
+  metrics,
+}: RadarVisualizationProps) {
+  const radarData = metrics.map((m) => ({
+    dimension: METRIC_SHORT_LABELS[m.name] ?? m.name,
+    score: m.score,
+    fullMark: 100,
+  }))
+
   return (
-    <div className="flex justify-center mb-4">
-      <div className="relative w-28 h-28">
-        <svg className="w-full h-full transform -rotate-90">
-          <circle
-            cx="56" cy="56" r="48"
-            stroke="currentColor" strokeWidth="8" fill="none"
-            className="text-muted/20"
+    <div className="mb-4">
+      <ChartContainer height={300}>
+        <RadarChart data={radarData}>
+          <PolarGrid
+            stroke="rgba(255,255,255,0.06)"
+            strokeDasharray="3 3"
           />
-          <circle
-            cx="56" cy="56" r="48"
-            stroke="currentColor" strokeWidth="8" fill="none"
-            strokeDasharray={`${(overallScore / 100) * 301} 301`}
-            strokeLinecap="round"
-            className={statusColor}
+          <PolarAngleAxis
+            dataKey="dimension"
+            tick={{ fill: '#71717a', fontSize: 11 }}
           />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`text-2xl font-bold ${statusColor}`}>{Math.round(overallScore)}</span>
-          <span className="text-xs text-muted-foreground">/ 100</span>
-        </div>
-      </div>
+          <PolarRadiusAxis
+            angle={30}
+            domain={[0, 100]}
+            tick={{ fill: '#52525b', fontSize: 9 }}
+            axisLine={false}
+          />
+          <Radar
+            name="Health Score"
+            dataKey="score"
+            stroke="#4a9eff"
+            fill="#4a9eff"
+            fillOpacity={0.15}
+            strokeWidth={2}
+            dot={{ r: 4, fill: '#4a9eff', strokeWidth: 0 }}
+            animationDuration={800}
+            animationEasing="ease-out"
+          />
+          <Tooltip {...chartTooltipProps} />
+        </RadarChart>
+      </ChartContainer>
     </div>
   )
 })
@@ -294,7 +324,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
         overallScore={overallScore}
       />
 
-      <CircularProgress overallScore={overallScore} statusColor={status.color} />
+      <RadarVisualization metrics={metrics} />
 
       {/* Summary */}
       <p className="text-sm text-center text-muted-foreground mb-6 px-4">

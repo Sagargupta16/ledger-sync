@@ -3,10 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
-import { CHART_COLORS, CHART_AXIS_COLOR, CHART_GRID_COLOR } from '@/constants/chartColors'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { CHART_COLORS } from '@/constants/chartColors'
 import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate } from '@/components/ui/chartDefaults'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 const COLORS = CHART_COLORS
 const COLOR_STYLES = COLORS.map(c => ({ backgroundColor: c }))
@@ -167,7 +169,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
     >
       <h3 className="text-lg font-semibold text-white mb-4">Category Breakdown</h3>
       {categoryData.length === 0 ? (
-        <div className="text-center text-muted-foreground py-8">No category data available for the selected period</div>
+        <ChartEmptyState message="No category data available for the selected period" />
       ) : (
       <div className="space-y-2">
         {categoryData.map((item, index) => (
@@ -340,17 +342,12 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                         <h4 className="text-sm font-semibold text-foreground mb-2">Monthly Trend</h4>
                         <ChartContainer height={200}>
                           <LineChart data={subcategoryDetails.trendData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+                            <CartesianGrid {...GRID_DEFAULTS} />
                             <XAxis
+                              {...xAxisDefaults(subcategoryDetails.trendData.length)}
                               dataKey="displayPeriod"
-                              stroke={CHART_AXIS_COLOR}
-                              tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
                             />
-                            <YAxis
-                              stroke={CHART_AXIS_COLOR}
-                              tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
-                              tickFormatter={(value) => formatCurrencyShort(value)}
-                            />
+                            <YAxis {...yAxisDefaults()} />
                             <Tooltip
                               {...chartTooltipProps}
                               formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
@@ -358,12 +355,15 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                             {subcategoryNames.map((name, idx) => (
                               <Line
                                 key={name}
-                                type="natural"
+                                type="monotone"
                                 dataKey={name}
                                 stroke={COLORS[(index + idx) % COLORS.length]}
                                 strokeWidth={2}
                                 dot={LINE_DOT}
                                 connectNulls
+                                animationDuration={600}
+                                animationEasing="ease-out"
+                                isAnimationActive={shouldAnimate(subcategoryDetails.trendData.length)}
                               />
                             ))}
                           </LineChart>
