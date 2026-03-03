@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import { formatCurrency } from '@/lib/formatters'
+import { chartTooltipProps, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, BAR_RADIUS, shouldAnimate } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
@@ -52,15 +51,15 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
     <div className="h-48">
       <ChartContainer>
         <BarChart data={data} barGap={4}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-          <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }} />
-          <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }} />
+          <CartesianGrid {...GRID_DEFAULTS} />
+          <XAxis {...xAxisDefaults(data.length)} dataKey="name" />
+          <YAxis {...yAxisDefaults()} />
           <RechartsTooltip
             {...chartTooltipProps}
             formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
           />
-          <Bar dataKey="Avg Spending" fill={rawColors.ios.red} radius={[4, 4, 0, 0]} opacity={0.8} />
-          <Bar dataKey="Avg Earning" fill={rawColors.ios.green} radius={[4, 4, 0, 0]} opacity={0.8} />
+          <Bar dataKey="Avg Spending" fill={rawColors.ios.red} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(data.length)} animationDuration={600} animationEasing="ease-out" />
+          <Bar dataKey="Avg Earning" fill={rawColors.ios.green} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(data.length)} animationDuration={600} animationEasing="ease-out" />
         </BarChart>
       </ChartContainer>
     </div>

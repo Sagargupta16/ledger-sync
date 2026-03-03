@@ -49,7 +49,7 @@ export default function TimeSeriesLineChart({
         {seriesKeys.map((key, index) => (
           <Line
             key={key}
-            type="natural"
+            type="monotone"
             dataKey={key}
             stroke={colors[index % colors.length]}
             strokeWidth={2}

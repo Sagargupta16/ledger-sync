@@ -212,10 +212,10 @@ export default function CashFlowForecast() {
               strokeDasharray="3 3"
               label={{ value: 'Forecast →', position: 'top', fill: '#71717a', fontSize: 10 }}
             />
-            <Area type="natural" dataKey="income" stroke={SEMANTIC_COLORS.income} fill={areaGradientUrl('income')} strokeWidth={2} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(forecastData.combined.length)} />
-            <Area type="natural" dataKey="expense" stroke={SEMANTIC_COLORS.expense} fill={areaGradientUrl('expense')} strokeWidth={2} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(forecastData.combined.length)} />
-            <Line type="natural" dataKey="forecastIncome" stroke={SEMANTIC_COLORS.income} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} legendType="none" />
-            <Line type="natural" dataKey="forecastExpense" stroke={SEMANTIC_COLORS.expense} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} legendType="none" />
+            <Area type="monotone" dataKey="income" stroke={SEMANTIC_COLORS.income} fill={areaGradientUrl('income')} strokeWidth={2} dot={false} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(forecastData.combined.length)} />
+            <Area type="monotone" dataKey="expense" stroke={SEMANTIC_COLORS.expense} fill={areaGradientUrl('expense')} strokeWidth={2} dot={false} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(forecastData.combined.length)} />
+            <Line type="monotone" dataKey="forecastIncome" stroke={SEMANTIC_COLORS.income} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} legendType="none" />
+            <Line type="monotone" dataKey="forecastExpense" stroke={SEMANTIC_COLORS.expense} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} legendType="none" />
           </AreaChart>
         </ChartContainer>
       </div>

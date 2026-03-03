@@ -290,7 +290,8 @@ export default function SpendingAnalysisPage() {
                         innerRadius={45}
                         outerRadius={75}
                         dataKey="value"
-                        stroke="none"
+                        strokeWidth={0}
+                        paddingAngle={2}
                         isAnimationActive={shouldAnimate(spendingChartData.length)}
                         animationDuration={600}
                         animationEasing="ease-out"

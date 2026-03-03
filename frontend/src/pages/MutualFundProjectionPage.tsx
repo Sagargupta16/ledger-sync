@@ -914,23 +914,25 @@ export default function MutualFundProjectionPage() {
                   />
                   <Legend {...LEGEND_DEFAULTS} />
                   <Area
-                    type="natural"
+                    type="monotone"
                     dataKey="invested"
                     name="Invested Amount"
                     stroke={rawColors.ios.blue}
                     fill={areaGradientUrl('invested')}
                     strokeWidth={2}
+                    dot={false}
                     isAnimationActive={shouldAnimate(chartData.length)}
                     animationDuration={600}
                     animationEasing="ease-out"
                   />
                   <Area
-                    type="natural"
+                    type="monotone"
                     dataKey="value"
                     name="Portfolio Value"
                     stroke={rawColors.ios.green}
                     fill={areaGradientUrl('value')}
                     strokeWidth={2}
+                    dot={false}
                     isAnimationActive={shouldAnimate(chartData.length)}
                     animationDuration={600}
                     animationEasing="ease-out"

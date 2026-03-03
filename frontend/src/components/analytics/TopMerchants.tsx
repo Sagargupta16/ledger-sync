@@ -173,6 +173,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
                   innerRadius={60}
                   outerRadius={80}
                   paddingAngle={2}
+                  strokeWidth={0}
                   dataKey="value"
                   isAnimationActive={shouldAnimate(pieData.length)}
                   animationDuration={600}

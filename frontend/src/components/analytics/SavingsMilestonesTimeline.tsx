@@ -104,10 +104,11 @@ export default function SavingsMilestonesTimeline() {
                 />
               ))}
               <Area
-                type="natural"
+                type="monotone"
                 dataKey="savings"
                 stroke={rawColors.ios.green}
                 strokeWidth={2}
+                dot={false}
                 fill={areaGradientUrl('savings')}
                 isAnimationActive={shouldAnimate(chartData.length)}
                 animationDuration={600}

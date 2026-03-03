@@ -1,17 +1,14 @@
 import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { TrendingUp, TrendingDown, Banknote, Receipt } from 'lucide-react'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { getSmartInterval } from '@/lib/chartUtils'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, BAR_RADIUS } from '@/components/ui'
 import { useMemo } from 'react'
-import { formatCurrency, formatCurrencyShort, formatPercent, formatDateTick } from '@/lib/formatters'
-import { CHART_ANIMATION_THRESHOLD } from '@/constants'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getDateKey } from '@/lib/dateUtils'
@@ -421,31 +418,15 @@ export default function ReturnsAnalysisPage() {
             <ChartContainer height={dims.chartHeight}>
               <AreaChart data={cumulativeReturnsData} margin={dims.margin}>
                 <defs>
-                  <linearGradient id="positiveGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={rawColors.ios.green} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={rawColors.ios.green} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="negativeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={rawColors.ios.red} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={rawColors.ios.red} stopOpacity={0} />
-                  </linearGradient>
+                  {areaGradient('positive', rawColors.ios.green)}
+                  {areaGradient('negative', rawColors.ios.red)}
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <CartesianGrid {...GRID_DEFAULTS} />
                 <XAxis
+                  {...xAxisDefaults(cumulativeReturnsData.length, { angle: dims.angleXLabels ? -45 : undefined, height: 80, dateFormatter: true })}
                   dataKey="date"
-                  stroke={CHART_AXIS_COLOR}
-                  tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }}
-                  tickFormatter={(v) => formatDateTick(v, cumulativeReturnsData.length)}
-                  angle={dims.angleXLabels ? -45 : 0}
-                  textAnchor={dims.angleXLabels ? 'end' : 'middle'}
-                  height={80}
-                  interval={getSmartInterval(cumulativeReturnsData.length, dims.maxXLabels)}
                 />
-                <YAxis
-                  stroke={CHART_AXIS_COLOR}
-                  tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }}
-                  tickFormatter={(value) => formatCurrencyShort(value)}
-                />
+                <YAxis {...yAxisDefaults()} />
                 <Tooltip
                   {...chartTooltipProps}
                   labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -457,12 +438,16 @@ export default function ReturnsAnalysisPage() {
                   }}
                 />
                 <Area
-                  type="natural"
+                  type="monotone"
                   dataKey="cumulative"
                   stroke={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? rawColors.ios.green : rawColors.ios.red}
                   strokeWidth={2}
-                  fill={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? "url(#positiveGradient)" : "url(#negativeGradient)"}
-                  isAnimationActive={cumulativeReturnsData.length < CHART_ANIMATION_THRESHOLD}
+                  fill={(cumulativeReturnsData[cumulativeReturnsData.length - 1]?.cumulative || 0) >= 0 ? areaGradientUrl('positive') : areaGradientUrl('negative')}
+                  fillOpacity={1}
+                  dot={false}
+                  isAnimationActive={shouldAnimate(cumulativeReturnsData.length)}
+                  animationDuration={600}
+                  animationEasing="ease-out"
                 />
               </AreaChart>
             </ChartContainer>
@@ -521,9 +506,9 @@ export default function ReturnsAnalysisPage() {
               ) : (
               <ChartContainer height={300}>
                 <BarChart data={waterfallData} barCategoryGap="20%">
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="name" tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} interval={getSmartInterval(waterfallData.length, dims.maxXLabels)} />
-                  <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fill: CHART_AXIS_COLOR, fontSize: dims.tickFontSize }} />
+                  <CartesianGrid {...GRID_DEFAULTS} />
+                  <XAxis {...xAxisDefaults(waterfallData.length)} dataKey="name" />
+                  <YAxis {...yAxisDefaults()} />
                   <Tooltip
                     {...chartTooltipProps}
                     formatter={(_value: number | undefined, name: string | undefined, props: { payload?: { value?: number; isTotal?: boolean } }) => {
@@ -534,7 +519,7 @@ export default function ReturnsAnalysisPage() {
                   {/* Invisible bar for the "start" offset */}
                   <Bar dataKey="start" stackId="waterfall" fill="transparent" isAnimationActive={false} />
                   {/* Visible bar from start to end */}
-                  <Bar dataKey="value" stackId="waterfall" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="value" stackId="waterfall" radius={BAR_RADIUS} isAnimationActive={shouldAnimate(waterfallData.length)} animationDuration={600} animationEasing="ease-out">
                     {waterfallData.map((entry) => (
                       <Cell
                         key={`cell-${entry.name}`}

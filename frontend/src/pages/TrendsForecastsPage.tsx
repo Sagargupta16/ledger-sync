@@ -556,7 +556,7 @@ export default function TrendsForecastsPage() {
                       />
                       <ReferenceLine y={peakIncome} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: '#71717a', fontSize: 10, position: 'insideTopRight' }} />
                       {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
-                      <Area type="monotone" dataKey="income" stroke={rawColors.ios.green} fill={areaGradientUrl('trendIncome')} strokeWidth={1.5} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Area type="monotone" dataKey="income" stroke={rawColors.ios.green} fill={areaGradientUrl('trendIncome')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                       <Line type="monotone" dataKey="incomeAvg" stroke={rawColors.ios.green} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Income (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                     </AreaChart>
                   </ChartContainer>
@@ -593,7 +593,7 @@ export default function TrendsForecastsPage() {
                       />
                       <ReferenceLine y={peakExpenses} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakExpenses)}`, fill: '#71717a', fontSize: 10, position: 'insideTopRight' }} />
                       {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
-                      <Area type="monotone" dataKey="expenses" stroke={rawColors.ios.red} fill={areaGradientUrl('trendExpense')} strokeWidth={1.5} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Area type="monotone" dataKey="expenses" stroke={rawColors.ios.red} fill={areaGradientUrl('trendExpense')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                       <Line type="monotone" dataKey="expensesAvg" stroke={rawColors.ios.red} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Spending (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                     </AreaChart>
                   </ChartContainer>
@@ -630,7 +630,7 @@ export default function TrendsForecastsPage() {
                       />
                       <ReferenceLine y={peakSavings} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakSavings)}`, fill: '#71717a', fontSize: 10, position: 'insideTopRight' }} />
                       {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
-                      <Area type="monotone" dataKey="savings" stroke={rawColors.ios.purple} fill={areaGradientUrl('trendSavings')} strokeWidth={1.5} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Area type="monotone" dataKey="savings" stroke={rawColors.ios.purple} fill={areaGradientUrl('trendSavings')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                       <Line type="monotone" dataKey="savingsAvg" stroke={rawColors.ios.purple} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Savings (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                     </AreaChart>
                   </ChartContainer>
@@ -702,11 +702,12 @@ export default function TrendsForecastsPage() {
                     }}
                   />
                   <Area
-                    type="natural"
+                    type="monotone"
                     dataKey="savingsRate"
                     stroke={rawColors.ios.purple}
                     fill={areaGradientUrl('savingsRate')}
                     strokeWidth={2}
+                    dot={false}
                     isAnimationActive={shouldAnimate(dailySavingsData.length)}
                     animationDuration={600}
                     animationEasing="ease-out"

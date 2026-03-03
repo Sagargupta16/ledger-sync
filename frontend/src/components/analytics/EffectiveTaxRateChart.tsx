@@ -156,8 +156,9 @@ export default function EffectiveTaxRateChart({
               dataKey="oldRegimeRate"
               stroke={rawColors.ios.blue}
               fill={areaGradientUrl('oldRegime')}
-              strokeWidth={1.5}
+              strokeWidth={2}
               strokeDasharray="6 3"
+              dot={false}
               name="oldRegimeRate"
               animationDuration={600}
               animationEasing="ease-out"
@@ -170,6 +171,7 @@ export default function EffectiveTaxRateChart({
               stroke={rawColors.ios.orange}
               fill={areaGradientUrl('newRegime')}
               strokeWidth={2}
+              dot={false}
               name="newRegimeRate"
               animationDuration={600}
               animationEasing="ease-out"

@@ -515,10 +515,12 @@ export default function NetWorthPage() {
                           return (
                             <Area
                               key={cat}
-                              type="natural"
+                              type="monotone"
                               dataKey={cat}
                               stackId="1"
                               stroke={config.color}
+                              strokeWidth={2}
+                              dot={false}
                               fillOpacity={1}
                               fill={`url(#color-${cat.replaceAll(/\s+/g, '')})`}
                               name={config.label}
@@ -531,9 +533,11 @@ export default function NetWorthPage() {
                       </>
                     ) : (
                       <Area
-                        type="natural"
+                        type="monotone"
                         dataKey="netWorth"
                         stroke={rawColors.ios.purple}
+                        strokeWidth={2}
+                        dot={false}
                         fillOpacity={1}
                         fill={areaGradientUrl('netWorth')}
                         name="Net Worth"

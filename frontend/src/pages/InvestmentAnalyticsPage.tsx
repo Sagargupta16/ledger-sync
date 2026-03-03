@@ -432,7 +432,8 @@ export default function InvestmentAnalyticsPage() {
                     labelLine={false}
                     label={({ name, payload }) => `${name} (${payload.percentage}%)`}
                     outerRadius={100}
-                    fill="#8884d8"
+                    strokeWidth={0}
+                    paddingAngle={2}
                     dataKey="value"
                   >
                     {assetAllocation.map((entry) => (
@@ -494,11 +495,12 @@ export default function InvestmentAnalyticsPage() {
                   {INVESTMENT_CATEGORIES.map((category) => (
                     <Area
                       key={category}
-                      type="natural"
+                      type="monotone"
                       dataKey={category}
                       stackId="1"
                       stroke={CATEGORY_COLORS[category]}
                       strokeWidth={2}
+                      dot={false}
                       fillOpacity={1}
                       fill={`url(#color-${category.replaceAll(/[\s/]/g, '-')})`}
                       isAnimationActive={shouldAnimate(filteredGrowthData.length)}

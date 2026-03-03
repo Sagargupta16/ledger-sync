@@ -184,7 +184,8 @@ export default function IncomeAnalysisPage() {
                       innerRadius={50}
                       outerRadius={90}
                       dataKey="value"
-                      stroke="none"
+                      strokeWidth={0}
+                      paddingAngle={2}
                       isAnimationActive={shouldAnimate(incomeTypeChartData.length)}
                       animationDuration={600}
                       animationEasing="ease-out"
@@ -305,7 +306,8 @@ export default function IncomeAnalysisPage() {
                     dataKey="income"
                     stroke={rawColors.ios.green}
                     fill={areaGradientUrl('incomeTrend')}
-                    strokeWidth={1.5}
+                    strokeWidth={2}
+                    dot={false}
                     isAnimationActive={shouldAnimate(monthlyTrendData.length)}
                     animationDuration={600}
                     animationEasing="ease-out"

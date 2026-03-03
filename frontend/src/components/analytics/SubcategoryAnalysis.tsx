@@ -355,7 +355,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                             {subcategoryNames.map((name, idx) => (
                               <Line
                                 key={name}
-                                type="natural"
+                                type="monotone"
                                 dataKey={name}
                                 stroke={COLORS[(index + idx) % COLORS.length]}
                                 strokeWidth={2}
