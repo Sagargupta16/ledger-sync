@@ -65,7 +65,8 @@ export function normalizeArray(value: string[] | string): string[] {
     try {
       const parsed = JSON.parse(value)
       return Array.isArray(parsed) ? parsed : []
-    } catch {
+    } catch (e) {
+      console.warn('[normalizeArray] Failed to parse JSON:', e)
       return []
     }
   }
@@ -76,8 +77,8 @@ export function getStoredWidgets(): string[] {
   try {
     const raw = localStorage.getItem('ledger-sync-visible-widgets')
     if (raw) return JSON.parse(raw)
-  } catch {
-    /* use defaults */
+  } catch (e) {
+    console.warn('[getStoredWidgets] Failed to read localStorage:', e)
   }
   return DASHBOARD_WIDGETS.map((w) => w.key)
 }

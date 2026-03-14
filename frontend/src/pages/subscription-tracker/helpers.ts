@@ -11,7 +11,8 @@ export function loadConfirmedIds(): Set<string> {
     const raw = localStorage.getItem(CONFIRMED_SUBS_KEY)
     if (!raw) return new Set()
     return new Set(JSON.parse(raw) as string[])
-  } catch {
+  } catch (e) {
+    console.warn('[loadConfirmedIds] Failed to read localStorage:', e)
     return new Set()
   }
 }
@@ -19,8 +20,8 @@ export function loadConfirmedIds(): Set<string> {
 export function saveConfirmedIds(ids: Set<string>): void {
   try {
     localStorage.setItem(CONFIRMED_SUBS_KEY, JSON.stringify([...ids]))
-  } catch {
-    // Storage full or unavailable; ignore
+  } catch (e) {
+    console.warn('[saveConfirmedIds] Failed to write localStorage:', e)
   }
 }
 
@@ -29,7 +30,8 @@ export function loadManualSubscriptions(): ManualSubscription[] {
     const raw = localStorage.getItem(MANUAL_SUBS_KEY)
     if (!raw) return []
     return JSON.parse(raw) as ManualSubscription[]
-  } catch {
+  } catch (e) {
+    console.warn('[loadManualSubscriptions] Failed to read localStorage:', e)
     return []
   }
 }
@@ -37,8 +39,8 @@ export function loadManualSubscriptions(): ManualSubscription[] {
 export function saveManualSubscriptions(subs: ManualSubscription[]): void {
   try {
     localStorage.setItem(MANUAL_SUBS_KEY, JSON.stringify(subs))
-  } catch {
-    // Storage full or unavailable; ignore
+  } catch (e) {
+    console.warn('[saveManualSubscriptions] Failed to write localStorage:', e)
   }
 }
 

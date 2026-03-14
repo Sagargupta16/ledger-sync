@@ -152,7 +152,8 @@ export function parseStringArray(raw: string[] | string | undefined): string[] {
   try {
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []
-  } catch {
+  } catch (e) {
+    console.warn('[parseStringArray] Failed to parse:', e)
     return []
   }
 }

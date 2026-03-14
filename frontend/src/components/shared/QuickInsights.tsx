@@ -38,7 +38,7 @@ function getVisibleWidgetKeys(): Set<string> | null {
       if (arr.length >= Object.keys(TITLE_TO_WIDGET_KEY).length) return null
       return new Set(arr)
     }
-  } catch { /* defaults */ }
+  } catch (e) { console.warn('[getVisibleWidgetKeys] Failed to read localStorage:', e) }
   return null // null = show all
 }
 

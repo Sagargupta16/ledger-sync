@@ -193,7 +193,13 @@ function AccountCategoryTable({
         <thead>
           <tr className="border-b border-border">
             <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Account</th>
-            <th onClick={() => toggleSort('balance')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+            <th
+              onClick={() => toggleSort('balance')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('balance') } }}
+              tabIndex={0}
+              aria-sort={sortKey === 'balance' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+              className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
+            >
               Balance {sortKey === 'balance' && (sortDir === 'asc' ? '\u2191' : '\u2193')}
             </th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">% Allocated</th>
@@ -235,6 +241,10 @@ function AccountCategoryTable({
                     key={`header-${currentCategory}`}
                     className="bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
                     onClick={() => onToggleCategory(currentCategory)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleCategory(currentCategory) } }}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={expandedCategories.has(currentCategory)}
                   >
                     <td className="py-2 px-4 text-sm font-semibold text-primary">
                       <span className="flex items-center gap-2">

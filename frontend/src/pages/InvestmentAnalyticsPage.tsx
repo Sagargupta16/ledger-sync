@@ -561,10 +561,22 @@ export default function InvestmentAnalyticsPage() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Account</th>
-                    <th onClick={() => toggleInvestSort('value')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                    <th
+                      onClick={() => toggleInvestSort('value')}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleInvestSort('value') } }}
+                      tabIndex={0}
+                      aria-sort={investSortKey === 'value' ? (investSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
+                    >
                       Value {investSortKey === 'value' && (investSortDir === 'asc' ? '\u2191' : '\u2193')}
                     </th>
-                    <th onClick={() => toggleInvestSort('percentage')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                    <th
+                      onClick={() => toggleInvestSort('percentage')}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleInvestSort('percentage') } }}
+                      tabIndex={0}
+                      aria-sort={investSortKey === 'percentage' ? (investSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
+                    >
                       Allocation {investSortKey === 'percentage' && (investSortDir === 'asc' ? '\u2191' : '\u2193')}
                     </th>
                   </tr>

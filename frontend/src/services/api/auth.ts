@@ -34,8 +34,8 @@ export const getMe = async (): Promise<User> => {
 export const logout = async (): Promise<void> => {
   try {
     await apiClient.post(`${AUTH_BASE}/logout`)
-  } catch {
-    // Ignore errors - logout should always succeed client-side
+  } catch (e) {
+    console.warn('[logout] Server logout failed:', e)
   }
 }
 

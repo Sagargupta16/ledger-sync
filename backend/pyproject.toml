@@ -1,6 +1,6 @@
 [project]
 name = "ledger-sync"
-version = "0.1.0"
+version = "0.8.0"
 description = "Production-ready data ingestion and reconciliation engine for Money Manager Pro Excel exports"
 authors = [{ name = "Sagar Gupta" }]
 readme = "README.md"
@@ -43,7 +43,7 @@ package = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.format]
 quote-style = "double"

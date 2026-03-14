@@ -61,7 +61,10 @@ def upgrade() -> None:
         result = conn.execute(sa.text("SELECT id FROM users LIMIT 1"))
         row = result.fetchone()
         if row:
-            op.execute(f"UPDATE tax_records SET user_id = {row[0]} WHERE user_id IS NULL")
+            op.execute(
+                sa.text("UPDATE tax_records SET user_id = :uid WHERE user_id IS NULL"),
+                {"uid": row[0]},
+            )
         op.alter_column("tax_records", "user_id", nullable=False)
         op.create_foreign_key(None, "tax_records", "users", ["user_id"], ["id"])
 

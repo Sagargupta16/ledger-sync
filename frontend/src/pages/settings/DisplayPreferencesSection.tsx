@@ -149,7 +149,11 @@ export default function DisplayPreferencesSection({
                   checked={theme === t}
                   onChange={() => {
                     setTheme(t)
-                    localStorage.setItem('ledger-sync-theme', t)
+                    try {
+                      localStorage.setItem('ledger-sync-theme', t)
+                    } catch (e) {
+                      console.warn('[DisplayPreferencesSection] Failed to write localStorage:', e)
+                    }
                   }}
                   className="sr-only"
                 />
