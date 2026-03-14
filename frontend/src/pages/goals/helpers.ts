@@ -113,7 +113,8 @@ export function loadAllocations(): Record<string, number> {
     const raw = localStorage.getItem(ALLOCATION_STORAGE_KEY)
     if (!raw) return {}
     return JSON.parse(raw) as Record<string, number>
-  } catch {
+  } catch (e) {
+    console.warn('[loadAllocations] Failed to read localStorage:', e)
     return {}
   }
 }
@@ -122,8 +123,8 @@ export function loadAllocations(): Record<string, number> {
 export function saveAllocations(allocations: Record<string, number>): void {
   try {
     localStorage.setItem(ALLOCATION_STORAGE_KEY, JSON.stringify(allocations))
-  } catch {
-    // Storage full or unavailable; ignore
+  } catch (e) {
+    console.warn('[saveAllocations] Failed to write localStorage:', e)
   }
 }
 
@@ -133,7 +134,8 @@ export function loadDeletedGoals(): Set<number> {
     const raw = localStorage.getItem(DELETED_GOALS_STORAGE_KEY)
     if (!raw) return new Set()
     return new Set(JSON.parse(raw) as number[])
-  } catch {
+  } catch (e) {
+    console.warn('[loadDeletedGoals] Failed to read localStorage:', e)
     return new Set()
   }
 }
@@ -142,8 +144,8 @@ export function loadDeletedGoals(): Set<number> {
 export function saveDeletedGoals(ids: Set<number>): void {
   try {
     localStorage.setItem(DELETED_GOALS_STORAGE_KEY, JSON.stringify([...ids]))
-  } catch {
-    // Storage full or unavailable; ignore
+  } catch (e) {
+    console.warn('[saveDeletedGoals] Failed to write localStorage:', e)
   }
 }
 
@@ -153,7 +155,8 @@ export function loadGoalOverrides(): Record<number, GoalOverride> {
     const raw = localStorage.getItem(GOAL_OVERRIDES_STORAGE_KEY)
     if (!raw) return {}
     return JSON.parse(raw) as Record<number, GoalOverride>
-  } catch {
+  } catch (e) {
+    console.warn('[loadGoalOverrides] Failed to read localStorage:', e)
     return {}
   }
 }
@@ -162,7 +165,7 @@ export function loadGoalOverrides(): Record<number, GoalOverride> {
 export function saveGoalOverrides(overrides: Record<number, GoalOverride>): void {
   try {
     localStorage.setItem(GOAL_OVERRIDES_STORAGE_KEY, JSON.stringify(overrides))
-  } catch {
-    // Storage full or unavailable; ignore
+  } catch (e) {
+    console.warn('[saveGoalOverrides] Failed to write localStorage:', e)
   }
 }

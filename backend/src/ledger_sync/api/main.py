@@ -55,8 +55,8 @@ def _cleanup_stale_temp_files() -> None:
                 if f.stat().st_mtime < cutoff:
                     f.unlink()
                     cleaned += 1
-            except OSError:
-                pass
+            except OSError as e:
+                logger.debug("Could not remove temp file %s: %s", f, e)
     if cleaned:
         logger.info("Cleaned up %d stale temp files", cleaned)
 

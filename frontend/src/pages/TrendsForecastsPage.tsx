@@ -180,16 +180,40 @@ function MonthlyBreakdownTable({
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Month</th>
-                <th onClick={() => toggleTrendSort('income')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                <th
+                  onClick={() => toggleTrendSort('income')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTrendSort('income') } }}
+                  tabIndex={0}
+                  aria-sort={trendSortKey === 'income' ? (trendSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
+                >
                   Income {trendSortKey === 'income' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
                 </th>
-                <th onClick={() => toggleTrendSort('expenses')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                <th
+                  onClick={() => toggleTrendSort('expenses')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTrendSort('expenses') } }}
+                  tabIndex={0}
+                  aria-sort={trendSortKey === 'expenses' ? (trendSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
+                >
                   Spending {trendSortKey === 'expenses' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
                 </th>
-                <th onClick={() => toggleTrendSort('surplus')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                <th
+                  onClick={() => toggleTrendSort('surplus')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTrendSort('surplus') } }}
+                  tabIndex={0}
+                  aria-sort={trendSortKey === 'surplus' ? (trendSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
+                >
                   Savings {trendSortKey === 'surplus' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
                 </th>
-                <th onClick={() => toggleTrendSort('rawSavingsRate')} className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none">
+                <th
+                  onClick={() => toggleTrendSort('rawSavingsRate')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTrendSort('rawSavingsRate') } }}
+                  tabIndex={0}
+                  aria-sort={trendSortKey === 'rawSavingsRate' ? (trendSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
+                >
                   Savings Rate {trendSortKey === 'rawSavingsRate' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
                 </th>
               </tr>

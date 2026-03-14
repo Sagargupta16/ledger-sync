@@ -1,12 +1,10 @@
 """Application settings and configuration."""
 
+import secrets
 import warnings
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-# Sentinel value to detect when no secret has been configured
-_DEV_JWT_SECRET = "dev-only-secret-change-in-production-abc123"
 
 # Maximum upload file size (50 MB)
 MAX_UPLOAD_SIZE_BYTES: int = 50 * 1024 * 1024
@@ -102,7 +100,7 @@ class Settings(BaseSettings):
         issues: list[str] = []
 
         # JWT secret must be explicitly configured in ANY non-development environment
-        if not self.jwt_secret_key or self.jwt_secret_key == _DEV_JWT_SECRET:
+        if not self.jwt_secret_key:
             if self.environment != "development":
                 issues.append(
                     "CRITICAL: jwt_secret_key is not configured. "
@@ -110,11 +108,7 @@ class Settings(BaseSettings):
                 )
 
         # JWT secret should be sufficiently long
-        if (
-            self.jwt_secret_key
-            and self.jwt_secret_key != _DEV_JWT_SECRET
-            and len(self.jwt_secret_key) < 32
-        ):
+        if self.jwt_secret_key and len(self.jwt_secret_key) < 32:
             issues.append("CRITICAL: jwt_secret_key must be at least 32 characters")
 
         if self.environment in ("staging", "production"):
@@ -132,7 +126,7 @@ class Settings(BaseSettings):
 
         Called during startup to alert developers.
         """
-        if not self.jwt_secret_key or self.jwt_secret_key == _DEV_JWT_SECRET:
+        if not self.jwt_secret_key:
             warnings.warn(
                 "Using auto-generated JWT secret! Set LEDGER_SYNC_JWT_SECRET_KEY "
                 "environment variable for production.",
@@ -144,15 +138,11 @@ class Settings(BaseSettings):
 # Global settings instance
 settings = Settings()
 
-# In development, use a stable dev-only secret so tokens survive hot-reloads.
+# In development, auto-generate a random secret so tokens work without config.
 # This is NOT used in production — the startup validator blocks non-dev
 # environments that haven't set LEDGER_SYNC_JWT_SECRET_KEY.
-if settings.environment == "development" and (
-    not settings.jwt_secret_key or settings.jwt_secret_key == _DEV_JWT_SECRET
-):
-    settings.jwt_secret_key = (
-        "dev-local-only-jwt-secret-not-for-production-abcdef0123456789abcdef0123456789"
-    )
+if settings.environment == "development" and not settings.jwt_secret_key:
+    settings.jwt_secret_key = secrets.token_urlsafe(48)
 
 # Validate settings on import for any non-development environment
 if settings.environment != "development":

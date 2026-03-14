@@ -17,34 +17,9 @@ import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { SCROLL_FADE_UP, fadeUpWithDelay } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
-import type { ManualSubscription } from './SubscriptionTrackerPage'
-
-// ---------------------------------------------------------------------------
-// localStorage keys (shared with SubscriptionTrackerPage)
-// ---------------------------------------------------------------------------
-
-const CONFIRMED_SUBS_KEY = 'ledger-sync-confirmed-subscriptions'
-const MANUAL_SUBS_KEY = 'ledger-sync-manual-subscriptions'
-
-function loadConfirmedIds(): Set<string> {
-  try {
-    const raw = localStorage.getItem(CONFIRMED_SUBS_KEY)
-    if (!raw) return new Set()
-    return new Set(JSON.parse(raw) as string[])
-  } catch {
-    return new Set()
-  }
-}
-
-function loadManualSubscriptions(): ManualSubscription[] {
-  try {
-    const raw = localStorage.getItem(MANUAL_SUBS_KEY)
-    if (!raw) return []
-    return JSON.parse(raw) as ManualSubscription[]
-  } catch {
-    return []
-  }
-}
+import type { ManualSubscription } from './subscription-tracker/types'
+import { CONFIRMED_SUBS_KEY, MANUAL_SUBS_KEY } from './subscription-tracker/types'
+import { loadConfirmedIds, loadManualSubscriptions } from './subscription-tracker/helpers'
 
 // ---------------------------------------------------------------------------
 // Calendar Helpers

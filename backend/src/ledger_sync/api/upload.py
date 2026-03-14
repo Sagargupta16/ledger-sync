@@ -152,7 +152,7 @@ def _cleanup_temp_file(tmp_path: Path) -> None:
                 if tmp_path.exists():
                     tmp_path.unlink()
             except OSError:
-                pass
+                logger.debug("Deferred cleanup of %s failed", tmp_path)
 
         atexit.register(cleanup_later)
     except OSError as cleanup_error:

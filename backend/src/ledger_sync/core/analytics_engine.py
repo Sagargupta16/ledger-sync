@@ -11,6 +11,7 @@ This module provides comprehensive post-upload analytics calculations including:
 - Fiscal year summaries
 """
 
+import calendar
 import json
 import math
 import re
@@ -315,18 +316,8 @@ class AnalyticsEngine:
         else:
             fy_end_year = fy_year + 1
             fy_end_month = fy_start_month - 1 if fy_start_month > 1 else 12
-            # Get last day of the end month
-            if fy_end_month == 12:
-                fy_end = datetime(fy_end_year, 12, 31, tzinfo=UTC)
-            elif fy_end_month in [1, 3, 5, 7, 8, 10]:
-                fy_end = datetime(fy_end_year, fy_end_month, 31, tzinfo=UTC)
-            elif fy_end_month in [4, 6, 9, 11]:
-                fy_end = datetime(fy_end_year, fy_end_month, 30, tzinfo=UTC)
-            else:  # February — account for leap years
-                is_leap = fy_end_year % 4 == 0 and (
-                    fy_end_year % 100 != 0 or fy_end_year % 400 == 0
-                )
-                fy_end = datetime(fy_end_year, 2, 29 if is_leap else 28, tzinfo=UTC)
+            last_day = calendar.monthrange(fy_end_year, fy_end_month)[1]
+            fy_end = datetime(fy_end_year, fy_end_month, last_day, tzinfo=UTC)
             fy_label = f"FY{fy_year}-{str(fy_year + 1)[2:]}"
 
         return fy_label, fy_start, fy_end

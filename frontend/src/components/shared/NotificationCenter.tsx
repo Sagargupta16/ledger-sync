@@ -39,12 +39,16 @@ function loadDismissed(): Set<string> {
   try {
     const raw = localStorage.getItem(DISMISSED_KEY)
     if (raw) return new Set(JSON.parse(raw) as string[])
-  } catch { /* ignore */ }
+  } catch (e) { console.warn('[loadDismissed] Failed to read localStorage:', e) }
   return new Set()
 }
 
 function saveDismissed(ids: Set<string>) {
-  localStorage.setItem(DISMISSED_KEY, JSON.stringify([...ids]))
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...ids]))
+  } catch (e) {
+    console.warn('[saveDismissed] Failed to write localStorage:', e)
+  }
 }
 
 function daysUntil(dateStr: string | null): number | null {

@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core import calculator
 from ledger_sync.core.query_helpers import (
-    apply_earning_start_date,
     build_transaction_query,
     expense_sum_col,
     fmt_year_month,
@@ -20,10 +19,6 @@ from ledger_sync.core.query_helpers import (
 )
 from ledger_sync.core.time_filter import TimeRange
 from ledger_sync.db.models import Transaction, TransactionType, User
-
-# Backward-compatible alias so existing ``from ledger_sync.api.analytics
-# import _apply_earning_start_date`` statements keep working.
-_apply_earning_start_date = apply_earning_start_date
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 

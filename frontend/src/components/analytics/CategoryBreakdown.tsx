@@ -144,6 +144,10 @@ export default function CategoryBreakdown({
             animate={{ width: `${cat.percent}%` }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
             onClick={() => toggleExpand(cat.name)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand(cat.name) } }}
+            role="button"
+            tabIndex={0}
+            aria-label={`${cat.name}: ${formatCurrency(cat.total)} (${cat.percent.toFixed(1)}%)`}
             title={`${cat.name}: ${formatCurrency(cat.total)} (${cat.percent.toFixed(1)}%)`}
           />
         ))}
