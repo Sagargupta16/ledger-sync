@@ -78,3 +78,33 @@ export const getChartColor = (index: number): string => {
 export const getWarmColor = (index: number): string => {
   return CHART_COLORS_WARM[index % CHART_COLORS_WARM.length]
 }
+
+// ─── Chart neutral palette (zinc scale for axes, labels, grids) ─────────────
+
+export const CHART_TEXT = {
+  primary: '#fafafa',     // zinc-50  — primary labels, tooltips
+  secondary: '#f5f5f7',   // near zinc-50 — bar labels
+  muted: '#a1a1aa',       // zinc-400 — tooltip labels, secondary text
+  subtle: '#71717a',      // zinc-500 — axis ticks, grid text, peak labels
+  dim: '#52525b',         // zinc-600 — secondary axis ticks
+} as const
+
+export const CHART_SURFACE = {
+  tooltipBg: 'rgba(26, 26, 28, 0.95)',
+  tooltipBorder: 'rgba(255, 255, 255, 0.08)',
+  tooltipShadow: 'rgba(0, 0, 0, 0.4)',
+  gridLine: 'rgba(255, 255, 255, 0.04)',
+  axisLine: 'rgba(255, 255, 255, 0.06)',
+  cursor: 'rgba(255, 255, 255, 0.06)',
+  polarGrid: 'rgba(255, 255, 255, 0.06)',
+  referenceLine: 'rgba(255, 255, 255, 0.15)',
+  referenceLineStrong: 'rgba(255, 255, 255, 0.2)',
+  activeStroke: 'rgba(255, 255, 255, 0.3)',
+  svgStroke: 'rgba(255, 255, 255, 0.08)',
+  overlayBg: 'rgba(0, 0, 0, 0.5)',
+} as const
+
+export const CHART_INPUT = {
+  bg: 'rgba(44, 44, 46, 0.6)',
+  border: 'rgba(58, 58, 60, 0.6)',
+} as const

@@ -11,7 +11,7 @@
  *   <Area fill="url(#gradient-income)" />
  */
 
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
+import { CHART_AXIS_COLOR, CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
 import { formatCurrencyShort, formatDateTick } from '@/lib/formatters'
 import { getSmartInterval } from '@/lib/chartUtils'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
@@ -20,14 +20,14 @@ import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 
 export const GRID_DEFAULTS = {
   strokeDasharray: '3 3',
-  stroke: 'rgba(255, 255, 255, 0.04)',
+  stroke: CHART_SURFACE.gridLine,
   vertical: false,
 } as const
 
 // ─── Axis defaults ──────────────────────────────────────────────────────────
 
-const AXIS_TICK = { fill: '#71717a', fontSize: 11 } as const
-const AXIS_LINE = { stroke: 'rgba(255, 255, 255, 0.06)' } as const
+export const AXIS_TICK = { fill: CHART_TEXT.subtle, fontSize: 11 } as const
+export const AXIS_LINE = { stroke: CHART_SURFACE.axisLine } as const
 
 export function xAxisDefaults(dataLength = 0, opts?: {
   angle?: number
@@ -118,7 +118,7 @@ export function shouldAnimate(dataLength: number): boolean {
 export const ACTIVE_DOT = {
   r: 6,
   strokeWidth: 2,
-  stroke: 'rgba(255, 255, 255, 0.3)',
+  stroke: CHART_SURFACE.activeStroke,
   fill: 'currentColor', // inherits from the line/area color
 } as const
 
