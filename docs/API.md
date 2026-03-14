@@ -141,6 +141,144 @@ Retrieve all transactions from the database.
 }
 ```
 
+### Get All Transactions (No Pagination)
+
+**GET** `/api/transactions/all`
+
+Return every non-deleted transaction in a single JSON array. Designed for the frontend analytics layer which needs the full dataset for client-side aggregation.
+
+**Query Parameters:**
+
+- `start_date` (ISO date, optional) - Start date filter
+- `end_date` (ISO date, optional) - End date filter
+
+**Response (200 OK):**
+
+```json
+[
+  {
+    "id": "abc123def456...",
+    "date": "2025-01-15",
+    "amount": 5000.0,
+    "type": "Expense",
+    "category": "Groceries",
+    "subcategory": "Supermarket",
+    "account": "Checking",
+    "description": "Weekly groceries",
+    "file_source": "MoneyManager.xlsx"
+  }
+]
+```
+
+### Search Transactions
+
+**GET** `/api/transactions/search`
+
+Search and filter transactions with pagination, sorting, and full-text search across notes, category, and account fields.
+
+**Query Parameters:**
+
+- `query` (string, optional) - Search text in notes, category, account
+- `category` (string, optional) - Filter by category
+- `subcategory` (string, optional) - Filter by subcategory
+- `account` (string, optional) - Filter by account
+- `type` (string, optional) - Filter by type (`Income`, `Expense`, `Transfer`)
+- `min_amount` (float, optional) - Minimum amount
+- `max_amount` (float, optional) - Maximum amount
+- `start_date` (ISO date, optional) - Start date filter
+- `end_date` (ISO date, optional) - End date filter
+- `limit` (integer, optional) - Max results to return (1-1000, default: 100)
+- `offset` (integer, optional) - Number of results to skip (default: 0)
+- `sort_by` (string, optional) - Sort field: `date`, `amount`, `category`, or `account` (default: `date`)
+- `sort_order` (string, optional) - `asc` or `desc` (default: `desc`)
+
+**Response (200 OK):**
+
+```json
+{
+  "data": [
+    {
+      "id": "abc123def456...",
+      "date": "2025-01-15",
+      "amount": 5000.0,
+      "type": "Expense",
+      "category": "Groceries",
+      "account": "Checking"
+    }
+  ],
+  "total": 234,
+  "limit": 100,
+  "offset": 0,
+  "has_more": true
+}
+```
+
+### Export Transactions as CSV
+
+**GET** `/api/transactions/export`
+
+Export all non-deleted transactions as a CSV file download.
+
+**Query Parameters:**
+
+- `start_date` (ISO date, optional) - Start date filter
+- `end_date` (ISO date, optional) - End date filter
+
+**Response (200 OK):** CSV file with headers: `id`, `date`, `amount`, `currency`, `type`, `category`, `subcategory`, `account`, `from_account`, `to_account`, `note`, `source_file`, `last_seen_at`
+
+---
+
+## Meta Endpoints
+
+Metadata endpoints for populating dropdowns and filter options. All require authentication.
+
+### List Account Names
+
+**GET** `/api/meta/accounts`
+
+Return unique account names from all transactions (including transfer from/to accounts).
+
+**Response (200 OK):**
+
+```json
+{
+  "accounts": ["Checking", "HDFC Savings", "Grow Mutual Funds"]
+}
+```
+
+### Get Filter Options
+
+**GET** `/api/meta/filters`
+
+Return combined filter metadata (transaction types + account names).
+
+**Response (200 OK):**
+
+```json
+{
+  "transaction_types": ["Expense", "Income", "Transfer"],
+  "accounts": ["Checking", "HDFC Savings", "Grow Mutual Funds"]
+}
+```
+
+### Get Category Buckets
+
+**GET** `/api/meta/buckets`
+
+Return dynamically classified category buckets (needs/wants/savings/investment) based on existing transaction data.
+
+**Response (200 OK):**
+
+```json
+{
+  "needs": ["Food", "Rent", "Utilities"],
+  "wants": ["Entertainment", "Shopping"],
+  "savings": ["Emergency Fund"],
+  "investment_categories": ["Mutual Funds", "Stocks"],
+  "investment_accounts": ["Grow Mutual Funds", "Zerodha Stocks"]
+}
+```
+
 ---
 
 ## Analytics Endpoints
