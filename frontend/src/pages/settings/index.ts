@@ -1,1 +1,1 @@
-export type { LocalPrefs, LocalPrefKey } from './types'
+export type { LocalPrefs, LocalPrefKey, IncomeClassificationType } from './types'

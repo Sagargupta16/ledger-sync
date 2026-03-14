@@ -6,7 +6,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { analyticsV2Service } from '../../services/api/analyticsV2'
+import { analyticsV2Service } from '@/services/api/analyticsV2'
 
 // Data only changes on upload. Keep cached indefinitely for instant navigations.
 const STABLE_STALE_TIME = Infinity
@@ -21,7 +21,7 @@ import type {
   NetWorthSnapshot,
   RecurringTransaction,
   TransferFlow,
-} from '../../services/api/analyticsV2'
+} from '@/services/api/analyticsV2'
 
 // Query keys — filter properties spread directly to avoid object reference mismatches
 export const analyticsV2Keys = {
@@ -222,4 +222,4 @@ export type {
   NetWorthSnapshot,
   RecurringTransaction,
   TransferFlow,
-} from '../../services/api/analyticsV2'
+} from '@/services/api/analyticsV2'

@@ -31,6 +31,11 @@
     "tailwind-merge": "^3.5.0",
     "zustand": "^5.0.11"
   },
+  "pnpm": {
+    "overrides": {
+      "undici": ">=7.24.0"
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.2.1",

@@ -4,6 +4,7 @@
 
 Ledger Sync is a self-hosted personal finance application that syncs your transaction data from Excel files (exported from Money Manager Pro or similar apps) and provides comprehensive analytics for your financial life.
 
+![Version](https://img.shields.io/badge/version-0.8.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![React](https://img.shields.io/badge/react-19-blue.svg)
@@ -89,21 +90,30 @@ pnpm run dev
 
 ```
 ledger-sync/
-├── backend/              # Python FastAPI backend
-│   ├── src/ledger_sync/  # Main application
-│   │   ├── api/          # REST endpoints
-│   │   ├── core/         # Business logic (reconciler, sync)
-│   │   ├── db/           # Database models & session
-│   │   └── ingest/       # Excel processing pipeline
-│   └── tests/            # pytest tests
-├── frontend/             # React + TypeScript frontend
+├── backend/                # Python FastAPI backend
+│   ├── src/ledger_sync/    # Main application
+│   │   ├── api/            # REST endpoints
+│   │   ├── core/           # Business logic (reconciler, sync, analytics)
+│   │   ├── db/             # Database models & session
+│   │   ├── ingest/         # Excel processing pipeline
+│   │   └── schemas/        # Pydantic request/response models
+│   └── tests/              # pytest tests
+├── frontend/               # React + TypeScript frontend
 │   └── src/
-│       ├── pages/        # 22 page components
-│       ├── components/   # UI & analytics components (60+)
-│       ├── hooks/        # React Query hooks
-│       ├── constants/    # Colors, animations, chart config
-│       └── services/     # API client
-└── .github/workflows/    # CI pipeline
+│       ├── pages/          # 22 page components (split into subdirectories)
+│       │   ├── settings/       # Settings sections (20 files)
+│       │   ├── goals/          # Goals sub-components (13 files)
+│       │   ├── comparison/     # Comparison sub-components (13 files)
+│       │   └── subscription-tracker/  # Subscription sub-components (13 files)
+│       ├── components/     # UI & analytics components (60+)
+│       ├── hooks/          # React Query hooks & custom hooks
+│       ├── constants/      # Colors, chart tokens, animations
+│       ├── store/          # Zustand global stores
+│       ├── services/       # API client (Axios)
+│       ├── lib/            # Utility functions
+│       └── types/          # Shared TypeScript types
+├── .github/workflows/      # CI pipeline
+└── CHANGELOG.md            # Version history
 ```
 
 ## Pages
@@ -190,6 +200,7 @@ VITE_API_BASE_URL=http://localhost:8000                # Set in GitHub Actions v
 
 ## Documentation
 
+- [Changelog](CHANGELOG.md) — Version history and release notes
 - [Architecture](docs/architecture.md) — System design and data flow
 - [API Reference](docs/API.md) — REST endpoint documentation
 - [Database Schema](docs/DATABASE.md) — Models and migrations
