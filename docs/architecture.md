@@ -6,40 +6,9 @@ Ledger Sync is a full-stack financial management application with a clear separa
 
 ## High-Level Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Web Browser (Client)                     │
-└────────────────────────┬────────────────────────────────────┘
-                         │ HTTP/WebSocket
-                         │
-┌────────────────────────▼────────────────────────────────────┐
-│                    Frontend (React + TS)                      │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │ Pages: Overview, Income, Categories, Trends, etc.   │   │
-│  │ Components: Charts, KPIs, Forms, Tables             │   │
-│  │ Services: API client, State management              │   │
-│  └──────────────────────────────────────────────────────┘   │
-└────────────────────────┬────────────────────────────────────┘
-                         │ REST API (JSON)
-                         │
-┌────────────────────────▼────────────────────────────────────┐
-│               Backend API (FastAPI + Python)                 │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │ Endpoints: Upload, Transactions, Analytics, Calc.   │   │
-│  │ Business Logic: Reconciliation, Sync, Calculations  │   │
-│  │ Data Layer: SQLAlchemy ORM, Database Access         │   │
-│  └──────────────────────────────────────────────────────┘   │
-└────────────────────────┬────────────────────────────────────┘
-                         │ SQL
-                         │
-┌────────────────────────▼────────────────────────────────────┐
-│                    SQLite Database                           │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │ Tables: Transactions, Accounts, Analytics Data      │   │
-│  │ Schema: Managed by Alembic migrations              │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="images/system-overview.svg" alt="System Architecture" width="100%"/>
+</p>
 
 ## Backend Architecture
 
@@ -98,46 +67,9 @@ Ledger Sync is a full-stack financial management application with a clear separa
 
 ### Data Flow
 
-```
-Excel File Upload
-       │
-       ▼
-┌─────────────────┐
-│ Excel Loader    │  Read and parse Excel file
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Normalizer      │  Clean and standardize data
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Validator       │  Validate data integrity
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Hash ID Gen     │  Generate deterministic IDs
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Reconciler      │  Compare with DB, decide action
-└────────┬────────┘
-         │
-    ┌────┴───┬──────┬────────┐
-    │         │      │        │
-    ▼         ▼      ▼        ▼
- Insert   Update  Delete   Skip
-    │         │      │        │
-    └────┬────┴──────┴────────┘
-         │
-         ▼
-┌─────────────────┐
-│ SQLite DB       │  Persist data
-└─────────────────┘
-```
+<p align="center">
+  <img src="images/upload-pipeline.svg" alt="Upload & Sync Pipeline" width="100%"/>
+</p>
 
 ### Key Algorithms
 
@@ -289,36 +221,17 @@ App
     └── FileUpload
 ```
 
-### Data Flow
+### Authentication Flow
 
-```
-User Input (File Upload, Navigation)
-       │
-       ▼
-┌──────────────────┐
-│ Event Handler    │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ API Service      │  Call backend endpoint
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ State Update     │  Update store/local state
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Component Render │  React re-renders
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ UI Update        │  Browser displays new data
-└──────────────────┘
-```
+<p align="center">
+  <img src="images/auth-flow.svg" alt="Authentication Flow" width="100%"/>
+</p>
+
+### Backend Layer Architecture
+
+<p align="center">
+  <img src="images/backend-layers.svg" alt="Backend Layers" width="100%"/>
+</p>
 
 ## Data Models
 
