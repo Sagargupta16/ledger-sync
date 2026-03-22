@@ -63,6 +63,45 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 | **CI/CD**        | GitHub Actions (lint, type-check, build, deploy)                             |
 | **Package Mgmt** | pnpm 10 (frontend), uv (backend)                                            |
 
+## Architecture
+
+### System Overview
+
+<p align="center">
+  <img src="docs/images/system-overview.svg" alt="System Architecture" width="100%"/>
+</p>
+
+### Upload & Sync Pipeline
+
+<p align="center">
+  <img src="docs/images/upload-pipeline.svg" alt="Upload Pipeline" width="100%"/>
+</p>
+
+### Authentication Flow
+
+<p align="center">
+  <img src="docs/images/auth-flow.svg" alt="Authentication Flow" width="100%"/>
+</p>
+
+### Backend Layer Architecture
+
+<p align="center">
+  <img src="docs/images/backend-layers.svg" alt="Backend Layers" width="100%"/>
+</p>
+
+<details>
+<summary>View Mermaid source (for editing)</summary>
+
+Diagrams generated from `.mmd` files in `docs/images/` using:
+
+```bash
+npx -y @mermaid-js/mermaid-cli -i docs/images/<name>.mmd -o docs/images/<name>.svg -b transparent
+```
+
+</details>
+
+For detailed architecture docs, see [docs/architecture.md](docs/architecture.md).
+
 ## Quick Start
 
 ```bash

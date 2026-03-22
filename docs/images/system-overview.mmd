@@ -1,0 +1,39 @@
+%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#6366f1', 'primaryTextColor': '#fff', 'primaryBorderColor': '#818cf8', 'lineColor': '#94a3b8', 'secondaryColor': '#1e293b', 'tertiaryColor': '#0f172a', 'background': '#0f172a', 'mainBkg': '#1e293b', 'nodeBorder': '#334155', 'clusterBkg': '#1e293b', 'clusterBorder': '#334155', 'titleColor': '#f8fafc', 'edgeLabelBackground': '#1e293b'}}}%%
+flowchart TB
+    subgraph DEPLOY["  Deployment Infrastructure  "]
+        direction TB
+        subgraph GHP["  GitHub Pages  "]
+            FE["React 19 SPA\nTypeScript + Vite 7\nTailwind CSS 4\nRecharts + Framer Motion"]
+        end
+        subgraph RENDER["  Render (Free Tier)  "]
+            BE["FastAPI Backend\nPython 3.11+ / Uvicorn\nSQLAlchemy 2.0 + Alembic\nPydantic v2 Schemas"]
+        end
+        subgraph NEON["  Neon PostgreSQL 17  "]
+            DB[("users\ntransactions\npreferences\nbudgets / goals\nanomalies\nimport_logs")]
+        end
+    end
+
+    subgraph OAUTH["  OAuth 2.0 Providers  "]
+        G["Google"]
+        GH["GitHub"]
+    end
+
+    subgraph STATE["  Frontend State  "]
+        ZS["Zustand Stores\n(auth, preferences,\naccounts, budget)"]
+        TQ["TanStack Query\n(server state cache,\nstaleTime: Infinity)"]
+    end
+
+    USER((User\nBrowser)) -->|HTTPS| FE
+    FE <-->|REST JSON\n+ JWT Bearer| BE
+    BE <-->|OAuth Code\nExchange| OAUTH
+    BE <-->|SQL\nConnection Pool\npool_size=20| DB
+    FE --- STATE
+
+    style USER fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
+    style FE fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
+    style BE fill:#10b981,color:#fff,stroke:#34d399,stroke-width:2px
+    style DB fill:#f59e0b,color:#000,stroke:#fbbf24,stroke-width:2px
+    style G fill:#ea4335,color:#fff,stroke:#f87171,stroke-width:2px
+    style GH fill:#6b7280,color:#fff,stroke:#9ca3af,stroke-width:2px
+    style ZS fill:#8b5cf6,color:#fff,stroke:#a78bfa,stroke-width:2px
+    style TQ fill:#8b5cf6,color:#fff,stroke:#a78bfa,stroke-width:2px

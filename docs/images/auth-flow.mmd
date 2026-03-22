@@ -1,0 +1,27 @@
+%%{init: {'theme': 'dark', 'themeVariables': {'actorBkg': '#6366f1', 'actorTextColor': '#fff', 'actorBorder': '#818cf8', 'actorLineColor': '#94a3b8', 'signalColor': '#e2e8f0', 'signalTextColor': '#e2e8f0', 'labelBoxBkgColor': '#1e293b', 'labelBoxBorderColor': '#334155', 'labelTextColor': '#f8fafc', 'loopTextColor': '#f8fafc', 'activationBorderColor': '#6366f1', 'activationBkgColor': '#312e81', 'sequenceNumberColor': '#fff', 'noteBkgColor': '#1e293b', 'noteBorderColor': '#334155', 'noteTextColor': '#f8fafc', 'background': '#0f172a', 'mainBkg': '#1e293b'}}}%%
+sequenceDiagram
+    actor U as User
+    participant F as Frontend<br/>(React SPA)
+    participant P as Google / GitHub
+    participant B as FastAPI<br/>Backend
+    participant D as PostgreSQL
+
+    U->>F: Click Sign in with Google
+    F->>P: Redirect to OAuth authorize URL
+    P->>U: Show consent screen
+    U->>P: Grant permission
+    P-->>F: Redirect to /auth/callback with code
+    F->>B: POST /api/auth/oauth/google/callback
+    B->>P: Exchange code for user info via httpx
+    P-->>B: email, name, avatar
+    B->>D: Find or create user record
+    D-->>B: User object
+    B-->>F: access_token + refresh_token (JWT)
+    F->>F: Persist tokens in Zustand store
+    F-->>U: Redirect to Dashboard
+
+    Note over F,B: All subsequent requests include<br/>Authorization: Bearer access_token
+
+    Note over F,B: Token refresh flow
+    F->>B: POST /api/auth/refresh (refresh_token)
+    B-->>F: New access_token

@@ -1,0 +1,69 @@
+%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#6366f1', 'primaryTextColor': '#fff', 'primaryBorderColor': '#818cf8', 'lineColor': '#94a3b8', 'secondaryColor': '#1e293b', 'tertiaryColor': '#0f172a', 'background': '#0f172a', 'mainBkg': '#1e293b', 'nodeBorder': '#334155', 'clusterBkg': '#1e293b', 'clusterBorder': '#334155', 'titleColor': '#f8fafc', 'edgeLabelBackground': '#1e293b'}}}%%
+flowchart TB
+    subgraph API["  API Layer  (FastAPI Routers)  "]
+        R1["auth\noauth"]
+        R2["upload"]
+        R3["transactions"]
+        R4["analytics\nanalytics_v2"]
+        R5["calculations"]
+        R6["preferences"]
+        R7["account\nclassifications"]
+        R8["meta"]
+    end
+
+    subgraph CORE["  Business Logic Layer  "]
+        S1["Sync Engine"]
+        S2["Reconciler"]
+        S3["Calculator"]
+        S4["Analytics Engine"]
+        S5["Query Helpers\n(shared SQL\naggregations)"]
+        S6["Time Filter"]
+    end
+
+    subgraph INGEST["  Ingestion Layer  "]
+        E1["Excel Loader"]
+        E2["Normalizer"]
+        E3["Validator"]
+        E4["Hash ID\nGenerator"]
+        E1 --> E2 --> E3 --> E4
+    end
+
+    subgraph DATA["  Data Access Layer  "]
+        ORM["SQLAlchemy 2.0\nModels"]
+        MIG["Alembic\nMigrations"]
+    end
+
+    JWT{{"JWT Auth\nMiddleware\n(deps.py)"}} --> API
+    R1 -->|token mgmt| ORM
+    R2 --> S1 --> INGEST
+    E4 --> S2
+    R3 --> S3
+    R4 --> S4
+    R5 --> S3
+    S3 & S4 --> S5
+    S5 --> S6
+    S2 & S6 --> ORM
+    ORM --> DB[("PostgreSQL\nSQLite (dev)")]
+
+    style JWT fill:#f59e0b,color:#000,stroke:#fbbf24,stroke-width:2px
+    style DB fill:#10b981,color:#fff,stroke:#34d399,stroke-width:2px
+    style S5 fill:#8b5cf6,color:#fff,stroke:#a78bfa,stroke-width:2px
+    style R1 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
+    style R2 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
+    style R3 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
+    style R4 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
+    style R5 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
+    style R6 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
+    style R7 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
+    style R8 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
+    style S1 fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
+    style S2 fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
+    style S3 fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
+    style S4 fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
+    style S6 fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
+    style E1 fill:#0ea5e9,color:#fff,stroke:#38bdf8,stroke-width:2px
+    style E2 fill:#0ea5e9,color:#fff,stroke:#38bdf8,stroke-width:2px
+    style E3 fill:#0ea5e9,color:#fff,stroke:#38bdf8,stroke-width:2px
+    style E4 fill:#0ea5e9,color:#fff,stroke:#38bdf8,stroke-width:2px
+    style ORM fill:#14b8a6,color:#fff,stroke:#2dd4bf,stroke-width:2px
+    style MIG fill:#14b8a6,color:#fff,stroke:#2dd4bf,stroke-width:2px
