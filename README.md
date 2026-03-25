@@ -1,6 +1,6 @@
 # Ledger Sync
 
-**Your personal finance command center** — Transform messy Excel exports into a beautiful, insightful financial dashboard.
+**Your personal finance command center** - Transform messy Excel exports into a beautiful, insightful financial dashboard.
 
 Ledger Sync is a self-hosted personal finance application that syncs your transaction data from Excel files (exported from Money Manager Pro or similar apps) and provides comprehensive analytics for your financial life.
 
@@ -18,12 +18,12 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 
 - Drag-and-drop Excel uploads with beautiful hero UI
 - Intelligent duplicate detection using SHA-256 hashing
-- Idempotent syncing — re-upload anytime without duplicates
+- Idempotent syncing - re-upload anytime without duplicates
 - Real-time toast notifications for upload status
 
 ### Spending Analysis
 
-- **50/30/20 Budget Rule** — Track Needs (50%), Wants (30%), and Savings (20%)
+- **50/30/20 Budget Rule** - Track Needs (50%), Wants (30%), and Savings (20%)
 - Category and subcategory breakdown with treemaps
 - Year-over-year spending comparisons
 - Recurring transaction detection
@@ -196,7 +196,7 @@ See [Deployment Guide](docs/DEPLOYMENT.md) for full setup instructions.
 
 ## Authentication
 
-Ledger Sync uses **OAuth 2.0** for authentication — no passwords to manage.
+Ledger Sync uses **OAuth 2.0** for authentication - no passwords to manage.
 
 - **Google Sign-In** and **GitHub Sign-In** buttons on the login page
 - Backend exchanges OAuth codes for user info, then issues JWT tokens
@@ -239,13 +239,13 @@ VITE_API_BASE_URL=http://localhost:8000                # Set in GitHub Actions v
 
 ## Documentation
 
-- [Changelog](CHANGELOG.md) — Version history and release notes
-- [Architecture](docs/architecture.md) — System design and data flow
-- [API Reference](docs/API.md) — REST endpoint documentation
-- [Database Schema](docs/DATABASE.md) — Models and migrations
-- [Development Guide](docs/DEVELOPMENT.md) — Setup and workflow
-- [Testing Guide](docs/TESTING.md) — Test strategies
-- [Deployment Guide](docs/DEPLOYMENT.md) — Production deployment
+- [Changelog](CHANGELOG.md) - Version history and release notes
+- [Architecture](docs/architecture.md) - System design and data flow
+- [API Reference](docs/API.md) - REST endpoint documentation
+- [Database Schema](docs/DATABASE.md) - Models and migrations
+- [Development Guide](docs/DEVELOPMENT.md) - Setup and workflow
+- [Testing Guide](docs/TESTING.md) - Test strategies
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment
 
 ## Contributing
 
