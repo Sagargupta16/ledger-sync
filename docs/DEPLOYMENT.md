@@ -54,39 +54,31 @@ The connection string is set as `LEDGER_SYNC_DATABASE_URL` in Render's environme
 
 **Dashboard:** [dashboard.render.com](https://dashboard.render.com)
 
-**Service configuration:**
+Service configuration is defined in `render.yaml` (repo root) as Infrastructure as Code. See that file for build/start commands, health check, and env var declarations.
 
-| Setting | Value |
-|---------|-------|
-| Runtime | Python |
-| Root Directory | `backend` |
-| Build Command | `pip install uv && uv sync --no-group dev && (uv run alembic upgrade head 2>/dev/null \|\| (uv run alembic stamp af63e055055a && uv run alembic upgrade head))` |
-| Start Command | `uv run uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT` |
-| Health Check | `/health` |
-| Auto-Deploy | Yes (on push to `main`) |
+To enable Blueprint Sync (so Render auto-applies render.yaml changes on push):
+1. Go to [Render Dashboard](https://dashboard.render.com) > Blueprints
+2. Connect the `ledger-sync` repo
+3. Select the `render.yaml` file
 
-**Environment variables:**
+**Environment variables set in Render dashboard** (secrets not in render.yaml):
 
 | Variable | Required | Notes |
 |----------|----------|-------|
-| `PYTHON_VERSION` | Yes | `3.12.0` (must include patch version) |
-| `LEDGER_SYNC_DATABASE_URL` | Yes | Neon connection string (`postgresql://...?sslmode=require`) |
-| `LEDGER_SYNC_JWT_SECRET_KEY` | Yes | Generate with `openssl rand -hex 32` |
-| `LEDGER_SYNC_ENVIRONMENT` | Yes | `production` |
-| `LEDGER_SYNC_CORS_ORIGINS` | Yes | JSON array: `["https://yourdomain.com", "http://localhost:5173"]` |
-| `LEDGER_SYNC_FRONTEND_URL` | Yes | Frontend base URL for OAuth redirects (e.g., `https://yourdomain.com/ledger-sync`) |
+| `LEDGER_SYNC_DATABASE_URL` | Yes | Neon pooler connection string (`postgresql://...?sslmode=require`). Do NOT include `channel_binding=require`. |
+| `LEDGER_SYNC_JWT_SECRET_KEY` | Yes | Generate with `openssl rand -hex 32` (min 32 chars) |
 | `LEDGER_SYNC_GOOGLE_CLIENT_ID` | For Google login | Google OAuth client ID |
 | `LEDGER_SYNC_GOOGLE_CLIENT_SECRET` | For Google login | Google OAuth client secret |
 | `LEDGER_SYNC_GITHUB_CLIENT_ID` | For GitHub login | GitHub OAuth client ID (create a **separate** prod app) |
 | `LEDGER_SYNC_GITHUB_CLIENT_SECRET` | For GitHub login | GitHub OAuth client secret |
+
+Non-secret env vars (`PYTHON_VERSION`, `LEDGER_SYNC_ENVIRONMENT`, `LEDGER_SYNC_CORS_ORIGINS`, `LEDGER_SYNC_FRONTEND_URL`) are declared in `render.yaml`.
 
 **OAuth redirect URIs** (must be registered in provider consoles):
 - Google: `https://yourdomain.com/ledger-sync/auth/callback/google`
 - GitHub: `https://yourdomain.com/ledger-sync/auth/callback/github`
 
 > **Note:** GitHub only allows one callback URL per OAuth app. Create separate apps for local dev and production.
-
-A `render.yaml` blueprint is included in the repo root for reference, but the service was created manually.
 
 ### 3. GitHub Pages (Frontend)
 

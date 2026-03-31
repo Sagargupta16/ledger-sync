@@ -139,7 +139,7 @@ ledger-sync/
 │   └── tests/              # pytest tests
 ├── frontend/               # React + TypeScript frontend
 │   └── src/
-│       ├── pages/          # 22 page components (split into subdirectories)
+│       ├── pages/          # 23 page components (split into subdirectories)
 │       │   ├── settings/       # Settings sections (20 files)
 │       │   ├── goals/          # Goals sub-components (13 files)
 │       │   ├── comparison/     # Comparison sub-components (13 files)

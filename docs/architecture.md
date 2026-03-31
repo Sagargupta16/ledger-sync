@@ -109,7 +109,7 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
 #### 1. **Pages Layer** (`src/pages/`)
 
 - **Responsibility**: Screen-level components, layout, page composition
-- **Components** (22 pages):
+- **Components** (23 pages):
   - `HomePage` - Landing page
   - `DashboardPage` - Main dashboard with KPIs, sparklines, and quick insights
   - `UploadSyncPage` - Hero upload UI with sample format preview
