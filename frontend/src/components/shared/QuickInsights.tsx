@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
-  ShoppingBag, TrendingUp, Zap, Activity, Gift, Receipt,
-  Flame, ArrowLeftRight, PiggyBank, Landmark, Calendar, BarChart3,
-  Clock, Layers,
+  ShoppingBag, TrendingUp, TrendingDown, Zap, Activity, Gift, Receipt,
+  Flame, ArrowLeftRight, Landmark, Calendar, BarChart3,
+  Clock, Layers, DollarSign, Hourglass, ShieldCheck, Lock, Percent,
 } from 'lucide-react'
 import { useCategoryBreakdown, useTotals } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -44,6 +44,17 @@ function getVisibleWidgetKeys(): Set<string> | null {
 
 interface QuickInsightsProps {
   readonly dateRange?: { start_date?: string; end_date?: string }
+  readonly ageOfMoney?: number | null
+  readonly daysOfBuffering?: number | null
+  readonly fixedCommitmentsMonthly?: number
+  readonly fixedCount?: number
+  readonly momChanges?: {
+    income?: number
+    expense?: number
+    savings?: number
+    savingsRate?: number
+    label: string
+  }
 }
 
 interface CategoryData {
@@ -145,7 +156,14 @@ function computeTopByCategory(transactions: Transaction[]) {
 
 // ─── Main component ─────────────────────────────────────────────────────
 
-export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
+export default function QuickInsights({
+  dateRange = {},
+  ageOfMoney,
+  daysOfBuffering,
+  fixedCommitmentsMonthly = 0,
+  fixedCount = 0,
+  momChanges,
+}: QuickInsightsProps) {
   const { data: categoryData, isLoading: categoryLoading } = useCategoryBreakdown({
     transaction_type: 'expense',
     ...dateRange,
@@ -223,17 +241,69 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       )
     : { amount: 0, category: 'N/A', date: '' }
 
+  const incomeChange = momChanges?.income != null ? `${momChanges.income > 0 ? '+' : ''}${momChanges.income}% ${momChanges.label}` : ''
+  const expenseChange = momChanges?.expense != null ? `${momChanges.expense > 0 ? '+' : ''}${momChanges.expense}% ${momChanges.label}` : ''
+  const savingsChange = momChanges?.savings != null ? `${momChanges.savings > 0 ? '+' : ''}${momChanges.savings}% ${momChanges.label}` : ''
+
   return [
     {
-      icon: PiggyBank,
+      icon: TrendingUp,
       color: 'text-ios-green',
       bg: 'bg-ios-green/10',
+      title: 'Total Income',
+      value: formatCurrency(totalIncome),
+      subtitle: incomeChange,
+    },
+    {
+      icon: TrendingDown,
+      color: 'text-ios-red',
+      bg: 'bg-ios-red/10',
+      title: 'Total Expenses',
+      value: formatCurrency(Math.abs(totalsData?.total_expenses ?? 0)),
+      subtitle: expenseChange,
+    },
+    {
+      icon: DollarSign,
+      color: 'text-ios-blue',
+      bg: 'bg-ios-blue/10',
+      title: 'Net Savings',
+      value: formatCurrency(netSavings),
+      subtitle: savingsChange,
+    },
+    {
+      icon: Percent,
+      color: 'text-ios-purple',
+      bg: 'bg-ios-purple/10',
       title: 'Savings Rate',
       value: `${savingsRate.toFixed(1)}%`,
       subtitle: totalIncome > 0
         ? `${formatCurrency(netSavings)} saved of ${formatCurrency(totalIncome)}`
         : 'No income recorded',
     },
+    ...(ageOfMoney != null ? [{
+      icon: Hourglass,
+      color: 'text-ios-indigo',
+      bg: 'bg-ios-indigo/10',
+      title: 'Age of Money',
+      value: `${ageOfMoney} days`,
+      subtitle: ageOfMoney >= 30 ? 'Healthy buffer' : ageOfMoney >= 15 ? 'Building runway' : 'Living paycheck to paycheck',
+    }] : []),
+    ...(daysOfBuffering != null ? [{
+      icon: ShieldCheck,
+      color: 'text-ios-teal',
+      bg: 'bg-ios-teal/10',
+      title: 'Days of Buffering',
+      value: `${daysOfBuffering} days`,
+      subtitle: 'At current spending rate',
+    }] : []),
+    ...(fixedCommitmentsMonthly > 0 ? [{
+      icon: Lock,
+      color: 'text-ios-orange',
+      bg: 'bg-ios-orange/10',
+      title: 'Fixed Commitments',
+      value: formatCurrency(fixedCommitmentsMonthly),
+      subtitle: `${fixedCount} active recurring`,
+    }] : []),
     {
       icon: ShoppingBag,
       color: 'text-ios-purple',
@@ -343,7 +413,7 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
       subtitle: `${transferTransactions.length} transfer transactions`,
     },
   ]}, [
-    savingsRate, netSavings, totalIncome,
+    savingsRate, netSavings, totalIncome, totalsData?.total_expenses,
     topCategory, topIncomeSource,
     netCashback, cashbackTransactions.length,
     totalTransactions, mostFrequentCategory,
@@ -355,6 +425,9 @@ export default function QuickInsights({ dateRange = {} }: QuickInsightsProps) {
     monthlyBurnRate, monthsInRange,
     uniqueCategories, uniqueSubcategories,
     totalTransfers, transferTransactions.length,
+    ageOfMoney, daysOfBuffering,
+    fixedCommitmentsMonthly, fixedCount,
+    momChanges,
   ])
 
   // Filter insights by user's visible widget preferences

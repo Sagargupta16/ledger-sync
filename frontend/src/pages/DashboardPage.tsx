@@ -1,17 +1,14 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { SCROLL_FADE_UP } from '@/constants/animations'
-import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard, Lock, Hourglass, ShieldCheck } from 'lucide-react'
-import MetricCard from '@/components/shared/MetricCard'
+import { Wallet, CreditCard } from 'lucide-react'
 import QuickInsights from '@/components/shared/QuickInsights'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-import Sparkline from '@/components/shared/Sparkline'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore } from '@/components/analytics'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
 import { PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
-import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -19,36 +16,23 @@ import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { toMonthlyAmount } from '@/pages/subscription-tracker/helpers'
 
 export default function DashboardPage() {
-  const { data: preferences } = usePreferences()
-  const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
+  usePreferences()
 
   const {
-    viewMode,
-    setViewMode,
-    currentYear,
-    setCurrentYear,
-    currentMonth,
-    setCurrentMonth,
-    currentFY,
-    setCurrentFY,
+    viewMode, setViewMode,
+    currentYear, setCurrentYear,
+    currentMonth, setCurrentMonth,
+    currentFY, setCurrentFY,
     fiscalYearStartMonth,
-    dataDateRange,
-    dateRange,
-    filteredTotals,
-    isLoading,
-    filteredTransactions,
-    incomeBreakdown,
-    cashbacksTotal,
-    incomeChartData,
-    incomeColorStyles,
-    expenseChartData,
-    expenseColorStyles,
-    incomeSparkline,
-    expenseSparkline,
+    dataDateRange, dateRange,
+    filteredTotals, filteredTransactions,
+    incomeBreakdown, cashbacksTotal,
+    incomeChartData, incomeColorStyles,
+    expenseChartData, expenseColorStyles,
     momChanges,
   } = useDashboardMetrics()
 
-  // Fixed Commitments from active recurring transactions
+  // Fixed Commitments from active recurring
   const { data: recurringItems = [] } = useRecurringTransactions({ active_only: true, min_confidence: 0 })
   const fixedCommitmentsMonthly = useMemo(() => {
     const confirmed = recurringItems.filter((r) => r.is_confirmed && r.type === 'Expense')
@@ -70,114 +54,24 @@ export default function DashboardPage() {
     return computeDaysOfBuffering(liquidBalance, filteredTransactions)
   }, [filteredTransactions, filteredTotals])
 
-  const incomeTotal = useMemo(
-    () => incomeChartData.reduce((sum, d) => sum + d.value, 0),
-    [incomeChartData],
-  )
-
-  const expenseTotal = useMemo(
-    () => expenseChartData.reduce((sum, d) => sum + d.value, 0),
-    [expenseChartData],
-  )
+  const incomeTotal = useMemo(() => incomeChartData.reduce((sum, d) => sum + d.value, 0), [incomeChartData])
+  const expenseTotal = useMemo(() => expenseChartData.reduce((sum, d) => sum + d.value, 0), [expenseChartData])
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
-      {/* Header */}
       <PageHeader
         title="Dashboard"
         subtitle="Your financial overview at a glance"
         action={
           <AnalyticsTimeFilter
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            currentYear={currentYear}
-            currentMonth={currentMonth}
-            currentFY={currentFY}
-            onYearChange={setCurrentYear}
-            onMonthChange={setCurrentMonth}
-            onFYChange={setCurrentFY}
-            minDate={dataDateRange.minDate}
-            maxDate={dataDateRange.maxDate}
+            viewMode={viewMode} onViewModeChange={setViewMode}
+            currentYear={currentYear} currentMonth={currentMonth} currentFY={currentFY}
+            onYearChange={setCurrentYear} onMonthChange={setCurrentMonth} onFYChange={setCurrentFY}
+            minDate={dataDateRange.minDate} maxDate={dataDateRange.maxDate}
             fiscalYearStartMonth={fiscalYearStartMonth}
           />
         }
       />
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title="Total Income"
-          value={formatCurrency(filteredTotals?.total_income ?? 0)}
-          icon={TrendingUp}
-          color="green"
-          isLoading={isLoading}
-          change={momChanges.income}
-          changeLabel={momChanges.label}
-          trend={incomeSparkline.length > 1 ? <Sparkline data={incomeSparkline} color={SEMANTIC_COLORS.income} height={48} /> : undefined}
-        />
-        <MetricCard
-          title="Total Expenses"
-          value={formatCurrency(Math.abs(filteredTotals?.total_expenses ?? 0))}
-          icon={TrendingDown}
-          color="red"
-          isLoading={isLoading}
-          change={momChanges.expense}
-          invertChange
-          changeLabel={momChanges.label}
-          trend={expenseSparkline.length > 1 ? <Sparkline data={expenseSparkline} color={SEMANTIC_COLORS.expense} height={48} /> : undefined}
-        />
-        <MetricCard
-          title="Net Savings"
-          value={formatCurrency(filteredTotals?.net_savings ?? 0)}
-          icon={DollarSign}
-          color="blue"
-          isLoading={isLoading}
-          change={momChanges.savings}
-          changeLabel={momChanges.label}
-        />
-        <MetricCard
-          title="Savings Rate"
-          value={`${(filteredTotals?.savings_rate ?? 0).toFixed(1)}%`}
-          icon={Percent}
-          color="purple"
-          isLoading={isLoading}
-          change={momChanges.savingsRate}
-          changeLabel={momChanges.label ? `pts ${momChanges.label}` : 'pts vs prev month'}
-          subtitle={savingsGoalPercent === 20 ? undefined : `Target: ${savingsGoalPercent}%`}
-        />
-      </div>
-
-      {/* Secondary Indicators */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        {ageOfMoney !== null && (
-          <MetricCard
-            title="Age of Money"
-            value={`${ageOfMoney} days`}
-            icon={Hourglass}
-            color="indigo"
-            isLoading={isLoading}
-            subtitle={ageOfMoney >= 30 ? 'Healthy buffer' : ageOfMoney >= 15 ? 'Building runway' : 'Living paycheck to paycheck'}
-          />
-        )}
-        {daysOfBuffering !== null && (
-          <MetricCard
-            title="Days of Buffering"
-            value={`${daysOfBuffering} days`}
-            icon={ShieldCheck}
-            color="teal"
-            isLoading={isLoading}
-            subtitle="At current spending rate"
-          />
-        )}
-        <MetricCard
-          title="Fixed Commitments"
-          value={formatCurrency(fixedCommitmentsMonthly)}
-          icon={Lock}
-          color="orange"
-          isLoading={isLoading}
-          subtitle={fixedCount > 0 ? `${fixedCount} active recurring` : 'No recurring set'}
-        />
-      </div>
 
       {/* Financial Health Score & Quick Insights */}
       <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
@@ -185,7 +79,14 @@ export default function DashboardPage() {
 
         <div className="p-6 glass rounded-2xl border border-border shadow-xl">
           <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
-          <QuickInsights dateRange={dateRange} />
+          <QuickInsights
+            dateRange={dateRange}
+            ageOfMoney={ageOfMoney}
+            daysOfBuffering={daysOfBuffering}
+            fixedCommitmentsMonthly={fixedCommitmentsMonthly}
+            fixedCount={fixedCount}
+            momChanges={momChanges}
+          />
         </div>
       </motion.div>
 
@@ -240,7 +141,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            <EmptyState icon={Wallet} title="No income data available" description="Configure income categories in Settings to see your income breakdown." actionLabel="Go to Settings" actionHref="/settings" variant="compact" />
+            <EmptyState icon={Wallet} title="No income data available" description="Configure income categories in Settings." actionLabel="Go to Settings" actionHref="/settings" variant="compact" />
           )}
         </div>
 
