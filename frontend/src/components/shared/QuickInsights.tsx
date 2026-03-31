@@ -28,6 +28,19 @@ const TITLE_TO_WIDGET_KEY: Record<string, string> = {
   'Spending Diversity': 'spending_diversity',
   'Avg Transaction Amount': 'avg_transaction',
   'Total Internal Transfers': 'total_transfers',
+  // New insights - always visible (not in legacy widget settings)
+  'Total Income': 'total_income',
+  'Total Expenses': 'total_expenses',
+  'Net Savings': 'net_savings',
+  'Age of Money': 'age_of_money',
+  'Days of Buffering': 'days_of_buffering',
+  'Fixed Commitments': 'fixed_commitments',
+  'Recurring Coverage': 'recurring_coverage',
+  'Income vs Expense': 'income_expense_ratio',
+  'Most Expensive Month': 'most_expensive_month',
+  'Total Tax Paid': 'total_tax_paid',
+  'Effective Tax Rate': 'effective_tax_rate',
+  'Highest Tax Year': 'highest_tax_year',
 }
 
 function getVisibleWidgetKeys(): Set<string> | null {
@@ -35,8 +48,8 @@ function getVisibleWidgetKeys(): Set<string> | null {
     const raw = localStorage.getItem('ledger-sync-visible-widgets')
     if (raw) {
       const arr = JSON.parse(raw) as string[]
-      // If all 14 widgets are visible, treat as "no filter"
-      if (arr.length >= Object.keys(TITLE_TO_WIDGET_KEY).length) return null
+      // If most widgets are visible, treat as "no filter"
+      if (arr.length >= 14) return null
       return new Set(arr)
     }
   } catch (e) { console.warn('[getVisibleWidgetKeys] Failed to read localStorage:', e) }
@@ -291,8 +304,21 @@ export default function QuickInsights({
 
   // Filter by user widget prefs
   const visibleKeys = useMemo(() => getVisibleWidgetKeys(), [])
-  const filterByVis = <T extends { title: string }>(items: T[]) =>
-    visibleKeys ? items.filter((i) => visibleKeys.has(TITLE_TO_WIDGET_KEY[i.title] ?? i.title)) : items
+  // Legacy widget keys that users may have toggled in Settings
+  const LEGACY_KEYS = new Set([
+    'savings_rate', 'top_spending', 'top_income', 'cashback',
+    'total_transactions', 'biggest_transaction', 'median_transaction',
+    'daily_spending', 'weekend_spending', 'peak_day', 'burn_rate',
+    'spending_diversity', 'avg_transaction', 'total_transfers',
+  ])
+  const filterByVis = <T extends { title: string }>(items: T[]) => {
+    if (!visibleKeys) return items
+    return items.filter((i) => {
+      const key = TITLE_TO_WIDGET_KEY[i.title]
+      if (!key || !LEGACY_KEYS.has(key)) return true // new items always show
+      return visibleKeys.has(key)
+    })
+  }
 
   if (isLoading) {
     return (

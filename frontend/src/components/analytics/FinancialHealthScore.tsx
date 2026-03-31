@@ -3,7 +3,7 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
 } from 'recharts'
 import { Shield } from 'lucide-react'
-import { memo, useMemo, useState } from 'react'
+import { memo, useMemo } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
@@ -52,22 +52,38 @@ const METRIC_SHORT_LABELS: Record<string, string> = {
   'Income Stability': 'Income Stability',
 }
 
-function RadarVisualization({ metrics }: Readonly<{ metrics: HealthMetric[] }>) {
-  const radarData = metrics.map((m) => ({
-    dimension: METRIC_SHORT_LABELS[m.name] ?? m.name,
-    score: m.score,
-    fullMark: 100,
-  }))
+function ScoreHeader({ title, score, subtitle, color }: Readonly<{
+  title: string
+  score: number
+  subtitle: string
+  color: string
+}>) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2">
+        <div className={`p-2 rounded-lg ${color === 'text-ios-green' ? 'bg-ios-green/10' : color === 'text-ios-orange' ? 'bg-ios-orange/10' : 'bg-ios-red/10'}`}>
+          <Shield className={`w-4 h-4 ${color}`} />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold">{title}</h3>
+          <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+        </div>
+      </div>
+      <p className={`text-xl font-bold ${color}`}>{Math.round(score)}</p>
+    </div>
+  )
+}
 
+function RadarVisualization({ metrics, chartColor }: Readonly<{ metrics: Array<{ dimension: string; score: number; fullMark: number }>; chartColor: string }>) {
   return (
     <div className="mb-2">
-      <ChartContainer height={240}>
-        <RadarChart data={radarData}>
+      <ChartContainer height={200}>
+        <RadarChart data={metrics}>
           <PolarGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-          <PolarAngleAxis dataKey="dimension" tick={{ fill: '#71717a', fontSize: 10 }} />
-          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#52525b', fontSize: 9 }} axisLine={false} />
-          <Radar name="Health Score" dataKey="score" stroke="#4a9eff" fill="#4a9eff"
-            fillOpacity={0.15} strokeWidth={2} dot={{ r: 3, fill: '#4a9eff', strokeWidth: 0 }}
+          <PolarAngleAxis dataKey="dimension" tick={{ fill: '#71717a', fontSize: 9 }} />
+          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+          <Radar name="Score" dataKey="score" stroke={chartColor} fill={chartColor}
+            fillOpacity={0.15} strokeWidth={2} dot={{ r: 2, fill: chartColor, strokeWidth: 0 }}
             animationDuration={800} animationEasing="ease-out" />
           <Tooltip {...chartTooltipProps} />
         </RadarChart>
@@ -82,18 +98,18 @@ function MetricCard({ metric }: Readonly<{ metric: HealthMetric }>) {
     : rawColors.ios.red
 
   return (
-    <div className="p-3 rounded-xl border border-border bg-white/[0.02]">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-white">{metric.name}</span>
-        <span className="text-sm font-bold" style={{ color }}>{Math.round(metric.score)}</span>
+    <div className="p-2.5 rounded-lg border border-border bg-white/[0.02]">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-medium text-white truncate">{metric.name}</span>
+        <span className="text-xs font-bold" style={{ color }}>{Math.round(metric.score)}</span>
       </div>
-      <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden mb-2">
+      <div className="h-1 bg-muted/30 rounded-full overflow-hidden mb-1.5">
         <div className="h-full rounded-full transition-all duration-500"
           style={{ width: `${metric.score}%`, backgroundColor: color }} />
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-text-tertiary">{metric.description}</span>
-        <span className="text-xs text-text-quaternary capitalize">{metric.status}</span>
+        <p className="text-[11px] text-text-tertiary truncate">{metric.description}</p>
+        <p className="text-[10px] text-text-quaternary shrink-0 ml-2">Target: {metric.target}</p>
       </div>
     </div>
   )
@@ -110,7 +126,6 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
   const { data: preferences } = usePreferences()
   const transactions = propTransactions ?? fetchedTransactions
   const isLoading = !propTransactions && isFetching
-  const [scoreView, setScoreView] = useState<'fhn' | 'cfp'>('fhn')
   const isInvestmentAccount = useInvestmentAccountStore((state) => state.isInvestmentAccount)
   const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
 
@@ -162,56 +177,47 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
   if (metrics.length === 0) return <EmptyState />
 
   const overallScore = metrics.reduce((sum, m) => sum + (m.score * m.weight) / 100, 0)
-  const displayScore = scoreView === 'fhn' ? overallScore : cfpCompositeScore
-  const status = getOverallStatus(displayScore)
+  const fhnStatus = getOverallStatus(overallScore)
+  const cfpStatus = getOverallStatus(cfpCompositeScore)
+
+  const fhnRadarData = metrics.map((m) => ({
+    dimension: METRIC_SHORT_LABELS[m.name] ?? m.name,
+    score: m.score,
+    fullMark: 100,
+  }))
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6 shadow-xl"
+      className="grid grid-cols-1 lg:grid-cols-2 gap-6"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div className={`p-2.5 rounded-xl ${status.bgColor}/20`}>
-            <Shield className={`w-5 h-5 ${status.color}`} />
-          </div>
-          <div>
-            <h3 className="text-base font-semibold">Financial Health</h3>
-            <p className="text-xs text-muted-foreground">Last {analysisData.monthsAnalyzed} months</p>
-          </div>
+      {/* FinHealth Score */}
+      <div className="glass rounded-2xl border border-border p-5 shadow-xl">
+        <ScoreHeader
+          title="FinHealth Score"
+          score={overallScore}
+          subtitle={`Last ${analysisData.monthsAnalyzed} months`}
+          color={fhnStatus.color}
+        />
+        <RadarVisualization metrics={fhnRadarData} chartColor="#4a9eff" />
+        <p className="text-[11px] text-center text-muted-foreground mb-3">{getSummary(overallScore)}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {metrics.map((m) => <MetricCard key={m.name} metric={m} />)}
         </div>
-        <div className="text-right">
-          <p className={`text-2xl font-bold ${status.color}`}>{Math.round(displayScore)}</p>
-          <p className={`text-xs font-medium ${status.color}`}>{status.label}</p>
-        </div>
+        <p className="text-[10px] text-center text-muted-foreground/50 mt-3">Financial Health Network framework</p>
       </div>
 
-      {/* View Toggle */}
-      <div className="flex gap-1 p-1 rounded-lg bg-muted/20 mb-4">
-        <button onClick={() => setScoreView('fhn')}
-          className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${scoreView === 'fhn' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}>
-          FinHealth Score
-        </button>
-        <button onClick={() => setScoreView('cfp')}
-          className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${scoreView === 'cfp' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}>
-          CFP Ratios
-        </button>
-      </div>
-
-      {scoreView === 'cfp' ? (
+      {/* CFP Ratios */}
+      <div className="glass rounded-2xl border border-border p-5 shadow-xl">
+        <ScoreHeader
+          title="CFP Ratios"
+          score={cfpCompositeScore}
+          subtitle={`Last ${analysisData.monthsAnalyzed} months`}
+          color={cfpStatus.color}
+        />
         <CFPScoreView analysisData={analysisData} />
-      ) : (
-        <div className="space-y-4">
-          <RadarVisualization metrics={metrics} />
-          <p className="text-xs text-center text-muted-foreground">{getSummary(overallScore)}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {metrics.map((m) => <MetricCard key={m.name} metric={m} />)}
-          </div>
-          <p className="text-[10px] text-center text-muted-foreground/50">Based on Financial Health Network framework</p>
-        </div>
-      )}
+      </div>
     </motion.div>
   )
 }

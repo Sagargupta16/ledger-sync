@@ -19,6 +19,7 @@ export interface HealthMetric {
   status: FinHealthTier
   pillar: Pillar
   description: string
+  target: string
   details?: string[]
 }
 
@@ -284,12 +285,6 @@ export function computeAnalysis(
   const totalEssential = buckets.reduce((s, m) => s + m.essential, 0)
   const essentialToIncomeRatio = totalIncome > 0 ? (totalEssential / totalIncome) * 100 : 100
 
-  // SAVE: Emergency fund — cumulative net savings / avg monthly expenses
-  const cumulativeNetSavings = totalIncome - totalExpense
-  const emergencyFundMonths = avgMonthlyExpense > 0
-    ? Math.max(0, cumulativeNetSavings / avgMonthlyExpense)
-    : 0
-
   // SAVE: Investment
   const totalInvestmentInflow = buckets.reduce((s, m) => s + m.investmentInflow, 0)
   const totalInvestmentOutflow = buckets.reduce((s, m) => s + m.investmentOutflow, 0)
@@ -299,6 +294,13 @@ export function computeAnalysis(
   const totalNetInvestment = totalInvestmentInflow - totalInvestmentOutflow
   const investmentToIncomeRatio = totalIncome > 0
     ? (totalNetInvestment / totalIncome) * 100
+    : 0
+
+  // SAVE: Emergency fund — liquid savings (cash/bank only, exclude locked investments)
+  const cumulativeNetSavings = totalIncome - totalExpense
+  const liquidSavings = Math.max(0, cumulativeNetSavings - Math.max(0, totalNetInvestment))
+  const emergencyFundMonths = avgMonthlyExpense > 0
+    ? liquidSavings / avgMonthlyExpense
     : 0
 
   // BORROW: Debt-to-income
@@ -368,6 +370,7 @@ export function scoreSpendLessThanIncome(data: AnalysisResult, savingsGoalPercen
     status: tierFromScore(score),
     pillar: 'spend',
     description: rate >= 0 ? `${rate.toFixed(1)}% savings rate` : `${Math.abs(rate).toFixed(1)}% deficit`,
+    target: `>= ${target}%`,
     details: [
       `Avg income: ${formatCurrencyCompact(data.avgMonthlyIncome)}/mo`,
       `Avg expenses: ${formatCurrencyCompact(data.avgMonthlyExpense)}/mo`,
@@ -392,6 +395,7 @@ export function scoreEssentialRatio(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'spend',
     description: `${ratio.toFixed(0)}% of income on essentials`,
+    target: '<= 50%',
     details: [
       `Essentials: ${ratio.toFixed(1)}% of income`,
       ratio <= 50 ? '50/30/20 target met' : 'Target: essentials under 50% of income',
@@ -414,9 +418,10 @@ export function scoreEmergencyFund(data: AnalysisResult): HealthMetric {
     weight: 12.5,
     status: tierFromScore(score),
     pillar: 'save',
-    description: `${months.toFixed(1)} months covered`,
+    description: `${months.toFixed(1)} months of expenses (liquid)`,
+    target: '>= 6 months',
     details: [
-      `Net savings: ${formatCurrencyCompact(data.cumulativeNetSavings)}`,
+      `Liquid savings: ${formatCurrencyCompact(data.cumulativeNetSavings - (data.totalInvestmentInflow - data.totalInvestmentOutflow))}`,
       `Avg monthly expenses: ${formatCurrencyCompact(data.avgMonthlyExpense)}`,
       months >= 6 ? 'Target met: 6+ months coverage' : 'Target: 6 months of expenses saved',
     ],
@@ -448,6 +453,7 @@ export function scoreInvestment(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'save',
     description: ratio >= 0 ? `${ratio.toFixed(1)}% of income invested` : 'Net withdrawal',
+    target: '>= 15%',
     details: [
       `${Math.round(regularity * 100)}% months with net investments`,
       `Net invested: ${formatCurrencyCompact(netInvestment)}`,
@@ -478,6 +484,7 @@ export function scoreDebtToIncome(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'borrow',
     description: desc,
+    target: '<= 36%',
     details: [
       `DTI ratio: ${dti.toFixed(1)}%`,
       `Avg debt payments: ${formatCurrencyCompact(data.avgMonthlyDebt)}/mo`,
@@ -513,6 +520,7 @@ export function scoreDebtTrend(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'borrow',
     description: desc,
+    target: 'Declining or zero',
     details: [
       data.avgMonthlyDebt === 0
         ? 'No debt payments detected'
@@ -539,6 +547,7 @@ export function scoreSavingsConsistency(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'plan',
     description: `${Math.round(ratio * 100)}% months with positive savings`,
+    target: '>= 90% months',
     details: [
       `Positive savings months: ${Math.round(ratio * 100)}%`,
       `Savings volatility: ${cvToLabel(cv)}`,
@@ -569,6 +578,7 @@ export function scoreIncomeStability(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'plan',
     description: desc,
+    target: 'CV <= 25%',
     details: [
       `Income variability (CV): ${cv.toFixed(1)}%`,
       `Avg monthly income: ${formatCurrencyCompact(data.avgMonthlyIncome)}`,
