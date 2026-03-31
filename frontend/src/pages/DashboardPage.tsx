@@ -73,22 +73,21 @@ export default function DashboardPage() {
         }
       />
 
-      {/* Financial Health Score & Quick Insights */}
-      <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
-        <FinancialHealthScore transactions={filteredTransactions} />
-
-        <div className="p-6 glass rounded-2xl border border-border shadow-xl">
-          <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
-          <QuickInsights
-            dateRange={dateRange}
-            ageOfMoney={ageOfMoney}
-            daysOfBuffering={daysOfBuffering}
-            fixedCommitmentsMonthly={fixedCommitmentsMonthly}
-            fixedCount={fixedCount}
-            momChanges={momChanges}
-          />
-        </div>
+      {/* Quick Insights -- full width */}
+      <motion.div className="p-6 glass rounded-2xl border border-border shadow-xl" {...SCROLL_FADE_UP}>
+        <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
+        <QuickInsights
+          dateRange={dateRange}
+          ageOfMoney={ageOfMoney}
+          daysOfBuffering={daysOfBuffering}
+          fixedCommitmentsMonthly={fixedCommitmentsMonthly}
+          fixedCount={fixedCount}
+          momChanges={momChanges}
+        />
       </motion.div>
+
+      {/* Financial Health Score */}
+      <FinancialHealthScore transactions={filteredTransactions} />
 
       {/* Income Sources & Expense Sources */}
       <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
