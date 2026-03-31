@@ -8,6 +8,8 @@ import { chartTooltipProps, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisD
 import MetricCard from '@/components/shared/MetricCard'
 import { projectPPF, projectEPF, projectNPS } from '@/lib/instrumentCalculators'
 import type { ProjectionResult } from '@/lib/instrumentCalculators'
+import { useAccountBalances } from '@/hooks/useAnalytics'
+import type { AccountBalances } from '@/services/api/calculations'
 
 type Instrument = 'ppf' | 'epf' | 'nps'
 
@@ -27,7 +29,7 @@ function SliderInput({
   step,
   suffix,
   prefix,
-}: {
+}: Readonly<{
   id: string
   label: string
   value: number
@@ -37,7 +39,7 @@ function SliderInput({
   step: number
   suffix?: string
   prefix?: string
-}) {
+}>) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
@@ -60,7 +62,7 @@ function SliderInput({
   )
 }
 
-function ProjectionChart({ data }: { data: ProjectionResult }) {
+function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) {
   const chartData = data.yearByYear.map((y) => ({
     year: `Y${y.year}`,
     Contributed: y.contributed,
@@ -111,8 +113,8 @@ function ProjectionChart({ data }: { data: ProjectionResult }) {
   )
 }
 
-function PPFTab() {
-  const [balance, setBalance] = useState(0)
+function PPFTab({ initialBalance }: Readonly<{ initialBalance: number }>) {
+  const [balance, setBalance] = useState(initialBalance)
   const [annual, setAnnual] = useState(150000)
   const [years, setYears] = useState(15)
   const [rate, setRate] = useState(7.1)
@@ -139,16 +141,23 @@ function PPFTab() {
   )
 }
 
-function EPFTab() {
+function EPFTab({ initialBalance }: Readonly<{ initialBalance: number }>) {
   const [salary, setSalary] = useState(50000)
-  const [empPct, setEmpPct] = useState(12)
-  const [erPct, setErPct] = useState(3.67)
-  const [rate, setRate] = useState(8.15)
+  const [contribPct, setContribPct] = useState(12)
+  const [rate, setRate] = useState(8.25)
   const [years, setYears] = useState(25)
-  const [balance, setBalance] = useState(0)
+  const [balance, setBalance] = useState(initialBalance)
 
-  const result = useMemo(() => projectEPF(salary, empPct, erPct, rate, years, balance), [salary, empPct, erPct, rate, years, balance])
-  const monthlyContribution = salary * (empPct + erPct) / 100
+  // Employee + employer both contribute the same %, total = 2x
+  const yourShare = salary * contribPct / 100
+  const totalMonthly = yourShare * 2
+  // Min contribution: 12% of Rs 15,000 (PF wage ceiling) = Rs 1,800
+  const minContrib = Math.max(1800, salary * 12 / 100)
+
+  const result = useMemo(
+    () => projectEPF(salary, contribPct, contribPct, rate, years, balance),
+    [salary, contribPct, rate, years, balance],
+  )
 
   return (
     <div className="space-y-5">
@@ -156,18 +165,18 @@ function EPFTab() {
         <MetricCard title="Maturity Value" value={formatCurrency(result.projectedValue)} icon={TrendingUp} color="green" />
         <MetricCard title="Total Contributed" value={formatCurrency(result.totalContributed)} icon={PiggyBank} color="blue" />
         <MetricCard title="Interest Earned" value={formatCurrency(result.totalReturns)} icon={IndianRupee} color="purple" />
-        <MetricCard title="Monthly Contribution" value={formatCurrency(monthlyContribution)} icon={Percent} color="orange" />
+        <MetricCard title="Monthly (You + Employer)" value={formatCurrency(totalMonthly)} icon={Percent} color="orange"
+          subtitle={`Rs ${Math.round(yourShare).toLocaleString('en-IN')} x 2`} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SliderInput id="epf-balance" label="Current Balance" value={balance} onChange={setBalance} min={0} max={10000000} step={10000} prefix="Rs " />
-        <SliderInput id="epf-salary" label="Monthly Basic Salary" value={salary} onChange={setSalary} min={5000} max={500000} step={1000} prefix="Rs " />
-        <SliderInput id="epf-emp" label="Employee %" value={empPct} onChange={setEmpPct} min={0} max={20} step={0.5} suffix="%" />
-        <SliderInput id="epf-er" label="Employer EPF %" value={erPct} onChange={setErPct} min={0} max={12} step={0.01} suffix="%" />
-        <SliderInput id="epf-rate" label="Interest Rate" value={rate} onChange={setRate} min={5} max={12} step={0.05} suffix="%" />
+        <SliderInput id="epf-balance" label="Current EPF Balance" value={balance} onChange={setBalance} min={0} max={10000000} step={10000} prefix="Rs " />
+        <SliderInput id="epf-salary" label="Monthly Basic Salary" value={salary} onChange={setSalary} min={15000} max={500000} step={1000} prefix="Rs " />
+        <SliderInput id="epf-pct" label={`Contribution (min Rs ${minContrib.toLocaleString('en-IN')})`} value={contribPct} onChange={setContribPct} min={12} max={20} step={0.5} suffix="%" />
+        <SliderInput id="epf-rate" label="Interest Rate (FY25: 8.25%)" value={rate} onChange={setRate} min={5} max={12} step={0.05} suffix="%" />
         <SliderInput id="epf-years" label="Years to Retirement" value={years} onChange={setYears} min={1} max={35} step={1} suffix=" yrs" />
       </div>
       <ProjectionChart data={result} />
-      <p className="text-xs text-text-tertiary">Employee contributes 12% of basic, employer contributes 3.67% to EPF (remaining 8.33% goes to EPS). Interest up to Rs 2.5L contribution is tax-free.</p>
+      <p className="text-xs text-text-tertiary">Both employee and employer contribute {contribPct}% of basic. Minimum: 12% (Rs 1,800/mo on PF wage ceiling of Rs 15,000). Employee can voluntarily increase up to 20% (VPF).</p>
     </div>
   )
 }
@@ -217,7 +226,16 @@ function NPSTab() {
   )
 }
 
+function findAccountBalance(data: AccountBalances | undefined, pattern: string): number {
+  if (!data?.accounts) return 0
+  const key = Object.keys(data.accounts).find((k) => k.toLowerCase().includes(pattern))
+  return key ? Math.max(0, data.accounts[key].balance) : 0
+}
+
 export default function InstrumentProjections() {
+  const { data: accountBalances } = useAccountBalances()
+  const ppfBalance = useMemo(() => findAccountBalance(accountBalances, 'ppf'), [accountBalances])
+  const epfBalance = useMemo(() => findAccountBalance(accountBalances, 'epf'), [accountBalances])
   const [tab, setTab] = useState<Instrument>('ppf')
 
   return (
@@ -245,8 +263,8 @@ export default function InstrumentProjections() {
         </div>
       </div>
 
-      {tab === 'ppf' && <PPFTab />}
-      {tab === 'epf' && <EPFTab />}
+      {tab === 'ppf' && <PPFTab initialBalance={ppfBalance} />}
+      {tab === 'epf' && <EPFTab initialBalance={epfBalance} />}
       {tab === 'nps' && <NPSTab />}
     </motion.div>
   )

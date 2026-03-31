@@ -79,7 +79,7 @@ const navigationSections: NavSection[] = [
     title: 'Investments',
     items: [
       { path: ROUTES.INVESTMENT_ANALYTICS, label: 'Investment Analytics', icon: TrendingUp },
-      { path: ROUTES.MUTUAL_FUND_PROJECTION, label: 'SIP Projections', icon: Target },
+      { path: ROUTES.MUTUAL_FUND_PROJECTION, label: 'Projections', icon: Target },
       { path: ROUTES.RETURNS_ANALYSIS, label: 'Returns Analysis', icon: Coins },
     ],
   },

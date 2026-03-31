@@ -165,7 +165,7 @@ export default function TransactionsPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Transactions</p>
-              <p className="text-2xl font-bold">{allTransactions.length.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{allTransactions.length.toLocaleString('en-IN')}</p>
             </div>
           </div>
         </motion.div>

@@ -34,7 +34,7 @@ function AnimatedValue({ value }: Readonly<{ value: string | number }>) {
       ease: [0.16, 1, 0.3, 1],
       onUpdate: () => {
         if (!ref.current) return
-        const formatted = motionVal.v.toLocaleString(undefined, {
+        const formatted = motionVal.v.toLocaleString('en-IN', {
           minimumFractionDigits: decimalPlaces,
           maximumFractionDigits: decimalPlaces,
         })
