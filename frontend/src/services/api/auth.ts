@@ -77,9 +77,10 @@ export const getOAuthProviders = async (): Promise<OAuthProviderConfig[]> => {
 /**
  * Exchange OAuth authorization code for JWT tokens
  */
-export const oauthCallback = async (provider: string, code: string): Promise<AuthTokens> => {
+export const oauthCallback = async (provider: string, code: string, state?: string): Promise<AuthTokens> => {
   const response = await apiClient.post<AuthTokens>(`${AUTH_BASE}/oauth/${provider}/callback`, {
     code,
+    state,
   })
   return response.data
 }

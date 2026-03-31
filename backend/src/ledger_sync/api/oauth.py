@@ -9,6 +9,9 @@ Handles the server-side of the OAuth authorization code flow:
 """
 
 import logging
+import secrets
+import threading
+import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -40,6 +43,43 @@ _GITHUB_SCOPES = "read:user user:email"
 
 _GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 
+# ─── CSRF State Token Store ──────────────────────────────────────────────────
+# Short-lived in-memory store for OAuth state tokens (10 min TTL).
+
+_STATE_TTL = 600  # 10 minutes
+_state_store: dict[str, float] = {}  # state_token -> expiry_timestamp
+_state_lock = threading.Lock()
+
+
+def _generate_state() -> str:
+    """Generate a random state token and store it with a TTL."""
+    token = secrets.token_urlsafe(32)
+    now = time.monotonic()
+    with _state_lock:
+        # Clean up expired tokens while we're here
+        expired = [k for k, exp in _state_store.items() if now > exp]
+        for k in expired:
+            del _state_store[k]
+        _state_store[token] = now + _STATE_TTL
+    return token
+
+
+def _validate_state(state: str | None) -> None:
+    """Validate and consume a state token. Raises 400 if invalid or expired."""
+    if not state:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing OAuth state parameter",
+        )
+    now = time.monotonic()
+    with _state_lock:
+        expiry = _state_store.pop(state, None)
+    if expiry is None or now > expiry:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OAuth state parameter",
+        )
+
 
 def _get_redirect_uri(provider: str) -> str:
     """Build the OAuth redirect URI that points to the frontend callback page."""
@@ -62,6 +102,7 @@ def get_oauth_providers() -> list[OAuthProviderConfig]:
                 authorize_url=_GOOGLE_AUTHORIZE_URL,
                 scope=_GOOGLE_SCOPES,
                 redirect_uri=_get_redirect_uri("google"),
+                state=_generate_state(),
             )
         )
 
@@ -73,6 +114,7 @@ def get_oauth_providers() -> list[OAuthProviderConfig]:
                 authorize_url=_GITHUB_AUTHORIZE_URL,
                 scope=_GITHUB_SCOPES,
                 redirect_uri=_get_redirect_uri("github"),
+                state=_generate_state(),
             )
         )
 
@@ -113,6 +155,8 @@ async def google_callback(
     client: HttpClient,
 ) -> Token:
     """Exchange Google authorization code for JWT tokens."""
+    _validate_state(body.state)
+
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -181,6 +225,8 @@ async def github_callback(
     client: HttpClient,
 ) -> Token:
     """Exchange GitHub authorization code for JWT tokens."""
+    _validate_state(body.state)
+
     if not settings.github_client_id or not settings.github_client_secret:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,

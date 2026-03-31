@@ -51,12 +51,10 @@ jobs:
       - name: Backend dependency audit
         working-directory: backend
         run: uv run pip-audit
-        continue-on-error: true
 
       - name: Frontend dependency audit
         working-directory: frontend
         run: pnpm audit --prod
-        continue-on-error: true
 
       # ── Lint ────────────────────────────────────────────────────────
       - name: Backend lint

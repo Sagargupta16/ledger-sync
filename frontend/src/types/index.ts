@@ -127,10 +127,12 @@ export interface OAuthProviderConfig {
   authorize_url: string
   scope: string
   redirect_uri: string
+  state: string
 }
 
 export interface OAuthCallbackRequest {
   code: string
+  state?: string
 }
 
 // Analytics response types

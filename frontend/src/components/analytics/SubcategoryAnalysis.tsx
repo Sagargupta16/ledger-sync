@@ -76,12 +76,12 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
         const quarter = Math.ceil(month / 3)
         period = `${year}-Q${quarter}`
       }
-      
+
       const subcat = tx.subcategory || 'Uncategorized'
-      
+
       if (!periodGroups[period]) periodGroups[period] = {}
       if (!periodGroups[period][subcat]) periodGroups[period][subcat] = 0
-      
+
       periodGroups[period][subcat] += Math.abs(tx.amount)
     })
 
@@ -126,7 +126,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
       })
 
       trendData = trendData.map((entry) => {
-        const newEntry: Record<string, string | number> = { 
+        const newEntry: Record<string, string | number> = {
           period: entry.period,
           displayPeriod: entry.displayPeriod
         }
@@ -232,7 +232,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                           <option value="yearly" className="bg-surface-dropdown text-foreground">Yearly View</option>
                           <option value="all_time" className="bg-surface-dropdown text-foreground">All Time</option>
                         </select>
-                        
+
                         {/* Cumulative Toggle */}
                         <select
                           value={cumulative ? 'cumulative' : 'regular'}
@@ -294,7 +294,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
                       <div className="p-3 bg-white/5 rounded-lg">
                         <div className="text-sm text-muted-foreground mb-1">Total Spending</div>

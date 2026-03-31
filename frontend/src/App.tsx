@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
@@ -39,6 +39,7 @@ const pageImports = {
   InsightsPage: () => import('@/pages/InsightsPage'),
   SubscriptionTrackerPage: () => import('@/pages/SubscriptionTrackerPage'),
   BillCalendarPage: () => import('@/pages/BillCalendarPage'),
+  FIRECalculatorPage: () => import('@/pages/FIRECalculatorPage'),
 }
 
 const UploadSyncPage = lazy(pageImports.UploadSyncPage)
@@ -61,6 +62,7 @@ const GoalsPage = lazy(pageImports.GoalsPage)
 const InsightsPage = lazy(pageImports.InsightsPage)
 const SubscriptionTrackerPage = lazy(pageImports.SubscriptionTrackerPage)
 const BillCalendarPage = lazy(pageImports.BillCalendarPage)
+const FIRECalculatorPage = lazy(pageImports.FIRECalculatorPage)
 
 /**
  * Prefetch all lazy page chunks in the background after initial load.
@@ -143,9 +145,13 @@ function AuthInitializer({ children }: Readonly<{ children: React.ReactNode }>) 
   // This replaces the arbitrary setTimeout approach.
   useAuthInit()
 
-  // Prefetch all lazy page chunks once auth is resolved
+  // Prefetch all lazy page chunks once (after auth is resolved)
+  const prefetchedRef = useRef(false)
   useEffect(() => {
-    prefetchAllPages()
+    if (!prefetchedRef.current) {
+      prefetchedRef.current = true
+      prefetchAllPages()
+    }
   }, [])
 
   return <>{children}</>
@@ -225,6 +231,7 @@ function App() {
                     <Route path={toRelativePath(ROUTES.INSIGHTS)} element={<InsightsPage />} />
                     <Route path={toRelativePath(ROUTES.SUBSCRIPTIONS)} element={<SubscriptionTrackerPage />} />
                     <Route path={toRelativePath(ROUTES.BILL_CALENDAR)} element={<BillCalendarPage />} />
+                    <Route path={toRelativePath(ROUTES.FIRE_CALCULATOR)} element={<FIRECalculatorPage />} />
                     {/* 404 catch-all for unmatched routes */}
                     <Route path="*" element={<NotFoundPage />} />
                   </Route>

@@ -1,0 +1,55 @@
+# Pre-commit hooks for ledger-sync monorepo
+# Install: pip install pre-commit && pre-commit install
+# Run all: pre-commit run --all-files
+
+repos:
+  # --- General checks ---
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+        exclude: ^frontend/tsconfig.*\.json$
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: detect-private-key
+
+  # --- Python: Ruff (lint + format) ---
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  # --- Frontend: ESLint ---
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: pnpm --dir frontend run lint
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      # --- Frontend: TypeScript type check ---
+      - id: tsc
+        name: tsc
+        entry: bash -c "cd frontend && pnpm run type-check"
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      # --- Backend: mypy type check ---
+      - id: mypy
+        name: mypy
+        entry: bash -c "cd backend && uv run python -m mypy src/"
+        language: system
+        files: ^backend/src/.*\.py$
+        pass_filenames: false

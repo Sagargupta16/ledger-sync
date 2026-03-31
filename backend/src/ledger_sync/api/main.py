@@ -65,6 +65,7 @@ def _cleanup_stale_temp_files() -> None:
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan: initialize database, HTTP client, and clean temp files."""
     try:
+        settings.warn_if_development_secrets()
         logger.info("Initializing database...")
         init_db()
         logger.info("Database initialized successfully")

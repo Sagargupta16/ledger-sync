@@ -33,6 +33,7 @@ import {
   getTierColor,
   getPillarScore,
 } from './health/healthScoreUtils'
+import CFPScoreView from './health/CFPScoreView'
 
 // ─── JSX UI Helpers (kept here because they return React elements) ──────────
 
@@ -274,6 +275,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
   const transactions = propTransactions ?? fetchedTransactions
   const isLoading = !propTransactions && isFetching
   const [showDetails, setShowDetails] = useState(false)
+  const [scoreView, setScoreView] = useState<'fhn' | 'cfp'>('fhn')
   const isInvestmentAccount = useInvestmentAccountStore((state) => state.isInvestmentAccount)
 
   const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
@@ -321,40 +323,62 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
       <ScoreHeader
         status={status}
         monthsAnalyzed={analysisData.monthsAnalyzed}
-        overallScore={overallScore}
+        overallScore={scoreView === 'fhn' ? overallScore : 0}
       />
 
-      <RadarVisualization metrics={metrics} />
-
-      {/* Summary */}
-      <p className="text-sm text-center text-muted-foreground mb-6 px-4">
-        {getSummary(overallScore)}
-      </p>
-
-      {/* Metrics grouped by pillar */}
-      <div className="space-y-5">
-        {PILLAR_ORDER.map((pillar) => {
-          const pillarMetrics = metrics.filter((m) => m.pillar === pillar)
-          if (pillarMetrics.length === 0) return null
-          const pillarScore = getPillarScore(metrics, pillar)
-
-          return (
-            <div key={pillar} className="space-y-2">
-              <PillarHeader pillar={pillar} score={pillarScore} metrics={metrics} />
-              {pillarMetrics.map((metric) => (
-                <MetricRow key={metric.name} metric={metric} showDetails={showDetails} />
-              ))}
-            </div>
-          )
-        })}
+      {/* View Toggle */}
+      <div className="flex gap-1 p-1 rounded-lg bg-muted/20 mb-5">
+        <button
+          onClick={() => setScoreView('fhn')}
+          className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${scoreView === 'fhn' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+        >
+          FinHealth Score
+        </button>
+        <button
+          onClick={() => setScoreView('cfp')}
+          className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${scoreView === 'cfp' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+        >
+          CFP Ratios
+        </button>
       </div>
 
-      <DetailsToggle showDetails={showDetails} onToggle={() => setShowDetails(!showDetails)} />
+      {scoreView === 'cfp' ? (
+        <CFPScoreView analysisData={analysisData} />
+      ) : (
+        <>
+          <RadarVisualization metrics={metrics} />
 
-      {/* Attribution */}
-      <p className="text-caption text-center text-muted-foreground/50 mt-3">
-        Based on Financial Health Network's FinHealth Score framework
-      </p>
+          {/* Summary */}
+          <p className="text-sm text-center text-muted-foreground mb-6 px-4">
+            {getSummary(overallScore)}
+          </p>
+
+          {/* Metrics grouped by pillar */}
+          <div className="space-y-5">
+            {PILLAR_ORDER.map((pillar) => {
+              const pillarMetrics = metrics.filter((m) => m.pillar === pillar)
+              if (pillarMetrics.length === 0) return null
+              const pillarScore = getPillarScore(metrics, pillar)
+
+              return (
+                <div key={pillar} className="space-y-2">
+                  <PillarHeader pillar={pillar} score={pillarScore} metrics={metrics} />
+                  {pillarMetrics.map((metric) => (
+                    <MetricRow key={metric.name} metric={metric} showDetails={showDetails} />
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+
+          <DetailsToggle showDetails={showDetails} onToggle={() => setShowDetails(!showDetails)} />
+
+          {/* Attribution */}
+          <p className="text-caption text-center text-muted-foreground/50 mt-3">
+            Based on Financial Health Network's FinHealth Score framework
+          </p>
+        </>
+      )}
     </motion.div>
   )
 }

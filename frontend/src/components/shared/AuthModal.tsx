@@ -39,6 +39,7 @@ function buildAuthorizeUrl(provider: OAuthProviderConfig): string {
     redirect_uri: provider.redirect_uri,
     scope: provider.scope,
     response_type: 'code',
+    state: provider.state,
   })
   if (provider.provider === 'google') {
     params.set('access_type', 'offline')

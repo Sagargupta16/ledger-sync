@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Gauge, Shield, Milestone, GitCompareArrows, FileBarChart } from 'lucide-react'
+import { Gauge, Shield, Milestone, GitCompareArrows, FileBarChart, Users, TrendingUp, Zap } from 'lucide-react'
 import { PageHeader } from '@/components/ui'
 import { staggerContainer, fadeUpItem, SCROLL_FADE_UP } from '@/constants/animations'
 import {
@@ -9,6 +9,9 @@ import {
   CategoryCorrelationAnalysis,
   AccountActivityScore,
   MonthlyFinancialReportCard,
+  PeerComparisonBenchmarks,
+  LifestyleCreepDetection,
+  ExpenseElasticityChart,
 } from '@/components/analytics'
 
 function SectionHeader({ icon: Icon, title }: Readonly<{ icon: typeof Gauge; title: string }>) {
@@ -41,6 +44,18 @@ export default function InsightsPage() {
       <motion.div variants={fadeUpItem}>
         <SectionHeader icon={Shield} title="Income Stability" />
         <IncomeStabilityIndex />
+      </motion.div>
+      <motion.div {...SCROLL_FADE_UP}>
+        <SectionHeader icon={Users} title="How You Compare" />
+        <PeerComparisonBenchmarks />
+      </motion.div>
+      <motion.div {...SCROLL_FADE_UP}>
+        <SectionHeader icon={TrendingUp} title="Lifestyle Creep" />
+        <LifestyleCreepDetection />
+      </motion.div>
+      <motion.div {...SCROLL_FADE_UP}>
+        <SectionHeader icon={Zap} title="Expense Elasticity" />
+        <ExpenseElasticityChart />
       </motion.div>
       <motion.div {...SCROLL_FADE_UP}>
         <SectionHeader icon={Milestone} title="Savings Milestones" />

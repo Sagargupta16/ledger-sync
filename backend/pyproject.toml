@@ -36,10 +36,13 @@ dev = [
     "pandas-stubs>=2.2.0",
     "types-openpyxl>=3.1.0",
     "pip-audit>=2.7.0",
+    "pre-commit>=4.0.0",
 ]
 
 [tool.uv]
 package = true
+# Force pygments >=2.20.0 to fix CVE-2026-4539
+constraint-dependencies = ["pygments>=2.20.0"]
 
 [tool.ruff]
 line-length = 100

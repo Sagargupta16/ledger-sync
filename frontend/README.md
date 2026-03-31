@@ -18,7 +18,7 @@ Modern financial analytics dashboard built with React 19, TypeScript 5.9, and Vi
 
 ```
 src/
-├── pages/                    # Page components (22 pages)
+├── pages/                    # Page components (23 pages)
 │   ├── HomePage.tsx
 │   ├── DashboardPage.tsx
 │   ├── UploadSyncPage.tsx

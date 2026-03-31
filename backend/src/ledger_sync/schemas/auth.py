@@ -78,6 +78,7 @@ class OAuthCallbackRequest(BaseModel):
     """Request model for OAuth callback with authorization code."""
 
     code: str = Field(..., description="Authorization code from OAuth provider")
+    state: str | None = Field(None, description="CSRF state token for validation")
 
 
 class OAuthProviderConfig(BaseModel):
@@ -88,6 +89,7 @@ class OAuthProviderConfig(BaseModel):
     authorize_url: str
     scope: str
     redirect_uri: str
+    state: str = Field(..., description="CSRF state token to include in authorize URL")
 
 
 class MessageResponse(BaseModel):

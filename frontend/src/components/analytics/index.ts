@@ -23,6 +23,15 @@ export { default as CategoryCorrelationAnalysis } from './CategoryCorrelationAna
 export { default as AccountActivityScore } from './AccountActivityScore'
 export { default as MonthlyFinancialReportCard } from './MonthlyFinancialReportCard'
 
+// Peer comparison & behavioral analytics
+export { default as PeerComparisonBenchmarks } from './PeerComparisonBenchmarks'
+export { default as LifestyleCreepDetection } from './LifestyleCreepDetection'
+export { default as ExpenseElasticityChart } from './ExpenseElasticityChart'
+export { default as CohortSpendingAnalysis } from './CohortSpendingAnalysis'
+
+// Instrument projection components
+export { default as InstrumentProjections } from './InstrumentProjections'
+
 // Tax planning components
 export { default as FYNavigator } from './FYNavigator'
 export { default as TaxSlabBreakdown } from './TaxSlabBreakdown'

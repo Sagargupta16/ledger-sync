@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from 'react'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
+import { useTotals } from '@/hooks/api/useAnalytics'
 import { toast } from 'sonner'
 import type { ManualSubscription, SortKey } from './types'
 import {
@@ -17,6 +18,7 @@ export function useSubscriptionTracker() {
     active_only: false,
     min_confidence: 0,
   })
+  const { data: totals } = useTotals()
   const [sortBy, setSortBy] = useState<SortKey>('amount')
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(loadConfirmedIds)
   const [manualSubs, setManualSubs] = useState<ManualSubscription[]>(loadManualSubscriptions)
@@ -163,14 +165,18 @@ export function useSubscriptionTracker() {
     )
     const totalMonthly = confirmedMonthly + manualMonthly
     const activeCount = confirmedDetected.length + manualSubs.length
+    const totalAnnual = totalMonthly * 12
+    const totalAnnualIncome = totals?.total_income ?? 0
+    const incomePercent = totalAnnualIncome > 0 ? (totalAnnual / totalAnnualIncome) * 100 : 0
     return {
       totalMonthly,
-      totalAnnual: totalMonthly * 12,
+      totalAnnual,
       activeCount,
       totalDetected: subscriptions.length,
       average: activeCount > 0 ? totalMonthly / activeCount : 0,
+      incomePercent,
     }
-  }, [confirmedDetected, manualSubs, subscriptions])
+  }, [confirmedDetected, manualSubs, subscriptions, totals])
 
   const hasAnySubs = subscriptions.length > 0 || manualSubs.length > 0
 

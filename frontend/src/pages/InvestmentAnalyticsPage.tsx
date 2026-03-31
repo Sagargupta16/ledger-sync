@@ -9,6 +9,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { InstrumentProjections } from '@/components/analytics'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
@@ -28,27 +29,27 @@ const CATEGORY_COLORS: Record<InvestmentCategory, string> = {
 // Handles both raw values (stocks, mutual_funds) and formatted names (Stocks, Mutual Funds)
 const mapToCategory = (investmentType: string): InvestmentCategory => {
   const type = investmentType.toLowerCase().replaceAll(/[_\s]/g, '')
-  
+
   // Check for stocks (handles: stocks, stock, equity, share, demat, rsu)
   if (type === 'stocks' || type === 'stock' || type.includes('equity') || type.includes('share') || type.includes('demat') || type.includes('rsu')) {
     return 'Stocks'
   }
-  
+
   // Check for FD/Bonds (handles: fixed_deposits, fd, bonds, deposit)
   if (type === 'fixeddeposits' || type === 'fd' || type.includes('bond') || type.includes('deposit')) {
     return 'FD/Bonds'
   }
-  
+
   // Check for PPF/EPF (handles: ppf_epf, ppf, epf, provident, nps, pension)
   if (type === 'ppfepf' || type === 'ppf' || type === 'epf' || type.includes('provident') || type.includes('nps') || type.includes('pension')) {
     return 'PPF/EPF'
   }
-  
+
   // Check for Mutual Funds (handles: mutual_funds, mutualfunds, mf, fund)
   if (type === 'mutualfunds' || type === 'mf' || type.includes('fund') || type.includes('mutual')) {
     return 'Mutual Funds'
   }
-  
+
   // Default to Mutual Funds for other investments
   return 'Mutual Funds'
 }
@@ -78,19 +79,19 @@ export default function InvestmentAnalyticsPage() {
     if (!transactions.length || !investmentAccounts.length) {
       return { byAccount: {} as Record<string, number>, byCategory: {} as Record<InvestmentCategory, number>, total: 0 }
     }
-    
+
     const byAccount: Record<string, number> = {}
     investmentAccounts.forEach(acc => {
       byAccount[acc] = 0
     })
-    
+
     const byCategory: Record<InvestmentCategory, number> = {
       'FD/Bonds': 0,
       'Mutual Funds': 0,
       'PPF/EPF': 0,
       'Stocks': 0,
     }
-    
+
     // Calculate NET investments (IN - OUT)
     transactions.forEach(tx => {
       // Transfers TO investment accounts (ADD)
@@ -122,15 +123,15 @@ export default function InvestmentAnalyticsPage() {
         byCategory[category] -= tx.amount
       }
     })
-    
+
     const total = Object.values(byCategory).reduce((sum, val) => sum + val, 0)
-    
+
     return { byAccount, byCategory, total }
   }, [transactions, investmentAccounts, accountToCategory])
 
   // Calculate portfolio metrics - use filtered totals
   const totalInvestmentValue = filteredInvestmentTotals.total
-  
+
   // Compute actual Net Investment P&L — same logic as ReturnsAnalysisPage
   const netInvestmentPL = useMemo(() => {
     const txText = (tx: { category: string; note?: string; subcategory?: string }) =>
@@ -193,7 +194,7 @@ export default function InvestmentAnalyticsPage() {
   // Group by 4 investment categories - based on filtered data
   const investmentTypeBreakdown = useMemo(() => {
     const breakdown = filteredInvestmentTotals.byCategory
-    
+
     return INVESTMENT_CATEGORIES
       .filter(cat => breakdown[cat] > 0)
       .map(name => ({
@@ -547,6 +548,9 @@ export default function InvestmentAnalyticsPage() {
             )
           )}
         </motion.div>
+
+        {/* PPF / EPF / NPS Maturity Projections */}
+        <InstrumentProjections />
 
         {portfolioData.length > 0 && (
           <motion.div

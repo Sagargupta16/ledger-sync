@@ -41,6 +41,9 @@ cd ..
 # 4. Initialize database
 cd backend
 uv run alembic upgrade head
+
+# 5. Install pre-commit hooks
+uv run pre-commit install
 cd ..
 ```
 
@@ -246,7 +249,7 @@ print(f"Elapsed: {end - start:.3f}s")
 ```
 frontend/
 ├── src/
-│   ├── pages/           # Page components (22 pages)
+│   ├── pages/           # Page components (23 pages)
 │   ├── components/      # UI components
 │   │   ├── analytics/   # Analytics components (25+, including CategoryBreakdown)
 │   │   ├── layout/      # Layout components

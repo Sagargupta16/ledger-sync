@@ -27,6 +27,7 @@ import {
   Search,
   Settings2,
   ChevronDown,
+  Flame,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants'
@@ -80,6 +81,7 @@ const navigationSections: NavSection[] = [
     items: [
       { path: ROUTES.BUDGETS, label: 'Budget Manager', icon: Wallet2 },
       { path: ROUTES.GOALS, label: 'Financial Goals', icon: Goal },
+      { path: ROUTES.FIRE_CALCULATOR, label: 'FIRE Calculator', icon: Flame },
       { path: ROUTES.INSIGHTS, label: 'Insights', icon: Lightbulb },
       { path: ROUTES.ANOMALIES, label: 'Anomaly Review', icon: AlertTriangle },
     ],

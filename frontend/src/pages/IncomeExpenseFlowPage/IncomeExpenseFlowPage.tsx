@@ -149,7 +149,7 @@ const IncomeExpenseFlowPage = () => {
   // Filter transactions based on selected time range
   const fyTransactions = useMemo(() => {
     if (!dateRange.start_date) return allTransactions.filter(txn => !txn.is_transfer)
-    
+
     return allTransactions.filter(txn => {
       if (txn.is_transfer) return false
       // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly

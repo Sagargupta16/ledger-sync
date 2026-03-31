@@ -23,6 +23,8 @@ import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { getCurrentFY, getFYDateRange } from '@/lib/dateUtils'
 import { usePreferences } from '@/hooks/api/usePreferences'
+import Sparkline from '@/components/shared/Sparkline'
+import { computeCategoryMomentum } from '@/lib/momentumCalculator'
 import {
   BarChart,
   Bar,
@@ -76,6 +78,8 @@ export default function BudgetPage() {
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
   const alertThreshold = preferences?.default_budget_alert_threshold ?? 80
+
+  const categoryMomentum = useMemo(() => computeCategoryMomentum(transactions), [transactions])
 
   const fixedExpenseCategories = useMemo<Set<string>>(
     () => new Set(parseStringArray(preferences?.fixed_expense_categories).map((c) => c.toLowerCase())),
@@ -686,6 +690,20 @@ export default function BudgetPage() {
                           Fixed
                         </span>
                       )}
+                      {(() => {
+                        const momentum = categoryMomentum.get(row.category)
+                        if (!momentum || momentum.sparklineData.length < 3) return null
+                        const momentumColorMap = { accelerating: rawColors.ios.red, decelerating: rawColors.ios.green, stable: rawColors.ios.yellow }
+                        const momentumClassMap = { accelerating: 'text-ios-red', decelerating: 'text-ios-green', stable: 'text-ios-yellow' }
+                        return (
+                          <div className="ml-2 flex items-center gap-1">
+                            <Sparkline data={momentum.sparklineData} color={momentumColorMap[momentum.classification]} height={20} showTooltip={false} />
+                            <span className={`text-caption ${momentumClassMap[momentum.classification]}`}>
+                              {momentum.slope > 0 ? '+' : ''}{momentum.slope}%
+                            </span>
+                          </div>
+                        )
+                      })()}
                     </div>
                     <div className="flex items-center gap-2">
                       {isEditing ? (

@@ -15,7 +15,7 @@ FastAPI backend for financial data processing and analytics.
 
 | Component  | Technology     |
 | ---------- | -------------- |
-| Language   | Python 3.12    |
+| Language   | Python 3.11+   |
 | Framework  | FastAPI        |
 | ORM        | SQLAlchemy 2.0 |
 | Database   | SQLite (dev) / PostgreSQL (prod) |

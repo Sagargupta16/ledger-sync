@@ -33,10 +33,10 @@ let failedQueue: Array<{
 
 function processQueue(error: unknown, token: string | null) {
   for (const { resolve, reject } of failedQueue) {
-    if (error) {
-      reject(error)
+    if (error || !token) {
+      reject(error ?? new Error('Token refresh failed'))
     } else {
-      resolve(token!)
+      resolve(token)
     }
   }
   failedQueue = []
@@ -91,8 +91,6 @@ apiClient.interceptors.response.use(
           processQueue(refreshError, null)
           // Refresh failed - logout user
           useAuthStore.getState().logout()
-          // Redirect to home/login
-          globalThis.location.href = '/'
           throw refreshError
         } finally {
           isRefreshing = false
