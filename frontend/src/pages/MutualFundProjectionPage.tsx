@@ -17,6 +17,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { InstrumentProjections } from '@/components/analytics'
 import type { Transaction } from '@/types'
 
 // Hide number input spinners
@@ -697,7 +698,7 @@ export default function MutualFundProjectionPage() {
       <div className="min-h-screen p-4 md:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
-          <PageHeader title="SIP Projection" subtitle="Project your systematic investment plan returns" />
+          <PageHeader title="Projections" subtitle="SIP returns and instrument maturity projections" />
 
           {/* Overview Cards */}
           <OverviewCards
@@ -949,6 +950,9 @@ export default function MutualFundProjectionPage() {
               projectedValue={projection.value}
             />
           </motion.div>
+
+          {/* PPF / EPF / NPS Maturity Projections */}
+          <InstrumentProjections />
         </div>
       </div>
     </>

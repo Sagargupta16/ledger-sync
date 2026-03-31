@@ -59,14 +59,6 @@ const dashboardItem: NavItem = {
 
 const navigationSections: NavSection[] = [
   {
-    title: 'Tracking',
-    items: [
-      { path: ROUTES.TRANSACTIONS, label: 'Transactions', icon: Receipt },
-      { path: ROUTES.SUBSCRIPTIONS, label: 'Subscriptions', icon: CreditCard },
-      { path: ROUTES.BILL_CALENDAR, label: 'Bill Calendar', icon: CalendarDays },
-    ],
-  },
-  {
     title: 'Analytics',
     items: [
       { path: ROUTES.SPENDING_ANALYSIS, label: 'Expense Analysis', icon: BarChart3 },
@@ -74,16 +66,6 @@ const navigationSections: NavSection[] = [
       { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Cash Flow', icon: ArrowRightLeft },
       { path: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows },
       { path: ROUTES.YEAR_IN_REVIEW, label: 'Year in Review', icon: CalendarDays },
-    ],
-  },
-  {
-    title: 'Planning',
-    items: [
-      { path: ROUTES.BUDGETS, label: 'Budget Manager', icon: Wallet2 },
-      { path: ROUTES.GOALS, label: 'Financial Goals', icon: Goal },
-      { path: ROUTES.FIRE_CALCULATOR, label: 'FIRE Calculator', icon: Flame },
-      { path: ROUTES.INSIGHTS, label: 'Insights', icon: Lightbulb },
-      { path: ROUTES.ANOMALIES, label: 'Anomaly Review', icon: AlertTriangle },
     ],
   },
   {
@@ -97,8 +79,31 @@ const navigationSections: NavSection[] = [
     title: 'Investments',
     items: [
       { path: ROUTES.INVESTMENT_ANALYTICS, label: 'Investment Analytics', icon: TrendingUp },
-      { path: ROUTES.MUTUAL_FUND_PROJECTION, label: 'SIP Projections', icon: Target },
+      { path: ROUTES.MUTUAL_FUND_PROJECTION, label: 'Projections', icon: Target },
       { path: ROUTES.RETURNS_ANALYSIS, label: 'Returns Analysis', icon: Coins },
+    ],
+  },
+  {
+    title: 'Transactions',
+    items: [
+      { path: ROUTES.TRANSACTIONS, label: 'Transactions', icon: Receipt },
+    ],
+  },
+  {
+    title: 'Tracking',
+    items: [
+      { path: ROUTES.SUBSCRIPTIONS, label: 'Recurring', icon: CreditCard },
+      { path: ROUTES.BILL_CALENDAR, label: 'Bill Calendar', icon: CalendarDays },
+    ],
+  },
+  {
+    title: 'Planning',
+    items: [
+      { path: ROUTES.BUDGETS, label: 'Budget Manager', icon: Wallet2 },
+      { path: ROUTES.GOALS, label: 'Financial Goals', icon: Goal },
+      { path: ROUTES.FIRE_CALCULATOR, label: 'FIRE Calculator', icon: Flame },
+      { path: ROUTES.INSIGHTS, label: 'Insights', icon: Lightbulb },
+      { path: ROUTES.ANOMALIES, label: 'Anomaly Review', icon: AlertTriangle },
     ],
   },
   {

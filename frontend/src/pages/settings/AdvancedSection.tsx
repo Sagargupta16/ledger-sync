@@ -7,7 +7,6 @@ import { Shield } from 'lucide-react'
 import type { LocalPrefs, LocalPrefKey } from './types'
 import { Section } from './components'
 import AnomalyDetectionSubsection from './AnomalyDetectionSubsection'
-import RecurringTransactionsSubsection from './RecurringTransactionsSubsection'
 import CreditCardLimitsSubsection from './CreditCardLimitsSubsection'
 import ExcludedAccountsSubsection from './ExcludedAccountsSubsection'
 
@@ -33,12 +32,10 @@ export default function AdvancedSection({
       index={index}
       icon={Shield}
       title="Advanced"
-      description="Anomaly detection, recurring transactions, credit card limits, excluded accounts"
+      description="Anomaly detection, credit card limits, excluded accounts"
       defaultCollapsed={true}
     >
       <AnomalyDetectionSubsection localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
-
-      <RecurringTransactionsSubsection localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
 
       <CreditCardLimitsSubsection
         localPrefs={localPrefs}

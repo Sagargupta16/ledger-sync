@@ -1,5 +1,9 @@
 import { memo, useMemo } from 'react'
+import {
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
+} from 'recharts'
 import { rawColors } from '@/constants/colors'
+import { ChartContainer, chartTooltipProps } from '@/components/ui'
 import { computeCFPScore, type CFPRatio } from '@/lib/financialHealthCalculator'
 import type { AnalysisResult } from './healthScoreUtils'
 
@@ -36,7 +40,7 @@ interface CFPScoreViewProps {
 }
 
 const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPScoreViewProps>) {
-  const { ratios, compositeScore } = useMemo(() => {
+  const { ratios } = useMemo(() => {
     const totalMonths = analysisData.monthsAnalyzed
     const totalIncome = analysisData.avgMonthlyIncome * totalMonths
     const totalExpenses = analysisData.avgMonthlyExpense * totalMonths
@@ -56,27 +60,27 @@ const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPSc
     })
   }, [analysisData])
 
-  const scoreColor = compositeScore >= 60 ? rawColors.ios.green
-    : compositeScore >= 40 ? rawColors.ios.orange
-    : rawColors.ios.red
+  const radarData = ratios.map((r) => ({
+    dimension: r.name.replace(' Ratio', '').replace(' Rate', ''),
+    score: r.score,
+    fullMark: 100,
+  }))
 
   return (
     <div className="space-y-4">
-      {/* Composite Score */}
-      <div className="flex items-center justify-center gap-4 py-3">
-        <div
-          className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold text-white"
-          style={{ backgroundColor: `${scoreColor}20`, boxShadow: `0 4px 24px ${scoreColor}30` }}
-        >
-          {compositeScore}
-        </div>
-        <div>
-          <p className="text-sm font-medium" style={{ color: scoreColor }}>
-            {compositeScore >= 60 ? 'Healthy' : compositeScore >= 40 ? 'Needs Attention' : 'At Risk'}
-          </p>
-          <p className="text-xs text-text-tertiary">CFP Composite Score (0-100)</p>
-          <p className="text-xs text-text-quaternary mt-0.5">Weighted across 6 standard ratios</p>
-        </div>
+      {/* Radar chart */}
+      <div className="mb-2">
+        <ChartContainer height={240}>
+          <RadarChart data={radarData}>
+            <PolarGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+            <PolarAngleAxis dataKey="dimension" tick={{ fill: '#71717a', fontSize: 10 }} />
+            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#52525b', fontSize: 9 }} axisLine={false} />
+            <Radar name="CFP Score" dataKey="score" stroke={rawColors.ios.teal} fill={rawColors.ios.teal}
+              fillOpacity={0.15} strokeWidth={2} dot={{ r: 3, fill: rawColors.ios.teal, strokeWidth: 0 }}
+              animationDuration={800} animationEasing="ease-out" />
+            <Tooltip {...chartTooltipProps} />
+          </RadarChart>
+        </ChartContainer>
       </div>
 
       {/* Ratio Cards */}
@@ -86,7 +90,7 @@ const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPSc
         ))}
       </div>
 
-      <p className="text-caption text-center text-muted-foreground/50">
+      <p className="text-[10px] text-center text-muted-foreground/50">
         Based on CFP Board / FPSB India financial planning standards
       </p>
     </div>

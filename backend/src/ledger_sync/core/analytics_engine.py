@@ -964,8 +964,28 @@ class AnalyticsEngine:
 
         return None
 
+    @staticmethod
+    def _normalize_note(note: str | None) -> str | None:
+        """Normalize a transaction note for grouping.
+
+        Strips whitespace, lowercases, and removes trailing numbers/dates
+        so "Rent Jan 2026" and "Rent Feb 2026" group together.
+        """
+        if not note or not note.strip():
+            return None
+        import re
+
+        text = note.strip().lower()
+        # Remove trailing date-like patterns (jan 2026, 01/2026, etc.)
+        month_pat = r"\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s*\d{0,4}$"
+        text = re.sub(month_pat, "", text)
+        text = re.sub(r"\s+\d{1,2}[/\-]\d{2,4}$", "", text)
+        # Remove trailing standalone numbers (invoice #, month number)
+        text = re.sub(r"\s+#?\d+$", "", text)
+        return text.strip() or None
+
     def _detect_recurring_transactions(self, transactions: list[Transaction] | None = None) -> int:
-        """Detect recurring transaction patterns."""
+        """Detect recurring transaction patterns by grouping on note (payee name)."""
         if transactions is None:
             transactions = (
                 self._user_transaction_query()
@@ -976,22 +996,45 @@ class AnalyticsEngine:
         else:
             transactions = sorted(transactions, key=lambda t: t.date)
 
-        # Group by category + account + approximate amount
-        patterns: dict[tuple[str, str, int, str], list[Transaction]] = defaultdict(list)
+        # Group by normalized note + type.  Transactions without a note
+        # fall back to category + subcategory so they still get detected.
+        patterns: dict[tuple[str, str], list[Transaction]] = defaultdict(list)
         for txn in transactions:
-            # Round amount to nearest 100 for grouping
-            amount_bucket = round(float(txn.amount) / 100) * 100
-            key = (txn.category, txn.account, amount_bucket, txn.type.value)
+            label = self._normalize_note(txn.note)
+            if not label:
+                # Fallback: use category - subcategory as the grouping key
+                label = txn.category.lower()
+                if txn.subcategory:
+                    label = f"{txn.category.lower()} - {txn.subcategory.lower()}"
+            key = (label, txn.type.value)
             patterns[key].append(txn)
 
-        # Delete existing for this user and insert new
-        del_stmt = delete(RecurringTransaction)
+        # Delete only non-confirmed records; user-confirmed ones are preserved
+        del_stmt = delete(RecurringTransaction).where(
+            RecurringTransaction.is_user_confirmed.is_(False),
+        )
         if self.user_id is not None:
             del_stmt = del_stmt.where(RecurringTransaction.user_id == self.user_id)
         self.db.execute(del_stmt)
 
+        # Build set of confirmed pattern names to update instead of re-create
+        confirmed_names: dict[str, RecurringTransaction] = {}
+        if self.user_id is not None:
+            confirmed = (
+                self.db.query(RecurringTransaction)
+                .filter(
+                    RecurringTransaction.user_id == self.user_id,
+                    RecurringTransaction.is_user_confirmed.is_(True),
+                )
+                .all()
+            )
+            for c in confirmed:
+                confirmed_names[c.pattern_name.lower()] = c
+
+        min_conf = self.recurring_min_confidence
+
         count = 0
-        for (category, account, _amount_bucket, txn_type), txns in patterns.items():
+        for (label, txn_type), txns in patterns.items():
             if len(txns) < 3:  # Need at least 3 occurrences
                 continue
 
@@ -1000,22 +1043,40 @@ class AnalyticsEngine:
 
             # Detect frequency
             frequency, confidence, expected_day = self._detect_frequency(dates)
-            if not frequency or confidence < 50:
+            if not frequency or confidence < min_conf:
                 continue
 
             avg_amount = mean(amounts)
             amount_variance = stdev(amounts) if len(amounts) > 1 else 0
 
-            # Determine pattern name
-            pattern_name = f"{category}"
-            if txns[0].subcategory:
-                pattern_name = f"{category} - {txns[0].subcategory}"
+            # Use the original note from the most recent transaction as display name
+            most_recent = max(txns, key=lambda t: t.date)
+            pattern_name = most_recent.note or most_recent.category
+            if not most_recent.note and most_recent.subcategory:
+                pattern_name = f"{most_recent.category} - {most_recent.subcategory}"
+
+            # Pick category/subcategory/account from most recent transaction
+            category = most_recent.category
+            subcategory = most_recent.subcategory
+            account = most_recent.account
+
+            # If a user-confirmed record matches, update its stats instead
+            if label in confirmed_names:
+                existing = confirmed_names[label]
+                existing.occurrences_detected = len(txns)
+                existing.last_occurrence = max(dates)
+                existing.confidence_score = confidence
+                existing.expected_amount = Decimal(str(avg_amount))
+                existing.amount_variance = Decimal(str(amount_variance))
+                existing.last_updated = datetime.now(UTC)
+                count += 1
+                continue
 
             recurring = RecurringTransaction(
                 user_id=self.user_id,
                 pattern_name=pattern_name,
                 category=category,
-                subcategory=txns[0].subcategory,
+                subcategory=subcategory,
                 account=account,
                 transaction_type=TransactionType(txn_type),
                 frequency=frequency,
@@ -1034,6 +1095,17 @@ class AnalyticsEngine:
 
         return count
 
+    # Frequency bands: (min_days, max_days, frequency, confidence_penalty_per_std)
+    _FREQ_BANDS: list[tuple[float, float, RecurrenceFrequency, float]] = [
+        (4, 10, RecurrenceFrequency.WEEKLY, 8),
+        (11, 18, RecurrenceFrequency.BIWEEKLY, 5),
+        (20, 45, RecurrenceFrequency.MONTHLY, 3),
+        (50, 75, RecurrenceFrequency.BIMONTHLY, 2.5),
+        (80, 110, RecurrenceFrequency.QUARTERLY, 2),
+        (150, 210, RecurrenceFrequency.SEMIANNUAL, 1.5),
+        (340, 395, RecurrenceFrequency.YEARLY, 1),
+    ]
+
     def _detect_frequency(
         self,
         dates: list[datetime],
@@ -1050,29 +1122,26 @@ class AnalyticsEngine:
         avg_diff = mean(day_diffs)
         std_diff = stdev(day_diffs) if len(day_diffs) > 1 else math.inf
 
-        # Detect frequency based on average interval
         frequency = None
         confidence: float = 0
         expected_day = None
 
-        if 25 <= avg_diff <= 35 and std_diff < 10:
-            frequency = RecurrenceFrequency.MONTHLY
-            confidence = max(0, 100 - std_diff * 5)
-            # Most common day of month
+        for lo, hi, freq, penalty in self._FREQ_BANDS:
+            if lo <= avg_diff <= hi:
+                frequency = freq
+                confidence = max(0, 100 - std_diff * penalty)
+                break
+
+        # Calculate expected day of month for monthly-ish frequencies
+        if frequency in (
+            RecurrenceFrequency.MONTHLY,
+            RecurrenceFrequency.BIMONTHLY,
+            RecurrenceFrequency.QUARTERLY,
+            RecurrenceFrequency.SEMIANNUAL,
+            RecurrenceFrequency.YEARLY,
+        ):
             days_of_month = [d.day for d in sorted_dates]
             expected_day = max(set(days_of_month), key=days_of_month.count)
-        elif 5 <= avg_diff <= 9:
-            frequency = RecurrenceFrequency.WEEKLY
-            confidence = max(0, 100 - std_diff * 10)
-        elif 12 <= avg_diff <= 16:
-            frequency = RecurrenceFrequency.BIWEEKLY
-            confidence = max(0, 100 - std_diff * 7)
-        elif 85 <= avg_diff <= 95:
-            frequency = RecurrenceFrequency.QUARTERLY
-            confidence = max(0, 100 - std_diff * 3)
-        elif 355 <= avg_diff <= 375:
-            frequency = RecurrenceFrequency.YEARLY
-            confidence = max(0, 100 - std_diff)
 
         return frequency, confidence, expected_day
 

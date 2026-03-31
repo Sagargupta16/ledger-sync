@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft,
@@ -7,7 +7,6 @@ import {
   DollarSign,
   Hash,
   Clock,
-  UserPlus,
   CheckCircle2,
 } from 'lucide-react'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
@@ -17,9 +16,6 @@ import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { SCROLL_FADE_UP, fadeUpWithDelay } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
-import type { ManualSubscription } from './subscription-tracker/types'
-import { CONFIRMED_SUBS_KEY, MANUAL_SUBS_KEY } from './subscription-tracker/types'
-import { loadConfirmedIds, loadManualSubscriptions } from './subscription-tracker/helpers'
 
 // ---------------------------------------------------------------------------
 // Calendar Helpers
@@ -92,15 +88,14 @@ function getCategoryColor(category: string): string {
 // ---------------------------------------------------------------------------
 
 interface PlacedBill {
-  /** Unique key for rendering */
   key: string
   name: string
   amount: number
   category: string
   frequency: string | null
-  account: string | null
+  type: string | null
   day: number
-  source: 'detected' | 'confirmed' | 'manual'
+  source: 'detected' | 'confirmed'
 }
 
 // ---------------------------------------------------------------------------
@@ -203,61 +198,11 @@ function getBillDaysForMonth(
 }
 
 // ---------------------------------------------------------------------------
-// Manual subscription placement logic
-// ---------------------------------------------------------------------------
-
-/**
- * Calculate which days in a given month a manual subscription falls on.
- * Based on its frequency and next_due date.
- */
-function getManualBillDaysForMonth(
-  sub: ManualSubscription,
-  year: number,
-  month: number,
-): number[] {
-  if (!sub.next_due) return []
-
-  const nextDue = new Date(sub.next_due)
-  const daysInMonth = getDaysInMonth(year, month)
-  const frequency = sub.frequency?.toLowerCase() ?? 'monthly'
-  const dueDay = nextDue.getDate()
-  const dueMonth = nextDue.getMonth()
-  const dueYear = nextDue.getFullYear()
-
-  if (frequency === 'monthly') {
-    // Show on the same day each month
-    return [clampDay(dueDay, daysInMonth)]
-  }
-
-  if (frequency === 'quarterly') {
-    // Every 3 months from the due date month
-    const diff = ((month - dueMonth) % 12 + 12) % 12
-    if (diff % 3 === 0 && (year > dueYear || (year === dueYear && month >= dueMonth))) {
-      return [clampDay(dueDay, daysInMonth)]
-    }
-    return []
-  }
-
-  if (frequency === 'yearly') {
-    // Only in the same month as the due date
-    if (month === dueMonth && year >= dueYear) {
-      return [clampDay(dueDay, daysInMonth)]
-    }
-    return []
-  }
-
-  // Fallback: treat as monthly
-  return [clampDay(dueDay, daysInMonth)]
-}
-
-// ---------------------------------------------------------------------------
-// Build unified bill map
+// Build bill map from API data (uses is_confirmed from backend)
 // ---------------------------------------------------------------------------
 
 function buildBillMap(
   transactions: RecurringTransaction[],
-  confirmedIds: Set<string>,
-  manualSubs: ManualSubscription[],
   year: number,
   month: number,
 ): Map<number, PlacedBill[]> {
@@ -269,37 +214,18 @@ function buildBillMap(
     map.set(day, existing)
   }
 
-  // Add detected recurring transactions (only confirmed ones get special styling)
   for (const tx of transactions) {
     const days = getBillDaysForMonth(tx, year, month)
-    const isConfirmed = confirmedIds.has(String(tx.id))
     for (const day of days) {
       addBill(day, {
-        key: `detected-${tx.id}-${day}`,
+        key: `tx-${tx.id}-${day}`,
         name: tx.name,
         amount: Math.abs(tx.expected_amount),
         category: tx.category,
         frequency: tx.frequency,
-        account: tx.account,
+        type: tx.type,
         day,
-        source: isConfirmed ? 'confirmed' : 'detected',
-      })
-    }
-  }
-
-  // Add manual subscriptions
-  for (const sub of manualSubs) {
-    const days = getManualBillDaysForMonth(sub, year, month)
-    for (const day of days) {
-      addBill(day, {
-        key: `manual-${sub.id}-${day}`,
-        name: sub.name,
-        amount: Math.abs(sub.amount),
-        category: sub.category ?? 'Manual',
-        frequency: sub.frequency,
-        account: null,
-        day,
-        source: 'manual',
+        source: tx.is_confirmed ? 'confirmed' : 'detected',
       })
     }
   }
@@ -346,7 +272,6 @@ function SummaryCard({
 
 /** Get the dot color for a bill based on source and category */
 function getBillDotColor(bill: PlacedBill): string {
-  if (bill.source === 'manual') return rawColors.ios.purple
   if (bill.source === 'confirmed') return rawColors.ios.green
   return getCategoryColor(bill.category)
 }
@@ -358,14 +283,6 @@ function SourceBadge({ source }: Readonly<{ source: PlacedBill['source'] }>) {
       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-ios-green/15 text-ios-green">
         <CheckCircle2 className="w-2.5 h-2.5" />
         Confirmed
-      </span>
-    )
-  }
-  if (source === 'manual') {
-    return (
-      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-ios-purple/15 text-ios-purple">
-        <UserPlus className="w-2.5 h-2.5" />
-        Manual
       </span>
     )
   }
@@ -400,16 +317,11 @@ function BillDetailItem({ bill }: Readonly<{ bill: PlacedBill }>) {
                 {capitalize(bill.frequency)}
               </span>
             )}
-            {bill.account && (
-              <span className="ml-2 text-text-tertiary">
-                {bill.account}
-              </span>
-            )}
           </p>
         </div>
       </div>
-      <p className="text-sm font-semibold text-ios-red whitespace-nowrap">
-        {formatCurrency(bill.amount)}
+      <p className={`text-sm font-semibold whitespace-nowrap ${bill.type === 'Income' ? 'text-ios-green' : 'text-ios-red'}`}>
+        {bill.type === 'Income' ? '+' : '-'}{formatCurrency(bill.amount)}
       </p>
     </motion.div>
   )
@@ -541,22 +453,6 @@ export default function BillCalendarPage() {
   const [viewYear, setViewYear] = useState(() => now.getFullYear())
   const [viewMonth, setViewMonth] = useState(() => now.getMonth())
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
-  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(loadConfirmedIds)
-  const [manualSubs, setManualSubs] = useState<ManualSubscription[]>(loadManualSubscriptions)
-
-  // Also listen for storage events from other tabs/pages
-  useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === CONFIRMED_SUBS_KEY) {
-        setConfirmedIds(loadConfirmedIds())
-      }
-      if (e.key === MANUAL_SUBS_KEY) {
-        setManualSubs(loadManualSubscriptions())
-      }
-    }
-    globalThis.addEventListener('storage', handleStorage)
-    return () => globalThis.removeEventListener('storage', handleStorage)
-  }, [])
 
   const goToPrevMonth = () => {
     setSelectedDay(null)
@@ -584,11 +480,11 @@ export default function BillCalendarPage() {
     setViewMonth(now.getMonth())
   }
 
-  // Build the unified bill map for the current month view
+  // Build the bill map for the current month view
   const billMap = useMemo(() => {
     const transactions = recurringTransactions ?? []
-    return buildBillMap(transactions, confirmedIds, manualSubs, viewYear, viewMonth)
-  }, [recurringTransactions, confirmedIds, manualSubs, viewYear, viewMonth])
+    return buildBillMap(transactions, viewYear, viewMonth)
+  }, [recurringTransactions, viewYear, viewMonth])
 
   // Build the calendar grid: days from prev month, current month, next month
   const calendarGrid = useMemo(() => {
@@ -644,8 +540,7 @@ export default function BillCalendarPage() {
     return cells
   }, [viewYear, viewMonth])
 
-  // Whether we have any data to show at all (detected transactions or manual subs)
-  const hasAnyData = (recurringTransactions && recurringTransactions.length > 0) || manualSubs.length > 0
+  const hasAnyData = recurringTransactions && recurringTransactions.length > 0
 
   // Summary calculations
   const summary = useMemo(() => {
@@ -840,10 +735,6 @@ export default function BillCalendarPage() {
                 <div className="flex items-center gap-1.5 text-xs text-text-secondary">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.ios.green }} />
                   <span>Confirmed</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.ios.purple }} />
-                  <span>Manual</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-text-secondary">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.ios.blue }} />

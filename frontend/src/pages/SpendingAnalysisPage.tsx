@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion'
 import { SCROLL_FADE_UP } from '@/constants/animations'
-import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank, Lock, Shuffle, Activity } from 'lucide-react'
+import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank, Activity } from 'lucide-react' // Activity used for Monthly Avg card
 import MetricCard from '@/components/shared/MetricCard'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { formatCurrency, formatPercent, formatCurrencyShort } from '@/lib/formatters'
-import { PieChart as RechartsPie, Pie, Cell, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { PieChart as RechartsPie, Pie, Cell, Tooltip } from 'recharts'
 import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { filterTransactionsByDateRange, computeCategoryBreakdown } from '@/lib/transactionUtils'
@@ -17,14 +17,11 @@ import {
   ExpenseTreemap,
   EnhancedSubcategoryAnalysis,
   MultiCategoryTimeAnalysis,
-  YearOverYearComparison,
-  RecurringTransactions,
   TopMerchants,
   CohortSpendingAnalysis,
 } from '@/components/analytics'
-import { chartTooltipProps, PageHeader, ChartContainer, shouldAnimate, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, ACTIVE_DOT, LEGEND_DEFAULTS } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, shouldAnimate } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
-import { rawColors } from '@/constants/colors'
 
 // Color for Savings
 const SAVINGS_COLOR = SEMANTIC_COLORS.income
@@ -135,157 +132,6 @@ function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, i
   )
 }
 
-/** Spending Velocity: cumulative daily spending for current vs previous period */
-function SpendingVelocityChart({
-  filteredTransactions,
-  dateRange,
-  allTransactions,
-}: Readonly<{
-  filteredTransactions: Array<{ date: string; type: string; amount: number }>
-  dateRange: { start_date: string | null; end_date: string | null }
-  allTransactions: Array<{ date: string; type: string; amount: number }> | undefined
-}>) {
-  const velocityData = useMemo(() => {
-    if (!dateRange.start_date || !dateRange.end_date || !allTransactions) return []
-
-    const start = new Date(dateRange.start_date)
-    const end = new Date(dateRange.end_date)
-    const periodLengthMs = end.getTime() - start.getTime()
-    if (periodLengthMs <= 0) return []
-
-    // Previous period: same duration before the current period
-    const prevStart = new Date(start.getTime() - periodLengthMs - 86400000) // -1 day offset for inclusive
-    const prevEnd = new Date(start.getTime() - 86400000)
-
-    // Get expenses for current period
-    const currentExpenses = filteredTransactions
-      .filter((t) => t.type === 'Expense')
-      .map((t) => ({ day: Math.floor((new Date(t.date).getTime() - start.getTime()) / 86400000) + 1, amount: Math.abs(t.amount) }))
-
-    // Get expenses for previous period
-    const previousExpenses = (allTransactions || [])
-      .filter((t) => {
-        if (t.type !== 'Expense') return false
-        const d = t.date.substring(0, 10)
-        return d >= prevStart.toISOString().substring(0, 10) && d <= prevEnd.toISOString().substring(0, 10)
-      })
-      .map((t) => ({ day: Math.floor((new Date(t.date).getTime() - prevStart.getTime()) / 86400000) + 1, amount: Math.abs(t.amount) }))
-
-    // Determine number of days in period
-    const totalDays = Math.ceil(periodLengthMs / 86400000) + 1
-    const daysToShow = Math.min(totalDays, 31) // Cap at 31 for readability
-
-    // Build cumulative arrays
-    const currentDaily: number[] = new Array(daysToShow).fill(0)
-    const previousDaily: number[] = new Array(daysToShow).fill(0)
-
-    for (const e of currentExpenses) {
-      if (e.day >= 1 && e.day <= daysToShow) currentDaily[e.day - 1] += e.amount
-    }
-    for (const e of previousExpenses) {
-      if (e.day >= 1 && e.day <= daysToShow) previousDaily[e.day - 1] += e.amount
-    }
-
-    // Accumulate
-    const result: Array<{ day: number; current: number; previous: number }> = []
-    let cumCurrent = 0
-    let cumPrevious = 0
-    for (let i = 0; i < daysToShow; i++) {
-      cumCurrent += currentDaily[i]
-      cumPrevious += previousDaily[i]
-      result.push({ day: i + 1, current: cumCurrent, previous: cumPrevious })
-    }
-
-    return result
-  }, [filteredTransactions, dateRange, allTransactions])
-
-  if (velocityData.length === 0) return null
-
-  const currentTotal = velocityData.at(-1)?.current ?? 0
-  const previousTotal = velocityData.at(-1)?.previous ?? 0
-  const diff = currentTotal - previousTotal
-  const isFaster = diff > 0
-
-  return (
-    <motion.div className="glass p-6 rounded-xl border border-border" {...SCROLL_FADE_UP}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-ios-teal/20 rounded-xl shadow-lg shadow-ios-teal/20">
-            <Activity className="w-5 h-5 text-ios-teal" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white">Spending Velocity</h3>
-            <p className="text-xs text-muted-foreground">
-              Cumulative daily spending: current vs previous period
-            </p>
-          </div>
-        </div>
-        {previousTotal > 0 && (
-          <div className={`text-sm font-medium px-3 py-1 rounded-lg ${isFaster ? 'bg-ios-red/15 text-ios-red' : 'bg-ios-green/15 text-ios-green'}`}>
-            {isFaster ? 'Spending faster' : 'Spending slower'} ({diff > 0 ? '+' : ''}{formatCurrency(diff)})
-          </div>
-        )}
-      </div>
-      <div style={{ height: 320 }}>
-        <ChartContainer>
-          <AreaChart data={velocityData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-            <defs>
-              {areaGradient('velocity-current', rawColors.ios.teal, 0.3, 0.02)}
-            </defs>
-            <CartesianGrid {...GRID_DEFAULTS} />
-            <XAxis
-              dataKey="day"
-              {...xAxisDefaults(velocityData.length)}
-              tickFormatter={(v: number) => `Day ${v}`}
-            />
-            <YAxis
-              {...yAxisDefaults()}
-              tickFormatter={(v: number) => formatCurrencyShort(v)}
-            />
-            <Tooltip
-              {...chartTooltipProps}
-              labelFormatter={((label: number) => `Day ${label}`) as never}
-              formatter={((value: number, name: string) => [
-                formatCurrency(value),
-                name === 'current' ? 'This Period' : 'Last Period',
-              ]) as never}
-            />
-            <Legend
-              {...LEGEND_DEFAULTS}
-              formatter={(value: string) => (value === 'current' ? 'This Period' : 'Last Period')}
-            />
-            <Area
-              type="monotone"
-              dataKey="current"
-              stroke={rawColors.ios.teal}
-              fill={areaGradientUrl('velocity-current')}
-              strokeWidth={2}
-              dot={false}
-              activeDot={ACTIVE_DOT}
-              isAnimationActive={shouldAnimate(velocityData.length)}
-              animationDuration={600}
-              animationEasing="ease-out"
-            />
-            <Area
-              type="monotone"
-              dataKey="previous"
-              stroke={rawColors.ios.purple}
-              fill="transparent"
-              strokeWidth={2}
-              strokeDasharray="6 3"
-              dot={false}
-              activeDot={ACTIVE_DOT}
-              isAnimationActive={shouldAnimate(velocityData.length)}
-              animationDuration={600}
-              animationEasing="ease-out"
-            />
-          </AreaChart>
-        </ChartContainer>
-      </div>
-    </motion.div>
-  )
-}
-
 export default function SpendingAnalysisPage() {
   const navigate = useNavigate()
   const { data: transactions } = useTransactions()
@@ -324,8 +170,15 @@ export default function SpendingAnalysisPage() {
   )
 
   const categoriesCount = Object.keys(categoryBreakdown).length
-  const topCategory =
-    Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
+  const subcategoriesCount = useMemo(() => {
+    if (!filteredTransactions) return 0
+    const subs = new Set<string>()
+    filteredTransactions.filter((t) => t.type === 'Expense' && t.subcategory).forEach((t) => subs.add(`${t.category}::${t.subcategory}`))
+    return subs.size
+  }, [filteredTransactions])
+  const topCategoryEntry = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])[0]
+  const topCategory = topCategoryEntry?.[0] || 'N/A'
+  const topCategoryAmount = topCategoryEntry?.[1] ?? 0
 
   // Calculate essential vs discretionary spending
   const spendingBreakdown = useMemo(() => {
@@ -333,47 +186,15 @@ export default function SpendingAnalysisPage() {
     return calculateSpendingBreakdown(filteredTransactions, preferences.essential_categories)
   }, [filteredTransactions, preferences])
 
-  // Parse fixed_expense_categories (may be JSON string or array)
-  const fixedExpenseCategories = useMemo<string[]>(() => {
-    const raw = preferences?.fixed_expense_categories
-    if (!raw) return []
-    if (Array.isArray(raw)) return raw
-    try {
-      const parsed = JSON.parse(raw)
-      return Array.isArray(parsed) ? parsed : []
-    } catch {
-      return []
-    }
-  }, [preferences])
-
-  // Calculate fixed vs variable spending breakdown
-  const fixedVariableBreakdown = useMemo(() => {
-    if (!filteredTransactions || fixedExpenseCategories.length === 0) return null
-    let fixed = 0
-    let variable = 0
-    const fixedSet = new Set(fixedExpenseCategories.map((c) => c.toLowerCase()))
-
-    filteredTransactions
-      .filter((t) => t.type === 'Expense')
-      .forEach((t) => {
-        const key = `${t.category}::${t.subcategory || ''}`.toLowerCase()
-        const amount = Math.abs(t.amount)
-        if (fixedSet.has(key)) {
-          fixed += amount
-        } else {
-          variable += amount
-        }
-      })
-
-    const total = fixed + variable
-    return {
-      fixed,
-      variable,
-      total,
-      fixedPercent: total > 0 ? (fixed / total) * 100 : 0,
-      variablePercent: total > 0 ? (variable / total) * 100 : 0,
-    }
-  }, [filteredTransactions, fixedExpenseCategories])
+  // Monthly average spending
+  const monthlyAvgSpending = useMemo(() => {
+    if (!filteredTransactions) return 0
+    const expenses = filteredTransactions.filter((t) => t.type === 'Expense')
+    if (expenses.length === 0) return 0
+    const months = new Set(expenses.map((t) => t.date.slice(0, 7)))
+    const total = expenses.reduce((s, t) => s + Math.abs(t.amount), 0)
+    return months.size > 0 ? total / months.size : 0
+  }, [filteredTransactions])
 
   // Prepare spending breakdown chart data (50/30/20 rule with income base)
   const spendingChartData = useMemo(
@@ -410,17 +231,11 @@ export default function SpendingAnalysisPage() {
           }
         />
 
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${fixedVariableBreakdown ? 'lg:grid-cols-3 xl:grid-cols-5' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <MetricCard title="Total Spending" value={formatCurrency(totalSpending)} icon={TrendingDown} color="red" isLoading={isLoading} />
-          <MetricCard title="Top Category" value={topCategory} icon={Tag} color="blue" isLoading={isLoading} />
-          <MetricCard title="Categories Tracked" value={categoriesCount} icon={PieChart} color="blue" isLoading={isLoading} />
-
-          {fixedVariableBreakdown && (
-            <>
-              <MetricCard title="Fixed" value={formatCurrency(fixedVariableBreakdown.fixed)} icon={Lock} color="purple" isLoading={isLoading} subtitle={`${formatPercent(fixedVariableBreakdown.fixedPercent)} of spending`} />
-              <MetricCard title="Variable" value={formatCurrency(fixedVariableBreakdown.variable)} icon={Shuffle} color="teal" isLoading={isLoading} subtitle={`${formatPercent(fixedVariableBreakdown.variablePercent)} of spending`} />
-            </>
-          )}
+          <MetricCard title="Monthly Avg" value={formatCurrency(monthlyAvgSpending)} icon={Activity} color="orange" isLoading={isLoading} subtitle="Average spending per month" />
+          <MetricCard title="Top Category" value={topCategory} icon={Tag} color="blue" isLoading={isLoading} subtitle={topCategoryAmount > 0 ? formatCurrency(topCategoryAmount) : undefined} />
+          <MetricCard title="Categories" value={`${categoriesCount} / ${subcategoriesCount}`} icon={PieChart} color="purple" isLoading={isLoading} subtitle="Categories / Subcategories" />
         </div>
 
         {/* 50/30/20 Budget Rule Analysis */}
@@ -587,13 +402,6 @@ export default function SpendingAnalysisPage() {
           <ExpenseTreemap dateRange={dateRangeCompat} />
         </motion.div>
 
-        {/* Spending Velocity: Current vs Previous Period */}
-        <SpendingVelocityChart
-          filteredTransactions={filteredTransactions}
-          dateRange={dateRange}
-          allTransactions={transactions}
-        />
-
         {/* Top Merchants */}
         <motion.div {...SCROLL_FADE_UP}>
           <TopMerchants dateRange={dateRangeCompat} />
@@ -614,11 +422,6 @@ export default function SpendingAnalysisPage() {
           <CohortSpendingAnalysis />
         </motion.div>
 
-        {/* Year-over-Year & Recurring */}
-        <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
-          <YearOverYearComparison />
-          <RecurringTransactions />
-        </motion.div>
       </div>
     </div>
   )

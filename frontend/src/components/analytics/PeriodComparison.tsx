@@ -39,7 +39,7 @@ function formatValue(value: number, format?: string) {
     case 'percent':
       return `${value.toFixed(1)}%`
     case 'number':
-      return value.toLocaleString()
+      return value.toLocaleString('en-IN')
     case 'days':
       return `${value.toFixed(0)} days`
     default:

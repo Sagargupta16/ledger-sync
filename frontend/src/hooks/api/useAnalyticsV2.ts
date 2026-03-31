@@ -93,6 +93,53 @@ export function useRecurringTransactions(params?: {
   })
 }
 
+export interface RecurringTransactionPatch {
+  id: number
+  pattern_name?: string
+  frequency?: string
+  expected_amount?: number
+  is_confirmed?: boolean
+  is_active?: boolean
+}
+
+export function useUpdateRecurringTransaction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...body }: RecurringTransactionPatch) =>
+      analyticsV2Service.updateRecurringTransaction(id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all })
+    },
+  })
+}
+
+export function useCreateRecurringTransaction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      name: string
+      type: string
+      frequency: string
+      amount: number
+      category?: string
+      expected_day?: number
+    }) => analyticsV2Service.createRecurringTransaction(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all })
+    },
+  })
+}
+
+export function useDeleteRecurringTransaction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => analyticsV2Service.deleteRecurringTransaction(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all })
+    },
+  })
+}
+
 // Merchant Intelligence
 export function useMerchantIntelligence(params?: {
   min_transactions?: number
