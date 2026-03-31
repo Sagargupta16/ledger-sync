@@ -973,8 +973,6 @@ class AnalyticsEngine:
         """
         if not note or not note.strip():
             return None
-        import re
-
         text = note.strip().lower()
         # Remove trailing date-like patterns (jan 2026, 01/2026, etc.)
         month_pat = r"\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s*\d{0,4}$"

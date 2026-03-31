@@ -7,6 +7,7 @@ All aggregation tables are scoped to user_id for multi-user safety.
 """
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -420,8 +421,6 @@ def update_recurring_transaction(
             raise HTTPException(status_code=422, detail=f"Invalid frequency: {body.frequency}")
         record.frequency = RecurrenceFrequency(freq)
     if body.expected_amount is not None:
-        from decimal import Decimal
-
         record.expected_amount = Decimal(str(body.expected_amount))
     if body.is_confirmed is not None:
         record.is_user_confirmed = body.is_confirmed
@@ -451,8 +450,6 @@ def create_recurring_transaction(
     db: DatabaseSession,
 ) -> dict[str, Any]:
     """Create a new recurring transaction manually."""
-    from decimal import Decimal
-
     freq = body.frequency.lower()
     if freq not in _VALID_FREQUENCIES:
         raise HTTPException(status_code=422, detail=f"Invalid frequency: {body.frequency}")
