@@ -824,6 +824,12 @@ function TaxTip({ title, amount, description }: Readonly<{ title: string; amount
 }
 
 /** Advance tax quarterly schedule section */
+function getQuarterStatusClass(status: string, isNext: boolean): string {
+  if (status === 'overdue') return 'bg-ios-red/20 text-ios-red'
+  if (isNext) return 'bg-ios-orange/20 text-ios-orange'
+  return 'bg-white/5 text-muted-foreground'
+}
+
 function AdvanceTaxScheduleSection({ totalTax }: Readonly<{ totalTax: number }>) {
   const schedule = useMemo(() => computeAdvanceTaxSchedule(totalTax, 0), [totalTax])
 
@@ -868,14 +874,8 @@ function AdvanceTaxScheduleSection({ totalTax }: Readonly<{ totalTax: number }>)
                   <td className="py-2.5 px-3 text-right font-medium">{formatCurrency(q.quarterAmount)}</td>
                   <td className="py-2.5 px-3 text-right text-muted-foreground">{formatCurrency(q.cumulativeAmount)}</td>
                   <td className="py-2.5 px-3 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                      q.status === 'overdue'
-                        ? 'bg-ios-red/20 text-ios-red'
-                        : isNext
-                          ? 'bg-ios-orange/20 text-ios-orange'
-                          : 'bg-white/5 text-muted-foreground'
-                    }`}>
-                      {q.status === 'overdue' ? 'Overdue' : isNext ? 'Upcoming' : 'Upcoming'}
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getQuarterStatusClass(q.status, isNext)}`}>
+                      {q.status === 'overdue' ? 'Overdue' : 'Upcoming'}
                     </span>
                   </td>
                 </tr>

@@ -189,7 +189,9 @@ function NPSTab() {
     setGovt(remaining - Math.round(remaining * ratio))
   }
 
-  const result = useMemo(() => projectNPS(monthly, equity, corp, govt, 10, 8.5, 7.5, years, balance), [monthly, equity, corp, govt, years, balance])
+  const result = useMemo(() => projectNPS({
+    monthlyContribution: monthly, equityPct: equity, corpBondPct: corp, govtBondPct: govt, years, currentBalance: balance,
+  }), [monthly, equity, corp, govt, years, balance])
   const weightedReturn = (equity / 100) * 10 + (corp / 100) * 8.5 + (govt / 100) * 7.5
 
   return (

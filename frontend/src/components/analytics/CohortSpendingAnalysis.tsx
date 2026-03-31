@@ -75,7 +75,12 @@ export default function CohortSpendingAnalysis() {
     }))
   }, [expenses])
 
-  const currentData = view === 'day-of-week' ? dowData : view === 'day-of-month' ? domData : monthlyData
+  const dataByView: Record<ViewMode, Array<{ name: string; avg: number }>> = {
+    'day-of-week': dowData,
+    'day-of-month': domData,
+    'monthly': monthlyData,
+  }
+  const currentData = dataByView[view]
   const hasData = expenses.length > 0
 
   return (

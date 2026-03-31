@@ -693,13 +693,12 @@ export default function BudgetPage() {
                       {(() => {
                         const momentum = categoryMomentum.get(row.category)
                         if (!momentum || momentum.sparklineData.length < 3) return null
-                        const color = momentum.classification === 'accelerating' ? rawColors.ios.red
-                          : momentum.classification === 'decelerating' ? rawColors.ios.green
-                          : rawColors.ios.yellow
+                        const momentumColorMap = { accelerating: rawColors.ios.red, decelerating: rawColors.ios.green, stable: rawColors.ios.yellow }
+                        const momentumClassMap = { accelerating: 'text-ios-red', decelerating: 'text-ios-green', stable: 'text-ios-yellow' }
                         return (
                           <div className="ml-2 flex items-center gap-1">
-                            <Sparkline data={momentum.sparklineData} color={color} height={20} showTooltip={false} />
-                            <span className={`text-caption ${momentum.classification === 'accelerating' ? 'text-ios-red' : momentum.classification === 'decelerating' ? 'text-ios-green' : 'text-ios-yellow'}`}>
+                            <Sparkline data={momentum.sparklineData} color={momentumColorMap[momentum.classification]} height={20} showTooltip={false} />
+                            <span className={`text-caption ${momentumClassMap[momentum.classification]}`}>
                               {momentum.slope > 0 ? '+' : ''}{momentum.slope}%
                             </span>
                           </div>

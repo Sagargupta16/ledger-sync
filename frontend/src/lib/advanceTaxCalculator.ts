@@ -69,12 +69,7 @@ export function computeAdvanceTaxSchedule(
     const dueDate = `${year}-${String(q.month).padStart(2, '0')}-${String(q.day).padStart(2, '0')}`
 
     const dueDateObj = new Date(year, q.month - 1, q.day)
-    let status: AdvanceTaxQuarter['status']
-    if (today > dueDateObj) {
-      status = 'overdue'
-    } else {
-      status = 'upcoming'
-    }
+    const status: AdvanceTaxQuarter['status'] = today > dueDateObj ? 'overdue' : 'upcoming'
 
     return {
       quarter: q.quarter,

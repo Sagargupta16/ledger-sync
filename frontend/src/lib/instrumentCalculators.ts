@@ -114,33 +114,36 @@ export function projectEPF(
   }
 }
 
+export interface NPSParams {
+  monthlyContribution: number
+  equityPct?: number
+  corpBondPct?: number
+  govtBondPct?: number
+  equityReturn?: number
+  corpReturn?: number
+  govtReturn?: number
+  years?: number
+  currentBalance?: number
+}
+
 /**
  * NPS projection with weighted returns across asset classes.
  *
  * Default allocation: 50% equity (E), 30% corporate bonds (C), 20% govt bonds (G).
  * Historical returns (approx): E ~10-12%, C ~8-9%, G ~7-8%.
- *
- * @param monthlyContribution - monthly NPS contribution
- * @param equityPct - allocation to equity (default 50)
- * @param corpBondPct - allocation to corporate bonds (default 30)
- * @param govtBondPct - allocation to govt bonds (default 20)
- * @param equityReturn - expected equity return (default 10%)
- * @param corpReturn - expected corporate bond return (default 8.5%)
- * @param govtReturn - expected govt bond return (default 7.5%)
- * @param years - projection period
- * @param currentBalance - existing NPS balance
  */
-export function projectNPS(
-  monthlyContribution: number,
-  equityPct = 50,
-  corpBondPct = 30,
-  govtBondPct = 20,
-  equityReturn = 10,
-  corpReturn = 8.5,
-  govtReturn = 7.5,
-  years = 25,
-  currentBalance = 0,
-): ProjectionResult {
+export function projectNPS(params: NPSParams): ProjectionResult {
+  const {
+    monthlyContribution,
+    equityPct = 50,
+    corpBondPct = 30,
+    govtBondPct = 20,
+    equityReturn = 10,
+    corpReturn = 8.5,
+    govtReturn = 7.5,
+    years = 25,
+    currentBalance = 0,
+  } = params
   // Weighted annual return
   const weightedReturn =
     (equityPct / 100) * equityReturn +

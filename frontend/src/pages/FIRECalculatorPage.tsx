@@ -13,17 +13,18 @@ import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradien
 import { chartTooltipProps } from '@/components/ui/ChartTooltip'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 
-function SliderInput({ label, value, min, max, step, unit, onChange }: Readonly<{
-  label: string; value: number; min: number; max: number; step: number; unit: string
+function SliderInput({ id, label, value, min, max, step, unit, onChange }: Readonly<{
+  id: string; label: string; value: number; min: number; max: number; step: number; unit: string
   onChange: (v: number) => void
 }>) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <label className="text-xs font-medium text-muted-foreground">{label}</label>
+        <label htmlFor={id} className="text-xs font-medium text-muted-foreground">{label}</label>
         <span className="text-xs font-semibold text-foreground">{value}{unit}</span>
       </div>
       <input
+        id={id}
         type="range"
         min={min}
         max={max}
@@ -34,6 +35,12 @@ function SliderInput({ label, value, min, max, step, unit, onChange }: Readonly<
       />
     </div>
   )
+}
+
+function savingsRateSubtitle(rate: number): string {
+  if (rate >= 50) return 'FIRE-ready pace'
+  if (rate >= 20) return 'Good, increase for FIRE'
+  return 'Needs improvement'
 }
 
 export default function FIRECalculatorPage() {
@@ -120,7 +127,7 @@ export default function FIRECalculatorPage() {
               <MetricCard title="FIRE Number" value={formatCurrency(fireResult.fireNumber)} icon={Flame} color="red" subtitle={`At ${swr}% SWR`} />
               <MetricCard title="Years to FIRE" value={fireResult.yearsToFIRE === Infinity ? 'N/A' : `${fireResult.yearsToFIRE.toFixed(1)} yrs`} icon={Flame} color="orange" subtitle={`At ${realReturn}% real return`} />
               <MetricCard title="Coast FIRE" value={formatCurrency(fireResult.coastFIRE)} icon={Flame} color="teal" subtitle="Amount needed today" />
-              <MetricCard title="Savings Rate" value={`${fireResult.currentSavingsRate.toFixed(1)}%`} icon={Flame} color="green" subtitle={fireResult.currentSavingsRate >= 50 ? 'FIRE-ready pace' : fireResult.currentSavingsRate >= 20 ? 'Good, increase for FIRE' : 'Needs improvement'} />
+              <MetricCard title="Savings Rate" value={`${fireResult.currentSavingsRate.toFixed(1)}%`} icon={Flame} color="green" subtitle={savingsRateSubtitle(fireResult.currentSavingsRate)} />
             </motion.div>
 
             {/* FIRE Variants */}
@@ -149,9 +156,9 @@ export default function FIRECalculatorPage() {
             <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
               <h3 className="text-lg font-semibold mb-4">Adjust Assumptions</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <SliderInput label="Safe Withdrawal Rate" value={swr} min={2} max={5} step={0.5} unit="%" onChange={setSwr} />
-                <SliderInput label="Real Return (post-inflation)" value={realReturn} min={2} max={12} step={0.5} unit="%" onChange={setRealReturn} />
-                <SliderInput label="Years to Retirement" value={yearsToRetire} min={5} max={40} step={1} unit=" yrs" onChange={setYearsToRetire} />
+                <SliderInput id="fire-swr" label="Safe Withdrawal Rate" value={swr} min={2} max={5} step={0.5} unit="%" onChange={setSwr} />
+                <SliderInput id="fire-return" label="Real Return (post-inflation)" value={realReturn} min={2} max={12} step={0.5} unit="%" onChange={setRealReturn} />
+                <SliderInput id="fire-years" label="Years to Retirement" value={yearsToRetire} min={5} max={40} step={1} unit=" yrs" onChange={setYearsToRetire} />
               </div>
               <p className="text-xs text-text-quaternary mt-4">
                 India defaults: 3% SWR (higher inflation vs 4% US rule), 6% real return (12% nominal - 6% inflation)
@@ -199,9 +206,9 @@ export default function FIRECalculatorPage() {
             <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
               <h3 className="text-lg font-semibold mb-4">Adjust Assumptions</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <SliderInput label="Inflation Rate" value={inflation} min={3} max={10} step={0.5} unit="%" onChange={setInflation} />
-                <SliderInput label="Expected Return" value={expectedReturn} min={6} max={18} step={0.5} unit="%" onChange={setExpectedReturn} />
-                <SliderInput label="Years to Retirement" value={retirementYears} min={5} max={40} step={1} unit=" yrs" onChange={setRetirementYears} />
+                <SliderInput id="ret-inflation" label="Inflation Rate" value={inflation} min={3} max={10} step={0.5} unit="%" onChange={setInflation} />
+                <SliderInput id="ret-return" label="Expected Return" value={expectedReturn} min={6} max={18} step={0.5} unit="%" onChange={setExpectedReturn} />
+                <SliderInput id="ret-years" label="Years to Retirement" value={retirementYears} min={5} max={40} step={1} unit=" yrs" onChange={setRetirementYears} />
               </div>
               <p className="text-xs text-text-quaternary mt-4">
                 Indian defaults: 6.5% inflation (CPI avg), 12% equity return (Nifty 50 long-term CAGR)
