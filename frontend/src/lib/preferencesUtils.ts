@@ -32,10 +32,10 @@ const matchesClassification = (
   const category = transaction.category || ''
   const subcategory = transaction.subcategory || ''
   const itemKey = `${category}::${subcategory}`
-  
+
   // Exact match
   if (classificationList.includes(itemKey)) return true
-  
+
   // Case-insensitive match
   const lowerItemKey = itemKey.toLowerCase()
   return classificationList.some(item => item.toLowerCase() === lowerItemKey)
@@ -138,7 +138,7 @@ export const calculateCashbacksTotal = (
   incomeClassification?: IncomeClassification
 ): number => {
   const classification = incomeClassification || getPrefs().incomeClassification
-  
+
   return transactions
     .filter((t) => t.type === 'Income')
     .filter((t) => matchesClassification(t, classification.nonTaxable))
@@ -153,7 +153,7 @@ export const calculateTaxableIncomeTotal = (
   incomeClassification?: IncomeClassification
 ): number => {
   const classification = incomeClassification || getPrefs().incomeClassification
-  
+
   return transactions
     .filter((t) => t.type === 'Income')
     .filter((t) => matchesClassification(t, classification.taxable))

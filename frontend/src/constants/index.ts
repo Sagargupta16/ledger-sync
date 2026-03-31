@@ -7,25 +7,25 @@ export * from './chartConfig'
 export const ROUTES = {
   HOME: '/',
   DASHBOARD: '/dashboard',
-  
+
   // Data Management
   UPLOAD: '/upload',
   SETTINGS: '/settings',
-  
+
   // Transactions
   TRANSACTIONS: '/transactions',
-  
+
   // Investments
   INVESTMENT_ANALYTICS: '/investments/analytics',
   MUTUAL_FUND_PROJECTION: '/investments/sip-projection',
   RETURNS_ANALYSIS: '/investments/returns',
-  
+
   // Tax Planning
   TAX_PLANNING: '/tax',
-  
+
   // Net Worth
   NET_WORTH: '/net-worth',
-  
+
   // Spending Analysis
   SPENDING_ANALYSIS: '/spending',
   INCOME_ANALYSIS: '/income',
@@ -33,7 +33,7 @@ export const ROUTES = {
   COMPARISON: '/comparison',
   BUDGETS: '/budgets',
   YEAR_IN_REVIEW: '/year-in-review',
-  
+
   // Trends & Forecasts
   TRENDS_FORECASTS: '/forecasts',
 
@@ -55,21 +55,21 @@ export const API_BASE_URL = _apiBaseUrl || (import.meta.env.DEV ? 'http://localh
 export const API_ENDPOINTS = {
   // Upload
   UPLOAD: '/api/upload',
-  
+
   // Transactions
   TRANSACTIONS: '/api/transactions',
   TRANSACTIONS_SEARCH: '/api/transactions/search',
-  
+
   // Meta
   META_ACCOUNTS: '/api/meta/accounts',
   META_FILTERS: '/api/meta/filters',
-  
+
   // Analytics
   ANALYTICS_KPIS: '/api/analytics/kpis',
   ANALYTICS_CHARTS_INCOME_EXPENSE: '/api/analytics/charts/income-expense',
   ANALYTICS_CHARTS_CATEGORIES: '/api/analytics/charts/categories',
   ANALYTICS_CHARTS_MONTHLY_TRENDS: '/api/analytics/charts/monthly-trends',
-  
+
   // Calculations
   CALCULATIONS_TOTALS: '/api/calculations/totals',
   CALCULATIONS_ACCOUNT_BALANCES: '/api/calculations/account-balances',

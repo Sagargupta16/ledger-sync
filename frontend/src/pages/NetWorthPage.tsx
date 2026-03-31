@@ -346,12 +346,12 @@ export default function NetWorthPage() {
     () => preferences?.investment_account_mappings || {},
     [preferences?.investment_account_mappings]
   )
-  
+
   // Helper to get account type (for display in tables) - uses classifications from preferences
   const getAccountType = (accountName: string): string => {
     return resolveAccountType(accountName, classifications, investmentMappings)
   }
-  
+
   // Categorize accounts - uses classifications from preferences - memoized with useCallback
   const categorizeAccount = useCallback((accountName: string) => {
     return resolveAccountCategory(accountName, classifications, investmentMappings)
@@ -376,7 +376,7 @@ export default function NetWorthPage() {
 
   // totalPositive is the same as totalAssets - memoize to avoid prop changes
   const totalPositive = useMemo(() => totalAssets, [totalAssets])
-  
+
   // Calculate proportions dynamically based on actual categories
   const categoryProportions = useMemo(() => {
     const props: Record<string, number> = {}

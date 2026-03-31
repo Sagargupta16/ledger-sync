@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useUpload } from '@/hooks/api/useUpload'
 import { motion } from 'framer-motion'
-import { 
-  Upload, 
-  FileSpreadsheet, 
-  AlertTriangle, 
-  RefreshCw, 
+import {
+  Upload,
+  FileSpreadsheet,
+  AlertTriangle,
+  RefreshCw,
   CheckCircle2,
   ArrowRight,
   Sparkles
@@ -41,7 +41,7 @@ export default function UploadSyncPage() {
     try {
       const result = await uploadMutation.mutateAsync({ file, force })
       setSelectedFile(null)
-      
+
       // Show success toast with stats
       const { inserted, updated, deleted, unchanged } = result.stats
       const parts = [`${inserted} inserted`]
@@ -62,7 +62,7 @@ export default function UploadSyncPage() {
           duration: 5000,
         })
       } else {
-        toast.error('Upload Failed', { 
+        toast.error('Upload Failed', {
           description: errorMessage,
           duration: 5000,
         })
@@ -103,7 +103,7 @@ export default function UploadSyncPage() {
           {/* Background decoration */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px]" />
           <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          
+
           <div className="relative p-8 md:p-10">
             <div className="flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 items-center">
               {/* Left: Title & Info */}
@@ -118,7 +118,7 @@ export default function UploadSyncPage() {
                 <p className="text-lg text-muted-foreground max-w-md">
                   Import your Excel transactions. We'll automatically detect changes and sync your data.
                 </p>
-                
+
                 {/* Feature bullets */}
                 <div className="flex flex-wrap gap-4 pt-2">
                   {[
@@ -148,7 +148,7 @@ export default function UploadSyncPage() {
                   )}
                 >
                   <input {...getInputProps()} />
-                  
+
                   {uploadMutation.isPending ? (
                     <div className="flex flex-col items-center gap-4">
                       <div className="relative">
@@ -252,8 +252,8 @@ export default function UploadSyncPage() {
                 </thead>
                 <tbody>
                   {SAMPLE_EXCEL_DATA.map((row) => (
-                    <tr 
-                      key={`${row.date}-${row.amount}-${row.note}`} 
+                    <tr
+                      key={`${row.date}-${row.amount}-${row.note}`}
                       className="border-b border-border hover:bg-white/10 transition-colors even:bg-white/5"
                     >
                       <td className="px-4 py-2.5 text-foreground font-mono text-xs">{row.date}</td>
@@ -277,12 +277,12 @@ export default function UploadSyncPage() {
                 </tbody>
               </table>
             </div>
-            
+
             {/* Footer tip */}
             <div className="px-4 py-3 border-t border-border bg-white/5 flex items-center gap-2">
               <ArrowRight className="w-4 h-4 text-primary shrink-0" />
               <p className="text-xs text-muted-foreground">
-                Column names are flexible — <span className="text-foreground">"Period"</span> or <span className="text-foreground">"Date"</span> both work. 
+                Column names are flexible — <span className="text-foreground">"Period"</span> or <span className="text-foreground">"Date"</span> both work.
                 Export from Money Manager Pro for best results.
               </p>
             </div>
@@ -292,4 +292,3 @@ export default function UploadSyncPage() {
     </div>
   )
 }
-

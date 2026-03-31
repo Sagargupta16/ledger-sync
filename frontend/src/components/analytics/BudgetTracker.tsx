@@ -22,15 +22,15 @@ export default function BudgetTracker() {
   const currentMonthSpending = useMemo(() => {
     const now = new Date()
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    
+
     const spending: Record<string, number> = {}
-    
+
     transactions
       .filter((tx) => tx.type === 'Expense' && tx.date.startsWith(currentMonth))
       .forEach((tx) => {
         spending[tx.category] = (spending[tx.category] || 0) + Math.abs(tx.amount)
       })
-    
+
     return spending
   }, [transactions])
 
@@ -54,12 +54,12 @@ export default function BudgetTracker() {
       const spent = currentMonthSpending[budget.category] || 0
       const percentage = budget.limit > 0 ? (spent / budget.limit) * 100 : 0
       const remaining = budget.limit - spent
-      
+
       let status: 'safe' | 'warning' | 'danger' | 'exceeded' = 'safe'
       if (percentage >= 100) status = 'exceeded'
       else if (percentage >= 80) status = 'danger'
       else if (percentage >= 60) status = 'warning'
-      
+
       return {
         ...budget,
         spent,
@@ -270,7 +270,7 @@ export default function BudgetTracker() {
                   )}
                 </div>
               </div>
-              
+
               {/* Progress Bar */}
               <div className="h-2 bg-black/20 rounded-full overflow-hidden mb-2">
                 <div
@@ -278,12 +278,12 @@ export default function BudgetTracker() {
                   style={{ width: `${Math.min(100, budget.percentage)}%` }}
                 />
               </div>
-              
+
               <div className="flex justify-between text-xs">
                 <span>Spent: {formatCurrency(budget.spent)}</span>
                 <span>Budget: {formatCurrency(budget.limit)}</span>
               </div>
-              
+
               {budget.remaining < 0 ? (
                 <p className="text-xs mt-1 text-ios-red">
                   Over budget by {formatCurrency(Math.abs(budget.remaining))}

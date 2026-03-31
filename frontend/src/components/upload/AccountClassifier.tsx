@@ -39,7 +39,7 @@ export default function AccountClassifier() {
   if (accounts.length === 0) return null
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
@@ -49,7 +49,7 @@ export default function AccountClassifier() {
         <Settings2 className="w-5 h-5 text-primary" />
         <h3 className="text-lg font-semibold">Account Configuration</h3>
       </div>
-      
+
       <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-border overflow-hidden">
         <table className="w-full text-left">
           <thead>
