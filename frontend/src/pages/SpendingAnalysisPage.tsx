@@ -12,6 +12,7 @@ import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferen
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { filterTransactionsByDateRange, computeCategoryBreakdown } from '@/lib/transactionUtils'
 import EmptyState from '@/components/shared/EmptyState'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import {
   ExpenseTreemap,
@@ -219,6 +220,8 @@ export default function SpendingAnalysisPage() {
   )
 
   const isLoading = !transactions
+
+  if (isLoading) return <PageSkeleton />
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">

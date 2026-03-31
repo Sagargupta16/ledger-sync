@@ -41,6 +41,56 @@ export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>
   )
 }
 
+export function SectionSkeleton({ title = true, children }: Readonly<{ title?: boolean; children?: React.ReactNode }>) {
+  return (
+    <div className="glass rounded-xl border border-border p-6 space-y-4">
+      {title && <LoadingSkeleton className="h-5 w-40" />}
+      {children ?? (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }, (_, i) => <LoadingSkeleton key={i} className="h-16 w-full rounded-xl" />)}
+          </div>
+          <LoadingSkeleton className="h-48 w-full rounded-xl" />
+        </>
+      )}
+    </div>
+  )
+}
+
+export function CardGridSkeleton({ count = 4, cols = 'grid-cols-2 lg:grid-cols-4' }: Readonly<{ count?: number; cols?: string }>) {
+  return (
+    <div className={`grid ${cols} gap-4`}>
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="glass rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <LoadingSkeleton className="w-8 h-8 rounded-lg" />
+            <LoadingSkeleton className="h-3 w-20" />
+          </div>
+          <LoadingSkeleton className="h-5 w-24" />
+          <LoadingSkeleton className="h-2 w-16" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function PageSkeleton() {
+  return (
+    <div className="p-4 md:p-6 lg:p-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <LoadingSkeleton className="h-7 w-48" />
+          <LoadingSkeleton className="h-4 w-72" />
+        </div>
+        <LoadingSkeleton className="h-10 w-32 rounded-xl" />
+      </div>
+      <CardGridSkeleton />
+      <ChartSkeleton />
+      <ChartSkeleton height="h-64" />
+    </div>
+  )
+}
+
 export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
   return (
     <div className="glass rounded-xl overflow-hidden">

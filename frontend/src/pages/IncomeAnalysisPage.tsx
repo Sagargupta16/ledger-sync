@@ -3,6 +3,7 @@ import { rawColors } from '@/constants/colors'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -141,6 +142,8 @@ export default function IncomeAnalysisPage() {
   }, [monthlyTrendData])
 
   const isLoading = !transactions
+
+  if (isLoading) return <PageSkeleton />
 
   let growthColor: 'green' | 'red' | 'blue' = 'blue'
   if (growthRate > 0) growthColor = 'green'

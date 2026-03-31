@@ -81,7 +81,10 @@ def apply_earning_start_date(
 
     if current_start is None:
         return earning_dt
-    return max(current_start, earning_dt)
+    # Ensure both datetimes are comparable (strip tzinfo for comparison)
+    naive_earning = earning_dt.replace(tzinfo=None)
+    naive_start = current_start.replace(tzinfo=None)
+    return current_start if naive_start >= naive_earning else earning_dt
 
 
 # ---------------------------------------------------------------------------

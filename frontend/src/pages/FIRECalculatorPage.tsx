@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Flame, Calculator } from 'lucide-react'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useTotals } from '@/hooks/api/useAnalytics'
 import { formatCurrency } from '@/lib/formatters'
 import { computeFIRE, computeRetirementCorpus } from '@/lib/fireCalculator'
@@ -44,7 +45,7 @@ function savingsRateSubtitle(rate: number): string {
 }
 
 export default function FIRECalculatorPage() {
-  const { data: transactions = [] } = useTransactions()
+  const { data: transactions = [], isLoading } = useTransactions()
   const { data: totals } = useTotals()
   const [activeTab, setActiveTab] = useState<'fire' | 'retirement'>('fire')
 
@@ -88,6 +89,8 @@ export default function FIRECalculatorPage() {
     yearsToRetirement: retirementYears,
     swr: swr / 100,
   }), [autoValues.monthlyExpenses, inflation, expectedReturn, retirementYears, swr])
+
+  if (isLoading) return <PageSkeleton />
 
   return (
     <div className="p-4 md:p-6 lg:p-8">

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import { Wallet, CreditCard } from 'lucide-react'
 import QuickInsights from '@/components/shared/QuickInsights'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore } from '@/components/analytics'
@@ -25,7 +26,7 @@ export default function DashboardPage() {
     currentFY, setCurrentFY,
     fiscalYearStartMonth,
     dataDateRange, dateRange,
-    filteredTotals, filteredTransactions,
+    filteredTotals, filteredTransactions, isLoading,
     incomeBreakdown, cashbacksTotal,
     incomeChartData, incomeColorStyles,
     expenseChartData, expenseColorStyles,
@@ -56,6 +57,8 @@ export default function DashboardPage() {
 
   const incomeTotal = useMemo(() => incomeChartData.reduce((sum, d) => sum + d.value, 0), [incomeChartData])
   const expenseTotal = useMemo(() => expenseChartData.reduce((sum, d) => sum + d.value, 0), [expenseChartData])
+
+  if (isLoading) return <PageSkeleton />
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">

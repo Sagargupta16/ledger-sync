@@ -11,6 +11,7 @@ import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefa
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
 // 4 Investment Categories with colors
@@ -385,6 +386,8 @@ export default function InvestmentAnalyticsPage() {
       </div>
     )
   }
+
+  if (isLoading) return <PageSkeleton />
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
