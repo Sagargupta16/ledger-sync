@@ -71,7 +71,7 @@ export default function AppLayout() {
 
       <Sidebar />
       <main id="main-content" className="flex-1 overflow-auto relative z-10">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout">
           <motion.div key={location.pathname} {...pageTransition}>
             <Outlet />
           </motion.div>

@@ -18,7 +18,7 @@ function buildServerFilters(
   itemsPerPage: number,
 ): ServiceFilters {
   const sortField = sorting[0]?.id ?? 'date'
-  const sortOrder: 'asc' | 'desc' = sorting[0]?.desc ?? true ? 'desc' : 'asc'
+  const sortOrder: 'asc' | 'desc' = (sorting[0]?.desc ?? true) ? 'desc' : 'asc'
 
   return {
     query: filters.query || undefined,

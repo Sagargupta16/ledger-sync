@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
@@ -143,9 +143,13 @@ function AuthInitializer({ children }: Readonly<{ children: React.ReactNode }>) 
   // This replaces the arbitrary setTimeout approach.
   useAuthInit()
 
-  // Prefetch all lazy page chunks once auth is resolved
+  // Prefetch all lazy page chunks once (after auth is resolved)
+  const prefetchedRef = useRef(false)
   useEffect(() => {
-    prefetchAllPages()
+    if (!prefetchedRef.current) {
+      prefetchedRef.current = true
+      prefetchAllPages()
+    }
   }, [])
 
   return <>{children}</>
