@@ -1,25 +1,29 @@
 services:
   - type: web
-    name: ledger-sync-api
+    name: ledger-sync
     runtime: python
+    plan: free
     region: singapore
+    branch: main
     rootDir: backend
+    autoDeploy: true
     buildCommand: pip install uv && uv sync --no-group dev && uv run alembic upgrade head
     startCommand: uv run uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
-        value: "3.12.0"
+        value: "3.12"
       - key: LEDGER_SYNC_ENVIRONMENT
         value: production
       - key: LEDGER_SYNC_DATABASE_URL
-        sync: false  # Set manually in Render dashboard (Neon connection string)
+        sync: false  # Neon pooler connection string (set in Render dashboard)
       - key: LEDGER_SYNC_JWT_SECRET_KEY
-        generateValue: true  # Render auto-generates a random secret
+        generateValue: true
       - key: LEDGER_SYNC_CORS_ORIGINS
-        value: '["https://sagargupta16.github.io", "https://sagargupta.online", "https://www.sagargupta.online", "http://localhost:5173"]'
+        value: '["https://sagargupta16.github.io", "https://sagargupta.online", "https://www.sagargupta.online"]'
       - key: LEDGER_SYNC_FRONTEND_URL
         value: "https://sagargupta.online/ledger-sync"
-      # OAuth (optional — set in Render dashboard to enable)
+      # OAuth (set in Render dashboard to enable)
       - key: LEDGER_SYNC_GOOGLE_CLIENT_ID
         sync: false
       - key: LEDGER_SYNC_GOOGLE_CLIENT_SECRET
@@ -28,4 +32,3 @@ services:
         sync: false
       - key: LEDGER_SYNC_GITHUB_CLIENT_SECRET
         sync: false
-    healthCheckPath: /health
