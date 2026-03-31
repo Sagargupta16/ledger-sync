@@ -24,10 +24,11 @@ _engine_kwargs: dict[str, object] = {
 if _is_sqlite:
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
 else:
-    # PostgreSQL production pool settings
-    _engine_kwargs["pool_size"] = 20
-    _engine_kwargs["max_overflow"] = 10
+    # PostgreSQL pool settings — sized for Neon free tier (limited connections).
+    _engine_kwargs["pool_size"] = 5
+    _engine_kwargs["max_overflow"] = 3
     _engine_kwargs["pool_pre_ping"] = True
+    _engine_kwargs["pool_recycle"] = 300  # recycle connections every 5 min (Neon idle timeout)
     _engine_kwargs["connect_args"] = {"connect_timeout": 10}
 
 engine = create_engine(_db_url, **_engine_kwargs)

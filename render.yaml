@@ -7,8 +7,8 @@ services:
     branch: main
     rootDir: backend
     autoDeploy: true
-    buildCommand: pip install uv && uv sync --no-group dev && uv run alembic upgrade head
-    startCommand: uv run uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install uv && uv sync --no-group dev && uv run python -m alembic upgrade head
+    startCommand: uv run python -m uvicorn ledger_sync.api.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
