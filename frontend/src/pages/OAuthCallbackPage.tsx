@@ -31,6 +31,7 @@ export default function OAuthCallbackPage() {
     processedRef.current = true
 
     const code = searchParams.get('code')
+    const state = searchParams.get('state')
     const error = searchParams.get('error')
 
     if (error) {
@@ -47,8 +48,8 @@ export default function OAuthCallbackPage() {
 
     const handleCallback = async () => {
       try {
-        // Exchange code for tokens
-        const tokens = await authApi.oauthCallback(provider, code)
+        // Exchange code for tokens (state is validated server-side)
+        const tokens = await authApi.oauthCallback(provider, code, state ?? undefined)
         setTokens(tokens)
 
         // Fetch user profile
