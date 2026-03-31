@@ -31,11 +31,15 @@ export const transactionsService = {
    * Uses the dedicated /all endpoint — single request, no pagination loop.
    */
   getTransactions: async (filters?: TransactionFilters): Promise<Transaction[]> => {
-    // If a specific limit is provided, use the paginated endpoint
+    // If a specific limit is provided, use the search endpoint (supports all filters)
     if (filters?.limit) {
-      const response = await apiClient.get<PaginatedResponse<Transaction> | Transaction[]>('/api/transactions', {
-        params: filters,
-      })
+      const { sort, ...rest } = filters
+      const response = await apiClient.get<PaginatedResponse<Transaction> | Transaction[]>(
+        '/api/transactions/search',
+        {
+          params: { ...rest, sort_by: sort },
+        },
+      )
       if (Array.isArray(response.data)) {
         return response.data
       }
@@ -53,8 +57,9 @@ export const transactionsService = {
   },
 
   getTransactionsPaginated: async (filters?: TransactionFilters): Promise<PaginatedResponse<Transaction>> => {
-    const response = await apiClient.get<PaginatedResponse<Transaction>>('/api/transactions', {
-      params: { ...filters, limit: filters?.limit || 100 },
+    const { sort, ...rest } = filters || {}
+    const response = await apiClient.get<PaginatedResponse<Transaction>>('/api/transactions/search', {
+      params: { ...rest, sort_by: sort, limit: rest.limit || 100 },
     })
     return response.data
   },

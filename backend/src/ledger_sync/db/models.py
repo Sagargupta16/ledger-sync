@@ -107,7 +107,9 @@ class RecurrenceFrequency(PyEnum):
     WEEKLY = "weekly"
     BIWEEKLY = "biweekly"
     MONTHLY = "monthly"
+    BIMONTHLY = "bimonthly"
     QUARTERLY = "quarterly"
+    SEMIANNUAL = "semiannual"
     YEARLY = "yearly"
 
 

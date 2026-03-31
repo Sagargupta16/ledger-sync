@@ -1,48 +1,4 @@
 import { rawColors } from '@/constants/colors'
-import { CONFIRMED_SUBS_KEY, MANUAL_SUBS_KEY } from './types'
-import type { ManualSubscription } from './types'
-
-// ---------------------------------------------------------------------------
-// localStorage helpers
-// ---------------------------------------------------------------------------
-
-export function loadConfirmedIds(): Set<string> {
-  try {
-    const raw = localStorage.getItem(CONFIRMED_SUBS_KEY)
-    if (!raw) return new Set()
-    return new Set(JSON.parse(raw) as string[])
-  } catch (e) {
-    console.warn('[loadConfirmedIds] Failed to read localStorage:', e)
-    return new Set()
-  }
-}
-
-export function saveConfirmedIds(ids: Set<string>): void {
-  try {
-    localStorage.setItem(CONFIRMED_SUBS_KEY, JSON.stringify([...ids]))
-  } catch (e) {
-    console.warn('[saveConfirmedIds] Failed to write localStorage:', e)
-  }
-}
-
-export function loadManualSubscriptions(): ManualSubscription[] {
-  try {
-    const raw = localStorage.getItem(MANUAL_SUBS_KEY)
-    if (!raw) return []
-    return JSON.parse(raw) as ManualSubscription[]
-  } catch (e) {
-    console.warn('[loadManualSubscriptions] Failed to read localStorage:', e)
-    return []
-  }
-}
-
-export function saveManualSubscriptions(subs: ManualSubscription[]): void {
-  try {
-    localStorage.setItem(MANUAL_SUBS_KEY, JSON.stringify(subs))
-  } catch (e) {
-    console.warn('[saveManualSubscriptions] Failed to write localStorage:', e)
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Frequency / cost helpers
@@ -58,33 +14,17 @@ export function getAnnualFactor(frequency: string | null): number {
       return 26
     case 'monthly':
       return 12
+    case 'bimonthly':
+      return 6
     case 'quarterly':
       return 4
+    case 'semiannual':
+      return 2
     case 'yearly':
     case 'annually':
       return 1
     default:
-      return 12 // default to monthly if unknown
-  }
-}
-
-/** Expected interval in days for a given frequency */
-export function getExpectedIntervalDays(frequency: string | null): number {
-  switch (frequency?.toLowerCase()) {
-    case 'weekly':
-      return 7
-    case 'fortnightly':
-    case 'biweekly':
-      return 14
-    case 'monthly':
-      return 30
-    case 'quarterly':
-      return 90
-    case 'yearly':
-    case 'annually':
-      return 365
-    default:
-      return 30
+      return 12
   }
 }
 
@@ -92,17 +32,6 @@ export function getExpectedIntervalDays(frequency: string | null): number {
 export function toMonthlyAmount(amount: number, frequency: string | null): number {
   const annualFactor = getAnnualFactor(frequency)
   return (Math.abs(amount) * annualFactor) / 12
-}
-
-/** Determine status based on last occurrence and expected frequency */
-export function getSubscriptionStatus(
-  lastOccurrence: string | null,
-  frequency: string | null,
-): 'active' | 'possibly_inactive' {
-  if (!lastOccurrence) return 'possibly_inactive'
-  const daysSinceLast = (Date.now() - new Date(lastOccurrence).getTime()) / (1000 * 60 * 60 * 24)
-  const expectedInterval = getExpectedIntervalDays(frequency)
-  return daysSinceLast > expectedInterval * 2 ? 'possibly_inactive' : 'active'
 }
 
 /** Format a date string as a readable date */
@@ -115,10 +44,15 @@ export function formatDate(dateStr: string | null): string {
   })
 }
 
-/** Capitalize first letter of a string */
+/** Human-readable frequency label */
 export function capitalize(str: string | null): string {
   if (!str) return 'Unknown'
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+  const labels: Record<string, string> = {
+    bimonthly: 'Bimonthly',
+    semiannual: 'Semi-annual',
+    biweekly: 'Biweekly',
+  }
+  return labels[str.toLowerCase()] ?? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
 }
 
 /** Return the confidence indicator color based on percentage threshold */

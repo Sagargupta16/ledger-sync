@@ -95,6 +95,7 @@ export interface RecurringTransaction {
   last_occurrence: string | null
   next_expected: string | null
   times_missed: number
+  is_active: boolean
   is_confirmed: boolean
 }
 
@@ -257,6 +258,45 @@ export const analyticsV2Service = {
       { params },
     )
     return response.data.data
+  },
+
+  async updateRecurringTransaction(
+    id: number,
+    body: {
+      pattern_name?: string
+      frequency?: string
+      expected_amount?: number
+      is_confirmed?: boolean
+      is_active?: boolean
+    },
+  ) {
+    const response = await apiClient.patch<{ status: string; id: number }>(
+      `/api/analytics/v2/recurring-transactions/${id}`,
+      body,
+    )
+    return response.data
+  },
+
+  async createRecurringTransaction(body: {
+    name: string
+    type: string
+    frequency: string
+    amount: number
+    category?: string
+    expected_day?: number
+  }) {
+    const response = await apiClient.post<{ status: string; id: number }>(
+      '/api/analytics/v2/recurring-transactions',
+      body,
+    )
+    return response.data
+  },
+
+  async deleteRecurringTransaction(id: number) {
+    const response = await apiClient.delete<{ status: string; id: number }>(
+      `/api/analytics/v2/recurring-transactions/${id}`,
+    )
+    return response.data
   },
 
   // Merchant Intelligence
