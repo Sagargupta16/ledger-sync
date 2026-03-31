@@ -20,6 +20,7 @@ import {
   YearOverYearComparison,
   RecurringTransactions,
   TopMerchants,
+  CohortSpendingAnalysis,
 } from '@/components/analytics'
 import { chartTooltipProps, PageHeader, ChartContainer, shouldAnimate, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, ACTIVE_DOT, LEGEND_DEFAULTS } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
@@ -606,6 +607,11 @@ export default function SpendingAnalysisPage() {
         {/* Subcategory Deep-Dive */}
         <motion.div {...SCROLL_FADE_UP}>
           <EnhancedSubcategoryAnalysis dateRange={dateRangeCompat} />
+        </motion.div>
+
+        {/* Spending Patterns (Day/Date/Seasonal) */}
+        <motion.div {...SCROLL_FADE_UP}>
+          <CohortSpendingAnalysis />
         </motion.div>
 
         {/* Year-over-Year & Recurring */}

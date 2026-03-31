@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { SCROLL_FADE_UP } from '@/constants/animations'
-import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard, CalendarClock, Lock } from 'lucide-react'
+import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard, CalendarClock, Lock, Hourglass, ShieldCheck } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import RecentTransactions from '@/components/shared/RecentTransactions'
 import QuickInsights from '@/components/shared/QuickInsights'
@@ -14,6 +14,7 @@ import { PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
+import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
 import { usePreferences } from '@/hooks/api/usePreferences'
 
 
@@ -110,6 +111,17 @@ export default function DashboardPage() {
   if (daysToPayday === 0) paydayLabel = 'Today!'
   else if (daysToPayday !== null) paydayLabel = `${daysToPayday} day${daysToPayday === 1 ? '' : 's'}`
 
+  // Age of Money (FIFO) and Days of Buffering
+  const ageOfMoney = useMemo(
+    () => filteredTransactions?.length ? computeAgeOfMoney(filteredTransactions) : null,
+    [filteredTransactions],
+  )
+  const daysOfBuffering = useMemo(() => {
+    if (!filteredTransactions?.length || !filteredTotals) return null
+    const liquidBalance = (filteredTotals.total_income ?? 0) - Math.abs(filteredTotals.total_expenses ?? 0)
+    return computeDaysOfBuffering(liquidBalance, filteredTransactions)
+  }, [filteredTransactions, filteredTotals])
+
   const incomeTotal = useMemo(
     () => incomeChartData.reduce((sum, d) => sum + d.value, 0),
     [incomeChartData],
@@ -187,9 +199,29 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Secondary Indicators: Fixed Commitments & Days Until Payday */}
-      {(fixedExpenseCategories.length > 0 || daysToPayday !== null) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Secondary Indicators */}
+      {(fixedExpenseCategories.length > 0 || daysToPayday !== null || ageOfMoney !== null || daysOfBuffering !== null) && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {ageOfMoney !== null && (
+            <MetricCard
+              title="Age of Money"
+              value={`${ageOfMoney} days`}
+              icon={Hourglass}
+              color="indigo"
+              isLoading={isLoading}
+              subtitle={ageOfMoney >= 30 ? 'Healthy buffer' : ageOfMoney >= 15 ? 'Building runway' : 'Living paycheck to paycheck'}
+            />
+          )}
+          {daysOfBuffering !== null && (
+            <MetricCard
+              title="Days of Buffering"
+              value={`${daysOfBuffering} days`}
+              icon={ShieldCheck}
+              color="teal"
+              isLoading={isLoading}
+              subtitle="At current spending rate"
+            />
+          )}
           {fixedExpenseCategories.length > 0 && (
             <MetricCard
               title="Fixed Commitments"
@@ -205,7 +237,7 @@ export default function DashboardPage() {
               title="Days Until Payday"
               value={paydayLabel}
               icon={CalendarClock}
-              color="teal"
+              color="yellow"
               isLoading={isLoading}
               subtitle={`Payday is on the ${payday}${getOrdinalSuffix(payday)} of each month`}
             />

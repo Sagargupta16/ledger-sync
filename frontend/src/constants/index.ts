@@ -37,6 +37,9 @@ export const ROUTES = {
   // Trends & Forecasts
   TRENDS_FORECASTS: '/forecasts',
 
+  // FIRE & Retirement
+  FIRE_CALCULATOR: '/fire-calculator',
+
   // Insights & Monitoring
   ANOMALIES: '/anomalies',
   GOALS: '/goals',

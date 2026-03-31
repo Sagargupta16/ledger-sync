@@ -9,6 +9,18 @@ import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
+function getEmergencyFundMonths(cv: number): string {
+  if (cv < 0.1) return '3-month'
+  if (cv < 0.3) return '6-month'
+  return '9-12 month'
+}
+
+function getCVDescription(cv: number): string {
+  if (cv < 0.1) return ' -- Your income is highly predictable (salaried pattern)'
+  if (cv < 0.3) return ' -- Moderate variability in income streams'
+  return ' -- High variability suggests freelance/irregular income'
+}
+
 function getStabilityColor(score: number): string {
   if (score >= 70) return rawColors.ios.green
   if (score >= 40) return rawColors.ios.yellow
@@ -24,7 +36,7 @@ function getStabilityLabel(score: number): string {
 export default function IncomeStabilityIndex() {
   const { data: transactions = [] } = useTransactions()
 
-  const { sources, overallScore } = useMemo(() => {
+  const { sources, overallScore, overallCV } = useMemo(() => {
     const incomeByCategory: Record<string, Record<string, number>> = {}
     const allMonthsSet = new Set<string>()
 
@@ -38,7 +50,7 @@ export default function IncomeStabilityIndex() {
     }
 
     const allMonths = [...allMonthsSet].sort((a, b) => a.localeCompare(b))
-    if (allMonths.length < 2) return { sources: [], overallScore: 0 }
+    if (allMonths.length < 2) return { sources: [], overallScore: 0, overallCV: 0 }
 
     const results: Array<{ name: string; score: number; mean: number; total: number }> = []
     let totalIncome = 0
@@ -62,8 +74,10 @@ export default function IncomeStabilityIndex() {
     // Weighted average
     const weighted = topSources.reduce((sum, s) => sum + s.score * s.total, 0)
     const overall = totalIncome > 0 ? Math.round(weighted / totalIncome) : 0
+    // CV = (100 - score) / 100 for CFP classification
+    const cv = (100 - overall) / 100
 
-    return { sources: topSources, overallScore: overall }
+    return { sources: topSources, overallScore: overall, overallCV: cv }
   }, [transactions])
 
   const scoreColor = getStabilityColor(overallScore)
@@ -136,6 +150,28 @@ export default function IncomeStabilityIndex() {
                 <span className="text-xs text-text-tertiary">{item.label}</span>
               </div>
             ))}
+          </div>
+
+          {/* Emergency Fund Recommendation (CFP standard) */}
+          <div
+            className="mt-5 rounded-xl border p-4"
+            style={{
+              borderColor: `${scoreColor}30`,
+              backgroundColor: `${scoreColor}08`,
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: scoreColor }} />
+              <div>
+                <p className="text-sm font-medium text-white">
+                  Recommended: {getEmergencyFundMonths(overallCV)} emergency fund
+                </p>
+                <p className="text-xs text-text-tertiary mt-1">
+                  Coefficient of Variation: {(overallCV * 100).toFixed(1)}%
+                  {getCVDescription(overallCV)}
+                </p>
+              </div>
+            </div>
           </div>
         </>
       )}

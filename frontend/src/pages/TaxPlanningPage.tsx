@@ -16,6 +16,7 @@ import {
   getTaxSlabs,
   getNewRegimeSlabs,
 } from '@/lib/taxCalculator'
+import { computeAdvanceTaxSchedule, formatDueDate } from '@/lib/advanceTaxCalculator'
 import type { TaxSlab, SlabBreakdownEntry } from '@/lib/taxCalculator'
 import type { Transaction } from '@/types'
 import { PageHeader, ChartContainer, chartTooltipProps, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS, ACTIVE_DOT } from '@/components/ui'
@@ -648,6 +649,13 @@ export default function TaxPlanningPage() {
           />
         </motion.div>
 
+        {/* Advance Tax Schedule */}
+        {isCurrentFY && displayTotalTax > 10000 && (
+          <motion.div variants={fadeUpItem}>
+            <AdvanceTaxScheduleSection totalTax={displayTotalTax} />
+          </motion.div>
+        )}
+
         {/* Effective Tax Rate Curve */}
         <EffectiveTaxRateChart
           taxSlabs={taxSlabs}
@@ -815,15 +823,94 @@ function TaxTip({ title, amount, description }: Readonly<{ title: string; amount
   )
 }
 
-/** Regime comparison — shows tax under both regimes and breakeven deduction amount */
+/** Advance tax quarterly schedule section */
+function AdvanceTaxScheduleSection({ totalTax }: Readonly<{ totalTax: number }>) {
+  const schedule = useMemo(() => computeAdvanceTaxSchedule(totalTax, 0), [totalTax])
+
+  return (
+    <div className="glass rounded-2xl border border-border p-4 md:p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2.5 bg-ios-orange/20 rounded-xl">
+          <ChevronRight className="w-5 h-5 text-ios-orange" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold">Advance Tax Schedule</h3>
+          <p className="text-xs text-muted-foreground">
+            Quarterly installments -- Total advance tax: {formatCurrency(schedule.advanceTaxDue)}
+          </p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-2 px-3 text-muted-foreground font-medium">Quarter</th>
+              <th className="text-left py-2 px-3 text-muted-foreground font-medium">Due Date</th>
+              <th className="text-right py-2 px-3 text-muted-foreground font-medium">This Quarter</th>
+              <th className="text-right py-2 px-3 text-muted-foreground font-medium">Cumulative</th>
+              <th className="text-center py-2 px-3 text-muted-foreground font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {schedule.quarters.map((q) => {
+              const isNext = schedule.nextDueQuarter?.quarter === q.quarter
+              return (
+                <tr
+                  key={q.quarter}
+                  className={`border-b border-border/50 ${isNext ? 'bg-ios-orange/[0.06]' : ''}`}
+                >
+                  <td className="py-2.5 px-3 font-medium">
+                    {q.quarter} ({q.cumulativePercent}%)
+                    {isNext && <span className="ml-1.5 text-xs text-ios-orange font-semibold">NEXT</span>}
+                  </td>
+                  <td className="py-2.5 px-3">{formatDueDate(q.dueDate)}</td>
+                  <td className="py-2.5 px-3 text-right font-medium">{formatCurrency(q.quarterAmount)}</td>
+                  <td className="py-2.5 px-3 text-right text-muted-foreground">{formatCurrency(q.cumulativeAmount)}</td>
+                  <td className="py-2.5 px-3 text-center">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                      q.status === 'overdue'
+                        ? 'bg-ios-red/20 text-ios-red'
+                        : isNext
+                          ? 'bg-ios-orange/20 text-ios-orange'
+                          : 'bg-white/5 text-muted-foreground'
+                    }`}>
+                      {q.status === 'overdue' ? 'Overdue' : isNext ? 'Upcoming' : 'Upcoming'}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-text-tertiary mt-3">
+        Advance tax applies if total tax liability exceeds Rs 10,000. Interest under Sec 234B/234C applies for late/short payment.
+      </p>
+    </div>
+  )
+}
+
+/** Regime comparison — shows tax under both regimes with optional deduction inputs */
 function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonthsCount }: Readonly<{
   grossIncome: number
   fyYear: number
   standardDeduction: number
   salaryMonthsCount: number
 }>) {
+  const [sec80C, setSec80C] = useState(0)
+  const [sec80D, setSec80D] = useState(0)
+  const [hra, setHra] = useState(0)
+  const [sec24b, setSec24b] = useState(0)
+  const [showDeductions, setShowDeductions] = useState(false)
+
+  const totalDeductions = sec80C + sec80D + hra + sec24b
+
   const newTax = calculateTax(grossIncome, getTaxSlabs(fyYear, 'new'), standardDeduction, true, salaryMonthsCount, true, fyYear)
-  const oldTax = calculateTax(grossIncome, getTaxSlabs(fyYear, 'old'), standardDeduction, true, salaryMonthsCount, false, fyYear)
+  // Apply user deductions to old regime income
+  const oldRegimeIncome = Math.max(0, grossIncome - totalDeductions)
+  const oldTax = calculateTax(oldRegimeIncome, getTaxSlabs(fyYear, 'old'), standardDeduction, true, salaryMonthsCount, false, fyYear)
 
   const newTotal = newTax.totalTax
   const oldTotal = oldTax.totalTax
@@ -833,11 +920,8 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
   const betterRegime = newIsBetter ? 'New Regime' : 'Old Regime'
 
   // Calculate how much deduction needed in Old Regime to beat New Regime
-  // Old regime tax decreases as deductions increase. Find the deduction amount
-  // where old regime tax = new regime tax.
   let breakEvenDeduction = 0
   if (newIsBetter && grossIncome > 0) {
-    // Search for the deduction amount that makes old regime equal to new
     for (let d = 0; d <= 1000000; d += 10000) {
       const oldWithDeductions = calculateTax(
         Math.max(0, grossIncome - d), getTaxSlabs(fyYear, 'old'),
@@ -874,9 +958,38 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
           <p className="text-xl font-bold text-foreground">{formatCurrency(oldTotal)}</p>
           <p className="text-xs text-muted-foreground mt-1">
             Effective rate: {grossIncome > 0 ? ((oldTotal / grossIncome) * 100).toFixed(1) : '0'}%
-            <span className="text-text-quaternary"> (without deductions)</span>
+            {totalDeductions > 0 && (
+              <span className="text-ios-green"> (with {formatCurrency(totalDeductions)} deductions)</span>
+            )}
+            {totalDeductions === 0 && (
+              <span className="text-text-quaternary"> (without deductions)</span>
+            )}
           </p>
         </div>
+      </div>
+
+      {/* Deduction Inputs */}
+      <div className="rounded-xl border border-border bg-white/[0.02] p-4">
+        <button
+          type="button"
+          onClick={() => setShowDeductions(!showDeductions)}
+          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-white transition-colors w-full"
+        >
+          {showDeductions ? <ChevronLeft className="w-4 h-4 rotate-[-90deg]" /> : <ChevronRight className="w-4 h-4" />}
+          Enter your deductions to compare accurately
+          {totalDeductions > 0 && (
+            <span className="ml-auto text-xs text-ios-green font-semibold">Total: {formatCurrency(totalDeductions)}</span>
+          )}
+        </button>
+
+        {showDeductions && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+            <DeductionInput label="Sec 80C" sublabel="PPF, ELSS, LIC (max 1.5L)" value={sec80C} max={150000} onChange={setSec80C} />
+            <DeductionInput label="Sec 80D" sublabel="Health Insurance (max 75K)" value={sec80D} max={75000} onChange={setSec80D} />
+            <DeductionInput label="HRA" sublabel="House Rent Allowance" value={hra} max={500000} onChange={setHra} />
+            <DeductionInput label="Sec 24(b)" sublabel="Home Loan Interest (max 2L)" value={sec24b} max={200000} onChange={setSec24b} />
+          </div>
+        )}
       </div>
 
       {/* Verdict */}
@@ -886,14 +999,14 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
           {' saves you '}
           <span className="font-semibold text-ios-green">{formatCurrency(diff)}</span>
           {' more'}
-          {newIsBetter ? ' (without any deductions).' : ' even without deductions — you already benefit from lower slab rates.'}
+          {newIsBetter && totalDeductions === 0 ? ' (without any deductions).' : '.'}
         </p>
 
-        {newIsBetter && breakEvenDeduction > 0 && (
+        {newIsBetter && totalDeductions === 0 && breakEvenDeduction > 0 && (
           <p className="text-sm mt-2 text-muted-foreground">
             Old Regime becomes better only if you claim at least{' '}
             <span className="font-semibold text-foreground">{formatCurrency(breakEvenDeduction)}</span>
-            {' '}in deductions (80C + 80D + HRA + 24b etc). If your total deductions are less than this, stick with New Regime.
+            {' '}in deductions (80C + 80D + HRA + 24b etc). Enter your deductions above to check.
           </p>
         )}
 
@@ -903,12 +1016,45 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
           </p>
         )}
 
+        {newIsBetter && totalDeductions > 0 && (
+          <p className="text-sm mt-2 text-muted-foreground">
+            Even with {formatCurrency(totalDeductions)} in deductions, New Regime is cheaper. You need {formatCurrency(Math.max(0, breakEvenDeduction - totalDeductions))} more in deductions for Old Regime to win.
+          </p>
+        )}
+
         {oldIsBetter && (
           <p className="text-sm mt-2 text-muted-foreground">
-            The Old Regime&apos;s higher slab rates are offset by the deductions available. Make sure you&apos;re claiming all eligible deductions (80C: 1.5L, 80D, HRA, 24b) to maximize the benefit.
+            {totalDeductions > 0
+              ? `With ${formatCurrency(totalDeductions)} in deductions, Old Regime saves you more. Make sure to claim all these deductions when filing.`
+              : "The Old Regime's higher slab rates are offset by deductions available. Enter your deductions above to see exact savings."}
           </p>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Deduction input field for the regime comparison calculator */
+function DeductionInput({ label, sublabel, value, max, onChange }: Readonly<{
+  label: string
+  sublabel: string
+  value: number
+  max: number
+  onChange: (v: number) => void
+}>) {
+  return (
+    <div>
+      <label className="text-xs font-medium text-muted-foreground block mb-1">{label}</label>
+      <input
+        type="number"
+        min={0}
+        max={max}
+        value={value || ''}
+        onChange={(e) => onChange(Math.min(max, Math.max(0, Number(e.target.value) || 0)))}
+        placeholder="0"
+        className="w-full px-3 py-1.5 text-sm bg-white/5 border border-border rounded-lg text-foreground placeholder:text-text-quaternary focus:outline-none focus:ring-1 focus:ring-ios-blue/50"
+      />
+      <span className="text-caption text-text-quaternary mt-0.5 block">{sublabel}</span>
     </div>
   )
 }

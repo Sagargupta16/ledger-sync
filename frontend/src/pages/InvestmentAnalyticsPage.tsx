@@ -9,6 +9,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { PieChart as RechartsPie, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { InstrumentProjections } from '@/components/analytics'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
@@ -547,6 +548,9 @@ export default function InvestmentAnalyticsPage() {
             )
           )}
         </motion.div>
+
+        {/* PPF / EPF / NPS Maturity Projections */}
+        <InstrumentProjections />
 
         {portfolioData.length > 0 && (
           <motion.div
