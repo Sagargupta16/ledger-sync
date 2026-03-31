@@ -270,9 +270,14 @@ export default function QuickInsights({
     return { label, amount }
   })()
 
-  const incomeChange = momChanges?.income != null ? `${momChanges.income > 0 ? '+' : ''}${momChanges.income}% ${momChanges.label}` : ''
-  const expenseChange = momChanges?.expense != null ? `${momChanges.expense > 0 ? '+' : ''}${momChanges.expense}% ${momChanges.label}` : ''
-  const savingsChange = momChanges?.savings != null ? `${momChanges.savings > 0 ? '+' : ''}${momChanges.savings}% ${momChanges.label}` : ''
+  const fmtChange = (v: number | undefined, label: string) => {
+    if (v == null) return ''
+    const sign = v > 0 ? '+' : ''
+    return `${sign}${v}% ${label}`
+  }
+  const incomeChange = fmtChange(momChanges?.income, momChanges?.label ?? '')
+  const expenseChange = fmtChange(momChanges?.expense, momChanges?.label ?? '')
+  const savingsChange = fmtChange(momChanges?.savings, momChanges?.label ?? '')
 
   const quickInsights = [
     { icon: TrendingUp, color: 'text-ios-green', bg: 'bg-ios-green/10', title: 'Total Income', value: formatCurrency(totalIncome), subtitle: incomeChange },

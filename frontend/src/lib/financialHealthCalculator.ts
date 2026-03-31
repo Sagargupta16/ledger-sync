@@ -59,6 +59,22 @@ function statusFromScore(score: number): 'good' | 'warning' | 'poor' {
   return 'poor'
 }
 
+/** Pick description by value thresholds (avoids nested ternaries). Checks high-to-low. */
+function describeByThreshold(value: number, levels: Array<[number, string]>, fallback: string): string {
+  for (const [threshold, desc] of levels) {
+    if (value >= threshold) return desc
+  }
+  return fallback
+}
+
+/** Same as describeByThreshold but for "lower is better" metrics (checks low-to-high). */
+function describeByThresholdInverse(value: number, levels: Array<[number, string]>, fallback: string): string {
+  for (const [threshold, desc] of levels) {
+    if (value <= threshold) return desc
+  }
+  return fallback
+}
+
 /**
  * 1. Savings Rate = (Income - Expenses) / Income
  * Target: >= 20% (CFP standard)
@@ -72,7 +88,7 @@ function computeSavingsRate(income: number, expenses: number): CFPRatio {
     score: Math.round(clamp(score, 0, 100)),
     target: '>= 20%',
     status: statusFromScore(score),
-    description: value >= 20 ? 'Excellent savings discipline' : value >= 10 ? 'Building towards the 20% target' : 'Focus on increasing savings',
+    description: describeByThreshold(value, [[20, 'Excellent savings discipline'], [10, 'Building towards the 20% target']], 'Focus on increasing savings'),
     formattedValue: `${value.toFixed(1)}%`,
   }
 }
@@ -90,7 +106,7 @@ function computeLiquidityRatio(liquidAssets: number, monthlyExpenses: number): C
     score: Math.round(clamp(score, 0, 100)),
     target: '>= 3 months',
     status: statusFromScore(score),
-    description: value >= 6 ? 'Strong liquidity buffer' : value >= 3 ? 'Adequate emergency coverage' : 'Build emergency reserves',
+    description: describeByThreshold(value, [[6, 'Strong liquidity buffer'], [3, 'Adequate emergency coverage']], 'Build emergency reserves'),
     formattedValue: `${value.toFixed(1)} mo`,
   }
 }
@@ -108,7 +124,7 @@ function computeDebtServiceRatio(monthlyDebt: number, monthlyIncome: number): CF
     score: Math.round(clamp(score, 0, 100)),
     target: '<= 36%',
     status: statusFromScore(score),
-    description: value <= 20 ? 'Healthy debt levels' : value <= 36 ? 'Within banking limits' : 'High debt burden -- consider repayment',
+    description: describeByThresholdInverse(value, [[20, 'Healthy debt levels'], [36, 'Within banking limits']], 'High debt burden'),
     formattedValue: `${value.toFixed(1)}%`,
   }
 }
@@ -126,7 +142,7 @@ function computeInvestmentRatio(netInvestments: number, totalIncome: number): CF
     score: Math.round(clamp(score, 0, 100)),
     target: '>= 15%',
     status: statusFromScore(score),
-    description: value >= 15 ? 'Strong wealth-building pace' : value >= 5 ? 'Good start, increase gradually' : 'Begin a regular investment habit',
+    description: describeByThreshold(value, [[15, 'Strong wealth-building pace'], [5, 'Good start, increase gradually']], 'Begin a regular investment habit'),
     formattedValue: `${value.toFixed(1)}%`,
   }
 }
@@ -137,7 +153,9 @@ function computeInvestmentRatio(netInvestments: number, totalIncome: number): CF
  * Approximated as (cumulative savings) / (cumulative savings + total debt outstanding)
  */
 function computeSolvencyRatio(netWorth: number, totalAssets: number): CFPRatio {
-  const value = totalAssets > 0 ? (netWorth / totalAssets) * 100 : (netWorth >= 0 ? 100 : 0)
+  let value: number
+  if (totalAssets > 0) value = (netWorth / totalAssets) * 100
+  else value = netWorth >= 0 ? 100 : 0
   const score = mapToScore(value, [0, 25, 50, 75, 90])
   return {
     name: 'Solvency Ratio',
@@ -145,7 +163,7 @@ function computeSolvencyRatio(netWorth: number, totalAssets: number): CFPRatio {
     score: Math.round(clamp(score, 0, 100)),
     target: '> 50%',
     status: statusFromScore(score),
-    description: value >= 75 ? 'Strong net worth position' : value >= 50 ? 'Positive solvency' : 'Focus on reducing liabilities',
+    description: describeByThreshold(value, [[75, 'Strong net worth position'], [50, 'Positive solvency']], 'Focus on reducing liabilities'),
     formattedValue: `${value.toFixed(0)}%`,
   }
 }
@@ -163,7 +181,7 @@ function computeEmergencyFundCoverage(liquidBalance: number, monthlyEssentials: 
     score: Math.round(clamp(score, 0, 100)),
     target: '3-6 months',
     status: statusFromScore(score),
-    description: value >= 6 ? 'Well-cushioned for emergencies' : value >= 3 ? 'Minimum coverage met' : 'Prioritize building emergency fund',
+    description: describeByThreshold(value, [[6, 'Well-cushioned for emergencies'], [3, 'Minimum coverage met']], 'Prioritize building emergency fund'),
     formattedValue: `${value.toFixed(1)} mo`,
   }
 }

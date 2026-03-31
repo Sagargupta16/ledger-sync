@@ -77,7 +77,7 @@ function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) {
           {areaGradient('returns', rawColors.ios.green, 0.7, 0.1)}
         </defs>
         <CartesianGrid {...GRID_DEFAULTS} />
-        <XAxis {...xAxisDefaults(chartData.length)} dataKey="year" tickFormatter={undefined} />
+        <XAxis {...xAxisDefaults(chartData.length)} dataKey="year" />
         <YAxis {...yAxisDefaults()} />
         <Tooltip
           {...chartTooltipProps}

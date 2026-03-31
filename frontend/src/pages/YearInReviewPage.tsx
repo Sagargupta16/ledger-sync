@@ -13,6 +13,7 @@ import {
 import { useState, useMemo } from 'react'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
@@ -429,6 +430,8 @@ export default function YearInReviewPage() {
   }, [stats])
 
   // ── Render ───────────────────────────────────────────────────
+  if (transactions.length === 0) return <PageSkeleton />
+
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
       {/* Header */}

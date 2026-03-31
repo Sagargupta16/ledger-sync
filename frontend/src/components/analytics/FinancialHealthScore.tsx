@@ -61,7 +61,7 @@ function ScoreHeader({ title, score, subtitle, color }: Readonly<{
   return (
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-2">
-        <div className={`p-2 rounded-lg ${color === 'text-ios-green' ? 'bg-ios-green/10' : color === 'text-ios-orange' ? 'bg-ios-orange/10' : 'bg-ios-red/10'}`}>
+        <div className={`p-2 rounded-lg ${{ 'text-ios-green': 'bg-ios-green/10', 'text-ios-orange': 'bg-ios-orange/10', 'text-ios-red': 'bg-ios-red/10' }[color] ?? 'bg-ios-blue/10'}`}>
           <Shield className={`w-4 h-4 ${color}`} />
         </div>
         <div>
@@ -92,10 +92,14 @@ function RadarVisualization({ metrics, chartColor }: Readonly<{ metrics: Array<{
   )
 }
 
+const TIER_COLORS: Record<string, string> = {
+  healthy: rawColors.ios.green,
+  coping: rawColors.ios.orange,
+  vulnerable: rawColors.ios.red,
+}
+
 function MetricCard({ metric }: Readonly<{ metric: HealthMetric }>) {
-  const color = metric.status === 'healthy' ? rawColors.ios.green
-    : metric.status === 'coping' ? rawColors.ios.orange
-    : rawColors.ios.red
+  const color = TIER_COLORS[metric.status] ?? rawColors.ios.red
 
   return (
     <div className="p-2.5 rounded-lg border border-border bg-white/[0.02]">
