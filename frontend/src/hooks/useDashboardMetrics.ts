@@ -22,13 +22,12 @@ import {
 } from '@/lib/dateUtils'
 import {
   calculateIncomeByCategoryBreakdown,
-  calculateSpendingBreakdown,
+  calculateExpenseByCategoryBreakdown,
   calculateCashbacksTotal,
   INCOME_CATEGORY_COLORS,
-  SPENDING_TYPE_COLORS,
 } from '@/lib/preferencesUtils'
 import { computeDataDateRange, filterTransactionsByDateRange } from '@/lib/transactionUtils'
-import { SEMANTIC_COLORS } from '@/constants/chartColors'
+import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,21 +77,15 @@ export interface DashboardMetrics {
   // Transactions filtered by selected time range
   filteredTransactions: import('@/types').Transaction[]
 
-  // Recent transactions (filter-independent)
-  recentTransactions: import('@/types').Transaction[] | undefined
-  isLoadingTransactions: boolean
-
   // Income breakdown
   incomeBreakdown: Record<string, number> | null
   cashbacksTotal: number
   incomeChartData: ChartDatum[]
   incomeColorStyles: Array<{ backgroundColor: string }>
 
-  // Spending breakdown
-  spendingBreakdown: { essential: number; discretionary: number; total: number } | null
-  spendingChartData: ChartDatum[]
-  spendingColorStyles: Array<{ backgroundColor: string }>
-  spendingBarStyles: Array<{ width: string; backgroundColor: string }>
+  // Expense breakdown by category
+  expenseChartData: ChartDatum[]
+  expenseColorStyles: Array<{ backgroundColor: string }>
 
   // Sparklines
   incomeSparkline: number[]
@@ -135,7 +128,7 @@ export function useDashboardMetrics(): DashboardMetrics {
   )
 
   // ------ Data fetching ------
-  const { data: recentTransactions, isLoading: isLoadingTransactions } = useRecentTransactions(5)
+  useRecentTransactions(5) // keep prefetch warm for other pages
   const { data: filteredTotals, isLoading } = useTotals(dateRange)
   const { data: monthlyData } = useMonthlyAggregation(dateRange)
   const { data: allTransactions } = useTransactions()
@@ -169,11 +162,11 @@ export function useDashboardMetrics(): DashboardMetrics {
     return calculateCashbacksTotal(filteredTransactions, incomeClassification)
   }, [filteredTransactions, preferences])
 
-  // ------ Spending breakdown ------
-  const spendingBreakdown = useMemo(() => {
-    if (filteredTransactions.length === 0 || !preferences) return null
-    return calculateSpendingBreakdown(filteredTransactions, preferences.essential_categories)
-  }, [filteredTransactions, preferences])
+  // ------ Expense breakdown by category ------
+  const expenseBreakdown = useMemo(() => {
+    if (filteredTransactions.length === 0) return null
+    return calculateExpenseByCategoryBreakdown(filteredTransactions)
+  }, [filteredTransactions])
 
   // ------ Chart data ------
   const incomeChartData = useMemo(() => {
@@ -189,13 +182,17 @@ export function useDashboardMetrics(): DashboardMetrics {
       .sort((a, b) => b.value - a.value)
   }, [incomeBreakdown])
 
-  const spendingChartData = useMemo(() => {
-    if (!spendingBreakdown) return []
-    return [
-      { name: 'Essential', value: spendingBreakdown.essential, color: SPENDING_TYPE_COLORS.essential },
-      { name: 'Discretionary', value: spendingBreakdown.discretionary, color: SPENDING_TYPE_COLORS.discretionary },
-    ].filter((d) => d.value > 0)
-  }, [spendingBreakdown])
+  const expenseChartData = useMemo(() => {
+    if (!expenseBreakdown) return []
+    return Object.entries(expenseBreakdown)
+      .filter(([, value]) => value > 0)
+      .map(([category, value], i) => ({
+        name: category,
+        value,
+        color: getChartColor(i),
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [expenseBreakdown])
 
   // Precomputed style objects (stable refs)
   const incomeColorStyles = useMemo(
@@ -203,18 +200,9 @@ export function useDashboardMetrics(): DashboardMetrics {
     [incomeChartData],
   )
 
-  const spendingColorStyles = useMemo(
-    () => spendingChartData.map((item) => ({ backgroundColor: item.color })),
-    [spendingChartData],
-  )
-
-  const spendingBarStyles = useMemo(
-    () =>
-      spendingChartData.map((item) => {
-        const percentage = spendingBreakdown ? (item.value / spendingBreakdown.total) * 100 : 0
-        return { width: `${percentage.toFixed(1)}%`, backgroundColor: item.color }
-      }),
-    [spendingChartData, spendingBreakdown],
+  const expenseColorStyles = useMemo(
+    () => expenseChartData.map((item) => ({ backgroundColor: item.color })),
+    [expenseChartData],
   )
 
   // ------ Sparklines ------
@@ -290,16 +278,12 @@ export function useDashboardMetrics(): DashboardMetrics {
     filteredTotals,
     isLoading,
     filteredTransactions,
-    recentTransactions,
-    isLoadingTransactions,
     incomeBreakdown,
     cashbacksTotal,
     incomeChartData,
     incomeColorStyles,
-    spendingBreakdown,
-    spendingChartData,
-    spendingColorStyles,
-    spendingBarStyles,
+    expenseChartData,
+    expenseColorStyles,
     incomeSparkline,
     expenseSparkline,
     momChanges,

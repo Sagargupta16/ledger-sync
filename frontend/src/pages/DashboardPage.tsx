@@ -1,59 +1,26 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { SCROLL_FADE_UP } from '@/constants/animations'
-import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard, CalendarClock, Lock, Hourglass, ShieldCheck } from 'lucide-react'
+import { DollarSign, TrendingDown, TrendingUp, Percent, Wallet, CreditCard, Lock, Hourglass, ShieldCheck } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
-import RecentTransactions from '@/components/shared/RecentTransactions'
 import QuickInsights from '@/components/shared/QuickInsights'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import Sparkline from '@/components/shared/Sparkline'
 import EmptyState from '@/components/shared/EmptyState'
-import { FinancialHealthScore, PeriodComparison } from '@/components/analytics'
-import { formatCurrency, formatCurrencyCompact, getOrdinalSuffix, parseStringArray } from '@/lib/formatters'
+import { FinancialHealthScore } from '@/components/analytics'
+import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
 import { PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
 import { usePreferences } from '@/hooks/api/usePreferences'
-
-
-/** Check whether a transaction matches the fixed expense categories for the current month */
-function isFixedExpenseThisMonth(
-  tx: { type: string; date: string; category: string; subcategory?: string },
-  fixedSet: Set<string>,
-  currentMonthKey: string,
-): boolean {
-  if (tx.type !== 'Expense') return false
-  if (!tx.date.startsWith(currentMonthKey)) return false
-  const key = `${tx.category}::${tx.subcategory || ''}`.toLowerCase()
-  return fixedSet.has(key)
-}
-
-/** Compute days from today to the next occurrence of a payday (1-31) */
-function daysUntilPayday(payday: number): number {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = today.getMonth()
-  const dayOfMonth = today.getDate()
-
-  // Clamp payday to valid range
-  const pd = Math.max(1, Math.min(31, payday))
-
-  if (dayOfMonth <= pd) {
-    // Payday is this month (or today)
-    const target = new Date(year, month, pd)
-    return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  }
-  // Payday already passed this month — compute for next month
-  const target = new Date(year, month + 1, pd)
-  return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-}
+import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
+import { toMonthlyAmount } from '@/pages/subscription-tracker/helpers'
 
 export default function DashboardPage() {
   const { data: preferences } = usePreferences()
   const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
-  const payday = preferences?.payday ?? 0
 
   const {
     viewMode,
@@ -70,48 +37,29 @@ export default function DashboardPage() {
     filteredTotals,
     isLoading,
     filteredTransactions,
-    recentTransactions,
-    isLoadingTransactions,
     incomeBreakdown,
     cashbacksTotal,
     incomeChartData,
     incomeColorStyles,
-    spendingBreakdown,
-    spendingChartData,
-    spendingColorStyles,
+    expenseChartData,
+    expenseColorStyles,
     incomeSparkline,
     expenseSparkline,
     momChanges,
   } = useDashboardMetrics()
 
-  // Parse fixed expense categories from preferences
-  const fixedExpenseCategories = useMemo(
-    () => parseStringArray(preferences?.fixed_expense_categories),
-    [preferences?.fixed_expense_categories],
+  // Fixed Commitments from active recurring transactions
+  const { data: recurringItems = [] } = useRecurringTransactions({ active_only: true, min_confidence: 0 })
+  const fixedCommitmentsMonthly = useMemo(() => {
+    const confirmed = recurringItems.filter((r) => r.is_confirmed && r.type === 'Expense')
+    return confirmed.reduce((sum, r) => sum + toMonthlyAmount(r.expected_amount, r.frequency), 0)
+  }, [recurringItems])
+  const fixedCount = useMemo(
+    () => recurringItems.filter((r) => r.is_confirmed && r.type === 'Expense').length,
+    [recurringItems],
   )
 
-  // Compute fixed commitments total for the current month
-  const fixedCommitmentsTotal = useMemo(() => {
-    if (fixedExpenseCategories.length === 0 || !filteredTransactions?.length) return 0
-    const fixedSet = new Set(fixedExpenseCategories.map((c) => c.toLowerCase()))
-    const now = new Date()
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    return filteredTransactions
-      .filter((tx) => isFixedExpenseThisMonth(tx, fixedSet, currentMonthKey))
-      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-  }, [filteredTransactions, fixedExpenseCategories])
-
-  // Compute days until payday
-  const daysToPayday = useMemo(() => {
-    if (!payday || payday <= 0) return null
-    return daysUntilPayday(payday)
-  }, [payday])
-
-  let paydayLabel = ''
-  if (daysToPayday === 0) paydayLabel = 'Today!'
-  else if (daysToPayday !== null) paydayLabel = `${daysToPayday} day${daysToPayday === 1 ? '' : 's'}`
-
-  // Age of Money (FIFO) and Days of Buffering
+  // Age of Money & Days of Buffering
   const ageOfMoney = useMemo(
     () => filteredTransactions?.length ? computeAgeOfMoney(filteredTransactions) : null,
     [filteredTransactions],
@@ -127,9 +75,9 @@ export default function DashboardPage() {
     [incomeChartData],
   )
 
-  const spendingTotal = useMemo(
-    () => spendingChartData.reduce((sum, d) => sum + d.value, 0),
-    [spendingChartData],
+  const expenseTotal = useMemo(
+    () => expenseChartData.reduce((sum, d) => sum + d.value, 0),
+    [expenseChartData],
   )
 
   return (
@@ -165,7 +113,7 @@ export default function DashboardPage() {
           isLoading={isLoading}
           change={momChanges.income}
           changeLabel={momChanges.label}
-          trend={incomeSparkline.length > 0 ? <Sparkline data={incomeSparkline} color={SEMANTIC_COLORS.income} height={30} /> : undefined}
+          trend={incomeSparkline.length > 1 ? <Sparkline data={incomeSparkline} color={SEMANTIC_COLORS.income} height={48} /> : undefined}
         />
         <MetricCard
           title="Total Expenses"
@@ -176,7 +124,7 @@ export default function DashboardPage() {
           change={momChanges.expense}
           invertChange
           changeLabel={momChanges.label}
-          trend={expenseSparkline.length > 0 ? <Sparkline data={expenseSparkline} color={SEMANTIC_COLORS.expense} height={30} /> : undefined}
+          trend={expenseSparkline.length > 1 ? <Sparkline data={expenseSparkline} color={SEMANTIC_COLORS.expense} height={48} /> : undefined}
         />
         <MetricCard
           title="Net Savings"
@@ -200,69 +148,51 @@ export default function DashboardPage() {
       </div>
 
       {/* Secondary Indicators */}
-      {(fixedExpenseCategories.length > 0 || daysToPayday !== null || ageOfMoney !== null || daysOfBuffering !== null) && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {ageOfMoney !== null && (
-            <MetricCard
-              title="Age of Money"
-              value={`${ageOfMoney} days`}
-              icon={Hourglass}
-              color="indigo"
-              isLoading={isLoading}
-              subtitle={ageOfMoney >= 30 ? 'Healthy buffer' : ageOfMoney >= 15 ? 'Building runway' : 'Living paycheck to paycheck'}
-            />
-          )}
-          {daysOfBuffering !== null && (
-            <MetricCard
-              title="Days of Buffering"
-              value={`${daysOfBuffering} days`}
-              icon={ShieldCheck}
-              color="teal"
-              isLoading={isLoading}
-              subtitle="At current spending rate"
-            />
-          )}
-          {fixedExpenseCategories.length > 0 && (
-            <MetricCard
-              title="Fixed Commitments"
-              value={formatCurrency(fixedCommitmentsTotal)}
-              icon={Lock}
-              color="orange"
-              isLoading={isLoading}
-              subtitle="This month's fixed expenses"
-            />
-          )}
-          {daysToPayday !== null && (
-            <MetricCard
-              title="Days Until Payday"
-              value={paydayLabel}
-              icon={CalendarClock}
-              color="yellow"
-              isLoading={isLoading}
-              subtitle={`Payday is on the ${payday}${getOrdinalSuffix(payday)} of each month`}
-            />
-          )}
-        </div>
-      )}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {ageOfMoney !== null && (
+          <MetricCard
+            title="Age of Money"
+            value={`${ageOfMoney} days`}
+            icon={Hourglass}
+            color="indigo"
+            isLoading={isLoading}
+            subtitle={ageOfMoney >= 30 ? 'Healthy buffer' : ageOfMoney >= 15 ? 'Building runway' : 'Living paycheck to paycheck'}
+          />
+        )}
+        {daysOfBuffering !== null && (
+          <MetricCard
+            title="Days of Buffering"
+            value={`${daysOfBuffering} days`}
+            icon={ShieldCheck}
+            color="teal"
+            isLoading={isLoading}
+            subtitle="At current spending rate"
+          />
+        )}
+        <MetricCard
+          title="Fixed Commitments"
+          value={formatCurrency(fixedCommitmentsMonthly)}
+          icon={Lock}
+          color="orange"
+          isLoading={isLoading}
+          subtitle={fixedCount > 0 ? `${fixedCount} active recurring` : 'No recurring set'}
+        />
+      </div>
 
-      {/* Financial Health & Quick Insights */}
+      {/* Financial Health Score & Quick Insights */}
       <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
         <FinancialHealthScore transactions={filteredTransactions} />
 
-        <div
-          className="p-6 glass rounded-2xl border border-border shadow-xl"
-        >
+        <div className="p-6 glass rounded-2xl border border-border shadow-xl">
           <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
           <QuickInsights dateRange={dateRange} />
         </div>
       </motion.div>
 
-      {/* Income & Spending Breakdown */}
+      {/* Income Sources & Expense Sources */}
       <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
-        {/* Income Sources Breakdown */}
-        <div
-          className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-green shadow-xl glow-income"
-        >
+        {/* Income Sources */}
+        <div className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-green shadow-xl glow-income">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Wallet className="w-5 h-5 text-ios-green" />
             Income Sources
@@ -272,27 +202,13 @@ export default function DashboardPage() {
               <div className="h-[180px]">
                 <ChartContainer>
                   <PieChart>
-                    <Pie
-                      data={incomeChartData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius="55%"
-                      outerRadius="80%"
-                      paddingAngle={2}
-                      strokeWidth={0}
-                    >
-                      {incomeChartData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
+                    <Pie data={incomeChartData} dataKey="value" nameKey="name" innerRadius="55%" outerRadius="80%" paddingAngle={2} strokeWidth={0}>
+                      {incomeChartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                     </Pie>
                     <Tooltip {...chartTooltipProps} formatter={(v: number | undefined) => formatCurrency(v ?? 0)} />
                     <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                      <tspan x="50%" dy="-6" fill="#fafafa" fontSize="16" fontWeight="700">
-                        {formatCurrencyCompact(incomeTotal)}
-                      </tspan>
-                      <tspan x="50%" dy="18" fill="#71717a" fontSize="11">
-                        Total
-                      </tspan>
+                      <tspan x="50%" dy="-6" fill="#fafafa" fontSize="16" fontWeight="700">{formatCurrencyCompact(incomeTotal)}</tspan>
+                      <tspan x="50%" dy="18" fill="#71717a" fontSize="11">Total</tspan>
                     </text>
                   </PieChart>
                 </ChartContainer>
@@ -301,10 +217,7 @@ export default function DashboardPage() {
                 {incomeChartData.map((item, i) => (
                   <div key={item.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={incomeColorStyles[i]}
-                      />
+                      <div className="w-3 h-3 rounded-full" style={incomeColorStyles[i]} />
                       <span className="text-sm">{item.name}</span>
                     </div>
                     <span className="text-sm font-medium">{formatCurrency(item.value)}</span>
@@ -314,18 +227,12 @@ export default function DashboardPage() {
                   <div className="pt-2 mt-2 border-t border-border space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Total</span>
-                      <span className="text-sm font-bold text-ios-green">
-                        {formatCurrency(
-                          Object.values(incomeBreakdown).reduce((a, b) => a + b, 0)
-                        )}
-                      </span>
+                      <span className="text-sm font-bold text-ios-green">{formatCurrency(Object.values(incomeBreakdown).reduce((a, b) => a + b, 0))}</span>
                     </div>
                     {cashbacksTotal > 0 && (
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-ios-teal">Cashbacks Earned</span>
-                        <span className="text-ios-teal font-medium">
-                          {formatCurrency(cashbacksTotal)}
-                        </span>
+                        <span className="text-ios-teal font-medium">{formatCurrency(cashbacksTotal)}</span>
                       </div>
                     )}
                   </div>
@@ -333,109 +240,54 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            <EmptyState
-              icon={Wallet}
-              title="No income data available"
-              description="Configure income categories in Settings to see your income breakdown."
-              actionLabel="Go to Settings"
-              actionHref="/settings"
-              variant="compact"
-            />
+            <EmptyState icon={Wallet} title="No income data available" description="Configure income categories in Settings to see your income breakdown." actionLabel="Go to Settings" actionHref="/settings" variant="compact" />
           )}
         </div>
 
-        {/* Essential vs Discretionary Spending */}
-        <div
-          className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-red shadow-xl glow-expense"
-        >
+        {/* Expense Sources */}
+        <div className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-red shadow-xl glow-expense">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-ios-red" />
-            Spending Breakdown
+            Expense Sources
           </h2>
-          {spendingChartData.length > 0 ? (
+          {expenseChartData.length > 0 ? (
             <div className="space-y-4">
               <div className="h-[180px]">
                 <ChartContainer>
                   <PieChart>
-                    <Pie
-                      data={spendingChartData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius="55%"
-                      outerRadius="80%"
-                      paddingAngle={2}
-                      strokeWidth={0}
-                    >
-                      {spendingChartData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
+                    <Pie data={expenseChartData} dataKey="value" nameKey="name" innerRadius="55%" outerRadius="80%" paddingAngle={2} strokeWidth={0}>
+                      {expenseChartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                     </Pie>
                     <Tooltip {...chartTooltipProps} formatter={(v: number | undefined) => formatCurrency(v ?? 0)} />
                     <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                      <tspan x="50%" dy="-6" fill="#fafafa" fontSize="16" fontWeight="700">
-                        {formatCurrencyCompact(spendingTotal)}
-                      </tspan>
-                      <tspan x="50%" dy="18" fill="#71717a" fontSize="11">
-                        Total
-                      </tspan>
+                      <tspan x="50%" dy="-6" fill="#fafafa" fontSize="16" fontWeight="700">{formatCurrencyCompact(expenseTotal)}</tspan>
+                      <tspan x="50%" dy="18" fill="#71717a" fontSize="11">Total</tspan>
                     </text>
                   </PieChart>
                 </ChartContainer>
               </div>
-              <div className="space-y-3">
-                {spendingChartData.map((item, i) => {
-                  const percentage = spendingBreakdown
-                    ? ((item.value / spendingBreakdown.total) * 100).toFixed(1)
-                    : '0'
-                  return (
-                    <div key={item.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={spendingColorStyles[i]}
-                        />
-                        <span className="text-sm">{item.name}</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        {formatCurrency(item.value)} ({percentage}%)
-                      </span>
+              <div className="space-y-2">
+                {expenseChartData.map((item, i) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={expenseColorStyles[i]} />
+                      <span className="text-sm">{item.name}</span>
                     </div>
-                  )
-                })}
-                {spendingBreakdown && (
-                  <div className="pt-2 mt-2 border-t border-border">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Total Spending</span>
-                      <span className="text-sm font-bold text-ios-red">
-                        {formatCurrency(spendingBreakdown.total)}
-                      </span>
-                    </div>
+                    <span className="text-sm font-medium">{formatCurrency(item.value)}</span>
                   </div>
-                )}
+                ))}
+                <div className="pt-2 mt-2 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Total</span>
+                    <span className="text-sm font-bold text-ios-red">{formatCurrency(expenseTotal)}</span>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
-            <EmptyState
-              icon={CreditCard}
-              title="No spending data available"
-              description="Configure essential categories in Settings to see your spending breakdown."
-              actionLabel="Go to Settings"
-              actionHref="/settings"
-              variant="compact"
-            />
+            <EmptyState icon={CreditCard} title="No expense data available" description="Upload transactions to see your expense breakdown." variant="compact" />
           )}
         </div>
-      </motion.div>
-
-      {/* Recent Activity & Period Comparison */}
-      <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
-        <div
-          className="p-6 glass rounded-2xl border border-border shadow-xl"
-        >
-          <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-          <RecentTransactions transactions={recentTransactions ?? []} isLoading={isLoadingTransactions} />
-        </div>
-        <PeriodComparison />
       </motion.div>
     </div>
   )

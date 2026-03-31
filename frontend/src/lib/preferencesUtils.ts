@@ -161,6 +161,22 @@ export const calculateTaxableIncomeTotal = (
 }
 
 /**
+ * Calculate expense breakdown by category (mirror of income by category)
+ */
+export const calculateExpenseByCategoryBreakdown = (
+  transactions: Transaction[]
+): Record<string, number> => {
+  const breakdown: Record<string, number> = {}
+  transactions
+    .filter((t) => t.type === 'Expense')
+    .forEach((t) => {
+      const category = t.category || 'Other'
+      breakdown[category] = (breakdown[category] || 0) + Math.abs(t.amount || 0)
+    })
+  return breakdown
+}
+
+/**
  * Calculate spending breakdown by essential vs discretionary
  */
 export const calculateSpendingBreakdown = (
