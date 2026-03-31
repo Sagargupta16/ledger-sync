@@ -4,6 +4,7 @@ import {
   ShoppingBag, TrendingUp, TrendingDown, Zap, Gift, Receipt,
   Flame, ArrowLeftRight, Landmark, Calendar, BarChart3,
   Clock, Layers, DollarSign, Hourglass, ShieldCheck, Lock, Percent,
+  Repeat, Scale, CalendarRange,
 } from 'lucide-react'
 import { useCategoryBreakdown, useTotals } from '@/hooks/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -233,6 +234,29 @@ export default function QuickInsights({
     ? transactions.reduce((max, t) => (Math.abs(t.amount) > Math.abs(max.amount) ? t : max), transactions[0])
     : { amount: 0, category: 'N/A', date: '' }
 
+  // Recurring coverage: what % of monthly income goes to fixed recurring
+  const monthlyIncome = totalIncome / Math.max(monthsInRange, 1)
+  const recurringCoverage = monthlyIncome > 0 ? (fixedCommitmentsMonthly / monthlyIncome) * 100 : 0
+
+  // Income vs Expense ratio
+  const totalExpenseAbs = Math.abs(totalsData?.total_expenses ?? 0)
+  const incomeExpenseRatio = totalIncome > 0 ? totalExpenseAbs / totalIncome : 0
+
+  // Most expensive month
+  const mostExpensiveMonth = (() => {
+    const byMonth: Record<string, number> = {}
+    for (const t of transactions) {
+      const key = t.date.slice(0, 7) // YYYY-MM
+      byMonth[key] = (byMonth[key] || 0) + Math.abs(t.amount)
+    }
+    const entries = Object.entries(byMonth)
+    if (entries.length === 0) return null
+    const [monthKey, amount] = entries.reduce((max, cur) => cur[1] > max[1] ? cur : max)
+    const [y, m] = monthKey.split('-')
+    const label = new Date(Number(y), Number(m) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    return { label, amount }
+  })()
+
   const incomeChange = momChanges?.income != null ? `${momChanges.income > 0 ? '+' : ''}${momChanges.income}% ${momChanges.label}` : ''
   const expenseChange = momChanges?.expense != null ? `${momChanges.expense > 0 ? '+' : ''}${momChanges.expense}% ${momChanges.label}` : ''
   const savingsChange = momChanges?.savings != null ? `${momChanges.savings > 0 ? '+' : ''}${momChanges.savings}% ${momChanges.label}` : ''
@@ -245,6 +269,7 @@ export default function QuickInsights({
     ...(ageOfMoney != null ? [{ icon: Hourglass, color: 'text-ios-indigo', bg: 'bg-ios-indigo/10', title: 'Age of Money', value: `${ageOfMoney} days`, subtitle: ageOfMoney >= 30 ? 'Healthy buffer' : ageOfMoney >= 15 ? 'Building runway' : 'Living paycheck to paycheck' }] : []),
     ...(daysOfBuffering != null ? [{ icon: ShieldCheck, color: 'text-ios-teal', bg: 'bg-ios-teal/10', title: 'Days of Buffering', value: `${daysOfBuffering} days`, subtitle: 'At current spending rate' }] : []),
     ...(fixedCommitmentsMonthly > 0 ? [{ icon: Lock, color: 'text-ios-orange', bg: 'bg-ios-orange/10', title: 'Fixed Commitments', value: formatCurrency(fixedCommitmentsMonthly), subtitle: `${fixedCount} active recurring` }] : []),
+    ...(fixedCommitmentsMonthly > 0 ? [{ icon: Repeat, color: 'text-ios-yellow', bg: 'bg-ios-yellow/10', title: 'Recurring Coverage', value: `${recurringCoverage.toFixed(1)}%`, subtitle: recurringCoverage > 50 ? 'High fixed cost load' : recurringCoverage > 30 ? 'Moderate fixed costs' : 'Low fixed costs' }] : []),
   ]
 
   const funFacts = [
@@ -260,6 +285,8 @@ export default function QuickInsights({
     { icon: Layers, color: 'text-ios-teal', bg: 'bg-ios-teal/10', title: 'Spending Diversity', value: `${uniqueCategories} categories`, subtitle: `Across ${uniqueSubcategories} subcategories` },
     { icon: Receipt, color: 'text-ios-teal', bg: 'bg-ios-teal/10', title: 'Avg Transaction', value: formatCurrency(avgTransactionAmount), subtitle: 'Per transaction' },
     { icon: ArrowLeftRight, color: 'text-ios-indigo', bg: 'bg-ios-indigo/10', title: 'Internal Transfers', value: formatCurrency(totalTransfers), subtitle: `${transferTransactions.length} transfers` },
+    { icon: Scale, color: 'text-ios-blue', bg: 'bg-ios-blue/10', title: 'Income vs Expense', value: `${incomeExpenseRatio.toFixed(2)}x`, subtitle: incomeExpenseRatio < 0.7 ? 'Great! Spending well below income' : incomeExpenseRatio < 0.9 ? 'Spending close to income' : 'Spending nearly all income' },
+    ...(mostExpensiveMonth ? [{ icon: CalendarRange, color: 'text-ios-red', bg: 'bg-ios-red/10', title: 'Most Expensive Month', value: mostExpensiveMonth.label, subtitle: formatCurrency(mostExpensiveMonth.amount) }] : []),
   ]
 
   // Filter by user widget prefs
