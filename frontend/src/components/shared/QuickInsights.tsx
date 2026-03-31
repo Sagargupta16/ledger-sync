@@ -441,8 +441,8 @@ export default function QuickInsights({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {Array.from({ length: 14 }, (_, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {Array.from({ length: 12 }, (_, i) => (
           <LoadingSkeleton key={`skeleton-${i}`} className="h-16 w-full" />
         ))}
       </div>
@@ -451,7 +451,7 @@ export default function QuickInsights({
 
   return (
     <motion.div
-      className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
       variants={staggerContainer}
       initial="hidden"
       animate="visible"
@@ -460,16 +460,16 @@ export default function QuickInsights({
         <motion.div
           key={insight.title}
           variants={fadeUpItem}
-          className="flex items-center gap-4 p-4 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-150"
+          className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-150"
         >
-          <div className={`p-3 ${insight.bg} rounded-lg`}>
-            <insight.icon className={`w-5 h-5 ${insight.color}`} />
+          <div className={`p-2 ${insight.bg} rounded-lg shrink-0`}>
+            <insight.icon className={`w-4 h-4 ${insight.color}`} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-zinc-300">{insight.title}</p>
-            <p className="text-lg font-semibold text-white truncate">{insight.value}</p>
+            <p className="text-[11px] text-zinc-400">{insight.title}</p>
+            <p className="text-sm font-semibold text-white truncate">{insight.value}</p>
             {insight.subtitle && (
-              <p className="text-xs text-zinc-500 truncate">{insight.subtitle}</p>
+              <p className="text-[11px] text-zinc-500 truncate">{insight.subtitle}</p>
             )}
           </div>
         </motion.div>
