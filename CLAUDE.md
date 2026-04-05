@@ -112,13 +112,13 @@ Three services, all free tier:
 | Service | Platform | URL |
 |---------|----------|-----|
 | Frontend | GitHub Pages | `sagargupta.online/ledger-sync/` |
-| Backend | Render (free) | `ledger-sync.onrender.com` |
-| Database | Neon PostgreSQL 17 | Singapore region, PgBouncer pooler |
+| Backend | Vercel (serverless) | `ledger-sync-api.vercel.app` |
+| Database | Neon PostgreSQL 17 | Singapore region, PgBouncer pooler (Vercel integration) |
 
-- **Frontend auto-deploys** on push to `main` via `.github/workflows/deploy-frontend.yml`. Builds with `GITHUB_PAGES=true` (sets Vite `base: '/ledger-sync/'`), copies `index.html` to `404.html` for SPA routing. `VITE_API_BASE_URL` is a GitHub Actions repository variable pointing to the Render backend URL.
-- **Backend auto-deploys** on push to `main` via Render. Build runs `uv sync --no-group dev` then `alembic upgrade head`. Health check at `/health`. Free tier sleeps after 15 min inactivity (~30-50s cold start).
-- **Render config** is defined in `render.yaml` (root). Service was created manually; the file is for reference. Env vars are set in Render dashboard -- secrets like `LEDGER_SYNC_DATABASE_URL` (Neon connection string) and OAuth credentials are not in the yaml.
-- **Neon connection string** must use `?sslmode=require` and must NOT include `channel_binding=require` (PgBouncer doesn't support it).
+- **Frontend auto-deploys** on push to `main` via `.github/workflows/deploy-frontend.yml`. Builds with `GITHUB_PAGES=true` (sets Vite `base: '/ledger-sync/'`), copies `index.html` to `404.html` for SPA routing. `VITE_API_BASE_URL` is a GitHub Actions repository variable pointing to the Vercel backend URL.
+- **Backend auto-deploys** on push to `main` via Vercel. Vercel detects `uv.lock` and uses `uv` to install dependencies. `backend/vercel.json` routes all requests to `api/index.py` which wraps FastAPI with `Mangum`. Alembic migrations run via `.github/workflows/migrate.yml` (triggered on push to main when `backend/alembic/**` or `models.py` changes).
+- **Vercel config** is defined in `backend/vercel.json`. Root directory is set to `backend` in Vercel project settings. Env vars (secrets) are set in the Vercel dashboard. The Neon database is connected via Vercel's Neon integration (Storage tab).
+- **Neon connection string** must use the pooler URL with `?sslmode=require` and must NOT include `channel_binding=require` (PgBouncer doesn't support it).
 - **OAuth redirect URIs** must be registered separately per environment (dev vs prod) -- GitHub only allows one callback URL per OAuth app.
 - **JWT secret** is auto-generated in development. In production, `LEDGER_SYNC_JWT_SECRET_KEY` must be set (min 32 chars) or the app refuses to start.
 

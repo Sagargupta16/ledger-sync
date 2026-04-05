@@ -926,7 +926,7 @@ Default origins (development):
 - http://localhost:5173
 - http://localhost:5174
 
-Production origins are set via environment variable on Render.
+Production origins are set via the `LEDGER_SYNC_CORS_ORIGINS` environment variable on Vercel.
 
 ---
 

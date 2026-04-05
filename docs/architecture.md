@@ -406,15 +406,16 @@ GET    /api/meta/*                      - Metadata endpoints
 
 ### Backend
 
-- Python environment with dependencies
-- SQLite database file
-- Uvicorn ASGI server
+- Vercel serverless function via Mangum adapter (`backend/api/index.py`)
+- Wraps FastAPI ASGI app for AWS Lambda-compatible execution
+- Dependencies installed via `uv` (auto-detected from `uv.lock`)
+- Neon PostgreSQL connected via Vercel's Neon integration
 
 ### Frontend
 
-- Build as static assets
-- Served via web server
-- Environment variables for API URL
+- Static React SPA built with Vite, deployed to GitHub Pages
+- `VITE_API_BASE_URL` GitHub Actions variable points to Vercel backend
+- SPA routing via `404.html` copy workaround
 
 ## Error Handling
 

@@ -5,8 +5,8 @@ flowchart TB
         subgraph GHP["  GitHub Pages  "]
             FE["React 19 SPA\nTypeScript + Vite 7\nTailwind CSS 4\nRecharts + Framer Motion"]
         end
-        subgraph RENDER["  Render (Free Tier)  "]
-            BE["FastAPI Backend\nPython 3.11+ / Uvicorn\nSQLAlchemy 2.0 + Alembic\nPydantic v2 Schemas"]
+        subgraph VERCEL["  Vercel (Serverless)  "]
+            BE["FastAPI Backend\nPython 3.11+ / Mangum\nSQLAlchemy 2.0 + Alembic\nPydantic v2 Schemas"]
         end
         subgraph NEON["  Neon PostgreSQL 17  "]
             DB[("users\ntransactions\npreferences\nbudgets / goals\nanomalies\nimport_logs")]

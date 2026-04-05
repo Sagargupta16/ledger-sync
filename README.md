@@ -10,7 +10,7 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 ![React](https://img.shields.io/badge/react-19-blue.svg)
 ![TypeScript](https://img.shields.io/badge/typescript-5.9-blue.svg)
 
-**Live:** [sagargupta.online/ledger-sync](https://sagargupta.online/ledger-sync/) | **Demo:** [Try it now](https://sagargupta.online/ledger-sync/demo) | **API:** [ledger-sync.onrender.com](https://ledger-sync.onrender.com/docs)
+**Live:** [sagargupta.online/ledger-sync](https://sagargupta.online/ledger-sync/) | **Demo:** [Try it now](https://sagargupta.online/ledger-sync/demo) | **API:** [ledger-sync-api.vercel.app](https://ledger-sync-api.vercel.app/docs)
 
 ## Features
 
@@ -73,7 +73,7 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 | **Backend**      | Python 3.11+, FastAPI, SQLAlchemy 2, Alembic                                |
 | **Database**     | SQLite (dev), Neon PostgreSQL 17 (prod)                                      |
 | **State**        | TanStack Query 5, Zustand 5                                                 |
-| **Deployment**   | GitHub Pages (frontend), Render (backend), Neon (database)                   |
+| **Deployment**   | GitHub Pages (frontend), Vercel (backend), Neon (database)                   |
 | **CI/CD**        | GitHub Actions (lint, type-check, build, deploy)                             |
 | **Package Mgmt** | pnpm 10 (frontend), uv (backend)                                            |
 
@@ -204,8 +204,8 @@ The app is deployed for free using three services:
 | Service | Platform | Details |
 |---------|----------|---------|
 | Frontend | GitHub Pages | Auto-deploys on push via GitHub Actions |
-| Backend | Render (free tier) | FastAPI on Python 3.12, ~30s cold start after idle |
-| Database | Neon PostgreSQL | Free tier, 0.5 GB, Singapore region |
+| Backend | Vercel (serverless) | FastAPI via Mangum adapter, zero cold starts |
+| Database | Neon PostgreSQL | Free tier, 0.5 GB, Singapore region (Vercel integration) |
 
 See [Deployment Guide](docs/DEPLOYMENT.md) for full setup instructions.
 

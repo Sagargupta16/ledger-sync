@@ -7,13 +7,11 @@ Ledger Sync is deployed as three separate services:
 | Service | Platform | URL | Cost |
 |---------|----------|-----|------|
 | **Frontend** | GitHub Pages | `https://sagargupta.online/ledger-sync/` | Free |
-| **Backend** | Render (free tier) | `https://ledger-sync.onrender.com` | Free |
-| **Database** | Neon PostgreSQL | Singapore region | Free (0.5 GB) |
+| **Backend** | Vercel (serverless) | `https://ledger-sync-api.vercel.app` | Free |
+| **Database** | Neon PostgreSQL 17 | Singapore region (Vercel integration) | Free (0.5 GB) |
 
 The frontend auto-deploys on every push to `main` via GitHub Actions.
-The backend auto-deploys on every push to `main` via Render.
-
-> **Note:** The Render free tier spins down after 15 minutes of inactivity. The first request after idle takes ~30-50 seconds (cold start). Subsequent requests are fast.
+The backend auto-deploys on every push to `main` via Vercel's GitHub integration.
 
 ---
 
@@ -23,14 +21,14 @@ The backend auto-deploys on every push to `main` via Render.
 Browser (sagargupta.online/ledger-sync/)
    |
    |-- Static assets --> GitHub Pages (frontend/dist)
-   |-- API calls ------> Render (FastAPI backend)
+   |-- API calls ------> Vercel Serverless (FastAPI + Mangum)
                              |
                              +--> Neon PostgreSQL (Singapore)
 ```
 
 - **Frontend** is a static React SPA served by GitHub Pages
-- **Backend** is a Python FastAPI app running on Render
-- **Database** is managed PostgreSQL on Neon (free tier, auto-sleep after 5 min idle)
+- **Backend** is a Python FastAPI app wrapped with Mangum, running as a Vercel serverless function
+- **Database** is managed PostgreSQL on Neon (free tier, auto-sleep after 5 min idle), connected via Vercel's Neon integration
 - **CORS** is configured to allow requests from `sagargupta.online` and `sagargupta16.github.io`
 
 ---
@@ -39,29 +37,32 @@ Browser (sagargupta.online/ledger-sync/)
 
 ### 1. Neon PostgreSQL (Database)
 
-**Dashboard:** [console.neon.tech](https://console.neon.tech)
+**Dashboard:** [console.neon.tech](https://console.neon.tech) or Vercel dashboard > Storage tab
 
-- **Project:** `ledger-sync`
+- **Project:** `neondb` (managed via Vercel Neon integration)
 - **Region:** Asia Pacific (Singapore)
 - **PostgreSQL version:** 17
 - **Connection:** Pooler endpoint (PgBouncer)
 
-The connection string is set as `LEDGER_SYNC_DATABASE_URL` in Render's environment variables.
+The connection string is set as `LEDGER_SYNC_DATABASE_URL` in Vercel's environment variables.
 
-> **Important:** Use the connection string **without** `channel_binding=require` (PgBouncer doesn't support it). The URL should end with `?sslmode=require`.
+> **Important:** Use the pooler connection string **without** `channel_binding=require` (PgBouncer doesn't support it). The URL should end with `?sslmode=require`.
 
-### 2. Render (Backend API)
+**Alembic migrations** run automatically via GitHub Actions (`.github/workflows/migrate.yml`) when `backend/alembic/**` or `models.py` files change on push to `main`. The workflow can also be triggered manually via `workflow_dispatch`.
 
-**Dashboard:** [dashboard.render.com](https://dashboard.render.com)
+### 2. Vercel (Backend API)
 
-Service configuration is defined in `render.yaml` (repo root) as Infrastructure as Code. See that file for build/start commands, health check, and env var declarations.
+**Dashboard:** [vercel.com](https://vercel.com) > ledger-sync-api project
 
-To enable Blueprint Sync (so Render auto-applies render.yaml changes on push):
-1. Go to [Render Dashboard](https://dashboard.render.com) > Blueprints
-2. Connect the `ledger-sync` repo
-3. Select the `render.yaml` file
+The backend runs as a serverless function using the Mangum adapter to wrap FastAPI as an AWS Lambda-compatible handler.
 
-**Environment variables set in Render dashboard** (secrets not in render.yaml):
+**Key files:**
+- `backend/vercel.json` - Routes all requests to the serverless handler
+- `backend/api/index.py` - Entry point that wraps FastAPI with Mangum
+
+Vercel auto-detects `uv.lock` and uses `uv` to install dependencies (falls back to `requirements.txt` if needed).
+
+**Environment variables set in Vercel dashboard** (secrets):
 
 | Variable | Required | Notes |
 |----------|----------|-------|
@@ -71,8 +72,12 @@ To enable Blueprint Sync (so Render auto-applies render.yaml changes on push):
 | `LEDGER_SYNC_GOOGLE_CLIENT_SECRET` | For Google login | Google OAuth client secret |
 | `LEDGER_SYNC_GITHUB_CLIENT_ID` | For GitHub login | GitHub OAuth client ID (create a **separate** prod app) |
 | `LEDGER_SYNC_GITHUB_CLIENT_SECRET` | For GitHub login | GitHub OAuth client secret |
+| `LEDGER_SYNC_FRONTEND_URL` | Yes | `https://sagargupta.online/ledger-sync` |
+| `LEDGER_SYNC_CORS_ORIGINS` | Yes | JSON array of allowed origins |
+| `LEDGER_SYNC_ENVIRONMENT` | Yes | `production` |
+| `PYTHON_VERSION` | Yes | `3.12` |
 
-Non-secret env vars (`PYTHON_VERSION`, `LEDGER_SYNC_ENVIRONMENT`, `LEDGER_SYNC_CORS_ORIGINS`, `LEDGER_SYNC_FRONTEND_URL`) are declared in `render.yaml`.
+The Neon integration also injects `NEON_DATABASE_URL`, `NEON_PGHOST`, and other `NEON_*` variables automatically.
 
 **OAuth redirect URIs** (must be registered in provider consoles):
 - Google: `https://yourdomain.com/ledger-sync/auth/callback/google`
@@ -96,7 +101,7 @@ The workflow:
 | Setting | Value |
 |---------|-------|
 | Settings > Pages > Source | GitHub Actions |
-| Settings > Actions > Variables > `VITE_API_BASE_URL` | `https://ledger-sync.onrender.com` |
+| Settings > Actions > Variables > `VITE_API_BASE_URL` | `https://ledger-sync-api.vercel.app` |
 
 **Custom domain:** `sagargupta.online` is configured at the GitHub account level, so the app is served at `sagargupta.online/ledger-sync/`.
 
@@ -154,7 +159,7 @@ The Vite dev server proxies `/api` requests to `http://localhost:8000`, so no CO
 
 ### Automatic (on push to `main`)
 
-Both Render and GitHub Pages auto-deploy when you push to `main`:
+Both Vercel and GitHub Pages auto-deploy when you push to `main`:
 
 ```bash
 git add .
@@ -163,18 +168,20 @@ git push origin main
 ```
 
 - **Frontend:** GitHub Actions builds and deploys to Pages (~30 seconds)
-- **Backend:** Render detects the push and redeploys (~3-5 minutes for build + deploy)
+- **Backend:** Vercel detects the push and redeploys (~20-40 seconds for serverless build)
+- **Migrations:** If `backend/alembic/**` or `models.py` changed, GitHub Actions runs `alembic upgrade head`
 
 ### Manual Redeploy
 
-- **Render:** Dashboard > Manual Deploy > Deploy latest commit
+- **Vercel:** Dashboard > Deployments > Redeploy
 - **GitHub Pages:** Actions tab > Deploy Frontend workflow > Run workflow
+- **Migrations:** Actions tab > Run Database Migrations workflow > Run workflow
 
 ---
 
 ## Environment Variables Reference
 
-### Backend (Render)
+### Backend (Vercel)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
@@ -188,38 +195,38 @@ git push origin main
 | `LEDGER_SYNC_GITHUB_CLIENT_ID` | No | - | GitHub OAuth client ID |
 | `LEDGER_SYNC_GITHUB_CLIENT_SECRET` | No | - | GitHub OAuth client secret |
 | `LEDGER_SYNC_LOG_LEVEL` | No | `INFO` | Python log level |
-| `PYTHON_VERSION` | Yes (Render) | - | Must be `X.Y.Z` format (e.g., `3.12.0`) |
+| `PYTHON_VERSION` | Yes (Vercel) | - | Python version (e.g., `3.12`) |
 
 ### Frontend (GitHub Actions)
 
 | Variable | Where | Description |
 |----------|-------|-------------|
-| `VITE_API_BASE_URL` | GitHub repo variable | Backend URL (e.g., `https://ledger-sync.onrender.com`) |
+| `VITE_API_BASE_URL` | GitHub repo variable | Backend URL (`https://ledger-sync-api.vercel.app`) |
 | `GITHUB_PAGES` | Set in workflow | Triggers `/ledger-sync/` base path |
 
 ---
 
 ## Troubleshooting
 
-### Backend won't start on Render
+### Backend deployment fails on Vercel
 
-1. Check **Render logs** for the actual Python traceback
+1. Check **Vercel build logs** in the dashboard
 2. Common issues:
-   - `PYTHON_VERSION` must be `X.Y.Z` (not just `3.12`)
    - `uv.lock` must be committed and in sync with `pyproject.toml`
-   - Missing dependencies (run `uv lock` locally and push)
+   - `mangum` must be in `pyproject.toml` dependencies (Vercel uses `uv.lock`, not `requirements.txt`)
+   - `vercel.json` must be in the `backend/` directory
 
 ### CORS errors in browser
 
 1. Verify the origin domain is in `settings.cors_origins` or `LEDGER_SYNC_CORS_ORIGINS`
 2. Check if the backend is returning 500 errors (CORS headers are missing on unhandled 500s)
-3. Test CORS directly: `curl -I -H "Origin: https://sagargupta.online" https://ledger-sync.onrender.com/health`
+3. Test CORS directly: `curl -I -H "Origin: https://sagargupta.online" https://ledger-sync-api.vercel.app/health`
 
 ### 500 errors on API endpoints
 
-1. Check Render logs for the error
+1. Check Vercel function logs (Dashboard > Deployments > Functions tab)
 2. Common cause: SQLite-specific SQL (`func.strftime`) used instead of `fmt_year_month` helpers
-3. Database connection issues: verify `LEDGER_SYNC_DATABASE_URL` is correct
+3. Database connection issues: verify `LEDGER_SYNC_DATABASE_URL` is correct and uses the pooler URL
 
 ### Frontend 404 on refresh
 
@@ -227,12 +234,11 @@ git push origin main
 2. Ensure `BrowserRouter` has `basename={import.meta.env.BASE_URL}`
 3. Ensure Vite `base` is set to `/ledger-sync/` for production builds
 
-### Render cold starts (slow first load)
+### Database migrations not running
 
-This is expected on the free tier. The service sleeps after 15 minutes of inactivity and takes ~30-50 seconds to wake up. Options:
-- Accept it (it's free)
-- Upgrade to Render paid tier ($7/month) for always-on
-- Use a cron service to ping `/health` every 14 minutes (keeps it warm)
+1. Check that `.github/workflows/migrate.yml` is triggered (only runs when `backend/alembic/**` or `backend/src/ledger_sync/db/models.py` change)
+2. Verify `LEDGER_SYNC_DATABASE_URL` GitHub Actions secret is set correctly
+3. Use the workflow_dispatch trigger for manual runs
 
 ---
 
@@ -306,7 +312,7 @@ server {
 
 </details>
 
-### Docker — Alternative (not currently used in production)
+### Docker -- Alternative (not currently used in production)
 
 <details>
 <summary>Docker Compose setup</summary>

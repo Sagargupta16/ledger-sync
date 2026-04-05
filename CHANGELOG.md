@@ -19,6 +19,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Smart account classification defaults** - Keyword matching now recognizes EPF, PPF, NPS, Mutual Funds, Groww, Zerodha, Kuvera, Stocks, Demat, Fixed Deposits, Gold, Crypto as Investments; Indian bank names (HDFC, SBI, ICICI, Axis, Kotak, etc.) as Bank Accounts; EMI/mortgage as Loans
 - **Auto income classification** - When all income categories are unclassified, keyword matching auto-assigns: Salary/Freelance/Bonus to Taxable, Dividends/Interest/Capital Gains to Investment Returns, Cashbacks/Refunds to Non-taxable, Gifts/Prizes to Other
 - **Auto investment account mapping** - Unmapped investment accounts auto-map by keyword: MF/Groww to mutual_funds, Stocks/Zerodha to stocks, FD to fixed_deposits, PPF/EPF/NPS to ppf_epf, Gold/Crypto/Real Estate to their types
+- **Backend migrated to Vercel** - Replaced Render (free tier with 30-50s cold starts) with Vercel serverless via Mangum adapter for zero cold start latency
+- **Neon database via Vercel integration** - Database connected through Vercel's Neon Storage integration for unified dashboard management
+- **Alembic migration workflow** - GitHub Actions workflow runs migrations automatically on push to main when schema files change
 
 ### Changed
 
@@ -98,7 +101,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Deployment configuration for Render (backend), GitHub Pages (frontend), and Neon PostgreSQL (database)
+- Deployment configuration for GitHub Pages (frontend), Neon PostgreSQL (database), and backend (originally Render, later migrated to Vercel)
 - `AnalyticsEngine` for post-upload data analytics: monthly summaries, category trends, transfer flows, recurring transactions, merchant intelligence, anomaly detection, net worth, fiscal year summaries
 - `ChartContainer` component to prevent negative dimension warnings
 - CI workflow with GitHub Actions: lint, type-check, build, deploy
