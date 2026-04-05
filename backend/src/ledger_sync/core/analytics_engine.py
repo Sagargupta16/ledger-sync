@@ -975,13 +975,13 @@ class AnalyticsEngine:
             return None
         import re
 
-        text = note.strip().lower()
+        text = " ".join(note.split()).lower()
         # Remove trailing date-like patterns (jan 2026, 01/2026, etc.)
-        month_pat = r"\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s?\d{0,4}$"
+        month_pat = r" (?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?: \d{1,4})?$"
         text = re.sub(month_pat, "", text)
-        text = re.sub(r"\s+\d{1,2}[/\-]\d{2,4}$", "", text)
+        text = re.sub(r" \d{1,2}[/\-]\d{2,4}$", "", text)
         # Remove trailing standalone numbers (invoice #, month number)
-        text = re.sub(r"\s+#?\d+$", "", text)
+        text = re.sub(r" #?\d+$", "", text)
         return text.strip() or None
 
     def _detect_recurring_transactions(self, transactions: list[Transaction] | None = None) -> int:
