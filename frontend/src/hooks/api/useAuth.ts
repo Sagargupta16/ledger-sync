@@ -7,8 +7,13 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
+import { isDemoMode } from '@/store/demoStore'
 import * as authApi from '@/services/api/auth'
 import { prefetchCoreData } from '@/lib/prefetch'
+import { seedDemoCache } from '@/lib/demo/seedDemoCache'
+import { generateDemoPreferences } from '@/lib/demo/generateDerivedData'
+import { usePreferencesStore } from '@/store/preferencesStore'
+import { DEMO_USER } from '@/lib/demo/enterDemoMode'
 
 export const AUTH_QUERY_KEY = ['auth', 'user']
 
@@ -58,10 +63,27 @@ export const useCurrentUser = () => {
  */
 export const useAuthInit = () => {
   const { accessToken, setLoading, logout, setUser } = useAuthStore()
+  const queryClient = useQueryClient()
 
   return useQuery({
     queryKey: ['auth', 'init'],
     queryFn: async () => {
+      // Demo mode: re-seed cache (handles browser refresh) and skip API
+      if (isDemoMode()) {
+        seedDemoCache(queryClient)
+        usePreferencesStore.getState().hydrateFromApi(generateDemoPreferences())
+        setUser(DEMO_USER)
+        setLoading(false)
+        return DEMO_USER
+      }
+
+      // Stale demo token from a closed tab — clean up
+      if (accessToken === 'demo-token') {
+        logout()
+        setLoading(false)
+        return null
+      }
+
       if (!accessToken) {
         setLoading(false)
         return null

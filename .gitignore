@@ -155,10 +155,10 @@ nul
 *.old
 README.backup.md
 
-# Data files (optional - uncomment if you don't want to commit test files)
+# Data files
 # data/
-# *.xlsx
-# *.xls
+*.xlsx
+*.xls
 # *.csv
 
 # Jupyter Notebook
@@ -215,4 +215,3 @@ typings/
 
 .claude/
 .mcp.json
-CLAUDE.md

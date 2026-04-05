@@ -9,6 +9,7 @@ import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { toast } from 'sonner'
 import EmptyState from '@/components/shared/EmptyState'
+import { useDemoGuard } from '@/hooks/useDemoGuard'
 
 const ANOMALY_TYPE_LABELS: Record<Anomaly['anomaly_type'], string> = {
   high_expense: 'High Expense',
@@ -44,6 +45,7 @@ export default function AnomalyReviewPage() {
   })
 
   const reviewMutation = useReviewAnomaly()
+  const { guardDemoAction } = useDemoGuard()
 
   const summary = useMemo(() => {
     const high = anomalies.filter((a) => a.severity === 'high').length
@@ -53,6 +55,7 @@ export default function AnomalyReviewPage() {
   }, [anomalies])
 
   const handleReview = (anomalyId: number, dismiss: boolean) => {
+    if (guardDemoAction('Reviewing anomalies')) return
     const notes = expandedNoteId === anomalyId ? noteText : undefined
     reviewMutation.mutate(
       { anomalyId, data: { dismiss, notes } },

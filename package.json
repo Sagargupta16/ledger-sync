@@ -1,6 +1,6 @@
 {
   "name": "ledger-sync",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Production-ready data ingestion and reconciliation engine with modern web interface",
   "scripts": {
     "setup": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run setup:backend\" \"pnpm run setup:frontend\"",

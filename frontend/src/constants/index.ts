@@ -6,6 +6,7 @@ export * from './chartConfig'
 
 export const ROUTES = {
   HOME: '/',
+  DEMO: '/demo',
   DASHBOARD: '/dashboard',
 
   // Data Management

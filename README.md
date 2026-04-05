@@ -4,15 +4,23 @@
 
 Ledger Sync is a self-hosted personal finance application that syncs your transaction data from Excel files (exported from Money Manager Pro or similar apps) and provides comprehensive analytics for your financial life.
 
-![Version](https://img.shields.io/badge/version-0.8.0-green.svg)
+![Version](https://img.shields.io/badge/version-0.9.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![React](https://img.shields.io/badge/react-19-blue.svg)
 ![TypeScript](https://img.shields.io/badge/typescript-5.9-blue.svg)
 
-**Live:** [sagargupta.online/ledger-sync](https://sagargupta.online/ledger-sync/) | **API:** [ledger-sync.onrender.com](https://ledger-sync.onrender.com/docs)
+**Live:** [sagargupta.online/ledger-sync](https://sagargupta.online/ledger-sync/) | **Demo:** [Try it now](https://sagargupta.online/ledger-sync/demo) | **API:** [ledger-sync.onrender.com](https://ledger-sync.onrender.com/docs)
 
 ## Features
+
+### Demo Mode
+
+- **Try before you sign up** - Click "Try Demo" on the landing page or visit `/demo` directly
+- Explore the full dashboard with ~500 realistic sample transactions (Indian household model)
+- All 23 pages render with pre-computed analytics data, zero backend calls
+- Floating banner with quick sign-up and exit options
+- Mutations (upload, settings, budgets, goals) are gracefully blocked with toast notifications
 
 ### Smart Upload & Sync
 
@@ -49,6 +57,12 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 - Net Worth tracking across all accounts
 - Anomaly detection and review
 - Budget tracking and goals
+
+### Smart Defaults
+
+- **Account classification** - Automatically categorizes accounts by keyword (EPF/PPF/MF/FD/Stocks to Investments, HDFC/SBI/ICICI to Bank Accounts, etc.)
+- **Income classification** - Auto-assigns Salary/Freelance to Taxable, Dividends/Interest to Investment Returns, Cashbacks to Non-taxable
+- **Investment mapping** - Auto-maps investment accounts to types (Groww MF to Mutual Funds, PPF Account to PPF/EPF, etc.)
 
 ## Tech Stack
 
@@ -150,6 +164,7 @@ ledger-sync/
 │       ├── store/          # Zustand global stores
 │       ├── services/       # API client (Axios)
 │       ├── lib/            # Utility functions
+│       │   └── demo/          # Demo mode (data generators, cache seeder)
 │       └── types/          # Shared TypeScript types
 ├── .github/workflows/      # CI pipeline
 └── CHANGELOG.md            # Version history

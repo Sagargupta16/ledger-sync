@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   LayoutDashboard,
   Upload,
@@ -35,10 +36,12 @@ import { cn } from '@/lib/cn'
 import SidebarSection from './SidebarSection'
 import SidebarItem from './SidebarItem'
 import { useAuthStore } from '@/store/authStore'
+import { useDemoStore } from '@/store/demoStore'
 import { useLogout } from '@/hooks/api/useAuth'
 import NotificationCenter from '@/components/shared/NotificationCenter'
 import ProfileModal from '@/components/shared/ProfileModal'
 import { useBudgets, useAnomalies, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
+import { exitDemoMode } from '@/lib/demo'
 
 // ─── Navigation config ──────────────────────────────────────────────────────
 
@@ -164,8 +167,10 @@ export default function Sidebar() {
   const [showProfile, setShowProfile] = useState(false)
 
   const { user } = useAuthStore()
+  const isDemoMode = useDemoStore((s) => s.isDemoMode)
   const logout = useLogout()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   // ── Badge counts from API data ──────────────────────────────────────────
 
@@ -237,8 +242,8 @@ export default function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Brand Header */}
           <BrandHeader
-            user={user}
-            onOpenProfile={() => setShowProfile(true)}
+            user={isDemoMode ? { email: 'Demo Mode' } : user}
+            onOpenProfile={() => { if (!isDemoMode) setShowProfile(true) }}
           />
 
           {/* Search */}
@@ -304,15 +309,26 @@ export default function Sidebar() {
                   <item.icon size={18} />
                 </Link>
               ))}
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={logout.isPending}
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 disabled:opacity-50"
-                title="Sign out"
-              >
-                <LogOut size={18} />
-              </button>
+              {isDemoMode ? (
+                <button
+                  type="button"
+                  onClick={() => exitDemoMode(queryClient, navigate)}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150"
+                  title="Exit Demo"
+                >
+                  <LogOut size={18} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={logout.isPending}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 disabled:opacity-50"
+                  title="Sign out"
+                >
+                  <LogOut size={18} />
+                </button>
+              )}
             </div>
           </div>
         </div>
