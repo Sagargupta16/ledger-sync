@@ -197,11 +197,7 @@ def get_daily_summaries(
     earning_period = _get_earning_start_period(current_user)
     earning_date = f"{earning_period}-01" if earning_period else None
 
-    query = (
-        db.query(DailySummary)
-        .filter(DailySummary.user_id == current_user.id)
-        .order_by(DailySummary.date)
-    )
+    query = db.query(DailySummary).filter(DailySummary.user_id == current_user.id)
 
     effective_start = start_date
     if earning_date:
@@ -211,7 +207,9 @@ def get_daily_summaries(
     if end_date:
         query = query.filter(DailySummary.date <= end_date)
 
-    days = query.limit(limit).all()
+    # Order desc + limit to get most recent days, then reverse for chronological output
+    days = query.order_by(DailySummary.date.desc()).limit(limit).all()
+    days.reverse()
 
     return {
         "data": [

@@ -28,7 +28,8 @@ import type {
 // Query keys — filter properties spread directly to avoid object reference mismatches
 export const analyticsV2Keys = {
   all: ['analyticsV2'] as const,
-  dailySummaries: () => [...analyticsV2Keys.all, 'daily-summaries'] as const,
+  dailySummaries: (filters?: { start_date?: string; end_date?: string; limit?: number }) =>
+    [...analyticsV2Keys.all, 'daily-summaries', filters?.start_date, filters?.end_date, filters?.limit] as const,
   investmentHoldings: (filters?: { active_only?: boolean }) =>
     [...analyticsV2Keys.all, 'investment-holdings', filters?.active_only] as const,
   monthlySummaries: () => [...analyticsV2Keys.all, 'monthly-summaries'] as const,
@@ -52,7 +53,7 @@ export const analyticsV2Keys = {
 // Daily Summaries
 export function useDailySummaries(params?: { start_date?: string; end_date?: string; limit?: number }) {
   return useQuery<DailySummary[], Error>({
-    queryKey: analyticsV2Keys.dailySummaries(),
+    queryKey: analyticsV2Keys.dailySummaries(params),
     queryFn: () => analyticsV2Service.getDailySummaries(params),
     staleTime: STABLE_STALE_TIME,
   })

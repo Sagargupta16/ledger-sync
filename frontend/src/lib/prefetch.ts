@@ -77,7 +77,7 @@ export function prefetchCoreData() {
 
   // Daily summaries — YearInReview heatmap
   queryClient.prefetchQuery({
-    queryKey: ['analyticsV2', 'daily-summaries'],
+    queryKey: ['analyticsV2', 'daily-summaries', undefined, undefined, undefined],
     queryFn: () => analyticsV2Service.getDailySummaries(),
   })
 

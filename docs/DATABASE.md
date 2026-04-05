@@ -255,7 +255,7 @@ transaction_id = hashlib.sha256(hash_input.encode()).hexdigest()
 
 ### Cascading Deletes
 
-All child tables use `ON DELETE CASCADE` via foreign keys referencing `users.id`.
+User-linked child tables reference `users.id` via foreign keys. Cascade behavior varies by migration — newer tables include `ON DELETE CASCADE`, but older migrations may not. Verify per table if needed.
 
 ### Audit Trail
 

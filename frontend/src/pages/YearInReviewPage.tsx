@@ -409,8 +409,14 @@ export default function YearInReviewPage() {
     const startStr = startDate.toISOString().substring(0, 10)
     const endStr = endDate.toISOString().substring(0, 10)
 
-    // Fast path: use pre-computed daily summaries when available
-    const { dayExpenses, dayIncomes } = dailySummaries.length > 0
+    // Fast path: use daily summaries only when they cover the selected date range
+    const summaryDates = dailySummaries.map((s) => s.date).sort()
+    const hasCoverage =
+      summaryDates.length > 0 &&
+      summaryDates[0] <= startStr &&
+      summaryDates[summaryDates.length - 1] >= endStr
+
+    const { dayExpenses, dayIncomes } = hasCoverage
       ? aggregateFromDailySummaries(dailySummaries, startStr, endStr)
       : aggregateDayTotals(transactions, startStr, endStr)
 
