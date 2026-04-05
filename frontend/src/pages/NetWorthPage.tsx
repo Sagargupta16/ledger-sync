@@ -6,6 +6,8 @@ import { useAccountBalances } from '@/hooks/useAnalytics'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
+import { useNetWorthSnapshots } from '@/hooks/api/useAnalyticsV2'
+import type { NetWorthSnapshot } from '@/services/api/analyticsV2'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
 import { useState, useMemo, useEffect, useCallback } from 'react'
@@ -83,6 +85,39 @@ function resolveAccountCategory(
   if (name.includes('cash') || name.includes('wallet')) return 'Cash & Wallets'
   if (name.includes('loan') || name.includes('emi') || name.includes('lend')) return 'Loans/Lended'
   return 'Other'
+}
+
+// Snapshot asset categories for stacked view
+const SNAPSHOT_CATEGORIES = [
+  'Cash & Bank',
+  'Mutual Funds',
+  'Stocks',
+  'Fixed Deposits',
+  'PPF/EPF',
+] as const
+
+const SNAPSHOT_CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
+  'Cash & Bank': { label: 'Cash & Bank', color: rawColors.ios.blue },
+  'Mutual Funds': { label: 'Mutual Funds', color: rawColors.ios.purple },
+  'Stocks': { label: 'Stocks', color: rawColors.ios.green },
+  'Fixed Deposits': { label: 'Fixed Deposits', color: rawColors.ios.pink },
+  'PPF/EPF': { label: 'PPF/EPF', color: rawColors.ios.orange },
+}
+
+/** Convert pre-computed NetWorthSnapshots to chart-ready format */
+function snapshotsToChartData(
+  snapshots: NetWorthSnapshot[],
+): Array<Record<string, number | string>> {
+  return snapshots.map((snap) => ({
+    date: snap.date,
+    netWorth: snap.net_worth,
+    dailyFlow: snap.change,
+    'Cash & Bank': snap.assets.cash_and_bank,
+    'Mutual Funds': snap.assets.mutual_funds,
+    'Stocks': snap.assets.stocks,
+    'Fixed Deposits': snap.assets.fixed_deposits,
+    'PPF/EPF': snap.assets.ppf_epf,
+  }))
 }
 
 /** Compute daily cumulative net worth from transactions */
@@ -303,6 +338,7 @@ export default function NetWorthPage() {
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
   const { data: transactions = [], isLoading: transactionsLoading } = useTransactions()
   const { data: preferences } = usePreferences()
+  const { data: netWorthSnapshots = [] } = useNetWorthSnapshots()
   const [showStacked, setShowStacked] = useState(false)
   const [classifications, setClassifications] = useState<Record<string, string>>({})
   const [expandedAssetCategories, setExpandedAssetCategories] = useState<Set<string>>(new Set())
@@ -386,10 +422,20 @@ export default function NetWorthPage() {
     return props
   }, [categoryTotals, allCategories, totalPositive])
 
-  // Compute daily cumulative net worth from transactions
+  // Use pre-computed snapshots when available, fall back to transaction computation
+  const useSnapshots = netWorthSnapshots.length > 0
   const netWorthData = useMemo(() => {
+    if (useSnapshots) {
+      return snapshotsToChartData(netWorthSnapshots)
+    }
     return computeNetWorthTimeSeries(transactions, allCategories, categoryProportions)
-  }, [transactions, allCategories, categoryProportions])
+  }, [useSnapshots, netWorthSnapshots, transactions, allCategories, categoryProportions])
+
+  // Resolve which categories to use for stacked view
+  const chartCategories = useSnapshots
+    ? (SNAPSHOT_CATEGORIES as unknown as string[])
+    : allCategories
+  const chartCategoryConfig = useSnapshots ? SNAPSHOT_CATEGORY_CONFIG : CATEGORY_CONFIG
 
   // Filter chart data to selected time range
   const filteredNetWorthData = useMemo(() => {
@@ -522,8 +568,8 @@ export default function NetWorthPage() {
                       {areaGradient('income', rawColors.ios.green, 0.6, 0.1)}
                       {areaGradient('expenses', rawColors.ios.red, 0.6, 0.1)}
                       {/* Dynamic gradients for each category */}
-                      {allCategories.map((cat) => {
-                        const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
+                      {chartCategories.map((cat) => {
+                        const config = chartCategoryConfig[cat] || CATEGORY_CONFIG['other']
                         return (
                           <linearGradient key={`color-${cat}`} id={`color-${cat.replaceAll(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor={config.color} stopOpacity={0.7} />
@@ -543,8 +589,8 @@ export default function NetWorthPage() {
                     {dims.showLegend && <Legend {...LEGEND_DEFAULTS} />}
                     {showStacked ? (
                       <>
-                        {allCategories.map((cat) => {
-                          const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
+                        {chartCategories.map((cat) => {
+                          const config = chartCategoryConfig[cat] || CATEGORY_CONFIG['other']
                           return (
                             <Area
                               key={cat}

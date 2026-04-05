@@ -74,4 +74,61 @@ export function prefetchCoreData() {
     queryKey: ['analyticsV2', 'category-trends', undefined],
     queryFn: () => analyticsV2Service.getCategoryTrends(),
   })
+
+  // Transfer flows — IncomeExpenseFlow page
+  queryClient.prefetchQuery({
+    queryKey: ['analyticsV2', 'transfer-flows'],
+    queryFn: () => analyticsV2Service.getTransferFlows(),
+  })
+
+  // Recurring transactions — BillCalendar, SubscriptionTracker
+  queryClient.prefetchQuery({
+    queryKey: ['analyticsV2', 'recurring-transactions', undefined, undefined],
+    queryFn: () => analyticsV2Service.getRecurringTransactions(),
+  })
+
+  // Merchant intelligence — SpendingAnalysis (TopMerchants)
+  queryClient.prefetchQuery({
+    queryKey: ['analyticsV2', 'merchant-intelligence', undefined, undefined],
+    queryFn: () => analyticsV2Service.getMerchantIntelligence(),
+  })
+
+  // Net worth snapshots — NetWorth page
+  queryClient.prefetchQuery({
+    queryKey: ['analyticsV2', 'net-worth'],
+    queryFn: () => analyticsV2Service.getNetWorthSnapshots(),
+  })
+
+  // FY summaries — TaxPlanning, YearInReview
+  queryClient.prefetchQuery({
+    queryKey: ['analyticsV2', 'fy-summaries'],
+    queryFn: () => analyticsV2Service.getFYSummaries(),
+  })
+
+  // Anomalies — AnomalyReview page
+  queryClient.prefetchQuery({
+    queryKey: ['analyticsV2', 'anomalies', undefined, undefined, undefined],
+    queryFn: () => analyticsV2Service.getAnomalies(),
+  })
+
+  // Budgets — BudgetPage
+  queryClient.prefetchQuery({
+    queryKey: ['analyticsV2', 'budgets', undefined],
+    queryFn: () => analyticsV2Service.getBudgets(),
+  })
+
+  // Goals — GoalsPage
+  queryClient.prefetchQuery({
+    queryKey: ['analyticsV2', 'goals', undefined, undefined],
+    queryFn: () => analyticsV2Service.getGoals(),
+  })
+
+  // Totals — Dashboard, SpendingAnalysis
+  queryClient.prefetchQuery({
+    queryKey: ['calculations', 'totals', undefined],
+    queryFn: async () => {
+      const response = await calculationsApi.getTotals()
+      return response.data
+    },
+  })
 }

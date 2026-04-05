@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Store } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { useMerchantIntelligence } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency } from '@/lib/formatters'
 import { PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
@@ -27,10 +28,35 @@ const COLORS = CHART_COLORS
 const COLOR_STYLES = COLORS.map(c => ({ backgroundColor: c }))
 
 export default function TopMerchants({ dateRange }: TopMerchantsProps) {
-  const { data: transactions = [], isLoading } = useTransactions()
+  const { data: transactions = [], isLoading: txLoading } = useTransactions()
+  const { data: precomputedMerchants = [], isLoading: merchantsLoading } = useMerchantIntelligence()
   const [viewMode, setViewMode] = useState<'amount' | 'frequency'>('amount')
 
+  // Use pre-computed merchant intelligence when no date range filter is active
+  const hasDateFilter = !!(dateRange?.start_date || dateRange?.end_date)
+  const isLoading = hasDateFilter ? txLoading : merchantsLoading
+
   const merchantData = useMemo(() => {
+    // Pre-computed path: no date filter, use backend-computed merchant data
+    if (!hasDateFilter && precomputedMerchants.length > 0) {
+      const mapped: MerchantData[] = precomputedMerchants.map((m) => ({
+        name: m.merchant,
+        totalSpent: m.total_spent,
+        transactionCount: m.transaction_count,
+        avgTransaction: m.avg_transaction,
+        categories: [m.category, m.subcategory].filter(Boolean) as string[],
+        lastTransaction: m.last_transaction || '',
+        firstTransaction: m.first_transaction || '',
+      }))
+      return mapped
+        .sort((a, b) => {
+          if (viewMode === 'amount') return b.totalSpent - a.totalSpent
+          return b.transactionCount - a.transactionCount
+        })
+        .slice(0, 10)
+    }
+
+    // Fallback: compute from filtered transactions
     const merchants: Record<string, MerchantData> = {}
 
     transactions
@@ -44,19 +70,15 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
         return true
       })
       .forEach((tx) => {
-        // Extract merchant name from note (usually first part before any details)
         const note = tx.note!
-        // Clean up common patterns
         let merchantName = note
-          .split(/[-–—|,/]/)[0] // Split by common separators
-          .replaceAll(/\d{4,}/g, '') // Remove long numbers (card numbers, refs)
+          .split(/[-–—|,/]/)[0]
+          .replaceAll(/\d{4,}/g, '')
           .replaceAll(/\s+/g, ' ')
           .trim()
 
-        // Skip if too short or too generic
         if (merchantName.length < 3 || merchantName.length > 50) return
 
-        // Normalize case
         merchantName = merchantName
           .toLowerCase()
           .split(' ')
@@ -85,21 +107,19 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
         if (tx.date < m.firstTransaction) m.firstTransaction = tx.date
       })
 
-    // Calculate averages
     Object.values(merchants).forEach((m) => {
       m.avgTransaction = m.totalSpent / m.transactionCount
     })
 
-    // Sort and get top merchants
     const sorted = Object.values(merchants)
-      .filter((m) => m.transactionCount >= 2) // At least 2 transactions
+      .filter((m) => m.transactionCount >= 2)
       .sort((a, b) => {
         if (viewMode === 'amount') return b.totalSpent - a.totalSpent
         return b.transactionCount - a.transactionCount
       })
 
     return sorted.slice(0, 10)
-  }, [transactions, viewMode, dateRange])
+  }, [hasDateFilter, precomputedMerchants, transactions, viewMode, dateRange])
 
   const totalSpentAtTopMerchants = merchantData.reduce((sum, m) => sum + m.totalSpent, 0)
 
