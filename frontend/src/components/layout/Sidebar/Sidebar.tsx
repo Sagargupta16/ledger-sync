@@ -255,7 +255,7 @@ export default function Sidebar() {
             >
               <Search size={15} className="flex-shrink-0" />
               <span className="flex-1 text-left">Search...</span>
-              <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-zinc-600 font-medium">
+              <kbd className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-zinc-600 font-medium">
                 ⌘K
               </kbd>
             </button>

@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
       {/* Quick Insights -- full width */}
       <motion.div className="p-6 glass rounded-2xl border border-border shadow-xl" {...SCROLL_FADE_UP}>
-        <h2 className="text-xl font-semibold mb-4">Quick Insights</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-4">Quick Insights</h2>
         <QuickInsights
           dateRange={dateRange}
           ageOfMoney={ageOfMoney}
@@ -93,7 +93,7 @@ export default function DashboardPage() {
       <FinancialHealthScore transactions={filteredTransactions} />
 
       {/* Income Sources & Expense Sources */}
-      <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" {...SCROLL_FADE_UP}>
+      <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6" {...SCROLL_FADE_UP}>
         {/* Income Sources */}
         <div className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-green shadow-xl glow-income">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">

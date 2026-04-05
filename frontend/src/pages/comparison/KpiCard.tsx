@@ -35,7 +35,7 @@ export function KpiCard({
     >
       <p className="text-sm text-muted-foreground mb-1">{title}</p>
       <div className="flex items-end gap-2 mb-3">
-        <span className="text-2xl font-bold" style={{ color }}>{fmtVal(valueB)}</span>
+        <span className="text-xl sm:text-2xl font-bold" style={{ color }}>{fmtVal(valueB)}</span>
       </div>
       <div className="text-xs text-muted-foreground mb-2">
         <span className="opacity-60">{labelA}:</span> {fmtVal(valueA)}

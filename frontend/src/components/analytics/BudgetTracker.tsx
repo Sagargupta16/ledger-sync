@@ -153,7 +153,7 @@ export default function BudgetTracker() {
 
       {/* Summary */}
       {budgets.length > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
           <div className="p-3 rounded-xl bg-background/30 text-center">
             <p className="text-xs text-muted-foreground">Total Budget</p>
             <p className="text-lg font-bold">{formatCurrency(totalBudget)}</p>

@@ -234,7 +234,7 @@ export default function SpendingAnalysisPage() {
           }
         />
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard title="Total Spending" value={formatCurrency(totalSpending)} icon={TrendingDown} color="red" isLoading={isLoading} />
           <MetricCard title="Monthly Avg" value={formatCurrency(monthlyAvgSpending)} icon={Activity} color="orange" isLoading={isLoading} subtitle="Average spending per month" />
           <MetricCard title="Top Category" value={topCategory} icon={Tag} color="blue" isLoading={isLoading} subtitle={topCategoryAmount > 0 ? formatCurrency(topCategoryAmount) : undefined} />
@@ -248,10 +248,10 @@ export default function SpendingAnalysisPage() {
         >
           <h3 className="text-lg font-semibold text-white mb-4">{needsTarget}/{wantsTarget}/{savingsTarget} Budget Rule Analysis</h3>
           {spendingChartData.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
               {/* Nested Donut Chart: Inner = Target, Outer = Actual */}
               <div className="flex flex-col items-center">
-                <div className="w-56 h-56">
+                <div className="w-44 h-44 md:w-48 md:h-48 lg:w-56 lg:h-56">
                   <ChartContainer>
                     <RechartsPie>
                       {/* Inner ring: Target split */}

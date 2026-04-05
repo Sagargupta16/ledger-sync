@@ -264,7 +264,7 @@ export default function QuickInsights({
     }
     const entries = Object.entries(byMonth)
     if (entries.length === 0) return null
-    const [monthKey, amount] = entries.reduce((max, cur) => cur[1] > max[1] ? cur : max)
+    const [monthKey, amount] = entries.reduce((max, cur) => cur[1] > max[1] ? cur : max, entries[0])
     const [y, m] = monthKey.split('-')
     const label = new Date(Number(y), Number(m) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     return { label, amount }

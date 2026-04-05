@@ -264,7 +264,7 @@ export default function CashFlowForecast() {
       </div>
 
       {/* ── Insight Cards ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">Avg Monthly Income</p>
           <p className="text-xl font-bold text-green-400">{formatCurrencyShort(insights.avgIncome)}</p>

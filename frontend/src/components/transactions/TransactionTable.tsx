@@ -126,7 +126,7 @@ const columns: ColumnDef<Transaction>[] = [
     accessorKey: 'note',
     header: 'Note',
     cell: ({ row }) => (
-      <span className="text-sm text-zinc-500 truncate max-w-[200px] block">
+      <span className="text-sm text-zinc-500 truncate max-w-[120px] lg:max-w-[200px] block">
         {row.original.note || '-'}
       </span>
     ),
@@ -303,7 +303,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                     const TypeIcon = isIncome ? TrendingUp : TrendingDown
 
                     return (
-                      <div key={row.id} className="p-4 hover:bg-white/[0.04] transition-colors duration-150">
+                      <div key={row.id} className="p-3 sm:p-4 hover:bg-white/[0.04] transition-colors duration-150">
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2">
                             {isTransfer ? (

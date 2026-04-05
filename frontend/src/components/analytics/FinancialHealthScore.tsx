@@ -206,7 +206,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
         />
         <RadarVisualization metrics={fhnRadarData} chartColor="#4a9eff" />
         <p className="text-[11px] text-center text-muted-foreground mb-3">{getSummary(overallScore)}</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {metrics.map((m) => <MetricCard key={m.name} metric={m} />)}
         </div>
         <p className="text-[10px] text-center text-muted-foreground/50 mt-3">Financial Health Network framework</p>

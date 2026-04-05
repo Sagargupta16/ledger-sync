@@ -409,7 +409,7 @@ export default function InvestmentAnalyticsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="relative p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10 shadow-xl shadow-black/40"
+              className="relative p-4 md:p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10 shadow-xl shadow-black/40"
             >
               <div className="inline-flex p-3 rounded-2xl mb-4 bg-ios-orange/15" style={{ boxShadow: '0 8px 24px rgba(255,159,10,0.15)' }}>
                 <Target className="w-6 h-6 text-ios-orange" />
@@ -445,7 +445,7 @@ export default function InvestmentAnalyticsPage() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass rounded-xl border border-border p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
         >
           <div className="flex items-center gap-3 mb-6">
             <PieChart className="w-5 h-5 text-ios-blue" />
@@ -492,7 +492,7 @@ export default function InvestmentAnalyticsPage() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
-          className="glass rounded-xl border border-border p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
         >
           <div className="flex items-center gap-3 mb-6">
             <LineChart className="w-5 h-5 text-ios-purple" />
@@ -556,7 +556,7 @@ export default function InvestmentAnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
           >
             <h3 className="text-lg font-semibold text-white mb-6">Investment Accounts</h3>
             <div className="overflow-x-auto">

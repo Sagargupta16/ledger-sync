@@ -486,7 +486,7 @@ export default function NetWorthPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass rounded-xl border border-border p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -602,7 +602,7 @@ export default function NetWorthPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-50px' }}
             transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
+            className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
@@ -669,7 +669,7 @@ export default function NetWorthPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-border p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Assets (Positive Balances)</h3>
           <AccountCategoryTable
@@ -693,7 +693,7 @@ export default function NetWorthPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-border p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
         >
           <h3 className="text-lg font-semibold text-white mb-6">Liabilities (Negative Balances)</h3>
           <AccountCategoryTable

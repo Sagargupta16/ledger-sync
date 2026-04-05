@@ -169,7 +169,7 @@ export default function IncomeAnalysisPage() {
 
         {/* Income Category Breakdown */}
         <motion.div
-          className="glass p-6 rounded-xl border border-border"
+          className="glass p-4 md:p-6 rounded-xl border border-border"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.55 }}
@@ -255,7 +255,7 @@ export default function IncomeAnalysisPage() {
 
         {/* Income Trend Chart -- Monthly with 3-month rolling average */}
         <motion.div
-          className="glass p-6 rounded-xl border border-border"
+          className="glass p-4 md:p-6 rounded-xl border border-border"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}

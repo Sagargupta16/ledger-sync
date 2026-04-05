@@ -29,7 +29,7 @@ export default function ComparisonPage() {
     return (
       <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6">
         <div className="h-10 w-72 bg-white/5 rounded-xl animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
           {['income', 'expenses', 'savings', 'rate'].map((name) => (
             <div key={`skel-${name}`} className="h-48 bg-white/5 rounded-2xl animate-pulse" />
           ))}
@@ -130,7 +130,7 @@ export default function ComparisonPage() {
       </AnimatePresence>
 
       {/* Financial Overview */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl border border-border p-6 shadow-xl">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl">
         <h2 className="text-lg font-semibold mb-6">Financial Overview</h2>
         <div className="space-y-6">
           <OverviewMetricRow label="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={rawColors.ios.green} maxValue={overviewMax} />
@@ -163,9 +163,9 @@ export default function ComparisonPage() {
       </div>
 
       {/* Quick Stats */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass rounded-2xl border border-border p-6 shadow-xl">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl">
         <h2 className="text-lg font-semibold mb-4">Quick Stats</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <QuickStat label="Transactions" valueA={periodA.transactions} valueB={periodB.transactions} labelA={periodA.label} labelB={periodB.label} />
           <QuickStat label="Avg Daily Spend" valueA={periodA.expense / 30} valueB={periodB.expense / 30} labelA={periodA.label} labelB={periodB.label} isCurrency />
           <QuickStat label="Categories Used" valueA={Object.keys(periodA.categories).length} valueB={Object.keys(periodB.categories).length} labelA={periodA.label} labelB={periodB.label} />
@@ -175,7 +175,7 @@ export default function ComparisonPage() {
 
       {/* Insights */}
       {insights.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass rounded-2xl border border-border p-6 shadow-xl">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl">
           <div className="flex items-center gap-2 mb-4">
             <Lightbulb className="w-5 h-5 text-ios-orange" />
             <h2 className="text-lg font-semibold">Key Insights</h2>

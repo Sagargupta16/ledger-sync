@@ -44,7 +44,7 @@ export default function GoalCard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6 hover:scale-[1.01] transition-all duration-300"
+      className="glass rounded-2xl border border-border p-4 md:p-6 hover:scale-[1.01] transition-all duration-300"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -82,7 +82,7 @@ export default function GoalCard({
       </div>
 
       {/* Amount Details */}
-      <div className="grid grid-cols-3 gap-4 mt-5">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-5">
         <div>
           <p className="text-xs text-text-tertiary">Target</p>
           <p className="text-sm font-medium text-white">{formatCurrency(goal.target_amount)}</p>

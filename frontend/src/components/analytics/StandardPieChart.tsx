@@ -96,9 +96,9 @@ export default function StandardPieChart({
         {showLegend && (
           <Legend
             {...LEGEND_DEFAULTS}
-            layout="vertical"
-            align="right"
-            verticalAlign="middle"
+            layout="horizontal"
+            align="center"
+            verticalAlign="bottom"
           />
         )}
         {/* Center label for donut charts */}

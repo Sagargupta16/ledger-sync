@@ -105,7 +105,7 @@ function TrendCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="glass rounded-xl border border-border p-6 shadow-lg"
+      className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -114,7 +114,7 @@ function TrendCard({
           </div>
           <div>
             <p className="text-sm text-muted-foreground">{label}</p>
-            <p className={`text-2xl font-bold ${valueClassName}`}>
+            <p className={`text-xl sm:text-2xl font-bold ${valueClassName}`}>
               {isLoading ? '...' : formatCurrency(metrics.current)}
             </p>
           </div>
@@ -168,7 +168,7 @@ function MonthlyBreakdownTable({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="glass rounded-xl border border-border p-6 shadow-lg"
+      className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
     >
       <h3 className="text-lg font-semibold text-white mb-6">Month-on-Month Breakdown</h3>
       {isLoading && (
@@ -534,7 +534,7 @@ export default function TrendsForecastsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-border p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
         >
           <div className="flex items-center gap-3 mb-6">
             <LineChart className="w-5 h-5 text-ios-blue" />
@@ -680,7 +680,7 @@ export default function TrendsForecastsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-border p-6 shadow-lg"
+          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
         >
           <div className="flex items-center gap-3 mb-6">
             <PiggyBank className="w-5 h-5 text-ios-purple" />

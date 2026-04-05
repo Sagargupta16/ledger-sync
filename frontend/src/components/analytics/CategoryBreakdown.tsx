@@ -185,7 +185,7 @@ export default function CategoryBreakdown({
                   <span className="text-xs text-zinc-400 tabular-nums shrink-0">
                     {cat.percent.toFixed(1)}%
                   </span>
-                  <span className="text-sm font-semibold text-zinc-200 tabular-nums shrink-0 w-28 text-right">
+                  <span className="text-sm font-semibold text-zinc-200 tabular-nums shrink-0 w-20 sm:w-28 text-right">
                     {formatCurrency(cat.total)}
                   </span>
 
@@ -223,7 +223,7 @@ export default function CategoryBreakdown({
                     transition={{ duration: 0.25, ease: 'easeInOut' }}
                     className="overflow-hidden"
                   >
-                    <div className="ml-6 mr-2 py-1 space-y-0.5">
+                    <div className="ml-3 mr-1 sm:ml-6 sm:mr-2 py-1 space-y-0.5">
                       {cat.subcategories.map((sub, si) => (
                         <div
                           key={sub.name}
@@ -240,7 +240,7 @@ export default function CategoryBreakdown({
                           </span>
 
                           {/* Subcategory bar */}
-                          <div className="w-20 h-1 rounded-full bg-white/5 overflow-hidden shrink-0">
+                          <div className="w-12 md:w-20 h-1 rounded-full bg-white/5 overflow-hidden shrink-0">
                             <motion.div
                               className="h-full rounded-full opacity-70"
                               style={{ backgroundColor: cat.color }}
@@ -253,7 +253,7 @@ export default function CategoryBreakdown({
                           <span className="text-xs text-zinc-500 tabular-nums shrink-0 w-10 text-right">
                             {sub.percent.toFixed(0)}%
                           </span>
-                          <span className="text-xs font-medium text-zinc-300 tabular-nums shrink-0 w-24 text-right">
+                          <span className="text-xs font-medium text-zinc-300 tabular-nums shrink-0 w-18 sm:w-24 text-right">
                             {formatCurrency(sub.amount)}
                           </span>
                         </div>

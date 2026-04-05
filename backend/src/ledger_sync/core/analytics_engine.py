@@ -977,7 +977,7 @@ class AnalyticsEngine:
 
         text = note.strip().lower()
         # Remove trailing date-like patterns (jan 2026, 01/2026, etc.)
-        month_pat = r"\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s*\d{0,4}$"
+        month_pat = r"\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s?\d{0,4}$"
         text = re.sub(month_pat, "", text)
         text = re.sub(r"\s+\d{1,2}[/\-]\d{2,4}$", "", text)
         # Remove trailing standalone numbers (invoice #, month number)

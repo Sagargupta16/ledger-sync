@@ -49,7 +49,7 @@ export function SpendingDistribution({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25 }}
-      className="glass rounded-2xl border border-border p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl"
     >
       <h2 className="text-lg font-semibold mb-1">Spending Distribution</h2>
       <p className="text-xs text-text-tertiary mb-2">Category-by-category comparison — bars extend left and right from center</p>
