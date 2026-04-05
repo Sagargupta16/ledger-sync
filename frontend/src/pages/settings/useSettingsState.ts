@@ -7,10 +7,11 @@ import { useAccountBalances, useMasterCategories } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { usePreferences, useUpdatePreferences, useResetPreferences } from '@/hooks/api/usePreferences'
 import { toast } from 'sonner'
+import { useDemoGuard } from '@/hooks/useDemoGuard'
 import type { LocalPrefs, LocalPrefKey } from './types'
 import { ACCOUNT_TYPES } from './types'
 import {
-  getDefaultClassifications, normalizeArray, getStoredWidgets, getStoredTheme, buildInitialLocalPrefs,
+  getDefaultClassifications, getDefaultIncomeClassifications, getDefaultInvestmentMappings, normalizeArray, getStoredWidgets, getStoredTheme, buildInitialLocalPrefs,
 } from './helpers'
 
 export function useSettingsState() {
@@ -20,6 +21,7 @@ export function useSettingsState() {
   const resetPreferences = useResetPreferences()
   const { data: masterCategories, isLoading: categoriesLoading } = useMasterCategories()
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
+  const { guardDemoAction } = useDemoGuard()
 
   // Local state
   const [classifications, setClassifications] = useState<Record<string, string>>({})
@@ -122,6 +124,45 @@ export function useSettingsState() {
     setLocalPrefs(buildInitialLocalPrefs(preferences as unknown as Record<string, unknown>) as unknown as LocalPrefs)
   }, [preferences, localPrefs])
 
+  // Auto-classify unclassified income categories using keyword matching
+  useEffect(() => {
+    if (!localPrefs || Object.keys(allIncomeCategories).length === 0) return
+    const hasAny = localPrefs.taxable_income_categories.length > 0 ||
+      localPrefs.investment_returns_categories.length > 0 ||
+      localPrefs.non_taxable_income_categories.length > 0 ||
+      localPrefs.other_income_categories.length > 0
+    if (hasAny) return
+
+    const defaults = getDefaultIncomeClassifications(
+      allIncomeCategories,
+      { taxable: [], investment: [], non_taxable: [], other: [] },
+    )
+    if (defaults.taxable.length + defaults.investment.length + defaults.non_taxable.length + defaults.other.length === 0) return
+
+    setLocalPrefs((prev) => prev ? {
+      ...prev,
+      taxable_income_categories: defaults.taxable,
+      investment_returns_categories: defaults.investment,
+      non_taxable_income_categories: defaults.non_taxable,
+      other_income_categories: defaults.other,
+    } : prev)
+    setHasChanges(true)
+  }, [localPrefs, allIncomeCategories])
+
+  // Auto-map unmapped investment accounts using keyword matching
+  useEffect(() => {
+    if (!localPrefs || investmentAccounts.length === 0) return
+    const unmapped = investmentAccounts.filter((acc) => !localPrefs.investment_account_mappings[acc])
+    if (unmapped.length === 0) return
+
+    const defaults = getDefaultInvestmentMappings(unmapped)
+    setLocalPrefs((prev) => prev ? {
+      ...prev,
+      investment_account_mappings: { ...prev.investment_account_mappings, ...defaults },
+    } : prev)
+    setHasChanges(true)
+  }, [localPrefs, investmentAccounts])
+
   // Load account classifications
   useEffect(() => {
     let cancelled = false
@@ -152,6 +193,7 @@ export function useSettingsState() {
 
   // Save / Reset
   const handleSave = useCallback(async () => {
+    if (guardDemoAction('Saving settings')) return
     setIsSaving(true)
     try {
       const original = await accountClassificationsService.getAllClassifications()
@@ -169,9 +211,10 @@ export function useSettingsState() {
     } finally {
       setIsSaving(false)
     }
-  }, [classifications, localPrefs, updatePreferences])
+  }, [classifications, localPrefs, updatePreferences, guardDemoAction])
 
   const handleReset = useCallback(async () => {
+    if (guardDemoAction('Resetting settings')) return
     try {
       await resetPreferences.mutateAsync()
       setLocalPrefs(null)
@@ -180,7 +223,7 @@ export function useSettingsState() {
     } catch {
       toast.error('Failed to reset settings')
     }
-  }, [resetPreferences])
+  }, [resetPreferences, guardDemoAction])
 
   const isLoading = preferencesLoading || classificationsLoading || categoriesLoading
 

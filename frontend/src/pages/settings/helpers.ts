@@ -36,26 +36,119 @@ export const DASHBOARD_WIDGETS = [
 // Helper functions
 // ---------------------------------------------------------------------------
 
+// Keyword-to-classification lookup tables (ordered by priority)
+const ACCOUNT_CLASSIFICATION_RULES: Array<{ keywords: string[]; endsWith?: string[]; classification: string }> = [
+  { keywords: ['credit card', 'cc ', 'amex'], classification: 'Credit Cards' },
+  {
+    keywords: [
+      'epf', 'ppf', 'nps', 'mutual fund', ' mf', 'groww', 'zerodha', 'kuvera',
+      'stock', 'demat', 'shares', 'fixed deposit', ' fd', 'investment', 'gold', 'crypto',
+    ],
+    endsWith: [' mf', ' fd'],
+    classification: 'Investments',
+  },
+  { keywords: ['loan', 'debt', 'emi', 'mortgage'], classification: 'Loans/Lended' },
+  {
+    keywords: [
+      'bank', 'checking', 'salary', 'savings', 'saving',
+      'hdfc', 'icici', 'sbi', 'axis', 'kotak', 'bob', 'pnb', 'canara', 'idfc',
+      'yes bank', 'indusind', 'rbl', 'federal', 'bandhan', 'union bank',
+    ],
+    classification: 'Bank Accounts',
+  },
+  { keywords: ['cash', 'wallet'], classification: 'Cash' },
+]
+
+function matchClassification(lower: string, rules: Array<{ keywords: string[]; endsWith?: string[]; classification: string }>): string | null {
+  for (const rule of rules) {
+    if (rule.keywords.some((kw) => lower.includes(kw))) return rule.classification
+    if (rule.endsWith?.some((kw) => lower.endsWith(kw))) return rule.classification
+  }
+  return null
+}
+
 /** Derive default account classifications from account names by keyword matching */
 export function getDefaultClassifications(accountNames: string[]): Record<string, string> {
   const defaults: Record<string, string> = {}
-  accountNames.forEach((name) => {
-    const lower = name.toLowerCase()
-    if (lower.includes('credit card') || lower.includes('cc ') || lower.includes('amex')) {
-      defaults[name] = 'Credit Cards'
-    } else if (lower.includes('bank') || lower.includes('checking') || lower.includes('salary')) {
-      defaults[name] = 'Bank Accounts'
-    } else if (lower.includes('cash') || lower.includes('wallet')) {
-      defaults[name] = 'Cash'
-    } else if (lower.includes('investment') || lower.includes('mutual') || lower.includes('stock')) {
-      defaults[name] = 'Investments'
-    } else if (lower.includes('loan') || lower.includes('debt')) {
-      defaults[name] = 'Loans/Lended'
-    } else {
-      defaults[name] = 'Other Wallets'
-    }
-  })
+  for (const name of accountNames) {
+    defaults[name] = matchClassification(name.toLowerCase(), ACCOUNT_CLASSIFICATION_RULES) ?? 'Other Wallets'
+  }
   return defaults
+}
+
+const INCOME_CLASSIFICATION_RULES: Array<{ keywords: string[]; bucket: 'taxable' | 'investment' | 'non_taxable' | 'other' }> = [
+  { keywords: ['salary', 'stipend', 'bonus', 'freelance', 'gig work', 'consulting', 'rsus', 'self employment', 'rental', 'employment income'], bucket: 'taxable' },
+  { keywords: ['dividend', 'interest', 'capital gain', 'f&o', 'stock market', 'investment', 'mutual fund', 'trading'], bucket: 'investment' },
+  { keywords: ['cashback', 'refund', 'reward', 'reimbursement', 'deposit return'], bucket: 'non_taxable' },
+  { keywords: ['gift', 'prize', 'pocket money', 'epf contribution', 'one-time', 'other', 'modified balancing'], bucket: 'other' },
+]
+
+/**
+ * Classify income subcategory items (format: "Category::Subcategory") into
+ * tax-based buckets using keyword matching. Returns defaults only for items
+ * not already classified by the user.
+ */
+export function getDefaultIncomeClassifications(
+  allIncomeCategories: Record<string, string[]>,
+  existing: {
+    taxable: string[]
+    investment: string[]
+    non_taxable: string[]
+    other: string[]
+  },
+): { taxable: string[]; investment: string[]; non_taxable: string[]; other: string[] } {
+  const alreadyClassified = new Set([
+    ...existing.taxable, ...existing.investment,
+    ...existing.non_taxable, ...existing.other,
+  ])
+
+  const result = {
+    taxable: [...existing.taxable],
+    investment: [...existing.investment],
+    non_taxable: [...existing.non_taxable],
+    other: [...existing.other],
+  }
+
+  for (const [cat, subs] of Object.entries(allIncomeCategories)) {
+    for (const sub of subs) {
+      const item = `${cat}::${sub}`
+      if (alreadyClassified.has(item)) continue
+
+      const subLower = sub.toLowerCase()
+      const catLower = cat.toLowerCase()
+      // Check subcategory first (specific), then category (broad) to avoid
+      // broad keywords like 'employment income' swallowing specific subcategories
+      const matched =
+        INCOME_CLASSIFICATION_RULES.find((rule) => rule.keywords.some((kw) => subLower.includes(kw))) ??
+        INCOME_CLASSIFICATION_RULES.find((rule) => rule.keywords.some((kw) => catLower.includes(kw)))
+      if (matched) result[matched.bucket].push(item)
+    }
+  }
+
+  return result
+}
+
+const INVESTMENT_MAPPING_RULES: Array<{ keywords: string[]; endsWith?: string[]; type: string }> = [
+  { keywords: ['epf', 'ppf', 'nps'], type: 'ppf_epf' },
+  { keywords: ['mutual fund', ' mf', 'groww', 'kuvera'], endsWith: [' mf'], type: 'mutual_funds' },
+  { keywords: ['stock', 'demat', 'shares', 'zerodha'], type: 'stocks' },
+  { keywords: ['fixed deposit', ' fd'], endsWith: [' fd'], type: 'fixed_deposits' },
+  { keywords: ['gold'], type: 'gold' },
+  { keywords: ['crypto'], type: 'crypto' },
+  { keywords: ['real estate', 'property'], type: 'real_estate' },
+]
+
+/** Derive default investment type mappings from account names by keyword matching */
+export function getDefaultInvestmentMappings(accountNames: string[]): Record<string, string> {
+  const mappings: Record<string, string> = {}
+  for (const name of accountNames) {
+    const lower = name.toLowerCase()
+    const matched = INVESTMENT_MAPPING_RULES.find(
+      (rule) => rule.keywords.some((kw) => lower.includes(kw)) || rule.endsWith?.some((kw) => lower.endsWith(kw)),
+    )
+    mappings[name] = matched?.type ?? 'other'
+  }
+  return mappings
 }
 
 /** Safely coerce stored value (may be JSON string or array) to string[] */
@@ -65,8 +158,7 @@ export function normalizeArray(value: string[] | string): string[] {
     try {
       const parsed = JSON.parse(value)
       return Array.isArray(parsed) ? parsed : []
-    } catch (e) {
-      console.warn('[normalizeArray] Failed to parse JSON:', e)
+    } catch {
       return []
     }
   }
@@ -77,8 +169,8 @@ export function getStoredWidgets(): string[] {
   try {
     const raw = localStorage.getItem('ledger-sync-visible-widgets')
     if (raw) return JSON.parse(raw)
-  } catch (e) {
-    console.warn('[getStoredWidgets] Failed to read localStorage:', e)
+  } catch {
+    // localStorage unavailable or corrupted
   }
   return DASHBOARD_WIDGETS.map((w) => w.key)
 }

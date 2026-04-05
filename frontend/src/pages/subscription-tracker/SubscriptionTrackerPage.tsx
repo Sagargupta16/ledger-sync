@@ -8,6 +8,7 @@ import {
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
+import { useDemoGuard } from '@/hooks/useDemoGuard'
 import {
   useRecurringTransactions,
   useCreateRecurringTransaction,
@@ -290,23 +291,28 @@ export default function SubscriptionTrackerPage() {
     }
   }, [active])
 
+  const { guardDemoAction } = useDemoGuard()
+
   const handleCreate = useCallback((data: { name: string; type: string; frequency: string; amount: number; category?: string }) => {
+    if (guardDemoAction('Creating recurring items')) return
     createMutation.mutate(data, {
       onSuccess: () => { toast.success(`Added ${data.name}`); setShowForm(false); setSuggestion(undefined) },
     })
-  }, [createMutation])
+  }, [createMutation, guardDemoAction])
 
   const handleUpdate = useCallback((id: number, patch: Record<string, unknown>) => {
+    if (guardDemoAction('Editing recurring items')) return
     updateMutation.mutate({ id, ...patch }, {
       onSuccess: () => toast.success('Updated'),
     })
-  }, [updateMutation])
+  }, [updateMutation, guardDemoAction])
 
   const handleDelete = useCallback((id: number, name: string) => {
+    if (guardDemoAction('Deleting recurring items')) return
     deleteMutation.mutate(id, {
       onSuccess: () => toast.success(`Removed ${name}`),
     })
-  }, [deleteMutation])
+  }, [deleteMutation, guardDemoAction])
 
   const openWithSuggestion = (s: Suggestion) => {
     setSuggestion(s)

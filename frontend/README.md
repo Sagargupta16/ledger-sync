@@ -54,11 +54,21 @@ src/
 ├── services/api/       # API client modules
 ├── store/              # Zustand state stores
 ├── lib/                # Utilities (formatters, dateUtils, transactionUtils)
+│   └── demo/           # Demo mode data generators and cache seeder
 ├── types/              # TypeScript type definitions
 └── constants/          # Colors, animations, chart config
 ```
 
 ## Key Features
+
+### Demo Mode
+
+- "Try Demo" button on landing page and `/demo` direct link
+- ~500 realistic Indian household transactions generated client-side with seeded PRNG
+- 18 derived data generators populate all analytics pages via TanStack Query cache seeding
+- Axios interceptor blocks real API calls; `useDemoGuard` hook blocks mutations with toast
+- Floating banner overlay with sign-up and exit controls
+- Survives browser refresh (sessionStorage + cache re-seed); cleans up on real OAuth login
 
 ### Upload & Sync
 
@@ -143,6 +153,7 @@ VITE_API_BASE_URL=http://localhost:8000
 ### Zustand (Client State)
 
 - `authStore` - JWT tokens with persist middleware
+- `demoStore` - Demo mode flag with sessionStorage persist
 - `preferencesStore` - User display preferences (hydrated from API)
 - `accountStore` - Account mappings
 - `investmentAccountStore` - Investment category mappings

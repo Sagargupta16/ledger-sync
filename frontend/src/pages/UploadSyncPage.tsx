@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { useDropzone } from 'react-dropzone'
 import { cn } from '@/lib/cn'
 import { getApiErrorMessage } from '@/lib/errorUtils'
+import { useDemoGuard } from '@/hooks/useDemoGuard'
 
 // Sample data to show expected Excel format
 const SAMPLE_EXCEL_DATA = [
@@ -34,8 +35,10 @@ export default function UploadSyncPage() {
   const [conflictError, setConflictError] = useState<{ file: File; message: string } | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const uploadMutation = useUpload()
+  const { guardDemoAction } = useDemoGuard()
 
   const handleFileSelect = async (file: File, force: boolean = false) => {
+    if (guardDemoAction('File upload')) return
     setConflictError(null)
     setSelectedFile(file)
     try {

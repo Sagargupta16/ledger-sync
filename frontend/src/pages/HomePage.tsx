@@ -15,11 +15,14 @@ import {
   FileSpreadsheet,
   Calculator,
   Wallet,
+  Eye,
 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
 import { useAuthStore } from '@/store/authStore'
 import { AuthModal, LoginButton } from '@/components/shared/AuthModal'
+import { enterDemoMode } from '@/lib/demo'
 
 const features = [
   {
@@ -65,6 +68,7 @@ export default function HomePage() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const { isAuthenticated, user } = useAuthStore()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const handleGetStarted = () => {
     if (isAuthenticated) {
@@ -202,6 +206,16 @@ export default function HomePage() {
                   {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
                   <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                 </button>
+                {!isAuthenticated && (
+                  <button
+                    onClick={() => enterDemoMode(queryClient, navigate)}
+                    className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
+                  >
+                    <Eye className="w-5 h-5" />
+                    Try Demo
+                    <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                  </button>
+                )}
                 <a
                   href="#features"
                   className="flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
@@ -463,18 +477,29 @@ export default function HomePage() {
                 Start tracking your finances today. It's free, private, and
                 takes just a minute to get started.
               </p>
-              <button
-                onClick={handleGetStarted}
-                className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
-                style={{
-                  background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
-                  boxShadow: `0 10px 30px ${rawColors.ios.blue}50`,
-                }}
-              >
-                <Upload className="w-5 h-5" />
-                {isAuthenticated ? 'Upload Your Data' : 'Create Free Account'}
-                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-              </button>
+              <div className="flex flex-wrap justify-center gap-4">
+                <button
+                  onClick={handleGetStarted}
+                  className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
+                  style={{
+                    background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
+                    boxShadow: `0 10px 30px ${rawColors.ios.blue}50`,
+                  }}
+                >
+                  <Upload className="w-5 h-5" />
+                  {isAuthenticated ? 'Upload Your Data' : 'Create Free Account'}
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </button>
+                {!isAuthenticated && (
+                  <button
+                    onClick={() => enterDemoMode(queryClient, navigate)}
+                    className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
+                  >
+                    <Eye className="w-5 h-5" />
+                    Try Demo
+                  </button>
+                )}
+              </div>
             </motion.div>
           </div>
         </section>

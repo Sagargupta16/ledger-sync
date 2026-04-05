@@ -13,6 +13,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { useDemoStore } from '@/store/demoStore'
 import * as authApi from '@/services/api/auth'
 import { prefetchCoreData } from '@/lib/prefetch'
 import { ROUTES } from '@/constants'
@@ -48,6 +49,11 @@ export default function OAuthCallbackPage() {
 
     const handleCallback = async () => {
       try {
+        // Clear demo mode if active (real login replaces demo session)
+        if (useDemoStore.getState().isDemoMode) {
+          useDemoStore.getState().exitDemo()
+        }
+
         // Exchange code for tokens (state is validated server-side)
         const tokens = await authApi.oauthCallback(provider, code, state ?? undefined)
         setTokens(tokens)

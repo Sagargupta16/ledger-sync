@@ -3,6 +3,8 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar/Sidebar'
 import CommandPalette from '@/components/shared/CommandPalette'
+import { DemoBanner } from '@/components/shared/DemoBanner'
+import { useDemoStore } from '@/store/demoStore'
 
 const pageTransition = {
   initial: { opacity: 0, y: 8 },
@@ -38,6 +40,7 @@ const PAGE_TITLES: Record<string, string> = {
 
 export default function AppLayout() {
   const location = useLocation()
+  const isDemoMode = useDemoStore((s) => s.isDemoMode)
 
   // Dynamic page title
   useEffect(() => {
@@ -47,6 +50,8 @@ export default function AppLayout() {
 
   return (
     <div className="flex h-screen bg-black relative overflow-hidden">
+      {isDemoMode && <DemoBanner />}
+
       {/* Skip to main content link for keyboard users */}
       <a
         href="#main-content"

@@ -1,6 +1,6 @@
 [project]
 name = "ledger-sync"
-version = "0.8.0"
+version = "0.9.0"
 description = "Production-ready data ingestion and reconciliation engine for Money Manager Pro Excel exports"
 authors = [{ name = "Sagar Gupta" }]
 readme = "README.md"

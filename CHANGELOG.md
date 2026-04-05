@@ -4,6 +4,27 @@ All notable changes to Ledger Sync are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.0] - 2026-04-05
+
+### Added
+
+- **Demo mode** - "Try Demo" button on landing page and `/demo` direct link let visitors explore the full dashboard with realistic sample data, zero signup required
+  - ~500 deterministic Indian household transactions generated client-side (salary, rent, EMI, SIP, PPF, groceries, dining, etc.)
+  - 18 derived data generators seed all analytics pages (KPIs, monthly summaries, category trends, net worth, budgets, goals, anomalies, recurring transactions, etc.)
+  - Axios interceptor as safety net blocks real API calls and returns computed data for un-seeded query keys
+  - Floating demo banner with "Sign up" and exit controls, overlays pages without displacing layout
+  - `useDemoGuard` hook blocks mutations (upload, settings save, goal/budget creation, anomaly review) with user-friendly toast
+  - Browser refresh re-seeds TanStack Query cache via `useAuthInit`; stale demo tokens auto-cleaned on tab reopen
+  - Real OAuth login from demo mode automatically clears demo state
+- **Smart account classification defaults** - Keyword matching now recognizes EPF, PPF, NPS, Mutual Funds, Groww, Zerodha, Kuvera, Stocks, Demat, Fixed Deposits, Gold, Crypto as Investments; Indian bank names (HDFC, SBI, ICICI, Axis, Kotak, etc.) as Bank Accounts; EMI/mortgage as Loans
+- **Auto income classification** - When all income categories are unclassified, keyword matching auto-assigns: Salary/Freelance/Bonus to Taxable, Dividends/Interest/Capital Gains to Investment Returns, Cashbacks/Refunds to Non-taxable, Gifts/Prizes to Other
+- **Auto investment account mapping** - Unmapped investment accounts auto-map by keyword: MF/Groww to mutual_funds, Stocks/Zerodha to stocks, FD to fixed_deposits, PPF/EPF/NPS to ppf_epf, Gold/Crypto/Real Estate to their types
+
+### Changed
+
+- Demo banner uses `fixed` positioning (floating pill overlay) instead of `sticky` full-width bar that pushed page content down
+- Account classification priority order: Credit Cards > Investments > Loans > Bank Accounts > Cash > Other (prevents "ICICI Loan" from matching bank instead of loan)
+
 ## [0.8.0] - 2026-03-14
 
 ### Added

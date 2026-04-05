@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { useGoals, useCreateGoal, useMonthlySummaries } from '@/hooks/api/useAnalyticsV2'
 import { useTotals } from '@/hooks/api/useAnalytics'
 import { toast } from 'sonner'
+import { useDemoGuard } from '@/hooks/useDemoGuard'
 
 import { computeGoalProjection, loadAllocations, saveAllocations, loadDeletedGoals, saveDeletedGoals, loadGoalOverrides, saveGoalOverrides } from './helpers'
 import type { GoalOverride, GoalProjection } from './types'
@@ -38,6 +39,7 @@ export default function useGoalsState() {
   )
 
   const createGoal = useCreateGoal()
+  const { guardDemoAction } = useDemoGuard()
   const { data: totals, isLoading: totalsLoading } = useTotals()
   const { data: monthlySummaries = [] } = useMonthlySummaries()
 
@@ -92,6 +94,7 @@ export default function useGoalsState() {
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
+      if (guardDemoAction('Creating goals')) return
       if (!formData.name || !formData.target_amount || !formData.target_date) {
         toast.error('Please fill in required fields')
         return
@@ -113,7 +116,7 @@ export default function useGoalsState() {
         },
       )
     },
-    [formData, createGoal],
+    [formData, createGoal, guardDemoAction],
   )
 
   const handleSaveAllocation = useCallback(
