@@ -4,6 +4,20 @@ All notable changes to Ledger Sync are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.1] - 2026-04-05
+
+### Added
+
+- **Daily summaries table** - Pre-computed daily aggregations (income, expenses, net, transaction counts, top category) stored in `daily_summaries` table for instant heatmap rendering
+- **Daily summaries API** - `GET /api/analytics/v2/daily-summaries` endpoint with start_date, end_date, and limit filters
+- **Investment holdings API** - `GET /api/analytics/v2/investment-holdings` endpoint with active_only filter and portfolio summary
+- **Auto-populate investment holdings** - Analytics engine dynamically detects investment accounts from user preferences and computes net invested amounts from transfer flows
+
+### Changed
+
+- **Calculations fast path** - `get_totals`, `get_monthly_aggregation`, and `get_category_breakdown` now read from pre-computed `monthly_summaries`/`category_trends` tables when no date filter is active, falling back to raw transaction scan otherwise
+- **YearInReview heatmap** - Uses pre-computed daily summaries instead of scanning all transactions, with automatic fallback
+
 ## [0.9.0] - 2026-04-05
 
 ### Added

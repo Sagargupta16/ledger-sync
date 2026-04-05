@@ -83,6 +83,7 @@ The database also includes these models (see `backend/src/ledger_sync/db/models.
 - **User** — OAuth authentication (Google, GitHub) with JWT tokens. Fields: `email`, `full_name`, `auth_provider`, `auth_provider_id`, `is_verified`, timestamps
 - **UserPreferences** — 17 sections: fiscal year, essential categories, investment mappings, income classification, budget defaults, display format, anomaly settings, recurring settings, spending rule targets, credit card limits, earning start date, fixed expenses, savings/investment targets, payday, tax regime, excluded accounts, notification preferences
 - **AccountClassification** — User-defined account type mappings (Bank, Investment, Credit Card, etc.)
+- **DailySummary** — Pre-computed daily aggregations (income, expenses, net, counts, top category per day). Unique index on (user_id, date). Used by YearInReview heatmap.
 - **MonthlySummary** — Pre-calculated monthly income/expense/savings aggregations
 - **CategoryTrend** — Category-level trends over time periods
 - **TransferFlow** — Aggregated transfer flows between accounts
@@ -254,7 +255,7 @@ transaction_id = hashlib.sha256(hash_input.encode()).hexdigest()
 
 ### Cascading Deletes
 
-Currently, no foreign keys (no cascading deletes).
+All child tables use `ON DELETE CASCADE` via foreign keys referencing `users.id`.
 
 ### Audit Trail
 
@@ -282,6 +283,7 @@ Currently, no foreign keys (no cascading deletes).
 3. **Limit results** - Use LIMIT for pagination
 4. **Batch operations** - Use bulk_insert for large imports
 5. **Connection pooling** - Reuse database connections
+6. **Pre-computed aggregation tables** - `daily_summaries`, `monthly_summaries`, and `category_trends` store pre-computed data. Calculation endpoints use a fast-path (read from these tables) when no date filter is active, falling back to raw transaction scans when filters are applied.
 
 ### Example Optimized Query
 
