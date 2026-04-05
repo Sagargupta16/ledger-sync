@@ -210,6 +210,31 @@ export interface FinancialGoal {
   updated_at: string | null
 }
 
+export interface DailySummary {
+  date: string
+  income: number
+  expense: number
+  net: number
+  income_count: number
+  expense_count: number
+  transfer_count: number
+  total_transactions: number
+  top_category: string | null
+}
+
+export interface InvestmentHolding {
+  id: number
+  account: string
+  investment_type: string
+  instrument_name: string | null
+  invested_amount: number
+  current_value: number
+  realized_gains: number
+  unrealized_gains: number
+  is_active: boolean
+  last_updated: string | null
+}
+
 // API functions
 
 // All V2 endpoints wrap list data in { data: T[], count: number, ... }
@@ -219,6 +244,21 @@ interface WrappedResponse<T> {
 }
 
 export const analyticsV2Service = {
+  // Daily Summaries
+  async getDailySummaries(params?: { start_date?: string; end_date?: string; limit?: number }) {
+    const response = await apiClient.get<WrappedResponse<DailySummary>>('/api/analytics/v2/daily-summaries', { params })
+    return response.data.data
+  },
+
+  // Investment Holdings
+  async getInvestmentHoldings(params?: { active_only?: boolean }) {
+    const response = await apiClient.get<WrappedResponse<InvestmentHolding>>(
+      '/api/analytics/v2/investment-holdings',
+      { params },
+    )
+    return response.data.data
+  },
+
   // Monthly Summaries
   async getMonthlySummaries(params?: { limit?: number; offset?: number }) {
     const response = await apiClient.get<WrappedResponse<MonthlySummary>>('/api/analytics/v2/monthly-summaries', {

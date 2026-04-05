@@ -19,8 +19,10 @@ from ledger_sync.db.models import (
     AnomalyType,
     Budget,
     CategoryTrend,
+    DailySummary,
     FinancialGoal,
     FYSummary,
+    InvestmentHolding,
     MerchantIntelligence,
     MonthlySummary,
     NetWorthSnapshot,
@@ -176,6 +178,107 @@ def get_monthly_summaries(
             for s in summaries
         ],
         "count": len(summaries),
+    }
+
+
+@router.get("/daily-summaries")
+def get_daily_summaries(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    start_date: Annotated[str | None, Query(description="Start date (YYYY-MM-DD)")] = None,
+    end_date: Annotated[str | None, Query(description="End date (YYYY-MM-DD)")] = None,
+    limit: Annotated[int, Query(ge=1, le=3000, description="Max days to return")] = 1500,
+) -> dict[str, Any]:
+    """Get pre-calculated daily summaries.
+
+    Used by YearInReview heatmap and daily trend charts.
+    Returns daily income/expense/net totals with transaction counts.
+    """
+    earning_period = _get_earning_start_period(current_user)
+    earning_date = f"{earning_period}-01" if earning_period else None
+
+    query = (
+        db.query(DailySummary)
+        .filter(DailySummary.user_id == current_user.id)
+        .order_by(DailySummary.date)
+    )
+
+    effective_start = start_date
+    if earning_date:
+        effective_start = max(effective_start, earning_date) if effective_start else earning_date
+    if effective_start:
+        query = query.filter(DailySummary.date >= effective_start)
+    if end_date:
+        query = query.filter(DailySummary.date <= end_date)
+
+    days = query.limit(limit).all()
+
+    return {
+        "data": [
+            {
+                "date": d.date,
+                "income": float(d.total_income),
+                "expense": float(d.total_expenses),
+                "net": float(d.net),
+                "income_count": d.income_count,
+                "expense_count": d.expense_count,
+                "transfer_count": d.transfer_count,
+                "total_transactions": d.total_transactions,
+                "top_category": d.top_category,
+            }
+            for d in days
+        ],
+        "count": len(days),
+    }
+
+
+@router.get("/investment-holdings")
+def get_investment_holdings(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    active_only: Annotated[bool, Query(description="Only active holdings")] = True,
+) -> dict[str, Any]:
+    """Get auto-populated investment holdings derived from transaction data.
+
+    Holdings are computed from transfer flows to/from investment accounts
+    as defined in user preferences (investment_account_mappings).
+    """
+    query = (
+        db.query(InvestmentHolding)
+        .filter(InvestmentHolding.user_id == current_user.id)
+        .order_by(desc(InvestmentHolding.invested_amount))
+    )
+
+    if active_only:
+        query = query.filter(InvestmentHolding.is_active.is_(True))
+
+    holdings = query.all()
+
+    total_invested = sum(float(h.invested_amount) for h in holdings)
+    total_current = sum(float(h.current_value) for h in holdings)
+
+    return {
+        "data": [
+            {
+                "id": h.id,
+                "account": h.account,
+                "investment_type": h.investment_type,
+                "instrument_name": h.instrument_name,
+                "invested_amount": float(h.invested_amount),
+                "current_value": float(h.current_value),
+                "realized_gains": float(h.realized_gains),
+                "unrealized_gains": float(h.unrealized_gains),
+                "is_active": h.is_active,
+                "last_updated": h.last_updated.isoformat() if h.last_updated else None,
+            }
+            for h in holdings
+        ],
+        "count": len(holdings),
+        "summary": {
+            "total_invested": total_invested,
+            "total_current_value": total_current,
+            "total_gains": total_current - total_invested,
+        },
     }
 
 

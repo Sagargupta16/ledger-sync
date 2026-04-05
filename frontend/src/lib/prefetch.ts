@@ -74,4 +74,16 @@ export function prefetchCoreData() {
     queryKey: ['analyticsV2', 'category-trends', undefined],
     queryFn: () => analyticsV2Service.getCategoryTrends(),
   })
+
+  // Daily summaries — YearInReview heatmap
+  queryClient.prefetchQuery({
+    queryKey: ['analyticsV2', 'daily-summaries'],
+    queryFn: () => analyticsV2Service.getDailySummaries(),
+  })
+
+  // Investment holdings — InvestmentAnalytics page
+  queryClient.prefetchQuery({
+    queryKey: ['analyticsV2', 'investment-holdings', undefined],
+    queryFn: () => analyticsV2Service.getInvestmentHoldings(),
+  })
 }
