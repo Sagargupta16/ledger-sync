@@ -6,6 +6,7 @@ from enum import StrEnum as PyEnum
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     Float,
@@ -62,12 +63,56 @@ class User(Base):
     )
     last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    # Relationships — use deferred loading to avoid loading all transactions on every user query
+    # Relationships — cascade ensures child records are cleaned up when a user is deleted.
+    # lazy="select" avoids loading all children on every user query.
     transactions: Mapped["list[Transaction]"] = relationship(
-        "Transaction", back_populates="user", lazy="select"
+        "Transaction",
+        back_populates="user",
+        lazy="select",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     preferences: Mapped["UserPreferences | None"] = relationship(
-        "UserPreferences", back_populates="user", uselist=False
+        "UserPreferences",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    import_logs: Mapped["list[ImportLog]"] = relationship(
+        "ImportLog",
+        back_populates="user",
+        lazy="select",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    budgets: Mapped["list[Budget]"] = relationship(
+        "Budget",
+        back_populates="user",
+        lazy="select",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    financial_goals: Mapped["list[FinancialGoal]"] = relationship(
+        "FinancialGoal",
+        back_populates="user",
+        lazy="select",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    anomalies: Mapped["list[Anomaly]"] = relationship(
+        "Anomaly",
+        back_populates="user",
+        lazy="select",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    audit_logs: Mapped["list[AuditLog]"] = relationship(
+        "AuditLog",
+        back_populates="user",
+        lazy="select",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     def __repr__(self) -> str:
@@ -232,6 +277,9 @@ class ImportLog(Base):
     rows_deleted: Mapped[int] = mapped_column(nullable=False, default=0)
     rows_skipped: Mapped[int] = mapped_column(nullable=False, default=0)
 
+    # Relationship back to user
+    user: Mapped["User"] = relationship("User", back_populates="import_logs")
+
     def __repr__(self) -> str:
         """Return string representation."""
         return f"<ImportLog(id={self.id}, file={self.file_name}, imported_at={self.imported_at})>"
@@ -332,6 +380,15 @@ class TaxRecord(Base):
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Audit timestamps
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        server_default="2026-01-01",
+    )
+
     # Composite index for FY queries scoped to user
     __table_args__ = (Index("ix_tax_records_user_fy", "user_id", "financial_year"),)
 
@@ -410,6 +467,14 @@ class InvestmentHolding(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
+    # User foreign key - scopes holding to owner
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
     # Investment details
     account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     investment_type: Mapped[str] = mapped_column(
@@ -428,7 +493,10 @@ class InvestmentHolding(Base):
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    __table_args__ = (Index("ix_investment_account_type", "account", "investment_type"),)
+    __table_args__ = (
+        Index("ix_investment_account_type", "account", "investment_type"),
+        Index("ix_investment_user", "user_id"),
+    )
 
 
 # =============================================================================
@@ -683,7 +751,10 @@ class ScheduledTransaction(Base):
         onupdate=lambda: datetime.now(UTC),
     )
 
-    __table_args__ = (Index("ix_scheduled_user_active", "user_id", "is_active"),)
+    __table_args__ = (
+        Index("ix_scheduled_user_active", "user_id", "is_active"),
+        Index("ix_scheduled_user_active_due", "user_id", "is_active", "next_due_date"),
+    )
 
 
 class MerchantIntelligence(Base):
@@ -770,6 +841,9 @@ class Anomaly(Base):
     is_dismissed: Mapped[bool] = mapped_column(Boolean, default=False)
     review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Relationship back to user
+    user: Mapped["User"] = relationship("User", back_populates="anomalies")
+
     # Metadata
     detected_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -820,9 +894,22 @@ class Budget(Base):
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # Relationship back to user
+    user: Mapped["User"] = relationship("User", back_populates="budgets")
+
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "category", "subcategory", name="uq_budget_user_category"),
+        CheckConstraint("monthly_limit > 0", name="ck_budget_limit_positive"),
+        Index("ix_budget_user_category", "user_id", "category"),
+    )
 
 
 class FinancialGoal(Base):
@@ -856,9 +943,20 @@ class FinancialGoal(Base):
     # Status
     status: Mapped[GoalStatus] = mapped_column(Enum(GoalStatus), default=GoalStatus.ACTIVE)
 
+    # Relationship back to user
+    user: Mapped["User"] = relationship("User", back_populates="financial_goals")
+
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        server_default="2026-01-01",
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    __table_args__ = (CheckConstraint("target_amount > 0", name="ck_goal_target_positive"),)
 
 
 # =============================================================================
@@ -922,6 +1020,17 @@ class AuditLog(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
+    # User foreign key - tracks who performed the action
+    user_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    # Relationship back to user
+    user: Mapped["User | None"] = relationship("User", back_populates="audit_logs")
+
     # Operation details
     operation: Mapped[str] = mapped_column(
         String(50),
@@ -960,6 +1069,7 @@ class AuditLog(Base):
     __table_args__ = (
         Index("ix_audit_operation_entity", "operation", "entity_type"),
         Index("ix_audit_created", "created_at"),
+        Index("ix_audit_user", "user_id"),
     )
 
 

@@ -52,9 +52,10 @@ else:
 
     @event.listens_for(engine, "connect")
     def _set_pg_timeout(dbapi_connection: Any, _connection_record: Any) -> None:
-        """Set statement timeout per-connection (compatible with Neon pooler)."""
+        """Set timeouts per-connection (compatible with Neon pooler)."""
         cursor = dbapi_connection.cursor()
         cursor.execute("SET statement_timeout = '30s'")
+        cursor.execute("SET idle_in_transaction_session_timeout = '60s'")
         cursor.close()
 
 
