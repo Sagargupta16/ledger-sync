@@ -176,17 +176,21 @@ class Transaction(Base):
     transaction_id: Mapped[str] = mapped_column(String(64), primary_key=True)
 
     # User foreign key - links transaction to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+    )
 
     # Core transaction fields
-    date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="INR")
-    type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False, index=True)
+    type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False)
 
     # Categorization
     account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(255), nullable=False)
     subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Transfer-specific fields (only used when type=Transfer)
@@ -204,7 +208,7 @@ class Transaction(Base):
         default=lambda: datetime.now(UTC),
         index=True,
     )
-    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Audit timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -262,7 +266,12 @@ class ImportLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - links import to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     file_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     file_name: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -294,7 +303,12 @@ class AccountClassification(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # User foreign key - scopes classification to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Account name and classification
     account_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -333,7 +347,12 @@ class TaxRecord(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes tax record to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Financial year (e.g., "2022-23", "2023-24")
     financial_year: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -415,7 +434,12 @@ class NetWorthSnapshot(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes snapshot to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Snapshot date (typically end of month or upload date)
     snapshot_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
@@ -493,10 +517,7 @@ class InvestmentHolding(Base):
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    __table_args__ = (
-        Index("ix_investment_account_type", "account", "investment_type"),
-        Index("ix_investment_user", "user_id"),
-    )
+    __table_args__ = (Index("ix_investment_account_type", "account", "investment_type"),)
 
 
 # =============================================================================
@@ -512,7 +533,12 @@ class MonthlySummary(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes summary to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Period identification
     year: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -574,11 +600,16 @@ class CategoryTrend(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes trend to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Period and category
-    period_key: Mapped[str] = mapped_column(String(7), nullable=False, index=True)  # YYYY-MM
-    category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    period_key: Mapped[str] = mapped_column(String(7), nullable=False)  # YYYY-MM
+    category: Mapped[str] = mapped_column(String(255), nullable=False)
     subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
     transaction_type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False)
 
@@ -599,9 +630,16 @@ class CategoryTrend(Base):
     last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "period_key",
+            "category",
+            "subcategory",
+            "transaction_type",
+            name="uq_category_trend_user_period_cat",
+        ),
         Index("ix_category_trend_period_category", "period_key", "category"),
         Index("ix_category_trend_type", "transaction_type"),
-        Index("ix_category_trend_user", "user_id"),
     )
 
 
@@ -618,7 +656,12 @@ class TransferFlow(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes flow to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Flow identification
     from_account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -660,7 +703,12 @@ class RecurringTransaction(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes pattern to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Pattern identification
     pattern_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -698,10 +746,7 @@ class RecurringTransaction(Base):
     first_detected: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
-    __table_args__ = (
-        Index("ix_recurring_category_account", "category", "account"),
-        Index("ix_recurring_user", "user_id"),
-    )
+    __table_args__ = (Index("ix_recurring_category_account", "category", "account"),)
 
 
 class ScheduledTransaction(Base):
@@ -714,7 +759,12 @@ class ScheduledTransaction(Base):
     __tablename__ = "scheduled_transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # What
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -765,7 +815,12 @@ class MerchantIntelligence(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes merchant data to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Merchant identification (extracted from notes)
     merchant_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -794,6 +849,8 @@ class MerchantIntelligence(Base):
 
     last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
+    __table_args__ = (UniqueConstraint("user_id", "merchant_name", name="uq_merchant_user_name"),)
+
 
 # =============================================================================
 # ANOMALY DETECTION
@@ -808,10 +865,15 @@ class Anomaly(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes anomaly to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Anomaly details
-    anomaly_type: Mapped[AnomalyType] = mapped_column(Enum(AnomalyType), nullable=False, index=True)
+    anomaly_type: Mapped[AnomalyType] = mapped_column(Enum(AnomalyType), nullable=False)
     severity: Mapped[str] = mapped_column(String(20), nullable=False)  # low, medium, high, critical
     description: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -851,7 +913,6 @@ class Anomaly(Base):
     __table_args__ = (
         Index("ix_anomaly_type_severity", "anomaly_type", "severity"),
         Index("ix_anomaly_period", "period_key"),
-        Index("ix_anomaly_user", "user_id"),
     )
 
 
@@ -868,7 +929,12 @@ class Budget(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes budget to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Budget scope
     category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -920,7 +986,12 @@ class FinancialGoal(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes goal to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Goal details
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -972,7 +1043,12 @@ class FYSummary(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes FY summary to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # FY identification (e.g., "FY2024-25" for Apr 2024 - Mar 2025)
     fiscal_year: Mapped[str] = mapped_column(String(15), nullable=False, index=True)
@@ -1007,6 +1083,8 @@ class FYSummary(Base):
         default=False,
     )  # False if FY is still ongoing
 
+    __table_args__ = (UniqueConstraint("user_id", "fiscal_year", name="uq_fy_summary_user_fy"),)
+
 
 # =============================================================================
 # AUDIT LOGGING
@@ -1035,7 +1113,6 @@ class AuditLog(Base):
     operation: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        index=True,
     )  # upload, reconcile, edit, delete
     entity_type: Mapped[str] = mapped_column(
         String(50),
@@ -1066,11 +1143,7 @@ class AuditLog(Base):
         index=True,
     )
 
-    __table_args__ = (
-        Index("ix_audit_operation_entity", "operation", "entity_type"),
-        Index("ix_audit_created", "created_at"),
-        Index("ix_audit_user", "user_id"),
-    )
+    __table_args__ = (Index("ix_audit_operation_entity", "operation", "entity_type"),)
 
 
 class ColumnMappingLog(Base):
@@ -1129,7 +1202,7 @@ class UserPreferences(Base):
 
     # User foreign key - links preferences to owner
     user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(USER_FK), nullable=False, unique=True, index=True
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, unique=True, index=True
     )
 
     # Relationship back to user
