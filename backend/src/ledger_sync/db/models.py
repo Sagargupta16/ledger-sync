@@ -500,8 +500,45 @@ class InvestmentHolding(Base):
 
 
 # =============================================================================
-# MONTHLY & CATEGORY AGGREGATIONS (Pre-calculated for performance)
+# DAILY & MONTHLY AGGREGATIONS (Pre-calculated for performance)
 # =============================================================================
+
+
+class DailySummary(Base):
+    """Pre-calculated daily summary - updated after each upload.
+
+    Provides daily-level aggregations for heatmaps, daily trend charts, and
+    any UI that needs per-day totals without scanning raw transactions.
+    """
+
+    __tablename__ = "daily_summaries"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # User foreign key - scopes summary to owner
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+
+    # Date identification
+    date: Mapped[str] = mapped_column(String(10), nullable=False)  # YYYY-MM-DD
+
+    # Income & Expense totals
+    total_income: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    total_expenses: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    net: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    # Transaction counts
+    income_count: Mapped[int] = mapped_column(Integer, default=0)
+    expense_count: Mapped[int] = mapped_column(Integer, default=0)
+    transfer_count: Mapped[int] = mapped_column(Integer, default=0)
+    total_transactions: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Top category for the day (by expense amount)
+    top_category: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Metadata
+    last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (Index("ix_daily_summary_user_date", "user_id", "date", unique=True),)
 
 
 class MonthlySummary(Base):

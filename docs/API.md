@@ -744,6 +744,8 @@ Pre-aggregated analytics data. All require authentication.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/analytics/v2/daily-summaries` | Daily income/expense/net aggregations |
+| GET | `/api/analytics/v2/investment-holdings` | Investment portfolio holdings |
 | GET | `/api/analytics/v2/monthly-summaries` | Monthly income/expense/savings |
 | GET | `/api/analytics/v2/category-trends` | Category-level trends over time |
 | GET | `/api/analytics/v2/transfer-flows` | Account-to-account transfer flows |

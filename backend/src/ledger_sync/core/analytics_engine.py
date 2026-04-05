@@ -33,7 +33,9 @@ from ledger_sync.db.models import (
     AuditLog,
     Budget,
     CategoryTrend,
+    DailySummary,
     FYSummary,
+    InvestmentHolding,
     MerchantIntelligence,
     MonthlySummary,
     NetWorthSnapshot,
@@ -347,6 +349,15 @@ class AnalyticsEngine:
             all_transactions = self._user_transaction_query().all()
             self.logger.info("Loaded %d transactions for analytics", len(all_transactions))
 
+            # 0. Calculate daily summaries (fastest, simple date grouping)
+            t0 = time.time()
+            results["daily_summaries"] = self._calculate_daily_summaries(all_transactions)
+            log_analytics_calculation(
+                "Daily summaries",
+                results["daily_summaries"],
+                (time.time() - t0) * 1000,
+            )
+
             # 1. Calculate monthly summaries
             t0 = time.time()
             results["monthly_summaries"] = self._calculate_monthly_summaries(all_transactions)
@@ -403,6 +414,15 @@ class AnalyticsEngine:
             log_analytics_calculation(
                 "Net worth snapshot",
                 1 if results["net_worth"] else 0,
+                (time.time() - t0) * 1000,
+            )
+
+            # 6b. Auto-populate investment holdings from transfer flows
+            t0 = time.time()
+            results["investment_holdings"] = self._populate_investment_holdings(all_transactions)
+            log_analytics_calculation(
+                "Investment holdings",
+                results["investment_holdings"],
                 (time.time() - t0) * 1000,
             )
 
@@ -677,6 +697,80 @@ class AnalyticsEngine:
                 data["net_investment_flow"] -= amount  # Money going to investments
             elif self._is_investment_account(txn.from_account):
                 data["net_investment_flow"] += amount  # Money coming from investments
+
+    def _calculate_daily_summaries(self, transactions: list[Transaction] | None = None) -> int:
+        """Calculate and persist daily summary aggregations.
+
+        Groups all transactions by date and stores daily income/expense/net totals.
+        Used by YearInReview heatmap and daily trend charts.
+        """
+        if transactions is None:
+            transactions = self._user_transaction_query().all()
+
+        # Group by date (YYYY-MM-DD)
+        daily_data: dict[str, dict[str, Any]] = defaultdict(
+            lambda: {
+                "total_income": Decimal(0),
+                "total_expenses": Decimal(0),
+                "income_count": 0,
+                "expense_count": 0,
+                "transfer_count": 0,
+                "expense_categories": defaultdict(Decimal),
+            },
+        )
+
+        for txn in transactions:
+            date_key = txn.date.strftime("%Y-%m-%d")
+            amount = Decimal(str(txn.amount))
+            day = daily_data[date_key]
+
+            if txn.type == TransactionType.INCOME:
+                day["total_income"] += amount
+                day["income_count"] += 1
+            elif txn.type == TransactionType.EXPENSE:
+                day["total_expenses"] += amount
+                day["expense_count"] += 1
+                day["expense_categories"][txn.category] += amount
+            elif txn.type == TransactionType.TRANSFER:
+                day["transfer_count"] += 1
+
+        # Delete existing for this user and bulk insert
+        del_stmt = delete(DailySummary)
+        if self.user_id is not None:
+            del_stmt = del_stmt.where(DailySummary.user_id == self.user_id)
+        self.db.execute(del_stmt)
+
+        now = datetime.now(UTC)
+        count = 0
+        for date_key in sorted(daily_data.keys()):
+            data = daily_data[date_key]
+            total_income = data["total_income"]
+            total_expenses = data["total_expenses"]
+            total_txns = data["income_count"] + data["expense_count"] + data["transfer_count"]
+
+            # Find top expense category for the day
+            top_category = None
+            if data["expense_categories"]:
+                top_category = max(data["expense_categories"], key=data["expense_categories"].get)
+
+            self.db.add(
+                DailySummary(
+                    user_id=self.user_id,
+                    date=date_key,
+                    total_income=total_income,
+                    total_expenses=total_expenses,
+                    net=total_income - total_expenses,
+                    income_count=data["income_count"],
+                    expense_count=data["expense_count"],
+                    transfer_count=data["transfer_count"],
+                    total_transactions=total_txns,
+                    top_category=top_category,
+                    last_calculated=now,
+                )
+            )
+            count += 1
+
+        return count
 
     def _calculate_category_trends(self, all_transactions: list[Transaction] | None = None) -> int:
         """Calculate category-level trends over time."""
@@ -1307,6 +1401,77 @@ class AnalyticsEngine:
                     source="upload",
                 )
             )
+
+    def _populate_investment_holdings(
+        self,
+        all_transactions: list[Transaction] | None = None,
+    ) -> int:
+        """Auto-populate investment holdings from transaction data.
+
+        Dynamically detects investment accounts using user preferences
+        (investment_account_mappings) and computes net invested amount per account.
+        """
+        if all_transactions is None:
+            all_transactions = self._user_transaction_query().all()
+
+        inv_patterns = self.investment_account_patterns
+        if not inv_patterns:
+            return 0
+
+        # Aggregate net investment per account from transfers and direct transactions
+        holdings_data: dict[str, dict[str, Any]] = defaultdict(
+            lambda: {"invested": Decimal(0), "income": Decimal(0), "expense": Decimal(0)},
+        )
+
+        for txn in all_transactions:
+            if txn.type == TransactionType.TRANSFER:
+                # Transfer TO investment account = money invested
+                if txn.to_account and self._is_investment_account(txn.to_account):
+                    holdings_data[txn.to_account]["invested"] += Decimal(str(txn.amount))
+                # Transfer FROM investment account = money withdrawn
+                if txn.from_account and self._is_investment_account(txn.from_account):
+                    holdings_data[txn.from_account]["invested"] -= Decimal(str(txn.amount))
+            elif txn.type == TransactionType.INCOME and self._is_investment_account(txn.account):
+                # Dividends, interest on investment accounts
+                holdings_data[txn.account]["income"] += Decimal(str(txn.amount))
+            elif txn.type == TransactionType.EXPENSE and self._is_investment_account(txn.account):
+                # Brokerage, fees on investment accounts
+                holdings_data[txn.account]["expense"] += Decimal(str(txn.amount))
+
+        if not holdings_data:
+            return 0
+
+        # Delete existing auto-computed holdings for this user
+        del_stmt = delete(InvestmentHolding)
+        if self.user_id is not None:
+            del_stmt = del_stmt.where(InvestmentHolding.user_id == self.user_id)
+        self.db.execute(del_stmt)
+
+        now = datetime.now(UTC)
+        count = 0
+        for account, data in holdings_data.items():
+            inv_type = self._get_investment_type(account) or "other"
+            invested = data["invested"]
+            realized = data["income"] - data["expense"]
+            # current_value = invested + realized gains (no market data available)
+            current_value = invested + realized
+
+            self.db.add(
+                InvestmentHolding(
+                    user_id=self.user_id,
+                    account=account,
+                    investment_type=inv_type,
+                    invested_amount=invested,
+                    current_value=current_value,
+                    realized_gains=realized,
+                    unrealized_gains=Decimal(0),
+                    last_updated=now,
+                    is_active=invested > 0,
+                )
+            )
+            count += 1
+
+        return count
 
     def _categorize_account_balances(
         self,

@@ -14,8 +14,10 @@ import type {
   Anomaly,
   Budget,
   CategoryTrend,
+  DailySummary,
   FinancialGoal,
   FYSummary,
+  InvestmentHolding,
   MerchantIntelligence,
   MonthlySummary,
   NetWorthSnapshot,
@@ -26,6 +28,10 @@ import type {
 // Query keys — filter properties spread directly to avoid object reference mismatches
 export const analyticsV2Keys = {
   all: ['analyticsV2'] as const,
+  dailySummaries: (filters?: { start_date?: string; end_date?: string; limit?: number }) =>
+    [...analyticsV2Keys.all, 'daily-summaries', filters?.start_date, filters?.end_date, filters?.limit] as const,
+  investmentHoldings: (filters?: { active_only?: boolean }) =>
+    [...analyticsV2Keys.all, 'investment-holdings', filters?.active_only] as const,
   monthlySummaries: () => [...analyticsV2Keys.all, 'monthly-summaries'] as const,
   categoryTrends: (filters?: { category?: string; subcategory?: string }) =>
     [...analyticsV2Keys.all, 'category-trends', filters?.category, filters?.subcategory] as const,
@@ -42,6 +48,24 @@ export const analyticsV2Keys = {
     [...analyticsV2Keys.all, 'budgets', filters?.active_only] as const,
   goals: (filters?: { goal_type?: string; include_achieved?: boolean }) =>
     [...analyticsV2Keys.all, 'goals', filters?.goal_type, filters?.include_achieved] as const,
+}
+
+// Daily Summaries
+export function useDailySummaries(params?: { start_date?: string; end_date?: string; limit?: number }) {
+  return useQuery<DailySummary[], Error>({
+    queryKey: analyticsV2Keys.dailySummaries(params),
+    queryFn: () => analyticsV2Service.getDailySummaries(params),
+    staleTime: STABLE_STALE_TIME,
+  })
+}
+
+// Investment Holdings
+export function useInvestmentHoldings(params?: { active_only?: boolean }) {
+  return useQuery<InvestmentHolding[], Error>({
+    queryKey: analyticsV2Keys.investmentHoldings(params),
+    queryFn: () => analyticsV2Service.getInvestmentHoldings(params),
+    staleTime: STABLE_STALE_TIME,
+  })
 }
 
 // Monthly Summaries
@@ -262,8 +286,10 @@ export type {
   Anomaly,
   Budget,
   CategoryTrend,
+  DailySummary,
   FinancialGoal,
   FYSummary,
+  InvestmentHolding,
   MerchantIntelligence,
   MonthlySummary,
   NetWorthSnapshot,

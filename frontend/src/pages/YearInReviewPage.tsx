@@ -13,6 +13,7 @@ import {
 import { useState, useMemo } from 'react'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { useDailySummaries } from '@/hooks/api/useAnalyticsV2'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
@@ -159,6 +160,23 @@ function aggregateDayTotals(
     } else if (tx.type === 'Income') {
       dayIncomes[d] = (dayIncomes[d] || 0) + Math.abs(tx.amount)
     }
+  }
+  return { dayExpenses, dayIncomes }
+}
+
+/** Build dayExpenses/dayIncomes from pre-computed DailySummary rows. */
+function aggregateFromDailySummaries(
+  summaries: { date: string; income: number; expense: number }[],
+  startStr: string,
+  endStr: string,
+) {
+  const dayExpenses: Record<string, number> = {}
+  const dayIncomes: Record<string, number> = {}
+
+  for (const s of summaries) {
+    if (s.date < startStr || s.date > endStr) continue
+    if (s.expense > 0) dayExpenses[s.date] = s.expense
+    if (s.income > 0) dayIncomes[s.date] = s.income
   }
   return { dayExpenses, dayIncomes }
 }
@@ -346,6 +364,7 @@ function HeatmapDayDetail({ hoveredDay }: Readonly<{ hoveredDay: DayCell | null 
 export default function YearInReviewPage() {
   const dims = useChartDimensions()
   const { data: transactions = [] } = useTransactions()
+  const { data: dailySummaries = [] } = useDailySummaries()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
   const { displayPreferences } = usePreferencesStore()
@@ -390,12 +409,22 @@ export default function YearInReviewPage() {
     const startStr = startDate.toISOString().substring(0, 10)
     const endStr = endDate.toISOString().substring(0, 10)
 
-    const { dayExpenses, dayIncomes } = aggregateDayTotals(transactions, startStr, endStr)
+    // Fast path: use daily summaries only when they cover the selected date range
+    const summaryDates = dailySummaries.map((s) => s.date).sort()
+    const hasCoverage =
+      summaryDates.length > 0 &&
+      summaryDates[0] <= startStr &&
+      summaryDates[summaryDates.length - 1] >= endStr
+
+    const { dayExpenses, dayIncomes } = hasCoverage
+      ? aggregateFromDailySummaries(dailySummaries, startStr, endStr)
+      : aggregateDayTotals(transactions, startStr, endStr)
+
     const { cells, mxE, mxI, mxN } = buildDayCells(startDate, endDate, dayExpenses, dayIncomes)
     const labels = deriveMonthLabels(cells)
 
     return { grid: cells, maxExpense: mxE, maxIncome: mxI, maxNet: mxN, monthLabels: labels }
-  }, [transactions, selectedYear, isFYMode, fiscalYearStartMonth])
+  }, [dailySummaries, transactions, selectedYear, isFYMode, fiscalYearStartMonth])
 
   // Resolve the correct max based on mode
   const modeMaxMap: Record<HeatmapMode, number> = { expense: maxExpense, income: maxIncome, net: maxNet }

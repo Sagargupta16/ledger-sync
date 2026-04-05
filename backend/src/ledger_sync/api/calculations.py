@@ -18,7 +18,13 @@ from ledger_sync.core.query_helpers import (
     fmt_year_month,
     income_sum_col,
 )
-from ledger_sync.db.models import Transaction, TransactionType, User
+from ledger_sync.db.models import (
+    CategoryTrend,
+    MonthlySummary,
+    Transaction,
+    TransactionType,
+    User,
+)
 
 router = APIRouter(prefix="/api/calculations", tags=["calculations"])
 
@@ -126,7 +132,36 @@ def get_totals(
     start_date: OptionalStartDate = None,
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
-    """Calculate total income, expenses, and net savings."""
+    """Calculate total income, expenses, and net savings.
+
+    Fast path: when no date filters are provided, reads from pre-computed
+    monthly_summaries table instead of scanning all raw transactions.
+    """
+    # Fast path: aggregate from monthly_summaries when no date filter
+    if start_date is None and end_date is None:
+        summaries = (
+            db.query(
+                func.coalesce(func.sum(MonthlySummary.total_income), 0).label("total_income"),
+                func.coalesce(func.sum(MonthlySummary.total_expenses), 0).label("total_expenses"),
+                func.coalesce(func.sum(MonthlySummary.total_transactions), 0).label("tx_count"),
+            )
+            .filter(MonthlySummary.user_id == current_user.id)
+            .one()
+        )
+        if summaries.tx_count > 0:
+            total_income = float(summaries.total_income)
+            total_expenses = float(summaries.total_expenses)
+            net_savings = total_income - total_expenses
+            savings_rate = (net_savings / total_income * 100) if total_income > 0 else 0
+            return {
+                "total_income": total_income,
+                "total_expenses": total_expenses,
+                "net_savings": net_savings,
+                "savings_rate": savings_rate,
+                "transaction_count": summaries.tx_count,
+            }
+
+    # Fallback: compute from raw transactions with date filters
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
 
     row = db.query(
@@ -156,7 +191,30 @@ def get_monthly_aggregation(
     start_date: OptionalStartDate = None,
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
-    """Calculate monthly income and expense aggregation."""
+    """Calculate monthly income and expense aggregation.
+
+    Fast path: reads directly from monthly_summaries when no date filter.
+    """
+    # Fast path: read from pre-computed monthly_summaries
+    if start_date is None and end_date is None:
+        summaries = (
+            db.query(MonthlySummary)
+            .filter(MonthlySummary.user_id == current_user.id)
+            .order_by(MonthlySummary.period_key)
+            .all()
+        )
+        if summaries:
+            return {
+                s.period_key: {
+                    "income": float(s.total_income),
+                    "expense": float(s.total_expenses),
+                    "net_savings": float(s.net_savings),
+                    "transactions": s.total_transactions,
+                }
+                for s in summaries
+            }
+
+    # Fallback: compute from raw transactions with date filters
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
     month_col = fmt_year_month(base.c.date).label("month")
 
@@ -236,6 +294,67 @@ def get_yearly_aggregation(
     return yearly_data
 
 
+def _resolve_transaction_type(transaction_type: str | None) -> TransactionType | None:
+    """Resolve a string transaction type filter to the enum value."""
+    if not transaction_type:
+        return None
+    if transaction_type.lower() == "income":
+        return TransactionType.INCOME
+    return TransactionType.EXPENSE
+
+
+def _build_category_data_from_trends(
+    trends: list[CategoryTrend],
+) -> dict[str, Any]:
+    """Build category breakdown response from pre-computed CategoryTrend rows."""
+    category_data: dict[str, dict[str, Any]] = {}
+    for t in trends:
+        cat = t.category or "Uncategorized"
+        subcat = t.subcategory or "Other"
+        amount = float(t.total_amount)
+
+        if cat not in category_data:
+            category_data[cat] = {"total": 0.0, "count": 0, "subcategories": {}}
+
+        category_data[cat]["total"] += amount
+        category_data[cat]["count"] += t.transaction_count
+        category_data[cat]["subcategories"][subcat] = (
+            category_data[cat]["subcategories"].get(subcat, 0.0) + amount
+        )
+
+    return _finalize_category_percentages(category_data)
+
+
+def _build_category_data_from_rows(
+    rows: list[Any],
+) -> dict[str, Any]:
+    """Build category breakdown response from raw SQL aggregation rows."""
+    category_data: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        cat = row.category
+        subcat = row.subcategory
+        amount = float(row.total)
+
+        if cat not in category_data:
+            category_data[cat] = {"total": 0.0, "count": 0, "subcategories": {}}
+
+        category_data[cat]["total"] += amount
+        category_data[cat]["count"] += row.count
+        category_data[cat]["subcategories"][subcat] = amount
+
+    return _finalize_category_percentages(category_data)
+
+
+def _finalize_category_percentages(
+    category_data: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Add percentage fields and return final response dict."""
+    total_amount = sum(c["total"] for c in category_data.values())
+    for cat_info in category_data.values():
+        cat_info["percentage"] = (cat_info["total"] / total_amount * 100) if total_amount > 0 else 0
+    return {"categories": category_data, "total": total_amount}
+
+
 @router.get("/category-breakdown")
 def get_category_breakdown(
     current_user: CurrentUser,
@@ -244,25 +363,30 @@ def get_category_breakdown(
     end_date: OptionalEndDate = None,
     transaction_type: OptionalTransactionType = None,
 ) -> dict[str, Any]:
-    """Calculate spending/income breakdown by category and subcategory."""
-    query = build_transaction_query(db, current_user, start_date, end_date)
+    """Calculate spending/income breakdown by category and subcategory.
 
-    # Filter by type if specified
-    if transaction_type:
-        tx_type = (
-            TransactionType.INCOME
-            if transaction_type.lower() == "income"
-            else TransactionType.EXPENSE
-        )
+    Fast path: reads from category_trends when no date filter.
+    """
+    tx_type = _resolve_transaction_type(transaction_type)
+
+    # Fast path: aggregate from category_trends when no date filter
+    if start_date is None and end_date is None:
+        ct_query = db.query(CategoryTrend).filter(CategoryTrend.user_id == current_user.id)
+        if tx_type:
+            ct_query = ct_query.filter(CategoryTrend.transaction_type == tx_type)
+        trends = ct_query.all()
+        if trends:
+            return _build_category_data_from_trends(trends)
+
+    # Fallback: compute from raw transactions with date filters
+    query = build_transaction_query(db, current_user, start_date, end_date)
+    if tx_type:
         query = query.filter(Transaction.type == tx_type)
 
     base = query.subquery()
-
-    # Reuse the same expression objects so PostgreSQL sees identical GROUP BY / SELECT
     cat_col = func.coalesce(base.c.category, "Uncategorized")
     subcat_col = func.coalesce(base.c.subcategory, "Other")
 
-    # Aggregate by category and subcategory in SQL
     rows = (
         db.query(
             cat_col.label("category"),
@@ -274,37 +398,7 @@ def get_category_breakdown(
         .all()
     )
 
-    # Build the nested category_data structure from flat SQL rows
-    category_data: dict[str, dict[str, Any]] = {}
-    for row in rows:
-        cat = row.category
-        subcat = row.subcategory
-        amount = float(row.total)
-        count = row.count
-
-        if cat not in category_data:
-            category_data[cat] = {
-                "total": 0.0,
-                "count": 0,
-                "subcategories": {},
-            }
-
-        category_data[cat]["total"] += amount
-        category_data[cat]["count"] += count
-        category_data[cat]["subcategories"][subcat] = amount
-
-    # Calculate percentages
-    total_amount = sum(cat_info["total"] for cat_info in category_data.values())
-
-    for category in category_data:
-        category_data[category]["percentage"] = (
-            (category_data[category]["total"] / total_amount * 100) if total_amount > 0 else 0
-        )
-
-    return {
-        "categories": category_data,
-        "total": total_amount,
-    }
+    return _build_category_data_from_rows(rows)
 
 
 def _ensure_account(balances: dict[str, dict[str, Any]], account: str) -> None:
