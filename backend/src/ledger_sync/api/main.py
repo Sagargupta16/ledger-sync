@@ -22,6 +22,7 @@ from ledger_sync.api.analytics import router as analytics_router
 from ledger_sync.api.analytics_v2 import router as analytics_v2_router
 from ledger_sync.api.auth import router as auth_router
 from ledger_sync.api.calculations import router as calculations_router
+from ledger_sync.api.exchange_rates import router as exchange_rates_router
 from ledger_sync.api.meta import router as meta_router
 from ledger_sync.api.oauth import router as oauth_router
 from ledger_sync.api.preferences import router as preferences_router
@@ -246,6 +247,7 @@ app.include_router(preferences_router)
 app.include_router(reports_router)
 app.include_router(transactions_router)
 app.include_router(upload_router)
+app.include_router(exchange_rates_router)
 
 
 # ─── Health Check ────────────────────────────────────────────────────────────
