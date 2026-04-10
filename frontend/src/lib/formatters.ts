@@ -2,20 +2,38 @@
  * Currency formatting utilities for consistent display across the application
  *
  * These formatters use the preferences store for:
- * - Currency symbol (default: ₹)
- * - Number format (Indian: 1,00,000 vs International: 100,000)
- * - Symbol position (before/after)
+ * - Display currency (drives symbol, format, locale)
+ * - Exchange rate (for conversion from base currency)
  *
  * Usage:
- * - formatCurrency(value)        → "₹1,23,456.78" (2 decimal places, for display)
- * - formatCurrencyCompact(value) → "₹1,23,457" (rounded, for charts/cards)
- * - formatCurrencyShort(value)   → "₹1.23L" or "₹12.3K" (abbreviated, for chart axes)
+ * - formatCurrency(value)        -> "$1,502.34" (2 decimal places, for display)
+ * - formatCurrencyCompact(value) -> "$1,502" (rounded, for charts/cards)
+ * - formatCurrencyShort(value)   -> "$1.5K" (abbreviated, for chart axes)
  */
 
 import { usePreferencesStore } from '@/store/preferencesStore'
+import { getCurrencyMeta, BASE_CURRENCY } from '@/constants/currencies'
 
 // Get current preferences (for non-React contexts)
-const getPrefs = () => usePreferencesStore.getState().displayPreferences
+const getDisplayCurrency = () => usePreferencesStore.getState().displayCurrency
+const getExchangeRate = () => usePreferencesStore.getState().exchangeRate
+
+/**
+ * Convert an amount from base currency (INR) to the display currency.
+ * Returns the original value if display currency equals base currency or no rate available.
+ */
+const convertAmount = (value: number): number => {
+  const displayCurrency = getDisplayCurrency()
+  if (displayCurrency === BASE_CURRENCY) return value
+  const rate = getExchangeRate()
+  if (rate == null) return value
+  return value * rate
+}
+
+/**
+ * Get the CurrencyMeta for the current display currency.
+ */
+const getActiveCurrencyMeta = () => getCurrencyMeta(getDisplayCurrency())
 
 /**
  * Format a number with the appropriate locale
@@ -24,20 +42,18 @@ const formatWithLocale = (
   value: number,
   options: Intl.NumberFormatOptions = {}
 ): string => {
-  const prefs = getPrefs()
-  const locale = prefs.numberFormat === 'indian' ? 'en-IN' : 'en-US'
-  return value.toLocaleString(locale, options)
+  const meta = getActiveCurrencyMeta()
+  return value.toLocaleString(meta.locale, options)
 }
 
 /**
- * Add currency symbol based on preferences
+ * Add currency symbol based on current display currency metadata
  */
 const addCurrencySymbol = (formatted: string): string => {
-  const prefs = getPrefs()
-  const symbol = prefs.currencySymbol
-  return prefs.currencySymbolPosition === 'before'
-    ? `${symbol}${formatted}`
-    : `${formatted}${symbol}`
+  const meta = getActiveCurrencyMeta()
+  return meta.symbolPosition === 'before'
+    ? `${meta.symbol}${formatted}`
+    : `${formatted}${meta.symbol}`
 }
 
 /**
@@ -46,9 +62,11 @@ const addCurrencySymbol = (formatted: string): string => {
  * @returns Formatted string like "₹1,23,456.78"
  */
 export const formatCurrency = (value: number): string => {
-  const formatted = formatWithLocale(value, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  const meta = getActiveCurrencyMeta()
+  const converted = convertAmount(value)
+  const formatted = formatWithLocale(converted, {
+    minimumFractionDigits: meta.decimals,
+    maximumFractionDigits: meta.decimals,
   })
   return addCurrencySymbol(formatted)
 }
@@ -59,7 +77,8 @@ export const formatCurrency = (value: number): string => {
  * @returns Formatted string like "₹1,23,457"
  */
 export const formatCurrencyCompact = (value: number): string => {
-  const formatted = formatWithLocale(Math.round(value), {
+  const converted = convertAmount(value)
+  const formatted = formatWithLocale(Math.round(converted), {
     maximumFractionDigits: 0,
   })
   return addCurrencySymbol(formatted)
@@ -71,28 +90,27 @@ export const formatCurrencyCompact = (value: number): string => {
  * @returns Formatted string like "₹1.23L" or "₹12.3K"
  */
 export const formatCurrencyShort = (value: number): string => {
-  const prefs = getPrefs()
-  const symbol = prefs.currencySymbol
-  const absValue = Math.abs(value)
-  const sign = value < 0 ? '-' : ''
+  const meta = getActiveCurrencyMeta()
+  const converted = convertAmount(value)
+  const absValue = Math.abs(converted)
+  const sign = converted < 0 ? '-' : ''
 
   let formatted: string
-  if (absValue >= 10000000) {
-    // Crores (1Cr = 10,000,000)
-    formatted = `${(absValue / 10000000).toFixed(1)}Cr`
-  } else if (absValue >= 100000) {
-    // Lakhs (1L = 100,000)
-    formatted = `${(absValue / 100000).toFixed(1)}L`
-  } else if (absValue >= 1000) {
-    // Thousands
-    formatted = `${(absValue / 1000).toFixed(0)}K`
-  } else {
+  let matched = false
+  for (const unit of meta.shortUnits) {
+    if (absValue >= unit.threshold) {
+      formatted = `${(absValue / unit.divisor).toFixed(1)}${unit.suffix}`
+      matched = true
+      break
+    }
+  }
+  if (!matched) {
     formatted = `${Math.round(absValue)}`
   }
 
-  return prefs.currencySymbolPosition === 'before'
-    ? `${sign}${symbol}${formatted}`
-    : `${sign}${formatted}${symbol}`
+  return meta.symbolPosition === 'before'
+    ? `${sign}${meta.symbol}${formatted!}`
+    : `${sign}${formatted!}${meta.symbol}`
 }
 
 /**

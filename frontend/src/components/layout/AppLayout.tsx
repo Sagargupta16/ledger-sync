@@ -5,6 +5,7 @@ import Sidebar from './Sidebar/Sidebar'
 import CommandPalette from '@/components/shared/CommandPalette'
 import { DemoBanner } from '@/components/shared/DemoBanner'
 import { useDemoStore } from '@/store/demoStore'
+import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 
 const pageTransition = {
   initial: { opacity: 0, y: 8 },
@@ -41,6 +42,9 @@ const PAGE_TITLES: Record<string, string> = {
 export default function AppLayout() {
   const location = useLocation()
   const isDemoMode = useDemoStore((s) => s.isDemoMode)
+
+  // Fetch exchange rate when display currency changes (pushes to store for formatters)
+  useExchangeRate()
 
   // Dynamic page title
   useEffect(() => {
