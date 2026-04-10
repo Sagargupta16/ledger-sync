@@ -4,7 +4,7 @@
 
 No subscriptions. No data harvesting. Just 23 pages of analytics built from your own Excel exports, running on your own infrastructure.
 
-![Version](https://img.shields.io/badge/version-0.9.0-green.svg)
+![Version](https://img.shields.io/badge/version-0.10.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![React](https://img.shields.io/badge/react-19-blue.svg)
