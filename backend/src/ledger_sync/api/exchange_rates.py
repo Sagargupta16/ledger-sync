@@ -18,27 +18,27 @@ from ledger_sync.api.deps import CurrentUser
 router = APIRouter(prefix="/exchange-rates", tags=["exchange-rates"])
 
 _CACHE_TTL = 86400  # 24 hours in seconds
-_FRANKFURTER_URL = "https://api.frankfurter.app/latest"
+_FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest"
 
 # In-memory cache: { "rates": {...}, "fetched_at": float }
 _rate_cache: dict[str, Any] = {}
 
-# Approximate fallback rates (INR -> X) as of 2026-04
+# Approximate fallback rates (INR -> X) as of 2026-04-09
 _FALLBACK_RATES: dict[str, float] = {
-    "USD": 0.01187,
-    "EUR": 0.01092,
-    "GBP": 0.00940,
-    "JPY": 1.7800,
-    "CAD": 0.01620,
-    "AUD": 0.01830,
-    "CHF": 0.01050,
-    "SGD": 0.01590,
-    "AED": 0.04360,
-    "CNY": 0.08620,
-    "KRW": 16.300,
-    "SEK": 0.1230,
-    "NZD": 0.02010,
-    "HKD": 0.09260,
+    "USD": 0.01079,
+    "EUR": 0.00924,
+    "GBP": 0.00804,
+    "JPY": 1.7152,
+    "CAD": 0.01494,
+    "AUD": 0.01533,
+    "CHF": 0.00853,
+    "SGD": 0.01375,
+    "AED": 0.03963,
+    "CNY": 0.07376,
+    "KRW": 15.967,
+    "SEK": 0.10046,
+    "NZD": 0.01849,
+    "HKD": 0.08456,
 }
 
 
@@ -51,7 +51,7 @@ def _cache_is_fresh() -> bool:
 
 async def _fetch_rates(base: str) -> dict[str, float]:
     """Fetch latest rates from frankfurter.app."""
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
         resp = await client.get(_FRANKFURTER_URL, params={"from": base})
         resp.raise_for_status()
         data = resp.json()
