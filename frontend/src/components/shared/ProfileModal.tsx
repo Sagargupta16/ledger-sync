@@ -218,7 +218,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             {/* ─── Account Actions ────────────────────────────────────── */}
             <div className="px-6 py-4 space-y-3">
               {/* Edit Name */}
-              <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4">
+              <div className="rounded-xl bg-white/[0.04] border border-border p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Pencil size={14} className="text-zinc-400" />
@@ -430,7 +430,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             </div>
 
             {/* ─── Sign Out Footer ────────────────────────────────────── */}
-            <div className="px-6 py-4 border-t border-white/[0.06]">
+            <div className="px-6 py-4 border-t border-border">
               <button
                 type="button"
                 onClick={handleLogout}

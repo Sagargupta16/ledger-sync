@@ -16,7 +16,7 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full bg-white/[0.04] border border-white/[0.06] rounded-2xl p-6 space-y-6"
+      className="w-full bg-white/[0.04] border border-border rounded-2xl p-6 space-y-6"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -68,7 +68,7 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
       </div>
 
       {/* Summary */}
-      <div className="pt-4 border-t border-white/[0.06]">
+      <div className="pt-4 border-t border-border">
         <div className="flex items-center justify-between text-sm">
           <span className="text-zinc-500">Total Processed</span>
           <span className="font-semibold">{totalProcessed} transactions</span>
@@ -98,7 +98,7 @@ function StatCard({ icon: Icon, label, value, color, bgColor }: Readonly<StatCar
       initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-      className="flex items-center gap-3 p-4 bg-white/[0.04] border border-white/[0.06] rounded-xl transition-colors duration-150"
+      className="flex items-center gap-3 p-4 bg-white/[0.04] border border-border rounded-xl transition-colors duration-150"
     >
       <div className={`p-2 rounded-lg ${bgColor}`}>
         <Icon className={`w-5 h-5 ${color}`} />

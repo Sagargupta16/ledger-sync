@@ -88,7 +88,7 @@ export default function CurrencySwitcher() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-xl bg-zinc-900 border border-white/10 shadow-xl z-50">
+        <div className="absolute bottom-full left-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-xl bg-zinc-900 border border-border shadow-xl z-50">
           {currencyList.map((meta) => (
             <button
               key={meta.code}

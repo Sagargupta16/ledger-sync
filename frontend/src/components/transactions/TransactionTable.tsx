@@ -159,7 +159,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
 
   if (isLoading) {
     return (
-      <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl overflow-hidden">
+      <div className="bg-white/[0.02] border border-border rounded-xl overflow-hidden">
         {/* Desktop skeleton */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
@@ -188,7 +188,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
         {/* Mobile skeleton */}
         <div className="md:hidden divide-y divide-white/5 p-4 space-y-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={`skeleton-card-${i}`} className="p-4 rounded-lg bg-white/[0.04] border border-white/[0.06] space-y-3">
+            <div key={`skeleton-card-${i}`} className="p-4 rounded-lg bg-white/[0.04] border border-border space-y-3">
               <div className="flex justify-between">
                 <div className="h-4 skeleton w-24" />
                 <div className="h-5 skeleton w-20" />
@@ -207,7 +207,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
 
   if (transactions.length === 0) {
     return (
-      <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl">
+      <div className="bg-white/[0.02] border border-border rounded-xl">
         <EmptyState
           icon={Search}
           title="No transactions found"
@@ -222,7 +222,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white/[0.02] border border-white/[0.06] rounded-xl overflow-hidden"
+      className="bg-white/[0.02] border border-border rounded-xl overflow-hidden"
     >
       {/* Desktop table */}
       <div className="hidden md:block">

@@ -9,6 +9,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getDateKey } from '@/lib/dateUtils'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { PageHeader, ChartContainer } from '@/components/ui'
+import { chartTooltipProps } from '@/components/ui/ChartTooltip'
 
 /** Guard against NaN values that Recharts passes for zero-value nodes */
 function safeNumber(value: number): number {
@@ -24,7 +25,7 @@ function getNodeFillColor(
   expensesNodeIndex: number,
 ): string {
   if (index < incomeCategoryCount) {
-    const greenColors = [rawColors.app.green, rawColors.app.green, '#84cc16', '#a3e635', '#6ee7b7']
+    const greenColors = [rawColors.app.green, rawColors.app.green, rawColors.app.greenVibrant, rawColors.app.teal, rawColors.app.tealVibrant]
     return greenColors[index % greenColors.length]
   }
 
@@ -32,7 +33,7 @@ function getNodeFillColor(
   if (index === savingsNodeIndex) return rawColors.app.purple
   if (index === expensesNodeIndex) return rawColors.app.pink
 
-  const redColors = [rawColors.app.red, rawColors.app.orange, '#fb923c', '#f97316', rawColors.app.redVibrant]
+  const redColors = [rawColors.app.red, rawColors.app.orange, rawColors.app.orangeVibrant, rawColors.app.yellow, rawColors.app.redVibrant]
   const expenseIndex = index - (incomeCategoryCount + 3)
   return redColors[expenseIndex % redColors.length]
 }
@@ -411,24 +412,7 @@ const IncomeExpenseFlowPage = () => {
                     </linearGradient>
                   </defs>
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                      border: '1px solid rgba(139, 92, 246, 0.2)',
-                      borderRadius: '12px',
-                      backdropFilter: 'blur(12px)',
-                      padding: '12px 16px',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-                    }}
-                    labelStyle={{
-                      color: '#ffffff',
-                      fontWeight: 'bold',
-                      fontSize: '14px',
-                      marginBottom: '4px',
-                    }}
-                    itemStyle={{
-                      color: rawColors.app.purple,
-                      fontSize: '13px',
-                    }}
+                    {...chartTooltipProps}
                     formatter={(value: number | undefined) => value === undefined ? '' : [
                       formatCurrency(value),
                       'Amount'
@@ -441,15 +425,15 @@ const IncomeExpenseFlowPage = () => {
             {/* Legend */}
             <div className="mt-6 pt-6 border-t border-border flex flex-wrap justify-center gap-6">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #34c759, #30d158)' }}></div>
+                <div className="w-4 h-4 rounded" style={{ background: `linear-gradient(to right, ${rawColors.app.green}, ${rawColors.app.greenVibrant})` }}></div>
                 <span className="text-sm text-foreground">Income Sources</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #818cf8, #a78bfa)' }}></div>
+                <div className="w-4 h-4 rounded" style={{ background: `linear-gradient(to right, ${rawColors.app.indigo}, ${rawColors.app.purple})` }}></div>
                 <span className="text-sm text-foreground">Total Income / Savings / Expenses</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(to right, #ff6b6b, #ff9f43)' }}></div>
+                <div className="w-4 h-4 rounded" style={{ background: `linear-gradient(to right, ${rawColors.app.red}, ${rawColors.app.orange})` }}></div>
                 <span className="text-sm text-foreground">Expense Categories</span>
               </div>
             </div>

@@ -69,7 +69,7 @@ function RecentTransactions({ transactions, isLoading }: Readonly<RecentTransact
     return (
       <div className="space-y-3">
         {Array.from({ length: 5 }, (_, i) => `skeleton-tx-${i}`).map((id) => (
-          <div key={id} className="flex items-center justify-between p-4 rounded-lg border border-white/[0.06] animate-pulse">
+          <div key={id} className="flex items-center justify-between p-4 rounded-lg border border-border animate-pulse">
             <div className="flex-1 space-y-2">
               <div className="h-4 bg-muted rounded w-1/3" />
               <div className="h-3 bg-muted rounded w-1/4" />

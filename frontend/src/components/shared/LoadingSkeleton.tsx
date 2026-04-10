@@ -94,7 +94,7 @@ export function PageSkeleton() {
 export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
   return (
     <div className="glass rounded-2xl overflow-hidden">
-      <div className="bg-white/[0.04] p-4 border-b border-white/[0.06]">
+      <div className="bg-white/[0.04] p-4 border-b border-border">
         <div className="flex gap-4">
           <LoadingSkeleton className="h-4 w-24" />
           <LoadingSkeleton className="h-4 w-32" />

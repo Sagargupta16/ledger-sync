@@ -258,12 +258,12 @@ function SummaryCard({
   return (
     <motion.div {...fadeUpWithDelay(delay)} className="glass rounded-2xl border border-border p-6">
       <div className="flex items-center gap-3">
-        <div className={`p-3 ${bgClass} rounded-xl ${shadowClass}`}>
+        <div className={`p-2.5 ${bgClass} rounded-xl ${shadowClass}`}>
           <Icon className={`w-5 h-5 ${colorClass}`} />
         </div>
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold text-white truncate">{value}</p>
+          <p className="text-lg sm:text-xl font-bold text-white truncate">{value}</p>
         </div>
       </div>
     </motion.div>
@@ -588,7 +588,7 @@ export default function BillCalendarPage() {
         />
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           <SummaryCard
             icon={DollarSign}
             label="Total Due This Month"
@@ -730,7 +730,7 @@ export default function BillCalendarPage() {
               </div>
 
               {/* Legend for bill sources */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4 pt-3 border-t border-white/5">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4 pt-3 border-t border-border">
                 <span className="text-xs text-text-tertiary">Legend:</span>
                 <div className="flex items-center gap-1.5 text-xs text-text-secondary">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.app.green }} />
@@ -777,7 +777,7 @@ export default function BillCalendarPage() {
                     <BillDetailItem key={bill.key} bill={bill} />
                   ))}
                   {/* Day total */}
-                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-white/10">
+                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-border">
                     <span className="text-sm text-muted-foreground">Total for this day</span>
                     <span className="text-sm font-bold text-white">
                       {formatCurrency(

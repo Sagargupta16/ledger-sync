@@ -155,7 +155,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
               )}
 
               {/* Footer */}
-              <p className="text-zinc-500 text-xs text-center mt-6 border-t border-white/[0.06] pt-5">
+              <p className="text-zinc-500 text-xs text-center mt-6 border-t border-border pt-5">
                 By signing in, you agree to our terms of service.
                 Your data stays private and secure.
               </p>

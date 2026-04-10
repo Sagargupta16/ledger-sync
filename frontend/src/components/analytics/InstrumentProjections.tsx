@@ -71,7 +71,7 @@ function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) {
 
   return (
     <ChartContainer height={280}>
-      <AreaChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 5 }}>
+      <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
         <defs>
           {areaGradient('contributed', rawColors.app.blue, 0.7, 0.1)}
           {areaGradient('returns', rawColors.app.green, 0.7, 0.1)}

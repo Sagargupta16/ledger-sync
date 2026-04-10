@@ -28,7 +28,7 @@ export default function CollapsibleSection({
   const [expanded, setExpanded] = useState<boolean>(defaultExpanded)
 
   return (
-    <div className="bg-white/[0.04] rounded-2xl border border-white/[0.06]">
+    <div className="bg-white/[0.04] rounded-2xl border border-border">
       {/* Header button */}
       <button
         type="button"

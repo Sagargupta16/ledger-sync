@@ -15,7 +15,7 @@ export default function ChartEmptyState({
 }: ChartEmptyStateProps) {
   return (
     <div
-      className="flex flex-col items-center justify-center gap-3 rounded-xl border border-white/[0.06]"
+      className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border"
       style={{ height }}
     >
       <div className="p-3 rounded-xl bg-white/[0.04]">

@@ -322,7 +322,8 @@ export default function BudgetPage() {
 
   // ─── Render ───────────────────────────────────────────────────
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
       {/* Header */}
       <PageHeader
         title="Budget Tracker"
@@ -640,7 +641,7 @@ export default function BudgetPage() {
                           strokeWidth={2}
                           dot={{ r: 3, fill: rawColors.app.blue }}
                           isAnimationActive={shouldAnimate(radarData.length)}
-                          animationDuration={800}
+                          animationDuration={600}
                           animationEasing="ease-out"
                         />
                         <Tooltip
@@ -847,6 +848,7 @@ export default function BudgetPage() {
           </div>
         </motion.div>
       )}
+      </div>
     </div>
   )
 }

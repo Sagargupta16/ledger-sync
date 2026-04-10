@@ -239,7 +239,7 @@ export default function ReturnsAnalysisPage() {
                 { label: 'Total Income', value: formatCurrencyShort(totalIncome), color: 'text-green-400' },
                 { label: 'Total Costs', value: formatCurrencyShort(totalExpenses), color: 'text-red-400' },
               ].map(stat => (
-                <div key={stat.label} className="bg-white/[0.04] border border-white/[0.06] rounded-lg p-3">
+                <div key={stat.label} className="bg-white/[0.04] border border-border rounded-lg p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">{stat.label}</p>
                   <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
                 </div>
@@ -290,7 +290,7 @@ export default function ReturnsAnalysisPage() {
                   fill={areaGradientUrl('gain')} fillOpacity={1}
                   dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.green }}
                   isAnimationActive={shouldAnimate(monthlyComboData.length)}
-                  animationDuration={800} animationEasing="ease-out"
+                  animationDuration={600} animationEasing="ease-out"
                   connectNulls
                 />
                 {/* Red area below zero */}
@@ -300,7 +300,7 @@ export default function ReturnsAnalysisPage() {
                   fill={areaGradientUrl('loss')} fillOpacity={1}
                   dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.red }}
                   isAnimationActive={shouldAnimate(monthlyComboData.length)}
-                  animationDuration={800} animationEasing="ease-out"
+                  animationDuration={600} animationEasing="ease-out"
                   connectNulls
                 />
                 {/* Cumulative line overlay */}
@@ -309,7 +309,7 @@ export default function ReturnsAnalysisPage() {
                   stroke={rawColors.app.blue} strokeWidth={2} strokeDasharray="6 3"
                   dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
                   isAnimationActive={shouldAnimate(monthlyComboData.length)}
-                  animationDuration={800}
+                  animationDuration={600}
                 />
               </AreaChart>
             </ChartContainer>
@@ -425,7 +425,7 @@ export default function ReturnsAnalysisPage() {
               </motion.div>
             </motion.div>
             {/* Net P&L footer */}
-            <div className="mt-4 bg-white/[0.04] border border-white/[0.06] rounded-xl p-5">
+            <div className="mt-4 bg-white/[0.04] border border-border rounded-xl p-5">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-zinc-200">Net Profit/Loss</span>
                 <span className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>

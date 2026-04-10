@@ -336,7 +336,7 @@ export default function SubscriptionTrackerPage() {
         />
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <SummaryCard icon={ArrowDownCircle} label="Monthly Expense" value={p ?? formatCurrency(summary.monthlyExpense)}
             colorClass="text-app-red" bgClass="bg-app-red/20" shadowClass="shadow-app-red/30" delay={0.1} />
           <SummaryCard icon={ArrowUpCircle} label="Monthly Income" value={p ?? formatCurrency(summary.monthlyIncome)}

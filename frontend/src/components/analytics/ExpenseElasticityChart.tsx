@@ -60,7 +60,7 @@ export default function ExpenseElasticityChart() {
       ) : (
         <>
           <ChartContainer height={300}>
-            <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
+            <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 20, bottom: 8, left: 10 }}>
               <CartesianGrid {...GRID_DEFAULTS} horizontal={false} />
               <XAxis
                 {...xAxisDefaults(chartData.length)}

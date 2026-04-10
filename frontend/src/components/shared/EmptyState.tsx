@@ -76,7 +76,7 @@ export default function EmptyState({
       <div className={`py-8 px-6 text-center ${className}`}>
         {/* Faux chart skeleton */}
         <div className="mx-auto max-w-sm mb-4">
-          <div className="flex items-end gap-1 h-24 border-l border-b border-white/[0.06] pl-2 pb-1">
+          <div className="flex items-end gap-1 h-24 border-l border-b border-border pl-2 pb-1">
             {[40, 65, 30, 80, 55, 45, 70, 35, 60, 50].map((h) => (
               <div
                 key={`empty-bar-${h}`}

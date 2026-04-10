@@ -42,7 +42,7 @@ export default function GoalsPage() {
       />
 
       {/* Summary Cards */}
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
         <motion.div variants={fadeUpItem}>
           <StatCard title="Total Goals" value={String(state.summary.total)} icon={<Target className="w-5 h-5" />} iconColor={rawColors.app.blue} />
         </motion.div>

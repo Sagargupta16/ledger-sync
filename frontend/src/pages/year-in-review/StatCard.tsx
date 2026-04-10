@@ -21,7 +21,7 @@ export default function StatCard({ label, value, icon: Icon, color }: Readonly<S
         </div>
         <div>
           <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-xl font-bold" style={{ color }}>{value}</p>
+          <p className="text-lg sm:text-xl font-bold" style={{ color }}>{value}</p>
         </div>
       </div>
     </motion.div>

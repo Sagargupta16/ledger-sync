@@ -126,7 +126,7 @@ export default function EffectiveTaxRateChart({
           <ChartEmptyState height={350} message="Select a financial year to view effective tax rates" />
         ) : (
         <ChartContainer>
-          <AreaChart data={chartData} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
+          <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <defs>
               {areaGradient('newRegime', rawColors.app.orange, 0.25)}
               {areaGradient('oldRegime', rawColors.app.blue, 0.15)}

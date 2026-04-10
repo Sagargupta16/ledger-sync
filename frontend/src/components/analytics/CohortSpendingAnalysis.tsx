@@ -122,7 +122,7 @@ export default function CohortSpendingAnalysis() {
         <ChartEmptyState height={260} message="No expense data available" />
       ) : (
         <ChartContainer height={260}>
-          <BarChart data={currentData} margin={{ top: 5, right: 10, bottom: 5, left: 5 }}>
+          <BarChart data={currentData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis {...xAxisDefaults(currentData.length)} dataKey="name" tickFormatter={undefined} />
             <YAxis {...yAxisDefaults()} />

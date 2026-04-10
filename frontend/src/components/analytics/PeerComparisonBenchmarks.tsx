@@ -71,7 +71,7 @@ export default function PeerComparisonBenchmarks() {
       ) : (
         <>
           <ChartContainer height={320}>
-            <BarChart data={data} margin={{ left: 10, right: 20, top: 10, bottom: 10 }}>
+            <BarChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 10 }}>
               <CartesianGrid {...GRID_DEFAULTS} />
               <XAxis
                 {...xAxisDefaults(data.length, { angle: -35, height: 60 })}

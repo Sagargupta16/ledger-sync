@@ -61,7 +61,8 @@ export default function DashboardPage() {
   if (isLoading) return <PageSkeleton />
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
       <PageHeader
         title="Dashboard"
         subtitle="Your financial overview at a glance"
@@ -192,6 +193,7 @@ export default function DashboardPage() {
           )}
         </div>
       </motion.div>
+      </div>
     </div>
   )
 }

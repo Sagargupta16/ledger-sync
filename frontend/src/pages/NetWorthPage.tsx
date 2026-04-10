@@ -476,7 +476,7 @@ export default function NetWorthPage() {
           }
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard title="Total Assets" value={formatCurrency(totalAssets)} icon={PiggyBank} color="green" isLoading={isLoading} />
           <MetricCard title="Total Liabilities" value={formatCurrency(totalLiabilities)} icon={CreditCard} color="red" isLoading={isLoading} />
           <MetricCard title="Net Worth" value={formatCurrency(netWorth)} icon={TrendingUp} color="blue" isLoading={isLoading} />
@@ -643,7 +643,7 @@ export default function NetWorthPage() {
                     fillOpacity={0.85}
                     radius={[4, 4, 4, 4]}
                     isAnimationActive={shouldAnimate(monthlyChanges.length)}
-                    animationDuration={800}
+                    animationDuration={600}
                     animationEasing="ease-out"
                   />
                   {/* Red decrease bars */}
@@ -655,7 +655,7 @@ export default function NetWorthPage() {
                     fillOpacity={0.85}
                     radius={[4, 4, 4, 4]}
                     isAnimationActive={shouldAnimate(monthlyChanges.length)}
-                    animationDuration={800}
+                    animationDuration={600}
                     animationEasing="ease-out"
                   />
                 </BarChart>

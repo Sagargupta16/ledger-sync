@@ -65,7 +65,7 @@ export function SpendingDistribution({
       </div>
       <div style={{ height: Math.max(300, butterflyData.length * 36) }}>
         <ChartContainer>
-          <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ left: 10, right: 10 }}>
+          <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ top: 8, right: 12, bottom: 8, left: 10 }}>
             <CartesianGrid {...GRID_DEFAULTS} horizontal={false} vertical={true} />
             <XAxis
               type="number"

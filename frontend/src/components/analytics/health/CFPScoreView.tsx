@@ -77,7 +77,7 @@ const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPSc
             <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#52525b', fontSize: 9 }} axisLine={false} />
             <Radar name="CFP Score" dataKey="score" stroke={rawColors.app.teal} fill={rawColors.app.teal}
               fillOpacity={0.15} strokeWidth={2} dot={{ r: 3, fill: rawColors.app.teal, strokeWidth: 0 }}
-              animationDuration={800} animationEasing="ease-out" />
+              animationDuration={600} animationEasing="ease-out" />
             <Tooltip {...chartTooltipProps} />
           </RadarChart>
         </ChartContainer>

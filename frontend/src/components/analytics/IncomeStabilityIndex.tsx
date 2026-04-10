@@ -114,7 +114,7 @@ export default function IncomeStabilityIndex() {
 
           {/* Chart */}
           <ChartContainer height={280}>
-            <BarChart data={sources} layout="vertical" margin={{ left: 10, right: 20 }}>
+            <BarChart data={sources} layout="vertical" margin={{ top: 8, right: 20, bottom: 8, left: 10 }}>
               <CartesianGrid {...GRID_DEFAULTS} horizontal={false} />
               <XAxis {...xAxisDefaults(sources.length)} type="number" domain={[0, 100]} tickFormatter={undefined} />
               <YAxis

@@ -84,7 +84,7 @@ function RadarVisualization({ metrics, chartColor }: Readonly<{ metrics: Array<{
           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
           <Radar name="Score" dataKey="score" stroke={chartColor} fill={chartColor}
             fillOpacity={0.15} strokeWidth={2} dot={{ r: 2, fill: chartColor, strokeWidth: 0 }}
-            animationDuration={800} animationEasing="ease-out" />
+            animationDuration={600} animationEasing="ease-out" />
           <Tooltip {...chartTooltipProps} />
         </RadarChart>
       </ChartContainer>

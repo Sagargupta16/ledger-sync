@@ -400,7 +400,7 @@ export default function InvestmentAnalyticsPage() {
           }
         />
 
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-3 sm:gap-4 lg:gap-6`}>
           <MetricCard title="Total Investment Value" value={formatCurrency(totalInvestmentValue)} icon={TrendingUp} color="green" isLoading={isLoading} />
           <MetricCard title="Portfolio Assets" value={investmentAccounts.length} icon={PieChart} color="blue" isLoading={isLoading} />
           <MetricCard title="Net Investment P&L" value={`${netInvestmentPL >= 0 ? '+' : ''}${formatCurrency(netInvestmentPL)}`} subtitle={`${plPercent >= 0 ? '+' : ''}${formatPercent(plPercent)} of portfolio`} icon={DollarSign} color={netInvestmentPL >= 0 ? 'green' : 'red'} isLoading={isLoading} />

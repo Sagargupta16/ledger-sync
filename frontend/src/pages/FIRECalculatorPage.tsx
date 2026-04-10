@@ -93,9 +93,9 @@ export default function FIRECalculatorPage() {
   if (isLoading) return <PageSkeleton />
 
   return (
-    <div className="p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <motion.div
-        className="max-w-7xl mx-auto space-y-6"
+        className="max-w-7xl mx-auto space-y-6 md:space-y-8"
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
@@ -126,7 +126,7 @@ export default function FIRECalculatorPage() {
         {activeTab === 'fire' ? (
           <>
             {/* FIRE Metrics */}
-            <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               <MetricCard title="FIRE Number" value={formatCurrency(fireResult.fireNumber)} icon={Flame} color="red" subtitle={`At ${swr}% SWR`} />
               <MetricCard title="Years to FIRE" value={fireResult.yearsToFIRE === Infinity ? 'N/A' : `${fireResult.yearsToFIRE.toFixed(1)} yrs`} icon={Flame} color="orange" subtitle={`At ${realReturn}% real return`} />
               <MetricCard title="Coast FIRE" value={formatCurrency(fireResult.coastFIRE)} icon={Flame} color="teal" subtitle="Amount needed today" />
@@ -171,7 +171,7 @@ export default function FIRECalculatorPage() {
         ) : (
           <>
             {/* Retirement Metrics */}
-            <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               <MetricCard title="Required Corpus" value={formatCurrency(retirementResult.requiredCorpus)} icon={Calculator} color="blue" subtitle={`In ${retirementYears} years`} />
               <MetricCard title="Monthly SIP Needed" value={formatCurrency(retirementResult.monthlySIP)} icon={Calculator} color="green" subtitle={`At ${expectedReturn}% return`} />
               <MetricCard title="Future Monthly Expense" value={formatCurrency(retirementResult.monthlyExpenseAtRetirement)} icon={Calculator} color="red" subtitle={`At ${inflation}% inflation`} />
@@ -183,7 +183,7 @@ export default function FIRECalculatorPage() {
               <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
                 <h3 className="text-lg font-semibold mb-4">Corpus Growth Projection</h3>
                 <ChartContainer height={320}>
-                  <AreaChart data={retirementResult.projectionData} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
+                  <AreaChart data={retirementResult.projectionData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
                     <defs>
                       {areaGradient('corpus', rawColors.app.blue)}
                       {areaGradient('contributed', rawColors.app.green, 0.2, 0.02)}

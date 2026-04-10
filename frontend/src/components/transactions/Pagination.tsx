@@ -20,7 +20,7 @@ export default function Pagination({
   const endItem = Math.min(currentPage * itemsPerPage, totalItems)
 
   return (
-    <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-4">
+    <div className="bg-white/[0.04] border border-border rounded-xl p-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
         {/* Items per page */}
         <div className="flex items-center gap-2">

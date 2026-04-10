@@ -341,7 +341,7 @@ export default function QuickInsights({
   const InsightCard = ({ item }: { item: typeof quickInsights[number] }) => (
     <motion.div
       variants={fadeUpItem}
-      className="flex items-center gap-3 p-3 bg-white/[0.04] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-150"
+      className="flex items-center gap-3 p-3 bg-white/[0.04] border border-border rounded-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-150"
     >
       <div className={`p-2 ${item.bg} rounded-lg shrink-0`}>
         <item.icon className={`w-4 h-4 ${item.color}`} />

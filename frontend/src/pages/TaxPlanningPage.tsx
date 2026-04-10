@@ -762,7 +762,7 @@ export default function TaxPlanningPage() {
                     />
                     <Line type="monotone" dataKey="cumulative" name="cumulative" stroke={rawColors.app.blue} strokeWidth={2} strokeDasharray="6 3"
                       dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
-                      isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={800}
+                      isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={600}
                     />
                   </BarChart>
                 </ChartContainer>
