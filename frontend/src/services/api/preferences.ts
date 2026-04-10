@@ -43,6 +43,7 @@ export interface UserPreferences {
   currency_symbol: string
   currency_symbol_position: 'before' | 'after'
   default_time_range: string
+  display_currency: string
 
   // 7. Anomaly Settings
   anomaly_expense_threshold: number
@@ -126,6 +127,7 @@ export interface DisplayPreferencesConfig {
   currency_symbol: string
   currency_symbol_position: 'before' | 'after'
   default_time_range: string
+  display_currency: string
 }
 
 export interface AnomalySettingsConfig {
@@ -200,4 +202,15 @@ export const preferencesService = {
   updateSpendingRule: createSectionUpdater<SpendingRuleConfig>('spending-rule'),
   updateCreditCardLimits: createSectionUpdater<CreditCardLimitsConfig>('credit-card-limits'),
   updateEarningStartDate: createSectionUpdater<EarningStartDateConfig>('earning-start-date'),
+
+  async getExchangeRates(base: string = 'INR'): Promise<{
+    base: string
+    rates: Record<string, number>
+    fetched_at: number | null
+    stale?: boolean
+    fallback?: boolean
+  }> {
+    const response = await apiClient.get('/exchange-rates', { params: { base } })
+    return response.data
+  },
 }
