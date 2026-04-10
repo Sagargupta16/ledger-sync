@@ -1251,6 +1251,11 @@ class UserPreferences(Base):
         nullable=False,
         default="all_time",
     )
+    display_currency: Mapped[str] = mapped_column(
+        String(3),
+        nullable=False,
+        default="INR",
+    )
 
     # ===== 7. Anomaly Detection Settings =====
     anomaly_expense_threshold: Mapped[float] = mapped_column(
