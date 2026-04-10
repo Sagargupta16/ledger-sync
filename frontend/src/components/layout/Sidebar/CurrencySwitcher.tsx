@@ -56,8 +56,8 @@ export default function CurrencySwitcher() {
     return `${hours}h ago`
   }, [exchangeRateUpdatedAt, currentTime])
 
-  // Inverse rate for display (e.g., "1 USD = 84.25 INR")
-  const inverseRate = exchangeRate ? (1 / exchangeRate).toFixed(2) : null
+  // Inverse rate for display (e.g., "1 USD = 92.68 INR")
+  const inverseRate = exchangeRate && exchangeRate > 0 ? (1 / exchangeRate).toFixed(2) : null
 
   return (
     <div ref={ref} className="relative">

@@ -1,12 +1,13 @@
 """Exchange rate proxy endpoint.
 
-Fetches rates from frankfurter.app (free, no API key, ECB data) and
+Fetches rates from frankfurter.dev (free, no API key, ECB data) and
 caches them in-memory for 24 hours. Falls back to stale cache or
 hardcoded rates if the external API is unavailable.
 """
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any
 
@@ -15,12 +16,16 @@ from fastapi import APIRouter, HTTPException
 
 from ledger_sync.api.deps import CurrentUser
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/exchange-rates", tags=["exchange-rates"])
 
 _CACHE_TTL = 86400  # 24 hours in seconds
 _FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest"
 
-# In-memory cache: { "rates": {...}, "fetched_at": float }
+# Per-worker in-memory cache. Each uvicorn/Vercel worker maintains its
+# own copy; this is acceptable because the data is public and cheap to
+# re-fetch after a cold start.
 _rate_cache: dict[str, Any] = {}
 
 # Approximate fallback rates (INR -> X) as of 2026-04-09
@@ -50,7 +55,7 @@ def _cache_is_fresh() -> bool:
 
 
 async def _fetch_rates(base: str) -> dict[str, float]:
-    """Fetch latest rates from frankfurter.app."""
+    """Fetch latest rates from frankfurter.dev."""
     async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
         resp = await client.get(_FRANKFURTER_URL, params={"from": base})
         resp.raise_for_status()
@@ -89,6 +94,7 @@ async def get_exchange_rates(
             "fetched_at": _rate_cache["fetched_at"],
         }
     except Exception:
+        logger.warning("Failed to fetch exchange rates for base=%s", base, exc_info=True)
         # Return stale cache if available
         if _rate_cache.get("rates") and _rate_cache.get("base") == base:
             return {

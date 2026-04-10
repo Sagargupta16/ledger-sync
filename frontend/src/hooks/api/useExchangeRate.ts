@@ -23,11 +23,12 @@ export function useExchangeRate() {
     gcTime: TWENTY_FOUR_HOURS,
   })
 
-  // Push fetched rate into Zustand for synchronous access by formatters
+  // Push fetched rate into Zustand for synchronous access by formatters.
+  // Only update if the rate actually changed to avoid unnecessary re-renders.
   useEffect(() => {
     if (query.data?.rates && displayCurrency !== BASE_CURRENCY) {
       const rate = query.data.rates[displayCurrency]
-      if (rate != null) {
+      if (rate != null && rate !== usePreferencesStore.getState().exchangeRate) {
         const updatedAt = query.data.fetched_at
           ? new Date(query.data.fetched_at * 1000).toISOString()
           : new Date().toISOString()

@@ -95,22 +95,17 @@ export const formatCurrencyShort = (value: number): string => {
   const absValue = Math.abs(converted)
   const sign = converted < 0 ? '-' : ''
 
-  let formatted: string
-  let matched = false
+  let formatted = `${Math.round(absValue)}`
   for (const unit of meta.shortUnits) {
     if (absValue >= unit.threshold) {
       formatted = `${(absValue / unit.divisor).toFixed(1)}${unit.suffix}`
-      matched = true
       break
     }
   }
-  if (!matched) {
-    formatted = `${Math.round(absValue)}`
-  }
 
   return meta.symbolPosition === 'before'
-    ? `${sign}${meta.symbol}${formatted!}`
-    : `${sign}${formatted!}${meta.symbol}`
+    ? `${sign}${meta.symbol}${formatted}`
+    : `${sign}${formatted}${meta.symbol}`
 }
 
 /**
@@ -170,8 +165,7 @@ export function parseStringArray(raw: string[] | string | undefined): string[] {
   try {
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []
-  } catch (e) {
-    console.warn('[parseStringArray] Failed to parse:', e)
+  } catch {
     return []
   }
 }

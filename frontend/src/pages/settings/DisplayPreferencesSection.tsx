@@ -149,8 +149,8 @@ export default function DisplayPreferencesSection({
                     setTheme(t)
                     try {
                       localStorage.setItem('ledger-sync-theme', t)
-                    } catch (e) {
-                      console.warn('[DisplayPreferencesSection] Failed to write localStorage:', e)
+                    } catch {
+                      // localStorage may be unavailable (private browsing, quota)
                     }
                   }}
                   className="sr-only"
