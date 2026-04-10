@@ -67,7 +67,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
       {sum === 100 ? (
         <FieldHint>Default: 50 / 30 / 20</FieldHint>
       ) : (
-        <p className="mt-1.5 text-xs text-ios-yellow">Totals {sum}% (should be 100%)</p>
+        <p className="mt-1.5 text-xs text-app-yellow">Totals {sum}% (should be 100%)</p>
       )}
     </div>
   )

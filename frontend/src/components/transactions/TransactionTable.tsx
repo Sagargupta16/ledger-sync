@@ -23,9 +23,9 @@ interface TransactionTableProps {
 }
 
 function getAmountColor(type: string): string {
-  if (type === 'Transfer') return 'text-ios-teal'
-  if (type === 'Income') return 'text-ios-green'
-  return 'text-ios-red'
+  if (type === 'Transfer') return 'text-app-teal'
+  if (type === 'Income') return 'text-app-green'
+  return 'text-app-red'
 }
 
 function getAmountPrefix(type: string): string {
@@ -56,9 +56,9 @@ const columns: ColumnDef<Transaction>[] = [
     cell: ({ row }) => {
       const type = row.original.type
       const typeIcon = (() => {
-        if (type === 'Income') return <TrendingUp className="w-4 h-4 text-ios-green" />
-        if (type === 'Transfer') return <span className="text-ios-blue">→</span>
-        return <TrendingDown className="w-4 h-4 text-ios-red" />
+        if (type === 'Income') return <TrendingUp className="w-4 h-4 text-app-green" />
+        if (type === 'Transfer') return <span className="text-app-blue">→</span>
+        return <TrendingDown className="w-4 h-4 text-app-red" />
       })()
       return (
         <div className="flex items-center gap-2">
@@ -188,7 +188,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
         {/* Mobile skeleton */}
         <div className="md:hidden divide-y divide-white/5 p-4 space-y-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={`skeleton-card-${i}`} className="p-4 rounded-lg bg-white/[0.03] border border-white/[0.06] space-y-3">
+            <div key={`skeleton-card-${i}`} className="p-4 rounded-lg bg-white/[0.04] border border-white/[0.06] space-y-3">
               <div className="flex justify-between">
                 <div className="h-4 skeleton w-24" />
                 <div className="h-5 skeleton w-20" />
@@ -288,7 +288,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                   <span className="text-xs font-semibold text-zinc-500">
                     {format(new Date(dateKey), 'EEE, MMM dd yyyy')}
                   </span>
-                  <span className={`text-xs font-semibold ${dayTotal >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
+                  <span className={`text-xs font-semibold ${dayTotal >= 0 ? 'text-app-green' : 'text-app-red'}`}>
                     {dayTotal >= 0 ? '+' : ''}{formatCurrency(dayTotal)}
                   </span>
                 </div>
@@ -307,9 +307,9 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2">
                             {isTransfer ? (
-                              <span className="text-ios-teal text-sm">→</span>
+                              <span className="text-app-teal text-sm">→</span>
                             ) : (
-                              <TypeIcon className={`w-3.5 h-3.5 ${isIncome ? 'text-ios-green' : 'text-ios-red'}`} />
+                              <TypeIcon className={`w-3.5 h-3.5 ${isIncome ? 'text-app-green' : 'text-app-red'}`} />
                             )}
                             <span className="text-sm font-medium">{tx.category}</span>
                             {tx.subcategory && (

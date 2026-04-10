@@ -67,7 +67,7 @@ export default function CurrencySwitcher() {
         className={cn(
           'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors',
           isConverted
-            ? 'bg-ios-blue/15 text-ios-blue hover:bg-ios-blue/25'
+            ? 'bg-app-blue/15 text-app-blue hover:bg-app-blue/25'
             : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06]',
         )}
         title={`Display currency: ${displayCurrency}`}
@@ -79,7 +79,7 @@ export default function CurrencySwitcher() {
       {/* Rate indicator pill */}
       {isConverted && exchangeRate && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 mt-1 px-2 py-0.5 rounded-full bg-ios-blue/10 text-[10px] text-ios-blue whitespace-nowrap"
+          className="absolute left-1/2 -translate-x-1/2 mt-1 px-2 py-0.5 rounded-full bg-app-blue/10 text-[10px] text-app-blue whitespace-nowrap"
           title={timeAgo ? `Rate updated ${timeAgo}` : 'Exchange rate'}
         >
           1 {displayCurrency} = {BASE_CURRENCY} {inverseRate}
@@ -97,7 +97,7 @@ export default function CurrencySwitcher() {
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors',
                 meta.code === displayCurrency
-                  ? 'bg-ios-blue/15 text-white'
+                  ? 'bg-app-blue/15 text-white'
                   : 'text-zinc-400 hover:bg-white/[0.06] hover:text-white',
               )}
             >

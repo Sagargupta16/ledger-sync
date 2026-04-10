@@ -25,10 +25,10 @@ const SAMPLE_EXCEL_DATA = [
 ]
 
 const TYPE_STYLES: Record<string, string> = {
-  'Income': 'bg-ios-green/20 text-ios-green border-ios-green/30',
-  'Expense': 'bg-ios-red/20 text-ios-red border-ios-red/30',
-  'Transfer-Out': 'bg-ios-orange/20 text-ios-orange border-ios-orange/30',
-  'Transfer-In': 'bg-ios-blue/20 text-ios-blue border-ios-blue/30',
+  'Income': 'bg-app-green/20 text-app-green border-app-green/30',
+  'Expense': 'bg-app-red/20 text-app-red border-app-red/30',
+  'Transfer-Out': 'bg-app-orange/20 text-app-orange border-app-orange/30',
+  'Transfer-In': 'bg-app-blue/20 text-app-blue border-app-blue/30',
 }
 
 export default function UploadSyncPage() {
@@ -101,7 +101,7 @@ export default function UploadSyncPage() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-ios-purple/10 to-secondary/20 border border-border"
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-app-purple/10 to-secondary/20 border border-border"
         >
           {/* Background decoration */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px]" />
@@ -200,13 +200,13 @@ export default function UploadSyncPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="p-5 rounded-xl bg-ios-yellow/10 border border-ios-yellow/30 flex items-center gap-4 glow-error"
+            className="p-5 rounded-xl bg-app-yellow/10 border border-app-yellow/30 flex items-center gap-4 glow-error"
           >
-            <div className="p-3 rounded-full bg-ios-yellow/20">
-              <AlertTriangle className="w-6 h-6 text-ios-yellow" />
+            <div className="p-3 rounded-full bg-app-yellow/20">
+              <AlertTriangle className="w-6 h-6 text-app-yellow" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-ios-yellow">File Already Uploaded</h3>
+              <h3 className="font-semibold text-app-yellow">File Already Uploaded</h3>
               <p className="text-sm text-muted-foreground">
                 <span className="font-mono text-sm text-white">{conflictError.file.name}</span> was imported before. Re-upload to sync changes.
               </p>
@@ -214,7 +214,7 @@ export default function UploadSyncPage() {
             <button
               onClick={handleForceReupload}
               disabled={uploadMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 bg-ios-yellow text-black rounded-lg hover:bg-ios-yellow transition-colors font-medium disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-app-yellow text-black rounded-lg hover:bg-app-yellow transition-colors font-medium disabled:opacity-50"
             >
               <RefreshCw className={cn('w-4 h-4', uploadMutation.isPending && 'animate-spin')} />
               Force Reupload
@@ -234,7 +234,7 @@ export default function UploadSyncPage() {
               <FileSpreadsheet className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-white">Expected Format</h2>
+              <h2 className="text-lg font-semibold text-white">Expected Format</h2>
               <p className="text-sm text-muted-foreground">Your Excel should look like this</p>
             </div>
           </div>

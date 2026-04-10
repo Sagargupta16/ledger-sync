@@ -157,10 +157,10 @@ export default function TransactionsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass rounded-xl border border-border p-6 shadow-lg"
+          className="glass rounded-2xl border border-border p-6"
         >
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">
+            <div className="p-3 bg-primary/20 rounded-xl">
               <Receipt className="w-6 h-6 text-primary" />
             </div>
             <div>

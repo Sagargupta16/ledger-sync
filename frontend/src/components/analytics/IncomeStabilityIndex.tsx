@@ -22,9 +22,9 @@ function getCVDescription(cv: number): string {
 }
 
 function getStabilityColor(score: number): string {
-  if (score >= 70) return rawColors.ios.green
-  if (score >= 40) return rawColors.ios.yellow
-  return rawColors.ios.red
+  if (score >= 70) return rawColors.app.green
+  if (score >= 40) return rawColors.app.yellow
+  return rawColors.app.red
 }
 
 function getStabilityLabel(score: number): string {
@@ -90,7 +90,7 @@ export default function IncomeStabilityIndex() {
       transition={{ delay: 0.1 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Shield className="w-5 h-5 text-ios-blue" />
+        <Shield className="w-5 h-5 text-app-blue" />
         <h3 className="text-lg font-semibold text-white">Income Stability Index</h3>
       </div>
 
@@ -141,9 +141,9 @@ export default function IncomeStabilityIndex() {
           {/* Legend */}
           <div className="flex items-center gap-4 mt-4 justify-center">
             {[
-              { label: 'Stable (70+)', color: rawColors.ios.green },
-              { label: 'Moderate (40-70)', color: rawColors.ios.yellow },
-              { label: 'Volatile (<40)', color: rawColors.ios.red },
+              { label: 'Stable (70+)', color: rawColors.app.green },
+              { label: 'Moderate (40-70)', color: rawColors.app.yellow },
+              { label: 'Volatile (<40)', color: rawColors.app.red },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />

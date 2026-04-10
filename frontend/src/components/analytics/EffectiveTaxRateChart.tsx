@@ -105,12 +105,12 @@ export default function EffectiveTaxRateChart({
   return (
     <motion.div
       variants={fadeUpItem}
-      className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-4 md:p-6"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-ios-orange/20 rounded-xl">
-            <TrendingUp className="w-5 h-5 text-ios-orange" />
+          <div className="p-2.5 bg-app-orange/20 rounded-xl">
+            <TrendingUp className="w-5 h-5 text-app-orange" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Effective Tax Rate — New vs Old Regime</h3>
@@ -128,8 +128,8 @@ export default function EffectiveTaxRateChart({
         <ChartContainer>
           <AreaChart data={chartData} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
             <defs>
-              {areaGradient('newRegime', rawColors.ios.orange, 0.25)}
-              {areaGradient('oldRegime', rawColors.ios.blue, 0.15)}
+              {areaGradient('newRegime', rawColors.app.orange, 0.25)}
+              {areaGradient('oldRegime', rawColors.app.blue, 0.15)}
             </defs>
             <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis
@@ -154,7 +154,7 @@ export default function EffectiveTaxRateChart({
             <Area
               type="monotone"
               dataKey="oldRegimeRate"
-              stroke={rawColors.ios.blue}
+              stroke={rawColors.app.blue}
               fill={areaGradientUrl('oldRegime')}
               strokeWidth={2}
               strokeDasharray="6 3"
@@ -168,7 +168,7 @@ export default function EffectiveTaxRateChart({
             <Area
               type="monotone"
               dataKey="newRegimeRate"
-              stroke={rawColors.ios.orange}
+              stroke={rawColors.app.orange}
               fill={areaGradientUrl('newRegime')}
               strokeWidth={2}
               dot={false}
@@ -181,11 +181,11 @@ export default function EffectiveTaxRateChart({
             {crossoverIncome && crossoverIncome <= maxIncome && (
               <ReferenceLine
                 x={crossoverIncome}
-                stroke={rawColors.ios.purple}
+                stroke={rawColors.app.purple}
                 strokeDasharray="4 4"
                 label={{
                   value: `Old wins at ${formatCurrencyShort(crossoverIncome)}`,
-                  fill: rawColors.ios.purple,
+                  fill: rawColors.app.purple,
                   fontSize: 10,
                   position: 'top',
                 }}
@@ -196,11 +196,11 @@ export default function EffectiveTaxRateChart({
               <>
                 <ReferenceLine
                   x={currentPoint.income}
-                  stroke={rawColors.ios.green}
+                  stroke={rawColors.app.green}
                   strokeDasharray="3 3"
                   label={{
                     value: 'You',
-                    fill: rawColors.ios.green,
+                    fill: rawColors.app.green,
                     fontSize: 11,
                     position: 'top',
                   }}
@@ -209,7 +209,7 @@ export default function EffectiveTaxRateChart({
                   x={currentPoint.income}
                   y={currentPoint.effectiveRate}
                   r={5}
-                  fill={rawColors.ios.green}
+                  fill={rawColors.app.green}
                   stroke="#000"
                   strokeWidth={2}
                 />
@@ -224,22 +224,22 @@ export default function EffectiveTaxRateChart({
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3 pt-3 border-t border-border">
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
-            <div className="w-4 h-0.5 rounded" style={{ backgroundColor: rawColors.ios.orange }} />
+            <div className="w-4 h-0.5 rounded" style={{ backgroundColor: rawColors.app.orange }} />
             <span>New Regime</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-4 h-0.5 rounded border-dashed border-t-2" style={{ borderColor: rawColors.ios.blue }} />
+            <div className="w-4 h-0.5 rounded border-dashed border-t-2" style={{ borderColor: rawColors.app.blue }} />
             <span>Old Regime</span>
           </div>
           {crossoverIncome && (
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.ios.purple }} />
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.app.purple }} />
               <span>Crossover</span>
             </div>
           )}
           {currentPoint && (
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.ios.green }} />
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.app.green }} />
               <span>You ({currentPoint.effectiveRate}%)</span>
             </div>
           )}
@@ -254,7 +254,7 @@ export default function EffectiveTaxRateChart({
                 onClick={() => setMaxIncome(value)}
                 className={`px-2.5 py-1 text-xs font-medium transition-colors ${
                   maxIncome === value
-                    ? 'bg-ios-orange/20 text-ios-orange'
+                    ? 'bg-app-orange/20 text-app-orange'
                     : 'bg-white/5 text-muted-foreground hover:bg-white/10'
                 }`}
               >

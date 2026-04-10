@@ -26,7 +26,7 @@ function SectionHeader({ icon: Icon, title }: Readonly<{ icon: typeof Gauge; tit
 export default function InsightsPage() {
   return (
     <motion.div
-      className="p-4 md:p-6 lg:p-8 space-y-8"
+      className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8"
       variants={staggerContainer}
       initial="hidden"
       animate="visible"

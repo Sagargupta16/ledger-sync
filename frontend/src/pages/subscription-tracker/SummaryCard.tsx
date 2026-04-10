@@ -21,9 +21,9 @@ export function SummaryCard({
   delay,
 }: Readonly<SummaryCardProps>) {
   return (
-    <motion.div {...fadeUpWithDelay(delay)} className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg">
+    <motion.div {...fadeUpWithDelay(delay)} className="glass rounded-2xl border border-border p-4 md:p-6">
       <div className="flex items-center gap-3">
-        <div className={`p-3 ${bgClass} rounded-xl shadow-lg ${shadowClass}`}>
+        <div className={`p-3 ${bgClass} rounded-xl ${shadowClass}`}>
           <Icon className={`w-6 h-6 ${colorClass}`} />
         </div>
         <div>

@@ -69,18 +69,18 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 // Category -> color mapping for visual differentiation
 const CATEGORY_COLORS: Record<string, string> = {
-  'Bills & Utilities': rawColors.ios.blue,
-  'Entertainment': rawColors.ios.purple,
-  'Food & Dining': rawColors.ios.orange,
-  'Insurance': rawColors.ios.teal,
-  'Shopping': rawColors.ios.pink,
-  'Transportation': rawColors.ios.yellow,
-  'Health & Fitness': rawColors.ios.green,
-  'Education': rawColors.ios.indigo,
+  'Bills & Utilities': rawColors.app.blue,
+  'Entertainment': rawColors.app.purple,
+  'Food & Dining': rawColors.app.orange,
+  'Insurance': rawColors.app.teal,
+  'Shopping': rawColors.app.pink,
+  'Transportation': rawColors.app.yellow,
+  'Health & Fitness': rawColors.app.green,
+  'Education': rawColors.app.indigo,
 }
 
 function getCategoryColor(category: string): string {
-  return CATEGORY_COLORS[category] ?? rawColors.ios.blue
+  return CATEGORY_COLORS[category] ?? rawColors.app.blue
 }
 
 // ---------------------------------------------------------------------------
@@ -256,9 +256,9 @@ function SummaryCard({
   delay: number
 }>) {
   return (
-    <motion.div {...fadeUpWithDelay(delay)} className="glass rounded-xl border border-border p-5 shadow-lg">
+    <motion.div {...fadeUpWithDelay(delay)} className="glass rounded-2xl border border-border p-6">
       <div className="flex items-center gap-3">
-        <div className={`p-3 ${bgClass} rounded-xl shadow-lg ${shadowClass}`}>
+        <div className={`p-3 ${bgClass} rounded-xl ${shadowClass}`}>
           <Icon className={`w-5 h-5 ${colorClass}`} />
         </div>
         <div className="min-w-0">
@@ -272,7 +272,7 @@ function SummaryCard({
 
 /** Get the dot color for a bill based on source and category */
 function getBillDotColor(bill: PlacedBill): string {
-  if (bill.source === 'confirmed') return rawColors.ios.green
+  if (bill.source === 'confirmed') return rawColors.app.green
   return getCategoryColor(bill.category)
 }
 
@@ -280,7 +280,7 @@ function getBillDotColor(bill: PlacedBill): string {
 function SourceBadge({ source }: Readonly<{ source: PlacedBill['source'] }>) {
   if (source === 'confirmed') {
     return (
-      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-ios-green/15 text-ios-green">
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-app-green/15 text-app-green">
         <CheckCircle2 className="w-2.5 h-2.5" />
         Confirmed
       </span>
@@ -320,7 +320,7 @@ function BillDetailItem({ bill }: Readonly<{ bill: PlacedBill }>) {
           </p>
         </div>
       </div>
-      <p className={`text-sm font-semibold whitespace-nowrap ${bill.type === 'Income' ? 'text-ios-green' : 'text-ios-red'}`}>
+      <p className={`text-sm font-semibold whitespace-nowrap ${bill.type === 'Income' ? 'text-app-green' : 'text-app-red'}`}>
         {bill.type === 'Income' ? '+' : '-'}{formatCurrency(bill.amount)}
       </p>
     </motion.div>
@@ -348,13 +348,13 @@ function DayCell({
 
   const opacityClass = isCurrentMonth ? '' : 'opacity-30'
   const selectionClass = isSelected
-    ? 'bg-ios-blue/20 border border-ios-blue/40'
+    ? 'bg-app-blue/20 border border-app-blue/40'
     : 'hover:bg-white/8 border border-transparent'
-  const todayBorderClass = isToday && !isSelected ? 'ring-2 ring-ios-blue/50' : ''
+  const todayBorderClass = isToday && !isSelected ? 'ring-2 ring-app-blue/50' : ''
 
   const dayNumberClass = (() => {
-    if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-ios-blue text-white'
-    if (isSelected) return 'text-ios-blue'
+    if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-app-blue text-white'
+    if (isSelected) return 'text-app-blue'
     if (isCurrentMonth) return 'text-white'
     return 'text-text-quaternary'
   })()
@@ -593,33 +593,33 @@ export default function BillCalendarPage() {
             icon={DollarSign}
             label="Total Due This Month"
             value={isLoading ? loadingPlaceholder : formatCurrency(summary.totalDue)}
-            colorClass="text-ios-red"
-            bgClass="bg-ios-red/20"
-            shadowClass="shadow-ios-red/30"
+            colorClass="text-app-red"
+            bgClass="bg-app-red/20"
+            shadowClass="shadow-app-red/30"
             delay={0.1}
           />
           <SummaryCard
             icon={Hash}
             label="Bills This Month"
             value={isLoading ? loadingPlaceholder : String(summary.billCount)}
-            colorClass="text-ios-blue"
-            bgClass="bg-ios-blue/20"
-            shadowClass="shadow-ios-blue/30"
+            colorClass="text-app-blue"
+            bgClass="bg-app-blue/20"
+            shadowClass="shadow-app-blue/30"
             delay={0.2}
           />
           <SummaryCard
             icon={Clock}
             label="Next Upcoming Bill"
             value={nextBillValue}
-            colorClass="text-ios-orange"
-            bgClass="bg-ios-orange/20"
-            shadowClass="shadow-ios-orange/30"
+            colorClass="text-app-orange"
+            bgClass="bg-app-orange/20"
+            shadowClass="shadow-app-orange/30"
             delay={0.3}
           />
         </div>
 
         {/* Calendar */}
-        <motion.div className="glass rounded-xl border border-border p-4 sm:p-6" {...SCROLL_FADE_UP}>
+        <motion.div className="glass rounded-2xl border border-border p-4 sm:p-6" {...SCROLL_FADE_UP}>
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-6">
             <button
@@ -639,7 +639,7 @@ export default function BillCalendarPage() {
                 <button
                   type="button"
                   onClick={goToToday}
-                  className="text-xs px-2.5 py-1 rounded-md bg-ios-blue/15 text-ios-blue hover:bg-ios-blue/25 transition-colors font-medium"
+                  className="text-xs px-2.5 py-1 rounded-md bg-app-blue/15 text-app-blue hover:bg-app-blue/25 transition-colors font-medium"
                 >
                   Today
                 </button>
@@ -733,11 +733,11 @@ export default function BillCalendarPage() {
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4 pt-3 border-t border-white/5">
                 <span className="text-xs text-text-tertiary">Legend:</span>
                 <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.ios.green }} />
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.app.green }} />
                   <span>Confirmed</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.ios.blue }} />
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.app.blue }} />
                   <span>Detected</span>
                 </div>
               </div>
@@ -754,14 +754,14 @@ export default function BillCalendarPage() {
               animate={{ opacity: 1, y: 0, height: 'auto' }}
               exit={{ opacity: 0, y: -10, height: 0 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="glass rounded-xl border border-border p-5 overflow-hidden"
+              className="glass rounded-2xl border border-border p-6 overflow-hidden"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-semibold text-white">
                   Bills for {formatShortDate(viewYear, viewMonth, selectedDay)}
                 </h3>
                 {selectedDayBills.length > 0 && (
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-ios-blue/15 text-ios-blue font-medium">
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-app-blue/15 text-app-blue font-medium">
                     {selectedDayBills.length} bill{selectedDayBills.length === 1 ? '' : 's'}
                   </span>
                 )}

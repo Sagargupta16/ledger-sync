@@ -118,7 +118,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
               {/* OAuth Buttons */}
               {isLoadingProviders ? (
                 <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-ios-blue animate-spin" />
+                  <Loader2 className="w-6 h-6 text-app-blue animate-spin" />
                 </div>
               ) : hasOAuth ? (
                 <div className="space-y-3">

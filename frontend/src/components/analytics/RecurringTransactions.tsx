@@ -265,12 +265,12 @@ export default function RecurringTransactions() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-ios-teal/20 rounded-xl">
-            <RefreshCw className="w-6 h-6 text-ios-teal" />
+          <div className="p-3 bg-app-teal/20 rounded-xl">
+            <RefreshCw className="w-6 h-6 text-app-teal" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Recurring Transactions</h3>
@@ -304,9 +304,9 @@ export default function RecurringTransactions() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium truncate">{item.pattern}</span>
                     {item.isActive ? (
-                      <CheckCircle className="w-4 h-4 text-ios-green flex-shrink-0" />
+                      <CheckCircle className="w-4 h-4 text-app-green flex-shrink-0" />
                     ) : (
-                      <AlertCircle className="w-4 h-4 text-ios-yellow flex-shrink-0" />
+                      <AlertCircle className="w-4 h-4 text-app-yellow flex-shrink-0" />
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
@@ -318,7 +318,7 @@ export default function RecurringTransactions() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-ios-red">{formatCurrency(item.avgAmount)}</p>
+                  <p className="font-semibold text-app-red">{formatCurrency(item.avgAmount)}</p>
                   <p className="text-xs text-muted-foreground">Total: {formatCurrency(item.totalSpent)}</p>
                 </div>
               </div>
@@ -327,7 +327,7 @@ export default function RecurringTransactions() {
                   <span className="text-muted-foreground">
                     Last: {new Date(item.lastDate).toLocaleDateString()}
                   </span>
-                  <span className="text-ios-teal">
+                  <span className="text-app-teal">
                     Next expected: {new Date(item.expectedNextDate).toLocaleDateString()}
                   </span>
                 </div>
@@ -339,13 +339,13 @@ export default function RecurringTransactions() {
 
       {/* Monthly Summary */}
       {recurringTransactions.length > 0 && (
-        <div className="mt-4 p-4 rounded-xl bg-ios-teal/10 border border-ios-teal/20">
+        <div className="mt-4 p-4 rounded-xl bg-app-teal/10 border border-app-teal/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-ios-teal" />
+              <DollarSign className="w-5 h-5 text-app-teal" />
               <span className="font-medium">Monthly Fixed Costs</span>
             </div>
-            <span className="text-xl font-bold text-ios-teal">{formatCurrency(monthlyCommitment)}</span>
+            <span className="text-xl font-bold text-app-teal">{formatCurrency(monthlyCommitment)}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             Based on {activeCount} active recurring expenses

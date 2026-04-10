@@ -11,10 +11,10 @@ import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate } from '@/co
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 function getCreepColor(score: number): string {
-  if (score > 10) return rawColors.ios.red
-  if (score > 5) return rawColors.ios.orange
-  if (score > -5) return rawColors.ios.yellow
-  return rawColors.ios.green
+  if (score > 10) return rawColors.app.red
+  if (score > 5) return rawColors.app.orange
+  if (score > -5) return rawColors.app.yellow
+  return rawColors.app.green
 }
 
 export default function LifestyleCreepDetection() {
@@ -42,7 +42,7 @@ export default function LifestyleCreepDetection() {
       transition={{ delay: 0.1 }}
     >
       <div className="flex items-center gap-2 mb-2">
-        <TrendingUp className="w-5 h-5 text-ios-orange" />
+        <TrendingUp className="w-5 h-5 text-app-orange" />
         <h3 className="text-lg font-semibold text-white">Lifestyle Creep Detection</h3>
       </div>
 
@@ -51,8 +51,8 @@ export default function LifestyleCreepDetection() {
       </p>
 
       {hasAlert && (
-        <div className="mb-4 p-3 rounded-xl border border-ios-red/30 bg-ios-red/[0.08]">
-          <p className="text-sm text-ios-red font-medium">
+        <div className="mb-4 p-3 rounded-xl border border-app-red/30 bg-app-red/[0.08]">
+          <p className="text-sm text-app-red font-medium">
             {results.filter((r) => r.creepScore > 10).length} categories growing significantly faster than income
           </p>
         </div>
@@ -95,9 +95,9 @@ export default function LifestyleCreepDetection() {
           {/* Legend */}
           <div className="flex items-center gap-4 mt-4 justify-center flex-wrap">
             {[
-              { label: 'Accelerating (>5%)', color: rawColors.ios.red },
-              { label: 'Stable', color: rawColors.ios.yellow },
-              { label: 'Declining (<-5%)', color: rawColors.ios.green },
+              { label: 'Accelerating (>5%)', color: rawColors.app.red },
+              { label: 'Stable', color: rawColors.app.yellow },
+              { label: 'Declining (<-5%)', color: rawColors.app.green },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />

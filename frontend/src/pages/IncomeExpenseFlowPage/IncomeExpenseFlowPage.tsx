@@ -24,15 +24,15 @@ function getNodeFillColor(
   expensesNodeIndex: number,
 ): string {
   if (index < incomeCategoryCount) {
-    const greenColors = [rawColors.ios.green, rawColors.ios.green, '#84cc16', '#a3e635', '#6ee7b7']
+    const greenColors = [rawColors.app.green, rawColors.app.green, '#84cc16', '#a3e635', '#6ee7b7']
     return greenColors[index % greenColors.length]
   }
 
-  if (index === totalIncomeNodeIndex) return rawColors.ios.indigoVibrant
-  if (index === savingsNodeIndex) return rawColors.ios.purple
-  if (index === expensesNodeIndex) return rawColors.ios.pink
+  if (index === totalIncomeNodeIndex) return rawColors.app.indigoVibrant
+  if (index === savingsNodeIndex) return rawColors.app.purple
+  if (index === expensesNodeIndex) return rawColors.app.pink
 
-  const redColors = [rawColors.ios.red, rawColors.ios.orange, '#fb923c', '#f97316', rawColors.ios.redVibrant]
+  const redColors = [rawColors.app.red, rawColors.app.orange, '#fb923c', '#f97316', rawColors.app.redVibrant]
   const expenseIndex = index - (incomeCategoryCount + 3)
   return redColors[expenseIndex % redColors.length]
 }
@@ -107,7 +107,7 @@ const SankeyNodeRenderer = ({
         y={y + height / 2 + 16}
         textAnchor={x < 400 ? 'end' : 'start'}
         dominantBaseline="middle"
-        fill={rawColors.ios.purple}
+        fill={rawColors.app.purple}
         fontSize={11}
         fontWeight="500"
       >
@@ -313,42 +313,42 @@ const IncomeExpenseFlowPage = () => {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
       >
-        <div className="glass rounded-xl border border-border border-l-4 border-l-ios-green p-6 shadow-lg">
+        <div className="glass rounded-2xl border border-border border-l-4 border-l-app-green p-6">
           <div className="flex items-center gap-3 mb-2">
-            <TrendingUp className="w-5 h-5 text-ios-green" />
+            <TrendingUp className="w-5 h-5 text-app-green" />
             <p className="text-sm text-muted-foreground">Total Income</p>
           </div>
-          <p className="text-2xl font-bold text-ios-green">
+          <p className="text-2xl font-bold text-app-green">
             {formatCurrency(totalIncome)}
           </p>
         </div>
 
-        <div className="glass rounded-xl border border-border border-l-4 border-l-ios-red p-6 shadow-lg">
+        <div className="glass rounded-2xl border border-border border-l-4 border-l-app-red p-6">
           <div className="flex items-center gap-3 mb-2">
-            <TrendingDown className="w-5 h-5 text-ios-red" />
+            <TrendingDown className="w-5 h-5 text-app-red" />
             <p className="text-sm text-muted-foreground">Total Expense</p>
           </div>
-          <p className="text-2xl font-bold text-ios-red">
+          <p className="text-2xl font-bold text-app-red">
             {formatCurrency(totalExpense)}
           </p>
         </div>
 
-        <div className="glass rounded-xl border border-border p-6 shadow-lg">
+        <div className="glass rounded-2xl border border-border p-6">
           <div className="flex items-center gap-3 mb-2">
-            <ArrowRightLeft className={`w-5 h-5 ${netSavings >= 0 ? 'text-primary' : 'text-ios-red'}`} />
+            <ArrowRightLeft className={`w-5 h-5 ${netSavings >= 0 ? 'text-primary' : 'text-app-red'}`} />
             <p className="text-sm text-muted-foreground">Net Savings</p>
           </div>
-          <p className={`text-2xl font-bold ${netSavings >= 0 ? 'text-primary' : 'text-ios-red'}`}>
+          <p className={`text-2xl font-bold ${netSavings >= 0 ? 'text-primary' : 'text-app-red'}`}>
             {formatCurrency(Math.abs(netSavings))}
           </p>
         </div>
 
-        <div className="glass rounded-xl border border-border p-6 shadow-lg">
+        <div className="glass rounded-2xl border border-border p-6">
           <div className="flex items-center gap-3 mb-2">
-            <TrendingUp className={`w-5 h-5 ${savingsRate >= 20 ? 'text-ios-green' : 'text-ios-yellow'}`} />
+            <TrendingUp className={`w-5 h-5 ${savingsRate >= 20 ? 'text-app-green' : 'text-app-yellow'}`} />
             <p className="text-sm text-muted-foreground">Savings Rate</p>
           </div>
-          <p className={`text-2xl font-bold ${savingsRate >= 20 ? 'text-ios-green' : 'text-ios-yellow'}`}>
+          <p className={`text-2xl font-bold ${savingsRate >= 20 ? 'text-app-green' : 'text-app-yellow'}`}>
             {formatPercent(savingsRate)}
           </p>
         </div>
@@ -359,15 +359,15 @@ const IncomeExpenseFlowPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-xl border border-border p-4 md:p-6 lg:p-8 shadow-lg"
+        className="glass rounded-2xl border border-border p-4 md:p-6 lg:p-8"
       >
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-ios-purple/20 rounded-xl shadow-lg shadow-ios-purple/30">
-              <ArrowRightLeft className="w-6 h-6 text-ios-purple" />
+            <div className="p-3 bg-app-purple/20 rounded-xl">
+              <ArrowRightLeft className="w-6 h-6 text-app-purple" />
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-white">Cash Flow Sankey</h3>
+              <h3 className="text-lg font-semibold text-white">Cash Flow Sankey</h3>
               <p className="text-sm text-muted-foreground">Income sources flowing to savings and expenses</p>
             </div>
           </div>
@@ -376,7 +376,7 @@ const IncomeExpenseFlowPage = () => {
         {isLoading && (
           <div className="h-[400px] md:h-[550px] lg:h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-purple mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-app-purple mx-auto mb-4"></div>
               <div className="text-muted-foreground">Loading flow diagram...</div>
             </div>
           </div>
@@ -392,22 +392,22 @@ const IncomeExpenseFlowPage = () => {
                   margin={{ top: 30, right: 200, bottom: 30, left: 200 }}
                   node={sankeyNodeComponent}
                   link={{
-                    stroke: rawColors.ios.purple,
+                    stroke: rawColors.app.purple,
                     strokeOpacity: 0.25,
                   }}
                 >
                   <defs>
                     <linearGradient id="incomeGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor={rawColors.ios.green} stopOpacity={0.8} />
-                      <stop offset="100%" stopColor={rawColors.ios.green} stopOpacity={0.8} />
+                      <stop offset="0%" stopColor={rawColors.app.green} stopOpacity={0.8} />
+                      <stop offset="100%" stopColor={rawColors.app.green} stopOpacity={0.8} />
                     </linearGradient>
                     <linearGradient id="middleGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor={rawColors.ios.indigo} stopOpacity={0.9} />
-                      <stop offset="100%" stopColor={rawColors.ios.purple} stopOpacity={0.9} />
+                      <stop offset="0%" stopColor={rawColors.app.indigo} stopOpacity={0.9} />
+                      <stop offset="100%" stopColor={rawColors.app.purple} stopOpacity={0.9} />
                     </linearGradient>
                     <linearGradient id="expenseGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor={rawColors.ios.red} stopOpacity={0.8} />
-                      <stop offset="100%" stopColor={rawColors.ios.orange} stopOpacity={0.8} />
+                      <stop offset="0%" stopColor={rawColors.app.red} stopOpacity={0.8} />
+                      <stop offset="100%" stopColor={rawColors.app.orange} stopOpacity={0.8} />
                     </linearGradient>
                   </defs>
                   <Tooltip
@@ -426,7 +426,7 @@ const IncomeExpenseFlowPage = () => {
                       marginBottom: '4px',
                     }}
                     itemStyle={{
-                      color: rawColors.ios.purple,
+                      color: rawColors.app.purple,
                       fontSize: '13px',
                     }}
                     formatter={(value: number | undefined) => value === undefined ? '' : [

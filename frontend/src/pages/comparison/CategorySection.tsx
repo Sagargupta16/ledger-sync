@@ -22,7 +22,7 @@ export function CategorySection({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="glass rounded-2xl border border-border p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6"
     >
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
@@ -44,8 +44,8 @@ export function CategorySection({
               labelA={periodA.label}
               labelB={periodB.label}
               maxValue={Math.max(deltas[0].periodA, deltas[0].periodB, 1)}
-              colorA={rawColors.ios.blue}
-              colorB={rawColors.ios.indigo}
+              colorA={rawColors.app.blue}
+              colorB={rawColors.app.indigo}
               invertChange={invertChange}
               index={i}
             />

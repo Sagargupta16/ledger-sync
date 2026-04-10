@@ -85,7 +85,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
   return (
     <div className="space-y-4">
       {/* Search Bar */}
-      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+      <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-4">
         <div className="flex items-center gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" aria-hidden="true" />
@@ -132,7 +132,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-6 space-y-4 overflow-hidden"
+            className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-6 space-y-4 overflow-hidden"
             role="region"
             aria-label="Advanced filters"
           >

@@ -11,7 +11,7 @@ export default function ExpenseTreemap({ dateRange }: ExpenseTreemapProps) {
       transactionType="expense"
       dateRange={dateRange}
       headerIcon={BarChart3}
-      headerIconColor="text-ios-purple"
+      headerIconColor="text-app-purple"
       headerTitle="Expense Breakdown"
       emptyIcon={CreditCard}
       emptyTitle="No expense data available"

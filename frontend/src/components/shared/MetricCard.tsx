@@ -66,7 +66,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
 
   if (isLoading) {
     return (
-      <div className="p-4 glass rounded-xl">
+      <div className="p-4 glass rounded-2xl">
         <div className="h-3 bg-white/[0.06] animate-pulse rounded w-1/2 mb-3" />
         <div className="h-6 bg-white/[0.06] animate-pulse rounded w-3/4" />
       </div>
@@ -78,7 +78,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="relative p-4 glass rounded-xl overflow-hidden transition-colors duration-150 ease-out hover:border-white/[0.08]"
+      className="relative p-4 glass rounded-2xl overflow-hidden transition-colors duration-150 ease-out hover:border-white/[0.08]"
     >
       {/* Sparkline as background */}
       {trend && (
@@ -118,10 +118,10 @@ export default function MetricCard({ title, value, change, invertChange, changeL
         {change !== undefined && (() => {
           const isPositive = change >= 0
           const isGood = invertChange ? !isPositive : isPositive
-          const c = isGood ? rawColors.ios.green : rawColors.ios.red
+          const c = isGood ? rawColors.app.green : rawColors.app.red
           return (
             <div className="flex items-center gap-1.5 mt-1.5">
-              <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${isGood ? 'bg-ios-green/10' : 'bg-ios-red/10'}`}
+              <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${isGood ? 'bg-app-green/10' : 'bg-app-red/10'}`}
                 style={{ color: c }}>
                 {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                 {change > 0 ? '+' : ''}{change}%

@@ -139,7 +139,7 @@ function BrandHeader({
     <button
       type="button"
       onClick={onOpenProfile}
-      className="w-full flex items-center gap-3 px-4 py-4 border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors duration-150 group/brand"
+      className="w-full flex items-center gap-3 px-4 py-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition-colors duration-150 group/brand"
     >
       <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-500/15">
         <PiggyBank className="w-5 h-5 text-blue-400" />
@@ -251,7 +251,7 @@ export default function Sidebar() {
           <div className="px-3 py-2 border-b border-white/[0.06]">
             <button
               onClick={openSearch}
-              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.07] text-zinc-500 hover:text-zinc-300 transition-colors duration-150 text-sm"
+              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-500 hover:text-zinc-300 transition-colors duration-150 text-sm"
               title="Search (⌘K)"
             >
               <Search size={15} className="flex-shrink-0" />

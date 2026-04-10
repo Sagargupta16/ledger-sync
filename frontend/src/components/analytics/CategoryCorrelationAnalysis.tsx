@@ -17,10 +17,10 @@ function pearsonCorrelation(x: number[], y: number[]): number {
 }
 
 function getCorrelationColor(r: number): string {
-  if (r > 0.5) return rawColors.ios.red
-  if (r > 0.2) return rawColors.ios.orange
+  if (r > 0.5) return rawColors.app.red
+  if (r > 0.2) return rawColors.app.orange
   if (r > -0.2) return rawColors.text.tertiary
-  return rawColors.ios.blue
+  return rawColors.app.blue
 }
 
 function getCorrelationBg(r: number): string {
@@ -120,7 +120,7 @@ export default function CategoryCorrelationAnalysis() {
         transition={{ delay: 0.3 }}
       >
         <div className="flex items-center gap-2 mb-5">
-          <Grid3x3 className="w-5 h-5 text-ios-orange" />
+          <Grid3x3 className="w-5 h-5 text-app-orange" />
           <h3 className="text-lg font-semibold text-white">Category Correlations</h3>
         </div>
         <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
@@ -138,7 +138,7 @@ export default function CategoryCorrelationAnalysis() {
       transition={{ delay: 0.3 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Grid3x3 className="w-5 h-5 text-ios-orange" />
+        <Grid3x3 className="w-5 h-5 text-app-orange" />
         <h3 className="text-lg font-semibold text-white">Category Correlations</h3>
       </div>
 
@@ -211,10 +211,10 @@ export default function CategoryCorrelationAnalysis() {
       {/* Legend */}
       <div className="flex items-center gap-4 mt-4 justify-center">
         {[
-          { label: 'Strong +', color: rawColors.ios.red },
-          { label: 'Weak +', color: rawColors.ios.orange },
+          { label: 'Strong +', color: rawColors.app.red },
+          { label: 'Weak +', color: rawColors.app.orange },
           { label: 'Neutral', color: rawColors.text.tertiary },
-          { label: 'Negative', color: rawColors.ios.blue },
+          { label: 'Negative', color: rawColors.app.blue },
         ].map((item) => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />

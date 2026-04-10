@@ -87,7 +87,7 @@ function prefetchAllPages() {
 function Spinner({ label = 'Loading...', className = '' }: Readonly<{ label?: string; className?: string }>) {
   return (
     <div className={`flex flex-col items-center gap-3 ${className}`}>
-      <div className="w-8 h-8 border-2 border-ios-blue/30 border-t-ios-blue rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-app-blue/30 border-t-app-blue rounded-full animate-spin" />
       <span className="text-sm text-muted-foreground">{label}</span>
     </div>
   )

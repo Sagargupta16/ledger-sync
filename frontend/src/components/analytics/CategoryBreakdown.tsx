@@ -97,7 +97,7 @@ export default function CategoryBreakdown({
 
   if (isLoading) {
     return (
-      <div className="bg-white/[0.03] p-6 rounded-xl border border-white/[0.06]">
+      <div className="bg-white/[0.04] p-6 rounded-xl border border-white/[0.06]">
         <div className="h-64 flex items-center justify-center">
           <div className="animate-pulse text-zinc-500">Loading breakdown...</div>
         </div>
@@ -107,7 +107,7 @@ export default function CategoryBreakdown({
 
   if (categories.length === 0) {
     return (
-      <div className="bg-white/[0.03] p-6 rounded-xl border border-white/[0.06]">
+      <div className="bg-white/[0.04] p-6 rounded-xl border border-white/[0.06]">
         <EmptyState
           icon={emptyIcon}
           title={emptyTitle}
@@ -121,7 +121,7 @@ export default function CategoryBreakdown({
   }
 
   return (
-    <div className="bg-white/[0.03] p-6 rounded-xl border border-white/[0.06]">
+    <div className="bg-white/[0.04] p-6 rounded-xl border border-white/[0.06]">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
@@ -167,7 +167,7 @@ export default function CategoryBreakdown({
                 onClick={() => hasSubcategories && toggleExpand(cat.name)}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-150 group ${
                   hasSubcategories ? 'cursor-pointer' : 'cursor-default'
-                } ${isExpanded ? 'bg-white/[0.05] border border-white/[0.08]' : 'bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] hover:border-white/[0.10]'}`}
+                } ${isExpanded ? 'bg-white/[0.05] border border-white/[0.08]' : 'bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.05] hover:border-white/[0.10]'}`}
               >
                 <div className="flex items-center gap-3">
                   {/* Color dot */}

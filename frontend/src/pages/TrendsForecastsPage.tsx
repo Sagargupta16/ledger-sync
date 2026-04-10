@@ -84,18 +84,18 @@ function TrendCard({
     if (direction === 'stable') return <Minus className="w-5 h-5 text-muted-foreground" />
     if (direction === 'up') {
       return positiveGood
-        ? <TrendingUp className="w-5 h-5 text-ios-green" />
-        : <TrendingUp className="w-5 h-5 text-ios-red" />
+        ? <TrendingUp className="w-5 h-5 text-app-green" />
+        : <TrendingUp className="w-5 h-5 text-app-red" />
     }
     return positiveGood
-      ? <TrendingDown className="w-5 h-5 text-ios-red" />
-      : <TrendingDown className="w-5 h-5 text-ios-green" />
+      ? <TrendingDown className="w-5 h-5 text-app-red" />
+      : <TrendingDown className="w-5 h-5 text-app-green" />
   }
 
   const getTrendColor = (direction: TrendDirection, positiveGood: boolean) => {
     if (direction === 'stable') return 'text-muted-foreground'
-    if (direction === 'up') return positiveGood ? 'text-ios-green' : 'text-ios-red'
-    return positiveGood ? 'text-ios-red' : 'text-ios-green'
+    if (direction === 'up') return positiveGood ? 'text-app-green' : 'text-app-red'
+    return positiveGood ? 'text-app-red' : 'text-app-green'
   }
 
   const secondStatValue = metrics.highest
@@ -105,7 +105,7 @@ function TrendCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+      className="glass rounded-2xl border border-border p-4 md:p-6"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -168,9 +168,9 @@ function MonthlyBreakdownTable({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+      className="glass rounded-2xl border border-border p-4 md:p-6"
     >
-      <h3 className="text-lg font-semibold text-white mb-6">Month-on-Month Breakdown</h3>
+      <h3 className="text-lg font-semibold text-white mb-4">Month-on-Month Breakdown</h3>
       {isLoading && (
         <div className="text-center py-8 text-muted-foreground">Loading data...</div>
       )}
@@ -229,12 +229,12 @@ function MonthlyBreakdownTable({
                   className="border-b border-border hover:bg-white/10 transition-colors"
                 >
                   <td className="py-3 px-4 text-white font-medium">{trend.month}</td>
-                  <td className="py-3 px-4 text-right text-ios-green">{formatCurrency(trend.income)}</td>
-                  <td className="py-3 px-4 text-right text-ios-red">{formatCurrency(trend.expenses)}</td>
-                  <td className={`py-3 px-4 text-right font-bold ${trend.surplus >= 0 ? 'text-ios-purple' : 'text-ios-red'}`}>
+                  <td className="py-3 px-4 text-right text-app-green">{formatCurrency(trend.income)}</td>
+                  <td className="py-3 px-4 text-right text-app-red">{formatCurrency(trend.expenses)}</td>
+                  <td className={`py-3 px-4 text-right font-bold ${trend.surplus >= 0 ? 'text-app-purple' : 'text-app-red'}`}>
                     {formatCurrency(trend.surplus)}
                   </td>
-                  <td className={`py-3 px-4 text-right ${trend.rawSavingsRate >= 0 ? 'text-foreground' : 'text-ios-red'}`}>
+                  <td className={`py-3 px-4 text-right ${trend.rawSavingsRate >= 0 ? 'text-foreground' : 'text-app-red'}`}>
                     {trend.rawSavingsRate.toFixed(1)}%
                   </td>
                 </tr>
@@ -495,8 +495,8 @@ export default function TrendsForecastsPage() {
           <TrendCard
             metrics={metrics.spending}
             icon={CreditCard}
-            iconBgClass="bg-ios-red/20"
-            iconColorClass="text-ios-red"
+            iconBgClass="bg-app-red/20"
+            iconColorClass="text-app-red"
             label="Spending Trend"
             isPositiveGood={false}
             delay={0.2}
@@ -505,8 +505,8 @@ export default function TrendsForecastsPage() {
           <TrendCard
             metrics={metrics.income}
             icon={Wallet}
-            iconBgClass="bg-ios-green/20"
-            iconColorClass="text-ios-green"
+            iconBgClass="bg-app-green/20"
+            iconColorClass="text-app-green"
             label="Income Trend"
             isPositiveGood={true}
             delay={0.3}
@@ -515,16 +515,16 @@ export default function TrendsForecastsPage() {
           <TrendCard
             metrics={metrics.savings}
             icon={PiggyBank}
-            iconBgClass="bg-ios-purple/20"
-            iconColorClass="text-ios-purple"
+            iconBgClass="bg-app-purple/20"
+            iconColorClass="text-app-purple"
             label="Savings Trend"
             isPositiveGood={true}
             delay={0.4}
             isLoading={isLoading}
-            valueClassName={metrics.savings.current >= 0 ? 'text-white' : 'text-ios-red'}
-            averageClassName={metrics.savings.average >= 0 ? 'text-foreground' : 'text-ios-red'}
+            valueClassName={metrics.savings.current >= 0 ? 'text-white' : 'text-app-red'}
+            averageClassName={metrics.savings.average >= 0 ? 'text-foreground' : 'text-app-red'}
             secondStatLabel="Best Month"
-            secondStatClassName="text-ios-green"
+            secondStatClassName="text-app-green"
           />
         </div>
 
@@ -534,10 +534,10 @@ export default function TrendsForecastsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+          className="glass rounded-2xl border border-border p-4 md:p-6"
         >
           <div className="flex items-center gap-3 mb-6">
-            <LineChart className="w-5 h-5 text-ios-blue" />
+            <LineChart className="w-5 h-5 text-app-blue" />
             <div>
               <h3 className="text-lg font-semibold text-white">Income & Expense Trends</h3>
               <p className="text-sm text-text-tertiary">Monthly breakdown with 3-month rolling averages</p>
@@ -553,7 +553,7 @@ export default function TrendsForecastsPage() {
               {/* Income mini chart */}
               <div className="glass-thin rounded-xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-3 h-3 rounded-full bg-ios-green" />
+                  <div className="w-3 h-3 rounded-full bg-app-green" />
                   <span className="text-sm font-medium text-white">Income</span>
                 </div>
                 {monthlyTrendWithAvg.length === 0 ? (
@@ -562,7 +562,7 @@ export default function TrendsForecastsPage() {
                   <ChartContainer height={180}>
                     <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
                       <defs>
-                        {areaGradient('trendIncome', rawColors.ios.green, 0.4, 0.02)}
+                        {areaGradient('trendIncome', rawColors.app.green, 0.4, 0.02)}
                       </defs>
                       <CartesianGrid {...GRID_DEFAULTS} />
                       <XAxis {...xAxisDefaults(monthlyTrendWithAvg.length)} dataKey="label" />
@@ -580,8 +580,8 @@ export default function TrendsForecastsPage() {
                       />
                       <ReferenceLine y={peakIncome} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: '#71717a', fontSize: 10, position: 'insideTopRight' }} />
                       {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
-                      <Area type="monotone" dataKey="income" stroke={rawColors.ios.green} fill={areaGradientUrl('trendIncome')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
-                      <Line type="monotone" dataKey="incomeAvg" stroke={rawColors.ios.green} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Income (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Area type="monotone" dataKey="income" stroke={rawColors.app.green} fill={areaGradientUrl('trendIncome')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Line type="monotone" dataKey="incomeAvg" stroke={rawColors.app.green} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Income (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                     </AreaChart>
                   </ChartContainer>
                 )}
@@ -590,7 +590,7 @@ export default function TrendsForecastsPage() {
               {/* Expenses mini chart */}
               <div className="glass-thin rounded-xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-3 h-3 rounded-full bg-ios-red" />
+                  <div className="w-3 h-3 rounded-full bg-app-red" />
                   <span className="text-sm font-medium text-white">Expenses</span>
                 </div>
                 {monthlyTrendWithAvg.length === 0 ? (
@@ -599,7 +599,7 @@ export default function TrendsForecastsPage() {
                   <ChartContainer height={180}>
                     <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
                       <defs>
-                        {areaGradient('trendExpense', rawColors.ios.red, 0.4, 0.02)}
+                        {areaGradient('trendExpense', rawColors.app.red, 0.4, 0.02)}
                       </defs>
                       <CartesianGrid {...GRID_DEFAULTS} />
                       <XAxis {...xAxisDefaults(monthlyTrendWithAvg.length)} dataKey="label" />
@@ -617,8 +617,8 @@ export default function TrendsForecastsPage() {
                       />
                       <ReferenceLine y={peakExpenses} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakExpenses)}`, fill: '#71717a', fontSize: 10, position: 'insideTopRight' }} />
                       {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
-                      <Area type="monotone" dataKey="expenses" stroke={rawColors.ios.red} fill={areaGradientUrl('trendExpense')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
-                      <Line type="monotone" dataKey="expensesAvg" stroke={rawColors.ios.red} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Spending (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Area type="monotone" dataKey="expenses" stroke={rawColors.app.red} fill={areaGradientUrl('trendExpense')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Line type="monotone" dataKey="expensesAvg" stroke={rawColors.app.red} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Spending (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                     </AreaChart>
                   </ChartContainer>
                 )}
@@ -627,7 +627,7 @@ export default function TrendsForecastsPage() {
               {/* Savings mini chart */}
               <div className="glass-thin rounded-xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-3 h-3 rounded-full bg-ios-purple" />
+                  <div className="w-3 h-3 rounded-full bg-app-purple" />
                   <span className="text-sm font-medium text-white">Savings</span>
                 </div>
                 {monthlyTrendWithAvg.length === 0 ? (
@@ -636,7 +636,7 @@ export default function TrendsForecastsPage() {
                   <ChartContainer height={180}>
                     <AreaChart data={monthlyTrendWithAvg} onMouseMove={(e) => { if (e?.activeLabel) setActiveLabel(e.activeLabel as string) }} onMouseLeave={() => setActiveLabel(null)}>
                       <defs>
-                        {areaGradient('trendSavings', rawColors.ios.purple, 0.4, 0.02)}
+                        {areaGradient('trendSavings', rawColors.app.purple, 0.4, 0.02)}
                       </defs>
                       <CartesianGrid {...GRID_DEFAULTS} />
                       <XAxis {...xAxisDefaults(monthlyTrendWithAvg.length)} dataKey="label" />
@@ -654,8 +654,8 @@ export default function TrendsForecastsPage() {
                       />
                       <ReferenceLine y={peakSavings} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakSavings)}`, fill: '#71717a', fontSize: 10, position: 'insideTopRight' }} />
                       {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
-                      <Area type="monotone" dataKey="savings" stroke={rawColors.ios.purple} fill={areaGradientUrl('trendSavings')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
-                      <Line type="monotone" dataKey="savingsAvg" stroke={rawColors.ios.purple} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Savings (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Area type="monotone" dataKey="savings" stroke={rawColors.app.purple} fill={areaGradientUrl('trendSavings')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Line type="monotone" dataKey="savingsAvg" stroke={rawColors.app.purple} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Savings (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                     </AreaChart>
                   </ChartContainer>
                 )}
@@ -680,10 +680,10 @@ export default function TrendsForecastsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+          className="glass rounded-2xl border border-border p-4 md:p-6"
         >
           <div className="flex items-center gap-3 mb-6">
-            <PiggyBank className="w-5 h-5 text-ios-purple" />
+            <PiggyBank className="w-5 h-5 text-app-purple" />
             <h3 className="text-lg font-semibold text-white">Savings Rate Trend</h3>
             <span className="text-sm text-text-tertiary">(% of income saved each month)</span>
           </div>
@@ -699,7 +699,7 @@ export default function TrendsForecastsPage() {
               <ChartContainer height={250}>
                 <AreaChart data={dailySavingsData}>
                   <defs>
-                    {areaGradient('savingsRate', rawColors.ios.purple, 0.4, 0.02)}
+                    {areaGradient('savingsRate', rawColors.app.purple, 0.4, 0.02)}
                   </defs>
                   <CartesianGrid {...GRID_DEFAULTS} />
                   <XAxis {...xAxisDefaults(dailySavingsData.length, { angle: dims.angleXLabels ? -45 : undefined, height: 70, dateFormatter: true })} dataKey="date" />
@@ -715,12 +715,12 @@ export default function TrendsForecastsPage() {
                   />
                   <ReferenceLine
                     y={savingsGoalPercent}
-                    stroke={rawColors.ios.green}
+                    stroke={rawColors.app.green}
                     strokeDasharray="6 4"
                     strokeWidth={1.5}
                     label={{
                       value: `Target: ${savingsGoalPercent}%`,
-                      fill: rawColors.ios.green,
+                      fill: rawColors.app.green,
                       fontSize: 11,
                       position: 'insideTopRight',
                     }}
@@ -728,7 +728,7 @@ export default function TrendsForecastsPage() {
                   <Area
                     type="monotone"
                     dataKey="savingsRate"
-                    stroke={rawColors.ios.purple}
+                    stroke={rawColors.app.purple}
                     fill={areaGradientUrl('savingsRate')}
                     strokeWidth={2}
                     dot={false}

@@ -280,31 +280,31 @@ export default function QuickInsights({
   const savingsChange = fmtChange(momChanges?.savings, momChanges?.label ?? '')
 
   const quickInsights = [
-    { icon: TrendingUp, color: 'text-ios-green', bg: 'bg-ios-green/10', title: 'Total Income', value: formatCurrency(totalIncome), subtitle: incomeChange },
-    { icon: TrendingDown, color: 'text-ios-red', bg: 'bg-ios-red/10', title: 'Total Expenses', value: formatCurrency(Math.abs(totalsData?.total_expenses ?? 0)), subtitle: expenseChange },
-    { icon: DollarSign, color: 'text-ios-blue', bg: 'bg-ios-blue/10', title: 'Net Savings', value: formatCurrency(netSavings), subtitle: savingsChange },
-    { icon: Percent, color: 'text-ios-purple', bg: 'bg-ios-purple/10', title: 'Savings Rate', value: `${savingsRate.toFixed(1)}%`, subtitle: totalIncome > 0 ? `${formatCurrency(netSavings)} saved of ${formatCurrency(totalIncome)}` : 'No income recorded' },
-    ...(ageOfMoney != null ? [{ icon: Hourglass, color: 'text-ios-indigo', bg: 'bg-ios-indigo/10', title: 'Age of Money', value: `${ageOfMoney} days`, subtitle: ageOfMoney >= 30 ? 'Healthy buffer' : ageOfMoney >= 15 ? 'Building runway' : 'Living paycheck to paycheck' }] : []),
-    ...(daysOfBuffering != null ? [{ icon: ShieldCheck, color: 'text-ios-teal', bg: 'bg-ios-teal/10', title: 'Days of Buffering', value: `${daysOfBuffering} days`, subtitle: 'At current spending rate' }] : []),
-    ...(fixedCommitmentsMonthly > 0 ? [{ icon: Lock, color: 'text-ios-orange', bg: 'bg-ios-orange/10', title: 'Fixed Commitments', value: formatCurrency(fixedCommitmentsMonthly), subtitle: `${fixedCount} active recurring` }] : []),
-    ...(fixedCommitmentsMonthly > 0 ? [{ icon: Repeat, color: 'text-ios-yellow', bg: 'bg-ios-yellow/10', title: 'Recurring Coverage', value: `${recurringCoverage.toFixed(1)}%`, subtitle: recurringCoverage > 50 ? 'High fixed cost load' : recurringCoverage > 30 ? 'Moderate fixed costs' : 'Low fixed costs' }] : []),
+    { icon: TrendingUp, color: 'text-app-green', bg: 'bg-app-green/10', title: 'Total Income', value: formatCurrency(totalIncome), subtitle: incomeChange },
+    { icon: TrendingDown, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Total Expenses', value: formatCurrency(Math.abs(totalsData?.total_expenses ?? 0)), subtitle: expenseChange },
+    { icon: DollarSign, color: 'text-app-blue', bg: 'bg-app-blue/10', title: 'Net Savings', value: formatCurrency(netSavings), subtitle: savingsChange },
+    { icon: Percent, color: 'text-app-purple', bg: 'bg-app-purple/10', title: 'Savings Rate', value: `${savingsRate.toFixed(1)}%`, subtitle: totalIncome > 0 ? `${formatCurrency(netSavings)} saved of ${formatCurrency(totalIncome)}` : 'No income recorded' },
+    ...(ageOfMoney != null ? [{ icon: Hourglass, color: 'text-app-indigo', bg: 'bg-app-indigo/10', title: 'Age of Money', value: `${ageOfMoney} days`, subtitle: ageOfMoney >= 30 ? 'Healthy buffer' : ageOfMoney >= 15 ? 'Building runway' : 'Living paycheck to paycheck' }] : []),
+    ...(daysOfBuffering != null ? [{ icon: ShieldCheck, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Days of Buffering', value: `${daysOfBuffering} days`, subtitle: 'At current spending rate' }] : []),
+    ...(fixedCommitmentsMonthly > 0 ? [{ icon: Lock, color: 'text-app-orange', bg: 'bg-app-orange/10', title: 'Fixed Commitments', value: formatCurrency(fixedCommitmentsMonthly), subtitle: `${fixedCount} active recurring` }] : []),
+    ...(fixedCommitmentsMonthly > 0 ? [{ icon: Repeat, color: 'text-app-yellow', bg: 'bg-app-yellow/10', title: 'Recurring Coverage', value: `${recurringCoverage.toFixed(1)}%`, subtitle: recurringCoverage > 50 ? 'High fixed cost load' : recurringCoverage > 30 ? 'Moderate fixed costs' : 'Low fixed costs' }] : []),
   ]
 
   const funFacts = [
-    { icon: ShoppingBag, color: 'text-ios-purple', bg: 'bg-ios-purple/10', title: 'Top Spending Category', value: topCategory ? topCategory[0] : 'N/A', subtitle: topCategory ? formatCurrency(Math.abs((topCategory[1] as CategoryData).total)) : '' },
+    { icon: ShoppingBag, color: 'text-app-purple', bg: 'bg-app-purple/10', title: 'Top Spending Category', value: topCategory ? topCategory[0] : 'N/A', subtitle: topCategory ? formatCurrency(Math.abs((topCategory[1] as CategoryData).total)) : '' },
     { icon: Landmark, color: 'text-sky-400', bg: 'bg-sky-500/10', title: 'Top Income Source', value: topIncomeSource ? topIncomeSource[0] : 'N/A', subtitle: topIncomeSource ? formatCurrency(topIncomeSource[1]) : '' },
-    { icon: Gift, color: 'text-ios-green', bg: 'bg-ios-green/10', title: 'Net Cashback Earned', value: formatCurrency(netCashback), subtitle: `From ${cashbackTransactions.length} cashback transactions` },
-    { icon: TrendingUp, color: 'text-ios-red', bg: 'bg-ios-red/10', title: 'Biggest Transaction', value: formatCurrency(Math.abs(biggestTransaction?.amount || 0)), subtitle: biggestTransaction?.category || '' },
-    { icon: BarChart3, color: 'text-ios-purple', bg: 'bg-ios-purple/10', title: 'Median Transaction', value: formatCurrency(medianTransaction), subtitle: avgTransactionAmount > medianTransaction ? 'Few large purchases skew average up' : 'Spending is fairly even' },
-    { icon: Zap, color: 'text-ios-yellow', bg: 'bg-ios-yellow/10', title: 'Average Daily Spending', value: formatCurrency(avgDailySpending), subtitle: `Over ${daysInRange} days` },
-    { icon: Calendar, color: 'text-ios-red', bg: 'bg-ios-red/10', title: 'Weekend Spending', value: `${weekendPercent.toFixed(0)}%`, subtitle: `${formatCurrency(weekendSpending)} weekends vs ${formatCurrency(weekdaySpending)} weekdays` },
-    { icon: Clock, color: 'text-ios-orange', bg: 'bg-ios-orange/10', title: 'Peak Spending Day', value: peakDay.name, subtitle: `${formatCurrency(peakDay.total)} total on ${peakDay.name}s` },
-    { icon: Flame, color: 'text-ios-orange', bg: 'bg-ios-orange/10', title: 'Monthly Burn Rate', value: formatCurrency(monthlyBurnRate), subtitle: `Avg over ${monthsInRange.toFixed(1)} months` },
-    { icon: Layers, color: 'text-ios-teal', bg: 'bg-ios-teal/10', title: 'Spending Diversity', value: `${uniqueCategories} categories`, subtitle: `Across ${uniqueSubcategories} subcategories` },
-    { icon: Receipt, color: 'text-ios-teal', bg: 'bg-ios-teal/10', title: 'Avg Transaction', value: formatCurrency(avgTransactionAmount), subtitle: 'Per transaction' },
-    { icon: ArrowLeftRight, color: 'text-ios-indigo', bg: 'bg-ios-indigo/10', title: 'Internal Transfers', value: formatCurrency(totalTransfers), subtitle: `${transferTransactions.length} transfers` },
-    { icon: Scale, color: 'text-ios-blue', bg: 'bg-ios-blue/10', title: 'Income vs Expense', value: `${incomeExpenseRatio.toFixed(2)}x`, subtitle: incomeExpenseRatio < 0.7 ? 'Great! Spending well below income' : incomeExpenseRatio < 0.9 ? 'Spending close to income' : 'Spending nearly all income' },
-    ...(mostExpensiveMonth ? [{ icon: CalendarRange, color: 'text-ios-red', bg: 'bg-ios-red/10', title: 'Most Expensive Month', value: mostExpensiveMonth.label, subtitle: formatCurrency(mostExpensiveMonth.amount) }] : []),
+    { icon: Gift, color: 'text-app-green', bg: 'bg-app-green/10', title: 'Net Cashback Earned', value: formatCurrency(netCashback), subtitle: `From ${cashbackTransactions.length} cashback transactions` },
+    { icon: TrendingUp, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Biggest Transaction', value: formatCurrency(Math.abs(biggestTransaction?.amount || 0)), subtitle: biggestTransaction?.category || '' },
+    { icon: BarChart3, color: 'text-app-purple', bg: 'bg-app-purple/10', title: 'Median Transaction', value: formatCurrency(medianTransaction), subtitle: avgTransactionAmount > medianTransaction ? 'Few large purchases skew average up' : 'Spending is fairly even' },
+    { icon: Zap, color: 'text-app-yellow', bg: 'bg-app-yellow/10', title: 'Average Daily Spending', value: formatCurrency(avgDailySpending), subtitle: `Over ${daysInRange} days` },
+    { icon: Calendar, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Weekend Spending', value: `${weekendPercent.toFixed(0)}%`, subtitle: `${formatCurrency(weekendSpending)} weekends vs ${formatCurrency(weekdaySpending)} weekdays` },
+    { icon: Clock, color: 'text-app-orange', bg: 'bg-app-orange/10', title: 'Peak Spending Day', value: peakDay.name, subtitle: `${formatCurrency(peakDay.total)} total on ${peakDay.name}s` },
+    { icon: Flame, color: 'text-app-orange', bg: 'bg-app-orange/10', title: 'Monthly Burn Rate', value: formatCurrency(monthlyBurnRate), subtitle: `Avg over ${monthsInRange.toFixed(1)} months` },
+    { icon: Layers, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Spending Diversity', value: `${uniqueCategories} categories`, subtitle: `Across ${uniqueSubcategories} subcategories` },
+    { icon: Receipt, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Avg Transaction', value: formatCurrency(avgTransactionAmount), subtitle: 'Per transaction' },
+    { icon: ArrowLeftRight, color: 'text-app-indigo', bg: 'bg-app-indigo/10', title: 'Internal Transfers', value: formatCurrency(totalTransfers), subtitle: `${transferTransactions.length} transfers` },
+    { icon: Scale, color: 'text-app-blue', bg: 'bg-app-blue/10', title: 'Income vs Expense', value: `${incomeExpenseRatio.toFixed(2)}x`, subtitle: incomeExpenseRatio < 0.7 ? 'Great! Spending well below income' : incomeExpenseRatio < 0.9 ? 'Spending close to income' : 'Spending nearly all income' },
+    ...(mostExpensiveMonth ? [{ icon: CalendarRange, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Most Expensive Month', value: mostExpensiveMonth.label, subtitle: formatCurrency(mostExpensiveMonth.amount) }] : []),
   ]
 
   // Filter by user widget prefs
@@ -341,7 +341,7 @@ export default function QuickInsights({
   const InsightCard = ({ item }: { item: typeof quickInsights[number] }) => (
     <motion.div
       variants={fadeUpItem}
-      className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-150"
+      className="flex items-center gap-3 p-3 bg-white/[0.04] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-150"
     >
       <div className={`p-2 ${item.bg} rounded-lg shrink-0`}>
         <item.icon className={`w-4 h-4 ${item.color}`} />

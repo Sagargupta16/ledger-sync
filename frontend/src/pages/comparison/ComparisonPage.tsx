@@ -27,7 +27,7 @@ export default function ComparisonPage() {
 
   if (isLoading) {
     return (
-      <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6">
+      <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
         <div className="h-10 w-72 bg-white/5 rounded-xl animate-pulse" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
           {['income', 'expenses', 'savings', 'rate'].map((name) => (
@@ -75,7 +75,7 @@ export default function ComparisonPage() {
                   <motion.div
                     layoutId="comparisonModeTab"
                     className="absolute inset-0 rounded-lg"
-                    style={{ backgroundColor: rawColors.ios.indigo }}
+                    style={{ backgroundColor: rawColors.app.indigo }}
                     initial={false}
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
@@ -91,7 +91,7 @@ export default function ComparisonPage() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-5"
+        className="glass rounded-2xl border border-border p-6"
       >
         <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
           <PeriodSelector
@@ -122,21 +122,21 @@ export default function ComparisonPage() {
           exit={{ opacity: 0, y: -10 }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
         >
-          <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={rawColors.ios.green} />
-          <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={rawColors.ios.red} invertChange />
-          <KpiCard title="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={rawColors.ios.blue} />
-          <KpiCard title="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.ios.purple} isPercent />
+          <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.green} />
+          <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.red} invertChange />
+          <KpiCard title="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.blue} />
+          <KpiCard title="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.purple} isPercent />
         </motion.div>
       </AnimatePresence>
 
       {/* Financial Overview */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl">
-        <h2 className="text-lg font-semibold mb-6">Financial Overview</h2>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl border border-border p-4 md:p-6">
+        <h2 className="text-lg font-semibold mb-4">Financial Overview</h2>
         <div className="space-y-6">
-          <OverviewMetricRow label="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={rawColors.ios.green} maxValue={overviewMax} />
-          <OverviewMetricRow label="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={rawColors.ios.red} maxValue={overviewMax} invertChange />
-          <OverviewMetricRow label="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={rawColors.ios.blue} maxValue={overviewMax} />
-          <OverviewMetricRow label="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.ios.purple} maxValue={100} isPercent />
+          <OverviewMetricRow label="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.green} maxValue={overviewMax} />
+          <OverviewMetricRow label="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.red} maxValue={overviewMax} invertChange />
+          <OverviewMetricRow label="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.blue} maxValue={overviewMax} />
+          <OverviewMetricRow label="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.purple} maxValue={100} isPercent />
         </div>
       </motion.div>
 
@@ -146,7 +146,7 @@ export default function ComparisonPage() {
       {/* Category Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CategorySection
-          icon={<TrendingDown className="w-5 h-5 text-ios-red" />}
+          icon={<TrendingDown className="w-5 h-5 text-app-red" />}
           title="Expense Categories"
           deltas={expenseDeltas}
           periodA={periodA} periodB={periodB}
@@ -154,7 +154,7 @@ export default function ComparisonPage() {
           delay={0.15}
         />
         <CategorySection
-          icon={<TrendingUp className="w-5 h-5 text-ios-green" />}
+          icon={<TrendingUp className="w-5 h-5 text-app-green" />}
           title="Income Categories"
           deltas={incomeDeltas}
           periodA={periodA} periodB={periodB}
@@ -163,7 +163,7 @@ export default function ComparisonPage() {
       </div>
 
       {/* Quick Stats */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass rounded-2xl border border-border p-4 md:p-6">
         <h2 className="text-lg font-semibold mb-4">Quick Stats</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <QuickStat label="Transactions" valueA={periodA.transactions} valueB={periodB.transactions} labelA={periodA.label} labelB={periodB.label} />
@@ -175,15 +175,15 @@ export default function ComparisonPage() {
 
       {/* Insights */}
       {insights.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass rounded-2xl border border-border p-4 md:p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Lightbulb className="w-5 h-5 text-ios-orange" />
+            <Lightbulb className="w-5 h-5 text-app-orange" />
             <h2 className="text-lg font-semibold">Key Insights</h2>
           </div>
           <div className="space-y-2">
             {insights.map((insight, i) => (
               <motion.div key={insight} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.05 }} className="flex items-start gap-3 p-3 rounded-xl bg-white/5">
-                <div className="w-1.5 h-1.5 rounded-full bg-ios-orange mt-1.5 shrink-0" />
+                <div className="w-1.5 h-1.5 rounded-full bg-app-orange mt-1.5 shrink-0" />
                 <p className="text-sm text-foreground">{insight}</p>
               </motion.div>
             ))}

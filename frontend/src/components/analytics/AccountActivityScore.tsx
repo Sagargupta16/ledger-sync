@@ -7,10 +7,10 @@ import { rawColors } from '@/constants/colors'
 type ActivityLevel = 'high' | 'medium' | 'low' | 'dormant'
 
 const ACTIVITY_STYLES: Record<ActivityLevel, { color: string; bg: string; border: string }> = {
-  high: { color: rawColors.ios.green, bg: 'bg-ios-green/10', border: 'border-ios-green/20' },
-  medium: { color: rawColors.ios.blue, bg: 'bg-ios-blue/10', border: 'border-ios-blue/20' },
-  low: { color: rawColors.ios.yellow, bg: 'bg-ios-yellow/10', border: 'border-ios-yellow/20' },
-  dormant: { color: rawColors.ios.red, bg: 'bg-ios-red/10', border: 'border-ios-red/20' },
+  high: { color: rawColors.app.green, bg: 'bg-app-green/10', border: 'border-app-green/20' },
+  medium: { color: rawColors.app.blue, bg: 'bg-app-blue/10', border: 'border-app-blue/20' },
+  low: { color: rawColors.app.yellow, bg: 'bg-app-yellow/10', border: 'border-app-yellow/20' },
+  dormant: { color: rawColors.app.red, bg: 'bg-app-red/10', border: 'border-app-red/20' },
 }
 
 const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
@@ -94,7 +94,7 @@ export default function AccountActivityScore() {
       transition={{ delay: 0.3 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Activity className="w-5 h-5 text-ios-teal" />
+        <Activity className="w-5 h-5 text-app-teal" />
         <h3 className="text-lg font-semibold text-white">Account Activity</h3>
         <span className="text-xs text-text-tertiary ml-auto">{accounts.length} accounts</span>
       </div>

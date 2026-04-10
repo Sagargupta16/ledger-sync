@@ -18,7 +18,7 @@ const DEFAULT_PROJECTION = {
   monthsToComplete: null,
   status: 'no_data' as const,
   statusLabel: 'No data',
-  statusColor: rawColors.ios.yellow,
+  statusColor: rawColors.app.yellow,
   monthsDelta: null,
 }
 
@@ -26,7 +26,7 @@ export default function GoalsPage() {
   const state = useGoalsState()
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
       <PageHeader
         title="Financial Goals"
         subtitle="Track progress toward your financial targets"
@@ -34,7 +34,7 @@ export default function GoalsPage() {
           <button
             onClick={() => state.setShowCreateForm(!state.showCreateForm)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors hover:opacity-90"
-            style={{ background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})` }}
+            style={{ background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})` }}
           >
             <Plus className="w-4 h-4" /> Create Goal
           </button>
@@ -44,13 +44,13 @@ export default function GoalsPage() {
       {/* Summary Cards */}
       <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         <motion.div variants={fadeUpItem}>
-          <StatCard title="Total Goals" value={String(state.summary.total)} icon={<Target className="w-5 h-5" />} iconColor={rawColors.ios.blue} />
+          <StatCard title="Total Goals" value={String(state.summary.total)} icon={<Target className="w-5 h-5" />} iconColor={rawColors.app.blue} />
         </motion.div>
         <motion.div variants={fadeUpItem}>
-          <StatCard title="Achieved" value={String(state.summary.achieved)} icon={<Trophy className="w-5 h-5" />} iconColor={rawColors.ios.green} />
+          <StatCard title="Achieved" value={String(state.summary.achieved)} icon={<Trophy className="w-5 h-5" />} iconColor={rawColors.app.green} />
         </motion.div>
         <motion.div variants={fadeUpItem}>
-          <StatCard title="In Progress" value={String(state.summary.inProgress)} icon={<Clock className="w-5 h-5" />} iconColor={rawColors.ios.orange} />
+          <StatCard title="In Progress" value={String(state.summary.inProgress)} icon={<Clock className="w-5 h-5" />} iconColor={rawColors.app.orange} />
         </motion.div>
       </motion.div>
 

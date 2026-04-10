@@ -19,10 +19,10 @@ const INVESTMENT_CATEGORIES = ['FD/Bonds', 'Mutual Funds', 'PPF/EPF', 'Stocks'] 
 type InvestmentCategory = typeof INVESTMENT_CATEGORIES[number]
 
 const CATEGORY_COLORS: Record<InvestmentCategory, string> = {
-  'FD/Bonds': rawColors.ios.pink,      // Pink
-  'Mutual Funds': rawColors.ios.purple,  // Purple
+  'FD/Bonds': rawColors.app.pink,      // Pink
+  'Mutual Funds': rawColors.app.purple,  // Purple
   'PPF/EPF': '#f59e0b',       // Amber
-  'Stocks': rawColors.ios.green,        // iOS Green
+  'Stocks': rawColors.app.green,
 }
 
 // Map investment types from preferences to our 4 categories
@@ -375,7 +375,7 @@ export default function InvestmentAnalyticsPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-xl border border-border p-4 md:p-6 lg:p-8 shadow-lg text-center"
+            className="glass rounded-2xl border border-border p-4 md:p-6 lg:p-8 text-center"
           >
             <p className="text-muted-foreground mb-4">No investment accounts classified yet.</p>
             <p className="text-sm text-muted-foreground">
@@ -409,10 +409,10 @@ export default function InvestmentAnalyticsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="relative p-4 md:p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10 shadow-xl shadow-black/40"
+              className="relative p-4 md:p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10"
             >
-              <div className="inline-flex p-3 rounded-2xl mb-4 bg-ios-orange/15" style={{ boxShadow: '0 8px 24px rgba(255,159,10,0.15)' }}>
-                <Target className="w-6 h-6 text-ios-orange" />
+              <div className="inline-flex p-3 rounded-2xl mb-4 bg-app-orange/15" style={{ boxShadow: '0 8px 24px rgba(255,159,10,0.15)' }}>
+                <Target className="w-6 h-6 text-app-orange" />
               </div>
               <h3 className="text-sm font-medium mb-1 text-text-secondary">Monthly Target</h3>
               <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-white">
@@ -423,14 +423,14 @@ export default function InvestmentAnalyticsPage() {
                   <span className="text-text-tertiary">
                     {formatCurrency(currentMonthInvestment)} invested
                   </span>
-                  <span className={targetProgress >= 100 ? 'text-ios-green font-medium' : 'text-ios-orange font-medium'}>
+                  <span className={targetProgress >= 100 ? 'text-app-green font-medium' : 'text-app-orange font-medium'}>
                     {targetProgress.toFixed(0)}%
                   </span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
-                    style={{ background: targetProgress >= 100 ? rawColors.ios.green : rawColors.ios.orange }}
+                    style={{ background: targetProgress >= 100 ? rawColors.app.green : rawColors.app.orange }}
                     initial={{ width: 0 }}
                     animate={{ width: `${targetProgress}%` }}
                     transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
@@ -445,10 +445,10 @@ export default function InvestmentAnalyticsPage() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+          className="glass rounded-2xl border border-border p-4 md:p-6"
         >
           <div className="flex items-center gap-3 mb-6">
-            <PieChart className="w-5 h-5 text-ios-blue" />
+            <PieChart className="w-5 h-5 text-app-blue" />
             <h3 className="text-lg font-semibold text-white">Asset Allocation</h3>
           </div>
           {isLoading && (
@@ -492,10 +492,10 @@ export default function InvestmentAnalyticsPage() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
-          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+          className="glass rounded-2xl border border-border p-4 md:p-6"
         >
           <div className="flex items-center gap-3 mb-6">
-            <LineChart className="w-5 h-5 text-ios-purple" />
+            <LineChart className="w-5 h-5 text-app-purple" />
             <h3 className="text-lg font-semibold text-white">Investment Growth Over Time</h3>
           </div>
           {isLoading && (
@@ -556,9 +556,9 @@ export default function InvestmentAnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+            className="glass rounded-2xl border border-border p-4 md:p-6"
           >
-            <h3 className="text-lg font-semibold text-white mb-6">Investment Accounts</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Investment Accounts</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -594,8 +594,8 @@ export default function InvestmentAnalyticsPage() {
                       transition={{ delay: 0.6 + index * 0.05 }}
                     >
                       <td className="py-3 px-4 text-white font-medium">{item.name}</td>
-                      <td className="py-3 px-4 text-right text-ios-green">{formatCurrency(item.value)}</td>
-                      <td className="py-3 px-4 text-right text-ios-purple">{formatPercent(Number.parseFloat(item.percentage))}</td>
+                      <td className="py-3 px-4 text-right text-app-green">{formatCurrency(item.value)}</td>
+                      <td className="py-3 px-4 text-right text-app-purple">{formatPercent(Number.parseFloat(item.percentage))}</td>
                     </motion.tr>
                   ))}
                 </tbody>

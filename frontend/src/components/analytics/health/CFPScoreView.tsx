@@ -8,9 +8,9 @@ import { computeCFPScore, type CFPRatio } from '@/lib/financialHealthCalculator'
 import type { AnalysisResult } from './healthScoreUtils'
 
 function getStatusColor(status: 'good' | 'warning' | 'poor'): string {
-  if (status === 'good') return rawColors.ios.green
-  if (status === 'warning') return rawColors.ios.orange
-  return rawColors.ios.red
+  if (status === 'good') return rawColors.app.green
+  if (status === 'warning') return rawColors.app.orange
+  return rawColors.app.red
 }
 
 function RatioCard({ ratio }: Readonly<{ ratio: CFPRatio }>) {
@@ -75,8 +75,8 @@ const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPSc
             <PolarGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
             <PolarAngleAxis dataKey="dimension" tick={{ fill: '#71717a', fontSize: 10 }} />
             <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#52525b', fontSize: 9 }} axisLine={false} />
-            <Radar name="CFP Score" dataKey="score" stroke={rawColors.ios.teal} fill={rawColors.ios.teal}
-              fillOpacity={0.15} strokeWidth={2} dot={{ r: 3, fill: rawColors.ios.teal, strokeWidth: 0 }}
+            <Radar name="CFP Score" dataKey="score" stroke={rawColors.app.teal} fill={rawColors.app.teal}
+              fillOpacity={0.15} strokeWidth={2} dot={{ r: 3, fill: rawColors.app.teal, strokeWidth: 0 }}
               animationDuration={800} animationEasing="ease-out" />
             <Tooltip {...chartTooltipProps} />
           </RadarChart>

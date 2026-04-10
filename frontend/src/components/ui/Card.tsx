@@ -103,7 +103,7 @@ export const StatCard = memo(function StatCard({
   value,
   subtitle,
   icon,
-  iconColor = rawColors.ios.blueVibrant,
+  iconColor = rawColors.app.blueVibrant,
   trend,
   delay = 0
 }: StatCardProps) {

@@ -131,7 +131,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubca
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-ios-purple/50 min-w-50"
+              className="px-4 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-app-purple/50 min-w-50"
             >
               {categories.map((category) => (
                 <option key={category} value={category} className="bg-surface-dropdown text-foreground">

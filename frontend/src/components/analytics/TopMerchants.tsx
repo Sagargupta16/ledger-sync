@@ -122,12 +122,12 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-ios-orange/20 rounded-xl">
-            <Store className="w-6 h-6 text-ios-orange" />
+          <div className="p-3 bg-app-orange/20 rounded-xl">
+            <Store className="w-6 h-6 text-app-orange" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Top Merchants</h3>
@@ -226,7 +226,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
       {merchantData.length > 0 && (
         <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-4 text-center">
           <div>
-            <p className="text-2xl font-bold text-ios-orange">{merchantData.length}</p>
+            <p className="text-2xl font-bold text-app-orange">{merchantData.length}</p>
             <p className="text-xs text-muted-foreground">Top Merchants</p>
           </div>
           <div>

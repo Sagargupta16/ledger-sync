@@ -226,7 +226,7 @@ export default function SubcategoryAnalysis({ categoryData }: Readonly<Subcatego
                         <select
                           value={viewMode}
                           onChange={(e) => setViewMode(e.target.value as 'monthly' | 'yearly' | 'all_time')}
-                          className="px-3 py-1.5 bg-ios-blue/20 border border-ios-blue/30 rounded-lg text-ios-blue text-sm focus:outline-none"
+                          className="px-3 py-1.5 bg-app-blue/20 border border-app-blue/30 rounded-lg text-app-blue text-sm focus:outline-none"
                         >
                           <option value="monthly" className="bg-surface-dropdown text-foreground">Monthly View</option>
                           <option value="yearly" className="bg-surface-dropdown text-foreground">Yearly View</option>

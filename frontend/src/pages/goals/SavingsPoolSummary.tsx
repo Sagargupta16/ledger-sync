@@ -42,9 +42,9 @@ export default function SavingsPoolSummary({
       <div className="flex items-center gap-3 mb-4">
         <div
           className="flex items-center justify-center w-9 h-9 rounded-xl"
-          style={{ backgroundColor: `${rawColors.ios.purple}20` }}
+          style={{ backgroundColor: `${rawColors.app.purple}20` }}
         >
-          <PiggyBank className="w-5 h-5" style={{ color: rawColors.ios.purple }} />
+          <PiggyBank className="w-5 h-5" style={{ color: rawColors.app.purple }} />
         </div>
         <h3 className="text-lg font-semibold text-white">Savings Pool</h3>
       </div>
@@ -56,7 +56,7 @@ export default function SavingsPoolSummary({
         </div>
         <div>
           <p className="text-xs text-text-tertiary mb-1">Total Allocated</p>
-          <p className="text-xl font-bold" style={{ color: rawColors.ios.blue }}>
+          <p className="text-xl font-bold" style={{ color: rawColors.app.blue }}>
             {formatCurrencyCompact(totalAllocated)}
           </p>
         </div>
@@ -64,7 +64,7 @@ export default function SavingsPoolSummary({
           <p className="text-xs text-text-tertiary mb-1">Unallocated</p>
           <p
             className="text-xl font-bold"
-            style={{ color: unallocated >= 0 ? rawColors.ios.green : rawColors.ios.red }}
+            style={{ color: unallocated >= 0 ? rawColors.app.green : rawColors.app.red }}
           >
             {formatCurrencyCompact(unallocated)}
           </p>

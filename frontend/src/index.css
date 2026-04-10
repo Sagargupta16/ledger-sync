@@ -8,20 +8,20 @@
   --color-card-foreground: #f5f5f7;
   --color-popover: rgba(28, 28, 30, 0.85);
   --color-popover-foreground: #f5f5f7;
-  --color-primary: var(--color-ios-blue);
+  --color-primary: var(--color-app-blue);
   --color-primary-foreground: #ffffff;
-  --color-secondary: var(--color-ios-indigo);
+  --color-secondary: var(--color-app-indigo);
   --color-secondary-foreground: #ffffff;
   --color-muted: var(--color-surface-3);
   --color-muted-foreground: #8e8e93;
   --color-accent: var(--color-surface-4);
   --color-accent-foreground: #f5f5f7;
-  --color-destructive: var(--color-ios-red);
+  --color-destructive: var(--color-app-red);
   --color-destructive-foreground: #ffffff;
   --color-border: var(--color-border-subtle);
   --color-border-strong: var(--color-border-medium);
   --color-input: var(--color-surface-3);
-  --color-ring: var(--color-ios-blue);
+  --color-ring: var(--color-app-blue);
   --radius: 1rem;
 
   /* ===== SURFACE TOKENS ===== */
@@ -40,38 +40,38 @@
   --color-border-medium: rgba(255, 255, 255, 0.12);
   --color-border-strong: rgba(255, 255, 255, 0.2);
 
-  /* ===== iOS COLOR PALETTE ===== */
-  --color-ios-blue: #4a9eff;
-  --color-ios-blue-vibrant: #0a84ff;
-  --color-ios-green: #30d158;
-  --color-ios-green-vibrant: #28cd50;
-  --color-ios-red: #ff5757;
-  --color-ios-red-vibrant: #ff453a;
-  --color-ios-orange: #ff9f0a;
-  --color-ios-orange-vibrant: #ff9500;
-  --color-ios-yellow: #ffd93d;
-  --color-ios-yellow-vibrant: #ffd426;
-  --color-ios-teal: #5ac8f5;
-  --color-ios-teal-vibrant: #64d2ff;
-  --color-ios-purple: #a78bfa;
-  --color-ios-purple-vibrant: #bf5af2;
-  --color-ios-pink: #ff8fab;
-  --color-ios-pink-vibrant: #ff375f;
-  --color-ios-indigo: #818cf8;
-  --color-ios-indigo-vibrant: #5e5ce6;
+  /* ===== APP COLOR PALETTE ===== */
+  --color-app-blue: #4a9eff;
+  --color-app-blue-vibrant: #0a84ff;
+  --color-app-green: #30d158;
+  --color-app-green-vibrant: #28cd50;
+  --color-app-red: #ff5757;
+  --color-app-red-vibrant: #ff453a;
+  --color-app-orange: #ff9f0a;
+  --color-app-orange-vibrant: #ff9500;
+  --color-app-yellow: #ffd93d;
+  --color-app-yellow-vibrant: #ffd426;
+  --color-app-teal: #5ac8f5;
+  --color-app-teal-vibrant: #64d2ff;
+  --color-app-purple: #a78bfa;
+  --color-app-purple-vibrant: #bf5af2;
+  --color-app-pink: #ff8fab;
+  --color-app-pink-vibrant: #ff375f;
+  --color-app-indigo: #818cf8;
+  --color-app-indigo-vibrant: #5e5ce6;
 
   /* ===== SEMANTIC COLORS ===== */
-  --color-success: var(--color-ios-green);
-  --color-warning: var(--color-ios-orange);
-  --color-error: var(--color-ios-red);
-  --color-info: var(--color-ios-blue);
+  --color-success: var(--color-app-green);
+  --color-warning: var(--color-app-orange);
+  --color-error: var(--color-app-red);
+  --color-info: var(--color-app-blue);
 
   /* ===== FINANCIAL SEMANTIC COLORS ===== */
-  --color-income: var(--color-ios-green);
-  --color-expense: var(--color-ios-red);
-  --color-savings: var(--color-ios-purple);
-  --color-transfer: var(--color-ios-teal);
-  --color-investment: var(--color-ios-blue);
+  --color-income: var(--color-app-green);
+  --color-expense: var(--color-app-red);
+  --color-savings: var(--color-app-purple);
+  --color-transfer: var(--color-app-teal);
+  --color-investment: var(--color-app-blue);
 
   /* ===== TEXT COLORS ===== */
   --color-text-primary: #f5f5f7;

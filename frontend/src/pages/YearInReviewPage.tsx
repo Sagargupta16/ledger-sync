@@ -69,9 +69,9 @@ const heatmapColors: Record<HeatmapMode, string[]> = {
 }
 
 const modeAccent: Record<HeatmapMode, string> = {
-  expense: rawColors.ios.red,
-  income: rawColors.ios.green,
-  net: rawColors.ios.blue,
+  expense: rawColors.app.red,
+  income: rawColors.app.green,
+  net: rawColors.app.blue,
 }
 
 /** Get monthly value for a given mode */
@@ -99,16 +99,16 @@ function getMonthlyMax(
 
 /** Get streak color based on streak length */
 function getStreakColor(maxStreak: number): string {
-  if (maxStreak >= 14) return rawColors.ios.purple
-  if (maxStreak >= 7) return rawColors.ios.blue
-  return rawColors.ios.green
+  if (maxStreak >= 14) return rawColors.app.purple
+  if (maxStreak >= 7) return rawColors.app.blue
+  return rawColors.app.green
 }
 
 /** Get streak dot color based on position in the streak */
 function getStreakDotColor(index: number): string {
-  if (index < 7) return rawColors.ios.green
-  if (index < 14) return rawColors.ios.blue
-  return rawColors.ios.purple
+  if (index < 7) return rawColors.app.green
+  if (index < 14) return rawColors.app.blue
+  return rawColors.app.purple
 }
 
 /** Mobile monthly summary — replaces heatmap on small screens */
@@ -344,9 +344,9 @@ function HeatmapDayDetail({ hoveredDay }: Readonly<{ hoveredDay: DayCell | null 
             year: 'numeric',
           })}
         </span>
-        <span className="text-ios-red">Spending: {formatCurrency(hoveredDay.expense)}</span>
-        <span className="text-ios-green">Earning: {formatCurrency(hoveredDay.income)}</span>
-        <span className={hoveredDay.net >= 0 ? 'text-ios-blue' : 'text-ios-orange'}>
+        <span className="text-app-red">Spending: {formatCurrency(hoveredDay.expense)}</span>
+        <span className="text-app-green">Earning: {formatCurrency(hoveredDay.income)}</span>
+        <span className={hoveredDay.net >= 0 ? 'text-app-blue' : 'text-app-orange'}>
           Savings: {hoveredDay.net >= 0 ? '+' : ''}{formatCurrency(hoveredDay.net)}
         </span>
       </>
@@ -520,22 +520,22 @@ export default function YearInReviewPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-        <StatCard label="Total Spending" value={formatCurrencyCompact(stats.totalExpense)} icon={TrendingDown} color={rawColors.ios.red} />
-        <StatCard label="Total Earning" value={formatCurrencyCompact(stats.totalIncome)} icon={TrendingUp} color={rawColors.ios.green} />
+        <StatCard label="Total Spending" value={formatCurrencyCompact(stats.totalExpense)} icon={TrendingDown} color={rawColors.app.red} />
+        <StatCard label="Total Earning" value={formatCurrencyCompact(stats.totalIncome)} icon={TrendingUp} color={rawColors.app.green} />
         <StatCard
           label="Savings Rate"
           value={`${stats.savingsRate.toFixed(1)}%`}
           icon={stats.savingsRate >= 0 ? ArrowUpRight : ArrowDownRight}
-          color={stats.savingsRate >= 20 ? rawColors.ios.green : rawColors.ios.orange}
+          color={stats.savingsRate >= 20 ? rawColors.app.green : rawColors.app.orange}
         />
-        <StatCard label="Daily Average" value={formatCurrencyCompact(stats.dailyAvg)} icon={BarChart3} color={rawColors.ios.blue} />
+        <StatCard label="Daily Average" value={formatCurrencyCompact(stats.dailyAvg)} icon={BarChart3} color={rawColors.app.blue} />
       </div>
 
       {/* GitHub-style Heatmap */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-6 shadow-xl"
+        className="glass rounded-2xl border border-border p-6"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -652,10 +652,10 @@ export default function YearInReviewPage() {
                     {...chartTooltipProps}
                     formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
                   />
-                  <Bar dataKey="Spending" fill={rawColors.ios.red} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(monthlyBarData.length)} animationDuration={600} animationEasing="ease-out">
+                  <Bar dataKey="Spending" fill={rawColors.app.red} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(monthlyBarData.length)} animationDuration={600} animationEasing="ease-out">
                     {dims.showBarLabels && <LabelList dataKey="Spending" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
-                  <Bar dataKey="Earning" fill={rawColors.ios.green} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(monthlyBarData.length)} animationDuration={600} animationEasing="ease-out">
+                  <Bar dataKey="Earning" fill={rawColors.app.green} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(monthlyBarData.length)} animationDuration={600} animationEasing="ease-out">
                     {dims.showBarLabels && <LabelList dataKey="Earning" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                   </Bar>
                 </BarChart>
@@ -672,17 +672,17 @@ export default function YearInReviewPage() {
           className="glass rounded-2xl border border-border p-6 space-y-4"
         >
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Flame className="w-5 h-5" style={{ color: rawColors.ios.orange }} />
+            <Flame className="w-5 h-5" style={{ color: rawColors.app.orange }} />
             Quick Insights
           </h2>
 
-          <InsightRow icon={Sun} label="Best Month (lowest spend)" value={stats.bestMonth} color={rawColors.ios.green} />
-          <InsightRow icon={Moon} label="Worst Month (highest spend)" value={stats.worstMonth} color={rawColors.ios.red} />
+          <InsightRow icon={Sun} label="Best Month (lowest spend)" value={stats.bestMonth} color={rawColors.app.green} />
+          <InsightRow icon={Moon} label="Worst Month (highest spend)" value={stats.worstMonth} color={rawColors.app.red} />
           <InsightRow
             icon={Flame}
             label="Longest no-spend streak"
             value={`${stats.maxStreak} days`}
-            color={rawColors.ios.orange}
+            color={rawColors.app.orange}
           />
           <InsightRow
             icon={TrendingDown}
@@ -691,7 +691,7 @@ export default function YearInReviewPage() {
             subtitle={stats.biggestExpenseDay.date
               ? new Date(stats.biggestExpenseDay.date + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
               : undefined}
-            color={rawColors.ios.red}
+            color={rawColors.app.red}
           />
           <InsightRow
             icon={TrendingUp}
@@ -700,13 +700,13 @@ export default function YearInReviewPage() {
             subtitle={stats.biggestIncomeDay.date
               ? new Date(stats.biggestIncomeDay.date + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
               : undefined}
-            color={rawColors.ios.green}
+            color={rawColors.app.green}
           />
           <InsightRow
             icon={BarChart3}
             label="Days with expenses"
             value={`${stats.daysWithExpense} of ${grid.length}`}
-            color={rawColors.ios.blue}
+            color={rawColors.app.blue}
           />
 
           {/* Streak visualization */}
@@ -735,7 +735,7 @@ export default function YearInReviewPage() {
 
           <div className="pt-3 mt-3 border-t border-border">
             <p className="text-xs text-text-tertiary mb-1">Total Savings</p>
-            <p className={`text-xl font-bold ${stats.totalSavings >= 0 ? 'text-ios-green' : 'text-ios-red'}`}>
+            <p className={`text-xl font-bold ${stats.totalSavings >= 0 ? 'text-app-green' : 'text-app-red'}`}>
               {stats.totalSavings >= 0 ? '+' : ''}{formatCurrencyCompact(stats.totalSavings)}
             </p>
           </div>

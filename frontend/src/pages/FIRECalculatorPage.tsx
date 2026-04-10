@@ -32,7 +32,7 @@ function SliderInput({ id, label, value, min, max, step, unit, onChange }: Reado
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-ios-blue cursor-pointer"
+        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-app-blue cursor-pointer"
       />
     </div>
   )
@@ -137,19 +137,19 @@ export default function FIRECalculatorPage() {
             <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
               <h3 className="text-lg font-semibold mb-4">FIRE Variants</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-ios-green/5 border border-ios-green/20">
+                <div className="p-4 rounded-xl bg-app-green/5 border border-app-green/20">
                   <p className="text-xs text-muted-foreground mb-1">Lean FIRE</p>
-                  <p className="text-xl font-bold text-ios-green">{formatCurrency(fireResult.leanFIRE)}</p>
+                  <p className="text-xl font-bold text-app-green">{formatCurrency(fireResult.leanFIRE)}</p>
                   <p className="text-xs text-text-tertiary mt-1">Essential expenses only (60%)</p>
                 </div>
-                <div className="p-4 rounded-xl bg-ios-blue/5 border border-ios-blue/20">
+                <div className="p-4 rounded-xl bg-app-blue/5 border border-app-blue/20">
                   <p className="text-xs text-muted-foreground mb-1">Standard FIRE</p>
-                  <p className="text-xl font-bold text-ios-blue">{formatCurrency(fireResult.fireNumber)}</p>
+                  <p className="text-xl font-bold text-app-blue">{formatCurrency(fireResult.fireNumber)}</p>
                   <p className="text-xs text-text-tertiary mt-1">Current lifestyle maintained</p>
                 </div>
-                <div className="p-4 rounded-xl bg-ios-purple/5 border border-ios-purple/20">
+                <div className="p-4 rounded-xl bg-app-purple/5 border border-app-purple/20">
                   <p className="text-xs text-muted-foreground mb-1">Fat FIRE</p>
-                  <p className="text-xl font-bold text-ios-purple">{formatCurrency(fireResult.fatFIRE)}</p>
+                  <p className="text-xl font-bold text-app-purple">{formatCurrency(fireResult.fatFIRE)}</p>
                   <p className="text-xs text-text-tertiary mt-1">2x lifestyle with buffer</p>
                 </div>
               </div>
@@ -185,8 +185,8 @@ export default function FIRECalculatorPage() {
                 <ChartContainer height={320}>
                   <AreaChart data={retirementResult.projectionData} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
                     <defs>
-                      {areaGradient('corpus', rawColors.ios.blue)}
-                      {areaGradient('contributed', rawColors.ios.green, 0.2, 0.02)}
+                      {areaGradient('corpus', rawColors.app.blue)}
+                      {areaGradient('contributed', rawColors.app.green, 0.2, 0.02)}
                     </defs>
                     <CartesianGrid {...GRID_DEFAULTS} />
                     <XAxis {...xAxisDefaults(retirementResult.projectionData.length)} dataKey="year" tickFormatter={(v: number) => `Yr ${v}`} />
@@ -198,8 +198,8 @@ export default function FIRECalculatorPage() {
                         name === 'corpus' ? 'Total Corpus' : 'Contributed',
                       ]}
                     />
-                    <Area type="monotone" dataKey="corpus" stroke={rawColors.ios.blue} fill={areaGradientUrl('corpus')} strokeWidth={2} isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
-                    <Area type="monotone" dataKey="contributed" stroke={rawColors.ios.green} fill={areaGradientUrl('contributed')} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
+                    <Area type="monotone" dataKey="corpus" stroke={rawColors.app.blue} fill={areaGradientUrl('corpus')} strokeWidth={2} isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
+                    <Area type="monotone" dataKey="contributed" stroke={rawColors.app.green} fill={areaGradientUrl('contributed')} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
                   </AreaChart>
                 </ChartContainer>
               </motion.div>

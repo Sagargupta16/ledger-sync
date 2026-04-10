@@ -262,7 +262,7 @@ export default function IncomeAnalysisPage() {
         >
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <TrendingUp className="w-5 h-5 text-ios-green" />
+              <TrendingUp className="w-5 h-5 text-app-green" />
               <div>
                 <h3 className="text-lg font-semibold text-white">Income Trend</h3>
                 <p className="text-sm text-text-tertiary">Monthly income with 3-month rolling average</p>
@@ -278,7 +278,7 @@ export default function IncomeAnalysisPage() {
               <ChartContainer height={dims.chartHeight}>
                 <AreaChart data={monthlyTrendData} margin={dims.margin}>
                   <defs>
-                    {areaGradient('incomeTrend', rawColors.ios.green, 0.4, 0)}
+                    {areaGradient('incomeTrend', rawColors.app.green, 0.4, 0)}
                   </defs>
                   <CartesianGrid {...GRID_DEFAULTS} />
                   <XAxis
@@ -307,7 +307,7 @@ export default function IncomeAnalysisPage() {
                   <Area
                     type="monotone"
                     dataKey="income"
-                    stroke={rawColors.ios.green}
+                    stroke={rawColors.app.green}
                     fill={areaGradientUrl('incomeTrend')}
                     strokeWidth={2}
                     dot={false}
@@ -318,7 +318,7 @@ export default function IncomeAnalysisPage() {
                   <Line
                     type="monotone"
                     dataKey="incomeAvg"
-                    stroke={rawColors.ios.green}
+                    stroke={rawColors.app.green}
                     strokeWidth={2}
                     strokeDasharray="6 3"
                     dot={false}
@@ -348,7 +348,7 @@ export default function IncomeAnalysisPage() {
           transactionType="income"
           dateRange={dateRange}
           headerIcon={DollarSign}
-          headerIconColor="text-ios-green"
+          headerIconColor="text-app-green"
           headerTitle="Income Sources"
           colorMap={INCOME_CATEGORY_COLORS}
           emptyIcon={Wallet}

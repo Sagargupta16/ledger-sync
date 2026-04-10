@@ -27,8 +27,8 @@ const TransactionRow = memo(function TransactionRow({
         <div
           className={`p-2 rounded-lg transition-colors duration-150 ${
             transaction.type === 'Income'
-              ? 'bg-green-500/10 text-ios-green'
-              : 'bg-red-500/10 text-ios-red'
+              ? 'bg-green-500/10 text-app-green'
+              : 'bg-red-500/10 text-app-red'
           }`}
         >
           {transaction.type === 'Income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
@@ -54,7 +54,7 @@ const TransactionRow = memo(function TransactionRow({
 
       {/* Amount */}
       <div className="text-right">
-        <p className={`font-semibold ${transaction.type === 'Income' ? 'text-ios-green' : 'text-ios-red'}`}>
+        <p className={`font-semibold ${transaction.type === 'Income' ? 'text-app-green' : 'text-app-red'}`}>
           {transaction.type === 'Income' ? '+' : '-'}
           {formatCurrency(Math.abs(transaction.amount))}
         </p>

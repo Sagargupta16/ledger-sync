@@ -42,8 +42,8 @@ export default function AccountClassificationsSection({
     >
       {/* Unassigned accounts highlight */}
       {unclassifiedAccounts.length > 0 && (
-        <div className="bg-ios-yellow/10 border border-ios-yellow/30 rounded-xl p-4">
-          <p className="text-sm font-medium text-ios-yellow mb-2">
+        <div className="bg-app-yellow/10 border border-app-yellow/30 rounded-xl p-4">
+          <p className="text-sm font-medium text-app-yellow mb-2">
             {unclassifiedAccounts.length}{' '}Unassigned Account{unclassifiedAccounts.length !== 1 && 's'}
           </p>
           <div className="flex flex-wrap gap-2">

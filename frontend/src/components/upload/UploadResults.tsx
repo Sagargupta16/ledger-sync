@@ -16,7 +16,7 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6 space-y-6"
+      className="w-full bg-white/[0.04] border border-white/[0.06] rounded-2xl p-6 space-y-6"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -41,22 +41,22 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
           icon={CheckCircle}
           label="Inserted"
           value={stats.inserted}
-          color="text-ios-green"
-          bgColor="bg-ios-green/10"
+          color="text-app-green"
+          bgColor="bg-app-green/10"
         />
         <StatCard
           icon={AlertCircle}
           label="Updated"
           value={stats.updated}
-          color="text-ios-blue"
-          bgColor="bg-ios-blue/10"
+          color="text-app-blue"
+          bgColor="bg-app-blue/10"
         />
         <StatCard
           icon={Trash2}
           label="Deleted"
           value={stats.deleted}
-          color="text-ios-red"
-          bgColor="bg-ios-red/10"
+          color="text-app-red"
+          bgColor="bg-app-red/10"
         />
         <StatCard
           icon={Copy}
@@ -76,7 +76,7 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
         {totalChanges > 0 && (
           <div className="flex items-center justify-between text-sm mt-1">
             <span className="text-zinc-500">Changes Made</span>
-            <span className="font-semibold text-ios-blue">{totalChanges} transactions</span>
+            <span className="font-semibold text-app-blue">{totalChanges} transactions</span>
           </div>
         )}
       </div>

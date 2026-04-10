@@ -118,7 +118,7 @@ export default function ErrorState({
 
   if (isCard) {
     return (
-      <div className="glass rounded-xl border border-red-500/20">
+      <div className="glass rounded-2xl border border-red-500/20">
         {content}
       </div>
     )

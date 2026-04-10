@@ -51,24 +51,24 @@ function getChangeIcon(changePercent: number, isExpense = false) {
   if (Math.abs(changePercent) < 1) return <Minus className="w-4 h-4 text-muted-foreground" />
   if (isExpense) {
     return changePercent > 0 ? (
-      <TrendingUp className="w-4 h-4" style={{ color: rawColors.ios.red }} />
+      <TrendingUp className="w-4 h-4" style={{ color: rawColors.app.red }} />
     ) : (
-      <TrendingDown className="w-4 h-4" style={{ color: rawColors.ios.green }} />
+      <TrendingDown className="w-4 h-4" style={{ color: rawColors.app.green }} />
     )
   }
   return changePercent > 0 ? (
-    <TrendingUp className="w-4 h-4" style={{ color: rawColors.ios.green }} />
+    <TrendingUp className="w-4 h-4" style={{ color: rawColors.app.green }} />
   ) : (
-    <TrendingDown className="w-4 h-4" style={{ color: rawColors.ios.red }} />
+    <TrendingDown className="w-4 h-4" style={{ color: rawColors.app.red }} />
   )
 }
 
 function getChangeColor(changePercent: number, isExpense = false) {
   if (Math.abs(changePercent) < 1) return rawColors.text.secondary
   if (isExpense) {
-    return changePercent > 0 ? rawColors.ios.red : rawColors.ios.green
+    return changePercent > 0 ? rawColors.app.red : rawColors.app.green
   }
-  return changePercent > 0 ? rawColors.ios.green : rawColors.ios.red
+  return changePercent > 0 ? rawColors.app.green : rawColors.app.red
 }
 
 function formatMonthLabel(month: string) {
@@ -358,7 +358,7 @@ export default function PeriodComparison() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="glass rounded-2xl border border-border p-6 shadow-xl shadow-black/20"
+      className="glass rounded-2xl border border-border p-6"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
@@ -366,11 +366,11 @@ export default function PeriodComparison() {
           <div
             className="p-3 rounded-2xl"
             style={{
-              backgroundColor: `${rawColors.ios.indigo}26`,
-              boxShadow: `0 8px 24px ${rawColors.ios.indigo}26`
+              backgroundColor: `${rawColors.app.indigo}26`,
+              boxShadow: `0 8px 24px ${rawColors.app.indigo}26`
             }}
           >
-            <Zap className="w-6 h-6" style={{ color: rawColors.ios.indigo }} />
+            <Zap className="w-6 h-6" style={{ color: rawColors.app.indigo }} />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-white">Quick Comparisons</h3>
@@ -381,9 +381,9 @@ export default function PeriodComparison() {
         </div>
       </div>
 
-      {/* Mode Toggle & Selectors - iOS style */}
+      {/* Mode Toggle & Selectors */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6 p-4 rounded-2xl glass-thin">
-        {/* Mode Toggle - iOS segmented control */}
+        {/* Mode Toggle - segmented control */}
         <div className="flex bg-white/5 rounded-xl p-1" role="tablist" aria-label="Compare mode">
           <button
             type="button"
@@ -392,7 +392,7 @@ export default function PeriodComparison() {
             onClick={() => setCompareMode('months')}
             className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
             style={{
-              backgroundColor: compareMode === 'months' ? rawColors.ios.blue : 'transparent',
+              backgroundColor: compareMode === 'months' ? rawColors.app.blue : 'transparent',
               color: compareMode === 'months' ? '#fff' : rawColors.text.secondary
             }}
           >
@@ -405,7 +405,7 @@ export default function PeriodComparison() {
             onClick={() => setCompareMode('years')}
             className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
             style={{
-              backgroundColor: compareMode === 'years' ? rawColors.ios.blue : 'transparent',
+              backgroundColor: compareMode === 'years' ? rawColors.app.blue : 'transparent',
               color: compareMode === 'years' ? '#fff' : rawColors.text.secondary
             }}
           >
@@ -415,7 +415,7 @@ export default function PeriodComparison() {
 
         <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
-        {/* Period Selectors - iOS style */}
+        {/* Period Selectors */}
         <div className="flex items-center gap-2 flex-wrap">
           <Calendar className="w-4 h-4" style={{ color: rawColors.text.tertiary }} />
 
@@ -479,17 +479,17 @@ export default function PeriodComparison() {
         </div>
       </div>
 
-      {/* Comparison Table - iOS style */}
+      {/* Comparison Table */}
       {comparisonMetrics && comparisonMetrics.length > 0 ? (
         <div className="overflow-x-auto rounded-xl">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left py-3 px-4 text-sm font-semibold" style={{ color: rawColors.text.secondary }}>Metric</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold" style={{ color: rawColors.ios.blue }}>
+                <th className="text-right py-3 px-4 text-sm font-semibold" style={{ color: rawColors.app.blue }}>
                   {getPeriod1Label()}
                 </th>
-                <th className="text-right py-3 px-4 text-sm font-semibold" style={{ color: rawColors.ios.purple }}>
+                <th className="text-right py-3 px-4 text-sm font-semibold" style={{ color: rawColors.app.purple }}>
                   {getPeriod2Label()}
                 </th>
                 <th className="text-right py-3 px-4 text-sm font-semibold" style={{ color: rawColors.text.secondary }}>Change</th>
@@ -508,10 +508,10 @@ export default function PeriodComparison() {
                   <td className="py-3 px-4 text-sm font-medium text-white/90">
                     {metric.label}
                   </td>
-                  <td className="py-3 px-4 text-sm text-right font-semibold" style={{ color: rawColors.ios.blue }}>
+                  <td className="py-3 px-4 text-sm text-right font-semibold" style={{ color: rawColors.app.blue }}>
                     {formatValue(metric.period1Value, metric.format)}
                   </td>
-                  <td className="py-3 px-4 text-sm text-right" style={{ color: rawColors.ios.purple }}>
+                  <td className="py-3 px-4 text-sm text-right" style={{ color: rawColors.app.purple }}>
                     {formatValue(metric.period2Value, metric.format)}
                   </td>
                   <td className="py-3 px-4 text-sm text-right">
@@ -528,13 +528,13 @@ export default function PeriodComparison() {
         </div>
       )}
 
-      {/* Summary Cards - iOS style */}
+      {/* Summary Cards */}
       {comparisonMetrics && comparisonMetrics.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
-          <SummaryCard label="Income" color={rawColors.ios.green} changePercent={comparisonMetrics[0].changePercent} />
-          <SummaryCard label="Expenses" color={rawColors.ios.red} changePercent={comparisonMetrics[1].changePercent} isExpense />
-          <SummaryCard label="Savings" color={rawColors.ios.blue} changePercent={comparisonMetrics[2].changePercent} />
-          <SummaryCard label="Savings Rate" color={rawColors.ios.purple} changePercent={comparisonMetrics[3].changePercent} showRate rateValue={comparisonMetrics[3].period1Value} />
+          <SummaryCard label="Income" color={rawColors.app.green} changePercent={comparisonMetrics[0].changePercent} />
+          <SummaryCard label="Expenses" color={rawColors.app.red} changePercent={comparisonMetrics[1].changePercent} isExpense />
+          <SummaryCard label="Savings" color={rawColors.app.blue} changePercent={comparisonMetrics[2].changePercent} />
+          <SummaryCard label="Savings Rate" color={rawColors.app.purple} changePercent={comparisonMetrics[3].changePercent} showRate rateValue={comparisonMetrics[3].period1Value} />
         </div>
       )}
     </motion.div>

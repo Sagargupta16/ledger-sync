@@ -125,7 +125,7 @@ export default function EmptyState({
         </p>
       )}
 
-      {/* Action Button - iOS style */}
+      {/* Action Button */}
       {hasAction && (
         <div className={isCompact ? 'mt-3' : 'mt-5'}>
           <ActionButton

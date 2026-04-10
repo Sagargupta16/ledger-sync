@@ -49,17 +49,17 @@ export function SpendingDistribution({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-4 md:p-6"
     >
       <h2 className="text-lg font-semibold mb-1">Spending Distribution</h2>
       <p className="text-xs text-text-tertiary mb-2">Category-by-category comparison — bars extend left and right from center</p>
       <div className="flex items-center justify-center gap-6 mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: rawColors.ios.blue }} />
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: rawColors.app.blue }} />
           <span className="text-xs text-muted-foreground">{periodA.label} (left)</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: rawColors.ios.indigo }} />
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: rawColors.app.indigo }} />
           <span className="text-xs text-muted-foreground">{periodB.label} (right)</span>
         </div>
       </div>
@@ -90,12 +90,12 @@ export function SpendingDistribution({
             />
             <Bar dataKey="periodA" name={periodA.label} stackId="stack" radius={[4, 0, 0, 4]} isAnimationActive={shouldAnimate(butterflyData.length)} animationDuration={600} animationEasing="ease-out">
               {butterflyData.map((entry) => (
-                <Cell key={`a-${entry.name}`} fill={rawColors.ios.blue} />
+                <Cell key={`a-${entry.name}`} fill={rawColors.app.blue} />
               ))}
             </Bar>
             <Bar dataKey="periodB" name={periodB.label} stackId="stack" radius={[0, 4, 4, 0]} isAnimationActive={shouldAnimate(butterflyData.length)} animationDuration={600} animationEasing="ease-out">
               {butterflyData.map((entry) => (
-                <Cell key={`b-${entry.name}`} fill={rawColors.ios.indigo} />
+                <Cell key={`b-${entry.name}`} fill={rawColors.app.indigo} />
               ))}
             </Bar>
           </BarChart>

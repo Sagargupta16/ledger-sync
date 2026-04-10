@@ -34,7 +34,7 @@ export default function DemoEntryPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-black" aria-label="Entering demo mode">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-ios-blue/30 border-t-ios-blue rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-app-blue/30 border-t-app-blue rounded-full animate-spin" />
         <span className="text-sm text-muted-foreground">Loading demo...</span>
       </div>
     </div>

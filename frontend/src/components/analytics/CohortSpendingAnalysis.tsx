@@ -92,7 +92,7 @@ export default function CohortSpendingAnalysis() {
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-ios-teal" />
+          <Calendar className="w-5 h-5 text-app-teal" />
           <h3 className="text-lg font-semibold text-white">Spending Patterns</h3>
         </div>
         <div className="flex gap-1 p-0.5 rounded-lg bg-muted/20">
@@ -133,7 +133,7 @@ export default function CohortSpendingAnalysis() {
             <Bar
               dataKey="avg"
               name="Avg Spending"
-              fill={rawColors.ios.teal}
+              fill={rawColors.app.teal}
               fillOpacity={0.7}
               radius={BAR_RADIUS}
               maxBarSize={view === 'day-of-month' ? 14 : 30}

@@ -576,7 +576,7 @@ export default function TaxPlanningPage() {
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <motion.div
-        className="max-w-7xl mx-auto space-y-4 md:space-y-6"
+        className="max-w-7xl mx-auto space-y-6 md:space-y-8"
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
@@ -676,8 +676,8 @@ export default function TaxPlanningPage() {
         {/* ── Tax Saving Suggestions ─────────────────────────────── */}
         <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 md:p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 bg-ios-green/20 rounded-xl">
-              <TrendingUp className="w-5 h-5 text-ios-green" />
+            <div className="p-2.5 bg-app-green/20 rounded-xl">
+              <TrendingUp className="w-5 h-5 text-app-green" />
             </div>
             <div>
               <h3 className="text-lg font-semibold">Tax Saving Suggestions</h3>
@@ -757,11 +757,11 @@ export default function TaxPlanningPage() {
                       }}
                       cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                     />
-                    <Bar dataKey="tax" name="tax" fill={rawColors.ios.red} fillOpacity={0.7} radius={BAR_RADIUS} maxBarSize={40}
+                    <Bar dataKey="tax" name="tax" fill={rawColors.app.red} fillOpacity={0.7} radius={BAR_RADIUS} maxBarSize={40}
                       isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={600} animationEasing="ease-out"
                     />
-                    <Line type="monotone" dataKey="cumulative" name="cumulative" stroke={rawColors.ios.blue} strokeWidth={2} strokeDasharray="6 3"
-                      dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.blue }}
+                    <Line type="monotone" dataKey="cumulative" name="cumulative" stroke={rawColors.app.blue} strokeWidth={2} strokeDasharray="6 3"
+                      dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
                       isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={800}
                     />
                   </BarChart>
@@ -780,8 +780,8 @@ export default function TaxPlanningPage() {
           className="glass rounded-2xl border border-border p-4 md:p-6"
         >
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 bg-ios-purple/20 rounded-xl">
-              <ChevronRight className="w-5 h-5 text-ios-purple" />
+            <div className="p-2.5 bg-app-purple/20 rounded-xl">
+              <ChevronRight className="w-5 h-5 text-app-purple" />
             </div>
             <div>
               <h3 className="text-lg font-semibold">Which Regime Saves You More?</h3>
@@ -813,7 +813,7 @@ function TaxTip({ title, amount, description }: Readonly<{ title: string; amount
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-medium text-foreground">{title}</span>
         {amount !== null && (
-          <span className="text-xs font-semibold text-ios-green">
+          <span className="text-xs font-semibold text-app-green">
             up to {formatCurrency(amount)}
           </span>
         )}
@@ -825,8 +825,8 @@ function TaxTip({ title, amount, description }: Readonly<{ title: string; amount
 
 /** Advance tax quarterly schedule section */
 function getQuarterStatusClass(status: string, isNext: boolean): string {
-  if (status === 'overdue') return 'bg-ios-red/20 text-ios-red'
-  if (isNext) return 'bg-ios-orange/20 text-ios-orange'
+  if (status === 'overdue') return 'bg-app-red/20 text-app-red'
+  if (isNext) return 'bg-app-orange/20 text-app-orange'
   return 'bg-white/5 text-muted-foreground'
 }
 
@@ -836,8 +836,8 @@ function AdvanceTaxScheduleSection({ totalTax }: Readonly<{ totalTax: number }>)
   return (
     <div className="glass rounded-2xl border border-border p-4 md:p-6">
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2.5 bg-ios-orange/20 rounded-xl">
-          <ChevronRight className="w-5 h-5 text-ios-orange" />
+        <div className="p-2.5 bg-app-orange/20 rounded-xl">
+          <ChevronRight className="w-5 h-5 text-app-orange" />
         </div>
         <div>
           <h3 className="text-lg font-semibold">Advance Tax Schedule</h3>
@@ -864,11 +864,11 @@ function AdvanceTaxScheduleSection({ totalTax }: Readonly<{ totalTax: number }>)
               return (
                 <tr
                   key={q.quarter}
-                  className={`border-b border-border/50 ${isNext ? 'bg-ios-orange/[0.06]' : ''}`}
+                  className={`border-b border-border/50 ${isNext ? 'bg-app-orange/[0.06]' : ''}`}
                 >
                   <td className="py-2.5 px-3 font-medium">
                     {q.quarter} ({q.cumulativePercent}%)
-                    {isNext && <span className="ml-1.5 text-xs text-ios-orange font-semibold">NEXT</span>}
+                    {isNext && <span className="ml-1.5 text-xs text-app-orange font-semibold">NEXT</span>}
                   </td>
                   <td className="py-2.5 px-3">{formatDueDate(q.dueDate)}</td>
                   <td className="py-2.5 px-3 text-right font-medium">{formatCurrency(q.quarterAmount)}</td>
@@ -940,26 +940,26 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
     <div className="space-y-4">
       {/* Side by side comparison */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className={`p-4 rounded-xl border ${newIsBetter ? 'border-ios-green/30 bg-ios-green/5' : 'border-border bg-white/5'}`}>
+        <div className={`p-4 rounded-xl border ${newIsBetter ? 'border-app-green/30 bg-app-green/5' : 'border-border bg-white/5'}`}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">New Regime</span>
-            {newIsBetter && <span className="text-caption font-semibold text-ios-green px-2 py-0.5 rounded-full bg-ios-green/20">Better</span>}
+            {newIsBetter && <span className="text-caption font-semibold text-app-green px-2 py-0.5 rounded-full bg-app-green/20">Better</span>}
           </div>
           <p className="text-xl font-bold text-foreground">{formatCurrency(newTotal)}</p>
           <p className="text-xs text-muted-foreground mt-1">
             Effective rate: {grossIncome > 0 ? ((newTotal / grossIncome) * 100).toFixed(1) : '0'}%
           </p>
         </div>
-        <div className={`p-4 rounded-xl border ${oldIsBetter ? 'border-ios-green/30 bg-ios-green/5' : 'border-border bg-white/5'}`}>
+        <div className={`p-4 rounded-xl border ${oldIsBetter ? 'border-app-green/30 bg-app-green/5' : 'border-border bg-white/5'}`}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Old Regime</span>
-            {oldIsBetter && <span className="text-caption font-semibold text-ios-green px-2 py-0.5 rounded-full bg-ios-green/20">Better</span>}
+            {oldIsBetter && <span className="text-caption font-semibold text-app-green px-2 py-0.5 rounded-full bg-app-green/20">Better</span>}
           </div>
           <p className="text-xl font-bold text-foreground">{formatCurrency(oldTotal)}</p>
           <p className="text-xs text-muted-foreground mt-1">
             Effective rate: {grossIncome > 0 ? ((oldTotal / grossIncome) * 100).toFixed(1) : '0'}%
             {totalDeductions > 0 && (
-              <span className="text-ios-green"> (with {formatCurrency(totalDeductions)} deductions)</span>
+              <span className="text-app-green"> (with {formatCurrency(totalDeductions)} deductions)</span>
             )}
             {totalDeductions === 0 && (
               <span className="text-text-quaternary"> (without deductions)</span>
@@ -978,7 +978,7 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
           {showDeductions ? <ChevronLeft className="w-4 h-4 rotate-[-90deg]" /> : <ChevronRight className="w-4 h-4" />}
           Enter your deductions to compare accurately
           {totalDeductions > 0 && (
-            <span className="ml-auto text-xs text-ios-green font-semibold">Total: {formatCurrency(totalDeductions)}</span>
+            <span className="ml-auto text-xs text-app-green font-semibold">Total: {formatCurrency(totalDeductions)}</span>
           )}
         </button>
 
@@ -993,11 +993,11 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
       </div>
 
       {/* Verdict */}
-      <div className="p-4 rounded-xl bg-ios-purple/5 border border-ios-purple/20">
+      <div className="p-4 rounded-xl bg-app-purple/5 border border-app-purple/20">
         <p className="text-sm">
-          <span className="font-semibold text-ios-purple">{betterRegime}</span>
+          <span className="font-semibold text-app-purple">{betterRegime}</span>
           {' saves you '}
-          <span className="font-semibold text-ios-green">{formatCurrency(diff)}</span>
+          <span className="font-semibold text-app-green">{formatCurrency(diff)}</span>
           {' more'}
           {newIsBetter && totalDeductions === 0 ? ' (without any deductions).' : '.'}
         </p>
@@ -1052,7 +1052,7 @@ function DeductionInput({ label, sublabel, value, max, onChange }: Readonly<{
         value={value || ''}
         onChange={(e) => onChange(Math.min(max, Math.max(0, Number(e.target.value) || 0)))}
         placeholder="0"
-        className="w-full px-3 py-1.5 text-sm bg-white/5 border border-border rounded-lg text-foreground placeholder:text-text-quaternary focus:outline-none focus:ring-1 focus:ring-ios-blue/50"
+        className="w-full px-3 py-1.5 text-sm bg-white/5 border border-border rounded-lg text-foreground placeholder:text-text-quaternary focus:outline-none focus:ring-1 focus:ring-app-blue/50"
       />
       <span className="text-caption text-text-quaternary mt-0.5 block">{sublabel}</span>
     </div>

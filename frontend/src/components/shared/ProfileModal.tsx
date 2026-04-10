@@ -168,7 +168,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             <div
               className="relative px-6 pt-6 pb-5"
               style={{
-                background: `linear-gradient(135deg, ${rawColors.ios.purple}20, ${rawColors.ios.indigo}12, transparent)`,
+                background: `linear-gradient(135deg, ${rawColors.app.purple}20, ${rawColors.app.indigo}12, transparent)`,
               }}
             >
               {/* Close button */}
@@ -185,8 +185,8 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                 <div
                   className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg"
                   style={{
-                    background: `linear-gradient(135deg, ${rawColors.ios.purple}, ${rawColors.ios.pink})`,
-                    boxShadow: `0 8px 24px ${rawColors.ios.purple}40`,
+                    background: `linear-gradient(135deg, ${rawColors.app.purple}, ${rawColors.app.pink})`,
+                    boxShadow: `0 8px 24px ${rawColors.app.purple}40`,
                   }}
                 >
                   <span className="text-white font-bold text-xl">{initials}</span>
@@ -218,7 +218,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             {/* ─── Account Actions ────────────────────────────────────── */}
             <div className="px-6 py-4 space-y-3">
               {/* Edit Name */}
-              <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+              <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Pencil size={14} className="text-zinc-400" />

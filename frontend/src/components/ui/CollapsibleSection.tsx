@@ -28,12 +28,12 @@ export default function CollapsibleSection({
   const [expanded, setExpanded] = useState<boolean>(defaultExpanded)
 
   return (
-    <div className="bg-white/[0.03] rounded-xl border border-white/[0.06]">
+    <div className="bg-white/[0.04] rounded-2xl border border-white/[0.06]">
       {/* Header button */}
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex items-center gap-3 w-full px-5 py-4 text-left hover:bg-white/[0.04] transition-colors duration-150 rounded-xl"
+        className="flex items-center gap-3 w-full px-6 py-4 text-left hover:bg-white/[0.06] transition-colors duration-150 rounded-2xl"
       >
         <Icon className="w-5 h-5 text-zinc-400 shrink-0" />
         <span className="text-base font-semibold text-zinc-200 flex-1">{title}</span>
@@ -60,7 +60,7 @@ export default function CollapsibleSection({
             transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5">{children}</div>
+            <div className="px-6 pb-6">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>

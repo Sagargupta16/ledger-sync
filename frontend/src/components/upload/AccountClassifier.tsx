@@ -6,9 +6,9 @@ import type { AccountType } from '@/types'
 import { toast } from 'sonner'
 
 const CLASSIFIER_TYPES: Array<{ type: AccountType; activeColor: string; hoverColor: string; label: string }> = [
-  { type: 'investment', activeColor: 'bg-ios-purple border-ios-purple', hoverColor: 'border-border-strong hover:border-ios-purple', label: 'Investment' },
-  { type: 'deposit', activeColor: 'bg-ios-blue border-ios-blue', hoverColor: 'border-border-strong hover:border-ios-blue', label: 'Deposit' },
-  { type: 'loan', activeColor: 'bg-ios-red border-ios-red', hoverColor: 'border-border-strong hover:border-ios-red', label: 'Loan' },
+  { type: 'investment', activeColor: 'bg-app-purple border-app-purple', hoverColor: 'border-border-strong hover:border-app-purple', label: 'Investment' },
+  { type: 'deposit', activeColor: 'bg-app-blue border-app-blue', hoverColor: 'border-border-strong hover:border-app-blue', label: 'Deposit' },
+  { type: 'loan', activeColor: 'bg-app-red border-app-red', hoverColor: 'border-border-strong hover:border-app-red', label: 'Loan' },
 ]
 
 export default function AccountClassifier() {

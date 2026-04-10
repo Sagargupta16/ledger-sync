@@ -19,16 +19,16 @@ import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
 // Category display configuration
 const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
-  'Cash & Wallets': { label: 'Cash & Wallets', color: rawColors.ios.green },
-  'Bank Accounts': { label: 'Bank Accounts', color: rawColors.ios.blue },
-  'Investments': { label: 'Investments', color: rawColors.ios.purple },
-  'Loans/Lended': { label: 'Loans/Lended', color: rawColors.ios.red },
-  'Credit Cards': { label: 'Credit Cards', color: rawColors.ios.orange },
+  'Cash & Wallets': { label: 'Cash & Wallets', color: rawColors.app.green },
+  'Bank Accounts': { label: 'Bank Accounts', color: rawColors.app.blue },
+  'Investments': { label: 'Investments', color: rawColors.app.purple },
+  'Loans/Lended': { label: 'Loans/Lended', color: rawColors.app.red },
+  'Credit Cards': { label: 'Credit Cards', color: rawColors.app.orange },
   // Fallback categories
-  'cashbank': { label: 'Cash & Bank', color: rawColors.ios.blue },
-  'invested': { label: 'Investments', color: rawColors.ios.purple },
-  'lended': { label: 'Lended', color: rawColors.ios.teal },
-  'liability': { label: 'Liabilities', color: rawColors.ios.red },
+  'cashbank': { label: 'Cash & Bank', color: rawColors.app.blue },
+  'invested': { label: 'Investments', color: rawColors.app.purple },
+  'lended': { label: 'Lended', color: rawColors.app.teal },
+  'liability': { label: 'Liabilities', color: rawColors.app.red },
   'other': { label: 'Other', color: rawColors.text.tertiary },
 }
 
@@ -440,7 +440,7 @@ export default function NetWorthPage() {
     return (
       <div style={{ background: 'rgba(26, 26, 28, 0.95)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px 16px', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)' }}>
         <p style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '6px' }}>{label}</p>
-        <p style={{ color: isPositive ? rawColors.ios.green : rawColors.ios.red, fontSize: '16px', fontWeight: 700 }}>
+        <p style={{ color: isPositive ? rawColors.app.green : rawColors.app.red, fontSize: '16px', fontWeight: 700 }}>
           {isPositive ? '+' : ''}{formatCurrency(item.change)}
         </p>
         <p style={{ color: '#71717a', fontSize: '11px', marginTop: '4px' }}>
@@ -486,18 +486,18 @@ export default function NetWorthPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+          className="glass rounded-2xl border border-border p-4 md:p-6"
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <BarChart3 className="w-5 h-5 text-ios-blue" />
+              <BarChart3 className="w-5 h-5 text-app-blue" />
               <h3 className="text-lg font-semibold text-white">Net Worth Trend</h3>
             </div>
             <button
               onClick={() => setShowStacked(!showStacked)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 showStacked
-                  ? 'bg-primary text-white shadow-lg shadow-primary/50'
+                  ? 'bg-primary text-white'
                   : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
               }`}
             >
@@ -518,9 +518,9 @@ export default function NetWorthPage() {
                 <ChartContainer height={320}>
                   <AreaChart data={filteredNetWorthData}>
                     <defs>
-                      {areaGradient('netWorth', rawColors.ios.purple)}
-                      {areaGradient('income', rawColors.ios.green, 0.6, 0.1)}
-                      {areaGradient('expenses', rawColors.ios.red, 0.6, 0.1)}
+                      {areaGradient('netWorth', rawColors.app.purple)}
+                      {areaGradient('income', rawColors.app.green, 0.6, 0.1)}
+                      {areaGradient('expenses', rawColors.app.red, 0.6, 0.1)}
                       {/* Dynamic gradients for each category */}
                       {allCategories.map((cat) => {
                         const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['other']
@@ -568,7 +568,7 @@ export default function NetWorthPage() {
                       <Area
                         type="monotone"
                         dataKey="netWorth"
-                        stroke={rawColors.ios.purple}
+                        stroke={rawColors.app.purple}
                         strokeWidth={2}
                         dot={false}
                         fillOpacity={1}
@@ -602,20 +602,20 @@ export default function NetWorthPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-50px' }}
             transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+            className="glass rounded-2xl border border-border p-4 md:p-6"
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <BarChart3 className="w-5 h-5 text-ios-purple" />
+                <BarChart3 className="w-5 h-5 text-app-purple" />
                 <h3 className="text-lg font-semibold text-white">Monthly Net Worth Changes</h3>
               </div>
               <div className="flex items-center gap-4 text-xs">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: rawColors.ios.green }} />
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: rawColors.app.green }} />
                   <span className="text-zinc-400">Increase</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: rawColors.ios.red }} />
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: rawColors.app.red }} />
                   <span className="text-zinc-400">Decrease</span>
                 </span>
               </div>
@@ -639,7 +639,7 @@ export default function NetWorthPage() {
                     dataKey="increase"
                     stackId="waterfall"
                     name="Increase"
-                    fill={rawColors.ios.green}
+                    fill={rawColors.app.green}
                     fillOpacity={0.85}
                     radius={[4, 4, 4, 4]}
                     isAnimationActive={shouldAnimate(monthlyChanges.length)}
@@ -651,7 +651,7 @@ export default function NetWorthPage() {
                     dataKey="decrease"
                     stackId="waterfall"
                     name="Decrease"
-                    fill={rawColors.ios.red}
+                    fill={rawColors.app.red}
                     fillOpacity={0.85}
                     radius={[4, 4, 4, 4]}
                     isAnimationActive={shouldAnimate(monthlyChanges.length)}
@@ -669,15 +669,15 @@ export default function NetWorthPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+          className="glass rounded-2xl border border-border p-4 md:p-6"
         >
-          <h3 className="text-lg font-semibold text-white mb-6">Assets (Positive Balances)</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Assets (Positive Balances)</h3>
           <AccountCategoryTable
             accounts={accounts}
             filterFn={(b) => b > 0}
             total={totalAssets}
-            balanceColorClass="text-ios-green"
-            headerBalanceColorClass="text-ios-green/70"
+            balanceColorClass="text-app-green"
+            headerBalanceColorClass="text-app-green/70"
             expandedCategories={expandedAssetCategories}
             onToggleCategory={(cat) => toggleCategory(setExpandedAssetCategories, cat)}
             getAccountType={getAccountType}
@@ -693,15 +693,15 @@ export default function NetWorthPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+          className="glass rounded-2xl border border-border p-4 md:p-6"
         >
-          <h3 className="text-lg font-semibold text-white mb-6">Liabilities (Negative Balances)</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Liabilities (Negative Balances)</h3>
           <AccountCategoryTable
             accounts={accounts}
             filterFn={(b) => b < 0}
             total={totalLiabilities}
-            balanceColorClass="text-ios-red"
-            headerBalanceColorClass="text-ios-red/70"
+            balanceColorClass="text-app-red"
+            headerBalanceColorClass="text-app-red/70"
             expandedCategories={expandedLiabilityCategories}
             onToggleCategory={(cat) => toggleCategory(setExpandedLiabilityCategories, cat)}
             getAccountType={getAccountType}

@@ -50,7 +50,7 @@ export default function EditGoalForm({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+            className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-purple/50"
             autoFocus
           />
         </div>
@@ -64,7 +64,7 @@ export default function EditGoalForm({
               step="any"
               value={targetAmount}
               onChange={(e) => setTargetAmount(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-purple/50"
             />
           </div>
           <div>
@@ -74,7 +74,7 @@ export default function EditGoalForm({
               type="date"
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-purple/50"
             />
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function EditGoalForm({
           <button
             onClick={handleSave}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white transition-colors hover:opacity-90"
-            style={{ background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})` }}
+            style={{ background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})` }}
           >
             <Save className="w-3.5 h-3.5" /> Save Changes
           </button>

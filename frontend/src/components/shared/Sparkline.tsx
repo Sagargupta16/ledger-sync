@@ -15,7 +15,7 @@ interface SparklineProps {
  */
 export default function Sparkline({
   data,
-  color = rawColors.ios.purple,
+  color = rawColors.app.purple,
   height = 48,
   showTooltip = true,
 }: Readonly<SparklineProps>) {

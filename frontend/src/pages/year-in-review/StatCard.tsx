@@ -12,7 +12,7 @@ export default function StatCard({ label, value, icon: Icon, color }: Readonly<S
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-5"
+      className="glass rounded-2xl border border-border p-6"
       style={{ borderLeft: `3px solid ${color}` }}
     >
       <div className="flex items-center gap-3">

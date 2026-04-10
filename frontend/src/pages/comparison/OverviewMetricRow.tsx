@@ -31,7 +31,7 @@ export function OverviewMetricRow({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-white">{label}</span>
-        <div className={`flex items-center gap-1 text-xs font-medium ${isGood ? 'text-ios-green' : 'text-ios-red'}`}>
+        <div className={`flex items-center gap-1 text-xs font-medium ${isGood ? 'text-app-green' : 'text-app-red'}`}>
           <ChangeIcon change={change} size="w-3 h-3" />
           <span>{change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}</span>
         </div>

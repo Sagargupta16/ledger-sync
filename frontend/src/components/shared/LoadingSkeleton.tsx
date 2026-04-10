@@ -20,7 +20,7 @@ export function MetricCardSkeleton() {
 
 export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>) {
   return (
-    <div className={`glass rounded-xl p-6 ${height}`}>
+    <div className={`glass rounded-2xl p-6 ${height}`}>
       <div className="space-y-4 h-full">
         <div className="flex items-center gap-3">
           <LoadingSkeleton className="w-5 h-5 rounded" />
@@ -43,7 +43,7 @@ export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>
 
 export function SectionSkeleton({ title = true, children }: Readonly<{ title?: boolean; children?: React.ReactNode }>) {
   return (
-    <div className="glass rounded-xl border border-border p-6 space-y-4">
+    <div className="glass rounded-2xl border border-border p-6 space-y-4">
       {title && <LoadingSkeleton className="h-5 w-40" />}
       {children ?? (
         <>
@@ -61,7 +61,7 @@ export function CardGridSkeleton({ count = 4, cols = 'grid-cols-2 lg:grid-cols-4
   return (
     <div className={`grid ${cols} gap-4`}>
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="glass rounded-xl p-4 space-y-3">
+        <div key={i} className="glass rounded-2xl p-4 space-y-3">
           <div className="flex items-center gap-2">
             <LoadingSkeleton className="w-8 h-8 rounded-lg" />
             <LoadingSkeleton className="h-3 w-20" />
@@ -93,7 +93,7 @@ export function PageSkeleton() {
 
 export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
   return (
-    <div className="glass rounded-xl overflow-hidden">
+    <div className="glass rounded-2xl overflow-hidden">
       <div className="bg-white/[0.04] p-4 border-b border-white/[0.06]">
         <div className="flex gap-4">
           <LoadingSkeleton className="h-4 w-24" />

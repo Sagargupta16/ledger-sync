@@ -57,11 +57,11 @@ export default function ExpenseCategoriesSection({
           {/* Legend */}
           <div className="flex items-center gap-4 mb-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-3 h-3 rounded-sm bg-ios-green/30 border border-ios-green/50" />{' '}
+              <span className="w-3 h-3 rounded-sm bg-app-green/30 border border-app-green/50" />{' '}
               Essential
             </span>
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-3 h-3 rounded-sm bg-ios-orange/30 border border-ios-orange/50" />{' '}
+              <span className="w-3 h-3 rounded-sm bg-app-orange/30 border border-app-orange/50" />{' '}
               Fixed
             </span>
           </div>
@@ -85,8 +85,8 @@ export default function ExpenseCategoriesSection({
                       onClick={() => toggleEssentialCategory(cat)}
                       className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
                         isEssential
-                          ? 'bg-ios-green/25 text-ios-green border border-ios-green/50'
-                          : 'bg-white/5 text-white/30 border border-border hover:border-ios-green/30 hover:text-ios-green/60'
+                          ? 'bg-app-green/25 text-app-green border border-app-green/50'
+                          : 'bg-white/5 text-white/30 border border-border hover:border-app-green/30 hover:text-app-green/60'
                       }`}
                     >
                       E
@@ -97,8 +97,8 @@ export default function ExpenseCategoriesSection({
                       onClick={() => toggleFixedCategory(cat)}
                       className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
                         isFixed
-                          ? 'bg-ios-orange/25 text-ios-orange border border-ios-orange/50'
-                          : 'bg-white/5 text-white/30 border border-border hover:border-ios-orange/30 hover:text-ios-orange/60'
+                          ? 'bg-app-orange/25 text-app-orange border border-app-orange/50'
+                          : 'bg-white/5 text-white/30 border border-border hover:border-app-orange/30 hover:text-app-orange/60'
                       }`}
                     >
                       F

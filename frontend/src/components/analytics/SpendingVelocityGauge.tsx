@@ -49,9 +49,9 @@ export default function SpendingVelocityGauge() {
   const gaugeRatio = prevMonthTotal > 0 ? Math.min(projectedTotal / prevMonthTotal, 2) : 0
   const gaugeAngle = gaugeRatio * 180
   const gaugeColor = (() => {
-    if (gaugeRatio < 1) return rawColors.ios.green
-    if (gaugeRatio < 1.2) return rawColors.ios.yellow
-    return rawColors.ios.red
+    if (gaugeRatio < 1) return rawColors.app.green
+    if (gaugeRatio < 1.2) return rawColors.app.yellow
+    return rawColors.app.red
   })()
 
   // SVG arc path
@@ -72,7 +72,7 @@ export default function SpendingVelocityGauge() {
       animate={{ opacity: 1, y: 0 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Gauge className="w-5 h-5 text-ios-purple" />
+        <Gauge className="w-5 h-5 text-app-purple" />
         <h3 className="text-lg font-semibold text-white">Spending Velocity</h3>
         <span className="text-xs text-text-tertiary ml-auto">Day {daysElapsed} of {daysInMonth}</span>
       </div>
@@ -128,7 +128,7 @@ export default function SpendingVelocityGauge() {
           </div>
           <div className="p-4 rounded-xl bg-white/5 border border-border">
             <p className="text-xs text-text-tertiary">Pace</p>
-            <p className="text-lg font-semibold mt-1" style={{ color: pace <= 0 ? rawColors.ios.green : rawColors.ios.red }}>
+            <p className="text-lg font-semibold mt-1" style={{ color: pace <= 0 ? rawColors.app.green : rawColors.app.red }}>
               {pace <= 0 ? 'Under' : 'Over'} Budget
             </p>
             <p className="text-xs text-text-tertiary mt-0.5">{Math.abs(Math.round(pace))}% {pace <= 0 ? 'slower' : 'faster'}</p>

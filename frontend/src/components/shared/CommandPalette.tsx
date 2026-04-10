@@ -300,7 +300,7 @@ export default function CommandPalette() {
           <motion.div
             className="relative w-full max-w-xl mx-4 rounded-2xl overflow-hidden shadow-2xl bg-[#1a1a1c]/95 backdrop-blur-lg border border-white/[0.08]"
             style={{
-              boxShadow: `0 25px 60px rgba(0, 0, 0, 0.5), 0 0 80px ${rawColors.ios.blue}10`,
+              boxShadow: `0 25px 60px rgba(0, 0, 0, 0.5), 0 0 80px ${rawColors.app.blue}10`,
             }}
             variants={panelVariants}
             initial="hidden"
@@ -315,7 +315,7 @@ export default function CommandPalette() {
               <Search
                 size={20}
                 className="flex-shrink-0"
-                style={{ color: rawColors.ios.blue }}
+                style={{ color: rawColors.app.blue }}
               />
               <input
                 ref={inputRef}
@@ -378,14 +378,14 @@ export default function CommandPalette() {
                               className="p-1.5 rounded-lg flex-shrink-0"
                               style={{
                                 background: isSelected
-                                  ? `${rawColors.ios.blue}20`
+                                  ? `${rawColors.app.blue}20`
                                   : 'rgba(255, 255, 255, 0.06)',
                               }}
                             >
                               <Icon
                                 size={16}
                                 style={{
-                                  color: isSelected ? rawColors.ios.blue : rawColors.text.secondary,
+                                  color: isSelected ? rawColors.app.blue : rawColors.text.secondary,
                                 }}
                               />
                             </div>
@@ -424,15 +424,15 @@ export default function CommandPalette() {
                       let iconBgColor = 'rgba(255, 255, 255, 0.06)'
                       if (isSelected) {
                         iconBgColor = isIncome
-                          ? `${rawColors.ios.green}20`
-                          : `${rawColors.ios.red}20`
+                          ? `${rawColors.app.green}20`
+                          : `${rawColors.app.red}20`
                       }
 
                       let iconColor = rawColors.text.secondary
                       if (isSelected) {
                         iconColor = isIncome
-                          ? rawColors.ios.green
-                          : rawColors.ios.red
+                          ? rawColors.app.green
+                          : rawColors.app.red
                       }
 
                       return (
@@ -469,7 +469,7 @@ export default function CommandPalette() {
                             <span
                               className="text-sm font-semibold flex-shrink-0"
                               style={{
-                                color: isIncome ? rawColors.ios.green : rawColors.ios.red,
+                                color: isIncome ? rawColors.app.green : rawColors.app.red,
                               }}
                             >
                               {isIncome ? '+' : '-'}

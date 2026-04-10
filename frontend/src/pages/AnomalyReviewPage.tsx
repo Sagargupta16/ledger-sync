@@ -26,9 +26,9 @@ const ANOMALY_TYPE_ICONS: Record<Anomaly['anomaly_type'], typeof TrendingUp> = {
 }
 
 const SEVERITY_STYLES: Record<Anomaly['severity'], { bg: string; text: string; border: string; borderLeft: string }> = {
-  high: { bg: 'bg-ios-red/15', text: 'text-ios-red', border: 'border-ios-red/20', borderLeft: 'border-l-4 border-l-ios-red' },
-  medium: { bg: 'bg-ios-orange/15', text: 'text-ios-orange', border: 'border-ios-orange/20', borderLeft: 'border-l-4 border-l-ios-orange' },
-  low: { bg: 'bg-ios-yellow/15', text: 'text-ios-yellow', border: 'border-ios-yellow/20', borderLeft: 'border-l-4 border-l-ios-yellow' },
+  high: { bg: 'bg-app-red/15', text: 'text-app-red', border: 'border-app-red/20', borderLeft: 'border-l-4 border-l-app-red' },
+  medium: { bg: 'bg-app-orange/15', text: 'text-app-orange', border: 'border-app-orange/20', borderLeft: 'border-l-4 border-l-app-orange' },
+  low: { bg: 'bg-app-yellow/15', text: 'text-app-yellow', border: 'border-app-yellow/20', borderLeft: 'border-l-4 border-l-app-yellow' },
 }
 
 export default function AnomalyReviewPage() {
@@ -70,7 +70,7 @@ export default function AnomalyReviewPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
       <PageHeader
         title="Anomaly Review Board"
         subtitle="Review and manage detected financial anomalies"
@@ -84,13 +84,13 @@ export default function AnomalyReviewPage() {
         className="grid grid-cols-1 md:grid-cols-3 gap-5"
       >
         <motion.div variants={fadeUpItem}>
-          <StatCard title="High Severity" value={String(summary.high)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={rawColors.ios.red} />
+          <StatCard title="High Severity" value={String(summary.high)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={rawColors.app.red} />
         </motion.div>
         <motion.div variants={fadeUpItem}>
-          <StatCard title="Medium Severity" value={String(summary.medium)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={rawColors.ios.yellow} />
+          <StatCard title="Medium Severity" value={String(summary.medium)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={rawColors.app.yellow} />
         </motion.div>
         <motion.div variants={fadeUpItem}>
-          <StatCard title="Low Severity" value={String(summary.low)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={rawColors.ios.blue} />
+          <StatCard title="Low Severity" value={String(summary.low)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={rawColors.app.blue} />
         </motion.div>
       </motion.div>
 
@@ -98,13 +98,13 @@ export default function AnomalyReviewPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-5"
+        className="glass rounded-2xl border border-border p-6"
       >
         <div className="flex items-center gap-4 flex-wrap">
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-ios-purple/50"
+            className="px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-app-purple/50"
           >
             <option value="">All Types</option>
             <option value="high_expense">High Expense</option>
@@ -116,7 +116,7 @@ export default function AnomalyReviewPage() {
           <select
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
-            className="px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-ios-purple/50"
+            className="px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-app-purple/50"
           >
             <option value="">All Severities</option>
             <option value="high">High</option>
@@ -159,7 +159,7 @@ export default function AnomalyReviewPage() {
                 key={anomaly.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`glass rounded-2xl border p-5 ${severity.borderLeft} ${anomaly.is_reviewed ? 'border-border opacity-60' : 'border-border'}`}
+                className={`glass rounded-2xl border p-6 ${severity.borderLeft} ${anomaly.is_reviewed ? 'border-border opacity-60' : 'border-border'}`}
               >
                 {/* Header Row */}
                 <div className="flex items-start justify-between gap-4">
@@ -176,7 +176,7 @@ export default function AnomalyReviewPage() {
                           {anomaly.severity}
                         </span>
                         {anomaly.is_reviewed && (
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-ios-green/10 text-ios-green border border-ios-green/20">
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-app-green/10 text-app-green border border-app-green/20">
                             {anomaly.is_dismissed ? 'Dismissed' : 'Reviewed'}
                           </span>
                         )}
@@ -201,7 +201,7 @@ export default function AnomalyReviewPage() {
                       <span className="text-white font-medium">{formatCurrency(anomaly.actual_value)}</span>
                     </div>
                     {anomaly.deviation_pct != null && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${anomaly.deviation_pct > 0 ? 'bg-ios-red/10 text-ios-red' : 'bg-ios-green/10 text-ios-green'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${anomaly.deviation_pct > 0 ? 'bg-app-red/10 text-app-red' : 'bg-app-green/10 text-app-green'}`}>
                         {anomaly.deviation_pct > 0 ? '+' : ''}{formatPercent(anomaly.deviation_pct / 100)}
                       </span>
                     )}
@@ -222,14 +222,14 @@ export default function AnomalyReviewPage() {
                       <button
                         onClick={() => handleReview(anomaly.id, false)}
                         disabled={reviewMutation.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-ios-green/10 text-ios-green border border-ios-green/20 hover:bg-ios-green/20 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-app-green/10 text-app-green border border-app-green/20 hover:bg-app-green/20 transition-colors disabled:opacity-50"
                       >
                         <Check className="w-3 h-3" /> Review
                       </button>
                       <button
                         onClick={() => handleReview(anomaly.id, true)}
                         disabled={reviewMutation.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-ios-red/10 text-ios-red border border-ios-red/20 hover:bg-ios-red/20 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-app-red/10 text-app-red border border-app-red/20 hover:bg-app-red/20 transition-colors disabled:opacity-50"
                       >
                         <X className="w-3 h-3" /> Dismiss
                       </button>
@@ -257,7 +257,7 @@ export default function AnomalyReviewPage() {
                             value={noteText}
                             onChange={(e) => setNoteText(e.target.value)}
                             placeholder="Add review notes..."
-                            className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-purple/50"
+                            className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-purple/50"
                           />
                         </motion.div>
                       )}

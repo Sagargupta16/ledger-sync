@@ -60,7 +60,7 @@ export default function SavingsMilestonesTimeline() {
       transition={{ delay: 0.2 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Flag className="w-5 h-5 text-ios-green" />
+        <Flag className="w-5 h-5 text-app-green" />
         <h3 className="text-lg font-semibold text-white">Savings Milestones</h3>
         <span className="text-xs text-text-tertiary ml-auto">{milestonesReached.length} milestones reached</span>
       </div>
@@ -73,7 +73,7 @@ export default function SavingsMilestonesTimeline() {
           <ChartContainer height={350}>
             <AreaChart data={chartData}>
               <defs>
-                {areaGradient('savings', rawColors.ios.green)}
+                {areaGradient('savings', rawColors.app.green)}
               </defs>
               <CartesianGrid {...GRID_DEFAULTS} />
               <XAxis
@@ -106,7 +106,7 @@ export default function SavingsMilestonesTimeline() {
               <Area
                 type="monotone"
                 dataKey="savings"
-                stroke={rawColors.ios.green}
+                stroke={rawColors.app.green}
                 strokeWidth={2}
                 dot={false}
                 fill={areaGradientUrl('savings')}
@@ -124,15 +124,15 @@ export default function SavingsMilestonesTimeline() {
               return (
                 <div
                   key={milestone}
-                  className={`p-3 rounded-xl border ${reached ? 'bg-ios-green/5 border-ios-green/20' : 'bg-white/5 border-border'}`}
+                  className={`p-3 rounded-xl border ${reached ? 'bg-app-green/5 border-app-green/20' : 'bg-white/5 border-border'}`}
                 >
                   <div className="flex items-center gap-2">
                     {reached ? (
-                      <CheckCircle className="w-3.5 h-3.5 text-ios-green flex-shrink-0" />
+                      <CheckCircle className="w-3.5 h-3.5 text-app-green flex-shrink-0" />
                     ) : (
                       <Circle className="w-3.5 h-3.5 text-text-quaternary flex-shrink-0" />
                     )}
-                    <span className={`text-sm font-medium ${reached ? 'text-ios-green' : 'text-text-tertiary'}`}>
+                    <span className={`text-sm font-medium ${reached ? 'text-app-green' : 'text-text-tertiary'}`}>
                       {formatCurrencyShort(milestone)}
                     </span>
                   </div>

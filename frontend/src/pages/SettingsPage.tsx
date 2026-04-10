@@ -68,8 +68,8 @@ export default function SettingsPage() {
           action={
             <div className="flex items-center gap-3">
               {s.hasChanges && (
-                <span className="text-sm text-ios-yellow flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-ios-yellow animate-pulse" /> Unsaved
+                <span className="text-sm text-app-yellow flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-app-yellow animate-pulse" /> Unsaved
                 </span>
               )}
               <motion.button
