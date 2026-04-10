@@ -15,7 +15,7 @@ from typing import Any
 from ledger_sync.db.models import Transaction, TransactionType
 
 
-def _to_decimal(amount: Any) -> Decimal:
+def _to_decimal(amount: int | float | str | Decimal) -> Decimal:
     """Safely convert a transaction amount to Decimal."""
     if isinstance(amount, Decimal):
         return amount

@@ -29,6 +29,13 @@ interface AccountInfo {
   score: number
 }
 
+function classifyActivity(daysSince: number, count: number): { level: ActivityLevel; score: number } {
+  if (daysSince <= 7 && count >= 10) return { level: 'high', score: 100 }
+  if (daysSince <= 30 && count >= 3) return { level: 'medium', score: 65 }
+  if (daysSince <= 90) return { level: 'low', score: 35 }
+  return { level: 'dormant', score: 10 }
+}
+
 export default function AccountActivityScore() {
   const { data: transactions = [] } = useTransactions()
 
@@ -49,33 +56,19 @@ export default function AccountActivityScore() {
 
     for (const [name, data] of Object.entries(accountData)) {
       const sortedDates = [...data.dates].sort((a, b) => a.localeCompare(b))
-      const lastTxDate = sortedDates.at(-1)!
+      const lastTxDate = sortedDates.at(-1) ?? ''
+      if (!lastTxDate) continue
       const daysSince = Math.floor((now.getTime() - new Date(lastTxDate).getTime()) / (1000 * 60 * 60 * 24))
 
       let avgFreq = 0
       if (sortedDates.length > 1) {
         const firstDate = new Date(sortedDates[0])
-        const lastDate = new Date(sortedDates.at(-1)!)
+        const lastDate = new Date(lastTxDate)
         const totalDays = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)
         avgFreq = Math.round(totalDays / (sortedDates.length - 1))
       }
 
-      let level: ActivityLevel
-      let score: number
-      if (daysSince <= 7 && data.count >= 10) {
-        level = 'high'
-        score = 100
-      } else if (daysSince <= 30 && data.count >= 3) {
-        level = 'medium'
-        score = 65
-      } else if (daysSince <= 90) {
-        level = 'low'
-        score = 35
-      } else {
-        level = 'dormant'
-        score = 10
-      }
-
+      const { level, score } = classifyActivity(daysSince, data.count)
       results.push({ name, count: data.count, daysSinceLastTx: daysSince, avgFrequency: avgFreq, level, score })
     }
 

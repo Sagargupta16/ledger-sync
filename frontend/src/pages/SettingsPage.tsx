@@ -33,8 +33,9 @@ export default function SettingsPage() {
     s.setDragType(null)
   }
   const handleDropOnCategory = (category: string) => {
-    if (s.draggedItem && s.dragType === 'account') {
-      s.setClassifications((prev) => ({ ...prev, [s.draggedItem!]: category }))
+    const item = s.draggedItem
+    if (item && s.dragType === 'account') {
+      s.setClassifications((prev) => ({ ...prev, [item]: category }))
       s.setHasChanges(true)
     }
     handleDragEnd()

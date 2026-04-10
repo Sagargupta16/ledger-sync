@@ -184,7 +184,7 @@ function MonthlyBreakdownTable({
                   onClick={() => toggleTrendSort('income')}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTrendSort('income') } }}
                   tabIndex={0}
-                  aria-sort={trendSortKey === 'income' ? (trendSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  aria-sort={ariaSort(trendSortKey, 'income', trendSortDir)}
                   className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
                 >
                   Income {trendSortKey === 'income' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
@@ -193,7 +193,7 @@ function MonthlyBreakdownTable({
                   onClick={() => toggleTrendSort('expenses')}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTrendSort('expenses') } }}
                   tabIndex={0}
-                  aria-sort={trendSortKey === 'expenses' ? (trendSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  aria-sort={ariaSort(trendSortKey, 'expenses', trendSortDir)}
                   className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
                 >
                   Spending {trendSortKey === 'expenses' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
@@ -202,7 +202,7 @@ function MonthlyBreakdownTable({
                   onClick={() => toggleTrendSort('surplus')}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTrendSort('surplus') } }}
                   tabIndex={0}
-                  aria-sort={trendSortKey === 'surplus' ? (trendSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  aria-sort={ariaSort(trendSortKey, 'surplus', trendSortDir)}
                   className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
                 >
                   Savings {trendSortKey === 'surplus' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
@@ -211,7 +211,7 @@ function MonthlyBreakdownTable({
                   onClick={() => toggleTrendSort('rawSavingsRate')}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTrendSort('rawSavingsRate') } }}
                   tabIndex={0}
-                  aria-sort={trendSortKey === 'rawSavingsRate' ? (trendSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  aria-sort={ariaSort(trendSortKey, 'rawSavingsRate', trendSortDir)}
                   className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
                 >
                   Savings Rate {trendSortKey === 'rawSavingsRate' && (trendSortDir === 'asc' ? '\u2191' : '\u2193')}
@@ -253,6 +253,11 @@ function MonthlyBreakdownTable({
       )}
     </motion.div>
   )
+}
+
+function ariaSort(activeKey: string | null, column: string, dir: 'asc' | 'desc'): 'ascending' | 'descending' | 'none' {
+  if (activeKey !== column) return 'none'
+  return dir === 'asc' ? 'ascending' : 'descending'
 }
 
 export default function TrendsForecastsPage() {
@@ -305,8 +310,9 @@ export default function TrendsForecastsPage() {
     }
 
     const trends = filteredMonthlyTrends
-    const latest = trends.at(-1)!
-    const previous = trends.length > 1 ? trends.at(-2)! : latest
+    const latest = trends.at(-1)
+    if (!latest) return { spending: defaultMetrics, income: defaultMetrics, savings: defaultMetrics }
+    const previous = trends.length > 1 ? (trends.at(-2) ?? latest) : latest
 
     // Calculate spending metrics
     const expenses = trends.map(t => t.expenses)
@@ -385,11 +391,12 @@ export default function TrendsForecastsPage() {
   // Filter transactions by the selected date range
   const filteredTransactions = useMemo(() => {
     if (!allTransactions.length) return []
-    if (!dateRange.start_date) return allTransactions
+    const startDate = dateRange.start_date
+    if (!startDate) return allTransactions
 
     return allTransactions.filter((t) => {
       const txDate = getDateKey(t.date)
-      return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
+      return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [allTransactions, dateRange])
 

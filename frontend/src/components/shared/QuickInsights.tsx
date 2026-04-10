@@ -159,6 +159,24 @@ function computePeakDay(transactions: Transaction[]) {
   return { name: DAY_NAMES[peakIndex], total: spendingByDay[peakIndex] }
 }
 
+function ageOfMoneyLabel(days: number): string {
+  if (days >= 30) return 'Healthy buffer'
+  if (days >= 15) return 'Building runway'
+  return 'Living paycheck to paycheck'
+}
+
+function recurringCoverageLabel(pct: number): string {
+  if (pct > 50) return 'High fixed cost load'
+  if (pct > 30) return 'Moderate fixed costs'
+  return 'Low fixed costs'
+}
+
+function incomeExpenseRatioLabel(ratio: number): string {
+  if (ratio < 0.7) return 'Great! Spending well below income'
+  if (ratio < 0.9) return 'Spending close to income'
+  return 'Spending nearly all income'
+}
+
 function computeTopByCategory(transactions: Transaction[]) {
   const byCat: Record<string, number> = {}
   for (const t of transactions) {
@@ -284,10 +302,10 @@ export default function QuickInsights({
     { icon: TrendingDown, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Total Expenses', value: formatCurrency(Math.abs(totalsData?.total_expenses ?? 0)), subtitle: expenseChange },
     { icon: DollarSign, color: 'text-app-blue', bg: 'bg-app-blue/10', title: 'Net Savings', value: formatCurrency(netSavings), subtitle: savingsChange },
     { icon: Percent, color: 'text-app-purple', bg: 'bg-app-purple/10', title: 'Savings Rate', value: `${savingsRate.toFixed(1)}%`, subtitle: totalIncome > 0 ? `${formatCurrency(netSavings)} saved of ${formatCurrency(totalIncome)}` : 'No income recorded' },
-    ...(ageOfMoney != null ? [{ icon: Hourglass, color: 'text-app-indigo', bg: 'bg-app-indigo/10', title: 'Age of Money', value: `${ageOfMoney} days`, subtitle: ageOfMoney >= 30 ? 'Healthy buffer' : ageOfMoney >= 15 ? 'Building runway' : 'Living paycheck to paycheck' }] : []),
+    ...(ageOfMoney != null ? [{ icon: Hourglass, color: 'text-app-indigo', bg: 'bg-app-indigo/10', title: 'Age of Money', value: `${ageOfMoney} days`, subtitle: ageOfMoneyLabel(ageOfMoney) }] : []),
     ...(daysOfBuffering != null ? [{ icon: ShieldCheck, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Days of Buffering', value: `${daysOfBuffering} days`, subtitle: 'At current spending rate' }] : []),
     ...(fixedCommitmentsMonthly > 0 ? [{ icon: Lock, color: 'text-app-orange', bg: 'bg-app-orange/10', title: 'Fixed Commitments', value: formatCurrency(fixedCommitmentsMonthly), subtitle: `${fixedCount} active recurring` }] : []),
-    ...(fixedCommitmentsMonthly > 0 ? [{ icon: Repeat, color: 'text-app-yellow', bg: 'bg-app-yellow/10', title: 'Recurring Coverage', value: `${recurringCoverage.toFixed(1)}%`, subtitle: recurringCoverage > 50 ? 'High fixed cost load' : recurringCoverage > 30 ? 'Moderate fixed costs' : 'Low fixed costs' }] : []),
+    ...(fixedCommitmentsMonthly > 0 ? [{ icon: Repeat, color: 'text-app-yellow', bg: 'bg-app-yellow/10', title: 'Recurring Coverage', value: `${recurringCoverage.toFixed(1)}%`, subtitle: recurringCoverageLabel(recurringCoverage) }] : []),
   ]
 
   const funFacts = [
@@ -303,7 +321,7 @@ export default function QuickInsights({
     { icon: Layers, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Spending Diversity', value: `${uniqueCategories} categories`, subtitle: `Across ${uniqueSubcategories} subcategories` },
     { icon: Receipt, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Avg Transaction', value: formatCurrency(avgTransactionAmount), subtitle: 'Per transaction' },
     { icon: ArrowLeftRight, color: 'text-app-indigo', bg: 'bg-app-indigo/10', title: 'Internal Transfers', value: formatCurrency(totalTransfers), subtitle: `${transferTransactions.length} transfers` },
-    { icon: Scale, color: 'text-app-blue', bg: 'bg-app-blue/10', title: 'Income vs Expense', value: `${incomeExpenseRatio.toFixed(2)}x`, subtitle: incomeExpenseRatio < 0.7 ? 'Great! Spending well below income' : incomeExpenseRatio < 0.9 ? 'Spending close to income' : 'Spending nearly all income' },
+    { icon: Scale, color: 'text-app-blue', bg: 'bg-app-blue/10', title: 'Income vs Expense', value: `${incomeExpenseRatio.toFixed(2)}x`, subtitle: incomeExpenseRatioLabel(incomeExpenseRatio) },
     ...(mostExpensiveMonth ? [{ icon: CalendarRange, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Most Expensive Month', value: mostExpensiveMonth.label, subtitle: formatCurrency(mostExpensiveMonth.amount) }] : []),
   ]
 

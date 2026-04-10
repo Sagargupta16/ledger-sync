@@ -164,7 +164,7 @@ function upcomingNotifications(recurring: RecurringTransaction[]): Notification[
       type: 'upcoming',
       title: 'Upcoming Payment',
       message: getDueMessage(r.name, amount, days),
-      timestamp: r.next_expected!,
+      timestamp: r.next_expected ?? '',
       severity: getSeverityFromDays(days),
       meta: { category: r.category, amount: r.expected_amount },
     })

@@ -165,7 +165,8 @@ export default function RecurringTransactions() {
       if (!isConsistentAmount(data.amounts)) return null
 
       const avgAmount = data.amounts.reduce((a, b) => a + b, 0) / data.amounts.length
-      const lastDateStr = sortedDates.at(-1)!
+      const lastDateStr = sortedDates.at(-1)
+      if (!lastDateStr) return null
       const lastDate = new Date(lastDateStr)
       const expectedNext = computeExpectedNextDate(lastDate, frequency)
       const isActive = checkIsActive(lastDate, frequency)

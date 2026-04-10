@@ -54,6 +54,11 @@ const mapToCategory = (investmentType: string): InvestmentCategory => {
   return 'Mutual Funds'
 }
 
+function ariaSort(activeKey: string | null, column: string, dir: 'asc' | 'desc'): 'ascending' | 'descending' | 'none' {
+  if (activeKey !== column) return 'none'
+  return dir === 'asc' ? 'ascending' : 'descending'
+}
+
 export default function InvestmentAnalyticsPage() {
   const { isLoading: balancesLoading } = useAccountBalances()
   const { data: transactions = [] } = useTransactions()
@@ -283,7 +288,9 @@ export default function InvestmentAnalyticsPage() {
 
     // Generate all days between first and last snapshot
     const firstDate = new Date(dailySnapshots[0].date)
-    const lastDate = new Date(dailySnapshots.at(-1)!.date)
+    const lastSnapshot = dailySnapshots.at(-1)
+    if (!lastSnapshot) return []
+    const lastDate = new Date(lastSnapshot.date)
     const allDays: string[] = []
     for (const d = new Date(firstDate); d <= lastDate; d.setDate(d.getDate() + 1)) {
       allDays.push(d.toISOString().substring(0, 10))
@@ -328,10 +335,12 @@ export default function InvestmentAnalyticsPage() {
   )
 
   const filteredGrowthData = useMemo(() => {
-    if (!dateRange.start_date || !dateRange.end_date) return dailyGrowthData
+    const startDate = dateRange.start_date
+    const endDate = dateRange.end_date
+    if (!startDate || !endDate) return dailyGrowthData
     return dailyGrowthData.filter((item) => {
       const d = item.fullDate as string
-      return d >= dateRange.start_date! && d <= dateRange.end_date!
+      return d >= startDate && d <= endDate
     })
   }, [dailyGrowthData, dateRange])
 
@@ -568,7 +577,7 @@ export default function InvestmentAnalyticsPage() {
                       onClick={() => toggleInvestSort('value')}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleInvestSort('value') } }}
                       tabIndex={0}
-                      aria-sort={investSortKey === 'value' ? (investSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      aria-sort={ariaSort(investSortKey, 'value', investSortDir)}
                       className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
                     >
                       Value {investSortKey === 'value' && (investSortDir === 'asc' ? '\u2191' : '\u2193')}
@@ -577,7 +586,7 @@ export default function InvestmentAnalyticsPage() {
                       onClick={() => toggleInvestSort('percentage')}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleInvestSort('percentage') } }}
                       tabIndex={0}
-                      aria-sort={investSortKey === 'percentage' ? (investSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      aria-sort={ariaSort(investSortKey, 'percentage', investSortDir)}
                       className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
                     >
                       Allocation {investSortKey === 'percentage' && (investSortDir === 'asc' ? '\u2191' : '\u2193')}

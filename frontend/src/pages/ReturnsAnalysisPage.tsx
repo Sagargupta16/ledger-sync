@@ -124,10 +124,11 @@ export default function ReturnsAnalysisPage() {
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
 
   const transactions = useMemo(() => {
-    if (!dateRange.start_date) return allTransactions
+    const startDate = dateRange.start_date
+    if (!startDate) return allTransactions
     return allTransactions.filter(tx => {
       const txDate = getDateKey(tx.date)
-      return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
+      return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [allTransactions, dateRange])
 

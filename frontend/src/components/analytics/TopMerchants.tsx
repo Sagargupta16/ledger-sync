@@ -45,7 +45,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
       })
       .forEach((tx) => {
         // Extract merchant name from note (usually first part before any details)
-        const note = tx.note!
+        const note = tx.note ?? ''
         // Clean up common patterns
         let merchantName = note
           .split(/[-–—|,/]/)[0] // Split by common separators

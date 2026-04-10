@@ -14,6 +14,17 @@ function formatMonth(v: string) {
   return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }
 
+function computeGrowthRate(series: Array<{ income: number; expense: number }>) {
+  if (series.length <= 1) return { incomeGrowth: 0, expenseGrowth: 0 }
+  const first = series[0]
+  const last = series.at(-1) ?? first
+  const periods = series.length - 1
+  return {
+    incomeGrowth: first.income > 0 ? (last.income - first.income) / first.income / periods : 0,
+    expenseGrowth: first.expense > 0 ? (last.expense - first.expense) / first.expense / periods : 0,
+  }
+}
+
 export default function CashFlowForecast() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
 
@@ -33,10 +44,12 @@ export default function CashFlowForecast() {
     const today = new Date()
     const currentMonth = today.toISOString().slice(0, 7)
     const isIncomplete = today.getDate() < 25
-    const last = months.at(-1)!
+    const last = months.at(-1)
+    if (!last) return null
     const historicalMonths = (last.month === currentMonth && isIncomplete)
       ? months.slice(0, -1) : months
-    const lastComplete = historicalMonths.at(-1)!
+    const lastComplete = historicalMonths.at(-1)
+    if (!lastComplete) return null
 
     if (historicalMonths.length < 3) return null
 
@@ -46,10 +59,7 @@ export default function CashFlowForecast() {
     const avgExpense = recent.reduce((s, m) => s + m.expense, 0) / recent.length
     const avgSavings = avgIncome - avgExpense
 
-    const incomeGrowth = recent.length > 1 && recent[0].income > 0
-      ? (recent.at(-1)!.income - recent[0].income) / recent[0].income / (recent.length - 1) : 0
-    const expenseGrowth = recent.length > 1 && recent[0].expense > 0
-      ? (recent.at(-1)!.expense - recent[0].expense) / recent[0].expense / (recent.length - 1) : 0
+    const { incomeGrowth, expenseGrowth } = computeGrowthRate(recent)
 
     // Volatility for confidence bands
     const savingsValues = recent.map(m => m.income - m.expense)
@@ -95,7 +105,8 @@ export default function CashFlowForecast() {
     }))
 
     // Combined data with income, expense, net + forecast variants
-    const lastHist = historical.at(-1)!
+    const lastHist = historical.at(-1)
+    if (!lastHist) return null
     type CombinedPoint = {
       month: string; label: string; isForecast: boolean
       income: number | undefined; expense: number | undefined; net: number | undefined

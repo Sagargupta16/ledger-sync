@@ -190,7 +190,9 @@ export function generateDemoMasterCategories(txs: Transaction[]): MasterCategori
 
   for (const tx of txs) {
     if (isTransfer(tx)) continue
-    const map = isIncome(tx) ? income : isExpense(tx) ? expense : null
+    let map: Record<string, string[]> | null = null
+    if (isIncome(tx)) map = income
+    else if (isExpense(tx)) map = expense
     if (!map) continue
     const cat = tx.category
     const sub = tx.subcategory || 'Other'

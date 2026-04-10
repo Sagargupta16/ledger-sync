@@ -197,7 +197,7 @@ function AccountCategoryTable({
               onClick={() => toggleSort('balance')}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('balance') } }}
               tabIndex={0}
-              aria-sort={sortKey === 'balance' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+              aria-sort={ariaSort(sortKey, 'balance', sortDir)}
               className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
             >
               Balance {sortKey === 'balance' && (sortDir === 'asc' ? '\u2191' : '\u2193')}
@@ -298,6 +298,11 @@ function AccountCategoryTable({
   )
 }
 
+function ariaSort(activeKey: string | null, column: string, dir: 'asc' | 'desc'): 'ascending' | 'descending' | 'none' {
+  if (activeKey !== column) return 'none'
+  return dir === 'asc' ? 'ascending' : 'descending'
+}
+
 export default function NetWorthPage() {
   const dims = useChartDimensions()
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
@@ -393,11 +398,11 @@ export default function NetWorthPage() {
 
   // Filter chart data to selected time range
   const filteredNetWorthData = useMemo(() => {
-    if (!dateRange.start_date) return netWorthData
+    const startDate = dateRange.start_date
+    if (!startDate) return netWorthData
     return netWorthData.filter((item) => {
       const d = item.date as string
-      return d >= dateRange.start_date! &&
-             (!dateRange.end_date || d <= dateRange.end_date)
+      return d >= startDate && (!dateRange.end_date || d <= dateRange.end_date)
     })
   }, [netWorthData, dateRange])
 

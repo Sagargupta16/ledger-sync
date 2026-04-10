@@ -200,7 +200,7 @@ function detectMonthlySIPAmount(sipTransfers: Array<{ note?: string | null; amou
 
   if (monthlySIPs.length === 0) return 0
 
-  return monthlySIPs.at(-1)!.amount
+  return monthlySIPs.at(-1)?.amount ?? 0
 }
 
 // Helper: Load mutual fund accounts from balance data and account classifications
@@ -248,8 +248,11 @@ function buildCombinedChartData(
 
   if (historicalData.length === 0) return historicalData
 
-  const lastHistorical = historicalData.at(-1)!
-  const lastDate = new Date(sipTransfers.at(-1)!.date)
+  const lastHistorical = historicalData.at(-1)
+  if (!lastHistorical) return historicalData
+  const lastSipTransfer = sipTransfers.at(-1)
+  if (!lastSipTransfer) return historicalData
+  const lastDate = new Date(lastSipTransfer.date)
   const projectionData = buildProjectionChartData(
     lastHistorical, lastDate, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate
   )
