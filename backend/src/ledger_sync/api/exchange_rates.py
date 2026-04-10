@@ -66,7 +66,10 @@ async def _fetch_rates(base: str) -> dict[str, float]:
         return dict(rates)
 
 
-@router.get("")
+@router.get(
+    "",
+    responses={502: {"description": "Unable to fetch rates from external API"}},
+)
 async def get_exchange_rates(
     _current_user: CurrentUser,
     base: str = "INR",

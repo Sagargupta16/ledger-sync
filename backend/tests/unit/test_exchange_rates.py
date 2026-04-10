@@ -55,7 +55,7 @@ def test_returns_cached_rates():
     ) as mock_fetch:
         result = asyncio.run(get_exchange_rates(_current_user=FakeUser(), base="INR"))
     mock_fetch.assert_not_called()
-    assert result["rates"]["USD"] == 0.012
+    assert result["rates"]["USD"] == pytest.approx(0.012)
 
 
 def test_stale_cache_on_api_failure():
@@ -71,7 +71,7 @@ def test_stale_cache_on_api_failure():
     ):
         result = asyncio.run(get_exchange_rates(_current_user=FakeUser(), base="INR"))
     assert result["stale"] is True
-    assert result["rates"]["USD"] == 0.011
+    assert result["rates"]["USD"] == pytest.approx(0.011)
 
 
 def test_fallback_rates_when_no_cache():

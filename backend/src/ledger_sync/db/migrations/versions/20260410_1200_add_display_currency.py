@@ -26,4 +26,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Rollback not supported; restore from database backup if needed
     pass
