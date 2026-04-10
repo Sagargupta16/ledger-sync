@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ledger Sync is a self-hosted personal finance application that imports transaction data from Excel files (Money Manager Pro exports) and provides analytics dashboards. It's a monorepo with a Python FastAPI backend and React TypeScript frontend.
+Ledger Sync is a self-hosted personal finance dashboard that turns Excel bank statements into 23 pages of analytics -- spending breakdowns, investment tracking, tax planning, cash flow visualization, and more. Supports multi-currency display with live exchange rates. Monorepo: Python FastAPI backend + React TypeScript frontend.
 
 ## Commands
 

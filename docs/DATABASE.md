@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ledger Sync uses SQLite with SQLAlchemy 2.0 ORM (Mapped types). The database stores financial transactions with multi-user support, and includes models for analytics, budgets, anomalies, and net worth tracking.
+Ledger Sync uses SQLite (dev) / Neon PostgreSQL (prod) with SQLAlchemy 2.0 ORM (Mapped types). The database stores financial transactions with multi-user support, and includes models for analytics, budgets, anomalies, net worth tracking, and user display preferences (including multi-currency settings).
 
 ## Database Models
 

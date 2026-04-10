@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ledger Sync is a full-stack financial management application with a clear separation of concerns between backend and frontend. The system processes Excel financial data, reconciles transactions, and provides comprehensive analytics through an interactive dashboard.
+Ledger Sync is a self-hosted personal finance dashboard built as a full-stack application with clear separation between backend and frontend. The system imports Excel bank statements, reconciles transactions via SHA-256 hashing, and delivers 23 pages of financial analytics -- from spending breakdowns to investment tracking -- with multi-currency display support.
 
 ## High-Level Architecture
 

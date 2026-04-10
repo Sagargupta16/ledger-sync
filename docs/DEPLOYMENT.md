@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ledger Sync is deployed as three separate services:
+Ledger Sync -- a self-hosted personal finance dashboard -- is deployed as three separate services, all on free tiers:
 
 | Service | Platform | URL | Cost |
 |---------|----------|-----|------|

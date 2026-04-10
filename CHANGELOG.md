@@ -1,8 +1,24 @@
-# Changelog
+# Changelog -- Ledger Sync
 
 All notable changes to Ledger Sync are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [Unreleased]
+
+### Added
+
+- **Multi-currency display conversion** - View all financial data in 15 currencies (USD, EUR, GBP, JPY, CAD, AUD, CHF, SGD, AED, CNY, KRW, SEK, NZD, HKD) with live ECB exchange rates via frankfurter.app
+- **Currency quick-switcher** - Sidebar currency selector for instant switching with rate indicator pill
+- **Exchange rate proxy** - Backend endpoint (`GET /api/exchange-rates`) with 24h in-memory cache and three-tier fallback (fresh cache, stale cache, hardcoded rates)
+- **Currency metadata constants** - `currencies.ts` with locale, symbol, number format, and short unit configuration per currency
+- **`display_currency` preference** - Persisted per-user with Alembic migration, auto-derives number format, symbol, and symbol position
+
+### Changed
+
+- **Settings: Display Preferences** - Replaced manual number format, currency symbol, and symbol position fields with a single "Display Currency" dropdown that auto-derives all three
+- **Formatters** - `formatCurrency`, `formatCurrencyCompact`, and `formatCurrencyShort` now apply exchange rate conversion automatically via `convertAmount()` helper
+- **Formatter short units** - `formatCurrencyShort` switches between Cr/L/K (INR) and B/M/K (international) based on display currency metadata
 
 ## [0.9.1] - 2026-04-05
 

@@ -1,7 +1,7 @@
 {
   "name": "ledger-sync",
   "version": "0.9.0",
-  "description": "Production-ready data ingestion and reconciliation engine with modern web interface",
+  "description": "Personal finance dashboard -- import bank statements, track spending, and view analytics in any currency",
   "scripts": {
     "setup": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run setup:backend\" \"pnpm run setup:frontend\"",
     "setup:backend": "cd backend && uv sync --group dev",
@@ -32,11 +32,13 @@
     "url": "https://github.com/Sagargupta16/ledger-sync.git"
   },
   "keywords": [
-    "excel",
-    "ingestion",
-    "reconciliation",
+    "personal-finance",
+    "dashboard",
+    "analytics",
+    "multi-currency",
     "fastapi",
-    "money-manager"
+    "react",
+    "self-hosted"
   ],
   "author": "Sagar Gupta",
   "license": "MIT"
