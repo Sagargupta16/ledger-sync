@@ -3,6 +3,7 @@ export * from './chartColors'
 export * from './accountTypes'
 export * from './colors'
 export * from './chartConfig'
+export * from './currencies'
 
 export const ROUTES = {
   HOME: '/',

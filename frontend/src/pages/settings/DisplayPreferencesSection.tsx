@@ -1,12 +1,16 @@
 /**
- * Display & Preferences section - formats, currency, time range, appearance.
+ * Display & Preferences section - display currency, time range, appearance.
+ *
+ * Currency selection auto-derives number format, symbol, and position
+ * from the CURRENCIES metadata map.
  */
 
 import { Settings2, Palette } from 'lucide-react'
+import { CURRENCIES, getCurrencyMeta } from '@/constants/currencies'
 import { TIME_RANGE_OPTIONS } from './types'
 import type { LocalPrefs, LocalPrefKey } from './types'
 import { Section, FieldLabel, FieldHint } from './components'
-import { inputClass, selectClass } from './styles'
+import { selectClass } from './styles'
 
 interface Props {
   index: number
@@ -16,6 +20,8 @@ interface Props {
   updateLocalPref: <K extends LocalPrefKey>(key: K, value: LocalPrefs[K]) => void
 }
 
+const currencyList = Object.values(CURRENCIES)
+
 export default function DisplayPreferencesSection({
   index,
   localPrefs,
@@ -23,60 +29,52 @@ export default function DisplayPreferencesSection({
   setTheme,
   updateLocalPref,
 }: Readonly<Props>) {
+  const handleCurrencyChange = (code: string) => {
+    const meta = getCurrencyMeta(code)
+    updateLocalPref('display_currency', code)
+    updateLocalPref('number_format', meta.numberFormat)
+    updateLocalPref('currency_symbol', meta.symbol)
+    updateLocalPref('currency_symbol_position', meta.symbolPosition)
+  }
+
+  const selectedMeta = getCurrencyMeta(localPrefs.display_currency ?? 'INR')
+
   return (
     <Section
       index={index}
       icon={Settings2}
       title="Display & Preferences"
-      description="Number formats, currency, time ranges, and appearance"
+      description="Display currency, time ranges, and appearance"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* Number Format */}
+        {/* Display Currency */}
         <div>
-          <FieldLabel htmlFor="number-format">Number Format</FieldLabel>
+          <FieldLabel htmlFor="display-currency">Display Currency</FieldLabel>
           <select
-            id="number-format"
-            value={localPrefs.number_format}
-            onChange={(e) =>
-              updateLocalPref('number_format', e.target.value as 'indian' | 'international')
-            }
+            id="display-currency"
+            value={localPrefs.display_currency ?? 'INR'}
+            onChange={(e) => handleCurrencyChange(e.target.value)}
             className={selectClass}
           >
-            <option value="indian" className="bg-background">Indian (1,00,000)</option>
-            <option value="international" className="bg-background">International (100,000)</option>
+            {currencyList.map((c) => (
+              <option key={c.code} value={c.code} className="bg-background">
+                {c.symbol} {c.name} ({c.code})
+              </option>
+            ))}
           </select>
+          <FieldHint>
+            All amounts will be converted using live exchange rates
+          </FieldHint>
         </div>
 
-        {/* Currency Symbol */}
+        {/* Derived preferences (read-only) */}
         <div>
-          <FieldLabel htmlFor="currency-symbol">Currency Symbol</FieldLabel>
-          <input
-            id="currency-symbol"
-            type="text"
-            value={localPrefs.currency_symbol}
-            onChange={(e) => updateLocalPref('currency_symbol', e.target.value)}
-            className={inputClass}
-          />
-        </div>
-
-        {/* Symbol Position */}
-        <div>
-          <FieldLabel htmlFor="symbol-position">Symbol Position</FieldLabel>
-          <select
-            id="symbol-position"
-            value={localPrefs.currency_symbol_position}
-            onChange={(e) =>
-              updateLocalPref('currency_symbol_position', e.target.value as 'before' | 'after')
-            }
-            className={selectClass}
-          >
-            <option value="before" className="bg-background">
-              Before ({localPrefs.currency_symbol}100)
-            </option>
-            <option value="after" className="bg-background">
-              After (100{localPrefs.currency_symbol})
-            </option>
-          </select>
+          <FieldLabel>Format (auto)</FieldLabel>
+          <div className="px-3 py-2 bg-white/[0.03] border border-border/50 rounded-lg text-sm text-zinc-400">
+            {selectedMeta.numberFormat === 'indian' ? 'Indian (1,00,000)' : 'International (100,000)'}
+            {' '}&middot;{' '}
+            Symbol: {selectedMeta.symbol} ({selectedMeta.symbolPosition})
+          </div>
         </div>
 
         {/* Default Time Range */}
@@ -105,7 +103,7 @@ export default function DisplayPreferencesSection({
               type="date"
               value={localPrefs.earning_start_date ?? ''}
               onChange={(e) => updateLocalPref('earning_start_date', e.target.value || null)}
-              className={`${inputClass} w-auto`}
+              className={`${selectClass} w-auto`}
             />
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -151,8 +149,8 @@ export default function DisplayPreferencesSection({
                     setTheme(t)
                     try {
                       localStorage.setItem('ledger-sync-theme', t)
-                    } catch (e) {
-                      console.warn('[DisplayPreferencesSection] Failed to write localStorage:', e)
+                    } catch {
+                      // localStorage may be unavailable (private browsing, quota)
                     }
                   }}
                   className="sr-only"

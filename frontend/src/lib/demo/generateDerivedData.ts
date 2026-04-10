@@ -75,6 +75,7 @@ export function generateDemoPreferences(): UserPreferences {
     currency_symbol: '\u20B9',
     currency_symbol_position: 'before',
     default_time_range: 'all_time',
+    display_currency: 'INR',
     anomaly_expense_threshold: 200,
     anomaly_types_enabled: ['high_expense', 'unusual_category', 'large_transfer', 'budget_exceeded'],
     auto_dismiss_recurring_anomalies: true,

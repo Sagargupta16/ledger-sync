@@ -1,10 +1,10 @@
-# Ledger Sync
+# Ledger Sync -- Your Personal Finance Dashboard
 
-**Your personal finance command center** - Transform messy Excel exports into a beautiful, insightful financial dashboard.
+**See where every rupee goes.** Import your bank statements, get instant insights, and finally understand your money -- all from a single, self-hosted dashboard you actually own.
 
-Ledger Sync is a self-hosted personal finance application that syncs your transaction data from Excel files (exported from Money Manager Pro or similar apps) and provides comprehensive analytics for your financial life.
+No subscriptions. No data harvesting. Just 23 pages of analytics built from your own Excel exports, running on your own infrastructure.
 
-![Version](https://img.shields.io/badge/version-0.9.0-green.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![React](https://img.shields.io/badge/react-19-blue.svg)
@@ -57,6 +57,14 @@ Ledger Sync is a self-hosted personal finance application that syncs your transa
 - Net Worth tracking across all accounts
 - Anomaly detection and review
 - Budget tracking and goals
+
+### Multi-Currency Display
+
+- **15 supported currencies** -- USD, EUR, GBP, JPY, CAD, AUD, CHF, SGD, AED, and more
+- Live exchange rates from the European Central Bank (via frankfurter.app), cached 24 hours
+- Quick-switch currency from the sidebar or set a default in Settings
+- All amounts convert instantly across every page -- no reload needed
+- Auto-derives number format, symbol, and symbol position from your currency choice
 
 ### Smart Defaults
 

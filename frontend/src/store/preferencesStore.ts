@@ -10,6 +10,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { CURRENCIES, BASE_CURRENCY, getCurrencyMeta } from '@/constants/currencies'
 
 export interface DisplayPreferences {
   numberFormat: 'indian' | 'international'
@@ -29,6 +30,11 @@ export interface IncomeClassification {
 export interface PreferencesState {
   // Display preferences (for formatters)
   displayPreferences: DisplayPreferences
+
+  // Multi-currency display
+  displayCurrency: string
+  exchangeRate: number | null
+  exchangeRateUpdatedAt: string | null
 
   // Fiscal year
   fiscalYearStartMonth: number
@@ -56,6 +62,8 @@ export interface PreferencesState {
 
   // Actions
   setDisplayPreferences: (prefs: Partial<DisplayPreferences>) => void
+  setDisplayCurrency: (code: string) => void
+  setExchangeRate: (rate: number, updatedAt: string) => void
   setFiscalYearStartMonth: (month: number) => void
   setEssentialCategories: (categories: string[]) => void
   setIncomeClassification: (classification: IncomeClassification) => void
@@ -65,6 +73,7 @@ export interface PreferencesState {
     currency_symbol: string
     currency_symbol_position: 'before' | 'after'
     default_time_range: string
+    display_currency: string
     fiscal_year_start_month: number
     essential_categories: string[]
     taxable_income_categories: string[]
@@ -91,6 +100,10 @@ export const usePreferencesStore = create<PreferencesState>()(
         currencySymbolPosition: 'before',
         defaultTimeRange: 'all_time',
       },
+
+      displayCurrency: BASE_CURRENCY,
+      exchangeRate: null,
+      exchangeRateUpdatedAt: null,
 
       fiscalYearStartMonth: 4,
       essentialCategories: [
@@ -156,6 +169,23 @@ export const usePreferencesStore = create<PreferencesState>()(
           displayPreferences: { ...state.displayPreferences, ...prefs },
         })),
 
+      setDisplayCurrency: (code) => {
+        const meta = getCurrencyMeta(code)
+        set({
+          displayCurrency: code,
+          displayPreferences: {
+            numberFormat: meta.numberFormat,
+            currencySymbol: meta.symbol,
+            currencySymbolPosition: meta.symbolPosition,
+            defaultTimeRange: usePreferencesStore.getState().displayPreferences.defaultTimeRange,
+          },
+          ...(code === BASE_CURRENCY ? { exchangeRate: null, exchangeRateUpdatedAt: null } : {}),
+        })
+      },
+
+      setExchangeRate: (rate, updatedAt) =>
+        set({ exchangeRate: rate, exchangeRateUpdatedAt: updatedAt }),
+
       setFiscalYearStartMonth: (month) =>
         set({ fiscalYearStartMonth: month }),
 
@@ -186,6 +216,8 @@ export const usePreferencesStore = create<PreferencesState>()(
             currencySymbolPosition: apiPrefs.currency_symbol_position === 'after' ? 'after' : 'before',
             defaultTimeRange: typeof apiPrefs.default_time_range === 'string' ? apiPrefs.default_time_range : 'all_time',
           },
+          displayCurrency: typeof apiPrefs.display_currency === 'string' && apiPrefs.display_currency in CURRENCIES
+            ? apiPrefs.display_currency : BASE_CURRENCY,
           fiscalYearStartMonth: fySm >= 1 && fySm <= 12 ? fySm : 4,
           essentialCategories: ensureArray(apiPrefs.essential_categories),
           incomeClassification: {
@@ -210,6 +242,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       name: 'ledger-sync-preferences',
       partialize: (state) => ({
         displayPreferences: state.displayPreferences,
+        displayCurrency: state.displayCurrency,
         fiscalYearStartMonth: state.fiscalYearStartMonth,
         essentialCategories: state.essentialCategories,
         incomeClassification: state.incomeClassification,
@@ -264,3 +297,9 @@ export const selectEarningStartDate = (state: PreferencesState) =>
 
 export const selectUseEarningStartDate = (state: PreferencesState) =>
   state.useEarningStartDate
+
+export const selectDisplayCurrency = (state: PreferencesState) =>
+  state.displayCurrency
+
+export const selectExchangeRate = (state: PreferencesState) =>
+  state.exchangeRate

@@ -1,6 +1,6 @@
-# Backend - Ledger Sync
+# Ledger Sync -- Backend
 
-FastAPI backend for financial data processing and analytics.
+FastAPI backend powering the Ledger Sync personal finance dashboard. Handles Excel import, transaction reconciliation, financial analytics, exchange rate proxying, and user preferences.
 
 ## Features
 

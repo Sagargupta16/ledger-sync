@@ -35,6 +35,7 @@ import { ROUTES } from '@/constants'
 import { cn } from '@/lib/cn'
 import SidebarSection from './SidebarSection'
 import SidebarItem from './SidebarItem'
+import CurrencySwitcher from './CurrencySwitcher'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { useLogout } from '@/hooks/api/useAuth'
@@ -297,6 +298,7 @@ export default function Sidebar() {
           {/* Bottom icon bar */}
           <div className="border-t border-white/[0.06] px-3 py-2.5">
             <div className="flex items-center justify-center gap-1">
+              <CurrencySwitcher />
               <NotificationCenter />
               {utilityItems.map((item) => (
                 <Link

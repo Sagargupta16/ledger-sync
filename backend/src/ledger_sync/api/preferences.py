@@ -94,6 +94,12 @@ class DisplayPreferencesConfig(BaseModel):
         description="Default time range: 'last_3_months', 'last_6_months', "
         "'last_12_months', 'current_fy', 'all_time'",
     )
+    display_currency: str = Field(
+        default="INR",
+        min_length=3,
+        max_length=3,
+        description="ISO 4217 currency code for display conversion",
+    )
 
 
 class AnomalySettingsConfig(BaseModel):
@@ -200,6 +206,7 @@ class UserPreferencesResponse(BaseModel):
     currency_symbol: str
     currency_symbol_position: str
     default_time_range: str
+    display_currency: str = "INR"
 
     # 7. Anomaly Settings
     anomaly_expense_threshold: float
@@ -279,6 +286,7 @@ class UserPreferencesUpdate(BaseModel):
     currency_symbol: str | None = None
     currency_symbol_position: str | None = None
     default_time_range: str | None = None
+    display_currency: str | None = None
 
     # 7. Anomaly Settings
     anomaly_expense_threshold: float | None = None
@@ -357,6 +365,7 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
         currency_symbol=prefs.currency_symbol,
         currency_symbol_position=prefs.currency_symbol_position,
         default_time_range=prefs.default_time_range,
+        display_currency=prefs.display_currency,
         anomaly_expense_threshold=prefs.anomaly_expense_threshold,
         anomaly_types_enabled=_parse_json_field(prefs.anomaly_types_enabled),
         auto_dismiss_recurring_anomalies=prefs.auto_dismiss_recurring_anomalies,
@@ -488,6 +497,7 @@ def reset_preferences(
     prefs.currency_symbol = "₹"
     prefs.currency_symbol_position = "before"
     prefs.default_time_range = "all_time"
+    prefs.display_currency = "INR"
     prefs.anomaly_expense_threshold = 2.0
     prefs.anomaly_types_enabled = json.dumps(
         ["high_expense", "unusual_category", "large_transfer", "budget_exceeded"],
