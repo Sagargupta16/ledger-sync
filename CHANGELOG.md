@@ -1,245 +1,196 @@
 # Changelog -- Ledger Sync
 
-All notable changes to Ledger Sync are documented in this file.
+All notable changes to this project are documented here.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioned with [Semantic Versioning](https://semver.org/).
 
-## [0.10.0] - 2026-04-10
+---
+
+## [1.0.0] - 2026-04-10
+
+The first stable release. Ledger Sync graduates from pre-release with multi-currency support, 23 analytics pages, demo mode, and a fully self-hosted architecture on free-tier infrastructure.
 
 ### Added
 
-- **Multi-currency display conversion** - View all financial data in 15 currencies (USD, EUR, GBP, JPY, CAD, AUD, CHF, SGD, AED, CNY, KRW, SEK, NZD, HKD) with live ECB exchange rates via frankfurter.app
-- **Currency quick-switcher** - Sidebar currency selector for instant switching with rate indicator pill
-- **Exchange rate proxy** - Backend endpoint (`GET /api/exchange-rates`) with 24h in-memory cache and three-tier fallback (fresh cache, stale cache, hardcoded rates)
-- **Currency metadata constants** - `currencies.ts` with locale, symbol, number format, and short unit configuration per currency
-- **`display_currency` preference** - Persisted per-user with Alembic migration, auto-derives number format, symbol, and symbol position
+- **Multi-currency display conversion** -- view all financial data in 15 currencies (USD, EUR, GBP, JPY, CAD, AUD, CHF, SGD, AED, CNY, KRW, SEK, NZD, HKD) with live ECB exchange rates via frankfurter.dev
+- **Currency quick-switcher** -- sidebar currency selector for instant switching with rate indicator pill showing live conversion (e.g., "1 USD = INR 92.68")
+- **Exchange rate proxy** -- backend endpoint (`GET /api/exchange-rates`) with 24h in-memory cache and three-tier fallback (fresh cache, stale cache, hardcoded rates)
+- **Currency metadata constants** -- `currencies.ts` with locale, symbol, number format, and short unit configuration per currency
+- **`display_currency` preference** -- persisted per-user with Alembic migration, auto-derives number format, symbol, and symbol position
+- **Google Analytics tracking** -- site-wide analytics via G-PFFMG7D8DP
 
 ### Changed
 
-- **Settings: Display Preferences** - Replaced manual number format, currency symbol, and symbol position fields with a single "Display Currency" dropdown that auto-derives all three
-- **Formatters** - `formatCurrency`, `formatCurrencyCompact`, and `formatCurrencyShort` now apply exchange rate conversion automatically via `convertAmount()` helper
-- **Formatter short units** - `formatCurrencyShort` switches between Cr/L/K (INR) and B/M/K (international) based on display currency metadata
+- **Settings: Display Preferences** -- replaced manual number format, currency symbol, and symbol position fields with a single "Display Currency" dropdown that auto-derives all three
+- **Formatters** -- `formatCurrency`, `formatCurrencyCompact`, and `formatCurrencyShort` now apply exchange rate conversion automatically via `convertAmount()` helper
+- **Formatter short units** -- `formatCurrencyShort` switches between Cr/L/K (INR) and B/M/K (international) based on display currency metadata
+- **Documentation rebrand** -- updated README, CLAUDE.md, package.json, pyproject.toml, and all docs with "Personal Finance Dashboard" tagline and compelling descriptions
 
-## [0.9.1] - 2026-04-05
+---
 
-### Added
+## Pre-1.0 Releases
 
-- **Daily summaries table** - Pre-computed daily aggregations (income, expenses, net, transaction counts, top category) stored in `daily_summaries` table for instant heatmap rendering
-- **Daily summaries API** - `GET /api/analytics/v2/daily-summaries` endpoint with start_date, end_date, and limit filters
-- **Investment holdings API** - `GET /api/analytics/v2/investment-holdings` endpoint with active_only filter and portfolio summary
-- **Auto-populate investment holdings** - Analytics engine dynamically detects investment accounts from user preferences and computes net invested amounts from transfer flows
+Development history from initial prototype to feature-complete dashboard.
 
-### Changed
+### [0.9.1] - 2026-04-05
 
-- **Calculations fast path** - `get_totals`, `get_monthly_aggregation`, and `get_category_breakdown` now read from pre-computed `monthly_summaries`/`category_trends` tables when no date filter is active, falling back to raw transaction scan otherwise
-- **YearInReview heatmap** - Uses pre-computed daily summaries instead of scanning all transactions, with automatic fallback
+#### Added
 
-## [0.9.0] - 2026-04-05
+- **Pre-computed daily summaries** -- `daily_summaries` table for instant heatmap rendering (income, expenses, net, transaction counts, top category per day)
+- **Daily summaries API** -- `GET /api/analytics/v2/daily-summaries` with date range and limit filters
+- **Investment holdings API** -- `GET /api/analytics/v2/investment-holdings` with active_only filter and portfolio summary
+- **Auto-populate investment holdings** -- analytics engine dynamically detects investment accounts from preferences and computes net invested amounts from transfer flows
 
-### Added
+#### Changed
 
-- **Demo mode** - "Try Demo" button on landing page and `/demo` direct link let visitors explore the full dashboard with realistic sample data, zero signup required
-  - ~500 deterministic Indian household transactions generated client-side (salary, rent, EMI, SIP, PPF, groceries, dining, etc.)
-  - 18 derived data generators seed all analytics pages (KPIs, monthly summaries, category trends, net worth, budgets, goals, anomalies, recurring transactions, etc.)
-  - Axios interceptor as safety net blocks real API calls and returns computed data for un-seeded query keys
-  - Floating demo banner with "Sign up" and exit controls, overlays pages without displacing layout
-  - `useDemoGuard` hook blocks mutations (upload, settings save, goal/budget creation, anomaly review) with user-friendly toast
-  - Browser refresh re-seeds TanStack Query cache via `useAuthInit`; stale demo tokens auto-cleaned on tab reopen
-  - Real OAuth login from demo mode automatically clears demo state
-- **Smart account classification defaults** - Keyword matching now recognizes EPF, PPF, NPS, Mutual Funds, Groww, Zerodha, Kuvera, Stocks, Demat, Fixed Deposits, Gold, Crypto as Investments; Indian bank names (HDFC, SBI, ICICI, Axis, Kotak, etc.) as Bank Accounts; EMI/mortgage as Loans
-- **Auto income classification** - When all income categories are unclassified, keyword matching auto-assigns: Salary/Freelance/Bonus to Taxable, Dividends/Interest/Capital Gains to Investment Returns, Cashbacks/Refunds to Non-taxable, Gifts/Prizes to Other
-- **Auto investment account mapping** - Unmapped investment accounts auto-map by keyword: MF/Groww to mutual_funds, Stocks/Zerodha to stocks, FD to fixed_deposits, PPF/EPF/NPS to ppf_epf, Gold/Crypto/Real Estate to their types
-- **Backend migrated to Vercel** - Replaced Render (free tier with 30-50s cold starts) with Vercel serverless via Mangum adapter for zero cold start latency
-- **Neon database via Vercel integration** - Database connected through Vercel's Neon Storage integration for unified dashboard management
-- **Alembic migration workflow** - GitHub Actions workflow runs migrations automatically on push to main when schema files change
+- **Calculations fast path** -- `get_totals`, `get_monthly_aggregation`, and `get_category_breakdown` read from pre-computed tables when no date filter is active
+- **YearInReview heatmap** -- uses daily summaries instead of scanning all transactions
 
-### Changed
+#### Fixed
 
-- Demo banner uses `fixed` positioning (floating pill overlay) instead of `sticky` full-width bar that pushed page content down
-- Account classification priority order: Credit Cards > Investments > Loans > Bank Accounts > Cash > Other (prevents "ICICI Loan" from matching bank instead of loan)
+- User scoping, cascades, indexes, and constraints added to database schema
+- Regex backtracking risk eliminated in note normalization
+- SonarCloud findings resolved, mobile responsiveness improved
 
-## [0.8.0] - 2026-03-14
+### [0.9.0] - 2026-04-05
 
-### Added
+#### Added
 
-- CLAUDE.md code quality rules: 200-line file limit, import conventions, design system constraints, testing expectations, performance rules
-- `CHART_TEXT`, `CHART_SURFACE`, `CHART_INPUT` constants in `chartColors.ts` for centralized chart styling tokens
-- `settings/styles.ts` for shared CSS class strings separated from component exports
+- **Demo mode** -- "Try Demo" on landing page lets visitors explore the full dashboard with ~500 realistic sample transactions, zero signup
+- **Smart account classification** -- keyword matching for EPF, PPF, Mutual Funds, Groww, Zerodha, FD, Stocks, Gold, Crypto as Investments; Indian banks as Bank Accounts; EMI/mortgage as Loans
+- **Auto income classification** -- Salary/Freelance to Taxable, Dividends/Interest to Investment Returns, Cashbacks to Non-taxable
+- **Auto investment account mapping** -- MF/Groww to mutual_funds, Stocks/Zerodha to stocks, FD to fixed_deposits, PPF/EPF/NPS to ppf_epf
+- **Backend migrated to Vercel** -- replaced Render (30-50s cold starts) with Vercel serverless via Mangum for zero cold start latency
+- **Neon database via Vercel integration** -- unified dashboard management
+- **Alembic migration workflow** -- GitHub Actions runs migrations on push to main when schema files change
 
-### Changed
+#### Changed
 
-- Split `SettingsPage.tsx` (1733 lines) into 20 focused components under `pages/settings/`
-- Split `SubscriptionTrackerPage.tsx` (1109 lines) into 13 components under `pages/subscription-tracker/`
-- Split `GoalsPage.tsx` (1106 lines) into 13 components under `pages/goals/`
-- Split `ComparisonPage.tsx` (1036 lines) into 13 components under `pages/comparison/`
-- Replaced raw hex/rgba values in `chartDefaults.tsx` and `ChartTooltip.tsx` with `CHART_TEXT`/`CHART_SURFACE` constants
-- Fixed relative `../../` imports in `useAnalyticsV2.ts` to use `@/` path alias
+- Demo banner uses floating pill overlay instead of sticky bar
+- Account classification priority: Credit Cards > Investments > Loans > Bank Accounts > Cash > Other
 
-## [0.7.0] - 2026-03-03
+### [0.8.0] - 2026-03-14
 
-### Added
+#### Added
 
-- Analytics V2 API with stored aggregations: monthly summaries, category trends, transfer flows, recurring transactions, merchant intelligence, net worth snapshots, fiscal year summaries
-- Sidebar component with collapsible navigation groups, user profile, search, dynamic badge counts, and integrated notification center
-- Returns Analysis page with investment returns tracking and heatmap visualization
-- Tax Planning page with India FY-based slab breakdown and regime comparison
-- Cash Flow Forecast component with projected income/expense trends
-- Profile modal for user account management
-- Net Worth page with assets, liabilities, historical trends, and categorized account details
-- Budget page with tracking, monitoring, and radar chart visualization
-- Subscription Tracker page with recurring expense detection
-- Spending Analysis page with 50/30/20 rule visualization
-- Investment Analytics page with portfolio breakdown across 4 categories
-- Dashboard page with KPI sparklines and quick insights
+- Code quality rules in CLAUDE.md (200-line file limit, import conventions, design system constraints)
+- `CHART_TEXT`, `CHART_SURFACE`, `CHART_INPUT` constants for centralized chart styling
+
+#### Changed
+
+- Split 4 oversized pages into focused components: SettingsPage (20 files), SubscriptionTrackerPage (13), GoalsPage (13), ComparisonPage (13)
+- Chart styling migrated from raw hex values to shared constants
+
+### [0.7.0] - 2026-03-03
+
+#### Added
+
+- **Analytics V2 API** -- stored aggregations for monthly summaries, category trends, transfer flows, recurring transactions, merchant intelligence, net worth, fiscal year summaries
+- **Sidebar** -- collapsible navigation groups, user profile, search, dynamic badge counts, notification center
+- 11 new pages: Returns Analysis, Tax Planning, Cash Flow Forecast, Net Worth, Budget, Subscription Tracker, Spending Analysis, Investment Analytics, Dashboard, Profile Modal
 - Standard chart components: `StandardAreaChart`, `StandardBarChart`, `StandardPieChart`
-- `ChartEmptyState` and `Sparkline` shared components
 
-### Changed
+#### Changed
 
-- Backend restructured with FastAPI application configuration, routers, middleware, and error handling
-- OAuth authentication endpoints for Google and GitHub (authorization code flow)
-- Core analytics engine and calculation service consolidated
-- Frontend UI components, layout, and shared features rebuilt
+- Backend restructured with FastAPI routers, middleware, and error handling
+- OAuth authentication (Google, GitHub) via authorization code flow
 
-## [0.6.0] - 2026-03-01
+### [0.6.0] - 2026-03-01
 
-### Added
+#### Added
 
-- Comprehensive frontend enhancement: fixed 30 issues across 28 files
-- Settings page complete rebuild: single scrollable page with glass card sections, replaced drag-drop with toggles/selects
-- `ProfileModal` component for user account management
-- `ConfirmDialog` generic confirmation dialog component
-- Financial Goals page with savings pool allocation, smart projections, sort/edit/delete
-- Subscription Tracker with confirm/manual add, integrated with Bill Calendar
-- Bill Calendar page with monthly calendar view of upcoming bills
+- Settings page complete rebuild (single scrollable page with glass cards)
+- Financial Goals with savings pool allocation and smart projections
+- Subscription Tracker with confirm/manual add, Bill Calendar integration
 - User preferences API with comprehensive Pydantic models
-- OAuth fields added to users table with Alembic migration
+- OAuth fields in users table
 
-### Changed
+#### Changed
 
-- UI/UX polish across all 18+ pages: hover states, visual hierarchy, animations
-- Settings page consolidated from 10 tabs to single-page layout
-- Goal/budget/anomaly creation now properly refreshes lists without page reload
-- Wired up 3 previously unused preference fields to consumer pages
+- UI/UX polish across 18+ pages (hover states, visual hierarchy, animations)
+- Goal/budget/anomaly creation refreshes lists without page reload
 
-### Fixed
+#### Fixed
 
-- Goal/budget creation data sent as JSON body instead of query params
-- GoalsPage vertical gaps reduced, animation issues resolved
+- Goal/budget creation sent as JSON body instead of query params
+- GoalsPage vertical gaps and animation issues
 
-## [0.5.0] - 2026-02-28
+### [0.5.0] - 2026-02-28
 
-### Added
+#### Added
 
-- Deployment configuration for GitHub Pages (frontend), Neon PostgreSQL (database), and backend (originally Render, later migrated to Vercel)
-- `AnalyticsEngine` for post-upload data analytics: monthly summaries, category trends, transfer flows, recurring transactions, merchant intelligence, anomaly detection, net worth, fiscal year summaries
-- `ChartContainer` component to prevent negative dimension warnings
-- CI workflow with GitHub Actions: lint, type-check, build, deploy
-- `pnpm-lock.yaml` for reproducible builds
+- Deployment configuration (GitHub Pages + Neon PostgreSQL + backend hosting)
+- `AnalyticsEngine` for post-upload data analytics
+- CI workflow with GitHub Actions (lint, type-check, build, deploy)
 
-### Changed
+#### Changed
 
-- Backend startup made robust for production deployment
 - SQLite-only `strftime` replaced with database-agnostic date formatting
-- React Router basename configured for `/ledger-sync/` subpath routing
+- React Router basename configured for `/ledger-sync/` subpath
 - GitHub Actions pinned to commit SHAs for security
-- Poetry lockfile regenerated to match updated `pyproject.toml`
 
-### Fixed
+#### Fixed
 
-- `email-validator` dependency added for Pydantic `EmailStr`
-- Explicit pnpm cache pattern in deploy workflow
-- `frontend/src/lib/` files tracked (previously ignored by overly broad `.gitignore`)
-- TypeScript errors resolved across the codebase
-- SonarQube code quality issues addressed
-- Debug print statements removed
+- `email-validator` dependency for Pydantic `EmailStr`
+- `frontend/src/lib/` tracked (previously ignored by `.gitignore`)
+- TypeScript errors and SonarQube findings resolved
 
-## [0.4.0] - 2026-02-21
+### [0.4.0] - 2026-02-21
 
-### Added
+#### Added
 
-- Core application architecture with React Router, authentication, and page routing
-- Dark theme with iOS-inspired color palette and Framer Motion animations
-- `AppLayout` with sidebar navigation and `PageHeader` component
-- Investment Analytics, Comparison, and Net Worth reporting pages
-- `Sparkline` and `ChartEmptyState` shared components
-- Financial calculation APIs: totals, aggregations, category breakdowns, daily net worth
-- `useAnalyticsTimeFilter` hook for centralized time filter state management
-- `MetricCard` component with animated values and trend indicators
-- `Button` component with variants and loading states
-- Command palette for quick navigation
-- Initial backend API with analytics engine and database models
-- Comprehensive documentation: API reference, database schema, development guide, architecture
+- Core architecture: React Router, authentication, page routing, dark theme
+- iOS-inspired color palette with Framer Motion animations
+- `AppLayout`, `PageHeader`, `MetricCard`, `Sparkline`, `ChartEmptyState`
+- Investment Analytics, Comparison, and Net Worth pages
+- Financial calculation APIs (totals, aggregations, category breakdowns)
+- `useAnalyticsTimeFilter` hook for centralized time filter state
+- Command palette, comprehensive documentation
 
-### Changed
+#### Changed
 
-- Frontend rebuilt from Next.js to React + Vite SPA architecture
+- Frontend rebuilt from Next.js to React + Vite SPA
 - Backend migrated to layered architecture with SQLAlchemy 2.0
 
-## [0.3.0] - 2026-02-04
+### [0.3.0] - 2026-02-04
 
-### Added
+#### Added
 
-- Authentication flow with login, registration, and protected routes
-- HomePage component with quick actions and features overview
-- ComparisonPage for period-over-period financial analysis
-- Year in Review page with spending heatmap and annual insights
-- Settings tabs: essential categories, income classification, investment account mappings
-- Spending Velocity Gauge and related analytics components
-- Financial Health Score calculation with 8 metrics across 4 pillars
-- Budget management page
-- Anomaly review page with filtering and summary statistics
+- Authentication flow (login, registration, protected routes)
+- ComparisonPage, Year in Review (heatmap + insights), Budget management, Anomaly review
+- Settings tabs (essential categories, income classification, investment mappings)
+- Financial Health Score (8 metrics across 4 pillars)
+- Spending Velocity Gauge
 
-### Changed
+#### Changed
 
-- Chart tooltips enhanced with consistent glass styling
-- Analytics components refactored for improved calculations and UI consistency
-- API endpoints migrated to `DatabaseSession` instead of `Session`
-- Transaction processing improved with better duplicate handling
-- Time range defaults updated to `all_time` across all analytics pages
-- Charts refactored to use natural line type with enhanced animations
-- Console logs replaced with `logger.debug` for transfer updates
-- Date handling standardized using `getDateKey` across all pages
+- Chart tooltips with glass styling, natural line types, enhanced animations
+- Date handling standardized with `getDateKey`
+- API endpoints migrated to `DatabaseSession`
 
-### Fixed
+### [0.2.0] - 2026-01-27
 
-- Anomaly key generation improved for better uniqueness
+#### Added
 
-## [0.2.0] - 2026-01-27
-
-### Added
-
-- PostgreSQL support via `psycopg2-binary`
-- Recurring transaction detection and top merchants analytics
+- PostgreSQL support
+- Recurring transaction detection, top merchants analytics
 - Year-over-year comparison charts
-- Tax Planning page with user preferences integration
-- Trends & Forecasts page with rolling averages
-- Time filter for spending analysis with income classification
-- Upload page improvements with better feedback and sample data format
-- CSV export endpoint for transactions
-- Period navigation for analytics components
+- Tax Planning page, Trends & Forecasts page
+- CSV export endpoint, period navigation
 
-### Changed
+#### Changed
 
-- Currency formatting refactored across all pages for consistent display
-- Monetary values rounded for improved display accuracy
+- Currency formatting refactored for consistency across all pages
 
-## [0.1.0] - 2026-01-09
+### [0.1.0] - 2026-01-09
 
-### Added
+#### Added
 
-- Backend synchronization engine for Excel file imports (Money Manager Pro format)
+- Backend sync engine for Excel imports (Money Manager Pro format)
 - Data ingestion pipeline: `excel_loader` -> `normalizer` -> `validator` -> `hash_id`
 - SHA-256 transaction deduplication (idempotent re-uploads)
-- Frontend with layout and homepage
-- Phase 2 Financial Insights Dashboard: overview, behavior, trends, and wrapped insights
-- Advanced spending forecast chart
-- ExpenseTreemap, MultiCategoryTimeAnalysis, and SubcategoryAnalysis components
-- Income-Expense Flow page
-- Date range filtering for transactions API
-- QuickInsights component
-- Transaction filtering and sidebar layout
-- Income categorization with financial year grouping
-- Testing setup, CSV utilities, and structured logging
-- Comprehensive documentation and project roadmap
+- Frontend with layout, homepage, and initial analytics
+- Income-Expense Flow page, ExpenseTreemap, QuickInsights
+- Date range filtering, income categorization with financial year grouping
+- Testing setup, structured logging, comprehensive documentation
 - MIT License

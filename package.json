@@ -1,6 +1,6 @@
 {
   "name": "ledger-sync",
-  "version": "0.10.0",
+  "version": "1.0.0",
   "description": "Personal finance dashboard -- import bank statements, track spending, and view analytics in any currency",
   "scripts": {
     "setup": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run setup:backend\" \"pnpm run setup:frontend\"",

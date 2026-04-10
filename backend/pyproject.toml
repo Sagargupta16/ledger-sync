@@ -1,6 +1,6 @@
 [project]
 name = "ledger-sync"
-version = "0.10.0"
+version = "1.0.0"
 description = "Personal finance dashboard backend -- Excel import, financial analytics, multi-currency exchange rates"
 authors = [{ name = "Sagar Gupta" }]
 readme = "README.md"
