@@ -225,7 +225,7 @@ export default function ReturnsAnalysisPage() {
                   : <TrendingDown className="w-8 h-8 text-red-400" />}
               </div>
               <div>
-                <p className="text-sm text-zinc-500">Net Investment P&L</p>
+                <p className="text-sm text-text-tertiary">Net Investment P&L</p>
                 <p className={`text-4xl font-bold tracking-tight ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {netProfitLoss >= 0 ? '+' : ''}{formatCurrency(netProfitLoss)}
                 </p>
@@ -240,7 +240,7 @@ export default function ReturnsAnalysisPage() {
                 { label: 'Total Costs', value: formatCurrencyShort(totalExpenses), color: 'text-red-400' },
               ].map(stat => (
                 <div key={stat.label} className="bg-white/[0.04] border border-border rounded-lg p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">{stat.label}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary">{stat.label}</p>
                   <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
                 </div>
               ))}
@@ -259,7 +259,7 @@ export default function ReturnsAnalysisPage() {
             <Activity className="w-5 h-5 text-blue-400" />
             <div>
               <h3 className="text-lg font-semibold text-white">Monthly Investment P&L</h3>
-              <p className="text-xs text-zinc-500">Bars show monthly net, line shows cumulative growth</p>
+              <p className="text-xs text-text-tertiary">Bars show monthly net, line shows cumulative growth</p>
             </div>
           </div>
           {monthlyComboData.length === 0 ? (
@@ -324,7 +324,7 @@ export default function ReturnsAnalysisPage() {
             transition={{ delay: 0.2 }}
             className="glass rounded-2xl p-6"
           >
-            <p className="text-sm font-medium text-zinc-300 mb-4">Monthly Performance</p>
+            <p className="text-sm font-medium text-white mb-4">Monthly Performance</p>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {monthlyReturns.map((m) => {
                 const maxAbs = Math.max(...monthlyReturns.map(r => Math.abs(r.net)), 1)
@@ -339,7 +339,7 @@ export default function ReturnsAnalysisPage() {
                     style={{ backgroundColor: bg }}
                     title={`${m.month}: ${formatCurrency(m.net)}`}
                   >
-                    <p className="text-[10px] text-zinc-400 mb-1">{m.month}</p>
+                    <p className="text-[10px] text-muted-foreground mb-1">{m.month}</p>
                     <p className={`text-xs font-bold ${m.net >= 0 ? 'text-green-300' : 'text-red-300'}`}>
                       {m.net >= 0 ? '+' : ''}{formatCurrencyShort(m.net)}
                     </p>
@@ -363,7 +363,7 @@ export default function ReturnsAnalysisPage() {
               <motion.div variants={fadeUpItem} className="bg-green-500/5 border border-green-500/15 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Banknote className="w-4 h-4 text-green-400" />
-                  <p className="text-sm font-medium text-zinc-300">Income Sources</p>
+                  <p className="text-sm font-medium text-white">Income Sources</p>
                 </div>
                 <div className="space-y-3">
                   {[
@@ -373,7 +373,7 @@ export default function ReturnsAnalysisPage() {
                   ].map(item => (
                     <div key={item.label}>
                       <div className="flex justify-between mb-1">
-                        <span className="text-xs text-zinc-400">{item.label}</span>
+                        <span className="text-xs text-muted-foreground">{item.label}</span>
                         <span className={`text-sm font-semibold ${item.color}`}>{formatCurrency(item.value)}</span>
                       </div>
                       {totalIncome > 0 && (
@@ -387,7 +387,7 @@ export default function ReturnsAnalysisPage() {
                     </div>
                   ))}
                   <div className="flex justify-between border-t border-green-500/10 pt-3">
-                    <span className="text-sm font-semibold text-zinc-200">Total</span>
+                    <span className="text-sm font-semibold text-white">Total</span>
                     <span className="text-lg font-bold text-green-400">{formatCurrency(totalIncome)}</span>
                   </div>
                 </div>
@@ -395,7 +395,7 @@ export default function ReturnsAnalysisPage() {
               <motion.div variants={fadeUpItem} className="bg-red-500/5 border border-red-500/15 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Receipt className="w-4 h-4 text-red-400" />
-                  <p className="text-sm font-medium text-zinc-300">Costs & Losses</p>
+                  <p className="text-sm font-medium text-white">Costs & Losses</p>
                 </div>
                 <div className="space-y-3">
                   {[
@@ -404,7 +404,7 @@ export default function ReturnsAnalysisPage() {
                   ].map(item => (
                     <div key={item.label}>
                       <div className="flex justify-between mb-1">
-                        <span className="text-xs text-zinc-400">{item.label}</span>
+                        <span className="text-xs text-muted-foreground">{item.label}</span>
                         <span className={`text-sm font-semibold ${item.color}`}>{formatCurrency(item.value)}</span>
                       </div>
                       {totalExpenses > 0 && (
@@ -418,7 +418,7 @@ export default function ReturnsAnalysisPage() {
                     </div>
                   ))}
                   <div className="flex justify-between border-t border-red-500/10 pt-3">
-                    <span className="text-sm font-semibold text-zinc-200">Total</span>
+                    <span className="text-sm font-semibold text-white">Total</span>
                     <span className="text-lg font-bold text-red-400">{formatCurrency(totalExpenses)}</span>
                   </div>
                 </div>
@@ -427,7 +427,7 @@ export default function ReturnsAnalysisPage() {
             {/* Net P&L footer */}
             <div className="mt-4 bg-white/[0.04] border border-border rounded-xl p-5">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold text-zinc-200">Net Profit/Loss</span>
+                <span className="text-lg font-semibold text-white">Net Profit/Loss</span>
                 <span className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {netProfitLoss >= 0 ? '+' : ''}{formatCurrency(netProfitLoss)}
                 </span>

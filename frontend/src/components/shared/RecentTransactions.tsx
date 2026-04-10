@@ -37,7 +37,7 @@ const TransactionRow = memo(function TransactionRow({
         {/* Details */}
         <div className="flex-1 min-w-0">
           <p className="font-medium truncate">{transaction.note || transaction.category}</p>
-          <div className="flex items-center gap-3 mt-1 text-sm text-zinc-500">
+          <div className="flex items-center gap-3 mt-1 text-sm text-text-tertiary">
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
               {format(new Date(transaction.date), 'MMM dd, yyyy')}
@@ -58,7 +58,7 @@ const TransactionRow = memo(function TransactionRow({
           {transaction.type === 'Income' ? '+' : '-'}
           {formatCurrency(Math.abs(transaction.amount))}
         </p>
-        {transaction.account && <p className="text-xs text-zinc-500 mt-1">{transaction.account}</p>}
+        {transaction.account && <p className="text-xs text-text-tertiary mt-1">{transaction.account}</p>}
       </div>
     </motion.div>
   )

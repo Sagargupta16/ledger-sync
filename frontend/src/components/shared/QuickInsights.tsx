@@ -347,9 +347,9 @@ export default function QuickInsights({
         <item.icon className={`w-4 h-4 ${item.color}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-zinc-400">{item.title}</p>
+        <p className="text-[11px] text-muted-foreground">{item.title}</p>
         <p className="text-sm font-semibold text-white truncate">{item.value}</p>
-        {item.subtitle && <p className="text-[11px] text-zinc-500 truncate">{item.subtitle}</p>}
+        {item.subtitle && <p className="text-[11px] text-text-tertiary truncate">{item.subtitle}</p>}
       </div>
     </motion.div>
   )
@@ -366,7 +366,7 @@ export default function QuickInsights({
 
       {/* Fun Facts */}
       <div>
-        <h3 className="text-sm font-medium text-zinc-400 mb-3">Fun Facts</h3>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">Fun Facts</h3>
         <motion.div
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
           variants={staggerContainer} initial="hidden" animate="visible"

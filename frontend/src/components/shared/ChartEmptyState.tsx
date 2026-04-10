@@ -19,9 +19,9 @@ export default function ChartEmptyState({
       style={{ height }}
     >
       <div className="p-3 rounded-xl bg-white/[0.04]">
-        <BarChart3 className="w-6 h-6 text-zinc-500" />
+        <BarChart3 className="w-6 h-6 text-text-tertiary" />
       </div>
-      <p className="text-sm text-zinc-500">{message}</p>
+      <p className="text-sm text-text-tertiary">{message}</p>
     </div>
   )
 }

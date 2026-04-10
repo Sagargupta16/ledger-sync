@@ -97,7 +97,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-2 rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors duration-150 ease-out"
+                className="absolute top-4 right-4 p-2 rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] transition-colors duration-150 ease-out"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -110,7 +110,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                 <h2 className="text-xl font-semibold text-white">
                   Welcome to Ledger Sync
                 </h2>
-                <p className="text-zinc-400 text-sm mt-1">
+                <p className="text-muted-foreground text-sm mt-1">
                   Sign in to manage your finances
                 </p>
               </div>
@@ -145,17 +145,17 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                 </div>
               ) : (
                 <div className="text-center py-4">
-                  <p className="text-zinc-400 text-sm">
+                  <p className="text-muted-foreground text-sm">
                     OAuth sign-in is not configured yet.
                   </p>
-                  <p className="text-zinc-500 text-xs mt-1">
+                  <p className="text-text-tertiary text-xs mt-1">
                     Contact the administrator to enable Google or GitHub login.
                   </p>
                 </div>
               )}
 
               {/* Footer */}
-              <p className="text-zinc-500 text-xs text-center mt-6 border-t border-border pt-5">
+              <p className="text-text-tertiary text-xs text-center mt-6 border-t border-border pt-5">
                 By signing in, you agree to our terms of service.
                 Your data stays private and secure.
               </p>

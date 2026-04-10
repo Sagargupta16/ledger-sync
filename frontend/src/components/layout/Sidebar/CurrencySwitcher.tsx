@@ -68,7 +68,7 @@ export default function CurrencySwitcher() {
           'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors',
           isConverted
             ? 'bg-app-blue/15 text-app-blue hover:bg-app-blue/25'
-            : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06]',
+            : 'text-text-tertiary hover:text-white hover:bg-white/[0.06]',
         )}
         title={`Display currency: ${displayCurrency}`}
       >
@@ -98,12 +98,12 @@ export default function CurrencySwitcher() {
                 'w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors',
                 meta.code === displayCurrency
                   ? 'bg-app-blue/15 text-white'
-                  : 'text-zinc-400 hover:bg-white/[0.06] hover:text-white',
+                  : 'text-muted-foreground hover:bg-white/[0.06] hover:text-white',
               )}
             >
               <span className="w-6 text-center font-medium text-xs">{meta.symbol}</span>
               <span className="flex-1 text-left">{meta.name}</span>
-              <span className="text-xs text-zinc-500">{meta.code}</span>
+              <span className="text-xs text-text-tertiary">{meta.code}</span>
             </button>
           ))}
         </div>

@@ -96,7 +96,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
           >
             <Icon className="w-4 h-4" style={{ color: colors.text }} />
           </div>
-          <h3 className="text-xs font-medium text-zinc-400">{title}</h3>
+          <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
         </div>
 
         <output className="block" aria-live="polite">
@@ -112,7 +112,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
         </output>
 
         {subtitle && (
-          <p className="text-[11px] text-zinc-500 mt-0.5">{subtitle}</p>
+          <p className="text-[11px] text-text-tertiary mt-0.5">{subtitle}</p>
         )}
 
         {change !== undefined && (() => {
@@ -126,7 +126,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
                 {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                 {change > 0 ? '+' : ''}{change}%
               </span>
-              <span className="text-[10px] text-zinc-500">{changeLabel || 'vs last month'}</span>
+              <span className="text-[10px] text-text-tertiary">{changeLabel || 'vs last month'}</span>
             </div>
           )
         })()}

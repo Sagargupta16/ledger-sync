@@ -21,7 +21,7 @@ export default function TimeRangeSelector({ value, onChange }: Readonly<TimeRang
           className={`relative px-4 py-2 rounded-md text-sm transition-colors duration-150 ease-out ${
             value === range
               ? 'text-white font-medium'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+              : 'text-muted-foreground hover:text-white hover:bg-white/[0.04]'
           }`}
           whileTap={{ scale: 0.97 }}
         >

@@ -70,9 +70,9 @@ export const CardHeader = memo(function CardHeader({
           </div>
         )}
         <div>
-          <h3 className="text-sm font-medium text-zinc-300">{title}</h3>
+          <h3 className="text-sm font-medium text-white">{title}</h3>
           {subtitle && (
-            <p className="text-xs text-zinc-500">{subtitle}</p>
+            <p className="text-xs text-text-tertiary">{subtitle}</p>
           )}
         </div>
       </div>
@@ -121,10 +121,10 @@ export const StatCard = memo(function StatCard({
           </div>
         )}
         <div className="flex-1">
-          <p className="text-xs text-zinc-500">{title}</p>
+          <p className="text-xs text-text-tertiary">{title}</p>
           <p className="text-lg sm:text-xl font-semibold text-white">{value}</p>
           {subtitle && (
-            <p className="text-[11px] text-zinc-600 mt-1">{subtitle}</p>
+            <p className="text-[11px] text-text-quaternary mt-1">{subtitle}</p>
           )}
           {trend && (
             <p className={cn(

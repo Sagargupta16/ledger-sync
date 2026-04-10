@@ -57,9 +57,9 @@ function IconBubble({ selectedFile, isDragActive, compact }: Readonly<IconBubble
       compact ? 'p-2' : 'p-4'
     )}>
       {selectedFile ? (
-        <FileSpreadsheet className={cn('text-zinc-400', compact ? 'w-6 h-6' : 'w-12 h-12 animate-pulse')} />
+        <FileSpreadsheet className={cn('text-muted-foreground', compact ? 'w-6 h-6' : 'w-12 h-12 animate-pulse')} />
       ) : (
-        <Upload className={cn('text-zinc-400 transition-transform', isDragActive && 'scale-110', compact ? 'w-6 h-6' : 'w-12 h-12')} />
+        <Upload className={cn('text-muted-foreground transition-transform', isDragActive && 'scale-110', compact ? 'w-6 h-6' : 'w-12 h-12')} />
       )}
     </div>
   )
@@ -72,7 +72,7 @@ function FileSelectedView({ selectedFile, compact, isUploading, onClear }: Reado
         'flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-lg',
         compact ? 'px-2 py-1' : 'px-4 py-2'
       )}>
-        <FileSpreadsheet className={cn('text-zinc-400', compact ? 'w-4 h-4' : 'w-5 h-5')} />
+        <FileSpreadsheet className={cn('text-muted-foreground', compact ? 'w-4 h-4' : 'w-5 h-5')} />
         <span className={cn('font-medium truncate', compact ? 'text-xs max-w-[120px]' : '')}>{selectedFile.name}</span>
         <button
           onClick={onClear}
@@ -83,7 +83,7 @@ function FileSelectedView({ selectedFile, compact, isUploading, onClear }: Reado
         </button>
       </div>
       {!compact && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-text-tertiary">
           {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
         </p>
       )}
@@ -99,14 +99,14 @@ function EmptyStateView({ isDragActive, compact }: Readonly<EmptyStateViewProps>
           {getHeadingText(isDragActive, compact)}
         </h3>
         {!compact && (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-text-tertiary">
             Drag and drop your Excel file here, or click to browse
           </p>
         )}
       </div>
 
       {!compact && (
-        <div className="flex items-center gap-2 text-xs text-zinc-500 mt-4">
+        <div className="flex items-center gap-2 text-xs text-text-tertiary mt-4">
           <FileSpreadsheet className="w-4 h-4" />
           <span>Supports .xlsx and .xls files</span>
         </div>

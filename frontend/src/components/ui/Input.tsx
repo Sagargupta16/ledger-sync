@@ -20,13 +20,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-zinc-400">
+        <label htmlFor={inputId} className="block text-sm font-medium text-muted-foreground">
           {label}
         </label>
       )}
       <div className="relative">
         {icon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" aria-hidden="true">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" aria-hidden="true">
             {icon}
           </span>
         )}
@@ -35,7 +35,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           id={inputId}
           className={cn(
             'w-full bg-white/[0.04] px-4 py-3 rounded-lg',
-            'border border-white/[0.08] text-white placeholder:text-zinc-600',
+            'border border-white/[0.08] text-white placeholder:text-text-quaternary',
             'transition-all duration-150 ease-out',
             'focus:border-blue-400/50 focus:outline-none focus:ring-1 focus:ring-blue-400/20',
             'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -78,7 +78,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={selectId} className="block text-sm font-medium text-zinc-400">
+        <label htmlFor={selectId} className="block text-sm font-medium text-muted-foreground">
           {label}
         </label>
       )}

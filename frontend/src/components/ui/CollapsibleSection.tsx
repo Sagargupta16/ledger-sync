@@ -35,8 +35,8 @@ export default function CollapsibleSection({
         onClick={() => setExpanded((prev) => !prev)}
         className="flex items-center gap-3 w-full px-6 py-4 text-left hover:bg-white/[0.06] transition-colors duration-150 rounded-2xl"
       >
-        <Icon className="w-5 h-5 text-zinc-400 shrink-0" />
-        <span className="text-base font-semibold text-zinc-200 flex-1">{title}</span>
+        <Icon className="w-5 h-5 text-muted-foreground shrink-0" />
+        <span className="text-base font-semibold text-white flex-1">{title}</span>
         {badge !== undefined && (
           <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/15 text-blue-400">
             {badge}
@@ -44,7 +44,7 @@ export default function CollapsibleSection({
         )}
         <ChevronDown
           className={cn(
-            'w-4 h-4 text-zinc-500 transition-transform duration-150',
+            'w-4 h-4 text-text-tertiary transition-transform duration-150',
             !expanded && '-rotate-90',
           )}
         />

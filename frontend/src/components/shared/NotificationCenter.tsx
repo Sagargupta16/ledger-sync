@@ -321,7 +321,7 @@ export default function NotificationCenter() {
         onClick={() => setIsOpen((v) => !v)}
         className={cn(
           'w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150 ease-out relative',
-          'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06]',
+          'text-text-tertiary hover:text-white hover:bg-white/[0.06]',
           isOpen && 'bg-white/[0.08] text-white',
         )}
         title="Notifications"

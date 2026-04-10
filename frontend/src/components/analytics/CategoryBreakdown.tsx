@@ -99,7 +99,7 @@ export default function CategoryBreakdown({
     return (
       <div className="bg-white/[0.04] p-6 rounded-xl border border-border">
         <div className="h-64 flex items-center justify-center">
-          <div className="animate-pulse text-zinc-500">Loading breakdown...</div>
+          <div className="animate-pulse text-text-tertiary">Loading breakdown...</div>
         </div>
       </div>
     )
@@ -128,7 +128,7 @@ export default function CategoryBreakdown({
           <HeaderIcon className={`w-5 h-5 ${headerIconColor}`} />
           <div>
             <h3 className="text-lg font-semibold text-white">{headerTitle}</h3>
-            <p className="text-xs text-zinc-500">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
+            <p className="text-xs text-text-tertiary">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
           </div>
         </div>
       </div>
@@ -177,15 +177,15 @@ export default function CategoryBreakdown({
                   />
 
                   {/* Name */}
-                  <span className="text-sm font-medium text-zinc-200 flex-1 truncate">
+                  <span className="text-sm font-medium text-white flex-1 truncate">
                     {cat.name}
                   </span>
 
                   {/* Percentage + Amount */}
-                  <span className="text-xs text-zinc-400 tabular-nums shrink-0">
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                     {cat.percent.toFixed(1)}%
                   </span>
-                  <span className="text-sm font-semibold text-zinc-200 tabular-nums shrink-0 w-20 sm:w-28 text-right">
+                  <span className="text-sm font-semibold text-white tabular-nums shrink-0 w-20 sm:w-28 text-right">
                     {formatCurrency(cat.total)}
                   </span>
 
@@ -194,7 +194,7 @@ export default function CategoryBreakdown({
                     <motion.div
                       animate={{ rotate: isExpanded ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
-                      className="text-zinc-500 group-hover:text-zinc-300"
+                      className="text-text-tertiary group-hover:text-white"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </motion.div>
@@ -235,7 +235,7 @@ export default function CategoryBreakdown({
                             style={{ backgroundColor: cat.color }}
                           />
 
-                          <span className="text-xs text-zinc-300 flex-1 truncate">
+                          <span className="text-xs text-white flex-1 truncate">
                             {sub.name}
                           </span>
 
@@ -250,10 +250,10 @@ export default function CategoryBreakdown({
                             />
                           </div>
 
-                          <span className="text-xs text-zinc-500 tabular-nums shrink-0 w-10 text-right">
+                          <span className="text-xs text-text-tertiary tabular-nums shrink-0 w-10 text-right">
                             {sub.percent.toFixed(0)}%
                           </span>
-                          <span className="text-xs font-medium text-zinc-300 tabular-nums shrink-0 w-18 sm:w-24 text-right">
+                          <span className="text-xs font-medium text-white tabular-nums shrink-0 w-18 sm:w-24 text-right">
                             {formatCurrency(sub.amount)}
                           </span>
                         </div>

@@ -24,7 +24,7 @@ export default function Pagination({
       <div className="flex items-center justify-between flex-wrap gap-4">
         {/* Items per page */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-zinc-500">Show</span>
+          <span className="text-sm text-text-tertiary">Show</span>
           <select
             value={itemsPerPage}
             onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
@@ -35,11 +35,11 @@ export default function Pagination({
             <option value={50} className="bg-zinc-900 text-white">50</option>
             <option value={100} className="bg-zinc-900 text-white">100</option>
           </select>
-          <span className="text-sm text-zinc-500">per page</span>
+          <span className="text-sm text-text-tertiary">per page</span>
         </div>
 
         {/* Page info */}
-        <div className="text-sm text-zinc-500">
+        <div className="text-sm text-text-tertiary">
           Showing <span className="font-medium text-white">{startItem}</span> to{' '}
           <span className="font-medium text-white">{endItem}</span> of{' '}
           <span className="font-medium text-white">{totalItems}</span> transactions
@@ -50,7 +50,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="p-2 rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
+            className="p-2 rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -74,7 +74,7 @@ export default function Pagination({
                   onClick={() => onPageChange(pageNum)}
                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-150 ${currentPage === pageNum
                       ? 'bg-blue-500/20 text-blue-400'
-                      : 'text-zinc-400 hover:bg-white/[0.06] hover:text-white'
+                      : 'text-muted-foreground hover:bg-white/[0.06] hover:text-white'
                     }`}
                 >
                   {pageNum}
@@ -86,7 +86,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="p-2 rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
+            className="p-2 rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
           >
             <ChevronRight className="w-4 h-4" />
           </button>

@@ -40,14 +40,14 @@ const columns: ColumnDef<Transaction>[] = [
     header: ({ column }) => (
       <button
         onClick={() => column.toggleSorting()}
-        className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors duration-150"
+        className="flex items-center gap-2 text-text-tertiary hover:text-white transition-colors duration-150"
       >
         Date
         <ArrowUpDown className="w-4 h-4" />
       </button>
     ),
     cell: ({ row }) => (
-      <span className="text-sm text-zinc-500">{format(new Date(row.original.date), 'MMM dd, yyyy')}</span>
+      <span className="text-sm text-text-tertiary">{format(new Date(row.original.date), 'MMM dd, yyyy')}</span>
     ),
   },
   {
@@ -73,9 +73,9 @@ const columns: ColumnDef<Transaction>[] = [
     header: 'Category',
     cell: ({ row }) => (
       <div className="space-y-0.5">
-        <div className="text-sm font-medium text-zinc-400">{row.original.category}</div>
+        <div className="text-sm font-medium text-muted-foreground">{row.original.category}</div>
         {row.original.subcategory && (
-          <div className="text-xs text-zinc-500">{row.original.subcategory}</div>
+          <div className="text-xs text-text-tertiary">{row.original.subcategory}</div>
         )}
       </div>
     ),
@@ -83,14 +83,14 @@ const columns: ColumnDef<Transaction>[] = [
   {
     accessorKey: 'account',
     header: 'Account',
-    cell: ({ row }) => <span className="text-sm text-zinc-400">{row.original.account}</span>,
+    cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.account}</span>,
   },
   {
     accessorKey: 'amount',
     header: ({ column }) => (
       <button
         onClick={() => column.toggleSorting()}
-        className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors duration-150"
+        className="flex items-center gap-2 text-text-tertiary hover:text-white transition-colors duration-150"
       >
         Amount
         <ArrowUpDown className="w-4 h-4" />
@@ -126,7 +126,7 @@ const columns: ColumnDef<Transaction>[] = [
     accessorKey: 'note',
     header: 'Note',
     cell: ({ row }) => (
-      <span className="text-sm text-zinc-500 truncate max-w-[120px] lg:max-w-[200px] block">
+      <span className="text-sm text-text-tertiary truncate max-w-[120px] lg:max-w-[200px] block">
         {row.original.note || '-'}
       </span>
     ),
@@ -285,7 +285,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
               <div key={dateKey}>
                 {/* Day header */}
                 <div className="sticky top-0 z-10 px-4 py-2 bg-background/90 backdrop-blur-sm flex items-center justify-between border-b border-white/[0.04]">
-                  <span className="text-xs font-semibold text-zinc-500">
+                  <span className="text-xs font-semibold text-text-tertiary">
                     {format(new Date(dateKey), 'EEE, MMM dd yyyy')}
                   </span>
                   <span className={`text-xs font-semibold ${dayTotal >= 0 ? 'text-app-green' : 'text-app-red'}`}>
@@ -313,15 +313,15 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                             )}
                             <span className="text-sm font-medium">{tx.category}</span>
                             {tx.subcategory && (
-                              <span className="text-xs text-zinc-500">/ {tx.subcategory}</span>
+                              <span className="text-xs text-text-tertiary">/ {tx.subcategory}</span>
                             )}
                           </div>
                           <span className={`text-sm font-semibold ${amountColor}`}>
                             {prefix}{formatCurrency(Math.abs(tx.amount))}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-xs text-zinc-500">
-                          <span className="text-zinc-400">{tx.account}</span>
+                        <div className="flex items-center justify-between text-xs text-text-tertiary">
+                          <span className="text-muted-foreground">{tx.account}</span>
                           {tx.note && <span className="truncate max-w-[150px]">{tx.note}</span>}
                         </div>
                       </div>

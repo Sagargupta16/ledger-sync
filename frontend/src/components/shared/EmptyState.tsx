@@ -87,9 +87,9 @@ export default function EmptyState({
           </div>
         </div>
         <div className="flex flex-col items-center gap-2">
-          {Icon && <Icon className="w-8 h-8 text-zinc-500" />}
-          <h3 className="text-base font-medium text-zinc-200">{title}</h3>
-          {description && <p className="text-sm text-zinc-500 max-w-sm">{description}</p>}
+          {Icon && <Icon className="w-8 h-8 text-text-tertiary" />}
+          <h3 className="text-base font-medium text-white">{title}</h3>
+          {description && <p className="text-sm text-text-tertiary max-w-sm">{description}</p>}
           {actionLabel && actionHref && (
             <a href={actionHref} className="mt-2 text-sm text-blue-400 hover:text-blue-300 transition-colors duration-150">{actionLabel}</a>
           )}
@@ -110,17 +110,17 @@ export default function EmptyState({
           getSizeClass(isCompact, 'w-12 h-12', 'w-16 h-16')
         }`}
       >
-        <Icon className={`text-zinc-400 ${getSizeClass(isCompact, 'w-6 h-6', 'w-8 h-8')}`} />
+        <Icon className={`text-muted-foreground ${getSizeClass(isCompact, 'w-6 h-6', 'w-8 h-8')}`} />
       </div>
 
       {/* Title */}
-      <h3 className={`font-medium text-zinc-200 mb-1 ${getSizeClass(isCompact, 'text-sm', 'text-base')}`}>
+      <h3 className={`font-medium text-white mb-1 ${getSizeClass(isCompact, 'text-sm', 'text-base')}`}>
         {title}
       </h3>
 
       {/* Description */}
       {description && (
-        <p className={`text-zinc-500 max-w-xs ${getSizeClass(isCompact, 'text-xs', 'text-sm')}`}>
+        <p className={`text-text-tertiary max-w-xs ${getSizeClass(isCompact, 'text-xs', 'text-sm')}`}>
           {description}
         </p>
       )}

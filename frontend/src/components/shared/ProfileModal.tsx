@@ -177,7 +177,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                 onClick={handleClose}
                 className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-transparent hover:bg-white/[0.06] flex items-center justify-center transition-colors duration-150 ease-out"
               >
-                <X size={16} className="text-zinc-500 hover:text-white" />
+                <X size={16} className="text-text-tertiary hover:text-white" />
               </button>
 
               <div className="flex items-center gap-4">
@@ -197,16 +197,16 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                   <h2 className="text-lg font-semibold text-white truncate">
                     {displayName}
                   </h2>
-                  <p className="text-sm text-zinc-400 truncate">
+                  <p className="text-sm text-muted-foreground truncate">
                     {user?.email}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-xs text-zinc-400">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-xs text-muted-foreground">
                       <Shield size={10} />
                       {providerLabel}
                     </span>
                     {memberSince && (
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs text-text-tertiary">
                         Since {memberSince}
                       </span>
                     )}
@@ -221,8 +221,8 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
               <div className="rounded-xl bg-white/[0.04] border border-border p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Pencil size={14} className="text-zinc-400" />
-                    <span className="text-sm text-zinc-400">Display Name</span>
+                    <Pencil size={14} className="text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Display Name</span>
                   </div>
                   {!isEditingName && (
                     <button
@@ -263,7 +263,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                     <button
                       type="button"
                       onClick={() => setIsEditingName(false)}
-                      className="p-1.5 rounded-lg bg-white/[0.06] text-zinc-400 hover:bg-white/[0.10] transition-colors duration-150 ease-out"
+                      className="p-1.5 rounded-lg bg-white/[0.06] text-muted-foreground hover:bg-white/[0.10] transition-colors duration-150 ease-out"
                     >
                       <X size={14} />
                     </button>
@@ -305,7 +305,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                       className="overflow-hidden"
                     >
                       <div className="pt-3 space-y-3">
-                        <p className="text-xs text-zinc-400">
+                        <p className="text-xs text-muted-foreground">
                           This will permanently delete all transactions, subscriptions,
                           budgets, goals, import history, investment data, and reset
                           preferences. Your account and login method will be preserved.
@@ -338,7 +338,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                           <button
                             type="button"
                             onClick={() => { setShowResetConfirm(false); setResetConfirmText('') }}
-                            className="px-3 py-1.5 bg-white/[0.06] border border-white/[0.08] text-zinc-200 text-sm rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out"
+                            className="px-3 py-1.5 bg-white/[0.06] border border-white/[0.08] text-white text-sm rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out"
                           >
                             Cancel
                           </button>
@@ -379,7 +379,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                       className="overflow-hidden"
                     >
                       <div className="pt-3 space-y-3">
-                        <p className="text-xs text-zinc-400">
+                        <p className="text-xs text-muted-foreground">
                           Permanently delete your account and all associated data.
                           This action cannot be undone.
                         </p>
@@ -417,7 +417,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                               setShowDeleteConfirm(false)
                               setDeleteConfirmText('')
                             }}
-                            className="px-3 py-1.5 bg-white/[0.06] border border-white/[0.08] text-zinc-200 text-sm rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out"
+                            className="px-3 py-1.5 bg-white/[0.06] border border-white/[0.08] text-white text-sm rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out"
                           >
                             Cancel
                           </button>

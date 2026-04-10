@@ -88,7 +88,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
       <div className="bg-white/[0.04] border border-border rounded-xl p-4">
         <div className="flex items-center gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" aria-hidden="true" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" aria-hidden="true" />
             <input
               type="text"
               placeholder="Search transactions by note, category, or account..."
@@ -102,7 +102,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
             onClick={() => setShowAdvanced(!showAdvanced)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-150 ${showAdvanced
                 ? 'bg-white/[0.08] text-white'
-                : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+                : 'text-muted-foreground hover:text-white hover:bg-white/[0.06]'
               }`}
             aria-expanded={showAdvanced}
             aria-controls="advanced-filters"
@@ -136,15 +136,15 @@ export default function TransactionFilters({ onFilterChange, categories, account
             role="region"
             aria-label="Advanced filters"
           >
-            <h3 className="text-lg font-semibold flex items-center gap-2 text-zinc-300">
-              <Filter className="w-5 h-5 text-zinc-400" aria-hidden="true" />
+            <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
+              <Filter className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
               Advanced Filters
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Type Filter */}
               <div className="space-y-2">
-                <label htmlFor="filter-type" className="text-sm font-medium text-zinc-400">Type</label>
+                <label htmlFor="filter-type" className="text-sm font-medium text-muted-foreground">Type</label>
                 <select
                   id="filter-type"
                   value={filters.type || ''}
@@ -163,7 +163,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Category Filter */}
               <div className="space-y-2">
-                <label htmlFor="filter-category" className="text-sm font-medium text-zinc-400">Category</label>
+                <label htmlFor="filter-category" className="text-sm font-medium text-muted-foreground">Category</label>
                 <select
                   id="filter-category"
                   value={filters.category || ''}
@@ -181,7 +181,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Account Filter */}
               <div className="space-y-2">
-                <label htmlFor="filter-account" className="text-sm font-medium text-zinc-400">Account</label>
+                <label htmlFor="filter-account" className="text-sm font-medium text-muted-foreground">Account</label>
                 <select
                   id="filter-account"
                   value={filters.account || ''}
@@ -199,7 +199,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Start Date */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-400 flex items-center gap-1">
+                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   Start Date
                 </label>
@@ -213,7 +213,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* End Date */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-400 flex items-center gap-1">
+                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   End Date
                 </label>
@@ -227,7 +227,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Min Amount */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-400">Min Amount ({currencySymbol})</label>
+                <label className="text-sm font-medium text-muted-foreground">Min Amount ({currencySymbol})</label>
                 <input
                   type="number"
                   placeholder="0"
@@ -239,7 +239,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Max Amount */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-400">Max Amount ({currencySymbol})</label>
+                <label className="text-sm font-medium text-muted-foreground">Max Amount ({currencySymbol})</label>
                 <input
                   type="number"
                   placeholder="∞"

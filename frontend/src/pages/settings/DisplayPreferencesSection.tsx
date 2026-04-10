@@ -70,7 +70,7 @@ export default function DisplayPreferencesSection({
         {/* Derived preferences (read-only) */}
         <div>
           <FieldLabel>Format (auto)</FieldLabel>
-          <div className="px-3 py-2 bg-white/[0.04] border border-border/50 rounded-lg text-sm text-zinc-400">
+          <div className="px-3 py-2 bg-white/[0.04] border border-border/50 rounded-lg text-sm text-muted-foreground">
             {selectedMeta.numberFormat === 'indian' ? 'Indian (1,00,000)' : 'International (100,000)'}
             {' '}&middot;{' '}
             Symbol: {selectedMeta.symbol} ({selectedMeta.symbolPosition})

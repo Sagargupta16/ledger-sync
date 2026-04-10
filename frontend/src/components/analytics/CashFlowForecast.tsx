@@ -157,7 +157,7 @@ export default function CashFlowForecast() {
   if (!forecastData) {
     return (
       <div className="glass rounded-2xl p-6">
-        <h3 className="text-lg font-semibold text-zinc-200 mb-2">Cash Flow Forecast</h3>
+        <h3 className="text-lg font-semibold text-white mb-2">Cash Flow Forecast</h3>
         <ChartEmptyState message="Need at least 3 months of data for forecasting." />
       </div>
     )
@@ -177,8 +177,8 @@ export default function CashFlowForecast() {
                 : <TrendingDown className="w-6 h-6 text-red-400" />}
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-zinc-200">Future Cash Flow Forecast</h3>
-              <p className="text-xs text-zinc-500">Projected income, expenses & net savings</p>
+              <h3 className="text-lg font-semibold text-white">Future Cash Flow Forecast</h3>
+              <p className="text-xs text-text-tertiary">Projected income, expenses & net savings</p>
             </div>
           </div>
           {insights.monthsUntilNegative && (
@@ -239,7 +239,7 @@ export default function CashFlowForecast() {
         </ChartContainer>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-3 text-[11px] text-zinc-500">
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-3 text-[11px] text-text-tertiary">
           <span className="flex items-center gap-1.5">{' '}
             <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: rawColors.app.green, opacity: 0.5 }} />{' '}
             Income
@@ -266,25 +266,25 @@ export default function CashFlowForecast() {
       {/* ── Insight Cards ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         <div className="bg-white/[0.04] border border-border rounded-xl p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">Avg Monthly Income</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">Avg Monthly Income</p>
           <p className="text-xl font-bold text-green-400">{formatCurrencyShort(insights.avgIncome)}</p>
-          <p className="text-xs text-zinc-500 mt-1">
+          <p className="text-xs text-text-tertiary mt-1">
             {insights.incomeGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.incomeGrowth).toFixed(1)}% monthly trend
           </p>
         </div>
         <div className="bg-white/[0.04] border border-border rounded-xl p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">Avg Monthly Expenses</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">Avg Monthly Expenses</p>
           <p className="text-xl font-bold text-red-400">{formatCurrencyShort(insights.avgExpense)}</p>
-          <p className="text-xs text-zinc-500 mt-1">
+          <p className="text-xs text-text-tertiary mt-1">
             {insights.expenseGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.expenseGrowth).toFixed(1)}% monthly trend
           </p>
         </div>
         <div className="bg-white/[0.04] border border-border rounded-xl p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">1-Year Projected Savings</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">1-Year Projected Savings</p>
           <p className={`text-xl font-bold ${insights.projectedSavings >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
             {insights.projectedSavings >= 0 ? '+' : ''}{formatCurrencyShort(insights.projectedSavings)}
           </p>
-          <p className="text-xs text-zinc-500 mt-1">Based on current trends</p>
+          <p className="text-xs text-text-tertiary mt-1">Based on current trends</p>
         </div>
       </div>
     </motion.div>

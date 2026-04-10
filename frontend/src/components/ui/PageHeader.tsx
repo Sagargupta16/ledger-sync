@@ -42,7 +42,7 @@ const PageHeader = memo(function PageHeader({ title, subtitle, action }: PageHea
           </h1>
           {subtitle && (
             <p
-              className="mt-1 text-sm text-zinc-400 transition-all duration-150 ease-out"
+              className="mt-1 text-sm text-muted-foreground transition-all duration-150 ease-out"
               style={{
                 opacity: scrolled ? 0 : 1,
                 maxHeight: scrolled ? 0 : '2rem',

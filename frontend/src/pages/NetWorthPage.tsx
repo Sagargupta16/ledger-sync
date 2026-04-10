@@ -612,11 +612,11 @@ export default function NetWorthPage() {
               <div className="flex items-center gap-4 text-xs">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-sm" style={{ background: rawColors.app.green }} />
-                  <span className="text-zinc-400">Increase</span>
+                  <span className="text-muted-foreground">Increase</span>
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-sm" style={{ background: rawColors.app.red }} />
-                  <span className="text-zinc-400">Decrease</span>
+                  <span className="text-muted-foreground">Decrease</span>
                 </span>
               </div>
             </div>
