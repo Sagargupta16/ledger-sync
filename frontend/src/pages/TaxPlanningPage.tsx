@@ -583,23 +583,50 @@ export default function TaxPlanningPage() {
                 <TrendingUp className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Tax Paid Per Year</h3>
-                <p className="text-xs text-muted-foreground">Annual tax with cumulative trend</p>
+                <h3 className="text-lg font-semibold">Tax Per Year</h3>
+                <p className="text-xs text-muted-foreground">Paid (red) vs projected (green) with cumulative trend</p>
               </div>
             </div>
             {(() => {
+              // Build a map of projected tax by FY (bare format "2025-26")
+              const projectedTaxByFY: Record<string, number> = {}
+              for (const p of multiYearProjections) {
+                projectedTaxByFY[p.fy] = p.totalTax
+              }
+
               const yearlyTaxData = fyList.slice().reverse().map(fy => {
+                const bareFY = fy.replace(/^FY\s+/i, '')
                 const data = transactionsByFY[fy]
-                if (!data) return { fy, tax: 0, income: 0, cumulative: 0 }
-                // Use taxableIncome if classified, otherwise fall back to total income
-                const taxableAmt = (data.taxableIncome > 0) ? data.taxableIncome : data.income
-                const salaryMonths = data.salaryMonths?.size || 0
-                const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
-                return { fy, tax: Math.round(computed.taxAlreadyPaid), income: Math.round(computed.grossTaxableIncome), cumulative: 0 }
+                const hasTxData = !!data
+                const projTotal = Math.round(projectedTaxByFY[bareFY] ?? 0)
+
+                // Compute tax from transactions
+                let paidTax = 0
+                if (hasTxData) {
+                  const taxableAmt = (data.taxableIncome > 0) ? data.taxableIncome : data.income
+                  const salaryMonths = data.salaryMonths?.size || 0
+                  const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
+                  paidTax = Math.round(computed.taxAlreadyPaid)
+                }
+
+                const isCurrent = fy === currentFYLabel
+                const isFuture = !hasTxData && projTotal > 0
+
+                // Split: paid (red) vs projected remaining (green)
+                let projected = 0
+                if (isFuture) {
+                  projected = projTotal
+                } else if (isCurrent && projTotal > paidTax) {
+                  projected = projTotal - paidTax
+                }
+
+                return { fy, paidTax, projected, cumulative: 0 }
               })
+
               let cum = 0
-              for (const d of yearlyTaxData) { cum += d.tax; d.cumulative = cum }
-              if (yearlyTaxData.every(d => d.tax === 0 && d.income === 0)) return <ChartEmptyState height={280} message="No tax liability found across years" />
+              for (const d of yearlyTaxData) { cum += d.paidTax + d.projected; d.cumulative = cum }
+              if (yearlyTaxData.every(d => d.paidTax === 0 && d.projected === 0)) return <ChartEmptyState height={280} message="No tax liability found across years" />
+
               return (
                 <ChartContainer height={300}>
                   <BarChart data={yearlyTaxData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
@@ -609,13 +636,16 @@ export default function TaxPlanningPage() {
                     <Tooltip
                       {...chartTooltipProps}
                       formatter={(value: number | undefined, name: string | undefined) => {
-                        if (value === undefined) return ['', '']
-                        const labels: Record<string, string> = { tax: 'Tax Paid', cumulative: 'Cumulative', income: 'Income' }
+                        if (value === undefined || value === 0) return ['', '']
+                        const labels: Record<string, string> = { paidTax: 'Tax Paid', projected: 'Projected Tax', cumulative: 'Cumulative' }
                         return [formatCurrency(value), labels[name ?? ''] ?? name]
                       }}
                       cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                     />
-                    <Bar dataKey="tax" name="tax" fill={rawColors.app.red} fillOpacity={0.7} radius={BAR_RADIUS} maxBarSize={40}
+                    <Bar dataKey="paidTax" name="paidTax" stackId="tax" fill={rawColors.app.red} fillOpacity={0.7} maxBarSize={40}
+                      isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={600} animationEasing="ease-out"
+                    />
+                    <Bar dataKey="projected" name="projected" stackId="tax" fill={rawColors.app.green} fillOpacity={0.7} radius={BAR_RADIUS} maxBarSize={40}
                       isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={600} animationEasing="ease-out"
                     />
                     <Line type="monotone" dataKey="cumulative" name="cumulative" stroke={rawColors.app.blue} strokeWidth={2} strokeDasharray="6 3"
