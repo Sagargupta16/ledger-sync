@@ -1,19 +1,21 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { uploadService } from '@/services/api/upload'
 import { prefetchCoreData } from '@/lib/prefetch'
+import type { ParsedTransaction } from '@/lib/fileParser'
 
 interface UploadParams {
-  file: File
+  fileName: string
+  fileHash: string
+  rows: ParsedTransaction[]
   force?: boolean
-  onUploadProgress?: (percent: number) => void
 }
 
 export function useUpload() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ file, force = false, onUploadProgress }: UploadParams) =>
-      uploadService.uploadFile({ file, force, onUploadProgress }),
+    mutationFn: ({ fileName, fileHash, rows, force = false }: UploadParams) =>
+      uploadService.uploadTransactions({ fileName, fileHash, rows, force }),
     onSuccess: () => {
       queryClient.clear()
       prefetchCoreData()
