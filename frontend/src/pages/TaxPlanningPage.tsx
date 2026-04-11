@@ -584,7 +584,7 @@ export default function TaxPlanningPage() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold">Tax Per Year</h3>
-                <p className="text-xs text-muted-foreground">Paid (red) vs projected (green) with cumulative trend</p>
+                <p className="text-xs text-muted-foreground">Paid (red) vs projected (orange) with cumulative trend</p>
               </div>
             </div>
             {(() => {
@@ -645,7 +645,7 @@ export default function TaxPlanningPage() {
                     <Bar dataKey="paidTax" name="paidTax" stackId="tax" fill={rawColors.app.red} fillOpacity={0.7} maxBarSize={40}
                       isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={600} animationEasing="ease-out"
                     />
-                    <Bar dataKey="projected" name="projected" stackId="tax" fill={rawColors.app.green} fillOpacity={0.7} radius={BAR_RADIUS} maxBarSize={40}
+                    <Bar dataKey="projected" name="projected" stackId="tax" fill={rawColors.app.orange} fillOpacity={0.5} radius={BAR_RADIUS} maxBarSize={40}
                       isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={600} animationEasing="ease-out"
                     />
                     <Line type="monotone" dataKey="cumulative" name="cumulative" stroke={rawColors.app.blue} strokeWidth={2} strokeDasharray="6 3"
