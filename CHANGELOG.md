@@ -6,6 +6,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versio
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Income & tax projections** -- input your salary CTC structure (basic, HRA, special allowance, EPF, NPS, professional tax, variable pay) per fiscal year, with FY-to-FY navigation and editing
+- **RSU grant management** -- add stock grants with vesting schedules; vesting amounts auto-projected with stock appreciation
+- **Growth assumptions** -- configure annual salary hike, variable pay growth, stock appreciation, and projection horizon; projections compound from the latest salary FY
+- **Multi-year tax comparison table** -- side-by-side projected gross, tax, and net across future fiscal years
+- **Projection calculator** (`lib/projectionCalculator.ts`) -- pure functions for multi-year salary/RSU/tax projection with full TDD test coverage
+- **Salary Pydantic schemas** -- `SalaryComponents`, `RsuGrant`, `GrowthAssumptions` with backend validation
+- **Three new preference endpoints** -- `PUT /api/preferences/salary-structure`, `PUT /api/preferences/rsu-grants`, `PUT /api/preferences/growth-assumptions`
+- **Alembic migration** -- adds `salary_structure`, `rsu_grants`, `growth_assumptions` JSON columns to `user_preferences`
+
+### Changed
+
+- **Tax Planning page** -- extended with salary-based projection toggle, stacked paid-vs-projected tax bars in yearly chart, projection-aware labels throughout
+- **Settings page** -- new "Income & Salary Structure" section with salary grid, RSU grant editor, and growth assumption sliders
+- **preferencesStore** -- hydration logic extracted into standalone pure helpers to reduce cognitive complexity (SonarCloud finding)
+- **tsconfig** -- bumped `lib` from ES2022 to ES2023 for `Array.findLast()` support
+
+### Fixed
+
+- **Sticky PageHeader consistency** -- moved PageHeader outside Framer Motion containers on InsightsPage, FIRECalculatorPage, and TaxPlanningPage so `position: sticky` works correctly (CSS `transform` from animations was breaking it)
+- **Scroll-to-top on navigation** -- reset `#main-content` scroll position on route change so every page starts from the top
+- **Chart hover/tooltip standardization** -- consistent hover states and tooltip styling across all chart pages
+- **SonarCloud findings** -- `localeCompare` for string sorts, `Number.parseInt` over global `parseInt`, `findLast` over `filter().at(-1)`, extracted nested ternaries, composite keys for RSU vesting rows
+- **Projected tax bar color** -- uses orange instead of green to distinguish from paid tax
+
+---
+
 ## [1.0.0] - 2026-04-10
 
 The first stable release. Ledger Sync graduates from pre-release with multi-currency support, 23 analytics pages, demo mode, and a fully self-hosted architecture on free-tier infrastructure.

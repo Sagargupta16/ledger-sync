@@ -49,11 +49,17 @@ No subscriptions. No data harvesting. Just 23 pages of analytics built from your
 - Income to Expenses/Savings breakdown
 - Monthly and yearly views
 
+### Tax & Retirement Planning
+
+- **India FY tax estimation** -- old vs new regime comparison, slab breakdown, surcharge, cess
+- **Salary-based projections** -- input your CTC structure, RSU grants, and growth assumptions to project multi-year tax liability
+- **FIRE Calculator** -- compute FIRE number, Coast FIRE, years to FIRE, and savings rate from your actual spending data; Lean/Standard/Fat FIRE variants with adjustable SWR, real return, and retirement horizon
+- **Retirement corpus calculator** -- inflation-adjusted corpus, monthly SIP needed, lump-sum alternative, with projection chart
+
 ### Analytics & Insights
 
 - Financial Health Score with 8 metrics across 4 pillars (Spend, Save, Borrow, Plan)
 - Income vs Expense trends and forecasting
-- Tax planning for India FY (April-March)
 - Net Worth tracking across all accounts
 - Anomaly detection and review
 - Budget tracking and goals
@@ -162,16 +168,16 @@ ledger-sync/
 ├── frontend/               # React + TypeScript frontend
 │   └── src/
 │       ├── pages/          # 23 page components (split into subdirectories)
-│       │   ├── settings/       # Settings sections (20 files)
+│       │   ├── settings/       # Settings sections (21 files, incl. SalaryStructureSection)
 │       │   ├── goals/          # Goals sub-components (13 files)
 │       │   ├── comparison/     # Comparison sub-components (13 files)
-│       │   └── subscription-tracker/  # Subscription sub-components (13 files)
+│       │   └── subscription-tracker/  # Subscription sub-components (3 files)
 │       ├── components/     # UI & analytics components (60+)
 │       ├── hooks/          # React Query hooks & custom hooks
 │       ├── constants/      # Colors, chart tokens, animations
 │       ├── store/          # Zustand global stores
 │       ├── services/       # API client (Axios)
-│       ├── lib/            # Utility functions
+│       ├── lib/            # Utility functions (formatters, tax calculator, projection calculator)
 │       │   └── demo/          # Demo mode (data generators, cache seeder)
 │       └── types/          # Shared TypeScript types
 ├── .github/workflows/      # CI pipeline
@@ -194,7 +200,8 @@ ledger-sync/
 | **Investment Analytics**   | Portfolio across 4 categories                       |
 | **Mutual Fund Projection** | SIP calculator and projections                      |
 | **Returns Analysis**       | Investment returns tracking                         |
-| **Tax Planning**           | India FY-based tax insights and slab breakdown      |
+| **Tax Planning**           | India FY tax estimation with salary-based projections |
+| **FIRE Calculator**        | FIRE number, Coast FIRE, retirement corpus planner  |
 | **Net Worth**              | Assets, liabilities, and credit card health         |
 | **Budget**                 | Budget tracking and monitoring                      |
 | **Goals**                  | Financial goal setting and progress                 |
