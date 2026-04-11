@@ -103,7 +103,7 @@ export default function SalaryStructureSection({
       const updated = { ...localSalaryStructure }
       updated[selectedFY] = {
         ...(updated[selectedFY] ?? { ...DEFAULT_SALARY_COMPONENTS }),
-        [field]: field === 'hra_monthly' || field === 'nps_monthly'
+        [field]: field === 'hra_annual' || field === 'nps_monthly'
           ? (raw === '' ? null : value)
           : value,
       }
@@ -140,8 +140,8 @@ export default function SalaryStructureSection({
   // -- Live summary --
   const annualCTC = useMemo(() => {
     const s = currentSalary
-    const base = (s.base_salary_monthly ?? 0) * 12
-    const hra = (s.hra_monthly ?? 0) * 12
+    const base = s.base_salary_annual ?? 0
+    const hra = s.hra_annual ?? 0
     const epf = (s.epf_monthly ?? 0) * 12
     const nps = (s.nps_monthly ?? 0) * 12
     return base + hra + (s.bonus_annual ?? 0) + epf + nps +
@@ -240,8 +240,8 @@ export default function SalaryStructureSection({
     hint: string
     nullable: boolean
   }> = [
-    { key: 'base_salary_monthly', label: 'Base Salary', hint: 'Monthly', nullable: false },
-    { key: 'hra_monthly', label: 'HRA', hint: 'Monthly, optional', nullable: true },
+    { key: 'base_salary_annual', label: 'Base Salary', hint: 'Annual', nullable: false },
+    { key: 'hra_annual', label: 'HRA', hint: 'Annual, optional', nullable: true },
     { key: 'bonus_annual', label: 'Bonus', hint: 'Annual', nullable: false },
     { key: 'epf_monthly', label: 'EPF', hint: 'Monthly', nullable: false },
     { key: 'nps_monthly', label: 'NPS', hint: 'Monthly, optional', nullable: true },

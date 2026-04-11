@@ -8,8 +8,8 @@ import type { SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/sala
 import { DEFAULT_GROWTH_ASSUMPTIONS } from '@/types/salary'
 
 const baseSalary: SalaryComponents = {
-  base_salary_monthly: 80000,
-  hra_monthly: null,
+  base_salary_annual: 960000,
+  hra_annual: null,
   bonus_annual: 200000,
   epf_monthly: 3600,
   nps_monthly: 0,

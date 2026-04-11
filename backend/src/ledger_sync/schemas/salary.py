@@ -11,8 +11,8 @@ from pydantic import BaseModel, Field
 class SalaryComponents(BaseModel):
     """Compensation breakdown for a single fiscal year."""
 
-    base_salary_monthly: Decimal = Decimal(0)
-    hra_monthly: Decimal | None = None
+    base_salary_annual: Decimal = Decimal(0)
+    hra_annual: Decimal | None = None
     bonus_annual: Decimal = Decimal(0)
     epf_monthly: Decimal = Decimal(3600)
     nps_monthly: Decimal = Decimal(0)

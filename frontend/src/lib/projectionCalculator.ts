@@ -120,15 +120,14 @@ export function projectFiscalYear(
     yearsOffset,
   )
 
-  const baseSalaryAnnual =
-    (isExplicit
-      ? salaryStructure[targetFY].base_salary_monthly
-      : base.base_salary_monthly * baseGrowthFactor) * 12
+  const baseSalaryAnnual = isExplicit
+    ? salaryStructure[targetFY].base_salary_annual
+    : base.base_salary_annual * baseGrowthFactor
 
   const hraAnnual = (() => {
     const src = isExplicit ? salaryStructure[targetFY] : base
-    if (src.hra_monthly == null) return 0
-    return (isExplicit ? src.hra_monthly : src.hra_monthly * baseGrowthFactor) * 12
+    if (src.hra_annual == null) return 0
+    return isExplicit ? src.hra_annual : src.hra_annual * baseGrowthFactor
   })()
 
   const bonusAnnual = (() => {

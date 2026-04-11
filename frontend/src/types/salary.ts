@@ -1,7 +1,7 @@
 /** Compensation breakdown for a single fiscal year. */
 export interface SalaryComponents {
-  base_salary_monthly: number
-  hra_monthly: number | null
+  base_salary_annual: number
+  hra_annual: number | null
   bonus_annual: number
   epf_monthly: number
   nps_monthly: number
@@ -37,8 +37,8 @@ export interface GrowthAssumptions {
 
 /** Default salary components for a new FY entry. */
 export const DEFAULT_SALARY_COMPONENTS: SalaryComponents = {
-  base_salary_monthly: 0,
-  hra_monthly: null,
+  base_salary_annual: 0,
+  hra_annual: null,
   bonus_annual: 0,
   epf_monthly: 3600,
   nps_monthly: 0,

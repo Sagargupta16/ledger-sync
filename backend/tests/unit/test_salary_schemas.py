@@ -22,29 +22,29 @@ from ledger_sync.schemas.salary import (
 class TestSalaryComponents:
     def test_defaults(self):
         comp = SalaryComponents()
-        assert comp.base_salary_monthly == Decimal(0)
-        assert comp.hra_monthly is None
+        assert comp.base_salary_annual == Decimal(0)
+        assert comp.hra_annual is None
         assert comp.bonus_annual == Decimal(0)
         assert comp.epf_monthly == Decimal(3600)
         assert comp.nps_monthly == Decimal(0)
 
     def test_custom_values(self):
         comp = SalaryComponents(
-            base_salary_monthly=Decimal("80000"),
-            hra_monthly=Decimal("32000"),
+            base_salary_annual=Decimal("80000"),
+            hra_annual=Decimal("32000"),
             bonus_annual=Decimal("200000"),
         )
-        assert comp.base_salary_monthly == Decimal("80000")
-        assert comp.hra_monthly == Decimal("32000")
+        assert comp.base_salary_annual == Decimal("80000")
+        assert comp.hra_annual == Decimal("32000")
 
     def test_salary_structure_config(self):
         config = SalaryStructureConfig(
             salary_structure={
-                "2025-26": SalaryComponents(base_salary_monthly=Decimal("80000")),
+                "2025-26": SalaryComponents(base_salary_annual=Decimal("80000")),
             }
         )
         assert "2025-26" in config.salary_structure
-        assert config.salary_structure["2025-26"].base_salary_monthly == Decimal("80000")
+        assert config.salary_structure["2025-26"].base_salary_annual == Decimal("80000")
 
 
 class TestRsuGrant:
