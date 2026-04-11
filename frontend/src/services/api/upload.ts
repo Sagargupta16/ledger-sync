@@ -1,8 +1,14 @@
 import { apiClient } from './client'
 import type { UploadResponse } from '@/types'
 
+interface UploadOptions {
+  file: File
+  force?: boolean
+  onUploadProgress?: (percent: number) => void
+}
+
 export const uploadService = {
-  uploadFile: async (file: File, force: boolean = false): Promise<UploadResponse> => {
+  uploadFile: async ({ file, force = false, onUploadProgress }: UploadOptions): Promise<UploadResponse> => {
     const formData = new FormData()
     formData.append('file', file)
 
@@ -13,6 +19,13 @@ export const uploadService = {
       params: {
         force: force ? 'true' : 'false',
       },
+      timeout: 90_000,
+      onUploadProgress: onUploadProgress
+        ? (event) => {
+            const percent = event.total ? Math.round((event.loaded / event.total) * 100) : 0
+            onUploadProgress(percent)
+          }
+        : undefined,
     })
 
     return response.data

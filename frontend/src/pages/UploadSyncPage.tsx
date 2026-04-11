@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useUpload } from '@/hooks/api/useUpload'
 import { motion } from 'framer-motion'
 import {
@@ -15,6 +15,22 @@ import { useDropzone } from 'react-dropzone'
 import { cn } from '@/lib/cn'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
+import type { AxiosError } from 'axios'
+
+function getUploadErrorMessage(error: unknown): string {
+  const axiosError = error as AxiosError
+  if (axiosError.code === 'ECONNABORTED') {
+    return 'Upload timed out. Your file may be too large or the server is busy — please try again.'
+  }
+  if (axiosError.code === 'ERR_NETWORK') {
+    return 'Could not reach the server. Check your internet connection and try again.'
+  }
+  const msg = getApiErrorMessage(error)
+  if (msg === 'FUNCTION_INVOCATION_TIMEOUT') {
+    return 'Server took too long to process. Try uploading a smaller file or retry in a moment.'
+  }
+  return msg
+}
 
 // Sample data to show expected Excel format
 const SAMPLE_EXCEL_DATA = [
@@ -34,18 +50,24 @@ const TYPE_STYLES: Record<string, string> = {
 export default function UploadSyncPage() {
   const [conflictError, setConflictError] = useState<{ file: File; message: string } | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const uploadMutation = useUpload()
   const { guardDemoAction } = useDemoGuard()
+
+  const onUploadProgress = useCallback((percent: number) => {
+    setUploadProgress(percent)
+  }, [])
 
   const handleFileSelect = async (file: File, force: boolean = false) => {
     if (guardDemoAction('File upload')) return
     setConflictError(null)
     setSelectedFile(file)
+    setUploadProgress(0)
     try {
-      const result = await uploadMutation.mutateAsync({ file, force })
+      const result = await uploadMutation.mutateAsync({ file, force, onUploadProgress })
       setSelectedFile(null)
+      setUploadProgress(null)
 
-      // Show success toast with stats
       const { inserted, updated, deleted, unchanged } = result.stats
       const parts = [`${inserted} inserted`]
       if (updated > 0) parts.push(`${updated} updated`)
@@ -56,18 +78,19 @@ export default function UploadSyncPage() {
         duration: 5000,
       })
     } catch (error) {
-      const errorMessage = getApiErrorMessage(error)
+      setUploadProgress(null)
+      const rawMessage = getApiErrorMessage(error)
 
-      if (errorMessage.includes('already imported') || errorMessage.includes('Use --force')) {
-        setConflictError({ file, message: errorMessage })
+      if (rawMessage.includes('already imported') || rawMessage.includes('Use --force')) {
+        setConflictError({ file, message: rawMessage })
         toast.error('File Already Uploaded', {
           description: 'This file has been uploaded before. Click "Force Reupload" to proceed anyway.',
           duration: 5000,
         })
       } else {
         toast.error('Upload Failed', {
-          description: errorMessage,
-          duration: 5000,
+          description: getUploadErrorMessage(error),
+          duration: 6000,
         })
         setSelectedFile(null)
       }
@@ -160,9 +183,21 @@ export default function UploadSyncPage() {
                         </div>
                       </div>
                       <div>
-                        <p className="font-semibold text-white">Uploading...</p>
+                        <p className="font-semibold text-white">
+                          {uploadProgress !== null && uploadProgress < 100
+                            ? `Uploading... ${uploadProgress}%`
+                            : 'Processing your data...'}
+                        </p>
                         <p className="font-mono text-sm text-muted-foreground">{selectedFile?.name}</p>
                       </div>
+                      {uploadProgress !== null && (
+                        <div className="w-full max-w-[200px] bg-white/10 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-4">
