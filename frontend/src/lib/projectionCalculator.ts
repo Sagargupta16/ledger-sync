@@ -43,6 +43,11 @@ function dateToFY(dateStr: string, fyStartMonth: number): string {
   return `${fyStartYear}-${String(endYear).padStart(2, '0')}`
 }
 
+/** Safely coerce a value (possibly string from JSON) to number. */
+function N(v: number | string | null | undefined): number {
+  return Number(v) || 0
+}
+
 interface RsuFYData {
   shares: number
   value: number
@@ -68,7 +73,7 @@ export function getRsuVestingsByFY(
         1 + stockAppreciationPct / 100,
         Math.max(0, yearsFromBase),
       )
-      const adjustedPrice = grant.stock_price * appreciationFactor
+      const adjustedPrice = N(grant.stock_price) * appreciationFactor
       const vestingValue = vesting.quantity * adjustedPrice
 
       if (!result[fy]) {
@@ -121,45 +126,45 @@ export function projectFiscalYear(
   )
 
   const baseSalaryAnnual = isExplicit
-    ? salaryStructure[targetFY].base_salary_annual
-    : base.base_salary_annual * baseGrowthFactor
+    ? N(salaryStructure[targetFY].base_salary_annual)
+    : N(base.base_salary_annual) * baseGrowthFactor
 
   const hraAnnual = (() => {
     const src = isExplicit ? salaryStructure[targetFY] : base
     if (src.hra_annual == null) return 0
-    return isExplicit ? src.hra_annual : src.hra_annual * baseGrowthFactor
+    return isExplicit ? N(src.hra_annual) : N(src.hra_annual) * baseGrowthFactor
   })()
 
   const bonusAnnual = (() => {
-    if (isExplicit) return salaryStructure[targetFY].bonus_annual
-    if (yearsOffset === 0) return base.bonus_annual
+    if (isExplicit) return N(salaryStructure[targetFY].bonus_annual)
+    if (yearsOffset === 0) return N(base.bonus_annual)
     if (growth.bonus_growth_pct === 0) return 0
     return (
-      base.bonus_annual *
+      N(base.bonus_annual) *
       Math.pow(1 + growth.bonus_growth_pct / 100, yearsOffset)
     )
   })()
 
   const epfAnnual = (() => {
-    if (isExplicit) return salaryStructure[targetFY].epf_monthly * 12
+    if (isExplicit) return N(salaryStructure[targetFY].epf_monthly) * 12
     if (growth.epf_scales_with_base)
-      return base.epf_monthly * baseGrowthFactor * 12
-    return base.epf_monthly * 12
+      return N(base.epf_monthly) * baseGrowthFactor * 12
+    return N(base.epf_monthly) * 12
   })()
 
   const npsAnnual = (() => {
-    if (isExplicit) return salaryStructure[targetFY].nps_monthly * 12
+    if (isExplicit) return N(salaryStructure[targetFY].nps_monthly) * 12
     const npsFactor = Math.pow(1 + growth.nps_growth_pct / 100, yearsOffset)
-    return base.nps_monthly * npsFactor * 12
+    return N(base.nps_monthly) * npsFactor * 12
   })()
 
   const specialAllowanceAnnual = isExplicit
-    ? salaryStructure[targetFY].special_allowance_annual
-    : base.special_allowance_annual
+    ? N(salaryStructure[targetFY].special_allowance_annual)
+    : N(base.special_allowance_annual)
 
   const otherTaxableAnnual = isExplicit
-    ? salaryStructure[targetFY].other_taxable_annual
-    : base.other_taxable_annual
+    ? N(salaryStructure[targetFY].other_taxable_annual)
+    : N(base.other_taxable_annual)
 
   const baseStartYear = parseFYStart(baseFY)
   const rsuByFY = getRsuVestingsByFY(

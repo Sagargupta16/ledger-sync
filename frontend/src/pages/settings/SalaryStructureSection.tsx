@@ -140,12 +140,12 @@ export default function SalaryStructureSection({
   // -- Live summary --
   const annualCTC = useMemo(() => {
     const s = currentSalary
-    const base = s.base_salary_annual ?? 0
-    const hra = s.hra_annual ?? 0
-    const epf = (s.epf_monthly ?? 0) * 12
-    const nps = (s.nps_monthly ?? 0) * 12
-    return base + hra + (s.bonus_annual ?? 0) + epf + nps +
-      (s.special_allowance_annual ?? 0) + (s.other_taxable_annual ?? 0)
+    const base = Number(s.base_salary_annual) || 0
+    const hra = Number(s.hra_annual) || 0
+    const epf = (Number(s.epf_monthly) || 0) * 12
+    const nps = (Number(s.nps_monthly) || 0) * 12
+    return base + hra + (Number(s.bonus_annual) || 0) + epf + nps +
+      (Number(s.special_allowance_annual) || 0) + (Number(s.other_taxable_annual) || 0)
   }, [currentSalary])
 
   // -- RSU helpers --
