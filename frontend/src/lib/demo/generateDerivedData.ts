@@ -52,7 +52,74 @@ const ESSENTIAL_CATEGORIES = [
 // Preferences
 // ---------------------------------------------------------------------------
 
+/** Build FY label like "2025-26" from the start year */
+function fyLabel(startYear: number): string {
+  return `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`
+}
+
+/** Get demo salary structure keyed by current and previous FY */
+function buildDemoSalaryStructure(): Record<string, {
+  base_salary_annual: number; hra_annual: number | null; bonus_annual: number;
+  epf_monthly: number; nps_monthly: number; special_allowance_annual: number;
+  other_taxable_annual: number;
+}> {
+  const now = new Date()
+  const month = now.getMonth() + 1
+  const year = now.getFullYear()
+  const currentFYStart = month >= 4 ? year : year - 1
+
+  return {
+    [fyLabel(currentFYStart)]: {
+      base_salary_annual: 960000,
+      hra_annual: 480000,
+      bonus_annual: 150000,
+      epf_monthly: 1800,
+      nps_monthly: 0,
+      special_allowance_annual: 320000,
+      other_taxable_annual: 0,
+    },
+    [fyLabel(currentFYStart - 1)]: {
+      base_salary_annual: 840000,
+      hra_annual: 420000,
+      bonus_annual: 120000,
+      epf_monthly: 1800,
+      nps_monthly: 0,
+      special_allowance_annual: 280000,
+      other_taxable_annual: 0,
+    },
+  }
+}
+
+/** Build demo RSU grants */
+function buildDemoRsuGrants(): Array<{
+  id: string; stock_name: string; stock_price: number;
+  grant_date: string | null; notes: string | null;
+  vestings: Array<{ date: string; quantity: number }>;
+}> {
+  const now = new Date()
+  const grantDate = new Date(now.getFullYear() - 1, now.getMonth() - 6, 15)
+  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+
+  return [{
+    id: 'demo-rsu-1',
+    stock_name: 'TechCorp Inc.',
+    stock_price: 2800,
+    grant_date: fmt(grantDate),
+    notes: 'Joining grant -- 4-year vest',
+    vestings: [
+      { date: fmt(new Date(grantDate.getFullYear() + 1, grantDate.getMonth(), 15)), quantity: 25 },
+      { date: fmt(new Date(grantDate.getFullYear() + 2, grantDate.getMonth(), 15)), quantity: 25 },
+      { date: fmt(new Date(grantDate.getFullYear() + 3, grantDate.getMonth(), 15)), quantity: 25 },
+      { date: fmt(new Date(grantDate.getFullYear() + 4, grantDate.getMonth(), 15)), quantity: 25 },
+    ],
+  }]
+}
+
 export function generateDemoPreferences(): UserPreferences {
+  const now = new Date()
+  // earning_start_date: ~2 years before demo window
+  const earningStart = new Date(now.getFullYear() - 2, now.getMonth(), 1).toISOString().slice(0, 10)
+
   return {
     id: 0,
     fiscal_year_start_month: 4,
@@ -89,8 +156,8 @@ export function generateDemoPreferences(): UserPreferences {
       'Amazon Pay ICICI Credit Card': 150000,
       'Flipkart Axis Credit Card': 100000,
     },
-    earning_start_date: null,
-    use_earning_start_date: false,
+    earning_start_date: earningStart,
+    use_earning_start_date: true,
     fixed_expense_categories: ['Housing', 'Family'],
     savings_goal_percent: 20,
     monthly_investment_target: 50000,
@@ -101,14 +168,14 @@ export function generateDemoPreferences(): UserPreferences {
     notify_anomalies: true,
     notify_upcoming_bills: true,
     notify_days_ahead: 7,
-    salary_structure: {},
-    rsu_grants: [],
+    salary_structure: buildDemoSalaryStructure(),
+    rsu_grants: buildDemoRsuGrants(),
     growth_assumptions: {
-      base_salary_growth_pct: 0,
-      bonus_growth_pct: 0,
+      base_salary_growth_pct: 10,
+      bonus_growth_pct: 8,
       epf_scales_with_base: true,
       nps_growth_pct: 0,
-      stock_price_appreciation_pct: 0,
+      stock_price_appreciation_pct: 12,
       projection_years: 3,
     },
     created_at: null,
@@ -153,8 +220,37 @@ export function generateDemoMonthlyAggregation(
   return result
 }
 
+// Opening balances representing account history before the 24-month demo window
+const OPENING_BALANCES: Record<string, number> = {
+  'SBI Savings': 280000,
+  'HDFC Salary': 95000,
+  'Axis Bank': 45000,
+  'Cash': 8000,
+  'EPF Account': 180000,
+  'PPF Account': 120000,
+  'Groww Stocks': 150000,
+  'Groww Mutual Funds': 200000,
+  'SBI FD': 100000,
+  'GPay UPI': 2000,
+  'Pluxee Wallet': 1500,
+  'Amazon Wallet': 500,
+  // Credit cards, social accounts start at 0
+}
+
+// Accounts that should never show a negative balance (banks, wallets, investments)
+const NON_NEGATIVE_ACCOUNTS = new Set([
+  'SBI Savings', 'HDFC Salary', 'Axis Bank', 'Cash',
+  'GPay UPI', 'Pluxee Wallet', 'Amazon Wallet',
+  'EPF Account', 'PPF Account', 'Groww Stocks', 'Groww Mutual Funds', 'SBI FD',
+])
+
 export function generateDemoAccountBalances(txs: Transaction[]): AccountBalances {
   const accounts: Record<string, { balance: number; transactions: number; last_transaction: string | null }> = {}
+
+  // Seed opening balances
+  for (const [name, balance] of Object.entries(OPENING_BALANCES)) {
+    accounts[name] = { balance, transactions: 0, last_transaction: null }
+  }
 
   for (const tx of txs) {
     const acct = tx.account
@@ -179,6 +275,13 @@ export function generateDemoAccountBalances(txs: Transaction[]): AccountBalances
       if (!dest.last_transaction || tx.date > dest.last_transaction) {
         dest.last_transaction = tx.date
       }
+    }
+  }
+
+  // Clamp bank/wallet/investment accounts to zero minimum (no overdrafts)
+  for (const [name, data] of Object.entries(accounts)) {
+    if (NON_NEGATIVE_ACCOUNTS.has(name) && data.balance < 0) {
+      data.balance = 0
     }
   }
 
