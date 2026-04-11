@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useUpload } from '@/hooks/api/useUpload'
+import { parseFile, FileParseError } from '@/lib/fileParser'
+import type { ParseResult } from '@/lib/fileParser'
 import { motion } from 'framer-motion'
 import {
   Upload,
@@ -8,13 +10,37 @@ import {
   RefreshCw,
   CheckCircle2,
   ArrowRight,
-  Sparkles
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDropzone } from 'react-dropzone'
 import { cn } from '@/lib/cn'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
+import type { AxiosError } from 'axios'
+
+type UploadPhase = 'parsing' | 'uploading' | 'processing' | null
+
+function getUploadErrorMessage(error: unknown): string {
+  const axiosError = error as AxiosError
+  if (axiosError.code === 'ECONNABORTED') {
+    return 'Request timed out. The server may be busy — please try again.'
+  }
+  if (axiosError.code === 'ERR_NETWORK') {
+    return 'Could not reach the server. Check your internet connection and try again.'
+  }
+  const msg = getApiErrorMessage(error)
+  if (msg === 'FUNCTION_INVOCATION_TIMEOUT') {
+    return 'Server took too long to process. Please try again in a moment.'
+  }
+  return msg
+}
+
+const PHASE_LABELS: Record<NonNullable<UploadPhase>, string> = {
+  parsing: 'Parsing file...',
+  uploading: 'Uploading data...',
+  processing: 'Processing your data...',
+}
 
 // Sample data to show expected Excel format
 const SAMPLE_EXCEL_DATA = [
@@ -32,8 +58,9 @@ const TYPE_STYLES: Record<string, string> = {
 }
 
 export default function UploadSyncPage() {
-  const [conflictError, setConflictError] = useState<{ file: File; message: string } | null>(null)
+  const [conflictError, setConflictError] = useState<{ parsed: ParseResult; message: string } | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [phase, setPhase] = useState<UploadPhase>(null)
   const uploadMutation = useUpload()
   const { guardDemoAction } = useDemoGuard()
 
@@ -41,44 +68,99 @@ export default function UploadSyncPage() {
     if (guardDemoAction('File upload')) return
     setConflictError(null)
     setSelectedFile(file)
+
+    // Phase 1: Parse file client-side
+    setPhase('parsing')
+    let parsed: ParseResult
     try {
-      const result = await uploadMutation.mutateAsync({ file, force })
+      parsed = await parseFile(file)
+    } catch (error) {
+      setPhase(null)
+      setSelectedFile(null)
+      const message = error instanceof FileParseError
+        ? error.message
+        : 'Could not read file. Ensure it is a valid .xlsx, .xls, or .csv file.'
+      toast.error('Parse Error', { description: message, duration: 6000 })
+      return
+    }
+
+    // Phase 2: Upload structured data
+    setPhase('uploading')
+    try {
+      setPhase('processing')
+      const result = await uploadMutation.mutateAsync({
+        fileName: parsed.fileName,
+        fileHash: parsed.fileHash,
+        rows: parsed.rows,
+        force,
+      })
+      setPhase(null)
       setSelectedFile(null)
 
-      // Show success toast with stats
       const { inserted, updated, deleted, unchanged } = result.stats
       const parts = [`${inserted} inserted`]
       if (updated > 0) parts.push(`${updated} updated`)
       if (deleted > 0) parts.push(`${deleted} deleted`)
       if (unchanged > 0) parts.push(`${unchanged} skipped (duplicates)`)
       toast.success('Upload Successful!', {
-        description: parts.join(', '),
+        description: `${parsed.rows.length} rows parsed. ${parts.join(', ')}.`,
         duration: 5000,
       })
     } catch (error) {
-      const errorMessage = getApiErrorMessage(error)
+      setPhase(null)
+      const rawMessage = getApiErrorMessage(error)
 
-      if (errorMessage.includes('already imported') || errorMessage.includes('Use --force')) {
-        setConflictError({ file, message: errorMessage })
+      if (rawMessage.includes('already imported') || rawMessage.includes('Use --force')) {
+        setConflictError({ parsed, message: rawMessage })
         toast.error('File Already Uploaded', {
           description: 'This file has been uploaded before. Click "Force Reupload" to proceed anyway.',
           duration: 5000,
         })
       } else {
         toast.error('Upload Failed', {
-          description: errorMessage,
-          duration: 5000,
+          description: getUploadErrorMessage(error),
+          duration: 6000,
         })
         setSelectedFile(null)
       }
     }
   }
 
-  const handleForceReupload = () => {
-    if (conflictError) {
-      handleFileSelect(conflictError.file, true)
+  const handleForceReupload = async () => {
+    if (!conflictError) return
+    const { parsed } = conflictError
+    setConflictError(null)
+    setPhase('processing')
+    try {
+      const result = await uploadMutation.mutateAsync({
+        fileName: parsed.fileName,
+        fileHash: parsed.fileHash,
+        rows: parsed.rows,
+        force: true,
+      })
+      setPhase(null)
+      setSelectedFile(null)
+
+      const { inserted, updated, deleted, unchanged } = result.stats
+      const parts = [`${inserted} inserted`]
+      if (updated > 0) parts.push(`${updated} updated`)
+      if (deleted > 0) parts.push(`${deleted} deleted`)
+      if (unchanged > 0) parts.push(`${unchanged} skipped (duplicates)`)
+      toast.success('Reupload Successful!', {
+        description: parts.join(', '),
+        duration: 5000,
+      })
+    } catch (error) {
+      setPhase(null)
+      setSelectedFile(null)
+      toast.error('Reupload Failed', {
+        description: getUploadErrorMessage(error),
+        duration: 6000,
+      })
     }
   }
+
+  const isBusy = phase !== null
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (acceptedFiles) => {
@@ -89,9 +171,10 @@ export default function UploadSyncPage() {
     accept: {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.ms-excel': ['.xls'],
+      'text/csv': ['.csv'],
     },
     maxFiles: 1,
-    disabled: uploadMutation.isPending,
+    disabled: isBusy,
   })
 
   return (
@@ -119,7 +202,7 @@ export default function UploadSyncPage() {
                   Upload & Sync
                 </h1>
                 <p className="text-lg text-muted-foreground max-w-md">
-                  Import your Excel transactions. We'll automatically detect changes and sync your data.
+                  Import your Excel or CSV transactions. We'll automatically detect changes and sync your data.
                 </p>
 
                 {/* Feature bullets */}
@@ -127,7 +210,7 @@ export default function UploadSyncPage() {
                   {[
                     { icon: CheckCircle2, text: 'Auto-detect duplicates' },
                     { icon: RefreshCw, text: 'Smart sync' },
-                    { icon: FileSpreadsheet, text: '.xlsx & .xls' },
+                    { icon: FileSpreadsheet, text: '.xlsx, .xls & .csv' },
                   ].map((feature) => (
                     <div key={feature.text} className="flex items-center gap-2 text-sm text-foreground">
                       <feature.icon className="w-4 h-4 text-primary" />
@@ -146,13 +229,13 @@ export default function UploadSyncPage() {
                     'bg-black/20 backdrop-blur-sm',
                     'hover:border-primary hover:bg-primary/10',
                     isDragActive && 'border-primary bg-primary/20 scale-[1.02]',
-                    uploadMutation.isPending && 'opacity-50 cursor-not-allowed',
+                    isBusy && 'opacity-50 cursor-not-allowed',
                     selectedFile ? 'border-primary' : 'border-white/20'
                   )}
                 >
                   <input {...getInputProps()} />
 
-                  {uploadMutation.isPending ? (
+                  {isBusy ? (
                     <div className="flex flex-col items-center gap-4">
                       <div className="relative">
                         <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
@@ -160,7 +243,9 @@ export default function UploadSyncPage() {
                         </div>
                       </div>
                       <div>
-                        <p className="font-semibold text-white">Uploading...</p>
+                        <p className="font-semibold text-white">
+                          {PHASE_LABELS[phase]}
+                        </p>
                         <p className="font-mono text-sm text-muted-foreground">{selectedFile?.name}</p>
                       </div>
                     </div>
@@ -177,7 +262,7 @@ export default function UploadSyncPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-white text-lg">
-                          {isDragActive ? 'Drop your file here' : 'Drop Excel file here'}
+                          {isDragActive ? 'Drop your file here' : 'Drop Excel or CSV file here'}
                         </p>
                         <p className="text-sm text-muted-foreground mt-1">
                           or click to browse
@@ -185,7 +270,7 @@ export default function UploadSyncPage() {
                       </div>
                       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-border">
                         <FileSpreadsheet className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">.xlsx, .xls supported</span>
+                        <span className="text-xs text-muted-foreground">.xlsx, .xls, .csv supported</span>
                       </div>
                     </div>
                   )}
@@ -208,15 +293,15 @@ export default function UploadSyncPage() {
             <div className="flex-1">
               <h3 className="font-semibold text-app-yellow">File Already Uploaded</h3>
               <p className="text-sm text-muted-foreground">
-                <span className="font-mono text-sm text-white">{conflictError.file.name}</span> was imported before. Re-upload to sync changes.
+                <span className="font-mono text-sm text-white">{conflictError.parsed.fileName}</span> was imported before. Re-upload to sync changes.
               </p>
             </div>
             <button
               onClick={handleForceReupload}
-              disabled={uploadMutation.isPending}
+              disabled={isBusy}
               className="flex items-center gap-2 px-4 py-2 bg-app-yellow text-black rounded-lg hover:bg-app-yellow transition-colors font-medium disabled:opacity-50"
             >
-              <RefreshCw className={cn('w-4 h-4', uploadMutation.isPending && 'animate-spin')} />
+              <RefreshCw className={cn('w-4 h-4', isBusy && 'animate-spin')} />
               Force Reupload
             </button>
           </motion.div>
@@ -235,7 +320,7 @@ export default function UploadSyncPage() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-white">Expected Format</h2>
-              <p className="text-sm text-muted-foreground">Your Excel should look like this</p>
+              <p className="text-sm text-muted-foreground">Your Excel or CSV should look like this</p>
             </div>
           </div>
 

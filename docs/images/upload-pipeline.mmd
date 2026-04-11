@@ -1,22 +1,23 @@
 %%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#6366f1', 'primaryTextColor': '#fff', 'primaryBorderColor': '#818cf8', 'lineColor': '#94a3b8', 'secondaryColor': '#1e293b', 'tertiaryColor': '#0f172a', 'background': '#0f172a', 'mainBkg': '#1e293b', 'nodeBorder': '#334155', 'clusterBkg': '#1e293b', 'clusterBorder': '#334155', 'titleColor': '#f8fafc', 'edgeLabelBackground': '#1e293b'}}}%%
 flowchart LR
-    subgraph INPUT["  Upload  "]
-        FILE["Excel File\n(drag & drop)"]
-    end
-
-    subgraph INGEST["  Ingestion Pipeline  "]
+    subgraph CLIENT["  Browser (Client-Side)  "]
         direction LR
-        LOAD["Excel\nLoader"] --> NORM["Normalizer\n(clean &\nstandardize)"]
-        NORM --> VALID["Validator\n(integrity\ncheck)"]
-        VALID --> HASH["Hash ID\nGenerator\n(SHA-256)"]
+        FILE["Excel/CSV File\n(drag & drop)"]
+        PARSE["SheetJS\nParser\n(lazy-loaded)"]
+        HASH["SHA-256\nHash\n(crypto.subtle)"]
+        MAP["Column\nMapper &\nValidator"]
+        FILE --> PARSE --> MAP --> HASH
     end
 
-    subgraph RECONCILE["  Reconciliation Engine  "]
-        RECON{"Compare\nhash_id\nwith DB"}
+    subgraph SERVER["  Backend (JSON API)  "]
+        direction LR
+        NORM["Normalizer\n(category &\naccount fix)"]
+        RECON{"Reconcile\nhash_id\nwith DB"}
         INSERT["INSERT\n(new)"]
         UPDATE["UPDATE\n(changed)"]
         SKIP["SKIP\n(identical)"]
         DELETE["SOFT DELETE\n(stale)"]
+        NORM --> RECON
         RECON --> INSERT
         RECON --> UPDATE
         RECON --> SKIP
@@ -31,16 +32,15 @@ flowchart LR
         RES["{created: N\nupdated: N\ndeleted: N\nskipped: N}"]
     end
 
-    FILE --> LOAD
-    HASH --> RECON
+    HASH -->|"POST /api/upload\n{rows, file_hash,\nfile_name, force}"| NORM
     INSERT & UPDATE & DELETE --> TXN
     TXN --> RES
 
     style FILE fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
-    style LOAD fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
+    style PARSE fill:#a855f7,color:#fff,stroke:#c084fc,stroke-width:2px
+    style MAP fill:#a855f7,color:#fff,stroke:#c084fc,stroke-width:2px
+    style HASH fill:#a855f7,color:#fff,stroke:#c084fc,stroke-width:2px
     style NORM fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
-    style VALID fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
-    style HASH fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
     style RECON fill:#f59e0b,color:#000,stroke:#fbbf24,stroke-width:2px
     style TXN fill:#10b981,color:#fff,stroke:#34d399,stroke-width:2px
     style INSERT fill:#22c55e,color:#fff,stroke:#4ade80,stroke-width:2px

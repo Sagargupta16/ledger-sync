@@ -26,6 +26,9 @@ class NormalizationError(Exception):
 
 FOOD_AND_DINING = "Food & Dining"
 ENTERTAINMENT_AND_RECREATIONS = "Entertainment & Recreations"
+TRANSFER_IN = "transfer in"
+TRANSFER_IN_HYPHEN = "transfer-in"
+TRANSFER_OUT_HYPHEN = "transfer-out"
 
 
 class DataNormalizer:
@@ -284,9 +287,9 @@ class DataNormalizer:
             "expenses": TransactionType.EXPENSE,
             "income": TransactionType.INCOME,
             "transfer": TransactionType.TRANSFER,
-            "transfer-in": TransactionType.TRANSFER,
-            "transfer in": TransactionType.TRANSFER,
-            "transfer-out": TransactionType.TRANSFER,
+            TRANSFER_IN_HYPHEN: TransactionType.TRANSFER,
+            TRANSFER_IN: TransactionType.TRANSFER,
+            TRANSFER_OUT_HYPHEN: TransactionType.TRANSFER,
             "transfer out": TransactionType.TRANSFER,
         }
 
@@ -372,7 +375,7 @@ class DataNormalizer:
             Normalized transfer dict
 
         """
-        if "transfer-in" in raw_type or "transfer in" in raw_type:
+        if TRANSFER_IN_HYPHEN in raw_type or TRANSFER_IN in raw_type:
             # Money coming IN: category is source (from), account is destination (to)
             from_account = self._standardize_account(category)
             to_account = self._standardize_account(account)
@@ -422,7 +425,9 @@ class DataNormalizer:
 
             # Check if this is a transfer or regular transaction
             raw_type = str(row[column_mapping["type"]]).strip().lower()
-            is_transfer = any(x in raw_type for x in ["transfer", "transfer-in", "transfer-out"])
+            is_transfer = any(
+                x in raw_type for x in ["transfer", TRANSFER_IN_HYPHEN, TRANSFER_OUT_HYPHEN]
+            )
 
             # Standardize account and category names
             account = self._standardize_account(str(row[column_mapping["account"]]))
@@ -466,6 +471,81 @@ class DataNormalizer:
             raise NormalizationError(msg) from e
         else:
             return normalized
+
+    def normalize_from_dict(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Normalize a pre-parsed transaction dict from the JSON upload endpoint.
+
+        The frontend has already handled column mapping, date parsing (ISO 8601),
+        and amount conversion. This method applies category corrections, account
+        standardization, transfer from/to resolution, and note cleaning.
+
+        Args:
+            row: Dict with keys: date, amount, currency, type, account, category,
+                 subcategory (optional), note (optional).
+
+        Returns:
+            Normalized dict matching the format produced by normalize_row.
+
+        Raises:
+            NormalizationError: If normalization fails.
+
+        """
+        try:
+            date = self.normalize_date(row["date"])
+            amount = self.normalize_amount(row["amount"])
+            currency = self._clean_text(str(row.get("currency", "INR"))).upper() or "INR"
+            account = self._standardize_account(str(row["account"]))
+            category = self._standardize_category(str(row["category"]))
+            tx_type = self.normalize_transaction_type(row["type"])
+            subcategory = (
+                self._clean_text(str(row["subcategory"])) if row.get("subcategory") else None
+            )
+            note = self._clean_note(str(row["note"])) if row.get("note") else None
+
+            raw_type = str(row["type"]).strip().lower()
+            is_transfer = "transfer" in raw_type
+
+            if is_transfer:
+                if TRANSFER_IN_HYPHEN in raw_type or TRANSFER_IN in raw_type:
+                    from_account = self._standardize_account(category)
+                    to_account = self._standardize_account(account)
+                else:
+                    from_account = self._standardize_account(account)
+                    to_account = self._standardize_account(category)
+
+                return {
+                    "date": date,
+                    "amount": amount,
+                    "currency": currency,
+                    "type": tx_type,
+                    "account": from_account,
+                    "from_account": from_account,
+                    "to_account": to_account,
+                    "category": f"Transfer: {from_account} → {to_account}",
+                    "subcategory": subcategory,
+                    "note": note,
+                    "is_transfer": True,
+                }
+
+            return {
+                "date": date,
+                "amount": amount,
+                "currency": currency,
+                "type": tx_type,
+                "account": account,
+                "from_account": None,
+                "to_account": None,
+                "category": category,
+                "subcategory": subcategory,
+                "note": note,
+                "is_transfer": False,
+            }
+
+        except NormalizationError:
+            raise
+        except (ValueError, TypeError, KeyError) as e:
+            msg = f"Unexpected error normalizing row: {e}"
+            raise NormalizationError(msg) from e
 
     def normalize_dataframe(
         self,

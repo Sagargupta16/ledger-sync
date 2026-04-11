@@ -55,8 +55,9 @@ Ledger Sync is a self-hosted personal finance dashboard built as a full-stack ap
 
 - **Responsibility**: Data import and validation
 - **Components**:
-  - `excel_loader.py` - Read Excel files, parse data
-  - `normalizer.py` - Clean, transform, standardize data
+  - `excel_loader.py` - Read Excel files, parse data (used by CLI only; web uploads are parsed client-side)
+  - `csv_loader.py` - Read CSV files (used by CLI only)
+  - `normalizer.py` - Clean, transform, standardize data. `normalize_from_dict()` handles JSON upload rows; `normalize_row()` handles DataFrame rows from CLI
   - `validator.py` - Validate data integrity and format
   - `hash_id.py` - Generate deterministic transaction IDs
 
@@ -217,6 +218,7 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
 - **Modules**:
   - `cn.ts` - Class name utility (clsx + tailwind-merge)
   - `queryClient.ts` - TanStack Query client configuration
+  - `fileParser.ts` - Client-side Excel/CSV parsing (lazy-loads SheetJS, SHA-256 hashing, column mapping, row validation)
   - `projectionCalculator.ts` - Pure functions for multi-year salary/RSU/tax projections
   - `taxCalculator.ts` - India tax slab computation (old and new regime)
   - `fireCalculator.ts` - FIRE number, Coast FIRE, retirement corpus calculations
@@ -348,7 +350,7 @@ Status Codes:
 ### Key Endpoints
 
 ```
-POST   /api/upload                      - Upload Excel file
+POST   /api/upload                      - Upload transactions (JSON body: file_name, file_hash, rows, force)
 GET    /api/transactions                - Get all transactions
 GET    /api/analytics/overview          - Get financial overview
 GET    /api/analytics/kpis              - Get KPIs
@@ -370,8 +372,9 @@ GET    /api/meta/*                      - Metadata endpoints
 ## Security Considerations
 
 1. **Input Validation**
-   - Validate Excel file format
-   - Sanitize data during import
+   - Client-side file parsing via SheetJS (files never leave the browser as raw uploads)
+   - Backend validates structured JSON via Pydantic schemas (`TransactionRow`, `TransactionUploadRequest`)
+   - Sanitize data during normalization
    - Type checking with TypeScript and Python
 
 2. **Data Protection**

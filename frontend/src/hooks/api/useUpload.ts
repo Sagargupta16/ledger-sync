@@ -1,9 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { uploadService } from '@/services/api/upload'
 import { prefetchCoreData } from '@/lib/prefetch'
+import type { ParsedTransaction } from '@/lib/fileParser'
 
 interface UploadParams {
-  file: File
+  fileName: string
+  fileHash: string
+  rows: ParsedTransaction[]
   force?: boolean
 }
 
@@ -11,13 +14,10 @@ export function useUpload() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ file, force = false }: UploadParams) => uploadService.uploadFile(file, force),
+    mutationFn: ({ fileName, fileHash, rows, force = false }: UploadParams) =>
+      uploadService.uploadTransactions({ fileName, fileHash, rows, force }),
     onSuccess: () => {
-      // 1. Clear ALL cached query data so no stale results linger
       queryClient.clear()
-      // 2. Re-prefetch core data for all pages (runs in parallel)
-      //    This ensures pages you navigate to next have fresh data
-      //    instead of showing zeros while waiting for a lazy fetch.
       prefetchCoreData()
     },
   })
