@@ -63,12 +63,12 @@ describe('Valid transaction types', () => {
 
 describe('Column resolution logic', () => {
   it('should resolve standard Money Manager Pro columns', () => {
-    const headers = ['Period', 'Accounts', 'Category', 'Amount / INR', 'Income/Expense', 'Note']
+    const headers = new Set(['Period', 'Accounts', 'Category', 'Amount / INR', 'Income/Expense', 'Note'])
     const mapping: Record<string, string> = {}
 
     for (const [standardName, candidates] of Object.entries(COLUMN_MAPPINGS)) {
       for (const candidate of candidates) {
-        if (headers.includes(candidate)) {
+        if (headers.has(candidate)) {
           mapping[standardName] = candidate
           break
         }
@@ -84,12 +84,12 @@ describe('Column resolution logic', () => {
   })
 
   it('should resolve generic column names', () => {
-    const headers = ['Date', 'Account', 'Category', 'Amount', 'Type']
+    const headers = new Set(['Date', 'Account', 'Category', 'Amount', 'Type'])
     const mapping: Record<string, string> = {}
 
     for (const [standardName, candidates] of Object.entries(COLUMN_MAPPINGS)) {
       for (const candidate of candidates) {
-        if (headers.includes(candidate)) {
+        if (headers.has(candidate)) {
           mapping[standardName] = candidate
           break
         }
@@ -103,11 +103,11 @@ describe('Column resolution logic', () => {
   })
 
   it('should detect missing required columns', () => {
-    const headers = ['Date', 'Amount'] // missing account, category, type
+    const headers = new Set(['Date', 'Amount']) // missing account, category, type
 
     const missing = REQUIRED_COLUMNS.filter((col) => {
       const candidates = COLUMN_MAPPINGS[col]
-      return !candidates.some((c) => headers.includes(c))
+      return !candidates.some((c) => headers.has(c))
     })
 
     expect(missing).toContain('account')

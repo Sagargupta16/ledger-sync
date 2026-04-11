@@ -31,6 +31,13 @@ export class FileParseError extends Error {
   }
 }
 
+function stringify(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return JSON.stringify(value)
+}
+
 async function computeFileHash(buffer: ArrayBuffer): Promise<string> {
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
   const hashArray = Array.from(new Uint8Array(hashBuffer))
@@ -74,7 +81,7 @@ function parseDate(value: unknown, rowIndex: number): string {
     return date.toISOString().split('T')[0]
   }
 
-  const str = String(value).trim()
+  const str = stringify(value).trim()
   const parsed = new Date(str)
   if (Number.isNaN(parsed.getTime())) {
     throw new FileParseError(`Row ${rowIndex}: Could not parse date '${str}'`)
@@ -87,9 +94,9 @@ function parseAmount(value: unknown, rowIndex: number): number {
     throw new FileParseError(`Row ${rowIndex}: Amount is missing`)
   }
 
-  const num = typeof value === 'number' ? value : Number.parseFloat(String(value).replace(/,/g, ''))
+  const num = typeof value === 'number' ? value : Number.parseFloat(stringify(value).replaceAll(',', ''))
   if (Number.isNaN(num)) {
-    throw new FileParseError(`Row ${rowIndex}: Amount must be a number, got '${value}'`)
+    throw new FileParseError(`Row ${rowIndex}: Amount must be a number, got '${stringify(value)}'`)
   }
   return Math.round(Math.abs(num) * 100) / 100
 }
@@ -99,7 +106,7 @@ function parseType(value: unknown, rowIndex: number): string {
     throw new FileParseError(`Row ${rowIndex}: Transaction type is missing`)
   }
 
-  const raw = String(value).trim()
+  const raw = stringify(value).trim()
   if (!VALID_TYPES.has(raw.toLowerCase())) {
     throw new FileParseError(
       `Row ${rowIndex}: Unknown transaction type '${raw}'. Expected: Income, Expense, Transfer-In, Transfer-Out`,
@@ -110,7 +117,7 @@ function parseType(value: unknown, rowIndex: number): string {
 
 function trimOrUndefined(value: unknown): string | undefined {
   if (value == null || value === '') return undefined
-  const trimmed = String(value).trim()
+  const trimmed = stringify(value).trim()
   return trimmed || undefined
 }
 
@@ -131,8 +138,8 @@ function parseRows(
     const date = parseDate(raw[columnMapping.date], rowNum)
     const amount = parseAmount(raw[columnMapping.amount], rowNum)
     const type = parseType(raw[columnMapping.type], rowNum)
-    const account = String(raw[columnMapping.account] ?? '').trim()
-    const category = String(raw[columnMapping.category] ?? '').trim()
+    const account = stringify(raw[columnMapping.account]).trim()
+    const category = stringify(raw[columnMapping.category]).trim()
 
     if (!account) throw new FileParseError(`Row ${rowNum}: Account is missing`)
     if (!category) throw new FileParseError(`Row ${rowNum}: Category is missing`)

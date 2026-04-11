@@ -26,6 +26,9 @@ class NormalizationError(Exception):
 
 FOOD_AND_DINING = "Food & Dining"
 ENTERTAINMENT_AND_RECREATIONS = "Entertainment & Recreations"
+TRANSFER_IN = "transfer in"
+TRANSFER_IN_HYPHEN = "transfer-in"
+TRANSFER_OUT_HYPHEN = "transfer-out"
 
 
 class DataNormalizer:
@@ -284,9 +287,9 @@ class DataNormalizer:
             "expenses": TransactionType.EXPENSE,
             "income": TransactionType.INCOME,
             "transfer": TransactionType.TRANSFER,
-            "transfer-in": TransactionType.TRANSFER,
-            "transfer in": TransactionType.TRANSFER,
-            "transfer-out": TransactionType.TRANSFER,
+            TRANSFER_IN_HYPHEN: TransactionType.TRANSFER,
+            TRANSFER_IN: TransactionType.TRANSFER,
+            TRANSFER_OUT_HYPHEN: TransactionType.TRANSFER,
             "transfer out": TransactionType.TRANSFER,
         }
 
@@ -372,7 +375,7 @@ class DataNormalizer:
             Normalized transfer dict
 
         """
-        if "transfer-in" in raw_type or "transfer in" in raw_type:
+        if TRANSFER_IN_HYPHEN in raw_type or TRANSFER_IN in raw_type:
             # Money coming IN: category is source (from), account is destination (to)
             from_account = self._standardize_account(category)
             to_account = self._standardize_account(account)
@@ -422,7 +425,9 @@ class DataNormalizer:
 
             # Check if this is a transfer or regular transaction
             raw_type = str(row[column_mapping["type"]]).strip().lower()
-            is_transfer = any(x in raw_type for x in ["transfer", "transfer-in", "transfer-out"])
+            is_transfer = any(
+                x in raw_type for x in ["transfer", TRANSFER_IN_HYPHEN, TRANSFER_OUT_HYPHEN]
+            )
 
             # Standardize account and category names
             account = self._standardize_account(str(row[column_mapping["account"]]))
@@ -501,7 +506,7 @@ class DataNormalizer:
             is_transfer = "transfer" in raw_type
 
             if is_transfer:
-                if "transfer-in" in raw_type or "transfer in" in raw_type:
+                if TRANSFER_IN_HYPHEN in raw_type or TRANSFER_IN in raw_type:
                     from_account = self._standardize_account(category)
                     to_account = self._standardize_account(account)
                 else:
