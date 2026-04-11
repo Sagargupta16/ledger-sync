@@ -8,6 +8,7 @@ interface TaxSummaryGridProps {
   netTaxableIncome: number
   totalIncome: number
   totalExpense: number
+  isProjecting?: boolean
 }
 
 export default function TaxSummaryGrid({
@@ -17,6 +18,7 @@ export default function TaxSummaryGrid({
   netTaxableIncome,
   totalIncome,
   totalExpense,
+  isProjecting = false,
 }: Readonly<TaxSummaryGridProps>) {
   const effectiveTaxRate =
     grossTaxableIncome > 0 ? (taxAlreadyPaid / grossTaxableIncome) * 100 : 0
@@ -29,7 +31,7 @@ export default function TaxSummaryGrid({
       className="glass rounded-2xl border border-border p-6"
     >
       <h3 className="text-lg font-semibold text-white mb-6">Tax Summary for {selectedFY}</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 ${isProjecting ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4`}>
         <div className="p-4 bg-white/5 rounded-lg border border-border">
           <p className="text-sm text-muted-foreground mb-2">Effective Tax Rate</p>
           <p className="text-2xl font-bold text-primary">{formatPercent(effectiveTaxRate)}</p>
@@ -46,12 +48,14 @@ export default function TaxSummaryGrid({
             {formatCurrency(netTaxableIncome)}
           </p>
         </div>
-        <div className="p-4 bg-white/5 rounded-lg border border-border">
-          <p className="text-sm text-muted-foreground mb-2">Net Savings</p>
-          <p className="text-2xl font-bold text-app-purple">
-            {formatCurrency(totalIncome - totalExpense)}
-          </p>
-        </div>
+        {!isProjecting && (
+          <div className="p-4 bg-white/5 rounded-lg border border-border">
+            <p className="text-sm text-muted-foreground mb-2">Net Savings</p>
+            <p className="text-2xl font-bold text-app-purple">
+              {formatCurrency(totalIncome - totalExpense)}
+            </p>
+          </div>
+        )}
       </div>
     </motion.div>
   )

@@ -7,6 +7,7 @@ interface TaxSummaryCardsProps {
   netTaxableIncome: number
   grossTaxableIncome: number
   taxAlreadyPaid: number
+  isProjecting?: boolean
 }
 
 export default function TaxSummaryCards({
@@ -14,6 +15,7 @@ export default function TaxSummaryCards({
   netTaxableIncome,
   grossTaxableIncome,
   taxAlreadyPaid,
+  isProjecting = false,
 }: Readonly<TaxSummaryCardsProps>) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -32,7 +34,9 @@ export default function TaxSummaryCards({
             <p className="text-2xl font-bold">
               {isLoading ? '...' : formatCurrency(netTaxableIncome)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Received after TDS</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isProjecting ? 'Projected take-home' : 'Received after TDS'}
+            </p>
           </div>
         </div>
       </motion.div>
@@ -68,11 +72,15 @@ export default function TaxSummaryCards({
             <Calculator className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Tax Already Paid</p>
+            <p className="text-sm text-muted-foreground">
+              {isProjecting ? 'Estimated Tax' : 'Tax Already Paid'}
+            </p>
             <p className="text-2xl font-bold">
               {isLoading ? '...' : formatCurrency(taxAlreadyPaid)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Deducted at source</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isProjecting ? 'Projected tax liability' : 'Deducted at source'}
+            </p>
           </div>
         </div>
       </motion.div>

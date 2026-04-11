@@ -478,6 +478,7 @@ export default function TaxPlanningPage() {
             netTaxableIncome={displayNet}
             grossTaxableIncome={displayGross}
             taxAlreadyPaid={displayTotalTax}
+            isProjecting={useSalaryProjection}
           />
         </motion.div>
 
@@ -506,6 +507,7 @@ export default function TaxPlanningPage() {
             netTaxableIncome={displayNet}
             totalIncome={displayIncome}
             totalExpense={expense}
+            isProjecting={useSalaryProjection}
           />
         </motion.div>
 
@@ -518,13 +520,15 @@ export default function TaxPlanningPage() {
           currentIncome={displayGross}
         />
 
-        <motion.div variants={fadeUpItem}>
-          <TaxableIncomeTable
-            selectedFY={effectiveFY}
-            incomeGroups={currentFYData?.incomeGroups}
-            netTaxableIncome={netTaxableIncome}
-          />
-        </motion.div>
+        {!useSalaryProjection && (
+          <motion.div variants={fadeUpItem}>
+            <TaxableIncomeTable
+              selectedFY={effectiveFY}
+              incomeGroups={currentFYData?.incomeGroups}
+              netTaxableIncome={netTaxableIncome}
+            />
+          </motion.div>
+        )}
 
         {/* ── Tax Saving Suggestions ─────────────────────────────── */}
         <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 md:p-6">
