@@ -7,7 +7,7 @@ import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceL
 import { getDateKey } from '@/lib/dateUtils'
 import { useState, useMemo } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent, percentChange } from '@/lib/formatters'
-import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, ACTIVE_DOT } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
@@ -587,8 +587,8 @@ export default function TrendsForecastsPage() {
                       />
                       <ReferenceLine y={peakIncome} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: '#71717a', fontSize: 10, position: 'insideTopRight' }} />
                       {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
-                      <Area type="monotone" dataKey="income" stroke={rawColors.app.green} fill={areaGradientUrl('trendIncome')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
-                      <Line type="monotone" dataKey="incomeAvg" stroke={rawColors.app.green} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Income (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Area type="monotone" dataKey="income" stroke={rawColors.app.green} fill={areaGradientUrl('trendIncome')} strokeWidth={2} dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.green }} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Line type="monotone" dataKey="incomeAvg" stroke={rawColors.app.green} strokeWidth={2} strokeDasharray="6 3" dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.green }} name="Income (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                     </AreaChart>
                   </ChartContainer>
                 )}
@@ -624,8 +624,8 @@ export default function TrendsForecastsPage() {
                       />
                       <ReferenceLine y={peakExpenses} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakExpenses)}`, fill: '#71717a', fontSize: 10, position: 'insideTopRight' }} />
                       {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
-                      <Area type="monotone" dataKey="expenses" stroke={rawColors.app.red} fill={areaGradientUrl('trendExpense')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
-                      <Line type="monotone" dataKey="expensesAvg" stroke={rawColors.app.red} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Spending (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Area type="monotone" dataKey="expenses" stroke={rawColors.app.red} fill={areaGradientUrl('trendExpense')} strokeWidth={2} dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.red }} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Line type="monotone" dataKey="expensesAvg" stroke={rawColors.app.red} strokeWidth={2} strokeDasharray="6 3" dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.red }} name="Spending (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                     </AreaChart>
                   </ChartContainer>
                 )}
@@ -661,8 +661,8 @@ export default function TrendsForecastsPage() {
                       />
                       <ReferenceLine y={peakSavings} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: `Peak: ${formatCurrencyShort(peakSavings)}`, fill: '#71717a', fontSize: 10, position: 'insideTopRight' }} />
                       {activeLabel && <ReferenceLine x={activeLabel} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />}
-                      <Area type="monotone" dataKey="savings" stroke={rawColors.app.purple} fill={areaGradientUrl('trendSavings')} strokeWidth={2} dot={false} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
-                      <Line type="monotone" dataKey="savingsAvg" stroke={rawColors.app.purple} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Savings (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Area type="monotone" dataKey="savings" stroke={rawColors.app.purple} fill={areaGradientUrl('trendSavings')} strokeWidth={2} dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.purple }} isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
+                      <Line type="monotone" dataKey="savingsAvg" stroke={rawColors.app.purple} strokeWidth={2} strokeDasharray="6 3" dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.purple }} name="Savings (3m avg)" isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)} animationDuration={600} animationEasing="ease-out" />
                     </AreaChart>
                   </ChartContainer>
                 )}

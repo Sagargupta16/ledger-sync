@@ -7,7 +7,8 @@ import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
-import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, LEGEND_DEFAULTS, ACTIVE_DOT } from '@/components/ui'
+import { CHART_TOOLTIP_STYLE } from '@/components/ui/ChartTooltip'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { CreditCardHealth } from '@/components/analytics'
@@ -443,7 +444,7 @@ export default function NetWorthPage() {
     if (!item) return null
     const isPositive = item.change >= 0
     return (
-      <div style={{ background: 'rgba(26, 26, 28, 0.95)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px 16px', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)' }}>
+      <div style={CHART_TOOLTIP_STYLE}>
         <p style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '6px' }}>{label}</p>
         <p style={{ color: isPositive ? rawColors.app.green : rawColors.app.red, fontSize: '16px', fontWeight: 700 }}>
           {isPositive ? '+' : ''}{formatCurrency(item.change)}
@@ -559,6 +560,7 @@ export default function NetWorthPage() {
                               stroke={config.color}
                               strokeWidth={2}
                               dot={false}
+                              activeDot={{ ...ACTIVE_DOT, fill: config.color }}
                               fillOpacity={1}
                               fill={`url(#color-${cat.replaceAll(/\s+/g, '')})`}
                               name={config.label}
@@ -576,6 +578,7 @@ export default function NetWorthPage() {
                         stroke={rawColors.app.purple}
                         strokeWidth={2}
                         dot={false}
+                        activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.purple }}
                         fillOpacity={1}
                         fill={areaGradientUrl('netWorth')}
                         name="Net Worth"

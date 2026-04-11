@@ -11,8 +11,9 @@ import {
 import {
   PageHeader, ChartContainer,
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl,
-  shouldAnimate, ACTIVE_DOT,
+  shouldAnimate, ACTIVE_DOT, chartTooltipProps,
 } from '@/components/ui'
+import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE } from '@/components/ui/ChartTooltip'
 import { useMemo, useCallback } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
@@ -185,8 +186,8 @@ export default function ReturnsAnalysisPage() {
   const renderComboTooltip = useCallback(({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey?: string; value?: number; color?: string }>; label?: string }) => {
     if (!active || !payload?.length) return null
     return (
-      <div style={{ backgroundColor: 'rgba(26,26,28,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
-        <p style={{ color: '#a1a1aa', fontSize: 12, marginBottom: 6 }}>{label}</p>
+      <div style={CHART_TOOLTIP_STYLE}>
+        <p style={{ ...CHART_TOOLTIP_LABEL_STYLE, fontSize: 12, marginBottom: 6 }}>{label}</p>
         {payload.map((p) => {
           const val = p.value ?? 0
           const labels: Record<string, string> = { income: 'Income', expenses: 'Expenses', net: 'Net', cumulative: 'Cumulative' }
@@ -282,7 +283,7 @@ export default function ReturnsAnalysisPage() {
                 <CartesianGrid {...GRID_DEFAULTS} />
                 <XAxis {...xAxisDefaults(monthlyComboData.length)} dataKey="month" />
                 <YAxis {...yAxisDefaults()} />
-                <Tooltip content={renderComboTooltip as never} />
+                <Tooltip content={renderComboTooltip as never} cursor={chartTooltipProps.cursor} />
                 <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
                 {/* Green area above zero */}
                 <Area

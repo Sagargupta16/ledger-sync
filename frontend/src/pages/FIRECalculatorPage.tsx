@@ -10,7 +10,7 @@ import { computeFIRE, computeRetirementCorpus } from '@/lib/fireCalculator'
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
 import { PageHeader, ChartContainer } from '@/components/ui'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl } from '@/components/ui/chartDefaults'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl, ACTIVE_DOT } from '@/components/ui/chartDefaults'
 import { chartTooltipProps } from '@/components/ui/ChartTooltip'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 
@@ -198,8 +198,8 @@ export default function FIRECalculatorPage() {
                         name === 'corpus' ? 'Total Corpus' : 'Contributed',
                       ]}
                     />
-                    <Area type="monotone" dataKey="corpus" stroke={rawColors.app.blue} fill={areaGradientUrl('corpus')} strokeWidth={2} isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
-                    <Area type="monotone" dataKey="contributed" stroke={rawColors.app.green} fill={areaGradientUrl('contributed')} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
+                    <Area type="monotone" dataKey="corpus" stroke={rawColors.app.blue} fill={areaGradientUrl('corpus')} strokeWidth={2} dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }} isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
+                    <Area type="monotone" dataKey="contributed" stroke={rawColors.app.green} fill={areaGradientUrl('contributed')} strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.green }} isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
                   </AreaChart>
                 </ChartContainer>
               </motion.div>
