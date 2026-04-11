@@ -188,7 +188,6 @@ function TaxPageActions({
   goToPreviousFY,
   goToNextFY,
   hasSalaryData,
-  isFutureFY,
 }: Readonly<{
   isNewRegime: boolean
   setRegimeOverride: (regime: 'new' | 'old') => void
@@ -202,10 +201,7 @@ function TaxPageActions({
   goToPreviousFY: () => void
   goToNextFY: () => void
   hasSalaryData: boolean
-  isFutureFY: boolean
 }>) {
-  const isProjecting = showProjection || isFutureFY
-
   return (
     <div className="flex items-center gap-4 flex-wrap">
       {/* Tax Regime Toggle — hidden for FYs before 2020-21 */}
@@ -263,7 +259,6 @@ function TaxPageActions({
 
         <span className="text-white font-medium min-w-28 text-center">
           {selectedFY || 'Select FY'}
-          {isProjecting && <span className="text-xs text-muted-foreground ml-1">(projected)</span>}
         </span>
 
         <motion.button
@@ -415,7 +410,7 @@ export default function TaxPlanningPage() {
   // ── Display values: salary projection overrides transaction-based ───
 
   const displayGross = salaryTaxResult ? salaryProjection!.grossTaxable : grossTaxableIncome
-  const displayNet = salaryTaxResult ? salaryProjection!.netTaxable : netTaxableIncome
+  const displayNet = salaryTaxResult ? salaryProjection!.grossTaxable - salaryTaxResult.totalTax : netTaxableIncome
   const displayTotalTax = salaryTaxResult ? salaryTaxResult.totalTax : taxAlreadyPaid
   const displayBaseTax = salaryTaxResult ? salaryTaxResult.tax : baseTax
   const displayCess = salaryTaxResult ? salaryTaxResult.cess : cess
@@ -466,7 +461,6 @@ export default function TaxPlanningPage() {
                 goToPreviousFY={goToPreviousFY}
                 goToNextFY={goToNextFY}
                 hasSalaryData={hasSalaryData}
-                isFutureFY={isFutureFY}
               />
             }
           />
@@ -521,7 +515,7 @@ export default function TaxPlanningPage() {
           isNewRegime={isNewRegime}
           fyYear={fyYear}
           standardDeduction={standardDeduction}
-          currentIncome={grossTaxableIncome}
+          currentIncome={displayGross}
         />
 
         <motion.div variants={fadeUpItem}>
@@ -870,7 +864,7 @@ function MultiYearProjectionTable({ projections }: Readonly<{ projections: Proje
   ]
 
   return (
-    <div className="bg-app-card rounded-xl border border-border p-5">
+    <div className="glass rounded-2xl border border-border p-4 md:p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2.5 bg-app-purple/20 rounded-xl">
           <TrendingUp className="w-5 h-5 text-app-purple" />
