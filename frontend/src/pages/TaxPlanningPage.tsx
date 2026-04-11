@@ -17,8 +17,10 @@ import {
   getNewRegimeSlabs,
 } from '@/lib/taxCalculator'
 import { computeAdvanceTaxSchedule, formatDueDate } from '@/lib/advanceTaxCalculator'
+import { projectFiscalYear, projectMultipleYears } from '@/lib/projectionCalculator'
 import type { TaxSlab, SlabBreakdownEntry } from '@/lib/taxCalculator'
 import type { Transaction } from '@/types'
+import type { ProjectedFYBreakdown } from '@/types/salary'
 import { PageHeader, ChartContainer, chartTooltipProps, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS, ACTIVE_DOT } from '@/components/ui'
 import { BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { rawColors } from '@/constants/colors'
@@ -28,6 +30,7 @@ import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
 import TaxSummaryGrid from '@/components/analytics/TaxSummaryGrid'
 import EffectiveTaxRateChart from '@/components/analytics/EffectiveTaxRateChart'
 import TaxableIncomeTable from '@/components/analytics/TaxableIncomeTable'
+import { usePreferencesStore, selectSalaryStructure, selectRsuGrants, selectGrowthAssumptions } from '@/store/preferencesStore'
 
 /** Result of classifying an income transaction for tax grouping */
 interface IncomeGroupAccumulator {
@@ -353,7 +356,7 @@ function computeProjectionAndDisplay(input: ProjectionAndDisplayInput) {
   return { isCurrentFY, projection, projectedTaxResult, remainingMonths, avgMonthlySalary, displayValues }
 }
 
-/** Tax regime toggle, year-end projection toggle, and FY navigation action bar */
+/** Tax regime toggle, year-end projection toggle, projection source toggle, and FY navigation action bar */
 function TaxPageActions({
   isNewRegime,
   setRegimeOverride,
@@ -369,6 +372,10 @@ function TaxPageActions({
   canGoForward,
   goToPreviousFY,
   goToNextFY,
+  hasSalaryData,
+  isFutureFY,
+  effectiveSource,
+  setProjectionSource,
 }: Readonly<{
   isNewRegime: boolean
   setRegimeOverride: (regime: 'new' | 'old') => void
@@ -384,9 +391,13 @@ function TaxPageActions({
   canGoForward: boolean
   goToPreviousFY: () => void
   goToNextFY: () => void
+  hasSalaryData: boolean
+  isFutureFY: boolean
+  effectiveSource: 'transactions' | 'salary'
+  setProjectionSource: (source: 'transactions' | 'salary') => void
 }>) {
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4 flex-wrap">
       {/* Tax Regime Toggle — hidden for FYs before 2020-21 */}
       {newRegimeAvailable && <div className="flex rounded-lg border border-border overflow-hidden">
         <button
@@ -412,6 +423,35 @@ function TaxPageActions({
           Old Regime
         </button>
       </div>}
+
+      {/* Projection Source Toggle */}
+      {hasSalaryData && (
+        <div className="flex gap-1 bg-white/5 rounded-lg p-1">
+          <button
+            type="button"
+            onClick={() => setProjectionSource('transactions')}
+            disabled={isFutureFY}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              effectiveSource === 'transactions'
+                ? 'bg-white/10 text-white'
+                : 'text-muted-foreground hover:text-white'
+            } disabled:opacity-30`}
+          >
+            From Transactions
+          </button>
+          <button
+            type="button"
+            onClick={() => setProjectionSource('salary')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              effectiveSource === 'salary'
+                ? 'bg-white/10 text-white'
+                : 'text-muted-foreground hover:text-white'
+            }`}
+          >
+            {isFutureFY ? 'Projection' : 'From Salary Structure'}
+          </button>
+        </div>
+      )}
 
       {/* Year-End Projection Toggle — LEFT */}
       {isCurrentFY && hasEmploymentIncome && (
@@ -449,6 +489,7 @@ function TaxPageActions({
 
         <span className="text-white font-medium min-w-28 text-center">
           {selectedFY || 'Select FY'}
+          {isFutureFY && <span className="text-xs text-muted-foreground ml-1">(projected)</span>}
         </span>
 
         <motion.button
@@ -470,6 +511,14 @@ export default function TaxPlanningPage() {
   const { data: preferences } = usePreferences()
   const [selectedFY, setSelectedFY] = useState<string>('')
   const [showProjection, setShowProjection] = useState(false)
+
+  // Salary structure & projections from preferences store
+  const salaryStructure = usePreferencesStore(selectSalaryStructure)
+  const rsuGrants = usePreferencesStore(selectRsuGrants)
+  const growthAssumptions = usePreferencesStore(selectGrowthAssumptions)
+  const hasSalaryData = Object.keys(salaryStructure).length > 0
+
+  const [projectionSource, setProjectionSource] = useState<'transactions' | 'salary'>('transactions')
 
   // Tax regime preference: default from user preferences, overridable via toggle
   const preferredRegime = preferences?.preferred_tax_regime || 'new'
@@ -511,15 +560,42 @@ export default function TaxPlanningPage() {
     return grouped
   }, [allTransactions, fiscalYearStartMonth, incomeClassification])
 
-  // Get sorted FY list
-  const fyList = useMemo(() => {
+  // Get sorted FY list from transactions
+  const txFyList = useMemo(() => {
     return Object.keys(transactionsByFY)
       .sort((a, b) => a.localeCompare(b))
       .reverse()
   }, [transactionsByFY])
 
+  // Compute future projected FYs from salary structure + growth assumptions
+  const projectedFYList = useMemo(() => {
+    if (!hasSalaryData) return []
+    const salaryFYs = Object.keys(salaryStructure).sort()
+    const latestSalaryFY = salaryFYs.at(-1)
+    if (!latestSalaryFY) return []
+    // Parse start year - handle both "2025-26" and "FY 2025-26" formats
+    const latestStart = parseInt(latestSalaryFY.replace(/^FY\s*/i, ''))
+    const futureFYs: string[] = []
+    for (let i = 1; i <= growthAssumptions.projection_years; i++) {
+      const yr = latestStart + i
+      const end = (yr + 1) % 100
+      futureFYs.push(`FY ${yr}-${String(end).padStart(2, '0')}`)
+    }
+    return futureFYs
+  }, [hasSalaryData, salaryStructure, growthAssumptions.projection_years])
+
+  // Merge transaction FYs with projected FYs into a combined sorted list
+  const fyList = useMemo(() => {
+    const allFYs = new Set([...txFyList, ...projectedFYList])
+    return [...allFYs].sort((a, b) => a.localeCompare(b)).reverse()
+  }, [txFyList, projectedFYList])
+
   // Use first FY as default when none is explicitly selected
   const effectiveFY = selectedFY || fyList[0] || ''
+
+  // Determine if the selected FY is a future projection (no transaction data)
+  const isFutureFY = projectedFYList.includes(effectiveFY) && !(effectiveFY in transactionsByFY)
+  const effectiveSource = isFutureFY ? 'salary' : projectionSource
 
   // ── Derived values for selected FY ──────────────────────────────────
 
@@ -549,14 +625,34 @@ export default function TaxPlanningPage() {
     actual: { grossTaxableIncome, taxAlreadyPaid, baseTax, cess, professionalTax, slabBreakdown, income },
   })
 
-  const displayGross = displayValues.gross
-  const displayNet = displayValues.net
-  const displayTotalTax = displayValues.totalTax
+  // ── Salary-based projection data ────────────────────────────────────
+
+  // Strip "FY " prefix for projectionCalculator which uses "2025-26" format
+  const effectiveFYForProjector = effectiveFY.replace(/^FY\s+/i, '')
+
+  const salaryProjection = useMemo<ProjectedFYBreakdown | null>(() => {
+    if (!hasSalaryData || effectiveSource !== 'salary') return null
+    return projectFiscalYear(effectiveFYForProjector, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth)
+  }, [hasSalaryData, effectiveSource, effectiveFYForProjector, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth])
+
+  const multiYearProjections = useMemo<ProjectedFYBreakdown[]>(() => {
+    if (!hasSalaryData) return []
+    return projectMultipleYears(salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth)
+  }, [hasSalaryData, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth])
+
+  // When salary source is active, override display values with projection data
+  const displayGross = effectiveSource === 'salary' && salaryProjection
+    ? salaryProjection.grossTaxable : displayValues.gross
+  const displayNet = effectiveSource === 'salary' && salaryProjection
+    ? salaryProjection.netTaxable : displayValues.net
+  const displayTotalTax = effectiveSource === 'salary' && salaryProjection
+    ? salaryProjection.totalTax : displayValues.totalTax
   const displayBaseTax = displayValues.baseTax
   const displayCess = displayValues.cess
   const displayProfessionalTax = displayValues.professionalTax
   const displaySlabBreakdown = displayValues.slabBreakdown
-  const displayIncome = displayValues.income
+  const displayIncome = effectiveSource === 'salary' && salaryProjection
+    ? salaryProjection.grossTaxable : displayValues.income
 
   // ── FY navigation ───────────────────────────────────────────────────
 
@@ -601,6 +697,10 @@ export default function TaxPlanningPage() {
                 canGoForward={canGoForward}
                 goToPreviousFY={goToPreviousFY}
                 goToNextFY={goToNextFY}
+                hasSalaryData={hasSalaryData}
+                isFutureFY={isFutureFY}
+                effectiveSource={effectiveSource}
+                setProjectionSource={setProjectionSource}
               />
             }
           />
@@ -620,6 +720,20 @@ export default function TaxPlanningPage() {
             taxAlreadyPaid={displayTotalTax}
           />
         </motion.div>
+
+        {/* Salary-Based Income Breakdown */}
+        {effectiveSource === 'salary' && salaryProjection && (
+          <motion.div variants={fadeUpItem}>
+            <SalaryProjectionBreakdown projection={salaryProjection} />
+          </motion.div>
+        )}
+
+        {/* Multi-Year Salary Projection Table */}
+        {hasSalaryData && multiYearProjections.length > 1 && (
+          <motion.div variants={fadeUpItem}>
+            <MultiYearProjectionTable projections={multiYearProjections} />
+          </motion.div>
+        )}
 
         <motion.div variants={fadeUpItem}>
           <TaxSlabBreakdown
@@ -1055,6 +1169,153 @@ function DeductionInput({ label, sublabel, value, max, onChange }: Readonly<{
         className="w-full px-3 py-1.5 text-sm bg-white/5 border border-border rounded-lg text-foreground placeholder:text-text-quaternary focus:outline-none focus:ring-1 focus:ring-app-blue/50"
       />
       <span className="text-caption text-text-quaternary mt-0.5 block">{sublabel}</span>
+    </div>
+  )
+}
+
+/** Salary-based income breakdown panel showing projected income components and tax computation */
+function SalaryProjectionBreakdown({ projection }: Readonly<{ projection: ProjectedFYBreakdown }>) {
+  const monthlyTDS = projection.totalTax / 12
+  const annualTakeHome = projection.grossTaxable - projection.totalTax
+  const monthlyTakeHome = annualTakeHome / 12
+
+  return (
+    <div className="bg-app-card rounded-xl border border-border p-5">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2.5 bg-app-blue/20 rounded-xl">
+          <TrendingUp className="w-5 h-5 text-app-blue" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold">
+            Salary-Based Projection — {projection.fy}
+            {projection.isProjected && <span className="text-xs text-muted-foreground ml-2">(projected)</span>}
+          </h3>
+          <p className="text-xs text-muted-foreground">Breakdown from salary structure and growth assumptions</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left: Income Components */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold text-muted-foreground mb-3">Income Components</h4>
+          <ProjectionRow label="Base Salary" value={projection.baseSalary} className="text-income" />
+          {projection.hra > 0 && <ProjectionRow label="HRA" value={projection.hra} className="text-income" />}
+          {projection.bonus > 0 && <ProjectionRow label="Bonus" value={projection.bonus} className="text-income" />}
+          {projection.rsuIncome > 0 && <ProjectionRow label="RSU Vesting" value={projection.rsuIncome} className="text-income" />}
+          {projection.specialAllowance > 0 && <ProjectionRow label="Special Allowance" value={projection.specialAllowance} className="text-income" />}
+          {projection.otherTaxable > 0 && <ProjectionRow label="Other Taxable" value={projection.otherTaxable} className="text-income" />}
+          {projection.epf > 0 && <ProjectionRow label="EPF Deducted" value={-projection.epf} className="text-expense" />}
+          <div className="border-t border-border pt-2 mt-2">
+            <ProjectionRow label="Gross Taxable" value={projection.grossTaxable} className="text-foreground font-semibold" />
+          </div>
+          <ProjectionRow label="Standard Deduction" value={-projection.standardDeduction} className="text-muted-foreground" />
+          <ProjectionRow label="Net Taxable" value={projection.netTaxable} className="text-foreground font-semibold" />
+        </div>
+
+        {/* Right: Tax Computation */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold text-muted-foreground mb-3">Tax Computation</h4>
+          <ProjectionRow label="Total Tax" value={projection.totalTax} className="text-expense" />
+          <ProjectionRow label="Effective Tax Rate" value={null} displayValue={`${projection.effectiveTaxRate.toFixed(1)}%`} />
+          <ProjectionRow label="Monthly TDS (approx)" value={monthlyTDS} className="text-expense" />
+          <div className="border-t border-border pt-2 mt-2">
+            <ProjectionRow label="Annual Take-Home" value={annualTakeHome} className="text-income font-semibold" />
+            <ProjectionRow label="Monthly Take-Home" value={monthlyTakeHome} className="text-income" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Single row inside the salary projection breakdown */
+function ProjectionRow({ label, value, className = '', displayValue }: Readonly<{
+  label: string
+  value: number | null
+  className?: string
+  displayValue?: string
+}>) {
+  return (
+    <div className="flex items-center justify-between py-1">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={`text-sm ${className}`}>
+        {displayValue ?? formatCurrency(value ?? 0)}
+      </span>
+    </div>
+  )
+}
+
+/** Multi-year salary projection comparison table */
+function MultiYearProjectionTable({ projections }: Readonly<{ projections: ProjectedFYBreakdown[] }>) {
+  const rows: Array<{ label: string; key: keyof ProjectedFYBreakdown; colorClass: string }> = [
+    { label: 'Base Salary', key: 'baseSalary', colorClass: 'text-income' },
+    { label: 'Bonus', key: 'bonus', colorClass: 'text-income' },
+    { label: 'RSU Vesting', key: 'rsuIncome', colorClass: 'text-income' },
+    { label: 'EPF', key: 'epf', colorClass: 'text-muted-foreground' },
+    { label: 'Other', key: 'otherTaxable', colorClass: 'text-muted-foreground' },
+    { label: 'Gross Taxable', key: 'grossTaxable', colorClass: 'text-foreground' },
+    { label: 'Total Tax', key: 'totalTax', colorClass: 'text-expense' },
+    { label: 'Take-Home', key: 'takeHome', colorClass: 'text-income' },
+  ]
+
+  return (
+    <div className="bg-app-card rounded-xl border border-border p-5">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2.5 bg-app-purple/20 rounded-xl">
+          <TrendingUp className="w-5 h-5 text-app-purple" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold">Multi-Year Projection</h3>
+          <p className="text-xs text-muted-foreground">
+            {projections.length} year outlook based on salary structure and growth assumptions
+          </p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-2 px-3 text-muted-foreground font-medium">Component</th>
+              {projections.map((p) => (
+                <th key={p.fy} className="text-right py-2 px-3 text-muted-foreground font-medium whitespace-nowrap">
+                  FY {p.fy}
+                  {p.isProjected && <span className="text-caption text-text-quaternary ml-1">*</span>}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const hasAnyValue = projections.some((p) => (p[row.key] as number) > 0)
+              if (!hasAnyValue) return null
+              return (
+                <tr key={row.key} className="border-b border-border/50">
+                  <td className="py-2.5 px-3 font-medium text-foreground">{row.label}</td>
+                  {projections.map((p) => (
+                    <td key={p.fy} className={`py-2.5 px-3 text-right ${row.colorClass}`}>
+                      {formatCurrency(p[row.key] as number)}
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
+            {/* Effective Tax Rate row */}
+            <tr className="border-b border-border/50">
+              <td className="py-2.5 px-3 font-medium text-foreground">Effective Tax Rate</td>
+              {projections.map((p) => (
+                <td key={p.fy} className="py-2.5 px-3 text-right text-muted-foreground">
+                  {p.effectiveTaxRate.toFixed(1)}%
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-text-tertiary mt-3">
+        * Projected values based on growth assumptions. Actual figures may vary.
+      </p>
     </div>
   )
 }
