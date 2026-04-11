@@ -101,11 +101,11 @@ export default function SalaryStructureSection({
       const value = raw === '' ? 0 : Number(raw)
       if (Number.isNaN(value)) return
       const updated = { ...localSalaryStructure }
+      const isNullableField = field === 'hra_annual' || field === 'nps_monthly'
+      const fieldValue = isNullableField && raw === '' ? null : value
       updated[selectedFY] = {
         ...(updated[selectedFY] ?? { ...DEFAULT_SALARY_COMPONENTS }),
-        [field]: field === 'hra_annual' || field === 'nps_monthly'
-          ? (raw === '' ? null : value)
-          : value,
+        [field]: fieldValue,
       }
       updateSalaryStructure(updated)
     },
@@ -226,8 +226,13 @@ export default function SalaryStructureSection({
   // -- Growth helpers --
   const updateGrowth = useCallback(
     (field: keyof GrowthAssumptions, raw: string | boolean) => {
-      const value = typeof raw === 'boolean' ? raw : (raw === '' ? 0 : Number(raw))
-      if (typeof value === 'number' && Number.isNaN(value)) return
+      let value: number | boolean
+      if (typeof raw === 'boolean') {
+        value = raw
+      } else {
+        value = raw === '' ? 0 : Number(raw)
+        if (Number.isNaN(value)) return
+      }
       updateGrowthAssumptions({ ...localGrowthAssumptions, [field]: value })
     },
     [localGrowthAssumptions, updateGrowthAssumptions],
@@ -434,7 +439,7 @@ export default function SalaryStructureSection({
                       const estValue = v.quantity * grant.stock_price
                       const fy = v.date ? dateToFY(v.date) : ''
                       return (
-                        <tr key={vi} className="border-b border-border/50">
+                        <tr key={`${grant.id}-${v.date}-${vi}`} className="border-b border-border/50">
                           <td className="py-2 pr-3">
                             <input
                               type="date"

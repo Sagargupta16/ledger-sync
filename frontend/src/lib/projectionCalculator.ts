@@ -68,7 +68,7 @@ export function getRsuVestingsByFY(
       const fy = dateToFY(vesting.date, fyStartMonth)
       const fyStart = parseFYStart(fy)
       const yearsFromBase =
-        baseStartYear != null ? fyStart - baseStartYear : 0
+        baseStartYear === undefined ? 0 : fyStart - baseStartYear
       const appreciationFactor = Math.pow(
         1 + stockAppreciationPct / 100,
         Math.max(0, yearsFromBase),
@@ -109,9 +109,9 @@ export function projectFiscalYear(
   growth: GrowthAssumptions,
   fyStartMonth: number,
 ): ProjectedFYBreakdown {
-  const sortedFYs = Object.keys(salaryStructure).sort()
+  const sortedFYs = Object.keys(salaryStructure).sort((a, b) => a.localeCompare(b))
   const baseFY =
-    sortedFYs.filter((fy) => fy <= targetFY).at(-1) ?? sortedFYs[0]
+    sortedFYs.findLast((fy) => fy <= targetFY) ?? sortedFYs[0]
   if (!baseFY || !salaryStructure[baseFY]) {
     return emptyBreakdown(targetFY)
   }
@@ -231,7 +231,7 @@ export function projectMultipleYears(
   growth: GrowthAssumptions,
   fyStartMonth: number,
 ): ProjectedFYBreakdown[] {
-  const sortedFYs = Object.keys(salaryStructure).sort()
+  const sortedFYs = Object.keys(salaryStructure).sort((a, b) => a.localeCompare(b))
   if (sortedFYs.length === 0) return []
 
   const latestFY = sortedFYs.at(-1)!

@@ -337,11 +337,11 @@ export default function TaxPlanningPage() {
   // Compute future projected FYs from salary structure + growth assumptions
   const projectedFYList = useMemo(() => {
     if (!hasSalaryData) return []
-    const salaryFYs = Object.keys(salaryStructure).sort()
+    const salaryFYs = Object.keys(salaryStructure).sort((a, b) => a.localeCompare(b))
     const latestSalaryFY = salaryFYs.at(-1)
     if (!latestSalaryFY) return []
     // Parse start year - handle both "2025-26" and "FY 2025-26" formats
-    const latestStart = parseInt(latestSalaryFY.replace(/^FY\s*/i, ''))
+    const latestStart = Number.parseInt(latestSalaryFY.replace(/^FY\s*/i, ''), 10)
     const futureFYs: string[] = []
     for (let i = 1; i <= growthAssumptions.projection_years; i++) {
       const yr = latestStart + i
@@ -409,16 +409,34 @@ export default function TaxPlanningPage() {
 
   // ── Display values: salary projection overrides transaction-based ───
 
-  const displayGross = salaryTaxResult ? salaryProjection!.grossTaxable : grossTaxableIncome
-  const displayNet = salaryTaxResult ? salaryProjection!.grossTaxable - salaryTaxResult.totalTax : netTaxableIncome
-  const displayTotalTax = salaryTaxResult ? salaryTaxResult.totalTax : taxAlreadyPaid
-  const displayBaseTax = salaryTaxResult ? salaryTaxResult.tax : baseTax
-  const displayCess = salaryTaxResult ? salaryTaxResult.cess : cess
-  const displayProfessionalTax = salaryTaxResult ? salaryTaxResult.professionalTax : professionalTax
-  const displaySlabBreakdown = salaryTaxResult ? salaryTaxResult.slabBreakdown : slabBreakdown
-  const displayRebate87A = salaryTaxResult ? salaryTaxResult.rebate87A : rebate87A
-  const displaySurcharge = salaryTaxResult ? salaryTaxResult.surcharge : surcharge
-  const displayIncome = salaryTaxResult ? salaryProjection!.grossTaxable : income
+  const display = useMemo(() => {
+    if (salaryTaxResult && salaryProjection) {
+      return {
+        gross: salaryProjection.grossTaxable,
+        net: salaryProjection.grossTaxable - salaryTaxResult.totalTax,
+        totalTax: salaryTaxResult.totalTax,
+        baseTax: salaryTaxResult.tax,
+        cess: salaryTaxResult.cess,
+        professionalTax: salaryTaxResult.professionalTax,
+        slabBreakdown: salaryTaxResult.slabBreakdown,
+        rebate87A: salaryTaxResult.rebate87A,
+        surcharge: salaryTaxResult.surcharge,
+        income: salaryProjection.grossTaxable,
+      }
+    }
+    return {
+      gross: grossTaxableIncome,
+      net: netTaxableIncome,
+      totalTax: taxAlreadyPaid,
+      baseTax,
+      cess,
+      professionalTax,
+      slabBreakdown,
+      rebate87A,
+      surcharge,
+      income,
+    }
+  }, [salaryTaxResult, salaryProjection, grossTaxableIncome, netTaxableIncome, taxAlreadyPaid, baseTax, cess, professionalTax, slabBreakdown, rebate87A, surcharge, income])
 
   // ── FY navigation ───────────────────────────────────────────────────
 
@@ -437,34 +455,33 @@ export default function TaxPlanningPage() {
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+        <PageHeader
+          title="Tax Planning"
+          subtitle={`Estimate your tax liability — ${regimeLabel}`}
+          action={
+            <TaxPageActions
+              isNewRegime={isNewRegime}
+              setRegimeOverride={setRegimeOverride}
+              newRegimeAvailable={newRegimeAvailable}
+              isCurrentFY={isCurrentFY}
+              showProjection={showProjection}
+              setShowProjection={setShowProjection}
+              selectedFY={effectiveFY}
+              canGoBack={canGoBack}
+              canGoForward={canGoForward}
+              goToPreviousFY={goToPreviousFY}
+              goToNextFY={goToNextFY}
+              hasSalaryData={hasSalaryData}
+            />
+          }
+        />
       <motion.div
-        className="max-w-7xl mx-auto space-y-6 md:space-y-8"
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
+        className="space-y-6 md:space-y-8"
       >
-        <motion.div variants={fadeUpItem}>
-          <PageHeader
-            title="Tax Planning"
-            subtitle={`Estimate your tax liability — ${regimeLabel}`}
-            action={
-              <TaxPageActions
-                isNewRegime={isNewRegime}
-                setRegimeOverride={setRegimeOverride}
-                newRegimeAvailable={newRegimeAvailable}
-                isCurrentFY={isCurrentFY}
-                showProjection={showProjection}
-                setShowProjection={setShowProjection}
-                selectedFY={effectiveFY}
-                canGoBack={canGoBack}
-                canGoForward={canGoForward}
-                goToPreviousFY={goToPreviousFY}
-                goToNextFY={goToNextFY}
-                hasSalaryData={hasSalaryData}
-              />
-            }
-          />
-        </motion.div>
 
         {fyList.length === 0 && !isLoading ? (
           <motion.div variants={fadeUpItem}>
@@ -475,9 +492,9 @@ export default function TaxPlanningPage() {
         <motion.div variants={fadeUpItem}>
           <TaxSummaryCards
             isLoading={isLoading}
-            netTaxableIncome={displayNet}
-            grossTaxableIncome={displayGross}
-            taxAlreadyPaid={displayTotalTax}
+            netTaxableIncome={display.net}
+            grossTaxableIncome={display.gross}
+            taxAlreadyPaid={display.totalTax}
             isProjecting={useSalaryProjection}
           />
         </motion.div>
@@ -486,16 +503,16 @@ export default function TaxPlanningPage() {
           <TaxSlabBreakdown
             isNewRegime={isNewRegime}
             taxSlabs={taxSlabs}
-            slabBreakdown={displaySlabBreakdown}
-            grossTaxableIncome={displayGross}
+            slabBreakdown={display.slabBreakdown}
+            grossTaxableIncome={display.gross}
             standardDeduction={standardDeduction}
             fyYear={fyYear}
-            baseTax={displayBaseTax}
-            rebate87A={displayRebate87A}
-            surcharge={displaySurcharge}
-            cess={displayCess}
-            professionalTax={displayProfessionalTax}
-            totalTax={displayTotalTax}
+            baseTax={display.baseTax}
+            rebate87A={display.rebate87A}
+            surcharge={display.surcharge}
+            cess={display.cess}
+            professionalTax={display.professionalTax}
+            totalTax={display.totalTax}
             isProjecting={useSalaryProjection}
           />
         </motion.div>
@@ -503,10 +520,10 @@ export default function TaxPlanningPage() {
         <motion.div variants={fadeUpItem}>
           <TaxSummaryGrid
             selectedFY={effectiveFY}
-            grossTaxableIncome={displayGross}
-            taxAlreadyPaid={displayTotalTax}
-            netTaxableIncome={displayNet}
-            totalIncome={displayIncome}
+            grossTaxableIncome={display.gross}
+            taxAlreadyPaid={display.totalTax}
+            netTaxableIncome={display.net}
+            totalIncome={display.income}
             totalExpense={expense}
             isProjecting={useSalaryProjection}
           />
@@ -518,7 +535,7 @@ export default function TaxPlanningPage() {
           isNewRegime={isNewRegime}
           fyYear={fyYear}
           standardDeduction={standardDeduction}
-          currentIncome={displayGross}
+          currentIncome={display.gross}
         />
 
         {!useSalaryProjection && (
@@ -674,13 +691,13 @@ export default function TaxPlanningPage() {
             <div>
               <h3 className="text-lg font-semibold">Which Regime Saves You More?</h3>
               <p className="text-xs text-muted-foreground">
-                Based on your income of {formatCurrency(displayGross)}
+                Based on your income of {formatCurrency(display.gross)}
               </p>
             </div>
           </div>
 
           <RegimeComparison
-            grossIncome={displayGross}
+            grossIncome={display.gross}
             fyYear={fyYear}
             standardDeduction={standardDeduction}
             salaryMonthsCount={salaryMonthsCount}
@@ -697,6 +714,7 @@ export default function TaxPlanningPage() {
         </>
         )}
       </motion.div>
+      </div>
     </div>
   )
 }

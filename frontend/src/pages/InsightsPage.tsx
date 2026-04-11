@@ -26,18 +26,17 @@ function SectionHeader({ icon: Icon, title }: Readonly<{ icon: typeof Gauge; tit
 export default function InsightsPage() {
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
+    <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+      <PageHeader
+        title="Financial Insights"
+        subtitle="Advanced analytics computed from your transaction history"
+      />
     <motion.div
-      className="max-w-7xl mx-auto space-y-6 md:space-y-8"
       variants={staggerContainer}
       initial="hidden"
       animate="visible"
+      className="space-y-6 md:space-y-8"
     >
-      <motion.div variants={fadeUpItem}>
-        <PageHeader
-          title="Financial Insights"
-          subtitle="Advanced analytics computed from your transaction history"
-        />
-      </motion.div>
       <motion.div variants={fadeUpItem}>
         <SectionHeader icon={Gauge} title="Spending Velocity" />
         <SpendingVelocityGauge />
@@ -74,6 +73,7 @@ export default function InsightsPage() {
         <MonthlyFinancialReportCard />
       </motion.div>
     </motion.div>
+    </div>
     </div>
   )
 }
