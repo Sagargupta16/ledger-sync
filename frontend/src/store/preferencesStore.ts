@@ -11,6 +11,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { CURRENCIES, BASE_CURRENCY, getCurrencyMeta } from '@/constants/currencies'
+import type { SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/salary'
+import { DEFAULT_GROWTH_ASSUMPTIONS } from '@/types/salary'
 
 export interface DisplayPreferences {
   numberFormat: 'indian' | 'international'
@@ -60,7 +62,15 @@ export interface PreferencesState {
   earningStartDate: string | null
   useEarningStartDate: boolean
 
+  // Salary & Tax Projections
+  salaryStructure: Record<string, SalaryComponents>
+  rsuGrants: RsuGrant[]
+  growthAssumptions: GrowthAssumptions
+
   // Actions
+  setSalaryStructure: (structure: Record<string, SalaryComponents>) => void
+  setRsuGrants: (grants: RsuGrant[]) => void
+  setGrowthAssumptions: (assumptions: GrowthAssumptions) => void
   setDisplayPreferences: (prefs: Partial<DisplayPreferences>) => void
   setDisplayCurrency: (code: string) => void
   setExchangeRate: (rate: number, updatedAt: string) => void
@@ -87,6 +97,9 @@ export interface PreferencesState {
     credit_card_limits: Record<string, number>
     earning_start_date: string | null
     use_earning_start_date: boolean
+    salary_structure: Record<string, SalaryComponents>
+    rsu_grants: RsuGrant[]
+    growth_assumptions: GrowthAssumptions
   }) => void
 }
 
@@ -163,6 +176,11 @@ export const usePreferencesStore = create<PreferencesState>()(
       earningStartDate: null,
       useEarningStartDate: false,
 
+      // Default salary & tax projections
+      salaryStructure: {},
+      rsuGrants: [],
+      growthAssumptions: { ...DEFAULT_GROWTH_ASSUMPTIONS },
+
       // Actions
       setDisplayPreferences: (prefs) =>
         set((state) => ({
@@ -197,6 +215,10 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       setInvestmentAccountMappings: (mappings) =>
         set({ investmentAccountMappings: mappings }),
+
+      setSalaryStructure: (structure) => set({ salaryStructure: structure }),
+      setRsuGrants: (grants) => set({ rsuGrants: grants }),
+      setGrowthAssumptions: (assumptions) => set({ growthAssumptions: assumptions }),
 
       // Hydrate from API response (with validation)
       hydrateFromApi: (apiPrefs) => {
@@ -235,6 +257,15 @@ export const usePreferencesStore = create<PreferencesState>()(
             ? apiPrefs.credit_card_limits : {},
           earningStartDate: typeof apiPrefs.earning_start_date === 'string' ? apiPrefs.earning_start_date : null,
           useEarningStartDate: apiPrefs.use_earning_start_date === true,
+          salaryStructure:
+            apiPrefs.salary_structure && typeof apiPrefs.salary_structure === 'object'
+              ? apiPrefs.salary_structure
+              : {},
+          rsuGrants: Array.isArray(apiPrefs.rsu_grants) ? apiPrefs.rsu_grants : [],
+          growthAssumptions:
+            apiPrefs.growth_assumptions && typeof apiPrefs.growth_assumptions === 'object'
+              ? { ...DEFAULT_GROWTH_ASSUMPTIONS, ...apiPrefs.growth_assumptions }
+              : { ...DEFAULT_GROWTH_ASSUMPTIONS },
         })
       },
     }),
@@ -253,6 +284,9 @@ export const usePreferencesStore = create<PreferencesState>()(
         creditCardLimits: state.creditCardLimits,
         earningStartDate: state.earningStartDate,
         useEarningStartDate: state.useEarningStartDate,
+        salaryStructure: state.salaryStructure,
+        rsuGrants: state.rsuGrants,
+        growthAssumptions: state.growthAssumptions,
       }),
     }
   )
@@ -303,3 +337,7 @@ export const selectDisplayCurrency = (state: PreferencesState) =>
 
 export const selectExchangeRate = (state: PreferencesState) =>
   state.exchangeRate
+
+export const selectSalaryStructure = (state: PreferencesState) => state.salaryStructure
+export const selectRsuGrants = (state: PreferencesState) => state.rsuGrants
+export const selectGrowthAssumptions = (state: PreferencesState) => state.growthAssumptions
