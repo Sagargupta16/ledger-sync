@@ -307,7 +307,7 @@ export default function SalaryStructureSection({
                     type="number"
                     min="0"
                     step="100"
-                    value={currentSalary[f.key] ?? ''}
+                    value={currentSalary[f.key] || ''}
                     onChange={(e) => updateField(f.key, e.target.value)}
                     placeholder={f.nullable ? 'Optional' : '0'}
                     className={inputClass}
