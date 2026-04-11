@@ -58,8 +58,8 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
             {...chartTooltipProps}
             formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
           />
-          <Bar dataKey="Avg Spending" fill={rawColors.ios.red} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(data.length)} animationDuration={600} animationEasing="ease-out" />
-          <Bar dataKey="Avg Earning" fill={rawColors.ios.green} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(data.length)} animationDuration={600} animationEasing="ease-out" />
+          <Bar dataKey="Avg Spending" fill={rawColors.app.red} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(data.length)} animationDuration={600} animationEasing="ease-out" />
+          <Bar dataKey="Avg Earning" fill={rawColors.app.green} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(data.length)} animationDuration={600} animationEasing="ease-out" />
         </BarChart>
       </ChartContainer>
     </div>

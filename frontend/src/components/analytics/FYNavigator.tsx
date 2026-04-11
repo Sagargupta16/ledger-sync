@@ -35,7 +35,7 @@ export default function FYNavigator({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-xl border border-border p-6 shadow-lg"
+      className="glass rounded-2xl border border-border p-6"
     >
       <div className="flex items-center justify-between">
         <button
@@ -64,7 +64,7 @@ export default function FYNavigator({
                   onClick={onToggleProjection}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                     showProjection
-                      ? 'bg-primary text-white shadow-lg shadow-primary/50'
+                      ? 'bg-primary text-white'
                       : 'bg-white/5 text-muted-foreground hover:bg-white/10'
                   }`}
                 >

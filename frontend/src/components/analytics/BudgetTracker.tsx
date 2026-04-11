@@ -92,13 +92,13 @@ export default function BudgetTracker() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'safe':
-        return 'text-ios-green bg-ios-green/20 border-ios-green/30'
+        return 'text-app-green bg-app-green/20 border-app-green/30'
       case 'warning':
-        return 'text-ios-yellow bg-ios-yellow/20 border-ios-yellow/30'
+        return 'text-app-yellow bg-app-yellow/20 border-app-yellow/30'
       case 'danger':
-        return 'text-ios-orange bg-ios-orange/20 border-ios-orange/30'
+        return 'text-app-orange bg-app-orange/20 border-app-orange/30'
       case 'exceeded':
-        return 'text-ios-red bg-ios-red/20 border-ios-red/30'
+        return 'text-app-red bg-app-red/20 border-app-red/30'
       default:
         return ''
     }
@@ -107,13 +107,13 @@ export default function BudgetTracker() {
   const getProgressColor = (status: string) => {
     switch (status) {
       case 'safe':
-        return 'bg-ios-green'
+        return 'bg-app-green'
       case 'warning':
-        return 'bg-ios-yellow'
+        return 'bg-app-yellow'
       case 'danger':
-        return 'bg-ios-orange'
+        return 'bg-app-orange'
       case 'exceeded':
-        return 'bg-ios-red'
+        return 'bg-app-red'
       default:
         return 'bg-primary'
     }
@@ -128,12 +128,12 @@ export default function BudgetTracker() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-ios-green/20 rounded-xl">
-            <Target className="w-6 h-6 text-ios-green" />
+          <div className="p-3 bg-app-green/20 rounded-xl">
+            <Target className="w-6 h-6 text-app-green" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Budget Tracker</h3>
@@ -160,13 +160,13 @@ export default function BudgetTracker() {
           </div>
           <div className="p-3 rounded-xl bg-background/30 text-center">
             <p className="text-xs text-muted-foreground">Total Spent</p>
-            <p className={`text-lg font-bold ${totalSpent > totalBudget ? 'text-ios-red' : 'text-ios-green'}`}>
+            <p className={`text-lg font-bold ${totalSpent > totalBudget ? 'text-app-red' : 'text-app-green'}`}>
               {formatCurrency(totalSpent)}
             </p>
           </div>
           <div className="p-3 rounded-xl bg-background/30 text-center">
             <p className="text-xs text-muted-foreground">Remaining</p>
-            <p className={`text-lg font-bold ${totalBudget - totalSpent < 0 ? 'text-ios-red' : 'text-ios-green'}`}>
+            <p className={`text-lg font-bold ${totalBudget - totalSpent < 0 ? 'text-app-red' : 'text-app-green'}`}>
               {formatCurrency(totalBudget - totalSpent)}
             </p>
           </div>
@@ -262,7 +262,7 @@ export default function BudgetTracker() {
                       </button>
                       <button
                         onClick={() => removeBudget(budget.category)}
-                        className="p-1 rounded hover:bg-white/10 text-ios-red"
+                        className="p-1 rounded hover:bg-white/10 text-app-red"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -285,7 +285,7 @@ export default function BudgetTracker() {
               </div>
 
               {budget.remaining < 0 ? (
-                <p className="text-xs mt-1 text-ios-red">
+                <p className="text-xs mt-1 text-app-red">
                   Over budget by {formatCurrency(Math.abs(budget.remaining))}
                 </p>
               ) : (

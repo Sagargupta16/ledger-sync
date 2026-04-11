@@ -59,7 +59,7 @@ export default function AppLayout() {
       {/* Skip to main content link for keyboard users */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-ios-blue focus:text-white focus:rounded-xl focus:text-sm focus:font-medium focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-app-blue focus:text-white focus:rounded-xl focus:text-sm focus:font-medium focus:shadow-lg"
       >
         Skip to main content
       </a>

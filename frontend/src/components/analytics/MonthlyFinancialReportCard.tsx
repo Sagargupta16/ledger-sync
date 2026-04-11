@@ -8,11 +8,11 @@ import { rawColors } from '@/constants/colors'
 type Grade = 'A' | 'B' | 'C' | 'D' | 'F'
 
 const GRADE_COLORS: Record<Grade, string> = {
-  A: rawColors.ios.green,
-  B: rawColors.ios.blue,
-  C: rawColors.ios.yellow,
-  D: rawColors.ios.orange,
-  F: rawColors.ios.red,
+  A: rawColors.app.green,
+  B: rawColors.app.blue,
+  C: rawColors.app.yellow,
+  D: rawColors.app.orange,
+  F: rawColors.app.red,
 }
 
 const GRADE_POINTS: Record<Grade, number> = { A: 4, B: 3, C: 2, D: 1, F: 0 }
@@ -180,13 +180,13 @@ export default function MonthlyFinancialReportCard() {
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <ClipboardCheck className="w-5 h-5 text-ios-purple" />
+          <ClipboardCheck className="w-5 h-5 text-app-purple" />
           <h3 className="text-lg font-semibold text-white">Monthly Report Card</h3>
         </div>
         <select
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
-          className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-ios-purple/50"
+          className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-app-purple/50"
         >
           {availableMonths.map((m) => (
             <option key={m} value={m} className="bg-surface-dropdown text-foreground">

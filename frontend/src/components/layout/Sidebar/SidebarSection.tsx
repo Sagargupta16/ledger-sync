@@ -10,7 +10,7 @@ export default function SidebarSection({
   return (
     <div className="mt-6">
       <div className="px-3 mb-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-text-quaternary">
           {title}
         </span>
       </div>

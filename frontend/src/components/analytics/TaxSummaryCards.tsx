@@ -21,11 +21,11 @@ export default function TaxSummaryCards({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass rounded-xl border border-border p-6 shadow-lg"
+        className="glass rounded-2xl border border-border p-6"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
-            <TrendingUp className="w-6 h-6 text-ios-green" />
+          <div className="p-3 bg-app-green/20 rounded-xl">
+            <TrendingUp className="w-6 h-6 text-app-green" />
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Salaried Income</p>
@@ -41,11 +41,11 @@ export default function TaxSummaryCards({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-xl border border-border p-6 shadow-lg"
+        className="glass rounded-2xl border border-border p-6"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-ios-blue/20 rounded-xl shadow-lg shadow-ios-blue/30">
-            <IndianRupee className="w-6 h-6 text-ios-blue" />
+          <div className="p-3 bg-app-blue/20 rounded-xl">
+            <IndianRupee className="w-6 h-6 text-app-blue" />
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Taxable Income</p>
@@ -61,10 +61,10 @@ export default function TaxSummaryCards({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="glass rounded-xl border border-border p-6 shadow-lg"
+        className="glass rounded-2xl border border-border p-6"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-primary/20 rounded-xl shadow-lg shadow-primary/30">
+          <div className="p-3 bg-primary/20 rounded-xl">
             <Calculator className="w-6 h-6 text-primary" />
           </div>
           <div>

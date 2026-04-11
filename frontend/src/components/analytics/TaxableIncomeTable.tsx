@@ -39,7 +39,7 @@ export default function TaxableIncomeTable({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.7 }}
-      className="glass rounded-xl border border-border p-6 shadow-lg"
+      className="glass rounded-2xl border border-border p-6"
     >
       <h3 className="text-lg font-semibold text-white mb-6">
         Salaried Taxable Income for {selectedFY}
@@ -100,7 +100,7 @@ export default function TaxableIncomeTable({
                             <td className="py-3 px-4 text-right">
                               {group === 'EPF' ? (
                                 <div>
-                                  <div className="font-bold text-ios-green">
+                                  <div className="font-bold text-app-green">
                                     {formatCurrency(tx.amount / 2)}
                                   </div>
                                   <div className="text-xs text-muted-foreground">
@@ -108,7 +108,7 @@ export default function TaxableIncomeTable({
                                   </div>
                                 </div>
                               ) : (
-                                <span className="font-bold text-ios-green">
+                                <span className="font-bold text-app-green">
                                   {formatCurrency(tx.amount)}
                                 </span>
                               )}

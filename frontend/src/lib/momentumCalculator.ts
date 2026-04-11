@@ -13,6 +13,39 @@ export interface CategoryMomentum {
   currentAvg: number
 }
 
+function computeSingleMomentum(
+  cat: string,
+  catMonths: Record<string, number>,
+  months: string[],
+  movingAvgMonths: number,
+): CategoryMomentum | null {
+  const values = months.map((m) => catMonths[m] || 0)
+
+  // Compute moving averages
+  const movingAvgs: number[] = []
+  for (let i = movingAvgMonths - 1; i < values.length; i++) {
+    const window = values.slice(i - movingAvgMonths + 1, i + 1)
+    const avg = window.reduce((a, b) => a + b, 0) / movingAvgMonths
+    movingAvgs.push(Math.round(avg))
+  }
+
+  const sparklineData = movingAvgs.slice(-6)
+  if (sparklineData.length < 3) return null
+
+  const first = sparklineData[0]
+  const last = sparklineData.at(-1) ?? first
+  let slope = 0
+  if (first > 0) slope = ((last - first) / first) * 100
+  else if (last > 0) slope = 100
+
+  let classification: CategoryMomentum['classification']
+  if (slope > 5) classification = 'accelerating'
+  else if (slope < -5) classification = 'decelerating'
+  else classification = 'stable'
+
+  return { category: cat, sparklineData, slope: Math.round(slope * 10) / 10, classification, currentAvg: last }
+}
+
 /**
  * Compute category momentum for all expense categories.
  *
@@ -24,7 +57,6 @@ export function computeCategoryMomentum(
   transactions: Array<{ type: string; category?: string; amount: number; date: string }>,
   movingAvgMonths = 3,
 ): Map<string, CategoryMomentum> {
-  // Build monthly spending per category
   const monthlySpending: Record<string, Record<string, number>> = {}
   const allMonths = new Set<string>()
 
@@ -41,39 +73,9 @@ export function computeCategoryMomentum(
   if (months.length < movingAvgMonths + 2) return new Map()
 
   const result = new Map<string, CategoryMomentum>()
-
   for (const [cat, catMonths] of Object.entries(monthlySpending)) {
-    const values = months.map((m) => catMonths[m] || 0)
-
-    // Compute moving averages
-    const movingAvgs: number[] = []
-    for (let i = movingAvgMonths - 1; i < values.length; i++) {
-      const window = values.slice(i - movingAvgMonths + 1, i + 1)
-      const avg = window.reduce((a, b) => a + b, 0) / movingAvgMonths
-      movingAvgs.push(Math.round(avg))
-    }
-
-    // Take last 6 data points for sparkline
-    const sparklineData = movingAvgs.slice(-6)
-    if (sparklineData.length < 3) continue
-
-    // Compute slope as % change from first to last
-    const first = sparklineData[0]
-    const last = sparklineData[sparklineData.length - 1]
-    const slope = first > 0 ? ((last - first) / first) * 100 : (last > 0 ? 100 : 0)
-
-    let classification: CategoryMomentum['classification']
-    if (slope > 5) classification = 'accelerating'
-    else if (slope < -5) classification = 'decelerating'
-    else classification = 'stable'
-
-    result.set(cat, {
-      category: cat,
-      sparklineData,
-      slope: Math.round(slope * 10) / 10,
-      classification,
-      currentAvg: last,
-    })
+    const momentum = computeSingleMomentum(cat, catMonths, months, movingAvgMonths)
+    if (momentum) result.set(cat, momentum)
   }
 
   return result

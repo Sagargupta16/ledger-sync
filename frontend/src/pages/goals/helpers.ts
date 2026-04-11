@@ -48,13 +48,13 @@ function resolveTrackingStatus(
   const monthsDelta = monthsRemaining - projectedMonths // positive = ahead
 
   if (projected <= target) {
-    return { status: 'on_track', statusLabel: 'On Track', statusColor: rawColors.ios.green, monthsDelta }
+    return { status: 'on_track', statusLabel: 'On Track', statusColor: rawColors.app.green, monthsDelta }
   }
   const monthsBehind = differenceInMonths(projected, target)
   if (monthsBehind <= 3) {
-    return { status: 'slightly_behind', statusLabel: 'Slightly Behind', statusColor: rawColors.ios.yellow, monthsDelta }
+    return { status: 'slightly_behind', statusLabel: 'Slightly Behind', statusColor: rawColors.app.yellow, monthsDelta }
   }
-  return { status: 'behind', statusLabel: 'Behind', statusColor: rawColors.ios.red, monthsDelta }
+  return { status: 'behind', statusLabel: 'Behind', statusColor: rawColors.app.red, monthsDelta }
 }
 
 /** Compute the full projection for a single goal. */
@@ -75,7 +75,7 @@ export function computeGoalProjection(
       monthsToComplete: null,
       status: 'achieved',
       statusLabel: 'Achieved',
-      statusColor: rawColors.ios.green,
+      statusColor: rawColors.app.green,
       monthsDelta: null,
     }
   }
@@ -91,7 +91,7 @@ export function computeGoalProjection(
       monthsToComplete: null,
       status: 'no_data',
       statusLabel: 'No savings data',
-      statusColor: rawColors.ios.yellow,
+      statusColor: rawColors.app.yellow,
       monthsDelta: null,
     }
   }

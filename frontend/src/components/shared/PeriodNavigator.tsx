@@ -41,7 +41,7 @@ export const PeriodNavigator = memo(function PeriodNavigator({
             'px-3 py-1.5 text-sm rounded-md transition-colors duration-150 ease-out',
             viewMode === 'monthly'
               ? 'bg-white/[0.10] text-white font-medium'
-              : 'text-zinc-400 hover:text-zinc-200'
+              : 'text-muted-foreground hover:text-white'
           )}
         >
           Monthly
@@ -55,7 +55,7 @@ export const PeriodNavigator = memo(function PeriodNavigator({
             'px-3 py-1.5 text-sm rounded-md transition-colors duration-150 ease-out',
             viewMode === 'yearly'
               ? 'bg-white/[0.10] text-white font-medium'
-              : 'text-zinc-400 hover:text-zinc-200'
+              : 'text-muted-foreground hover:text-white'
           )}
         >
           Yearly
@@ -70,7 +70,7 @@ export const PeriodNavigator = memo(function PeriodNavigator({
               'px-3 py-1.5 text-sm rounded-md transition-colors duration-150 ease-out',
               viewMode === 'all_time'
                 ? 'bg-white/[0.10] text-white font-medium'
-                : 'text-zinc-400 hover:text-zinc-200'
+                : 'text-muted-foreground hover:text-white'
             )}
           >
             All Time
@@ -84,19 +84,19 @@ export const PeriodNavigator = memo(function PeriodNavigator({
           <button
             type="button"
             onClick={onPrevious}
-            className="p-2 text-zinc-500 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out"
+            className="p-2 text-text-tertiary hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out"
             aria-label="Previous period"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] rounded-lg min-w-[140px] justify-center">
-            <Calendar className="w-4 h-4 text-zinc-400" />
-            <span className="font-medium text-zinc-300">{periodLabel}</span>
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <span className="font-medium text-white">{periodLabel}</span>
           </div>
           <button
             type="button"
             onClick={onNext}
-            className="p-2 text-zinc-500 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out"
+            className="p-2 text-text-tertiary hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out"
             aria-label="Next period"
           >
             <ChevronRight className="w-5 h-5" />

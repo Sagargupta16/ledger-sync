@@ -30,17 +30,17 @@ export function KpiCard({
 
   return (
     <motion.div
-      className="glass rounded-2xl border border-border p-5 shadow-xl"
+      className="glass rounded-2xl border border-border p-6"
       whileHover={{ scale: 1.01 }}
     >
-      <p className="text-sm text-muted-foreground mb-1">{title}</p>
+      <p className="text-xs text-muted-foreground mb-1">{title}</p>
       <div className="flex items-end gap-2 mb-3">
-        <span className="text-xl sm:text-2xl font-bold" style={{ color }}>{fmtVal(valueB)}</span>
+        <span className="text-lg sm:text-xl font-bold" style={{ color }}>{fmtVal(valueB)}</span>
       </div>
       <div className="text-xs text-muted-foreground mb-2">
         <span className="opacity-60">{labelA}:</span> {fmtVal(valueA)}
       </div>
-      <div className={`flex items-center gap-1 text-sm font-medium ${isGood ? 'text-ios-green' : 'text-ios-red'}`}>
+      <div className={`flex items-center gap-1 text-sm font-medium ${isGood ? 'text-app-green' : 'text-app-red'}`}>
         {changeIndicator}
         <span>
           {change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}

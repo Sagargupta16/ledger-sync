@@ -200,7 +200,7 @@ function detectMonthlySIPAmount(sipTransfers: Array<{ note?: string | null; amou
 
   if (monthlySIPs.length === 0) return 0
 
-  return monthlySIPs.at(-1)!.amount
+  return monthlySIPs.at(-1)?.amount ?? 0
 }
 
 // Helper: Load mutual fund accounts from balance data and account classifications
@@ -248,8 +248,11 @@ function buildCombinedChartData(
 
   if (historicalData.length === 0) return historicalData
 
-  const lastHistorical = historicalData.at(-1)!
-  const lastDate = new Date(sipTransfers.at(-1)!.date)
+  const lastHistorical = historicalData.at(-1)
+  if (!lastHistorical) return historicalData
+  const lastSipTransfer = sipTransfers.at(-1)
+  if (!lastSipTransfer) return historicalData
+  const lastDate = new Date(lastSipTransfer.date)
   const projectionData = buildProjectionChartData(
     lastHistorical, lastDate, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate
   )
@@ -340,11 +343,11 @@ function OverviewCards(props: Readonly<OverviewCardsProps>) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-xl border border-border p-6 shadow-lg"
+        className="glass rounded-2xl border border-border p-6"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-ios-purple/20 rounded-xl shadow-lg shadow-ios-purple/30">
-            <TrendingUp className="w-6 h-6 text-ios-purple" />
+          <div className="p-3 bg-app-purple/20 rounded-xl">
+            <TrendingUp className="w-6 h-6 text-app-purple" />
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Current Balance</p>
@@ -362,11 +365,11 @@ function OverviewCards(props: Readonly<OverviewCardsProps>) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass rounded-xl border border-border p-6 shadow-lg"
+        className="glass rounded-2xl border border-border p-6"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-ios-green/20 rounded-xl shadow-lg shadow-ios-green/30">
-            <Calculator className="w-6 h-6 text-ios-green" />
+          <div className="p-3 bg-app-green/20 rounded-xl">
+            <Calculator className="w-6 h-6 text-app-green" />
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Monthly SIP</p>
@@ -382,11 +385,11 @@ function OverviewCards(props: Readonly<OverviewCardsProps>) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-xl border border-border p-6 shadow-lg"
+        className="glass rounded-2xl border border-border p-6"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-ios-blue/20 rounded-xl shadow-lg shadow-ios-blue/30">
-            <Percent className="w-6 h-6 text-ios-blue" />
+          <div className="p-3 bg-app-blue/20 rounded-xl">
+            <Percent className="w-6 h-6 text-app-blue" />
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Total Invested</p>
@@ -402,10 +405,10 @@ function OverviewCards(props: Readonly<OverviewCardsProps>) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="glass rounded-xl border border-border p-6 shadow-lg"
+        className="glass rounded-2xl border border-border p-6"
       >
         <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl shadow-lg ${gainsBgClass}`}>
+          <div className={`p-3 rounded-xl ${gainsBgClass}`}>
             <TrendingUp className={`w-6 h-6 ${gainsIconClass}`} />
           </div>
           <div>
@@ -463,7 +466,7 @@ function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionProps>) {
   return (
     <div className="mt-8 pt-6 border-t border-border">
       <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
-        <BarChart3 className="w-5 h-5 text-ios-orange" />
+        <BarChart3 className="w-5 h-5 text-app-orange" />
         Returns Analysis
       </h4>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -477,7 +480,7 @@ function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionProps>) {
             value={currentValueInput || ''}
             placeholder={formatCurrency(currentBalance).replace('\u20B9', '').trim()}
             onChange={(e) => onCurrentValueChange(Number(e.target.value))}
-            className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 focus:border-ios-blue/30 transition-colors"
+            className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
             min="0"
             step="1000"
           />
@@ -508,7 +511,7 @@ function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionProps>) {
 
         <div className="flex flex-col justify-center">
           <p className="text-sm text-muted-foreground">Effective Value</p>
-          <p className="text-2xl font-bold text-ios-orange">
+          <p className="text-2xl font-bold text-app-orange">
             {formatCurrency(effectiveCurrentValue)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -547,25 +550,25 @@ function ChartStatsFooter(props: Readonly<ChartStatsFooterProps>) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>
           <p className="text-xs text-muted-foreground">Current Invested</p>
-          <p className="text-xl font-bold text-ios-blue">
+          <p className="text-xl font-bold text-app-blue">
             {currentInvestedDisplay}
           </p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Current Value</p>
-          <p className="text-xl font-bold text-ios-green">
+          <p className="text-xl font-bold text-app-green">
             {currentValueDisplay}
           </p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Future Invested</p>
-          <p className="text-xl font-bold text-ios-blue">
+          <p className="text-xl font-bold text-app-blue">
             {futureInvestedDisplay}
           </p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Future Value</p>
-          <p className="text-xl font-bold text-ios-green">
+          <p className="text-xl font-bold text-app-green">
             {futureValueDisplay}
           </p>
         </div>
@@ -581,12 +584,12 @@ function computeGainsDisplay(
   overrideGainsPercent: number,
   xirrPercent: number,
 ) {
-  const positive = 'text-ios-green'
-  const negative = 'text-ios-red'
+  const positive = 'text-app-green'
+  const negative = 'text-app-red'
   return {
-    gainsBgClass: realizedGains >= 0 ? 'bg-ios-green/20 shadow-ios-green/30' : 'bg-ios-red/20 shadow-ios-red/30',
+    gainsBgClass: realizedGains >= 0 ? 'bg-app-green/20 shadow-app-green/30' : 'bg-app-red/20 shadow-app-red/30',
     gainsIconClass: realizedGains >= 0 ? positive : negative,
-    gainsTextClass: realizedGains >= 0 ? 'text-ios-green' : 'text-ios-red',
+    gainsTextClass: realizedGains >= 0 ? 'text-app-green' : 'text-app-red',
     gainsSignPrefix: realizedGainsPercent >= 0 ? '+' : '',
     totalReturnColorClass: overrideGainsPercent >= 0 ? positive : negative,
     totalReturnSignPrefix: overrideGainsPercent >= 0 ? '+' : '',
@@ -721,9 +724,9 @@ export default function MutualFundProjectionPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
+            className="glass rounded-2xl border border-border p-6"
           >
-            <h3 className="text-lg font-semibold mb-6">Projection Parameters</h3>
+            <h3 className="text-lg font-semibold mb-4">Projection Parameters</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div>
                 <label htmlFor="monthly-sip" className="block text-sm font-medium text-muted-foreground mb-2">
@@ -737,7 +740,7 @@ export default function MutualFundProjectionPage() {
                     setMonthlySIP(Number(e.target.value))
                     setUserModifiedSIP(true)
                   }}
-                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 focus:border-ios-blue/30 transition-colors"
+                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
                   min="0"
                   step="1000"
                 />
@@ -755,7 +758,7 @@ export default function MutualFundProjectionPage() {
                   type="number"
                   value={expectedReturn}
                   onChange={(e) => setExpectedReturn(Number(e.target.value))}
-                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 focus:border-ios-blue/30 transition-colors"
+                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
                   min="0"
                   max="50"
                   step="0.5"
@@ -771,7 +774,7 @@ export default function MutualFundProjectionPage() {
                   type="number"
                   value={projectionYears}
                   onChange={(e) => setProjectionYears(Number(e.target.value))}
-                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 focus:border-ios-blue/30 transition-colors"
+                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
                   min="1"
                   max="40"
                 />
@@ -786,7 +789,7 @@ export default function MutualFundProjectionPage() {
                   type="number"
                   value={sipGrowthRate}
                   onChange={(e) => setSipGrowthRate(Number(e.target.value))}
-                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 focus:border-ios-blue/30 transition-colors"
+                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
                   min="0"
                   max="20"
                   step="1"
@@ -823,7 +826,7 @@ export default function MutualFundProjectionPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.5 }}
-              className="glass rounded-xl border border-border p-6 shadow-lg"
+              className="glass rounded-2xl border border-border p-6"
             >
               <div className="text-sm font-medium text-muted-foreground mb-1">Total Investment</div>
               <div className="text-2xl font-bold">{formatCurrency(projection.invested)}</div>
@@ -836,10 +839,10 @@ export default function MutualFundProjectionPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.6 }}
-              className="glass rounded-xl border border-border p-6 shadow-lg"
+              className="glass rounded-2xl border border-border p-6"
             >
               <div className="text-sm font-medium text-muted-foreground mb-1">Projected Value</div>
-              <div className="text-2xl font-bold text-ios-green">{formatCurrency(projection.value)}</div>
+              <div className="text-2xl font-bold text-app-green">{formatCurrency(projection.value)}</div>
               <div className="text-sm text-muted-foreground mt-1">After {projectionYears} years</div>
             </motion.div>
 
@@ -847,10 +850,10 @@ export default function MutualFundProjectionPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.7 }}
-              className="glass rounded-xl border border-border p-6 shadow-lg"
+              className="glass rounded-2xl border border-border p-6"
             >
               <div className="text-sm font-medium text-muted-foreground mb-1">Projected Returns</div>
-              <div className="text-2xl font-bold text-ios-blue">{formatCurrency(projection.returns)}</div>
+              <div className="text-2xl font-bold text-app-blue">{formatCurrency(projection.returns)}</div>
               <div className="text-sm text-muted-foreground mt-1">
                 {((projection.returns / projection.invested) * 100).toFixed(1)}% overall gain
               </div>
@@ -862,7 +865,7 @@ export default function MutualFundProjectionPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="glass rounded-xl border border-border p-6 shadow-lg"
+            className="glass rounded-2xl border border-border p-6"
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
               <div>
@@ -899,8 +902,8 @@ export default function MutualFundProjectionPage() {
               <ChartContainer height={384}>
                 <AreaChart data={chartData}>
                   <defs>
-                    {areaGradient('invested', rawColors.ios.blue, 0.8, 0.1)}
-                    {areaGradient('value', rawColors.ios.green, 0.8, 0.1)}
+                    {areaGradient('invested', rawColors.app.blue, 0.8, 0.1)}
+                    {areaGradient('value', rawColors.app.green, 0.8, 0.1)}
                   </defs>
                   <CartesianGrid {...GRID_DEFAULTS} />
                   <XAxis
@@ -918,7 +921,7 @@ export default function MutualFundProjectionPage() {
                     type="monotone"
                     dataKey="invested"
                     name="Invested Amount"
-                    stroke={rawColors.ios.blue}
+                    stroke={rawColors.app.blue}
                     fill={areaGradientUrl('invested')}
                     strokeWidth={2}
                     dot={false}
@@ -930,7 +933,7 @@ export default function MutualFundProjectionPage() {
                     type="monotone"
                     dataKey="value"
                     name="Portfolio Value"
-                    stroke={rawColors.ios.green}
+                    stroke={rawColors.app.green}
                     fill={areaGradientUrl('value')}
                     strokeWidth={2}
                     dot={false}

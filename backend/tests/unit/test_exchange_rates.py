@@ -6,6 +6,7 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 
 from ledger_sync.api.exchange_rates import (
@@ -67,7 +68,7 @@ def test_stale_cache_on_api_failure():
     with patch(
         "ledger_sync.api.exchange_rates._fetch_rates",
         new_callable=AsyncMock,
-        side_effect=Exception("API down"),
+        side_effect=httpx.HTTPError("API down"),
     ):
         result = asyncio.run(get_exchange_rates(_current_user=FakeUser(), base="INR"))
     assert result["stale"] is True
@@ -79,7 +80,7 @@ def test_fallback_rates_when_no_cache():
     with patch(
         "ledger_sync.api.exchange_rates._fetch_rates",
         new_callable=AsyncMock,
-        side_effect=Exception("API down"),
+        side_effect=httpx.HTTPError("API down"),
     ):
         result = asyncio.run(get_exchange_rates(_current_user=FakeUser(), base="INR"))
     assert result["fallback"] is True

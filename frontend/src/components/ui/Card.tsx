@@ -22,8 +22,8 @@ export const Card = memo(function Card({
   variant = 'default'
 }: CardProps) {
   const variantClasses = {
-    default: 'glass rounded-2xl border border-white/[0.06] p-6',
-    interactive: 'glass rounded-2xl border border-white/[0.06] p-6 transition-all duration-150 ease-out hover:border-white/[0.10]'
+    default: 'glass rounded-2xl border border-border p-6',
+    interactive: 'glass rounded-2xl border border-border p-6 transition-all duration-150 ease-out hover:border-white/[0.10]'
   }
 
   if (animate) {
@@ -70,9 +70,9 @@ export const CardHeader = memo(function CardHeader({
           </div>
         )}
         <div>
-          <h3 className="text-sm font-medium text-zinc-300">{title}</h3>
+          <h3 className="text-sm font-medium text-white">{title}</h3>
           {subtitle && (
-            <p className="text-xs text-zinc-500">{subtitle}</p>
+            <p className="text-xs text-text-tertiary">{subtitle}</p>
           )}
         </div>
       </div>
@@ -103,7 +103,7 @@ export const StatCard = memo(function StatCard({
   value,
   subtitle,
   icon,
-  iconColor = rawColors.ios.blueVibrant,
+  iconColor = rawColors.app.blueVibrant,
   trend,
   delay = 0
 }: StatCardProps) {
@@ -112,7 +112,7 @@ export const StatCard = memo(function StatCard({
       <div className="flex items-center gap-3">
         {icon && (
           <div
-            className="p-3 rounded-2xl"
+            className="p-2.5 rounded-xl"
             style={{
               background: `${iconColor}10`
             }}
@@ -121,10 +121,10 @@ export const StatCard = memo(function StatCard({
           </div>
         )}
         <div className="flex-1">
-          <p className="text-sm text-zinc-500">{title}</p>
-          <p className="text-2xl font-semibold text-white">{value}</p>
+          <p className="text-xs text-text-tertiary">{title}</p>
+          <p className="text-lg sm:text-xl font-semibold text-white">{value}</p>
           {subtitle && (
-            <p className="text-xs text-zinc-600 mt-1">{subtitle}</p>
+            <p className="text-[11px] text-text-quaternary mt-1">{subtitle}</p>
           )}
           {trend && (
             <p className={cn(

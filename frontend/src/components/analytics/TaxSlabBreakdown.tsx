@@ -36,15 +36,15 @@ export default function TaxSlabBreakdown({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.4 }}
-      className="glass rounded-xl border border-border p-6 shadow-lg"
+      className="glass rounded-2xl border border-border p-6"
     >
       <h3 className="text-xl font-semibold text-white mb-4">
         {isNewRegime ? 'Tax Slabs (FY 2025-26 Onwards)' : 'Tax Slabs (Before FY 2025-26)'}
       </h3>
 
       {/* Standard Deduction Info */}
-      <div className="mb-4 p-3 bg-ios-blue/10 border border-ios-blue/30 rounded-lg">
-        <p className="text-sm text-ios-blue">
+      <div className="mb-4 p-3 bg-app-blue/10 border border-app-blue/30 rounded-lg">
+        <p className="text-sm text-app-blue">
           Standard Deduction:{' '}
           <span className="font-semibold">{formatCurrency(standardDeduction)}</span>
           {fyYear >= 2024 ? ' (from FY 2024-25)' : ' (before FY 2024-25)'}
@@ -104,10 +104,10 @@ export default function TaxSlabBreakdown({
             </tr>
             {rebate87A > 0 && (
             <tr className="border-b border-border">
-              <td colSpan={3} className="py-3 px-4 text-right text-sm text-ios-green">
+              <td colSpan={3} className="py-3 px-4 text-right text-sm text-app-green">
                 - Section 87A Rebate:
               </td>
-              <td className="py-3 px-4 text-right text-sm text-ios-green">
+              <td className="py-3 px-4 text-right text-sm text-app-green">
                 -{formatCurrency(rebate87A)}
               </td>
             </tr>

@@ -58,7 +58,7 @@ export default function PeerComparisonBenchmarks() {
       transition={{ delay: 0.1 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Users className="w-5 h-5 text-ios-blue" />
+        <Users className="w-5 h-5 text-app-blue" />
         <h3 className="text-lg font-semibold text-white">How You Compare</h3>
       </div>
 
@@ -71,7 +71,7 @@ export default function PeerComparisonBenchmarks() {
       ) : (
         <>
           <ChartContainer height={320}>
-            <BarChart data={data} margin={{ left: 10, right: 20, top: 10, bottom: 10 }}>
+            <BarChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 10 }}>
               <CartesianGrid {...GRID_DEFAULTS} />
               <XAxis
                 {...xAxisDefaults(data.length, { angle: -35, height: 60 })}
@@ -90,7 +90,7 @@ export default function PeerComparisonBenchmarks() {
               <Bar
                 dataKey="you"
                 name="You"
-                fill={rawColors.ios.blue}
+                fill={rawColors.app.blue}
                 radius={[4, 4, 0, 0]}
                 barSize={16}
                 animationDuration={600}
@@ -100,7 +100,7 @@ export default function PeerComparisonBenchmarks() {
               <Bar
                 dataKey="benchmark"
                 name="Average"
-                fill={rawColors.ios.purple}
+                fill={rawColors.app.purple}
                 radius={[4, 4, 0, 0]}
                 barSize={16}
                 animationDuration={600}
@@ -121,8 +121,8 @@ export default function PeerComparisonBenchmarks() {
                   key={item.category}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium"
                   style={{
-                    backgroundColor: isOver ? `${rawColors.ios.red}15` : `${rawColors.ios.green}15`,
-                    color: isOver ? rawColors.ios.red : rawColors.ios.green,
+                    backgroundColor: isOver ? `${rawColors.app.red}15` : `${rawColors.app.green}15`,
+                    color: isOver ? rawColors.app.red : rawColors.app.green,
                   }}
                 >
                   {item.category}: {isOver ? '+' : ''}{diff.toFixed(1)}%

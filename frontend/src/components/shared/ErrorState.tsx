@@ -84,7 +84,7 @@ export default function ErrorState({
 
       {/* Title */}
       <h3
-        className={`font-medium text-zinc-200 mb-1 ${
+        className={`font-medium text-white mb-1 ${
           isCompact ? 'text-sm' : 'text-base'
         }`}
       >
@@ -93,7 +93,7 @@ export default function ErrorState({
 
       {/* Message */}
       <p
-        className={`text-zinc-500 max-w-xs ${
+        className={`text-text-tertiary max-w-xs ${
           isCompact ? 'text-xs' : 'text-sm'
         }`}
       >
@@ -118,7 +118,7 @@ export default function ErrorState({
 
   if (isCard) {
     return (
-      <div className="glass rounded-xl border border-red-500/20">
+      <div className="glass rounded-2xl border border-red-500/20">
         {content}
       </div>
     )

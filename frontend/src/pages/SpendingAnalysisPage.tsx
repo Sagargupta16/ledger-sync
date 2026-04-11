@@ -95,7 +95,7 @@ function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, i
   delay: number
 }>) {
   const barColor = isOverBudget ? SEMANTIC_COLORS.expense : accentColor
-  const statusColorClass = isOverBudget ? 'text-ios-red' : 'text-ios-green'
+  const statusColorClass = isOverBudget ? 'text-app-red' : 'text-app-green'
 
   return (
     <div className={`p-4 rounded-lg ${bgClass}`}>
@@ -225,7 +225,7 @@ export default function SpendingAnalysisPage() {
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         <PageHeader
           title="Spending Analysis"
           subtitle="Track and analyze your spending patterns"
@@ -329,7 +329,7 @@ export default function SpendingAnalysisPage() {
                   ))}
                 </div>
                 {/* Ring legend */}
-                <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500">
+                <div className="flex items-center gap-4 mt-2 text-xs text-text-tertiary">
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-2 rounded-sm bg-white/20" />
                     <span>Inner = Target</span>
@@ -351,9 +351,9 @@ export default function SpendingAnalysisPage() {
                 target={`\u2264${needsTarget}%`}
                 isOverBudget={budgetRuleMetrics?.isOverspendingEssential || false}
                 accentColor={SPENDING_TYPE_COLORS.essential}
-                bgClass="bg-ios-blue/10 border border-ios-blue/20"
-                iconBgClass="bg-ios-blue/20"
-                textClass="text-ios-blue"
+                bgClass="bg-app-blue/10 border border-app-blue/20"
+                iconBgClass="bg-app-blue/20"
+                textClass="text-app-blue"
                 delay={0.3}
               />
 
@@ -367,9 +367,9 @@ export default function SpendingAnalysisPage() {
                 target={`\u2264${wantsTarget}%`}
                 isOverBudget={budgetRuleMetrics?.isOverspendingDiscretionary || false}
                 accentColor={SPENDING_TYPE_COLORS.discretionary}
-                bgClass="bg-ios-orange/10 border border-ios-orange/20"
-                iconBgClass="bg-ios-orange/20"
-                textClass="text-ios-orange"
+                bgClass="bg-app-orange/10 border border-app-orange/20"
+                iconBgClass="bg-app-orange/20"
+                textClass="text-app-orange"
                 delay={0.4}
               />
 
@@ -383,9 +383,9 @@ export default function SpendingAnalysisPage() {
                 target={`\u2265${savingsTarget}%`}
                 isOverBudget={budgetRuleMetrics?.isUnderSaving || false}
                 accentColor={SAVINGS_COLOR}
-                bgClass="bg-ios-green/10 border border-ios-green/20"
-                iconBgClass="bg-ios-green/20"
-                textClass="text-ios-green"
+                bgClass="bg-app-green/10 border border-app-green/20"
+                iconBgClass="bg-app-green/20"
+                textClass="text-app-green"
                 delay={0.5}
               />
             </div>

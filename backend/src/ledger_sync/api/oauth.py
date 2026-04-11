@@ -14,6 +14,7 @@ import threading
 import time
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, HTTPException, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -125,7 +126,7 @@ def get_oauth_providers() -> list[OAuthProviderConfig]:
 
 
 async def _oauth_get(
-    client: Any,
+    client: httpx.AsyncClient,
     url: str,
     *,
     headers: dict[str, str] | None = None,
@@ -290,7 +291,7 @@ async def github_callback(
     )
 
 
-async def _fetch_github_primary_email(client: Any, access_token: str) -> str | None:
+async def _fetch_github_primary_email(client: httpx.AsyncClient, access_token: str) -> str | None:
     """Fetch primary verified email from GitHub emails API."""
     resp = await client.get(_GITHUB_EMAILS_URL, headers=_bearer(access_token))
     if resp.status_code != 200:

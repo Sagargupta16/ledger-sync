@@ -23,11 +23,11 @@ export default function GoalProjections({
     <div className="mt-4 space-y-1.5">
       {avgMonthlySavings != null && avgMonthlySavings > 0 && projection.projectedDate && (
         <div className="flex items-center gap-2 text-xs text-text-secondary">
-          <TrendingUp className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.ios.blue }} />
+          <TrendingUp className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.blue }} />
           <span>
             At {formatCurrencyCompact(avgMonthlySavings)}/mo savings{' '}
             {projection.status === 'achieved' ? (
-              <span className="font-medium" style={{ color: rawColors.ios.green }}>
+              <span className="font-medium" style={{ color: rawColors.app.green }}>
                 -- Goal achieved!
               </span>
             ) : (
@@ -40,7 +40,7 @@ export default function GoalProjections({
       )}
 
       <div className="flex items-center gap-2 text-xs text-text-secondary">
-        <Calendar className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.ios.teal }} />
+        <Calendar className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.teal }} />
         <span>
           Target: {new Date(goal.target_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
           {projection.monthsRemaining > 0 && (
@@ -51,7 +51,7 @@ export default function GoalProjections({
 
       {projection.requiredMonthlySavings != null && projection.requiredMonthlySavings > 0 && (
         <div className="flex items-center gap-2 text-xs text-text-secondary">
-          <Target className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.ios.orange }} />
+          <Target className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.orange }} />
           <span>
             Needs {formatCurrencyCompact(projection.requiredMonthlySavings)}/mo to reach target on time
           </span>
@@ -61,7 +61,7 @@ export default function GoalProjections({
       {/* Status Badge */}
       <div className="flex items-center gap-2 text-xs">
         {projection.status === 'achieved' ? (
-          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.ios.green }} />
+          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.green }} />
         ) : (
           <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: projection.statusColor }} />
         )}

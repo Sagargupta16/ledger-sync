@@ -85,9 +85,9 @@ function getSeverityFromDays(days: number): Notification['severity'] {
 }
 
 function getSeverityColor(severity: Notification['severity']): string {
-  if (severity === 'high') return rawColors.ios.red
-  if (severity === 'medium') return rawColors.ios.orange
-  return rawColors.ios.yellow
+  if (severity === 'high') return rawColors.app.red
+  if (severity === 'medium') return rawColors.app.orange
+  return rawColors.app.yellow
 }
 
 function relativeTime(dateStr: string): string {
@@ -164,7 +164,7 @@ function upcomingNotifications(recurring: RecurringTransaction[]): Notification[
       type: 'upcoming',
       title: 'Upcoming Payment',
       message: getDueMessage(r.name, amount, days),
-      timestamp: r.next_expected!,
+      timestamp: r.next_expected ?? '',
       severity: getSeverityFromDays(days),
       meta: { category: r.category, amount: r.expected_amount },
     })
@@ -189,23 +189,23 @@ const groupConfig: Record<
   budget: {
     label: 'Budget Alerts',
     icon: Wallet2,
-    colorClass: 'text-ios-orange',
-    bgClass: 'bg-ios-orange/15',
-    dotColor: rawColors.ios.orange,
+    colorClass: 'text-app-orange',
+    bgClass: 'bg-app-orange/15',
+    dotColor: rawColors.app.orange,
   },
   anomaly: {
     label: 'Anomalies',
     icon: AlertTriangle,
-    colorClass: 'text-ios-red',
-    bgClass: 'bg-ios-red/15',
-    dotColor: rawColors.ios.red,
+    colorClass: 'text-app-red',
+    bgClass: 'bg-app-red/15',
+    dotColor: rawColors.app.red,
   },
   upcoming: {
     label: 'Upcoming',
     icon: CalendarClock,
-    colorClass: 'text-ios-blue',
-    bgClass: 'bg-ios-blue/15',
-    dotColor: rawColors.ios.blue,
+    colorClass: 'text-app-blue',
+    bgClass: 'bg-app-blue/15',
+    dotColor: rawColors.app.blue,
   },
 }
 
@@ -321,7 +321,7 @@ export default function NotificationCenter() {
         onClick={() => setIsOpen((v) => !v)}
         className={cn(
           'w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150 ease-out relative',
-          'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06]',
+          'text-text-tertiary hover:text-white hover:bg-white/[0.06]',
           isOpen && 'bg-white/[0.08] text-white',
         )}
         title="Notifications"
@@ -332,7 +332,7 @@ export default function NotificationCenter() {
           <span
             className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 flex items-center justify-center px-0.5 rounded-full text-[9px] font-bold text-white"
             style={{
-              background: `linear-gradient(135deg, ${rawColors.ios.red}, ${rawColors.ios.pink})`,
+              background: `linear-gradient(135deg, ${rawColors.app.red}, ${rawColors.app.pink})`,
             }}
           >
             {totalCount > 9 ? '9+' : totalCount}
@@ -359,7 +359,7 @@ export default function NotificationCenter() {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <div className="flex items-center gap-2">
-                <Bell size={16} className="text-ios-blue" />
+                <Bell size={16} className="text-app-blue" />
                 <span className="text-sm font-semibold text-white">
                   Notifications
                 </span>
@@ -367,7 +367,7 @@ export default function NotificationCenter() {
                   <span
                     className="px-1.5 py-0.5 rounded-md text-[10px] font-bold text-white"
                     style={{
-                      background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
+                      background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
                     }}
                   >
                     {totalCount}
@@ -400,10 +400,10 @@ export default function NotificationCenter() {
                   <div
                     className="p-3 rounded-2xl mb-3"
                     style={{
-                      background: `linear-gradient(135deg, ${rawColors.ios.green}20, ${rawColors.ios.teal}20)`,
+                      background: `linear-gradient(135deg, ${rawColors.app.green}20, ${rawColors.app.teal}20)`,
                     }}
                   >
-                    <Bell size={24} className="text-ios-green" />
+                    <Bell size={24} className="text-app-green" />
                   </div>
                   <p className="text-sm font-medium text-white">All caught up!</p>
                   <p className="text-xs text-muted-foreground mt-1">

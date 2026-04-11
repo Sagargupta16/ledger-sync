@@ -139,7 +139,7 @@ function BrandHeader({
     <button
       type="button"
       onClick={onOpenProfile}
-      className="w-full flex items-center gap-3 px-4 py-4 border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors duration-150 group/brand"
+      className="w-full flex items-center gap-3 px-4 py-4 border-b border-border hover:bg-white/[0.04] transition-colors duration-150 group/brand"
     >
       <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-500/15">
         <PiggyBank className="w-5 h-5 text-blue-400" />
@@ -148,13 +148,13 @@ function BrandHeader({
         <p className="text-[15px] font-semibold text-white truncate leading-tight">
           Ledger Sync
         </p>
-        <p className="text-xs text-zinc-500 truncate leading-tight mt-0.5">
+        <p className="text-xs text-text-tertiary truncate leading-tight mt-0.5">
           {user?.email || 'Financial Dashboard'}
         </p>
       </div>
       <ChevronDown
         size={16}
-        className="text-zinc-600 flex-shrink-0 group-hover/brand:text-zinc-400 transition-colors duration-150"
+        className="text-text-quaternary flex-shrink-0 group-hover/brand:text-muted-foreground transition-colors duration-150"
       />
     </button>
   )
@@ -235,7 +235,7 @@ export default function Sidebar() {
         className={cn(
           'fixed lg:sticky top-0 h-screen w-64 z-40',
           'bg-[#111113]/95 backdrop-blur-sm',
-          'border-r border-white/[0.06]',
+          'border-r border-border',
           'transition-transform duration-200 ease-out',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
@@ -248,15 +248,15 @@ export default function Sidebar() {
           />
 
           {/* Search */}
-          <div className="px-3 py-2 border-b border-white/[0.06]">
+          <div className="px-3 py-2 border-b border-border">
             <button
               onClick={openSearch}
-              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.07] text-zinc-500 hover:text-zinc-300 transition-colors duration-150 text-sm"
+              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-text-tertiary hover:text-white transition-colors duration-150 text-sm"
               title="Search (⌘K)"
             >
               <Search size={15} className="flex-shrink-0" />
               <span className="flex-1 text-left">Search...</span>
-              <kbd className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-zinc-600 font-medium">
+              <kbd className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-text-quaternary font-medium">
                 ⌘K
               </kbd>
             </button>
@@ -296,7 +296,7 @@ export default function Sidebar() {
           </nav>
 
           {/* Bottom icon bar */}
-          <div className="border-t border-white/[0.06] px-3 py-2.5">
+          <div className="border-t border-border px-3 py-2.5">
             <div className="flex items-center justify-center gap-1">
               <CurrencySwitcher />
               <NotificationCenter />
@@ -305,7 +305,7 @@ export default function Sidebar() {
                   key={item.path}
                   to={item.path}
                   onClick={closeMobile}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors duration-150"
+                  className="w-9 h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] transition-colors duration-150"
                   title={item.label}
                 >
                   <item.icon size={18} />
@@ -315,7 +315,7 @@ export default function Sidebar() {
                 <button
                   type="button"
                   onClick={() => exitDemoMode(queryClient, navigate)}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150"
+                  className="w-9 h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150"
                   title="Exit Demo"
                 >
                   <LogOut size={18} />
@@ -325,7 +325,7 @@ export default function Sidebar() {
                   type="button"
                   onClick={handleLogout}
                   disabled={logout.isPending}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 disabled:opacity-50"
+                  className="w-9 h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 disabled:opacity-50"
                   title="Sign out"
                 >
                   <LogOut size={18} />

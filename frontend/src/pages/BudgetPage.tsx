@@ -63,10 +63,10 @@ interface BudgetRow {
 
 // ─── Helpers ────────────────────────────────────────────────────────
 const statusConfig = {
-  safe: { color: rawColors.ios.green, bg: 'bg-ios-green/10', border: 'border-ios-green/20', text: 'text-ios-green' },
-  warning: { color: rawColors.ios.yellow, bg: 'bg-ios-yellow/10', border: 'border-ios-yellow/20', text: 'text-ios-yellow' },
-  danger: { color: rawColors.ios.orange, bg: 'bg-ios-orange/10', border: 'border-ios-orange/20', text: 'text-ios-orange' },
-  exceeded: { color: rawColors.ios.red, bg: 'bg-ios-red/10', border: 'border-ios-red/20', text: 'text-ios-red' },
+  safe: { color: rawColors.app.green, bg: 'bg-app-green/10', border: 'border-app-green/20', text: 'text-app-green' },
+  warning: { color: rawColors.app.yellow, bg: 'bg-app-yellow/10', border: 'border-app-yellow/20', text: 'text-app-yellow' },
+  danger: { color: rawColors.app.orange, bg: 'bg-app-orange/10', border: 'border-app-orange/20', text: 'text-app-orange' },
+  exceeded: { color: rawColors.app.red, bg: 'bg-app-red/10', border: 'border-app-red/20', text: 'text-app-red' },
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -322,7 +322,8 @@ export default function BudgetPage() {
 
   // ─── Render ───────────────────────────────────────────────────
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
       {/* Header */}
       <PageHeader
         title="Budget Tracker"
@@ -346,7 +347,7 @@ export default function BudgetPage() {
                     <motion.div
                       layoutId="budgetViewTab"
                       className="absolute inset-0 rounded-lg"
-                      style={{ backgroundColor: rawColors.ios.green }}
+                      style={{ backgroundColor: rawColors.app.green }}
                       initial={false}
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
@@ -359,8 +360,8 @@ export default function BudgetPage() {
             <motion.button
               onClick={() => setIsAdding(true)}
               whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors shadow-lg"
-              style={{ background: `linear-gradient(135deg, ${rawColors.ios.green}, ${rawColors.ios.teal})` }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors"
+              style={{ background: `linear-gradient(135deg, ${rawColors.app.green}, ${rawColors.app.teal})` }}
             >
               <Plus className="w-4 h-4" /> Add Budget
             </motion.button>
@@ -372,21 +373,21 @@ export default function BudgetPage() {
       {summary.count > 0 && (
         <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-5" initial="hidden" animate="visible" variants={staggerContainer}>
           <motion.div variants={fadeUpItem}>
-            <StatCard label="Total Budget" value={formatCurrency(summary.totalBudget)} icon={Target} color={rawColors.ios.blue} />
+            <StatCard label="Total Budget" value={formatCurrency(summary.totalBudget)} icon={Target} color={rawColors.app.blue} />
           </motion.div>
           <motion.div variants={fadeUpItem}>
             <StatCard
               label="Total Spent"
               value={formatCurrency(summary.totalSpent)}
               icon={TrendingDown}
-              color={summary.totalSpent > summary.totalBudget ? rawColors.ios.red : rawColors.ios.green}
+              color={summary.totalSpent > summary.totalBudget ? rawColors.app.red : rawColors.app.green}
             />
           </motion.div>
           <motion.div variants={fadeUpItem}>
-            <StatCard label="On Track" value={String(summary.onTrack)} icon={CheckCircle} color={rawColors.ios.green} />
+            <StatCard label="On Track" value={String(summary.onTrack)} icon={CheckCircle} color={rawColors.app.green} />
           </motion.div>
           <motion.div variants={fadeUpItem}>
-            <StatCard label="Exceeded" value={String(summary.exceeded)} icon={AlertTriangle} color={rawColors.ios.red} />
+            <StatCard label="Exceeded" value={String(summary.exceeded)} icon={AlertTriangle} color={rawColors.app.red} />
           </motion.div>
         </motion.div>
       )}
@@ -482,7 +483,7 @@ export default function BudgetPage() {
                 onClick={handleAdd}
                 disabled={!formCategory || !formLimit}
                 className="px-5 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-colors"
-                style={{ backgroundColor: rawColors.ios.green }}
+                style={{ backgroundColor: rawColors.app.green }}
               >
                 Add
               </button>
@@ -498,7 +499,7 @@ export default function BudgetPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl border border-border p-6 shadow-xl"
+            className="glass rounded-2xl border border-border p-6"
           >
             <h2 className="text-lg font-semibold mb-4">Budget vs Actual</h2>
             <div className="h-64">
@@ -514,7 +515,7 @@ export default function BudgetPage() {
                       {...chartTooltipProps}
                       formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
                     />
-                    <Bar dataKey="Budget" fill={rawColors.ios.blue} radius={BAR_RADIUS} opacity={0.5} isAnimationActive={shouldAnimate(chartData.length)} animationDuration={600} animationEasing="ease-out">
+                    <Bar dataKey="Budget" fill={rawColors.app.blue} radius={BAR_RADIUS} opacity={0.5} isAnimationActive={shouldAnimate(chartData.length)} animationDuration={600} animationEasing="ease-out">
                       {dims.showBarLabels && <LabelList dataKey="Budget" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
                     </Bar>
                     <Bar dataKey="Spent" radius={BAR_RADIUS} isAnimationActive={shouldAnimate(chartData.length)} animationDuration={600} animationEasing="ease-out" onClick={(data: { name?: string }) => { if (data?.name) navigate(`/transactions?category=${encodeURIComponent(data.name)}`) }} style={{ cursor: 'pointer' }}>
@@ -538,7 +539,7 @@ export default function BudgetPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="glass rounded-2xl border border-border p-6 shadow-xl"
+                  className="glass rounded-2xl border border-border p-6"
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div>
@@ -551,7 +552,7 @@ export default function BudgetPage() {
                         Ideal
                       </span>
                       <span className="flex items-center gap-1.5">{' '}
-                        <span className="w-4 h-0.5 rounded-full" style={{ backgroundColor: rawColors.ios.green }} />{' '}
+                        <span className="w-4 h-0.5 rounded-full" style={{ backgroundColor: rawColors.app.green }} />{' '}
                         Actual
                       </span>
                     </div>
@@ -560,7 +561,7 @@ export default function BudgetPage() {
                     <ChartContainer>
                       <AreaChart data={burndownData}>
                         <defs>
-                          {areaGradient('burnActual', rawColors.ios.green, 0.35, 0.02)}
+                          {areaGradient('burnActual', rawColors.app.green, 0.35, 0.02)}
                         </defs>
                         <CartesianGrid {...GRID_DEFAULTS} />
                         <XAxis
@@ -580,7 +581,7 @@ export default function BudgetPage() {
                         <Area
                           type="monotone"
                           dataKey="actual"
-                          stroke={rawColors.ios.green}
+                          stroke={rawColors.app.green}
                           fill={areaGradientUrl('burnActual')}
                           strokeWidth={2}
                           dot={false}
@@ -612,7 +613,7 @@ export default function BudgetPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="glass rounded-2xl border border-border p-6 shadow-xl"
+                  className="glass rounded-2xl border border-border p-6"
                 >
                   <div className="mb-4">
                     <h2 className="text-lg font-semibold">Category Usage Radar</h2>
@@ -634,13 +635,13 @@ export default function BudgetPage() {
                         />
                         <Radar
                           dataKey="usage"
-                          stroke={rawColors.ios.blue}
-                          fill={rawColors.ios.blue}
+                          stroke={rawColors.app.blue}
+                          fill={rawColors.app.blue}
                           fillOpacity={0.15}
                           strokeWidth={2}
-                          dot={{ r: 3, fill: rawColors.ios.blue }}
+                          dot={{ r: 3, fill: rawColors.app.blue }}
                           isAnimationActive={shouldAnimate(radarData.length)}
-                          animationDuration={800}
+                          animationDuration={600}
                           animationEasing="ease-out"
                         />
                         <Tooltip
@@ -667,7 +668,7 @@ export default function BudgetPage() {
                   key={key}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`glass rounded-2xl border p-5 hover:bg-white/[0.04] transition-colors ${cfg.border} ${cfg.bg}`}
+                  className={`glass rounded-2xl border p-6 hover:bg-white/[0.04] transition-colors ${cfg.border} ${cfg.bg}`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -686,15 +687,15 @@ export default function BudgetPage() {
                         {row.period}
                       </span>
                       {fixedExpenseCategories.has(key.toLowerCase()) && (
-                        <span className="text-xs ml-1 px-2 py-0.5 rounded-full bg-ios-purple/15 text-ios-purple border border-ios-purple/20">
+                        <span className="text-xs ml-1 px-2 py-0.5 rounded-full bg-app-purple/15 text-app-purple border border-app-purple/20">
                           Fixed
                         </span>
                       )}
                       {(() => {
                         const momentum = categoryMomentum.get(row.category)
                         if (!momentum || momentum.sparklineData.length < 3) return null
-                        const momentumColorMap = { accelerating: rawColors.ios.red, decelerating: rawColors.ios.green, stable: rawColors.ios.yellow }
-                        const momentumClassMap = { accelerating: 'text-ios-red', decelerating: 'text-ios-green', stable: 'text-ios-yellow' }
+                        const momentumColorMap = { accelerating: rawColors.app.red, decelerating: rawColors.app.green, stable: rawColors.app.yellow }
+                        const momentumClassMap = { accelerating: 'text-app-red', decelerating: 'text-app-green', stable: 'text-app-yellow' }
                         return (
                           <div className="ml-2 flex items-center gap-1">
                             <Sparkline data={momentum.sparklineData} color={momentumColorMap[momentum.classification]} height={20} showTooltip={false} />
@@ -732,7 +733,7 @@ export default function BudgetPage() {
                           <button onClick={() => setEditKey(key)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
                             <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
                           </button>
-                          <button onClick={() => { if (globalThis.confirm('Delete this budget? This cannot be undone.')) removeBudget(key) }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-ios-red">
+                          <button onClick={() => { if (globalThis.confirm('Delete this budget? This cannot be undone.')) removeBudget(key) }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-app-red">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </>
@@ -763,7 +764,7 @@ export default function BudgetPage() {
                     />
                     {/* Alert threshold marker */}
                     <div
-                      className="absolute top-0 h-full w-0.5 bg-ios-yellow/60"
+                      className="absolute top-0 h-full w-0.5 bg-app-yellow/60"
                       style={{ left: `${alertThreshold}%`, transform: 'translateX(-1px)' }}
                     />
                   </div>
@@ -771,11 +772,11 @@ export default function BudgetPage() {
                   {/* Primary: available to spend */}
                   <div className="mb-1">
                     {row.remaining >= 0 ? (
-                      <p className="text-sm font-semibold text-ios-green">
+                      <p className="text-sm font-semibold text-app-green">
                         {formatCurrency(row.remaining)} left to spend
                       </p>
                     ) : (
-                      <p className="text-sm font-semibold text-ios-red">
+                      <p className="text-sm font-semibold text-app-red">
                         {formatCurrency(Math.abs(row.remaining))} over budget
                       </p>
                     )}
@@ -803,7 +804,7 @@ export default function BudgetPage() {
           <button
             onClick={() => setIsAdding(true)}
             className="px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-colors"
-            style={{ backgroundColor: rawColors.ios.green }}
+            style={{ backgroundColor: rawColors.app.green }}
           >
             <Plus className="w-4 h-4 inline mr-1.5" /> Create Your First Budget
           </button>
@@ -838,7 +839,7 @@ export default function BudgetPage() {
                     onClick={() => handleQuickAdd(cat, spent)}
                     whileTap={{ scale: 0.95 }}
                     className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors hover:scale-105"
-                    style={{ backgroundColor: `${rawColors.ios.green}15`, color: rawColors.ios.green }}
+                    style={{ backgroundColor: `${rawColors.app.green}15`, color: rawColors.app.green }}
                   >
                     + {displayName} ({formatCurrency(spent)}/mo)
                   </motion.button>
@@ -847,6 +848,7 @@ export default function BudgetPage() {
           </div>
         </motion.div>
       )}
+      </div>
     </div>
   )
 }

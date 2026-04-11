@@ -44,12 +44,12 @@ export default function IncomeAnalysisPage() {
   // Filter transactions by date range
   const filteredTransactions = useMemo(() => {
     if (!transactions) return []
-    if (!dateRange.start_date) return transactions
+    const startDate = dateRange.start_date
+    if (!startDate) return transactions
 
     return transactions.filter((t) => {
-      // Compare only the date part (YYYY-MM-DD) to handle datetime strings correctly
       const txDate = getDateKey(t.date)
-      return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
+      return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [transactions, dateRange])
 
@@ -160,7 +160,7 @@ export default function IncomeAnalysisPage() {
           }
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard title="Total Income" value={formatCurrency(totalIncome)} icon={DollarSign} color="green" isLoading={isLoading} />
           <MetricCard title="Primary Income Type" value={primaryIncomeType} icon={Activity} color="blue" isLoading={isLoading} />
           <MetricCard title="Growth Rate" value={formatPercent(growthRate, true)} icon={TrendingUp} color={growthColor} isLoading={isLoading} />
@@ -262,7 +262,7 @@ export default function IncomeAnalysisPage() {
         >
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <TrendingUp className="w-5 h-5 text-ios-green" />
+              <TrendingUp className="w-5 h-5 text-app-green" />
               <div>
                 <h3 className="text-lg font-semibold text-white">Income Trend</h3>
                 <p className="text-sm text-text-tertiary">Monthly income with 3-month rolling average</p>
@@ -278,7 +278,7 @@ export default function IncomeAnalysisPage() {
               <ChartContainer height={dims.chartHeight}>
                 <AreaChart data={monthlyTrendData} margin={dims.margin}>
                   <defs>
-                    {areaGradient('incomeTrend', rawColors.ios.green, 0.4, 0)}
+                    {areaGradient('incomeTrend', rawColors.app.green, 0.4, 0)}
                   </defs>
                   <CartesianGrid {...GRID_DEFAULTS} />
                   <XAxis
@@ -307,7 +307,7 @@ export default function IncomeAnalysisPage() {
                   <Area
                     type="monotone"
                     dataKey="income"
-                    stroke={rawColors.ios.green}
+                    stroke={rawColors.app.green}
                     fill={areaGradientUrl('incomeTrend')}
                     strokeWidth={2}
                     dot={false}
@@ -318,7 +318,7 @@ export default function IncomeAnalysisPage() {
                   <Line
                     type="monotone"
                     dataKey="incomeAvg"
-                    stroke={rawColors.ios.green}
+                    stroke={rawColors.app.green}
                     strokeWidth={2}
                     strokeDasharray="6 3"
                     dot={false}
@@ -348,7 +348,7 @@ export default function IncomeAnalysisPage() {
           transactionType="income"
           dateRange={dateRange}
           headerIcon={DollarSign}
-          headerIconColor="text-ios-green"
+          headerIconColor="text-app-green"
           headerTitle="Income Sources"
           colorMap={INCOME_CATEGORY_COLORS}
           emptyIcon={Wallet}

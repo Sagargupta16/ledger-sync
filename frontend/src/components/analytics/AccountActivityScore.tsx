@@ -7,10 +7,10 @@ import { rawColors } from '@/constants/colors'
 type ActivityLevel = 'high' | 'medium' | 'low' | 'dormant'
 
 const ACTIVITY_STYLES: Record<ActivityLevel, { color: string; bg: string; border: string }> = {
-  high: { color: rawColors.ios.green, bg: 'bg-ios-green/10', border: 'border-ios-green/20' },
-  medium: { color: rawColors.ios.blue, bg: 'bg-ios-blue/10', border: 'border-ios-blue/20' },
-  low: { color: rawColors.ios.yellow, bg: 'bg-ios-yellow/10', border: 'border-ios-yellow/20' },
-  dormant: { color: rawColors.ios.red, bg: 'bg-ios-red/10', border: 'border-ios-red/20' },
+  high: { color: rawColors.app.green, bg: 'bg-app-green/10', border: 'border-app-green/20' },
+  medium: { color: rawColors.app.blue, bg: 'bg-app-blue/10', border: 'border-app-blue/20' },
+  low: { color: rawColors.app.yellow, bg: 'bg-app-yellow/10', border: 'border-app-yellow/20' },
+  dormant: { color: rawColors.app.red, bg: 'bg-app-red/10', border: 'border-app-red/20' },
 }
 
 const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
@@ -27,6 +27,13 @@ interface AccountInfo {
   avgFrequency: number
   level: ActivityLevel
   score: number
+}
+
+function classifyActivity(daysSince: number, count: number): { level: ActivityLevel; score: number } {
+  if (daysSince <= 7 && count >= 10) return { level: 'high', score: 100 }
+  if (daysSince <= 30 && count >= 3) return { level: 'medium', score: 65 }
+  if (daysSince <= 90) return { level: 'low', score: 35 }
+  return { level: 'dormant', score: 10 }
 }
 
 export default function AccountActivityScore() {
@@ -49,33 +56,19 @@ export default function AccountActivityScore() {
 
     for (const [name, data] of Object.entries(accountData)) {
       const sortedDates = [...data.dates].sort((a, b) => a.localeCompare(b))
-      const lastTxDate = sortedDates.at(-1)!
+      const lastTxDate = sortedDates.at(-1) ?? ''
+      if (!lastTxDate) continue
       const daysSince = Math.floor((now.getTime() - new Date(lastTxDate).getTime()) / (1000 * 60 * 60 * 24))
 
       let avgFreq = 0
       if (sortedDates.length > 1) {
         const firstDate = new Date(sortedDates[0])
-        const lastDate = new Date(sortedDates.at(-1)!)
+        const lastDate = new Date(lastTxDate)
         const totalDays = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)
         avgFreq = Math.round(totalDays / (sortedDates.length - 1))
       }
 
-      let level: ActivityLevel
-      let score: number
-      if (daysSince <= 7 && data.count >= 10) {
-        level = 'high'
-        score = 100
-      } else if (daysSince <= 30 && data.count >= 3) {
-        level = 'medium'
-        score = 65
-      } else if (daysSince <= 90) {
-        level = 'low'
-        score = 35
-      } else {
-        level = 'dormant'
-        score = 10
-      }
-
+      const { level, score } = classifyActivity(daysSince, data.count)
       results.push({ name, count: data.count, daysSinceLastTx: daysSince, avgFrequency: avgFreq, level, score })
     }
 
@@ -94,7 +87,7 @@ export default function AccountActivityScore() {
       transition={{ delay: 0.3 }}
     >
       <div className="flex items-center gap-2 mb-5">
-        <Activity className="w-5 h-5 text-ios-teal" />
+        <Activity className="w-5 h-5 text-app-teal" />
         <h3 className="text-lg font-semibold text-white">Account Activity</h3>
         <span className="text-xs text-text-tertiary ml-auto">{accounts.length} accounts</span>
       </div>

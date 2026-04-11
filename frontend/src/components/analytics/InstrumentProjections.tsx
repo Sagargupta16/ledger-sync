@@ -56,7 +56,7 @@ function SliderInput({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-ios-blue cursor-pointer"
+        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-app-blue cursor-pointer"
       />
     </div>
   )
@@ -71,10 +71,10 @@ function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) {
 
   return (
     <ChartContainer height={280}>
-      <AreaChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 5 }}>
+      <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
         <defs>
-          {areaGradient('contributed', rawColors.ios.blue, 0.7, 0.1)}
-          {areaGradient('returns', rawColors.ios.green, 0.7, 0.1)}
+          {areaGradient('contributed', rawColors.app.blue, 0.7, 0.1)}
+          {areaGradient('returns', rawColors.app.green, 0.7, 0.1)}
         </defs>
         <CartesianGrid {...GRID_DEFAULTS} />
         <XAxis {...xAxisDefaults(chartData.length)} dataKey="year" />
@@ -88,7 +88,7 @@ function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) {
           type="monotone"
           dataKey="Contributed"
           stackId="1"
-          stroke={rawColors.ios.blue}
+          stroke={rawColors.app.blue}
           fill={areaGradientUrl('contributed')}
           strokeWidth={2}
           dot={false}
@@ -100,7 +100,7 @@ function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) {
           type="monotone"
           dataKey="Returns"
           stackId="1"
-          stroke={rawColors.ios.green}
+          stroke={rawColors.app.green}
           fill={areaGradientUrl('returns')}
           strokeWidth={2}
           dot={false}
@@ -247,7 +247,7 @@ export default function InstrumentProjections() {
     >
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <Landmark className="w-5 h-5 text-ios-blue" />
+          <Landmark className="w-5 h-5 text-app-blue" />
           <h3 className="text-lg font-semibold text-white">Instrument Maturity Projections</h3>
         </div>
         <div className="flex gap-1 p-0.5 rounded-lg bg-muted/20">

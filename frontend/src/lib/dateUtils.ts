@@ -20,10 +20,11 @@ export const filterTransactionsByDateRange = <T extends { date: string }>(
   items: T[],
   dateRange: { start_date?: string; end_date?: string }
 ): T[] => {
-  if (!dateRange.start_date) return items
+  const startDate = dateRange.start_date
+  if (!startDate) return items
   return items.filter((item) => {
     const txDate = getDateKey(item.date)
-    return txDate >= dateRange.start_date! && (!dateRange.end_date || txDate <= dateRange.end_date)
+    return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
   })
 }
 

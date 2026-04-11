@@ -15,12 +15,12 @@ export function DemoBanner() {
 
   return (
     <>
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 text-sm rounded-xl bg-black/80 border border-ios-blue/30 backdrop-blur-md shadow-lg shadow-black/30">
-        <Eye className="w-4 h-4 text-ios-blue flex-shrink-0" />
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 text-sm rounded-xl bg-black/80 border border-app-blue/30 backdrop-blur-md shadow-lg shadow-black/30">
+        <Eye className="w-4 h-4 text-app-blue flex-shrink-0" />
         <span className="text-white/80 whitespace-nowrap">Sample data</span>
         <button
           onClick={() => setShowAuth(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-white bg-ios-blue/30 hover:bg-ios-blue/50 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-white bg-app-blue/30 hover:bg-app-blue/50 transition-colors whitespace-nowrap"
         >
           <LogIn className="w-3 h-3" />
           Sign up

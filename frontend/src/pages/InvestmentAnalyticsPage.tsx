@@ -19,10 +19,10 @@ const INVESTMENT_CATEGORIES = ['FD/Bonds', 'Mutual Funds', 'PPF/EPF', 'Stocks'] 
 type InvestmentCategory = typeof INVESTMENT_CATEGORIES[number]
 
 const CATEGORY_COLORS: Record<InvestmentCategory, string> = {
-  'FD/Bonds': rawColors.ios.pink,      // Pink
-  'Mutual Funds': rawColors.ios.purple,  // Purple
+  'FD/Bonds': rawColors.app.pink,      // Pink
+  'Mutual Funds': rawColors.app.purple,  // Purple
   'PPF/EPF': '#f59e0b',       // Amber
-  'Stocks': rawColors.ios.green,        // iOS Green
+  'Stocks': rawColors.app.green,
 }
 
 // Map investment types from preferences to our 4 categories
@@ -52,6 +52,11 @@ const mapToCategory = (investmentType: string): InvestmentCategory => {
 
   // Default to Mutual Funds for other investments
   return 'Mutual Funds'
+}
+
+function ariaSort(activeKey: string | null, column: string, dir: 'asc' | 'desc'): 'ascending' | 'descending' | 'none' {
+  if (activeKey !== column) return 'none'
+  return dir === 'asc' ? 'ascending' : 'descending'
 }
 
 export default function InvestmentAnalyticsPage() {
@@ -283,7 +288,9 @@ export default function InvestmentAnalyticsPage() {
 
     // Generate all days between first and last snapshot
     const firstDate = new Date(dailySnapshots[0].date)
-    const lastDate = new Date(dailySnapshots.at(-1)!.date)
+    const lastSnapshot = dailySnapshots.at(-1)
+    if (!lastSnapshot) return []
+    const lastDate = new Date(lastSnapshot.date)
     const allDays: string[] = []
     for (const d = new Date(firstDate); d <= lastDate; d.setDate(d.getDate() + 1)) {
       allDays.push(d.toISOString().substring(0, 10))
@@ -328,10 +335,12 @@ export default function InvestmentAnalyticsPage() {
   )
 
   const filteredGrowthData = useMemo(() => {
-    if (!dateRange.start_date || !dateRange.end_date) return dailyGrowthData
+    const startDate = dateRange.start_date
+    const endDate = dateRange.end_date
+    if (!startDate || !endDate) return dailyGrowthData
     return dailyGrowthData.filter((item) => {
       const d = item.fullDate as string
-      return d >= dateRange.start_date! && d <= dateRange.end_date!
+      return d >= startDate && d <= endDate
     })
   }, [dailyGrowthData, dateRange])
 
@@ -375,7 +384,7 @@ export default function InvestmentAnalyticsPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-xl border border-border p-4 md:p-6 lg:p-8 shadow-lg text-center"
+            className="glass rounded-2xl border border-border p-4 md:p-6 lg:p-8 text-center"
           >
             <p className="text-muted-foreground mb-4">No investment accounts classified yet.</p>
             <p className="text-sm text-muted-foreground">
@@ -400,7 +409,7 @@ export default function InvestmentAnalyticsPage() {
           }
         />
 
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-3 sm:gap-4 lg:gap-6`}>
           <MetricCard title="Total Investment Value" value={formatCurrency(totalInvestmentValue)} icon={TrendingUp} color="green" isLoading={isLoading} />
           <MetricCard title="Portfolio Assets" value={investmentAccounts.length} icon={PieChart} color="blue" isLoading={isLoading} />
           <MetricCard title="Net Investment P&L" value={`${netInvestmentPL >= 0 ? '+' : ''}${formatCurrency(netInvestmentPL)}`} subtitle={`${plPercent >= 0 ? '+' : ''}${formatPercent(plPercent)} of portfolio`} icon={DollarSign} color={netInvestmentPL >= 0 ? 'green' : 'red'} isLoading={isLoading} />
@@ -409,10 +418,10 @@ export default function InvestmentAnalyticsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="relative p-4 md:p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10 shadow-xl shadow-black/40"
+              className="relative p-4 md:p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10"
             >
-              <div className="inline-flex p-3 rounded-2xl mb-4 bg-ios-orange/15" style={{ boxShadow: '0 8px 24px rgba(255,159,10,0.15)' }}>
-                <Target className="w-6 h-6 text-ios-orange" />
+              <div className="inline-flex p-3 rounded-2xl mb-4 bg-app-orange/15" style={{ boxShadow: '0 8px 24px rgba(255,159,10,0.15)' }}>
+                <Target className="w-6 h-6 text-app-orange" />
               </div>
               <h3 className="text-sm font-medium mb-1 text-text-secondary">Monthly Target</h3>
               <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-white">
@@ -423,14 +432,14 @@ export default function InvestmentAnalyticsPage() {
                   <span className="text-text-tertiary">
                     {formatCurrency(currentMonthInvestment)} invested
                   </span>
-                  <span className={targetProgress >= 100 ? 'text-ios-green font-medium' : 'text-ios-orange font-medium'}>
+                  <span className={targetProgress >= 100 ? 'text-app-green font-medium' : 'text-app-orange font-medium'}>
                     {targetProgress.toFixed(0)}%
                   </span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
-                    style={{ background: targetProgress >= 100 ? rawColors.ios.green : rawColors.ios.orange }}
+                    style={{ background: targetProgress >= 100 ? rawColors.app.green : rawColors.app.orange }}
                     initial={{ width: 0 }}
                     animate={{ width: `${targetProgress}%` }}
                     transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
@@ -445,10 +454,10 @@ export default function InvestmentAnalyticsPage() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+          className="glass rounded-2xl border border-border p-4 md:p-6"
         >
           <div className="flex items-center gap-3 mb-6">
-            <PieChart className="w-5 h-5 text-ios-blue" />
+            <PieChart className="w-5 h-5 text-app-blue" />
             <h3 className="text-lg font-semibold text-white">Asset Allocation</h3>
           </div>
           {isLoading && (
@@ -492,10 +501,10 @@ export default function InvestmentAnalyticsPage() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
-          className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+          className="glass rounded-2xl border border-border p-4 md:p-6"
         >
           <div className="flex items-center gap-3 mb-6">
-            <LineChart className="w-5 h-5 text-ios-purple" />
+            <LineChart className="w-5 h-5 text-app-purple" />
             <h3 className="text-lg font-semibold text-white">Investment Growth Over Time</h3>
           </div>
           {isLoading && (
@@ -556,9 +565,9 @@ export default function InvestmentAnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="glass rounded-xl border border-border p-4 md:p-6 shadow-lg"
+            className="glass rounded-2xl border border-border p-4 md:p-6"
           >
-            <h3 className="text-lg font-semibold text-white mb-6">Investment Accounts</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Investment Accounts</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -568,7 +577,7 @@ export default function InvestmentAnalyticsPage() {
                       onClick={() => toggleInvestSort('value')}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleInvestSort('value') } }}
                       tabIndex={0}
-                      aria-sort={investSortKey === 'value' ? (investSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      aria-sort={ariaSort(investSortKey, 'value', investSortDir)}
                       className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
                     >
                       Value {investSortKey === 'value' && (investSortDir === 'asc' ? '\u2191' : '\u2193')}
@@ -577,7 +586,7 @@ export default function InvestmentAnalyticsPage() {
                       onClick={() => toggleInvestSort('percentage')}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleInvestSort('percentage') } }}
                       tabIndex={0}
-                      aria-sort={investSortKey === 'percentage' ? (investSortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      aria-sort={ariaSort(investSortKey, 'percentage', investSortDir)}
                       className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
                     >
                       Allocation {investSortKey === 'percentage' && (investSortDir === 'asc' ? '\u2191' : '\u2193')}
@@ -594,8 +603,8 @@ export default function InvestmentAnalyticsPage() {
                       transition={{ delay: 0.6 + index * 0.05 }}
                     >
                       <td className="py-3 px-4 text-white font-medium">{item.name}</td>
-                      <td className="py-3 px-4 text-right text-ios-green">{formatCurrency(item.value)}</td>
-                      <td className="py-3 px-4 text-right text-ios-purple">{formatPercent(Number.parseFloat(item.percentage))}</td>
+                      <td className="py-3 px-4 text-right text-app-green">{formatCurrency(item.value)}</td>
+                      <td className="py-3 px-4 text-right text-app-purple">{formatPercent(Number.parseFloat(item.percentage))}</td>
                     </motion.tr>
                   ))}
                 </tbody>

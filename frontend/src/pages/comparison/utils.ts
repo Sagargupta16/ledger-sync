@@ -3,8 +3,8 @@ import { percentChange } from '@/lib/formatters'
 /** Return Tailwind class for the change badge background + text */
 export function changeBadgeClass(change: number, isGood: boolean): string {
   if (Math.abs(change) < 1) return 'text-muted-foreground bg-white/5'
-  if (isGood) return 'text-ios-green bg-ios-green/10'
-  return 'text-ios-red bg-ios-red/10'
+  if (isGood) return 'text-app-green bg-app-green/10'
+  return 'text-app-red bg-app-red/10'
 }
 
 export const pctChange = (curr: number, prev: number): number =>

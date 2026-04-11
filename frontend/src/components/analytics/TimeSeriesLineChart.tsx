@@ -31,7 +31,7 @@ export default function TimeSeriesLineChart({
 
   return (
     <ChartContainer height={height}>
-      <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 20, left: 4 }}>
+      <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
         <CartesianGrid {...GRID_DEFAULTS} />
         <XAxis
           dataKey="displayPeriod"

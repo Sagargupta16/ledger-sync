@@ -22,7 +22,7 @@ export function ProtectedRoute({ children }: Readonly<ProtectedRouteProps>) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-ios-blue animate-spin" />
+          <Loader2 className="w-8 h-8 text-app-blue animate-spin" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>

@@ -90,19 +90,19 @@ function AddRecurringForm({
       exit={{ opacity: 0, height: 0 }}
       className="overflow-hidden"
     >
-      <div className="glass rounded-xl border border-ios-blue/30 p-5 space-y-4">
+      <div className="glass rounded-2xl border border-app-blue/30 p-6 space-y-4">
         <p className="text-sm font-medium text-white">Add Recurring Transaction</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div className="sm:col-span-2 lg:col-span-1">
             <label htmlFor="add-name" className="text-xs text-text-tertiary block mb-1">Name</label>
             <input id="add-name" type="text" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="e.g. House Rent" autoFocus
-              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-blue/50" />
+              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50" />
           </div>
           <div>
             <label htmlFor="add-type" className="text-xs text-text-tertiary block mb-1">Type</label>
             <select id="add-type" value={type} onChange={(e) => setType(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-blue/50">
+              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50">
               <option value="Expense">Expense</option>
               <option value="Income">Income</option>
             </select>
@@ -110,7 +110,7 @@ function AddRecurringForm({
           <div>
             <label htmlFor="add-freq" className="text-xs text-text-tertiary block mb-1">Frequency</label>
             <select id="add-freq" value={frequency} onChange={(e) => setFrequency(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-blue/50">
+              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50">
               {FREQUENCY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
@@ -118,18 +118,18 @@ function AddRecurringForm({
             <label htmlFor="add-amt" className="text-xs text-text-tertiary block mb-1">Amount</label>
             <input id="add-amt" type="number" min={0} step="any" value={amount} onChange={(e) => setAmount(e.target.value)}
               placeholder="Per cycle"
-              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-blue/50" />
+              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50" />
           </div>
           <div>
             <label htmlFor="add-cat" className="text-xs text-text-tertiary block mb-1">Category (optional)</label>
             <input id="add-cat" type="text" value={category} onChange={(e) => setCategory(e.target.value)}
               placeholder="e.g. Housing"
-              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-blue/50" />
+              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50" />
           </div>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={handleSubmit}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-ios-blue/20 text-ios-blue hover:bg-ios-blue/30 transition-colors">
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-app-blue/20 text-app-blue hover:bg-app-blue/30 transition-colors">
             <Check className="w-3.5 h-3.5" /> Add
           </button>
           <button type="button" onClick={onCancel}
@@ -170,17 +170,17 @@ function RecurringCard({
 
   if (editing) {
     return (
-      <div className="glass rounded-xl border border-ios-blue/30 p-4 space-y-3">
+      <div className="glass rounded-2xl border border-app-blue/30 p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="sm:col-span-2">
             <label htmlFor={`e-n-${item.id}`} className="text-xs text-text-tertiary block mb-1">Name</label>
             <input id={`e-n-${item.id}`} type="text" value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus
-              className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-blue/50" />
+              className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50" />
           </div>
           <div>
             <label htmlFor={`e-f-${item.id}`} className="text-xs text-text-tertiary block mb-1">Frequency</label>
             <select id={`e-f-${item.id}`} value={editFreq} onChange={(e) => setEditFreq(e.target.value)}
-              className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-blue/50">
+              className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50">
               {FREQUENCY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
@@ -188,10 +188,10 @@ function RecurringCard({
         <div className="max-w-[200px]">
           <label htmlFor={`e-a-${item.id}`} className="text-xs text-text-tertiary block mb-1">Amount</label>
           <input id={`e-a-${item.id}`} type="number" min={0} step="any" value={editAmt} onChange={(e) => setEditAmt(e.target.value)}
-            className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ios-blue/50" />
+            className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50" />
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={saveEdit} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-ios-blue/20 text-ios-blue hover:bg-ios-blue/30 transition-colors">
+          <button type="button" onClick={saveEdit} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-app-blue/20 text-app-blue hover:bg-app-blue/30 transition-colors">
             <Check className="w-3.5 h-3.5" /> Save
           </button>
           <button type="button" onClick={() => setEditing(false)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-muted-foreground bg-white/5 hover:bg-white/10 transition-colors">
@@ -203,19 +203,19 @@ function RecurringCard({
   }
 
   return (
-    <div className={`glass rounded-xl border p-4 transition-colors duration-200 ${
+    <div className={`glass rounded-2xl border p-4 transition-colors duration-200 ${
       item.is_active ? 'border-border hover:border-white/20' : 'border-white/5 opacity-50'
     }`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className={`w-2 h-8 rounded-full shrink-0 ${isIncome ? 'bg-ios-green' : 'bg-ios-red'}`} />
+          <div className={`w-2 h-8 rounded-full shrink-0 ${isIncome ? 'bg-app-green' : 'bg-app-red'}`} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-medium text-white truncate">{item.name}</h3>
-              <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${isIncome ? 'bg-ios-green/10 text-ios-green' : 'bg-ios-red/10 text-ios-red'}`}>
+              <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${isIncome ? 'bg-app-green/10 text-app-green' : 'bg-app-red/10 text-app-red'}`}>
                 {item.type}
               </span>
-              <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-ios-blue/10 text-ios-blue">
+              <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-app-blue/10 text-app-blue">
                 {capitalize(item.frequency)}
               </span>
             </div>
@@ -236,7 +236,7 @@ function RecurringCard({
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
-            <p className={`text-base font-bold ${isIncome ? 'text-ios-green' : 'text-ios-red'}`}>
+            <p className={`text-base font-bold ${isIncome ? 'text-app-green' : 'text-app-red'}`}>
               {formatCurrency(Math.abs(item.expected_amount))}
             </p>
             <p className="text-[11px] text-muted-foreground">{formatCurrency(monthly)}/mo</p>
@@ -248,11 +248,11 @@ function RecurringCard({
             </button>
             <button type="button" onClick={() => onUpdate({ is_active: !item.is_active })}
               title={item.is_active ? 'Deactivate' : 'Activate'}
-              className={`p-1.5 rounded-lg transition-colors ${item.is_active ? 'text-ios-green hover:bg-ios-green/10' : 'text-text-tertiary hover:bg-white/10'}`}>
+              className={`p-1.5 rounded-lg transition-colors ${item.is_active ? 'text-app-green hover:bg-app-green/10' : 'text-text-tertiary hover:bg-white/10'}`}>
               {item.is_active ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
             </button>
             <button type="button" onClick={onDelete}
-              title="Delete" className="p-1.5 rounded-lg text-text-tertiary hover:text-ios-red hover:bg-red-500/10 transition-colors">
+              title="Delete" className="p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-red-500/10 transition-colors">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -329,38 +329,38 @@ export default function SubscriptionTrackerPage() {
           subtitle="Track your regular income and expenses for projected cash flow"
           action={
             <button type="button" onClick={() => { setSuggestion(undefined); setShowForm(true) }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-ios-blue hover:bg-ios-blue/80 transition-colors">
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-app-blue hover:bg-app-blue/80 transition-colors">
               <Plus className="w-4 h-4" /> Add Recurring
             </button>
           }
         />
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <SummaryCard icon={ArrowDownCircle} label="Monthly Expense" value={p ?? formatCurrency(summary.monthlyExpense)}
-            colorClass="text-ios-red" bgClass="bg-ios-red/20" shadowClass="shadow-ios-red/30" delay={0.1} />
+            colorClass="text-app-red" bgClass="bg-app-red/20" shadowClass="shadow-app-red/30" delay={0.1} />
           <SummaryCard icon={ArrowUpCircle} label="Monthly Income" value={p ?? formatCurrency(summary.monthlyIncome)}
-            colorClass="text-ios-green" bgClass="bg-ios-green/20" shadowClass="shadow-ios-green/30" delay={0.2} />
+            colorClass="text-app-green" bgClass="bg-app-green/20" shadowClass="shadow-app-green/30" delay={0.2} />
           <SummaryCard icon={TrendingUp} label="Net Monthly"
             value={p ?? formatCurrency(summary.netMonthly)}
-            colorClass={summary.netMonthly >= 0 ? 'text-ios-green' : 'text-ios-red'}
-            bgClass={summary.netMonthly >= 0 ? 'bg-ios-green/20' : 'bg-ios-red/20'}
-            shadowClass={summary.netMonthly >= 0 ? 'shadow-ios-green/30' : 'shadow-ios-red/30'} delay={0.3} />
+            colorClass={summary.netMonthly >= 0 ? 'text-app-green' : 'text-app-red'}
+            bgClass={summary.netMonthly >= 0 ? 'bg-app-green/20' : 'bg-app-red/20'}
+            shadowClass={summary.netMonthly >= 0 ? 'shadow-app-green/30' : 'shadow-app-red/30'} delay={0.3} />
           <SummaryCard icon={Hash} label="Active Recurring" value={p ?? `${summary.count}`}
-            colorClass="text-ios-blue" bgClass="bg-ios-blue/20" shadowClass="shadow-ios-blue/30" delay={0.4} />
+            colorClass="text-app-blue" bgClass="bg-app-blue/20" shadowClass="shadow-app-blue/30" delay={0.4} />
         </div>
 
         {/* Suggestions */}
         {!showForm && confirmed.length === 0 && !isLoading && (
-          <div className="glass rounded-xl border border-border p-5 space-y-3">
+          <div className="glass rounded-2xl border border-border p-6 space-y-3">
             <p className="text-sm font-medium text-white">Quick Add -- common recurring transactions</p>
             <div className="flex flex-wrap gap-2">
               {SUGGESTIONS.map((s) => (
                 <button key={s.name} type="button" onClick={() => openWithSuggestion(s)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                     s.type === 'Income'
-                      ? 'border-ios-green/20 text-ios-green bg-ios-green/5 hover:bg-ios-green/15'
-                      : 'border-ios-red/20 text-ios-red bg-ios-red/5 hover:bg-ios-red/15'
+                      ? 'border-app-green/20 text-app-green bg-app-green/5 hover:bg-app-green/15'
+                      : 'border-app-red/20 text-app-red bg-app-red/5 hover:bg-app-red/15'
                   }`}>
                   {s.name}
                 </button>

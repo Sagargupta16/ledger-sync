@@ -27,8 +27,8 @@ const TransactionRow = memo(function TransactionRow({
         <div
           className={`p-2 rounded-lg transition-colors duration-150 ${
             transaction.type === 'Income'
-              ? 'bg-green-500/10 text-ios-green'
-              : 'bg-red-500/10 text-ios-red'
+              ? 'bg-green-500/10 text-app-green'
+              : 'bg-red-500/10 text-app-red'
           }`}
         >
           {transaction.type === 'Income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
@@ -37,7 +37,7 @@ const TransactionRow = memo(function TransactionRow({
         {/* Details */}
         <div className="flex-1 min-w-0">
           <p className="font-medium truncate">{transaction.note || transaction.category}</p>
-          <div className="flex items-center gap-3 mt-1 text-sm text-zinc-500">
+          <div className="flex items-center gap-3 mt-1 text-sm text-text-tertiary">
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
               {format(new Date(transaction.date), 'MMM dd, yyyy')}
@@ -54,11 +54,11 @@ const TransactionRow = memo(function TransactionRow({
 
       {/* Amount */}
       <div className="text-right">
-        <p className={`font-semibold ${transaction.type === 'Income' ? 'text-ios-green' : 'text-ios-red'}`}>
+        <p className={`font-semibold ${transaction.type === 'Income' ? 'text-app-green' : 'text-app-red'}`}>
           {transaction.type === 'Income' ? '+' : '-'}
           {formatCurrency(Math.abs(transaction.amount))}
         </p>
-        {transaction.account && <p className="text-xs text-zinc-500 mt-1">{transaction.account}</p>}
+        {transaction.account && <p className="text-xs text-text-tertiary mt-1">{transaction.account}</p>}
       </div>
     </motion.div>
   )
@@ -69,7 +69,7 @@ function RecentTransactions({ transactions, isLoading }: Readonly<RecentTransact
     return (
       <div className="space-y-3">
         {Array.from({ length: 5 }, (_, i) => `skeleton-tx-${i}`).map((id) => (
-          <div key={id} className="flex items-center justify-between p-4 rounded-lg border border-white/[0.06] animate-pulse">
+          <div key={id} className="flex items-center justify-between p-4 rounded-lg border border-border animate-pulse">
             <div className="flex-1 space-y-2">
               <div className="h-4 bg-muted rounded w-1/3" />
               <div className="h-3 bg-muted rounded w-1/4" />

@@ -67,8 +67,8 @@ export default function CurrencySwitcher() {
         className={cn(
           'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors',
           isConverted
-            ? 'bg-ios-blue/15 text-ios-blue hover:bg-ios-blue/25'
-            : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06]',
+            ? 'bg-app-blue/15 text-app-blue hover:bg-app-blue/25'
+            : 'text-text-tertiary hover:text-white hover:bg-white/[0.06]',
         )}
         title={`Display currency: ${displayCurrency}`}
       >
@@ -79,7 +79,7 @@ export default function CurrencySwitcher() {
       {/* Rate indicator pill */}
       {isConverted && exchangeRate && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 mt-1 px-2 py-0.5 rounded-full bg-ios-blue/10 text-[10px] text-ios-blue whitespace-nowrap"
+          className="absolute left-1/2 -translate-x-1/2 mt-1 px-2 py-0.5 rounded-full bg-app-blue/10 text-[10px] text-app-blue whitespace-nowrap"
           title={timeAgo ? `Rate updated ${timeAgo}` : 'Exchange rate'}
         >
           1 {displayCurrency} = {BASE_CURRENCY} {inverseRate}
@@ -88,7 +88,7 @@ export default function CurrencySwitcher() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-xl bg-zinc-900 border border-white/10 shadow-xl z-50">
+        <div className="absolute bottom-full left-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-xl bg-zinc-900 border border-border shadow-xl z-50">
           {currencyList.map((meta) => (
             <button
               key={meta.code}
@@ -97,13 +97,13 @@ export default function CurrencySwitcher() {
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors',
                 meta.code === displayCurrency
-                  ? 'bg-ios-blue/15 text-white'
-                  : 'text-zinc-400 hover:bg-white/[0.06] hover:text-white',
+                  ? 'bg-app-blue/15 text-white'
+                  : 'text-muted-foreground hover:bg-white/[0.06] hover:text-white',
               )}
             >
               <span className="w-6 text-center font-medium text-xs">{meta.symbol}</span>
               <span className="flex-1 text-left">{meta.name}</span>
-              <span className="text-xs text-zinc-500">{meta.code}</span>
+              <span className="text-xs text-text-tertiary">{meta.code}</span>
             </button>
           ))}
         </div>

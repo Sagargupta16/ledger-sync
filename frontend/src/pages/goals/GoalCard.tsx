@@ -62,7 +62,7 @@ export default function GoalCard({
               <button
                 onClick={() => onDelete(goal.id)}
                 title="Delete goal"
-                className="p-1.5 rounded-lg text-text-tertiary hover:text-ios-red hover:bg-red-500/10 transition-colors"
+                className="p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-red-500/10 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

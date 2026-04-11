@@ -266,9 +266,9 @@ export const INCOME_TYPE_LABELS: Record<IncomeType, string> = {
  * Income type colors for charts
  */
 export const INCOME_TYPE_COLORS: Record<IncomeType, string> = {
-  taxable: rawColors.ios.green,
-  investmentReturns: rawColors.ios.orange,
-  cashback: rawColors.ios.teal,
+  taxable: rawColors.app.green,
+  investmentReturns: rawColors.app.orange,
+  cashback: rawColors.app.teal,
   other: rawColors.text.tertiary,
 }
 
@@ -276,18 +276,18 @@ export const INCOME_TYPE_COLORS: Record<IncomeType, string> = {
  * Colors for actual data income categories (for display charts)
  */
 export const INCOME_CATEGORY_COLORS: Record<string, string> = {
-  'Employment Income': rawColors.ios.green,
-  'Investment Income': rawColors.ios.orange,
-  'Refund & Cashbacks': rawColors.ios.teal,
-  'One-time Income': rawColors.ios.purple,
+  'Employment Income': rawColors.app.green,
+  'Investment Income': rawColors.app.orange,
+  'Refund & Cashbacks': rawColors.app.teal,
+  'One-time Income': rawColors.app.purple,
   'Other Income': rawColors.text.tertiary,
-  'Business/Self Employment Income': rawColors.ios.pink,
+  'Business/Self Employment Income': rawColors.app.pink,
 }
 
 /**
  * Spending type colors for charts
  */
 export const SPENDING_TYPE_COLORS = {
-  essential: rawColors.ios.blue,
-  discretionary: rawColors.ios.orange,
+  essential: rawColors.app.blue,
+  discretionary: rawColors.app.orange,
 }

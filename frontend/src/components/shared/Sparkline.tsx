@@ -15,7 +15,7 @@ interface SparklineProps {
  */
 export default function Sparkline({
   data,
-  color = rawColors.ios.purple,
+  color = rawColors.app.purple,
   height = 48,
   showTooltip = true,
 }: Readonly<SparklineProps>) {
@@ -44,7 +44,8 @@ export default function Sparkline({
       line += ` C ${cpx},${prev.y} ${cpx},${curr.y} ${curr.x},${curr.y}`
     }
 
-    const last = pts.at(-1)!
+    const last = pts.at(-1)
+    if (!last) return { linePath: '', areaPath: '', points: [], avgY: 0 }
     const area = `${line} L ${last.x},${height} L ${pts[0].x},${height} Z`
 
     // Average value and its Y coordinate for the reference line
@@ -83,7 +84,8 @@ export default function Sparkline({
 
   if (data.length < 2 || !linePath) return null
 
-  const lastPoint = points.at(-1)!
+  const lastPoint = points.at(-1)
+  if (!lastPoint) return null
   const hoverPoint = hoverIndex === null ? null : points[hoverIndex]
   const colorKey = color.replace('#', '')
   const gradId = `spark-grad-${colorKey}`

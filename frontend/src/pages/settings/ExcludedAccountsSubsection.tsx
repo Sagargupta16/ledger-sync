@@ -30,7 +30,7 @@ export default function ExcludedAccountsSubsection({
         <EyeOff className="w-4 h-4 text-primary" />
         Excluded Accounts
         {excludedAccounts.length > 0 && (
-          <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-ios-yellow/20 text-ios-yellow">
+          <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-app-yellow/20 text-app-yellow">
             {excludedAccounts.length}
           </span>
         )}
@@ -54,7 +54,7 @@ export default function ExcludedAccountsSubsection({
                   onClick={() => toggleExcludedAccount(account)}
                   className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${
                     isExcluded
-                      ? 'bg-ios-yellow text-black'
+                      ? 'bg-app-yellow text-black'
                       : 'bg-white/5 border border-border'
                   }`}
                 >

@@ -14,6 +14,17 @@ function formatMonth(v: string) {
   return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }
 
+function computeGrowthRate(series: Array<{ income: number; expense: number }>) {
+  if (series.length <= 1) return { incomeGrowth: 0, expenseGrowth: 0 }
+  const first = series[0]
+  const last = series.at(-1) ?? first
+  const periods = series.length - 1
+  return {
+    incomeGrowth: first.income > 0 ? (last.income - first.income) / first.income / periods : 0,
+    expenseGrowth: first.expense > 0 ? (last.expense - first.expense) / first.expense / periods : 0,
+  }
+}
+
 export default function CashFlowForecast() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
 
@@ -33,10 +44,12 @@ export default function CashFlowForecast() {
     const today = new Date()
     const currentMonth = today.toISOString().slice(0, 7)
     const isIncomplete = today.getDate() < 25
-    const last = months.at(-1)!
+    const last = months.at(-1)
+    if (!last) return null
     const historicalMonths = (last.month === currentMonth && isIncomplete)
       ? months.slice(0, -1) : months
-    const lastComplete = historicalMonths.at(-1)!
+    const lastComplete = historicalMonths.at(-1)
+    if (!lastComplete) return null
 
     if (historicalMonths.length < 3) return null
 
@@ -46,10 +59,7 @@ export default function CashFlowForecast() {
     const avgExpense = recent.reduce((s, m) => s + m.expense, 0) / recent.length
     const avgSavings = avgIncome - avgExpense
 
-    const incomeGrowth = recent.length > 1 && recent[0].income > 0
-      ? (recent.at(-1)!.income - recent[0].income) / recent[0].income / (recent.length - 1) : 0
-    const expenseGrowth = recent.length > 1 && recent[0].expense > 0
-      ? (recent.at(-1)!.expense - recent[0].expense) / recent[0].expense / (recent.length - 1) : 0
+    const { incomeGrowth, expenseGrowth } = computeGrowthRate(recent)
 
     // Volatility for confidence bands
     const savingsValues = recent.map(m => m.income - m.expense)
@@ -95,7 +105,8 @@ export default function CashFlowForecast() {
     }))
 
     // Combined data with income, expense, net + forecast variants
-    const lastHist = historical.at(-1)!
+    const lastHist = historical.at(-1)
+    if (!lastHist) return null
     type CombinedPoint = {
       month: string; label: string; isForecast: boolean
       income: number | undefined; expense: number | undefined; net: number | undefined
@@ -157,7 +168,7 @@ export default function CashFlowForecast() {
   if (!forecastData) {
     return (
       <div className="glass rounded-2xl p-6">
-        <h3 className="text-lg font-semibold text-zinc-200 mb-2">Cash Flow Forecast</h3>
+        <h3 className="text-lg font-semibold text-white mb-2">Cash Flow Forecast</h3>
         <ChartEmptyState message="Need at least 3 months of data for forecasting." />
       </div>
     )
@@ -177,8 +188,8 @@ export default function CashFlowForecast() {
                 : <TrendingDown className="w-6 h-6 text-red-400" />}
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-zinc-200">Future Cash Flow Forecast</h3>
-              <p className="text-xs text-zinc-500">Projected income, expenses & net savings</p>
+              <h3 className="text-lg font-semibold text-white">Future Cash Flow Forecast</h3>
+              <p className="text-xs text-text-tertiary">Projected income, expenses & net savings</p>
             </div>
           </div>
           {insights.monthsUntilNegative && (
@@ -193,10 +204,10 @@ export default function CashFlowForecast() {
         <ChartContainer height={280}>
           <AreaChart data={forecastData.combined} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <defs>
-              {areaGradient('netSavings', rawColors.ios.blue, 0.2, 0.02)}
+              {areaGradient('netSavings', rawColors.app.blue, 0.2, 0.02)}
               <linearGradient id="gradient-cone" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={rawColors.ios.blue} stopOpacity={0.12} />
-                <stop offset="100%" stopColor={rawColors.ios.blue} stopOpacity={0.02} />
+                <stop offset="0%" stopColor={rawColors.app.blue} stopOpacity={0.12} />
+                <stop offset="100%" stopColor={rawColors.app.blue} stopOpacity={0.02} />
               </linearGradient>
             </defs>
             <CartesianGrid {...GRID_DEFAULTS} />
@@ -226,34 +237,34 @@ export default function CashFlowForecast() {
             <Area type="monotone" dataKey="upper" stroke="none" fill="url(#gradient-cone)" fillOpacity={1} connectNulls isAnimationActive={false} legendType="none" />
             <Area type="monotone" dataKey="lower" stroke="none" fill="#000" fillOpacity={0.8} connectNulls isAnimationActive={false} legendType="none" />
             {/* Historical income/expense lines */}
-            <Area type="monotone" dataKey="income" stroke={rawColors.ios.green} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={800} strokeOpacity={0.5} legendType="none" />
-            <Area type="monotone" dataKey="expense" stroke={rawColors.ios.red} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={800} strokeOpacity={0.5} legendType="none" />
+            <Area type="monotone" dataKey="income" stroke={rawColors.app.green} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={600} strokeOpacity={0.5} legendType="none" />
+            <Area type="monotone" dataKey="expense" stroke={rawColors.app.red} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={600} strokeOpacity={0.5} legendType="none" />
             {/* Forecast income/expense (dashed, faded) */}
-            <Area type="monotone" dataKey="forecastIncome" stroke={rawColors.ios.green} strokeWidth={1.5} strokeDasharray="6 4" fill="none" dot={false} connectNulls isAnimationActive={false} strokeOpacity={0.35} legendType="none" />
-            <Area type="monotone" dataKey="forecastExpense" stroke={rawColors.ios.red} strokeWidth={1.5} strokeDasharray="6 4" fill="none" dot={false} connectNulls isAnimationActive={false} strokeOpacity={0.35} legendType="none" />
+            <Area type="monotone" dataKey="forecastIncome" stroke={rawColors.app.green} strokeWidth={1.5} strokeDasharray="6 4" fill="none" dot={false} connectNulls isAnimationActive={false} strokeOpacity={0.35} legendType="none" />
+            <Area type="monotone" dataKey="forecastExpense" stroke={rawColors.app.red} strokeWidth={1.5} strokeDasharray="6 4" fill="none" dot={false} connectNulls isAnimationActive={false} strokeOpacity={0.35} legendType="none" />
             {/* Historical net savings (main line) */}
-            <Area type="monotone" dataKey="net" stroke={rawColors.ios.blue} strokeWidth={2.5} fill={areaGradientUrl('netSavings')} fillOpacity={1} dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.blue }} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={800} legendType="none" />
+            <Area type="monotone" dataKey="net" stroke={rawColors.app.blue} strokeWidth={2.5} fill={areaGradientUrl('netSavings')} fillOpacity={1} dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={600} legendType="none" />
             {/* Forecast net savings (dashed) */}
-            <Area type="monotone" dataKey="forecastNet" stroke={rawColors.ios.purple} strokeWidth={2} strokeDasharray="8 4" fill="none" dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.ios.purple }} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={800} legendType="none" />
+            <Area type="monotone" dataKey="forecastNet" stroke={rawColors.app.purple} strokeWidth={2} strokeDasharray="8 4" fill="none" dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.purple }} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={600} legendType="none" />
           </AreaChart>
         </ChartContainer>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-3 text-[11px] text-zinc-500">
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-3 text-[11px] text-text-tertiary">
           <span className="flex items-center gap-1.5">{' '}
-            <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: rawColors.ios.green, opacity: 0.5 }} />{' '}
+            <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: rawColors.app.green, opacity: 0.5 }} />{' '}
             Income
           </span>
           <span className="flex items-center gap-1.5">{' '}
-            <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: rawColors.ios.red, opacity: 0.5 }} />{' '}
+            <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: rawColors.app.red, opacity: 0.5 }} />{' '}
             Expenses
           </span>
           <span className="flex items-center gap-1.5">{' '}
-            <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: rawColors.ios.blue }} />{' '}
+            <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: rawColors.app.blue }} />{' '}
             Net Savings
           </span>
           <span className="flex items-center gap-1.5">{' '}
-            <span className="w-3 h-0 border-t border-dashed" style={{ borderColor: rawColors.ios.purple }} />{' '}
+            <span className="w-3 h-0 border-t border-dashed" style={{ borderColor: rawColors.app.purple }} />{' '}
             Forecast
           </span>
           <span className="flex items-center gap-1.5">{' '}
@@ -265,26 +276,26 @@ export default function CashFlowForecast() {
 
       {/* ── Insight Cards ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">Avg Monthly Income</p>
+        <div className="bg-white/[0.04] border border-border rounded-xl p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">Avg Monthly Income</p>
           <p className="text-xl font-bold text-green-400">{formatCurrencyShort(insights.avgIncome)}</p>
-          <p className="text-xs text-zinc-500 mt-1">
+          <p className="text-xs text-text-tertiary mt-1">
             {insights.incomeGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.incomeGrowth).toFixed(1)}% monthly trend
           </p>
         </div>
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">Avg Monthly Expenses</p>
+        <div className="bg-white/[0.04] border border-border rounded-xl p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">Avg Monthly Expenses</p>
           <p className="text-xl font-bold text-red-400">{formatCurrencyShort(insights.avgExpense)}</p>
-          <p className="text-xs text-zinc-500 mt-1">
+          <p className="text-xs text-text-tertiary mt-1">
             {insights.expenseGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.expenseGrowth).toFixed(1)}% monthly trend
           </p>
         </div>
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-1">1-Year Projected Savings</p>
+        <div className="bg-white/[0.04] border border-border rounded-xl p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">1-Year Projected Savings</p>
           <p className={`text-xl font-bold ${insights.projectedSavings >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
             {insights.projectedSavings >= 0 ? '+' : ''}{formatCurrencyShort(insights.projectedSavings)}
           </p>
-          <p className="text-xs text-zinc-500 mt-1">Based on current trends</p>
+          <p className="text-xs text-text-tertiary mt-1">Based on current trends</p>
         </div>
       </div>
     </motion.div>

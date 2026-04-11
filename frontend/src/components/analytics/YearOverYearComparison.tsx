@@ -128,16 +128,16 @@ export default function YearOverYearComparison() {
 
   const getChangeIcon = (change: number) => {
     if (Math.abs(change) < 2) return <Minus className="w-4 h-4 text-muted-foreground" />
-    if (change > 0) return <ArrowUpRight className="w-4 h-4 text-ios-green" />
-    return <ArrowDownRight className="w-4 h-4 text-ios-red" />
+    if (change > 0) return <ArrowUpRight className="w-4 h-4 text-app-green" />
+    return <ArrowDownRight className="w-4 h-4 text-app-red" />
   }
 
   const getChangeColor = (change: number, isExpense = false) => {
     if (Math.abs(change) < 2) return 'text-muted-foreground'
     if (isExpense) {
-      return change > 0 ? 'text-ios-red' : 'text-ios-green'
+      return change > 0 ? 'text-app-red' : 'text-app-green'
     }
-    return change > 0 ? 'text-ios-green' : 'text-ios-red'
+    return change > 0 ? 'text-app-green' : 'text-app-red'
   }
 
   if (isLoading) {
@@ -162,12 +162,12 @@ export default function YearOverYearComparison() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6 shadow-xl"
+      className="glass rounded-2xl border border-border p-6"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-ios-purple/20 rounded-xl">
-            <Calendar className="w-6 h-6 text-ios-purple" />
+          <div className="p-3 bg-app-purple/20 rounded-xl">
+            <Calendar className="w-6 h-6 text-app-purple" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Year-over-Year Comparison</h3>
@@ -191,7 +191,7 @@ export default function YearOverYearComparison() {
       {/* Key Metrics Comparison */}
       {comparison && selectedCategory === 'all' && (
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="p-4 rounded-xl bg-ios-green/10 border border-ios-green/20">
+          <div className="p-4 rounded-xl bg-app-green/10 border border-app-green/20">
             <p className="text-sm text-muted-foreground mb-1">Income Change</p>
             <div className="flex items-center gap-2">
               {getChangeIcon(comparison.incomeChange)}
@@ -203,7 +203,7 @@ export default function YearOverYearComparison() {
               {formatCurrencyShort(comparison.previous.income)} → {formatCurrencyShort(comparison.current.income)}
             </p>
           </div>
-          <div className="p-4 rounded-xl bg-ios-red/10 border border-ios-red/20">
+          <div className="p-4 rounded-xl bg-app-red/10 border border-app-red/20">
             <p className="text-sm text-muted-foreground mb-1">Expense Change</p>
             <div className="flex items-center gap-2">
               {getChangeIcon(comparison.expenseChange)}
@@ -215,7 +215,7 @@ export default function YearOverYearComparison() {
               {formatCurrencyShort(comparison.previous.expense)} → {formatCurrencyShort(comparison.current.expense)}
             </p>
           </div>
-          <div className="p-4 rounded-xl bg-ios-blue/10 border border-ios-blue/20">
+          <div className="p-4 rounded-xl bg-app-blue/10 border border-app-blue/20">
             <p className="text-sm text-muted-foreground mb-1">Savings Change</p>
             <div className="flex items-center gap-2">
               {getChangeIcon(comparison.savingsChange)}

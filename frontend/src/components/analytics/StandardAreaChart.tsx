@@ -134,7 +134,7 @@ export default function StandardAreaChart({
             activeDot={{ ...ACTIVE_DOT, fill: area.color }}
             connectNulls
             isAnimationActive={animate}
-            animationDuration={800}
+            animationDuration={600}
             animationEasing="ease-out"
             stackId={stacked ? 'stack' : area.stackId}
           />

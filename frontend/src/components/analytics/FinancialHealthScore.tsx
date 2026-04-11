@@ -61,7 +61,7 @@ function ScoreHeader({ title, score, subtitle, color }: Readonly<{
   return (
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-2">
-        <div className={`p-2 rounded-lg ${{ 'text-ios-green': 'bg-ios-green/10', 'text-ios-orange': 'bg-ios-orange/10', 'text-ios-red': 'bg-ios-red/10' }[color] ?? 'bg-ios-blue/10'}`}>
+        <div className={`p-2 rounded-lg ${{ 'text-app-green': 'bg-app-green/10', 'text-app-orange': 'bg-app-orange/10', 'text-app-red': 'bg-app-red/10' }[color] ?? 'bg-app-blue/10'}`}>
           <Shield className={`w-4 h-4 ${color}`} />
         </div>
         <div>
@@ -84,7 +84,7 @@ function RadarVisualization({ metrics, chartColor }: Readonly<{ metrics: Array<{
           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
           <Radar name="Score" dataKey="score" stroke={chartColor} fill={chartColor}
             fillOpacity={0.15} strokeWidth={2} dot={{ r: 2, fill: chartColor, strokeWidth: 0 }}
-            animationDuration={800} animationEasing="ease-out" />
+            animationDuration={600} animationEasing="ease-out" />
           <Tooltip {...chartTooltipProps} />
         </RadarChart>
       </ChartContainer>
@@ -93,13 +93,13 @@ function RadarVisualization({ metrics, chartColor }: Readonly<{ metrics: Array<{
 }
 
 const TIER_COLORS: Record<string, string> = {
-  healthy: rawColors.ios.green,
-  coping: rawColors.ios.orange,
-  vulnerable: rawColors.ios.red,
+  healthy: rawColors.app.green,
+  coping: rawColors.app.orange,
+  vulnerable: rawColors.app.red,
 }
 
 function MetricCard({ metric }: Readonly<{ metric: HealthMetric }>) {
-  const color = TIER_COLORS[metric.status] ?? rawColors.ios.red
+  const color = TIER_COLORS[metric.status] ?? rawColors.app.red
 
   return (
     <div className="p-2.5 rounded-lg border border-border bg-white/[0.02]">
@@ -197,7 +197,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
       className="grid grid-cols-1 lg:grid-cols-2 gap-6"
     >
       {/* FinHealth Score */}
-      <div className="glass rounded-2xl border border-border p-5 shadow-xl">
+      <div className="glass rounded-2xl border border-border p-6">
         <ScoreHeader
           title="FinHealth Score"
           score={overallScore}
@@ -213,7 +213,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
       </div>
 
       {/* CFP Ratios */}
-      <div className="glass rounded-2xl border border-border p-5 shadow-xl">
+      <div className="glass rounded-2xl border border-border p-6">
         <ScoreHeader
           title="CFP Ratios"
           score={cfpCompositeScore}

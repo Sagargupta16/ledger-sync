@@ -11,10 +11,10 @@ import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate } from '@/co
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 function getElasticityColor(e: number): string {
-  if (e > 1.5) return rawColors.ios.red
-  if (e > 1.1) return rawColors.ios.orange
-  if (e > 0.9) return rawColors.ios.yellow
-  return rawColors.ios.green
+  if (e > 1.5) return rawColors.app.red
+  if (e > 1.1) return rawColors.app.orange
+  if (e > 0.9) return rawColors.app.yellow
+  return rawColors.app.green
 }
 
 function getClassLabel(c: string): string {
@@ -47,7 +47,7 @@ export default function ExpenseElasticityChart() {
       transition={{ delay: 0.1 }}
     >
       <div className="flex items-center gap-2 mb-2">
-        <Zap className="w-5 h-5 text-ios-yellow" />
+        <Zap className="w-5 h-5 text-app-yellow" />
         <h3 className="text-lg font-semibold text-white">Expense Elasticity</h3>
       </div>
 
@@ -60,7 +60,7 @@ export default function ExpenseElasticityChart() {
       ) : (
         <>
           <ChartContainer height={300}>
-            <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
+            <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 20, bottom: 8, left: 10 }}>
               <CartesianGrid {...GRID_DEFAULTS} horizontal={false} />
               <XAxis
                 {...xAxisDefaults(chartData.length)}

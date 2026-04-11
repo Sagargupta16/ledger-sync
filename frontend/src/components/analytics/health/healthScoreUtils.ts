@@ -605,9 +605,9 @@ export function calculateMetrics(data: AnalysisResult, savingsGoalPercent = 20):
 // ─── UI Helpers ─────────────────────────────────────────────────────────────
 
 export function getOverallStatus(score: number) {
-  if (score >= 80) return { label: 'Financially Healthy', tier: 'healthy' as FinHealthTier, color: 'text-ios-green', bgColor: 'bg-ios-green' }
-  if (score >= 40) return { label: 'Financially Coping', tier: 'coping' as FinHealthTier, color: 'text-ios-orange', bgColor: 'bg-ios-orange' }
-  return { label: 'Financially Vulnerable', tier: 'vulnerable' as FinHealthTier, color: 'text-ios-red', bgColor: 'bg-ios-red' }
+  if (score >= 80) return { label: 'Financially Healthy', tier: 'healthy' as FinHealthTier, color: 'text-app-green', bgColor: 'bg-app-green' }
+  if (score >= 40) return { label: 'Financially Coping', tier: 'coping' as FinHealthTier, color: 'text-app-orange', bgColor: 'bg-app-orange' }
+  return { label: 'Financially Vulnerable', tier: 'vulnerable' as FinHealthTier, color: 'text-app-red', bgColor: 'bg-app-red' }
 }
 
 export function getSummary(score: number): string {
@@ -622,9 +622,9 @@ export function getSummary(score: number): string {
 
 export function getTierColor(tier: FinHealthTier) {
   switch (tier) {
-    case 'healthy': return 'bg-ios-green'
-    case 'coping': return 'bg-ios-orange'
-    case 'vulnerable': return 'bg-ios-red'
+    case 'healthy': return 'bg-app-green'
+    case 'coping': return 'bg-app-orange'
+    case 'vulnerable': return 'bg-app-red'
   }
 }
 

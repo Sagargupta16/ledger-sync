@@ -61,7 +61,8 @@ export default function DashboardPage() {
   if (isLoading) return <PageSkeleton />
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
       <PageHeader
         title="Dashboard"
         subtitle="Your financial overview at a glance"
@@ -77,8 +78,8 @@ export default function DashboardPage() {
       />
 
       {/* Quick Insights -- full width */}
-      <motion.div className="p-6 glass rounded-2xl border border-border shadow-xl" {...SCROLL_FADE_UP}>
-        <h2 className="text-lg md:text-xl font-semibold mb-4">Quick Insights</h2>
+      <motion.div className="p-6 glass rounded-2xl border border-border" {...SCROLL_FADE_UP}>
+        <h2 className="text-lg font-semibold mb-4">Quick Insights</h2>
         <QuickInsights
           dateRange={dateRange}
           ageOfMoney={ageOfMoney}
@@ -95,9 +96,9 @@ export default function DashboardPage() {
       {/* Income Sources & Expense Sources */}
       <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6" {...SCROLL_FADE_UP}>
         {/* Income Sources */}
-        <div className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-green shadow-xl glow-income">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-ios-green" />
+        <div className="p-6 glass rounded-2xl border border-border border-l-4 border-l-app-green glow-income">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-app-green" />
             Income Sources
           </h2>
           {incomeChartData.length > 0 ? (
@@ -130,12 +131,12 @@ export default function DashboardPage() {
                   <div className="pt-2 mt-2 border-t border-border space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Total</span>
-                      <span className="text-sm font-bold text-ios-green">{formatCurrency(Object.values(incomeBreakdown).reduce((a, b) => a + b, 0))}</span>
+                      <span className="text-sm font-bold text-app-green">{formatCurrency(Object.values(incomeBreakdown).reduce((a, b) => a + b, 0))}</span>
                     </div>
                     {cashbacksTotal > 0 && (
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-ios-teal">Cashbacks Earned</span>
-                        <span className="text-ios-teal font-medium">{formatCurrency(cashbacksTotal)}</span>
+                        <span className="text-app-teal">Cashbacks Earned</span>
+                        <span className="text-app-teal font-medium">{formatCurrency(cashbacksTotal)}</span>
                       </div>
                     )}
                   </div>
@@ -148,9 +149,9 @@ export default function DashboardPage() {
         </div>
 
         {/* Expense Sources */}
-        <div className="p-6 glass rounded-2xl border border-border border-l-4 border-l-ios-red shadow-xl glow-expense">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-ios-red" />
+        <div className="p-6 glass rounded-2xl border border-border border-l-4 border-l-app-red glow-expense">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-app-red" />
             Expense Sources
           </h2>
           {expenseChartData.length > 0 ? (
@@ -182,7 +183,7 @@ export default function DashboardPage() {
                 <div className="pt-2 mt-2 border-t border-border">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Total</span>
-                    <span className="text-sm font-bold text-ios-red">{formatCurrency(expenseTotal)}</span>
+                    <span className="text-sm font-bold text-app-red">{formatCurrency(expenseTotal)}</span>
                   </div>
                 </div>
               </div>
@@ -192,6 +193,7 @@ export default function DashboardPage() {
           )}
         </div>
       </motion.div>
+      </div>
     </div>
   )
 }

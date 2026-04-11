@@ -93,7 +93,7 @@ export default function FinancialSettingsSection({
           </div>
           {localPrefs.monthly_investment_target > 0 && (
             <FieldHint>
-              <span className="text-ios-green">
+              <span className="text-app-green">
                 Target: {formatCurrency(localPrefs.monthly_investment_target)} / month
               </span>
             </FieldHint>

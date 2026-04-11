@@ -57,7 +57,7 @@ export function capitalize(str: string | null): string {
 
 /** Return the confidence indicator color based on percentage threshold */
 export function getConfidenceColor(percent: number): string {
-  if (percent >= 80) return rawColors.ios.green
-  if (percent >= 50) return rawColors.ios.yellow
-  return rawColors.ios.red
+  if (percent >= 80) return rawColors.app.green
+  if (percent >= 50) return rawColors.app.yellow
+  return rawColors.app.red
 }

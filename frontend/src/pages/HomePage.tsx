@@ -30,28 +30,28 @@ const features = [
     title: 'Smart Analytics',
     description:
       '50/30/20 budget tracking, spending patterns, and income analysis with beautiful visualizations',
-    color: rawColors.ios.blue,
+    color: rawColors.app.blue,
   },
   {
     icon: TrendingUp,
     title: 'Investment Tracking',
     description:
       'Track FD/Bonds, Mutual Funds, PPF/EPF, and Stocks with returns analysis',
-    color: rawColors.ios.green,
+    color: rawColors.app.green,
   },
   {
     icon: Shield,
     title: 'Tax Planning',
     description:
       'India FY-based tax insights, deduction tracking, and regime comparison',
-    color: rawColors.ios.orange,
+    color: rawColors.app.orange,
   },
   {
     icon: Zap,
     title: 'Instant Sync',
     description:
       'Upload Excel files with automatic duplicate detection and smart reconciliation',
-    color: rawColors.ios.purple,
+    color: rawColors.app.purple,
   },
 ]
 
@@ -88,7 +88,7 @@ export default function HomePage() {
             <div
               className="p-2 rounded-xl transition-transform group-hover:scale-105"
               style={{
-                background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
+                background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
               }}
             >
               <PiggyBank className="w-6 h-6 text-white" />
@@ -103,7 +103,7 @@ export default function HomePage() {
                 to={ROUTES.DASHBOARD}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white transition-colors hover:scale-105"
                 style={{
-                  background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
+                  background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
                 }}
               >
                 <span>Hi, {user?.full_name?.split(' ')[0] || 'there'}!</span>
@@ -124,11 +124,11 @@ export default function HomePage() {
           <div className="absolute inset-0 pointer-events-none">
             <div
               className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[120px] opacity-30"
-              style={{ background: rawColors.ios.blue }}
+              style={{ background: rawColors.app.blue }}
             />
             <div
               className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20"
-              style={{ background: rawColors.ios.purple }}
+              style={{ background: rawColors.app.purple }}
             />
           </div>
 
@@ -147,7 +147,7 @@ export default function HomePage() {
               >
                 <Sparkles
                   className="w-4 h-4"
-                  style={{ color: rawColors.ios.yellow }}
+                  style={{ color: rawColors.app.yellow }}
                 />
                 <span className="text-sm text-foreground">
                   Personal Finance Made Simple
@@ -168,7 +168,7 @@ export default function HomePage() {
                 <span
                   className="bg-clip-text text-transparent"
                   style={{
-                    backgroundImage: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.purple})`,
+                    backgroundImage: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.purple})`,
                   }}
                 >
                   Your Finances
@@ -198,8 +198,8 @@ export default function HomePage() {
                   onClick={handleGetStarted}
                   className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
                   style={{
-                    background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
-                    boxShadow: `0 10px 30px ${rawColors.ios.blue}50`,
+                    background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
+                    boxShadow: `0 10px 30px ${rawColors.app.blue}50`,
                   }}
                 >
                   <Target className="w-5 h-5" />
@@ -242,7 +242,7 @@ export default function HomePage() {
                 >
                   <CheckCircle2
                     className="w-4 h-4"
-                    style={{ color: rawColors.ios.green }}
+                    style={{ color: rawColors.app.green }}
                   />
                   <span className="text-sm text-foreground">{item}</span>
                 </motion.div>
@@ -275,11 +275,11 @@ export default function HomePage() {
                   <div className="flex items-start gap-4">
                     <div
                       className="p-2 rounded-lg flex-shrink-0"
-                      style={{ background: `${rawColors.ios.blue}20` }}
+                      style={{ background: `${rawColors.app.blue}20` }}
                     >
                       <FileSpreadsheet
                         className="w-5 h-5"
-                        style={{ color: rawColors.ios.blue }}
+                        style={{ color: rawColors.app.blue }}
                       />
                     </div>
                     <div>
@@ -295,11 +295,11 @@ export default function HomePage() {
                   <div className="flex items-start gap-4">
                     <div
                       className="p-2 rounded-lg flex-shrink-0"
-                      style={{ background: `${rawColors.ios.green}20` }}
+                      style={{ background: `${rawColors.app.green}20` }}
                     >
                       <Calculator
                         className="w-5 h-5"
-                        style={{ color: rawColors.ios.green }}
+                        style={{ color: rawColors.app.green }}
                       />
                     </div>
                     <div>
@@ -315,11 +315,11 @@ export default function HomePage() {
                   <div className="flex items-start gap-4">
                     <div
                       className="p-2 rounded-lg flex-shrink-0"
-                      style={{ background: `${rawColors.ios.orange}20` }}
+                      style={{ background: `${rawColors.app.orange}20` }}
                     >
                       <Wallet
                         className="w-5 h-5"
-                        style={{ color: rawColors.ios.orange }}
+                        style={{ color: rawColors.app.orange }}
                       />
                     </div>
                     <div>
@@ -350,8 +350,8 @@ export default function HomePage() {
                       <div
                         className="px-3 py-1 rounded-full text-sm"
                         style={{
-                          background: `${rawColors.ios.green}20`,
-                          color: rawColors.ios.green,
+                          background: `${rawColors.app.green}20`,
+                          color: rawColors.app.green,
                         }}
                       >
                         +12.4%
@@ -388,11 +388,11 @@ export default function HomePage() {
                 {/* Decorative elements */}
                 <div
                   className="absolute -top-4 -right-4 w-24 h-24 rounded-full blur-2xl opacity-50"
-                  style={{ background: rawColors.ios.blue }}
+                  style={{ background: rawColors.app.blue }}
                 />
                 <div
                   className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full blur-2xl opacity-40"
-                  style={{ background: rawColors.ios.purple }}
+                  style={{ background: rawColors.app.purple }}
                 />
               </div>
             </motion.div>
@@ -411,11 +411,11 @@ export default function HomePage() {
               <div className="flex items-center justify-center gap-2 mb-3">
                 <Sparkles
                   className="w-5 h-5"
-                  style={{ color: rawColors.ios.yellow }}
+                  style={{ color: rawColors.app.yellow }}
                 />
                 <span
                   className="text-sm font-medium"
-                  style={{ color: rawColors.ios.yellow }}
+                  style={{ color: rawColors.app.yellow }}
                 >
                   Features
                 </span>
@@ -482,8 +482,8 @@ export default function HomePage() {
                   onClick={handleGetStarted}
                   className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
                   style={{
-                    background: `linear-gradient(135deg, ${rawColors.ios.blue}, ${rawColors.ios.indigo})`,
-                    boxShadow: `0 10px 30px ${rawColors.ios.blue}50`,
+                    background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
+                    boxShadow: `0 10px 30px ${rawColors.app.blue}50`,
                   }}
                 >
                   <Upload className="w-5 h-5" />

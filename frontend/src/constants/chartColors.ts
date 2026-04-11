@@ -7,7 +7,7 @@
 
 import { rawColors } from './colors'
 
-const c = rawColors.ios
+const c = rawColors.app
 const f = rawColors.financial
 
 // Primary chart color palette

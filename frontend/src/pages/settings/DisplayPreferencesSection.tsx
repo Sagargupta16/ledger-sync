@@ -70,7 +70,7 @@ export default function DisplayPreferencesSection({
         {/* Derived preferences (read-only) */}
         <div>
           <FieldLabel>Format (auto)</FieldLabel>
-          <div className="px-3 py-2 bg-white/[0.03] border border-border/50 rounded-lg text-sm text-zinc-400">
+          <div className="px-3 py-2 bg-white/[0.04] border border-border/50 rounded-lg text-sm text-muted-foreground">
             {selectedMeta.numberFormat === 'indian' ? 'Indian (1,00,000)' : 'International (100,000)'}
             {' '}&middot;{' '}
             Symbol: {selectedMeta.symbol} ({selectedMeta.symbolPosition})
@@ -117,7 +117,7 @@ export default function DisplayPreferencesSection({
             </label>
           </div>
           {localPrefs.use_earning_start_date && localPrefs.earning_start_date && (
-            <p className="mt-1.5 text-xs text-ios-green">
+            <p className="mt-1.5 text-xs text-app-green">
               Analytics from{' '}
               {new Date(localPrefs.earning_start_date + 'T00:00:00').toLocaleDateString(
                 'en-IN',
@@ -162,7 +162,7 @@ export default function DisplayPreferencesSection({
           </div>
           {theme === 'system' && (
             <FieldHint>
-              <span className="text-ios-yellow">
+              <span className="text-app-yellow">
                 Light theme coming soon. Currently defaults to dark.
               </span>
             </FieldHint>

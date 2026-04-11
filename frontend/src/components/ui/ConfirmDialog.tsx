@@ -66,12 +66,12 @@ export default function ConfirmDialog({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
-            <p className="text-sm text-zinc-400 mb-6">{description}</p>
+            <p className="text-sm text-muted-foreground mb-6">{description}</p>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 bg-white/[0.06] border border-white/[0.08] text-zinc-200 rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out text-sm"
+                className="px-4 py-2 bg-white/[0.06] border border-white/[0.08] text-white rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out text-sm"
               >
                 {cancelLabel}
               </button>

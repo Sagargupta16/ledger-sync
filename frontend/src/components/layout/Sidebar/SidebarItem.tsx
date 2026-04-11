@@ -29,7 +29,7 @@ export default function SidebarItem({
           'transition-all duration-150 ease-out',
           isActive
             ? 'bg-white/[0.08] text-white font-medium'
-            : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200',
+            : 'text-muted-foreground hover:bg-white/[0.04] hover:text-white',
         )
       }
     >
@@ -43,7 +43,7 @@ export default function SidebarItem({
             size={18}
             className={cn(
               'flex-shrink-0 transition-colors duration-150',
-              isActive ? 'text-blue-400' : 'text-zinc-500',
+              isActive ? 'text-blue-400' : 'text-text-tertiary',
             )}
           />
           <span className="flex-1 truncate">{label}</span>
@@ -53,7 +53,7 @@ export default function SidebarItem({
                 'px-1.5 py-0.5 min-w-[20px] text-center text-[11px] font-semibold rounded-md flex-shrink-0',
                 badgeVariant === 'alert'
                   ? 'bg-red-500/15 text-red-400'
-                  : 'bg-white/[0.08] text-zinc-400',
+                  : 'bg-white/[0.08] text-muted-foreground',
               )}
             >
               {badge > 99 ? '99+' : badge}
