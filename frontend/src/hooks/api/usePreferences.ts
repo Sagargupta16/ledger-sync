@@ -16,6 +16,9 @@ import {
   type DisplayPreferencesConfig,
   type AnomalySettingsConfig,
   type RecurringSettingsConfig,
+  type SalaryStructureConfig,
+  type RsuGrantsConfig,
+  type GrowthAssumptionsConfig,
 } from '@/services/api/preferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { useAuthStore } from '@/store/authStore'
@@ -151,6 +154,33 @@ export function useUpdateRecurringSettings() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (config: RecurringSettingsConfig) => preferencesService.updateRecurringSettings(config),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
+  })
+}
+
+export function useUpdateSalaryStructure() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (config: SalaryStructureConfig) =>
+      preferencesService.updateSalaryStructure(config),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
+  })
+}
+
+export function useUpdateRsuGrants() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (config: RsuGrantsConfig) =>
+      preferencesService.updateRsuGrants(config),
+    onSuccess: () => invalidatePreferenceDependents(queryClient),
+  })
+}
+
+export function useUpdateGrowthAssumptions() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (config: GrowthAssumptionsConfig) =>
+      preferencesService.updateGrowthAssumptions(config),
     onSuccess: () => invalidatePreferenceDependents(queryClient),
   })
 }

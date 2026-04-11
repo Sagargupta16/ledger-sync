@@ -101,6 +101,16 @@ export function generateDemoPreferences(): UserPreferences {
     notify_anomalies: true,
     notify_upcoming_bills: true,
     notify_days_ahead: 7,
+    salary_structure: {},
+    rsu_grants: [],
+    growth_assumptions: {
+      base_salary_growth_pct: 0,
+      bonus_growth_pct: 0,
+      epf_scales_with_base: true,
+      nps_growth_pct: 0,
+      stock_price_appreciation_pct: 0,
+      projection_years: 3,
+    },
     created_at: null,
     updated_at: null,
   }
