@@ -496,6 +496,7 @@ export default function TaxPlanningPage() {
             cess={displayCess}
             professionalTax={displayProfessionalTax}
             totalTax={displayTotalTax}
+            isProjecting={useSalaryProjection}
           />
         </motion.div>
 
