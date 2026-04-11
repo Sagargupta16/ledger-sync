@@ -118,11 +118,12 @@ function groupTransactionsByMonth(
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ReturnsAnalysisPage() {
-  const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
-  const { data: aggregationData, isLoading: aggregationLoading } = useMonthlyAggregation()
   const { data: allTransactions = [] } = useTransactions()
-  const isLoading = balancesLoading || aggregationLoading
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
+  const dateParams = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
+  const { data: balanceData, isLoading: balancesLoading } = useAccountBalances(dateParams)
+  const { data: aggregationData, isLoading: aggregationLoading } = useMonthlyAggregation(dateParams)
+  const isLoading = balancesLoading || aggregationLoading
 
   const transactions = useMemo(() => {
     const startDate = dateRange.start_date

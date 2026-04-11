@@ -106,6 +106,71 @@ function createEmptyFYData(): FYData {
   }
 }
 
+/** Group transactions by fiscal year, accumulating income/expense totals */
+function groupTransactionsByFY(
+  transactions: Transaction[],
+  fiscalYearStartMonth: number,
+  incomeClassification: { taxable: string[]; investmentReturns: string[]; nonTaxable: string[]; other: string[] },
+): Record<string, FYData> {
+  const grouped: Record<string, FYData> = {}
+  for (const tx of transactions) {
+    const fy = getFYFromDate(tx.date, fiscalYearStartMonth)
+    if (!grouped[fy]) grouped[fy] = createEmptyFYData()
+    grouped[fy].transactions.push(tx)
+    if (tx.type === 'Income') {
+      grouped[fy].income += tx.amount
+      classifyAndAccumulateIncome(tx, grouped[fy], incomeClassification)
+    } else if (tx.type === 'Expense') {
+      grouped[fy].expense += tx.amount
+    }
+  }
+  return grouped
+}
+
+interface YearlyTaxDatum { fy: string; paidTax: number; projected: number; cumulative: number }
+
+/** Build yearly tax chart data from FY list and projections */
+function buildYearlyTaxData(
+  fyList: string[],
+  transactionsByFY: Record<string, FYData>,
+  multiYearProjections: ProjectedFYBreakdown[],
+  currentFYLabel: string,
+  regimeOverride: 'new' | 'old' | null,
+  preferredRegime: string,
+): YearlyTaxDatum[] {
+  const projectedTaxByFY: Record<string, number> = {}
+  for (const p of multiYearProjections) projectedTaxByFY[p.fy] = p.totalTax
+
+  const data = fyList.slice().reverse().map(fy => {
+    const bareFY = fy.replace(/^FY\s+/i, '')
+    const fyData = transactionsByFY[fy]
+    const hasTxData = !!fyData
+    const projTotal = Math.round(projectedTaxByFY[bareFY] ?? 0)
+
+    let paidTax = 0
+    if (hasTxData) {
+      const taxableAmt = (fyData.taxableIncome > 0) ? fyData.taxableIncome : fyData.income
+      const salaryMonths = fyData.salaryMonths?.size || 0
+      const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
+      paidTax = Math.round(computed.taxAlreadyPaid)
+    }
+
+    const isFuture = !hasTxData && projTotal > 0
+    let projected = 0
+    if (isFuture) {
+      projected = projTotal
+    } else if (fy === currentFYLabel && projTotal > paidTax) {
+      projected = projTotal - paidTax
+    }
+
+    return { fy, paidTax, projected, cumulative: 0 }
+  })
+
+  let cum = 0
+  for (const d of data) { cum += d.paidTax + d.projected; d.cumulative = cum }
+  return data
+}
+
 /** Determine the selected tax regime based on FY availability and user preference */
 function resolveSelectedRegime(
   newRegimeAvailable: boolean,
@@ -306,26 +371,10 @@ export default function TaxPlanningPage() {
   )
 
   // Group transactions by Financial Year
-  const transactionsByFY = useMemo(() => {
-    const grouped: Record<string, FYData> = {}
-
-    for (const tx of allTransactions) {
-      const fy = getFYFromDate(tx.date, fiscalYearStartMonth)
-      if (!grouped[fy]) {
-        grouped[fy] = createEmptyFYData()
-      }
-      grouped[fy].transactions.push(tx)
-
-      if (tx.type === 'Income') {
-        grouped[fy].income += tx.amount
-        classifyAndAccumulateIncome(tx, grouped[fy], incomeClassification)
-      } else if (tx.type === 'Expense') {
-        grouped[fy].expense += tx.amount
-      }
-    }
-
-    return grouped
-  }, [allTransactions, fiscalYearStartMonth, incomeClassification])
+  const transactionsByFY = useMemo(
+    () => groupTransactionsByFY(allTransactions, fiscalYearStartMonth, incomeClassification),
+    [allTransactions, fiscalYearStartMonth, incomeClassification],
+  )
 
   // Get sorted FY list from transactions
   const txFyList = useMemo(() => {
@@ -605,43 +654,7 @@ export default function TaxPlanningPage() {
               </div>
             </div>
             {(() => {
-              // Build a map of projected tax by FY (bare format "2025-26")
-              const projectedTaxByFY: Record<string, number> = {}
-              for (const p of multiYearProjections) {
-                projectedTaxByFY[p.fy] = p.totalTax
-              }
-
-              const yearlyTaxData = fyList.slice().reverse().map(fy => {
-                const bareFY = fy.replace(/^FY\s+/i, '')
-                const data = transactionsByFY[fy]
-                const hasTxData = !!data
-                const projTotal = Math.round(projectedTaxByFY[bareFY] ?? 0)
-
-                // Compute tax from transactions
-                let paidTax = 0
-                if (hasTxData) {
-                  const taxableAmt = (data.taxableIncome > 0) ? data.taxableIncome : data.income
-                  const salaryMonths = data.salaryMonths?.size || 0
-                  const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
-                  paidTax = Math.round(computed.taxAlreadyPaid)
-                }
-
-                const isCurrent = fy === currentFYLabel
-                const isFuture = !hasTxData && projTotal > 0
-
-                // Split: paid (red) vs projected remaining (green)
-                let projected = 0
-                if (isFuture) {
-                  projected = projTotal
-                } else if (isCurrent && projTotal > paidTax) {
-                  projected = projTotal - paidTax
-                }
-
-                return { fy, paidTax, projected, cumulative: 0 }
-              })
-
-              let cum = 0
-              for (const d of yearlyTaxData) { cum += d.paidTax + d.projected; d.cumulative = cum }
+              const yearlyTaxData = buildYearlyTaxData(fyList, transactionsByFY, multiYearProjections, currentFYLabel, regimeOverride, preferredRegime)
               if (yearlyTaxData.every(d => d.paidTax === 0 && d.projected === 0)) return <ChartEmptyState height={280} message="No tax liability found across years" />
 
               return (
