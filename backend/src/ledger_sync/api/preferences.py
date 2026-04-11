@@ -22,6 +22,11 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import User, UserPreferences
+from ledger_sync.schemas.salary import (
+    GrowthAssumptionsConfig,
+    RsuGrantsConfig,
+    SalaryStructureConfig,
+)
 
 router = APIRouter(prefix="/preferences", tags=["preferences"])
 
@@ -251,6 +256,11 @@ class UserPreferencesResponse(BaseModel):
     notify_upcoming_bills: bool = True
     notify_days_ahead: int = 7
 
+    # Salary & Tax Projections
+    salary_structure: dict[str, Any] = {}
+    rsu_grants: list[dict[str, Any]] = []
+    growth_assumptions: dict[str, Any] = {}
+
     # Metadata
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -331,6 +341,11 @@ class UserPreferencesUpdate(BaseModel):
     notify_upcoming_bills: bool | None = None
     notify_days_ahead: int | None = None
 
+    # Salary & Tax Projections
+    salary_structure: dict[str, Any] | None = None
+    rsu_grants: list[dict[str, Any]] | None = None
+    growth_assumptions: dict[str, Any] | None = None
+
 
 # ----- Helper Functions -----
 
@@ -387,6 +402,9 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
         notify_anomalies=prefs.notify_anomalies,
         notify_upcoming_bills=prefs.notify_upcoming_bills,
         notify_days_ahead=prefs.notify_days_ahead,
+        salary_structure=_parse_json_field(prefs.salary_structure, {}),
+        rsu_grants=_parse_json_field(prefs.rsu_grants, []),
+        growth_assumptions=_parse_json_field(prefs.growth_assumptions, {}),
         created_at=prefs.created_at,
         updated_at=prefs.updated_at,
     )
@@ -426,7 +444,7 @@ def _update_section(
 
     """
     prefs = _get_or_create_preferences(session, user)
-    for field, value in config.model_dump().items():
+    for field, value in config.model_dump(mode="json").items():
         if json_fields and field in json_fields:
             value = json.dumps(value)
         setattr(prefs, field, value)
@@ -652,3 +670,33 @@ def update_earning_start_date(
 ) -> UserPreferencesResponse:
     """Update earning start date configuration."""
     return _update_section(session, current_user, config)
+
+
+@router.put("/salary-structure")
+def update_salary_structure(
+    current_user: CurrentUser,
+    config: SalaryStructureConfig,
+    session: DatabaseSession,
+) -> UserPreferencesResponse:
+    """Update salary structure for one or more fiscal years."""
+    return _update_section(session, current_user, config, json_fields={"salary_structure"})
+
+
+@router.put("/rsu-grants")
+def update_rsu_grants(
+    current_user: CurrentUser,
+    config: RsuGrantsConfig,
+    session: DatabaseSession,
+) -> UserPreferencesResponse:
+    """Update RSU grants and vesting schedules."""
+    return _update_section(session, current_user, config, json_fields={"rsu_grants"})
+
+
+@router.put("/growth-assumptions")
+def update_growth_assumptions(
+    current_user: CurrentUser,
+    config: GrowthAssumptionsConfig,
+    session: DatabaseSession,
+) -> UserPreferencesResponse:
+    """Update growth assumptions for tax projections."""
+    return _update_section(session, current_user, config, json_fields={"growth_assumptions"})

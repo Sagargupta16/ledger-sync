@@ -14,6 +14,7 @@ import AccountClassificationsSection from './settings/AccountClassificationsSect
 import InvestmentMappingsSection from './settings/InvestmentMappingsSection'
 import ExpenseCategoriesSection from './settings/ExpenseCategoriesSection'
 import IncomeClassificationSection from './settings/IncomeClassificationSection'
+import SalaryStructureSection from './settings/SalaryStructureSection'
 import FinancialSettingsSection from './settings/FinancialSettingsSection'
 import DisplayPreferencesSection from './settings/DisplayPreferencesSection'
 import NotificationsSection from './settings/NotificationsSection'
@@ -136,6 +137,16 @@ export default function SettingsPage() {
             setHasChanges={s.setHasChanges}
           />
         )}
+
+        <SalaryStructureSection
+          index={sectionIndex++}
+          localSalaryStructure={s.localSalaryStructure}
+          updateSalaryStructure={s.updateSalaryStructure}
+          localRsuGrants={s.localRsuGrants}
+          updateRsuGrants={s.updateRsuGrants}
+          localGrowthAssumptions={s.localGrowthAssumptions}
+          updateGrowthAssumptions={s.updateGrowthAssumptions}
+        />
 
         {s.localPrefs && (
           <FinancialSettingsSection

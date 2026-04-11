@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ledger Sync is a self-hosted personal finance dashboard built as a full-stack application with clear separation between backend and frontend. The system imports Excel bank statements, reconciles transactions via SHA-256 hashing, and delivers 23 pages of financial analytics -- from spending breakdowns to investment tracking -- with multi-currency display support.
+Ledger Sync is a self-hosted personal finance dashboard built as a full-stack application with clear separation between backend and frontend. The system imports Excel bank statements, reconciles transactions via SHA-256 hashing, and delivers 23 pages of financial analytics -- from spending breakdowns to investment tracking and tax projections -- with multi-currency display support.
 
 ## High-Level Architecture
 
@@ -23,6 +23,7 @@ Ledger Sync is a self-hosted personal finance dashboard built as a full-stack ap
   - `oauth.py` - OAuth login via Google and GitHub (authorization code exchange via `httpx`)
   - `analytics.py` - Analytics endpoints (overview, KPIs, trends, behavior)
   - `calculations.py` - Financial calculation endpoints
+  - `exchange_rates.py` - Exchange rate proxy with 24h cache (frankfurter.dev)
   - `deps.py` - JWT authentication dependency (`get_current_user`)
   - Routes requests to business logic and return JSON responses
 - **Authentication**: OAuth-only (no email/password). Google/GitHub OAuth providers configured via environment variables. Backend exchanges authorization codes for user info, then issues JWT access/refresh tokens.
@@ -85,6 +86,31 @@ For each imported transaction:
 6. Mark old transactions not in import as SOFT_DELETE
 ```
 
+#### Income & Tax Projection Pipeline
+
+The projection system is entirely client-side (no backend computation). Data flows through these layers:
+
+```
+Settings (SalaryStructureSection)
+  -> preferencesStore (Zustand, persisted to API)
+     -> TaxPlanningPage reads salaryStructure, rsuGrants, growthAssumptions
+        -> projectionCalculator.ts (pure functions)
+           -> projectFiscalYear(targetFY, salary, rsus, growth, fyStartMonth)
+              -> Returns ProjectedFYBreakdown (gross, basic, variable, RSU vestings)
+           -> projectMultipleYears(salary, rsus, growth, fyStartMonth)
+              -> Returns array of projected breakdowns for comparison table
+           -> getRsuVestingsByFY(grants, fyStartMonth, appreciation)
+              -> Returns FY-keyed vesting amounts with stock appreciation
+        -> taxCalculator.ts computes tax on projected gross
+           -> Returns slab breakdown, cess, surcharge, rebate
+```
+
+Key design decisions:
+- **Pure functions**: `projectionCalculator.ts` has zero side effects, making it trivially testable
+- **FY-keyed salary**: Each fiscal year has its own salary structure, allowing users to track raises
+- **Growth compounding**: Projections compound from the latest user-entered FY (not from the current FY)
+- **RSU appreciation**: Stock price appreciates at user-configured rate from grant date to vesting date
+
 #### Financial Calculations
 
 ```python
@@ -122,7 +148,8 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
   - `InvestmentAnalyticsPage` - 4-category investment portfolio
   - `MutualFundProjectionPage` - SIP/MF projections
   - `ReturnsAnalysisPage` - Investment returns tracking
-  - `TaxPlanningPage` - Tax planning tools
+  - `TaxPlanningPage` - Tax planning with salary-based multi-year projections
+  - `FIRECalculatorPage` - FIRE number, Coast FIRE, retirement corpus planner
   - `NetWorthPage` - Net worth tracking
   - `BudgetPage` - Budget tracking and monitoring
   - `GoalsPage` - Financial goal setting with savings allocation
@@ -131,7 +158,7 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
   - `YearInReviewPage` - Annual financial summary
   - `SubscriptionTrackerPage` - Recurring expense detection and manual tracking
   - `BillCalendarPage` - Monthly calendar of upcoming bills
-  - `SettingsPage` - Single-page settings with collapsible sections
+  - `SettingsPage` - Single-page settings with collapsible sections (incl. SalaryStructureSection)
 
 #### 2. **Components Layer** (`src/components/`)
 
@@ -190,6 +217,10 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
 - **Modules**:
   - `cn.ts` - Class name utility (clsx + tailwind-merge)
   - `queryClient.ts` - TanStack Query client configuration
+  - `projectionCalculator.ts` - Pure functions for multi-year salary/RSU/tax projections
+  - `taxCalculator.ts` - India tax slab computation (old and new regime)
+  - `fireCalculator.ts` - FIRE number, Coast FIRE, retirement corpus calculations
+  - `formatters.ts` - Currency and number formatting with multi-currency conversion
 
 ### Component Hierarchy
 

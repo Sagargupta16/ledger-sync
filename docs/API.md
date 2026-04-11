@@ -782,8 +782,85 @@ User preference management. All require authentication.
 | PUT | `/api/preferences/spending-rule` | Update 50/30/20 targets |
 | PUT | `/api/preferences/credit-card-limits` | Update credit card limits |
 | PUT | `/api/preferences/earning-start-date` | Update earning start date |
+| PUT | `/api/preferences/salary-structure` | Update salary CTC structure per FY |
+| PUT | `/api/preferences/rsu-grants` | Update RSU grant list with vesting schedules |
+| PUT | `/api/preferences/growth-assumptions` | Update growth assumptions (hike %, variable growth, stock appreciation, projection years) |
 
-Preferences include 17 sections: fiscal year, essential categories, investment mappings, income classification, budget defaults, display format, anomaly settings, recurring settings, spending rule targets, credit card limits, earning start date, fixed expense categories, savings/investment targets, payday, tax regime, excluded accounts, and notification preferences.
+Preferences include 20 sections: fiscal year, essential categories, investment mappings, income classification, budget defaults, display format, anomaly settings, recurring settings, spending rule targets, credit card limits, earning start date, fixed expense categories, savings/investment targets, payday, tax regime, excluded accounts, notification preferences, salary structure, RSU grants, and growth assumptions.
+
+### Update Salary Structure
+
+**PUT** `/api/preferences/salary-structure`
+
+Update the salary CTC structure per fiscal year. Each FY key maps to a salary components object.
+
+**Request Body:**
+
+```json
+{
+  "salary_structure": {
+    "2025-26": {
+      "basic_annual": 600000,
+      "hra_annual": 300000,
+      "special_allowance_annual": 200000,
+      "epf_monthly": 1800,
+      "nps_monthly": null,
+      "professional_tax_annual": 2400,
+      "variable_pay_annual": 100000,
+      "other_annual": 0,
+      "is_new_regime": true
+    }
+  }
+}
+```
+
+### Update RSU Grants
+
+**PUT** `/api/preferences/rsu-grants`
+
+Update the list of RSU grants with vesting schedules.
+
+**Request Body:**
+
+```json
+{
+  "rsu_grants": [
+    {
+      "id": "grant-1",
+      "company": "ACME Corp",
+      "grant_date": "2025-01-15",
+      "total_shares": 100,
+      "stock_price": 1500,
+      "vesting_schedule": [
+        { "date": "2026-01-15", "quantity": 25 },
+        { "date": "2027-01-15", "quantity": 25 },
+        { "date": "2028-01-15", "quantity": 25 },
+        { "date": "2029-01-15", "quantity": 25 }
+      ]
+    }
+  ]
+}
+```
+
+### Update Growth Assumptions
+
+**PUT** `/api/preferences/growth-assumptions`
+
+Update the assumptions used for multi-year tax projections.
+
+**Request Body:**
+
+```json
+{
+  "growth_assumptions": {
+    "salary_hike_pct": 10,
+    "variable_growth_pct": 5,
+    "stock_appreciation_pct": 8,
+    "projection_years": 3,
+    "include_rsu_in_projection": true
+  }
+}
+```
 
 ---
 
@@ -898,6 +975,36 @@ Get AI-generated financial insights and recommendations.
   ]
 }
 ```
+
+---
+
+## Exchange Rate Endpoints
+
+### Get Exchange Rates
+
+**GET** `/api/exchange-rates`
+
+Fetch live exchange rates from the European Central Bank (via frankfurter.dev) with 24-hour in-memory cache.
+
+**Query Parameters:**
+
+- `base` (string, optional) - Base currency (default: `INR`)
+
+**Response (200 OK):**
+
+```json
+{
+  "base": "INR",
+  "rates": {
+    "USD": 0.01179,
+    "EUR": 0.01087,
+    "GBP": 0.00935
+  },
+  "updated_at": "2026-04-11T10:30:00Z"
+}
+```
+
+**Fallback behavior:** Fresh cache -> stale cache -> hardcoded fallback rates. Returns 502 only if all three tiers fail.
 
 ---
 

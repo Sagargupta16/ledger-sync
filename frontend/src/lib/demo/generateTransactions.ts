@@ -393,11 +393,11 @@ export function generateDemoTransactions(): Transaction[] {
 
     // ─── TRANSFERS ──────────────────────────────────────────────────────
 
-    // Salary account -> savings (monthly sweep)
+    // Salary account -> savings (monthly sweep, enough to cover SBI outflows)
     txs.push({
       id: txId(idx++),
       date: formatDate(new Date(year, month, 2)),
-      amount: rng.int(30000, 60000),
+      amount: rng.int(50000, 70000),
       type: 'Transfer',
       category: 'Transfer',
       subcategory: 'Bank Transfer',
@@ -425,18 +425,18 @@ export function generateDemoTransactions(): Transaction[] {
       currency: 'INR',
     })
 
-    // Stock investments (1-3 per month)
-    const stockTxCount = rng.int(1, 3)
+    // Stock investments (0-2 per month, capped to keep bank balances healthy)
+    const stockTxCount = rng.int(0, 2)
     for (let s = 0; s < stockTxCount; s++) {
       txs.push({
         id: txId(idx++),
         date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
-        amount: rng.int(2000, 50000),
+        amount: rng.int(2000, 15000),
         type: 'Transfer',
         category: 'Investment',
         subcategory: 'Stocks',
         account: ACCOUNTS.sbi,
-        from_account: rng.pick([ACCOUNTS.sbi, ACCOUNTS.hdfc]),
+        from_account: ACCOUNTS.sbi,
         to_account: ACCOUNTS.growStocks,
         note: rng.pick(['NIFTY Bees', 'HDFC Bank Shares', 'Reliance Stock', 'TCS Stock', 'Infosys Stock']),
         is_transfer: true,
@@ -483,7 +483,7 @@ export function generateDemoTransactions(): Transaction[] {
       txs.push({
         id: txId(idx++),
         date: formatDate(new Date(year, month, rng.int(20, 28))),
-        amount: rng.int(25000, 100000),
+        amount: rng.int(15000, 40000),
         type: 'Transfer',
         category: 'Investment',
         subcategory: 'Fixed Deposit',
@@ -602,23 +602,20 @@ export function generateDemoTransactions(): Transaction[] {
       currency: 'INR',
     })
 
-    // Credit card bill payments (25th)
+    // Credit card bill payments (25th) -- pay off full balance so CC resets to 0
+    const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
     const ccAccounts = [ACCOUNTS.swiggyCC, ACCOUNTS.amazonCC, ACCOUNTS.axisCC]
     for (const cc of ccAccounts) {
-      const ccSpend = txs
-        .filter(
-          (t) =>
-            t.account === cc &&
-            t.type === 'Expense' &&
-            t.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`),
-        )
-        .reduce((s, t) => s + t.amount, 0)
+      const monthlyOnCC = txs.filter((t) => t.account === cc && t.date.startsWith(monthPrefix))
+      const ccExpenses = monthlyOnCC.filter((t) => t.type === 'Expense').reduce((s, t) => s + t.amount, 0)
+      const ccRefunds = monthlyOnCC.filter((t) => t.type === 'Income').reduce((s, t) => s + t.amount, 0)
+      const ccBillAmount = ccExpenses - ccRefunds
 
-      if (ccSpend > 0) {
+      if (ccBillAmount > 0) {
         txs.push({
           id: txId(idx++),
           date: formatDate(new Date(year, month, 25)),
-          amount: ccSpend,
+          amount: ccBillAmount,
           type: 'Transfer',
           category: 'Transfer',
           subcategory: 'Credit Card Payment',

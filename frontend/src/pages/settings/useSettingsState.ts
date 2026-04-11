@@ -5,9 +5,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAccountBalances, useMasterCategories } from '@/hooks/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
+import { preferencesService } from '@/services/api/preferences'
 import { usePreferences, useUpdatePreferences, useResetPreferences } from '@/hooks/api/usePreferences'
 import { toast } from 'sonner'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
+import type { SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/salary'
+import { DEFAULT_GROWTH_ASSUMPTIONS } from '@/types/salary'
 import type { LocalPrefs, LocalPrefKey } from './types'
 import { ACCOUNT_TYPES } from './types'
 import {
@@ -34,6 +37,9 @@ export function useSettingsState() {
   const [dragType, setDragType] = useState<'account' | null>(null)
   const [theme, setTheme] = useState<'dark' | 'system'>(getStoredTheme)
   const [visibleWidgets, setVisibleWidgets] = useState<string[]>(getStoredWidgets)
+  const [localSalaryStructure, setLocalSalaryStructure] = useState<Record<string, SalaryComponents>>({})
+  const [localRsuGrants, setLocalRsuGrants] = useState<RsuGrant[]>([])
+  const [localGrowthAssumptions, setLocalGrowthAssumptions] = useState<GrowthAssumptions>({ ...DEFAULT_GROWTH_ASSUMPTIONS })
 
   // Derived data
   const accounts = useMemo(() => {
@@ -122,6 +128,11 @@ export function useSettingsState() {
   useEffect(() => {
     if (!preferences || localPrefs) return
     setLocalPrefs(buildInitialLocalPrefs(preferences as unknown as Record<string, unknown>) as unknown as LocalPrefs)
+    if (preferences.salary_structure) setLocalSalaryStructure(preferences.salary_structure)
+    if (preferences.rsu_grants) setLocalRsuGrants(preferences.rsu_grants)
+    if (preferences.growth_assumptions) {
+      setLocalGrowthAssumptions({ ...DEFAULT_GROWTH_ASSUMPTIONS, ...preferences.growth_assumptions })
+    }
   }, [preferences, localPrefs])
 
   // Auto-classify unclassified income categories using keyword matching
@@ -191,6 +202,21 @@ export function useSettingsState() {
     [],
   )
 
+  const updateSalaryStructure = useCallback((structure: Record<string, SalaryComponents>) => {
+    setLocalSalaryStructure(structure)
+    setHasChanges(true)
+  }, [])
+
+  const updateRsuGrants = useCallback((grants: RsuGrant[]) => {
+    setLocalRsuGrants(grants)
+    setHasChanges(true)
+  }, [])
+
+  const updateGrowthAssumptions = useCallback((assumptions: GrowthAssumptions) => {
+    setLocalGrowthAssumptions(assumptions)
+    setHasChanges(true)
+  }, [])
+
   // Save / Reset
   const handleSave = useCallback(async () => {
     if (guardDemoAction('Saving settings')) return
@@ -204,6 +230,11 @@ export function useSettingsState() {
         changed.map(([name, type]) => accountClassificationsService.setClassification(name, type)),
       )
       if (localPrefs) await updatePreferences.mutateAsync(localPrefs)
+      await Promise.all([
+        preferencesService.updateSalaryStructure({ salary_structure: localSalaryStructure }),
+        preferencesService.updateRsuGrants({ rsu_grants: localRsuGrants }),
+        preferencesService.updateGrowthAssumptions({ growth_assumptions: localGrowthAssumptions }),
+      ])
       setHasChanges(false)
       toast.success('Settings saved successfully')
     } catch {
@@ -211,7 +242,7 @@ export function useSettingsState() {
     } finally {
       setIsSaving(false)
     }
-  }, [classifications, localPrefs, updatePreferences, guardDemoAction])
+  }, [classifications, localPrefs, updatePreferences, guardDemoAction, localSalaryStructure, localRsuGrants, localGrowthAssumptions])
 
   const handleReset = useCallback(async () => {
     if (guardDemoAction('Resetting settings')) return
@@ -238,5 +269,8 @@ export function useSettingsState() {
     unclassifiedAccounts, excludedAccounts, fixedCategories,
     unclassifiedIncomeItems, unmappedInvestmentAccounts,
     updateLocalPref, setLocalPrefs, handleSave, handleReset,
+    localSalaryStructure, updateSalaryStructure,
+    localRsuGrants, updateRsuGrants,
+    localGrowthAssumptions, updateGrowthAssumptions,
   }
 }

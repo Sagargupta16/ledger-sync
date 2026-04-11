@@ -16,9 +16,9 @@ import {
   getTaxSlabs,
   getNewRegimeSlabs,
 } from '@/lib/taxCalculator'
-import { computeAdvanceTaxSchedule, formatDueDate } from '@/lib/advanceTaxCalculator'
-import type { TaxSlab, SlabBreakdownEntry } from '@/lib/taxCalculator'
+import { projectFiscalYear, projectMultipleYears } from '@/lib/projectionCalculator'
 import type { Transaction } from '@/types'
+import type { ProjectedFYBreakdown } from '@/types/salary'
 import { PageHeader, ChartContainer, chartTooltipProps, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS, ACTIVE_DOT } from '@/components/ui'
 import { BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { rawColors } from '@/constants/colors'
@@ -28,6 +28,7 @@ import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
 import TaxSummaryGrid from '@/components/analytics/TaxSummaryGrid'
 import EffectiveTaxRateChart from '@/components/analytics/EffectiveTaxRateChart'
 import TaxableIncomeTable from '@/components/analytics/TaxableIncomeTable'
+import { usePreferencesStore, selectSalaryStructure, selectRsuGrants, selectGrowthAssumptions } from '@/store/preferencesStore'
 
 /** Result of classifying an income transaction for tax grouping */
 interface IncomeGroupAccumulator {
@@ -105,129 +106,69 @@ function createEmptyFYData(): FYData {
   }
 }
 
-interface ProjectionResult {
-  grossTaxableIncome: number
-  taxAlreadyPaid: number
-  baseTax: number
-  cess: number
-  professionalTax: number
-  slabBreakdown: SlabBreakdownEntry[]
-  remainingMonths: number
-  avgMonthlySalary: number
-  projectedAdditionalIncome: number
-}
-
-/** Calculate year-end projection for the current FY */
-function calculateProjection(
-  currentFYData: FYData | null,
-  netTaxableIncome: number,
-  salaryMonthsCount: number,
-  taxSlabs: TaxSlab[],
-  standardDeduction: number,
-  isNewRegime: boolean = true,
-  fyYear: number = 2025,
-): ProjectionResult {
-  const today = new Date()
-  const currentMonth = today.getMonth()
-  const remainingMonths = currentMonth >= 3 ? 12 - (currentMonth - 3) : 3 - currentMonth
-
-  const salaryStipendTxs = currentFYData?.incomeGroups?.['Salary & Stipend']?.transactions || []
-
-  if (salaryStipendTxs.length === 0 || remainingMonths <= 0) {
-    return {
-      grossTaxableIncome: 0,
-      taxAlreadyPaid: 0,
-      baseTax: 0,
-      cess: 0,
-      professionalTax: 0,
-      slabBreakdown: [],
-      remainingMonths,
-      avgMonthlySalary: 0,
-      projectedAdditionalIncome: 0,
+/** Group transactions by fiscal year, accumulating income/expense totals */
+function groupTransactionsByFY(
+  transactions: Transaction[],
+  fiscalYearStartMonth: number,
+  incomeClassification: { taxable: string[]; investmentReturns: string[]; nonTaxable: string[]; other: string[] },
+): Record<string, FYData> {
+  const grouped: Record<string, FYData> = {}
+  for (const tx of transactions) {
+    const fy = getFYFromDate(tx.date, fiscalYearStartMonth)
+    if (!grouped[fy]) grouped[fy] = createEmptyFYData()
+    grouped[fy].transactions.push(tx)
+    if (tx.type === 'Income') {
+      grouped[fy].income += tx.amount
+      classifyAndAccumulateIncome(tx, grouped[fy], incomeClassification)
+    } else if (tx.type === 'Expense') {
+      grouped[fy].expense += tx.amount
     }
   }
+  return grouped
+}
 
-  const sorted = [...salaryStipendTxs].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  )
-  const recentSalaries = sorted.slice(0, Math.min(3, sorted.length))
-  const totalRecentSalary = recentSalaries.reduce((sum, tx) => sum + tx.amount, 0)
-  const avgMonthlySalary = totalRecentSalary / recentSalaries.length
+interface YearlyTaxDatum { fy: string; paidTax: number; projected: number; cumulative: number }
 
-  const projectedAdditionalIncome = avgMonthlySalary * remainingMonths
-  const projectedNetTotal = netTaxableIncome + projectedAdditionalIncome
-  const projectedSalaryMonthsCount = salaryMonthsCount + remainingMonths
+/** Build yearly tax chart data from FY list and projections */
+function buildYearlyTaxData(
+  fyList: string[],
+  transactionsByFY: Record<string, FYData>,
+  multiYearProjections: ProjectedFYBreakdown[],
+  currentFYLabel: string,
+  regimeOverride: 'new' | 'old' | null,
+  preferredRegime: string,
+): YearlyTaxDatum[] {
+  const projectedTaxByFY: Record<string, number> = {}
+  for (const p of multiYearProjections) projectedTaxByFY[p.fy] = p.totalTax
 
-  // Always use New Regime slabs for gross calculation (employer deducts TDS under new regime)
-  const newSlabs = getNewRegimeSlabs(fyYear)
-  const grossTaxableIncome = calculateGrossFromNet(projectedNetTotal, {
-    slabs: newSlabs,
-    standardDeduction,
-    applyProfessionalTax: true,
-    salaryMonthsCount: projectedSalaryMonthsCount,
-    isNewRegime: true,
-    fyStartYear: fyYear,
+  const data = fyList.slice().reverse().map(fy => {
+    const bareFY = fy.replace(/^FY\s+/i, '')
+    const fyData = transactionsByFY[fy]
+    const hasTxData = !!fyData
+    const projTotal = Math.round(projectedTaxByFY[bareFY] ?? 0)
+
+    let paidTax = 0
+    if (hasTxData) {
+      const taxableAmt = (fyData.taxableIncome > 0) ? fyData.taxableIncome : fyData.income
+      const salaryMonths = fyData.salaryMonths?.size || 0
+      const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
+      paidTax = Math.round(computed.taxAlreadyPaid)
+    }
+
+    const isFuture = !hasTxData && projTotal > 0
+    let projected = 0
+    if (isFuture) {
+      projected = projTotal
+    } else if (fy === currentFYLabel && projTotal > paidTax) {
+      projected = projTotal - paidTax
+    }
+
+    return { fy, paidTax, projected, cumulative: 0 }
   })
-  // Calculate tax using the SELECTED regime's slabs
-  const projectedCalc = calculateTax(
-    grossTaxableIncome,
-    taxSlabs,
-    standardDeduction,
-    true,
-    projectedSalaryMonthsCount,
-    isNewRegime,
-    fyYear,
-  )
 
-  return {
-    grossTaxableIncome,
-    taxAlreadyPaid: projectedCalc.totalTax,
-    baseTax: projectedCalc.tax,
-    cess: projectedCalc.cess,
-    professionalTax: projectedCalc.professionalTax,
-    slabBreakdown: projectedCalc.slabBreakdown,
-    remainingMonths,
-    avgMonthlySalary,
-    projectedAdditionalIncome,
-  }
-}
-
-/** Resolve actual vs projected display values */
-function resolveDisplayValues(
-  projection: ProjectionResult | null,
-  actual: {
-    grossTaxableIncome: number
-    netTaxableIncome: number
-    taxAlreadyPaid: number
-    baseTax: number
-    cess: number
-    professionalTax: number
-    slabBreakdown: SlabBreakdownEntry[]
-    income: number
-  },
-) {
-  if (!projection) {
-    return {
-      gross: actual.grossTaxableIncome,
-      net: actual.netTaxableIncome,
-      totalTax: actual.taxAlreadyPaid,
-      baseTax: actual.baseTax,
-      cess: actual.cess,
-      professionalTax: actual.professionalTax,
-      slabBreakdown: actual.slabBreakdown,
-      income: actual.income,
-    }
-  }
-  return {
-    gross: projection.grossTaxableIncome,
-    net: actual.netTaxableIncome + projection.projectedAdditionalIncome,
-    totalTax: projection.taxAlreadyPaid,
-    baseTax: projection.baseTax,
-    cess: projection.cess,
-    professionalTax: projection.professionalTax,
-    slabBreakdown: projection.slabBreakdown,
-    income: actual.income + projection.projectedAdditionalIncome,
-  }
+  let cum = 0
+  for (const d of data) { cum += d.paidTax + d.projected; d.cumulative = cum }
+  return data
 }
 
 /** Determine the selected tax regime based on FY availability and user preference */
@@ -298,95 +239,36 @@ function computeTaxForFY(
   }
 }
 
-interface ProjectionAndDisplayInput {
-  showProjection: boolean
-  selectedFY: string
-  fiscalYearStartMonth: number
-  hasEmploymentIncome: boolean
-  currentFYData: FYData | null
-  netTaxableIncome: number
-  salaryMonthsCount: number
-  taxSlabs: TaxSlab[]
-  standardDeduction: number
-  isNewRegime: boolean
-  fyYear: number
-  actual: {
-    grossTaxableIncome: number
-    taxAlreadyPaid: number
-    baseTax: number
-    cess: number
-    professionalTax: number
-    slabBreakdown: SlabBreakdownEntry[]
-    income: number
-  }
-}
-
-/** Compute projection and resolve display values for actual vs projected */
-function computeProjectionAndDisplay(input: ProjectionAndDisplayInput) {
-  const { showProjection, selectedFY, fiscalYearStartMonth, hasEmploymentIncome,
-    currentFYData, netTaxableIncome, salaryMonthsCount, taxSlabs,
-    standardDeduction, isNewRegime, fyYear, actual } = input
-
-  const currentFYLabel = getFYFromDate(
-    new Date().toISOString().split('T')[0],
-    fiscalYearStartMonth,
-  )
-  const isCurrentFY = selectedFY === currentFYLabel
-  const useProjected = showProjection && isCurrentFY && hasEmploymentIncome
-
-  const projection = useProjected
-    ? calculateProjection(currentFYData, netTaxableIncome, salaryMonthsCount, taxSlabs, standardDeduction, isNewRegime, fyYear)
-    : null
-
-  const remainingMonths = projection?.remainingMonths ?? 0
-  const avgMonthlySalary = projection?.avgMonthlySalary ?? 0
-
-  const projectedTaxResult = useProjected && projection
-    ? calculateTax(projection.grossTaxableIncome, taxSlabs, standardDeduction, true, salaryMonthsCount + remainingMonths, isNewRegime, fyYear)
-    : null
-
-  const displayValues = resolveDisplayValues(projection, {
-    ...actual,
-    netTaxableIncome,
-  })
-
-  return { isCurrentFY, projection, projectedTaxResult, remainingMonths, avgMonthlySalary, displayValues }
-}
-
-/** Tax regime toggle, year-end projection toggle, and FY navigation action bar */
+/** Tax regime toggle, projection toggle, and FY navigation action bar */
 function TaxPageActions({
   isNewRegime,
   setRegimeOverride,
   newRegimeAvailable,
   isCurrentFY,
-  hasEmploymentIncome,
   showProjection,
   setShowProjection,
-  remainingMonths,
-  avgMonthlySalary,
   selectedFY,
   canGoBack,
   canGoForward,
   goToPreviousFY,
   goToNextFY,
+  hasSalaryData,
 }: Readonly<{
   isNewRegime: boolean
   setRegimeOverride: (regime: 'new' | 'old') => void
   newRegimeAvailable: boolean
   isCurrentFY: boolean
-  hasEmploymentIncome: boolean
   showProjection: boolean
   setShowProjection: (show: boolean) => void
-  remainingMonths: number
-  avgMonthlySalary: number
   selectedFY: string
   canGoBack: boolean
   canGoForward: boolean
   goToPreviousFY: () => void
   goToNextFY: () => void
+  hasSalaryData: boolean
 }>) {
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4 flex-wrap">
       {/* Tax Regime Toggle — hidden for FYs before 2020-21 */}
       {newRegimeAvailable && <div className="flex rounded-lg border border-border overflow-hidden">
         <button
@@ -413,29 +295,22 @@ function TaxPageActions({
         </button>
       </div>}
 
-      {/* Year-End Projection Toggle — LEFT */}
-      {isCurrentFY && hasEmploymentIncome && (
-        <div className="flex flex-col items-end gap-1">
-          <button
-            onClick={() => setShowProjection(!showProjection)}
-            type="button"
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-              showProjection
-                ? 'bg-primary text-white shadow-lg shadow-primary/50'
-                : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
-            }`}
-          >
-            {showProjection ? 'Showing Projection' : 'Year-End Projection'}
-          </button>
-          {showProjection && remainingMonths > 0 && (
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              +{remainingMonths} mo @ {formatCurrency(avgMonthlySalary)}/mo
-            </span>
-          )}
-        </div>
+      {/* Salary Projection Toggle */}
+      {isCurrentFY && hasSalaryData && (
+        <button
+          onClick={() => setShowProjection(!showProjection)}
+          type="button"
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+            showProjection
+              ? 'bg-primary text-white shadow-lg shadow-primary/50'
+              : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
+          }`}
+        >
+          {showProjection ? 'Showing Projection' : 'Project from Salary'}
+        </button>
       )}
 
-      {/* FY Navigation — RIGHT */}
+      {/* FY Navigation */}
       <div className="flex items-center gap-2">
         <motion.button
           onClick={goToPreviousFY}
@@ -471,6 +346,12 @@ export default function TaxPlanningPage() {
   const [selectedFY, setSelectedFY] = useState<string>('')
   const [showProjection, setShowProjection] = useState(false)
 
+  // Salary structure & projections from preferences store
+  const salaryStructure = usePreferencesStore(selectSalaryStructure)
+  const rsuGrants = usePreferencesStore(selectRsuGrants)
+  const growthAssumptions = usePreferencesStore(selectGrowthAssumptions)
+  const hasSalaryData = Object.keys(salaryStructure).length > 0
+
   // Tax regime preference: default from user preferences, overridable via toggle
   const preferredRegime = preferences?.preferred_tax_regime || 'new'
   const [regimeOverride, setRegimeOverride] = useState<'new' | 'old' | null>(null)
@@ -490,36 +371,53 @@ export default function TaxPlanningPage() {
   )
 
   // Group transactions by Financial Year
-  const transactionsByFY = useMemo(() => {
-    const grouped: Record<string, FYData> = {}
+  const transactionsByFY = useMemo(
+    () => groupTransactionsByFY(allTransactions, fiscalYearStartMonth, incomeClassification),
+    [allTransactions, fiscalYearStartMonth, incomeClassification],
+  )
 
-    for (const tx of allTransactions) {
-      const fy = getFYFromDate(tx.date, fiscalYearStartMonth)
-      if (!grouped[fy]) {
-        grouped[fy] = createEmptyFYData()
-      }
-      grouped[fy].transactions.push(tx)
-
-      if (tx.type === 'Income') {
-        grouped[fy].income += tx.amount
-        classifyAndAccumulateIncome(tx, grouped[fy], incomeClassification)
-      } else if (tx.type === 'Expense') {
-        grouped[fy].expense += tx.amount
-      }
-    }
-
-    return grouped
-  }, [allTransactions, fiscalYearStartMonth, incomeClassification])
-
-  // Get sorted FY list
-  const fyList = useMemo(() => {
+  // Get sorted FY list from transactions
+  const txFyList = useMemo(() => {
     return Object.keys(transactionsByFY)
       .sort((a, b) => a.localeCompare(b))
       .reverse()
   }, [transactionsByFY])
 
-  // Use first FY as default when none is explicitly selected
-  const effectiveFY = selectedFY || fyList[0] || ''
+  // Compute future projected FYs from salary structure + growth assumptions
+  const projectedFYList = useMemo(() => {
+    if (!hasSalaryData) return []
+    const salaryFYs = Object.keys(salaryStructure).sort((a, b) => a.localeCompare(b))
+    const latestSalaryFY = salaryFYs.at(-1)
+    if (!latestSalaryFY) return []
+    // Parse start year - handle both "2025-26" and "FY 2025-26" formats
+    const latestStart = Number.parseInt(latestSalaryFY.replace(/^FY\s*/i, ''), 10)
+    const futureFYs: string[] = []
+    for (let i = 1; i <= growthAssumptions.projection_years; i++) {
+      const yr = latestStart + i
+      const end = (yr + 1) % 100
+      futureFYs.push(`FY ${yr}-${String(end).padStart(2, '0')}`)
+    }
+    return futureFYs
+  }, [hasSalaryData, salaryStructure, growthAssumptions.projection_years])
+
+  // Merge transaction FYs with projected FYs into a combined sorted list
+  const fyList = useMemo(() => {
+    const allFYs = new Set([...txFyList, ...projectedFYList])
+    return [...allFYs].sort((a, b) => a.localeCompare(b)).reverse()
+  }, [txFyList, projectedFYList])
+
+  // Current FY label for default selection
+  const currentFYLabel = getFYFromDate(new Date().toISOString().split('T')[0], fiscalYearStartMonth)
+
+  // Default to current FY if available, otherwise latest FY
+  const effectiveFY = selectedFY || (fyList.includes(currentFYLabel) ? currentFYLabel : fyList[0]) || ''
+
+  // Determine if the selected FY is a future projection (no transaction data)
+  const isFutureFY = projectedFYList.includes(effectiveFY) && !(effectiveFY in transactionsByFY)
+  const isCurrentFY = effectiveFY === currentFYLabel
+
+  // Use salary projection when toggle is ON (current FY) or when viewing future FY
+  const useSalaryProjection = hasSalaryData && (isFutureFY || (showProjection && isCurrentFY))
 
   // ── Derived values for selected FY ──────────────────────────────────
 
@@ -529,34 +427,65 @@ export default function TaxPlanningPage() {
   const netTaxableIncome = currentFYData?.taxableIncome || 0
   const salaryMonthsCount = currentFYData?.salaryMonths?.size || 0
 
-  // ── Tax computation for selected FY ─────────────────────────────────
+  // ── Tax computation for selected FY (transaction-based) ─────────────
 
   const {
     fyYear, newRegimeAvailable, isNewRegime, taxSlabs, regimeLabel,
-    standardDeduction, hasEmploymentIncome, grossTaxableIncome,
+    standardDeduction, grossTaxableIncome,
     baseTax, slabBreakdown, rebate87A, surcharge, cess,
     professionalTax, taxAlreadyPaid,
   } = computeTaxForFY(effectiveFY, netTaxableIncome, salaryMonthsCount, regimeOverride, preferredRegime)
 
-  // ── Projection + display values ────────────────────────────────────
+  // ── Salary-based projection ────────────────────────────────────────
 
-  const {
-    isCurrentFY, projectedTaxResult, remainingMonths, avgMonthlySalary, displayValues,
-  } = computeProjectionAndDisplay({
-    showProjection, selectedFY: effectiveFY, fiscalYearStartMonth,
-    hasEmploymentIncome, currentFYData, netTaxableIncome,
-    salaryMonthsCount, taxSlabs, standardDeduction, isNewRegime, fyYear,
-    actual: { grossTaxableIncome, taxAlreadyPaid, baseTax, cess, professionalTax, slabBreakdown, income },
-  })
+  const effectiveFYForProjector = effectiveFY.replace(/^FY\s+/i, '')
 
-  const displayGross = displayValues.gross
-  const displayNet = displayValues.net
-  const displayTotalTax = displayValues.totalTax
-  const displayBaseTax = displayValues.baseTax
-  const displayCess = displayValues.cess
-  const displayProfessionalTax = displayValues.professionalTax
-  const displaySlabBreakdown = displayValues.slabBreakdown
-  const displayIncome = displayValues.income
+  const salaryProjection = useMemo<ProjectedFYBreakdown | null>(() => {
+    if (!useSalaryProjection) return null
+    return projectFiscalYear(effectiveFYForProjector, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth)
+  }, [useSalaryProjection, effectiveFYForProjector, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth])
+
+  // Recompute tax using the selected regime on salary gross (projection calculator always uses new regime)
+  const salaryTaxResult = useMemo(() => {
+    if (!salaryProjection) return null
+    return calculateTax(salaryProjection.grossTaxable, taxSlabs, standardDeduction, true, 12, isNewRegime, fyYear)
+  }, [salaryProjection, taxSlabs, standardDeduction, isNewRegime, fyYear])
+
+  const multiYearProjections = useMemo<ProjectedFYBreakdown[]>(() => {
+    if (!hasSalaryData) return []
+    return projectMultipleYears(salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth)
+  }, [hasSalaryData, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth])
+
+  // ── Display values: salary projection overrides transaction-based ───
+
+  const display = useMemo(() => {
+    if (salaryTaxResult && salaryProjection) {
+      return {
+        gross: salaryProjection.grossTaxable,
+        net: salaryProjection.grossTaxable - salaryTaxResult.totalTax,
+        totalTax: salaryTaxResult.totalTax,
+        baseTax: salaryTaxResult.tax,
+        cess: salaryTaxResult.cess,
+        professionalTax: salaryTaxResult.professionalTax,
+        slabBreakdown: salaryTaxResult.slabBreakdown,
+        rebate87A: salaryTaxResult.rebate87A,
+        surcharge: salaryTaxResult.surcharge,
+        income: salaryProjection.grossTaxable,
+      }
+    }
+    return {
+      gross: grossTaxableIncome,
+      net: netTaxableIncome,
+      totalTax: taxAlreadyPaid,
+      baseTax,
+      cess,
+      professionalTax,
+      slabBreakdown,
+      rebate87A,
+      surcharge,
+      income,
+    }
+  }, [salaryTaxResult, salaryProjection, grossTaxableIncome, netTaxableIncome, taxAlreadyPaid, baseTax, cess, professionalTax, slabBreakdown, rebate87A, surcharge, income])
 
   // ── FY navigation ───────────────────────────────────────────────────
 
@@ -575,36 +504,33 @@ export default function TaxPlanningPage() {
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+        <PageHeader
+          title="Tax Planning"
+          subtitle={`Estimate your tax liability — ${regimeLabel}`}
+          action={
+            <TaxPageActions
+              isNewRegime={isNewRegime}
+              setRegimeOverride={setRegimeOverride}
+              newRegimeAvailable={newRegimeAvailable}
+              isCurrentFY={isCurrentFY}
+              showProjection={showProjection}
+              setShowProjection={setShowProjection}
+              selectedFY={effectiveFY}
+              canGoBack={canGoBack}
+              canGoForward={canGoForward}
+              goToPreviousFY={goToPreviousFY}
+              goToNextFY={goToNextFY}
+              hasSalaryData={hasSalaryData}
+            />
+          }
+        />
       <motion.div
-        className="max-w-7xl mx-auto space-y-6 md:space-y-8"
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
+        className="space-y-6 md:space-y-8"
       >
-        <motion.div variants={fadeUpItem}>
-          <PageHeader
-            title="Tax Planning"
-            subtitle={`Estimate your tax liability — ${regimeLabel}`}
-            action={
-              <TaxPageActions
-                isNewRegime={isNewRegime}
-                setRegimeOverride={setRegimeOverride}
-                newRegimeAvailable={newRegimeAvailable}
-                isCurrentFY={isCurrentFY}
-                hasEmploymentIncome={hasEmploymentIncome}
-                showProjection={showProjection}
-                setShowProjection={setShowProjection}
-                remainingMonths={remainingMonths}
-                avgMonthlySalary={avgMonthlySalary}
-                selectedFY={effectiveFY}
-                canGoBack={canGoBack}
-                canGoForward={canGoForward}
-                goToPreviousFY={goToPreviousFY}
-                goToNextFY={goToNextFY}
-              />
-            }
-          />
-        </motion.div>
 
         {fyList.length === 0 && !isLoading ? (
           <motion.div variants={fadeUpItem}>
@@ -615,9 +541,10 @@ export default function TaxPlanningPage() {
         <motion.div variants={fadeUpItem}>
           <TaxSummaryCards
             isLoading={isLoading}
-            netTaxableIncome={displayNet}
-            grossTaxableIncome={displayGross}
-            taxAlreadyPaid={displayTotalTax}
+            netTaxableIncome={display.net}
+            grossTaxableIncome={display.gross}
+            taxAlreadyPaid={display.totalTax}
+            isProjecting={useSalaryProjection}
           />
         </motion.div>
 
@@ -625,36 +552,31 @@ export default function TaxPlanningPage() {
           <TaxSlabBreakdown
             isNewRegime={isNewRegime}
             taxSlabs={taxSlabs}
-            slabBreakdown={displaySlabBreakdown}
-            grossTaxableIncome={displayGross}
+            slabBreakdown={display.slabBreakdown}
+            grossTaxableIncome={display.gross}
             standardDeduction={standardDeduction}
             fyYear={fyYear}
-            baseTax={displayBaseTax}
-            rebate87A={projectedTaxResult?.rebate87A ?? rebate87A}
-            surcharge={projectedTaxResult?.surcharge ?? surcharge}
-            cess={displayCess}
-            professionalTax={displayProfessionalTax}
-            totalTax={displayTotalTax}
+            baseTax={display.baseTax}
+            rebate87A={display.rebate87A}
+            surcharge={display.surcharge}
+            cess={display.cess}
+            professionalTax={display.professionalTax}
+            totalTax={display.totalTax}
+            isProjecting={useSalaryProjection}
           />
         </motion.div>
 
         <motion.div variants={fadeUpItem}>
           <TaxSummaryGrid
             selectedFY={effectiveFY}
-            grossTaxableIncome={displayGross}
-            taxAlreadyPaid={displayTotalTax}
-            netTaxableIncome={displayNet}
-            totalIncome={displayIncome}
+            grossTaxableIncome={display.gross}
+            taxAlreadyPaid={display.totalTax}
+            netTaxableIncome={display.net}
+            totalIncome={display.income}
             totalExpense={expense}
+            isProjecting={useSalaryProjection}
           />
         </motion.div>
-
-        {/* Advance Tax Schedule */}
-        {isCurrentFY && displayTotalTax > 10000 && (
-          <motion.div variants={fadeUpItem}>
-            <AdvanceTaxScheduleSection totalTax={displayTotalTax} />
-          </motion.div>
-        )}
 
         {/* Effective Tax Rate Curve */}
         <EffectiveTaxRateChart
@@ -662,16 +584,18 @@ export default function TaxPlanningPage() {
           isNewRegime={isNewRegime}
           fyYear={fyYear}
           standardDeduction={standardDeduction}
-          currentIncome={grossTaxableIncome}
+          currentIncome={display.gross}
         />
 
-        <motion.div variants={fadeUpItem}>
-          <TaxableIncomeTable
-            selectedFY={effectiveFY}
-            incomeGroups={currentFYData?.incomeGroups}
-            netTaxableIncome={netTaxableIncome}
-          />
-        </motion.div>
+        {!useSalaryProjection && (
+          <motion.div variants={fadeUpItem}>
+            <TaxableIncomeTable
+              selectedFY={effectiveFY}
+              incomeGroups={currentFYData?.incomeGroups}
+              netTaxableIncome={netTaxableIncome}
+            />
+          </motion.div>
+        )}
 
         {/* ── Tax Saving Suggestions ─────────────────────────────── */}
         <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 md:p-6">
@@ -725,23 +649,14 @@ export default function TaxPlanningPage() {
                 <TrendingUp className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Tax Paid Per Year</h3>
-                <p className="text-xs text-muted-foreground">Annual tax with cumulative trend</p>
+                <h3 className="text-lg font-semibold">Tax Per Year</h3>
+                <p className="text-xs text-muted-foreground">Paid (red) vs projected (orange) with cumulative trend</p>
               </div>
             </div>
             {(() => {
-              const yearlyTaxData = fyList.slice().reverse().map(fy => {
-                const data = transactionsByFY[fy]
-                if (!data) return { fy, tax: 0, income: 0, cumulative: 0 }
-                // Use taxableIncome if classified, otherwise fall back to total income
-                const taxableAmt = (data.taxableIncome > 0) ? data.taxableIncome : data.income
-                const salaryMonths = data.salaryMonths?.size || 0
-                const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
-                return { fy, tax: Math.round(computed.taxAlreadyPaid), income: Math.round(computed.grossTaxableIncome), cumulative: 0 }
-              })
-              let cum = 0
-              for (const d of yearlyTaxData) { cum += d.tax; d.cumulative = cum }
-              if (yearlyTaxData.every(d => d.tax === 0 && d.income === 0)) return <ChartEmptyState height={280} message="No tax liability found across years" />
+              const yearlyTaxData = buildYearlyTaxData(fyList, transactionsByFY, multiYearProjections, currentFYLabel, regimeOverride, preferredRegime)
+              if (yearlyTaxData.every(d => d.paidTax === 0 && d.projected === 0)) return <ChartEmptyState height={280} message="No tax liability found across years" />
+
               return (
                 <ChartContainer height={300}>
                   <BarChart data={yearlyTaxData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
@@ -751,13 +666,16 @@ export default function TaxPlanningPage() {
                     <Tooltip
                       {...chartTooltipProps}
                       formatter={(value: number | undefined, name: string | undefined) => {
-                        if (value === undefined) return ['', '']
-                        const labels: Record<string, string> = { tax: 'Tax Paid', cumulative: 'Cumulative', income: 'Income' }
+                        if (value === undefined || value === 0) return ['', '']
+                        const labels: Record<string, string> = { paidTax: 'Tax Paid', projected: 'Projected Tax', cumulative: 'Cumulative' }
                         return [formatCurrency(value), labels[name ?? ''] ?? name]
                       }}
                       cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                     />
-                    <Bar dataKey="tax" name="tax" fill={rawColors.app.red} fillOpacity={0.7} radius={BAR_RADIUS} maxBarSize={40}
+                    <Bar dataKey="paidTax" name="paidTax" stackId="tax" fill={rawColors.app.red} fillOpacity={0.7} maxBarSize={40}
+                      isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={600} animationEasing="ease-out"
+                    />
+                    <Bar dataKey="projected" name="projected" stackId="tax" fill={rawColors.app.orange} fillOpacity={0.5} radius={BAR_RADIUS} maxBarSize={40}
                       isAnimationActive={shouldAnimate(yearlyTaxData.length)} animationDuration={600} animationEasing="ease-out"
                     />
                     <Line type="monotone" dataKey="cumulative" name="cumulative" stroke={rawColors.app.blue} strokeWidth={2} strokeDasharray="6 3"
@@ -786,22 +704,30 @@ export default function TaxPlanningPage() {
             <div>
               <h3 className="text-lg font-semibold">Which Regime Saves You More?</h3>
               <p className="text-xs text-muted-foreground">
-                Based on your income of {formatCurrency(grossTaxableIncome)}
+                Based on your income of {formatCurrency(display.gross)}
               </p>
             </div>
           </div>
 
           <RegimeComparison
-            grossIncome={grossTaxableIncome}
+            grossIncome={display.gross}
             fyYear={fyYear}
             standardDeduction={standardDeduction}
             salaryMonthsCount={salaryMonthsCount}
           />
         </motion.div>
         )}
+
+        {/* Multi-Year Salary Projection Table */}
+        {hasSalaryData && multiYearProjections.length > 1 && (
+          <motion.div variants={fadeUpItem}>
+            <MultiYearProjectionTable projections={multiYearProjections} />
+          </motion.div>
+        )}
         </>
         )}
       </motion.div>
+      </div>
     </div>
   )
 }
@@ -819,75 +745,6 @@ function TaxTip({ title, amount, description }: Readonly<{ title: string; amount
         )}
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
-    </div>
-  )
-}
-
-/** Advance tax quarterly schedule section */
-function getQuarterStatusClass(status: string, isNext: boolean): string {
-  if (status === 'overdue') return 'bg-app-red/20 text-app-red'
-  if (isNext) return 'bg-app-orange/20 text-app-orange'
-  return 'bg-white/5 text-muted-foreground'
-}
-
-function AdvanceTaxScheduleSection({ totalTax }: Readonly<{ totalTax: number }>) {
-  const schedule = useMemo(() => computeAdvanceTaxSchedule(totalTax, 0), [totalTax])
-
-  return (
-    <div className="glass rounded-2xl border border-border p-4 md:p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2.5 bg-app-orange/20 rounded-xl">
-          <ChevronRight className="w-5 h-5 text-app-orange" />
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold">Advance Tax Schedule</h3>
-          <p className="text-xs text-muted-foreground">
-            Quarterly installments -- Total advance tax: {formatCurrency(schedule.advanceTaxDue)}
-          </p>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-2 px-3 text-muted-foreground font-medium">Quarter</th>
-              <th className="text-left py-2 px-3 text-muted-foreground font-medium">Due Date</th>
-              <th className="text-right py-2 px-3 text-muted-foreground font-medium">This Quarter</th>
-              <th className="text-right py-2 px-3 text-muted-foreground font-medium">Cumulative</th>
-              <th className="text-center py-2 px-3 text-muted-foreground font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {schedule.quarters.map((q) => {
-              const isNext = schedule.nextDueQuarter?.quarter === q.quarter
-              return (
-                <tr
-                  key={q.quarter}
-                  className={`border-b border-border/50 ${isNext ? 'bg-app-orange/[0.06]' : ''}`}
-                >
-                  <td className="py-2.5 px-3 font-medium">
-                    {q.quarter} ({q.cumulativePercent}%)
-                    {isNext && <span className="ml-1.5 text-xs text-app-orange font-semibold">NEXT</span>}
-                  </td>
-                  <td className="py-2.5 px-3">{formatDueDate(q.dueDate)}</td>
-                  <td className="py-2.5 px-3 text-right font-medium">{formatCurrency(q.quarterAmount)}</td>
-                  <td className="py-2.5 px-3 text-right text-muted-foreground">{formatCurrency(q.cumulativeAmount)}</td>
-                  <td className="py-2.5 px-3 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getQuarterStatusClass(q.status, isNext)}`}>
-                      {q.status === 'overdue' ? 'Overdue' : 'Upcoming'}
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <p className="text-xs text-text-tertiary mt-3">
-        Advance tax applies if total tax liability exceeds Rs 10,000. Interest under Sec 234B/234C applies for late/short payment.
-      </p>
     </div>
   )
 }
@@ -1055,6 +912,81 @@ function DeductionInput({ label, sublabel, value, max, onChange }: Readonly<{
         className="w-full px-3 py-1.5 text-sm bg-white/5 border border-border rounded-lg text-foreground placeholder:text-text-quaternary focus:outline-none focus:ring-1 focus:ring-app-blue/50"
       />
       <span className="text-caption text-text-quaternary mt-0.5 block">{sublabel}</span>
+    </div>
+  )
+}
+
+/** Multi-year salary projection comparison table */
+function MultiYearProjectionTable({ projections }: Readonly<{ projections: ProjectedFYBreakdown[] }>) {
+  const rows: Array<{ label: string; key: keyof ProjectedFYBreakdown; colorClass: string }> = [
+    { label: 'Base Salary', key: 'baseSalary', colorClass: 'text-income' },
+    { label: 'Bonus', key: 'bonus', colorClass: 'text-income' },
+    { label: 'RSU Vesting', key: 'rsuIncome', colorClass: 'text-income' },
+    { label: 'EPF', key: 'epf', colorClass: 'text-muted-foreground' },
+    { label: 'Other', key: 'otherTaxable', colorClass: 'text-muted-foreground' },
+    { label: 'Gross Taxable', key: 'grossTaxable', colorClass: 'text-foreground' },
+    { label: 'Total Tax', key: 'totalTax', colorClass: 'text-expense' },
+    { label: 'Take-Home', key: 'takeHome', colorClass: 'text-income' },
+  ]
+
+  return (
+    <div className="glass rounded-2xl border border-border p-4 md:p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2.5 bg-app-purple/20 rounded-xl">
+          <TrendingUp className="w-5 h-5 text-app-purple" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold">Multi-Year Projection</h3>
+          <p className="text-xs text-muted-foreground">
+            {projections.length} year outlook based on salary structure and growth assumptions
+          </p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-2 px-3 text-muted-foreground font-medium">Component</th>
+              {projections.map((p) => (
+                <th key={p.fy} className="text-right py-2 px-3 text-muted-foreground font-medium whitespace-nowrap">
+                  FY {p.fy}
+                  {p.isProjected && <span className="text-caption text-text-quaternary ml-1">*</span>}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const hasAnyValue = projections.some((p) => (p[row.key] as number) > 0)
+              if (!hasAnyValue) return null
+              return (
+                <tr key={row.key} className="border-b border-border/50">
+                  <td className="py-2.5 px-3 font-medium text-foreground">{row.label}</td>
+                  {projections.map((p) => (
+                    <td key={p.fy} className={`py-2.5 px-3 text-right ${row.colorClass}`}>
+                      {formatCurrency(p[row.key] as number)}
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
+            {/* Effective Tax Rate row */}
+            <tr className="border-b border-border/50">
+              <td className="py-2.5 px-3 font-medium text-foreground">Effective Tax Rate</td>
+              {projections.map((p) => (
+                <td key={p.fy} className="py-2.5 px-3 text-right text-muted-foreground">
+                  {p.effectiveTaxRate.toFixed(1)}%
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-text-tertiary mt-3">
+        * Projected values based on growth assumptions. Actual figures may vary.
+      </p>
     </div>
   )
 }

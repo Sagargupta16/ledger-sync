@@ -75,23 +75,23 @@ Root `package.json` uses `concurrently` to coordinate both services. Backend use
 
 Layered architecture:
 
-- **`api/`** - FastAPI routers. Each file is a router module (auth, oauth, upload, transactions, analytics, analytics_v2, calculations, preferences, account_classifications, meta, reports). Routers are registered in `main.py`. All endpoints require JWT auth via `get_current_user` dependency from `deps.py`. `oauth.py` handles Google/GitHub authorization code exchange.
+- **`api/`** - FastAPI routers. Each file is a router module (auth, oauth, upload, transactions, analytics, analytics_v2, calculations, preferences, account_classifications, exchange_rates, meta, reports). Routers are registered in `main.py`. All endpoints require JWT auth via `get_current_user` dependency from `deps.py`. `oauth.py` handles Google/GitHub authorization code exchange. `preferences.py` includes salary-structure, rsu-grants, and growth-assumptions endpoints.
 - **`core/`** - Business logic. `sync_engine.py` orchestrates Excel imports. `reconciler.py` handles deduplication via SHA-256 hashing. `calculator.py` and `analytics_engine.py` compute financial metrics. `query_helpers.py` provides shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`) used by both `calculations.py` and `analytics.py`. `insights.py` generates smart financial insights. `report_generator.py` builds exportable reports. `time_filter.py` handles date range/fiscal year filtering logic. `core/auth/` handles JWT token creation/verification.
 - **`ingest/`** - Data ingestion pipeline: `excel_loader.py` -> `normalizer.py` -> `validator.py` -> `hash_id.py`. Processes Excel uploads into normalized transaction records.
-- **`db/`** - SQLAlchemy 2.0 models and session factory. `models.py` defines all tables (users, transactions, import_logs, user_preferences, investment_accounts, budget_goals, recurring_transactions, anomalies, account_classifications). All data is user-scoped.
-- **`schemas/`** - Pydantic models for request/response validation.
+- **`db/`** - SQLAlchemy 2.0 models and session factory. `models.py` defines all tables (users, transactions, import_logs, user_preferences, investment_accounts, budget_goals, recurring_transactions, anomalies, account_classifications). All data is user-scoped. `user_preferences` includes JSON columns for `salary_structure`, `rsu_grants`, and `growth_assumptions`.
+- **`schemas/`** - Pydantic models for request/response validation. Includes `salary.py` with `SalaryComponents`, `RsuGrant`, `GrowthAssumptions` schemas for tax projection inputs.
 - **`config/settings.py`** - Pydantic BaseSettings. All env vars prefixed with `LEDGER_SYNC_` (e.g., `LEDGER_SYNC_DATABASE_URL`, `LEDGER_SYNC_JWT_SECRET_KEY`).
 
 ### Frontend (`frontend/src/`)
 
-- **`pages/`** - 23 page components, all lazy-loaded via `React.lazy` for code splitting. Pages import directly (no barrel re-export). Includes SubscriptionTrackerPage, BillCalendarPage, InsightsPage, and YearInReviewPage.
+- **`pages/`** - 23 page components, all lazy-loaded via `React.lazy` for code splitting. Pages import directly (no barrel re-export). Includes FIRECalculatorPage, SubscriptionTrackerPage, BillCalendarPage, InsightsPage, and YearInReviewPage. `settings/SalaryStructureSection.tsx` provides salary CTC grid, RSU grant editor, and growth assumption sliders.
 - **`components/`** - Organized by domain: `analytics/` (chart components including `CategoryBreakdown` for shared category treemaps), `layout/` (AppLayout, Sidebar with ProfileModal), `shared/` (reusable components like MetricCard, AnalyticsTimeFilter, ProtectedRoute, ProfileModal, ChunkErrorBoundary, EmptyState, QuickInsights), `transactions/`, `upload/`, `ui/` (base primitives including ChartContainer, PageHeader, ConfirmDialog, CollapsibleSection).
 - **`hooks/`** - Custom React hooks. `useAnalyticsTimeFilter` encapsulates time-filter state (view mode, date range, FY) shared across all analytics pages. `useChartDimensions` provides responsive chart sizing. `hooks/api/` contains TanStack Query hooks for API calls, configured with `staleTime: Infinity` and `gcTime: 1 hour`.
 - **`services/api/`** - Axios-based API client. Axios interceptor auto-attaches JWT `Authorization` header.
 - **`store/`** - Zustand stores: `authStore` (JWT tokens with persist middleware), `accountStore`, `budgetStore`, `investmentAccountStore`, `preferencesStore`.
-- **`types/`** - Shared TypeScript type definitions.
+- **`types/`** - Shared TypeScript type definitions. `salary.ts` defines `SalaryComponents`, `RsuGrant`, `GrowthAssumptions`, and `ProjectedFYBreakdown` interfaces.
 - **`constants/`** - Colors, animations, chart configuration tokens.
-- **`lib/`** - Utility functions: formatters, date utils, tax calculator, export helpers.
+- **`lib/`** - Utility functions: formatters, date utils, tax calculator, export helpers. `projectionCalculator.ts` provides pure functions (`projectFiscalYear`, `projectMultipleYears`, `getRsuVestingsByFY`) for multi-year salary/tax projections with full TDD test coverage in `__tests__/projectionCalculator.test.ts`.
 
 ### Key Patterns
 

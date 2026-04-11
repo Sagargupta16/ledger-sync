@@ -15,6 +15,7 @@ interface TaxSlabBreakdownProps {
   cess: number
   professionalTax: number
   totalTax: number
+  isProjecting?: boolean
 }
 
 export default function TaxSlabBreakdown({
@@ -30,6 +31,7 @@ export default function TaxSlabBreakdown({
   cess,
   professionalTax,
   totalTax,
+  isProjecting = false,
 }: Readonly<TaxSlabBreakdownProps>) {
   return (
     <motion.div
@@ -140,7 +142,7 @@ export default function TaxSlabBreakdown({
             </tr>
             <tr className="border-t-2 border-primary/30">
               <td colSpan={3} className="py-4 px-4 text-right text-lg font-bold text-white">
-                Total Tax Already Paid:
+                {isProjecting ? 'Total Estimated Tax:' : 'Total Tax Already Paid:'}
               </td>
               <td className="py-4 px-4 text-right text-2xl font-bold text-primary">
                 {formatCurrency(totalTax)}

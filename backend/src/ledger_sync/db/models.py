@@ -1324,6 +1324,11 @@ class UserPreferences(Base):
     notify_upcoming_bills: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notify_days_ahead: Mapped[int] = mapped_column(Integer, nullable=False, default=7)
 
+    # ── Salary & Tax Projections ──────────────────────────────────────────
+    salary_structure: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    rsu_grants: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    growth_assumptions: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(

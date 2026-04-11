@@ -44,7 +44,7 @@ export default function GoalCard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6 hover:scale-[1.01] transition-all duration-300"
+      className="glass rounded-2xl border border-border p-4 md:p-6 hover:scale-[1.01] transition-all duration-200"
     >
       {/* Header */}
       <div className="flex items-start justify-between">

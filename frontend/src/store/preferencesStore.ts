@@ -11,6 +11,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { CURRENCIES, BASE_CURRENCY, getCurrencyMeta } from '@/constants/currencies'
+import type { SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/salary'
+import { DEFAULT_GROWTH_ASSUMPTIONS } from '@/types/salary'
 
 export interface DisplayPreferences {
   numberFormat: 'indian' | 'international'
@@ -60,7 +62,15 @@ export interface PreferencesState {
   earningStartDate: string | null
   useEarningStartDate: boolean
 
+  // Salary & Tax Projections
+  salaryStructure: Record<string, SalaryComponents>
+  rsuGrants: RsuGrant[]
+  growthAssumptions: GrowthAssumptions
+
   // Actions
+  setSalaryStructure: (structure: Record<string, SalaryComponents>) => void
+  setRsuGrants: (grants: RsuGrant[]) => void
+  setGrowthAssumptions: (assumptions: GrowthAssumptions) => void
   setDisplayPreferences: (prefs: Partial<DisplayPreferences>) => void
   setDisplayCurrency: (code: string) => void
   setExchangeRate: (rate: number, updatedAt: string) => void
@@ -87,7 +97,65 @@ export interface PreferencesState {
     credit_card_limits: Record<string, number>
     earning_start_date: string | null
     use_earning_start_date: boolean
+    salary_structure: Record<string, SalaryComponents>
+    rsu_grants: RsuGrant[]
+    growth_assumptions: GrowthAssumptions
   }) => void
+}
+
+// ─── Hydration helpers (extracted to reduce cognitive complexity) ─────────────
+
+function ensureArray(v: unknown): string[] {
+  return Array.isArray(v) ? v : []
+}
+
+function clampPercent(v: unknown, fallback: number): number {
+  const n = Number(v)
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : fallback
+}
+
+function ensureObject<T>(v: unknown, fallback: T): T {
+  return v && typeof v === 'object' ? (v as T) : fallback
+}
+
+function ensureString(v: unknown, fallback: string): string {
+  return typeof v === 'string' ? v : fallback
+}
+
+/** Parse and validate API preferences into store-ready state. */
+function parseApiPreferences(apiPrefs: Record<string, unknown>): Partial<PreferencesState> {
+  const fySm = Number(apiPrefs.fiscal_year_start_month)
+
+  return {
+    displayPreferences: {
+      numberFormat: apiPrefs.number_format === 'international' ? 'international' : 'indian',
+      currencySymbol: ensureString(apiPrefs.currency_symbol, '₹'),
+      currencySymbolPosition: apiPrefs.currency_symbol_position === 'after' ? 'after' : 'before',
+      defaultTimeRange: ensureString(apiPrefs.default_time_range, 'all_time'),
+    },
+    displayCurrency: typeof apiPrefs.display_currency === 'string' && apiPrefs.display_currency in CURRENCIES
+      ? apiPrefs.display_currency : BASE_CURRENCY,
+    fiscalYearStartMonth: fySm >= 1 && fySm <= 12 ? fySm : 4,
+    essentialCategories: ensureArray(apiPrefs.essential_categories),
+    incomeClassification: {
+      taxable: ensureArray(apiPrefs.taxable_income_categories),
+      investmentReturns: ensureArray(apiPrefs.investment_returns_categories),
+      nonTaxable: ensureArray(apiPrefs.non_taxable_income_categories),
+      other: ensureArray(apiPrefs.other_income_categories),
+    },
+    investmentAccountMappings: ensureObject(apiPrefs.investment_account_mappings, {}),
+    needsTargetPercent: clampPercent(apiPrefs.needs_target_percent, 50),
+    wantsTargetPercent: clampPercent(apiPrefs.wants_target_percent, 30),
+    savingsTargetPercent: clampPercent(apiPrefs.savings_target_percent, 20),
+    creditCardLimits: ensureObject(apiPrefs.credit_card_limits, {}),
+    earningStartDate: ensureString(apiPrefs.earning_start_date, '') || null,
+    useEarningStartDate: apiPrefs.use_earning_start_date === true,
+    salaryStructure: ensureObject(apiPrefs.salary_structure, {}),
+    rsuGrants: Array.isArray(apiPrefs.rsu_grants) ? apiPrefs.rsu_grants : [],
+    growthAssumptions: apiPrefs.growth_assumptions && typeof apiPrefs.growth_assumptions === 'object'
+      ? { ...DEFAULT_GROWTH_ASSUMPTIONS, ...(apiPrefs.growth_assumptions as Record<string, unknown>) }
+      : { ...DEFAULT_GROWTH_ASSUMPTIONS },
+  }
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -163,6 +231,11 @@ export const usePreferencesStore = create<PreferencesState>()(
       earningStartDate: null,
       useEarningStartDate: false,
 
+      // Default salary & tax projections
+      salaryStructure: {},
+      rsuGrants: [],
+      growthAssumptions: { ...DEFAULT_GROWTH_ASSUMPTIONS },
+
       // Actions
       setDisplayPreferences: (prefs) =>
         set((state) => ({
@@ -198,44 +271,14 @@ export const usePreferencesStore = create<PreferencesState>()(
       setInvestmentAccountMappings: (mappings) =>
         set({ investmentAccountMappings: mappings }),
 
+      setSalaryStructure: (structure) => set({ salaryStructure: structure }),
+      setRsuGrants: (grants) => set({ rsuGrants: grants }),
+      setGrowthAssumptions: (assumptions) => set({ growthAssumptions: assumptions }),
+
       // Hydrate from API response (with validation)
       hydrateFromApi: (apiPrefs) => {
         if (!apiPrefs || typeof apiPrefs !== 'object') return
-
-        const ensureArray = (v: unknown): string[] => Array.isArray(v) ? v : []
-        const fySm = Number(apiPrefs.fiscal_year_start_month)
-        const clampPercent = (v: unknown, fallback: number) => {
-          const n = Number(v)
-          return Number.isFinite(n) && n >= 0 && n <= 100 ? n : fallback
-        }
-
-        set({
-          displayPreferences: {
-            numberFormat: apiPrefs.number_format === 'international' ? 'international' : 'indian',
-            currencySymbol: typeof apiPrefs.currency_symbol === 'string' ? apiPrefs.currency_symbol : '₹',
-            currencySymbolPosition: apiPrefs.currency_symbol_position === 'after' ? 'after' : 'before',
-            defaultTimeRange: typeof apiPrefs.default_time_range === 'string' ? apiPrefs.default_time_range : 'all_time',
-          },
-          displayCurrency: typeof apiPrefs.display_currency === 'string' && apiPrefs.display_currency in CURRENCIES
-            ? apiPrefs.display_currency : BASE_CURRENCY,
-          fiscalYearStartMonth: fySm >= 1 && fySm <= 12 ? fySm : 4,
-          essentialCategories: ensureArray(apiPrefs.essential_categories),
-          incomeClassification: {
-            taxable: ensureArray(apiPrefs.taxable_income_categories),
-            investmentReturns: ensureArray(apiPrefs.investment_returns_categories),
-            nonTaxable: ensureArray(apiPrefs.non_taxable_income_categories),
-            other: ensureArray(apiPrefs.other_income_categories),
-          },
-          investmentAccountMappings: apiPrefs.investment_account_mappings && typeof apiPrefs.investment_account_mappings === 'object'
-            ? apiPrefs.investment_account_mappings : {},
-          needsTargetPercent: clampPercent(apiPrefs.needs_target_percent, 50),
-          wantsTargetPercent: clampPercent(apiPrefs.wants_target_percent, 30),
-          savingsTargetPercent: clampPercent(apiPrefs.savings_target_percent, 20),
-          creditCardLimits: apiPrefs.credit_card_limits && typeof apiPrefs.credit_card_limits === 'object'
-            ? apiPrefs.credit_card_limits : {},
-          earningStartDate: typeof apiPrefs.earning_start_date === 'string' ? apiPrefs.earning_start_date : null,
-          useEarningStartDate: apiPrefs.use_earning_start_date === true,
-        })
+        set(parseApiPreferences(apiPrefs))
       },
     }),
     {
@@ -253,6 +296,9 @@ export const usePreferencesStore = create<PreferencesState>()(
         creditCardLimits: state.creditCardLimits,
         earningStartDate: state.earningStartDate,
         useEarningStartDate: state.useEarningStartDate,
+        salaryStructure: state.salaryStructure,
+        rsuGrants: state.rsuGrants,
+        growthAssumptions: state.growthAssumptions,
       }),
     }
   )
@@ -303,3 +349,7 @@ export const selectDisplayCurrency = (state: PreferencesState) =>
 
 export const selectExchangeRate = (state: PreferencesState) =>
   state.exchangeRate
+
+export const selectSalaryStructure = (state: PreferencesState) => state.salaryStructure
+export const selectRsuGrants = (state: PreferencesState) => state.rsuGrants
+export const selectGrowthAssumptions = (state: PreferencesState) => state.growthAssumptions

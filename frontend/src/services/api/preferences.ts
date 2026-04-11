@@ -13,6 +13,7 @@
  */
 
 import { apiClient } from './client'
+import type { SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/salary'
 
 // Types
 export interface UserPreferences {
@@ -88,6 +89,11 @@ export interface UserPreferences {
   notify_upcoming_bills: boolean
   notify_days_ahead: number
 
+  // Salary & Tax Projections
+  salary_structure: Record<string, SalaryComponents>
+  rsu_grants: RsuGrant[]
+  growth_assumptions: GrowthAssumptions
+
   // Metadata
   created_at: string | null
   updated_at: string | null
@@ -156,6 +162,18 @@ export interface EarningStartDateConfig {
   use_earning_start_date: boolean
 }
 
+export interface SalaryStructureConfig {
+  salary_structure: Record<string, SalaryComponents>
+}
+
+export interface RsuGrantsConfig {
+  rsu_grants: RsuGrant[]
+}
+
+export interface GrowthAssumptionsConfig {
+  growth_assumptions: GrowthAssumptions
+}
+
 // Helper to create section-specific updaters
 function createSectionUpdater<T>(endpoint: string) {
   return async (config: T): Promise<UserPreferences> => {
@@ -202,6 +220,9 @@ export const preferencesService = {
   updateSpendingRule: createSectionUpdater<SpendingRuleConfig>('spending-rule'),
   updateCreditCardLimits: createSectionUpdater<CreditCardLimitsConfig>('credit-card-limits'),
   updateEarningStartDate: createSectionUpdater<EarningStartDateConfig>('earning-start-date'),
+  updateSalaryStructure: createSectionUpdater<SalaryStructureConfig>('salary-structure'),
+  updateRsuGrants: createSectionUpdater<RsuGrantsConfig>('rsu-grants'),
+  updateGrowthAssumptions: createSectionUpdater<GrowthAssumptionsConfig>('growth-assumptions'),
 
   async getExchangeRates(base: string = 'INR'): Promise<{
     base: string

@@ -10,7 +10,7 @@ import { computeFIRE, computeRetirementCorpus } from '@/lib/fireCalculator'
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
 import { PageHeader, ChartContainer } from '@/components/ui'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl } from '@/components/ui/chartDefaults'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl, ACTIVE_DOT } from '@/components/ui/chartDefaults'
 import { chartTooltipProps } from '@/components/ui/ChartTooltip'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 
@@ -94,34 +94,33 @@ export default function FIRECalculatorPage() {
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+        <PageHeader
+          title="FIRE & Retirement Calculator"
+          subtitle="Plan your financial independence using your actual spending data"
+          action={
+            <div className="flex gap-1 p-1 rounded-lg bg-muted/20">
+              <button
+                onClick={() => setActiveTab('fire')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'fire' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+              >
+                <Flame className="w-4 h-4 inline mr-1.5" />FIRE
+              </button>
+              <button
+                onClick={() => setActiveTab('retirement')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'retirement' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+              >
+                <Calculator className="w-4 h-4 inline mr-1.5" />Retirement
+              </button>
+            </div>
+          }
+        />
       <motion.div
-        className="max-w-7xl mx-auto space-y-6 md:space-y-8"
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
+        className="space-y-6 md:space-y-8"
       >
-        <motion.div variants={fadeUpItem}>
-          <PageHeader
-            title="FIRE & Retirement Calculator"
-            subtitle="Plan your financial independence using your actual spending data"
-            action={
-              <div className="flex gap-1 p-1 rounded-lg bg-muted/20">
-                <button
-                  onClick={() => setActiveTab('fire')}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'fire' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
-                >
-                  <Flame className="w-4 h-4 inline mr-1.5" />FIRE
-                </button>
-                <button
-                  onClick={() => setActiveTab('retirement')}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'retirement' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
-                >
-                  <Calculator className="w-4 h-4 inline mr-1.5" />Retirement
-                </button>
-              </div>
-            }
-          />
-        </motion.div>
 
         {activeTab === 'fire' ? (
           <>
@@ -198,8 +197,8 @@ export default function FIRECalculatorPage() {
                         name === 'corpus' ? 'Total Corpus' : 'Contributed',
                       ]}
                     />
-                    <Area type="monotone" dataKey="corpus" stroke={rawColors.app.blue} fill={areaGradientUrl('corpus')} strokeWidth={2} isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
-                    <Area type="monotone" dataKey="contributed" stroke={rawColors.app.green} fill={areaGradientUrl('contributed')} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
+                    <Area type="monotone" dataKey="corpus" stroke={rawColors.app.blue} fill={areaGradientUrl('corpus')} strokeWidth={2} dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }} isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
+                    <Area type="monotone" dataKey="contributed" stroke={rawColors.app.green} fill={areaGradientUrl('contributed')} strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.green }} isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
                   </AreaChart>
                 </ChartContainer>
               </motion.div>
@@ -220,6 +219,7 @@ export default function FIRECalculatorPage() {
           </>
         )}
       </motion.div>
+      </div>
     </div>
   )
 }

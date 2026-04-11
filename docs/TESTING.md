@@ -18,13 +18,14 @@ Ledger Sync includes comprehensive testing for both backend and frontend to ensu
 ```
 backend/tests/
 ├── __init__.py
-├── conftest.py          # Shared fixtures
-├── fixtures/            # Test data fixtures
+├── conftest.py              # Shared fixtures
+├── fixtures/                # Test data fixtures
 │   └── README.md
-├── unit/                # Unit tests
+├── unit/                    # Unit tests
 │   ├── test_hash_id.py
-│   └── test_normalizer.py
-└── integration/         # Integration tests
+│   ├── test_normalizer.py
+│   └── test_salary_schemas.py   # Salary, RSU, growth assumption validation
+└── integration/             # Integration tests
     └── test_reconciler.py
 ```
 
@@ -276,9 +277,46 @@ frontend/
 │   ├── hooks/
 │   │   └── __tests__/      # Hook tests
 │   └── lib/
-│       └── __tests__/      # Utility tests
+│       └── __tests__/      # Utility tests (incl. projectionCalculator.test.ts)
 └── vitest.config.ts        # Vitest configuration
 ```
+
+### Projection Calculator Tests (Example)
+
+The projection calculator (`lib/projectionCalculator.ts`) uses a TDD approach with pure functions:
+
+```typescript
+// src/lib/__tests__/projectionCalculator.test.ts
+import { describe, it, expect } from 'vitest'
+import { projectFiscalYear, projectMultipleYears, getRsuVestingsByFY } from '../projectionCalculator'
+
+describe('projectFiscalYear', () => {
+  const baseSalary = {
+    '2025-26': {
+      basic_annual: 600000, hra_annual: 300000,
+      special_allowance_annual: 200000, epf_monthly: 1800,
+      nps_monthly: null, professional_tax_annual: 2400,
+      variable_pay_annual: 100000, other_annual: 0, is_new_regime: true,
+    },
+  }
+
+  it('projects future FY with salary hike', () => {
+    const result = projectFiscalYear('2026-27', baseSalary, [], {
+      salary_hike_pct: 10, variable_growth_pct: 5,
+      stock_appreciation_pct: 8, projection_years: 3,
+      include_rsu_in_projection: true,
+    }, 4)
+    expect(result.grossTaxable).toBeGreaterThan(1200000)
+  })
+
+  it('returns base FY as-is when targetFY matches', () => {
+    const result = projectFiscalYear('2025-26', baseSalary, [], defaultGrowth, 4)
+    expect(result.fy).toBe('2025-26')
+  })
+})
+```
+
+Tests cover: base FY passthrough, single-year projection, multi-year compounding, RSU vesting with appreciation, empty salary structure edge cases.
 
 ### Running Tests
 

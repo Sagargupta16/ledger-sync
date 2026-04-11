@@ -249,7 +249,7 @@ print(f"Elapsed: {end - start:.3f}s")
 ```
 frontend/
 ├── src/
-│   ├── pages/           # Page components (23 pages)
+│   ├── pages/           # 23 page components
 │   ├── components/      # UI components
 │   │   ├── analytics/   # Analytics components (25+, including CategoryBreakdown)
 │   │   ├── layout/      # Layout components
@@ -261,7 +261,7 @@ frontend/
 │   │   ├── useAnalyticsTimeFilter.ts  # Shared time-filter state for analytics pages
 │   │   ├── useChartDimensions.ts      # Responsive chart sizing
 │   │   └── api/         # API-specific hooks (TanStack Query)
-│   ├── lib/             # Utilities (cn, queryClient)
+│   ├── lib/             # Utilities (formatters, tax/projection calculators, queryClient)
 │   ├── services/        # API client
 │   │   └── api/         # API service modules
 │   ├── store/           # Zustand state stores
@@ -291,13 +291,9 @@ export default function NewPage() {
 }
 ```
 
-2. **Export from** `src/pages/index.ts`:
+2. **Add lazy import and route** in `App.tsx` (inside `pageImports` and `<Routes>`). Never eager-import pages.
 
-```tsx
-export { default as NewPage } from "./NewPage";
-```
-
-3. **Add route** in App.tsx or router configuration
+3. **Add sidebar entry** in `Sidebar.tsx` under the appropriate navigation group.
 
 ### Creating New Analytics Components
 
@@ -330,11 +326,7 @@ export default function MyAnalyticsComponent({ timeRange }: Props) {
 }
 ```
 
-2. **Export from** `src/components/analytics/index.ts`:
-
-```tsx
-export { default as MyAnalyticsComponent } from "./MyAnalyticsComponent";
-```
+2. **Import directly** from the file where needed (no barrel files / `index.ts` re-exports).
 
 ### Using the Shared Analytics Time Filter
 

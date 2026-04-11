@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ledger Sync uses SQLite (dev) / Neon PostgreSQL (prod) with SQLAlchemy 2.0 ORM (Mapped types). The database stores financial transactions with multi-user support, and includes models for analytics, budgets, anomalies, net worth tracking, and user display preferences (including multi-currency settings).
+Ledger Sync uses SQLite (dev) / Neon PostgreSQL (prod) with SQLAlchemy 2.0 ORM (Mapped types). The database stores financial transactions with multi-user support, and includes models for analytics, budgets, anomalies, net worth tracking, user display preferences (including multi-currency settings), and salary/tax projection data.
 
 ## Database Models
 
@@ -81,7 +81,10 @@ ix_transactions_user_date_type (user_id, date, type)
 The database also includes these models (see `backend/src/ledger_sync/db/models.py`):
 
 - **User** — OAuth authentication (Google, GitHub) with JWT tokens. Fields: `email`, `full_name`, `auth_provider`, `auth_provider_id`, `is_verified`, timestamps
-- **UserPreferences** — 17 sections: fiscal year, essential categories, investment mappings, income classification, budget defaults, display format, anomaly settings, recurring settings, spending rule targets, credit card limits, earning start date, fixed expenses, savings/investment targets, payday, tax regime, excluded accounts, notification preferences
+- **UserPreferences** — 20 sections: fiscal year, essential categories, investment mappings, income classification, budget defaults, display format, anomaly settings, recurring settings, spending rule targets, credit card limits, earning start date, fixed expenses, savings/investment targets, payday, tax regime, excluded accounts, notification preferences, salary structure, RSU grants, growth assumptions. The last three are JSON columns added for income & tax projection support:
+  - `salary_structure` (JSON) — FY-keyed salary CTC breakdown (basic, HRA, special allowance, EPF, NPS, professional tax, variable pay)
+  - `rsu_grants` (JSON) — array of RSU grants with vesting schedules
+  - `growth_assumptions` (JSON) — salary hike %, variable growth %, stock appreciation %, projection years, RSU inclusion flag
 - **AccountClassification** — User-defined account type mappings (Bank, Investment, Credit Card, etc.)
 - **DailySummary** — Pre-computed daily aggregations (income, expenses, net, counts, top category per day). Unique index on (user_id, date). Used by YearInReview heatmap.
 - **MonthlySummary** — Pre-calculated monthly income/expense/savings aggregations

@@ -46,10 +46,11 @@ export default function AppLayout() {
   // Fetch exchange rate when display currency changes (pushes to store for formatters)
   useExchangeRate()
 
-  // Dynamic page title
+  // Dynamic page title + scroll reset on navigation
   useEffect(() => {
     const title = PAGE_TITLES[location.pathname]
     document.title = title ? `${title} | Ledger Sync` : 'Ledger Sync'
+    document.getElementById('main-content')?.scrollTo(0, 0)
   }, [location.pathname])
 
   return (
