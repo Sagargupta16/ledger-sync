@@ -444,7 +444,7 @@ def _update_section(
 
     """
     prefs = _get_or_create_preferences(session, user)
-    for field, value in config.model_dump().items():
+    for field, value in config.model_dump(mode="json").items():
         if json_fields and field in json_fields:
             value = json.dumps(value)
         setattr(prefs, field, value)
