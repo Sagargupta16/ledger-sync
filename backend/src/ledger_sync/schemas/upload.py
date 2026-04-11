@@ -7,7 +7,7 @@ class TransactionRow(BaseModel):
     """A single pre-parsed transaction row from the frontend."""
 
     date: str = Field(..., description="ISO 8601 date string, e.g. 2024-01-15")
-    amount: float = Field(..., gt=0, description="Positive transaction amount")
+    amount: float = Field(..., ge=0, description="Transaction amount")
     currency: str = Field("INR", description="ISO currency code")
     type: str = Field(..., description="Income, Expense, Transfer-In, or Transfer-Out")
     account: str = Field(..., min_length=1, description="Account name")
