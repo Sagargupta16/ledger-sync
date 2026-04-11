@@ -4,7 +4,7 @@
 
 No subscriptions. No data harvesting. Just 23 pages of analytics built from your own Excel exports, running on your own infrastructure.
 
-![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![React](https://img.shields.io/badge/react-19-blue.svg)
@@ -24,9 +24,11 @@ No subscriptions. No data harvesting. Just 23 pages of analytics built from your
 
 ### Smart Upload & Sync
 
-- Drag-and-drop Excel uploads with beautiful hero UI
-- Intelligent duplicate detection using SHA-256 hashing
-- Idempotent syncing - re-upload anytime without duplicates
+- Drag-and-drop Excel (.xlsx, .xls) and CSV uploads with beautiful hero UI
+- Client-side parsing via SheetJS -- files never leave your browser, only structured data is sent to the server
+- Browser-native SHA-256 hashing for intelligent duplicate detection
+- Idempotent syncing -- re-upload anytime without duplicates
+- Three-phase upload UX: Parsing (client) -> Uploading (network) -> Processing (server)
 - Real-time toast notifications for upload status
 
 ### Spending Analysis
@@ -162,7 +164,7 @@ ledger-sync/
 │   │   ├── api/            # REST endpoints
 │   │   ├── core/           # Business logic (reconciler, sync, analytics)
 │   │   ├── db/             # Database models & session
-│   │   ├── ingest/         # Excel processing pipeline
+│   │   ├── ingest/         # Excel/CSV processing (CLI path; web uploads parsed client-side)
 │   │   └── schemas/        # Pydantic request/response models
 │   └── tests/              # pytest tests
 ├── frontend/               # React + TypeScript frontend
@@ -174,10 +176,10 @@ ledger-sync/
 │       │   └── subscription-tracker/  # Subscription sub-components (3 files)
 │       ├── components/     # UI & analytics components (60+)
 │       ├── hooks/          # React Query hooks & custom hooks
-│       ├── constants/      # Colors, chart tokens, animations
+│       ├── constants/      # Colors, chart tokens, animations, column mappings
 │       ├── store/          # Zustand global stores
 │       ├── services/       # API client (Axios)
-│       ├── lib/            # Utility functions (formatters, tax calculator, projection calculator)
+│       ├── lib/            # Utility functions (file parser, formatters, tax/projection calculators)
 │       │   └── demo/          # Demo mode (data generators, cache seeder)
 │       └── types/          # Shared TypeScript types
 ├── .github/workflows/      # CI pipeline

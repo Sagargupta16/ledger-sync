@@ -6,10 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## 2.0.0 - 2026-04-12
 
 ### Added
 
+- **Client-side file parsing** -- Excel/CSV files are now parsed in the browser using SheetJS; only structured JSON rows are sent to the backend (breaking API change: `POST /api/upload` now accepts JSON body instead of multipart file)
+- **Frontend file parser** (`lib/fileParser.ts`) -- lazy-loads SheetJS, computes SHA-256 hash via `crypto.subtle`, maps flexible column names, validates dates/amounts/types
+- **Column mapping constants** (`constants/columns.ts`) -- shared column name mappings and valid transaction types
+- **CSV upload support** -- dropzone now accepts `.csv` files in addition to `.xlsx` and `.xls`
+- **Backend JSON upload schema** (`schemas/upload.py`) -- `TransactionRow` and `TransactionUploadRequest` Pydantic models for structured upload validation
+- **`SyncEngine.import_rows()`** -- new method accepting pre-parsed JSON rows from the frontend
+- **`DataNormalizer.normalize_from_dict()`** -- normalizes plain dicts (category corrections, account standardization, transfer resolution) for the JSON upload path
 - **Income & tax projections** -- input your salary CTC structure (basic, HRA, special allowance, EPF, NPS, professional tax, variable pay) per fiscal year, with FY-to-FY navigation and editing
 - **RSU grant management** -- add stock grants with vesting schedules; vesting amounts auto-projected with stock appreciation
 - **Growth assumptions** -- configure annual salary hike, variable pay growth, stock appreciation, and projection horizon; projections compound from the latest salary FY
@@ -21,13 +28,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Upload pipeline** -- three-phase UX (Parsing -> Uploading -> Processing) with clear progress indication; force-reupload reuses already-parsed data without re-parsing the file
+- **Upload API** -- `POST /api/upload` now accepts `{ file_name, file_hash, rows, force }` JSON body instead of multipart file upload (breaking change)
+- **SheetJS upgraded** -- migrated from vulnerable npm `xlsx@0.18.5` to CDN-distributed `xlsx@0.20.3` (fixes GHSA-4r6h-8v6p-xvw6 Prototype Pollution and GHSA-5pgg-2g8v-p4x9 ReDoS)
+- **Upload error handling** -- Axios error codes mapped to user-friendly toast messages; conflict state (duplicate file) now offers force-reupload inline
 - **Tax Planning page** -- extended with salary-based projection toggle, stacked paid-vs-projected tax bars in yearly chart, projection-aware labels throughout
 - **Settings page** -- new "Income & Salary Structure" section with salary grid, RSU grant editor, and growth assumption sliders
 - **preferencesStore** -- hydration logic extracted into standalone pure helpers to reduce cognitive complexity (SonarCloud finding)
 - **tsconfig** -- bumped `lib` from ES2022 to ES2023 for `Array.findLast()` support
 
+### Removed
+
+- **Server-side file parsing for uploads** -- backend no longer receives raw Excel/CSV files via the upload endpoint (CLI still uses the old file-based `import_file()` path)
+- **Temporary file handling** -- removed temp file creation, magic byte validation, and chunked file reading from upload endpoint
+
 ### Fixed
 
+- **Upload stuck with no feedback in production** (issue #72) -- root cause was Vercel 60s serverless timeout combined with large file uploads; solved by moving parsing to the client
+- **Zero-amount transactions rejected** -- `TransactionRow.amount` validation changed from `gt=0` to `ge=0` to accept valid zero-amount rows
 - **Sticky PageHeader consistency** -- moved PageHeader outside Framer Motion containers on InsightsPage, FIRECalculatorPage, and TaxPlanningPage so `position: sticky` works correctly (CSS `transform` from animations was breaking it)
 - **Scroll-to-top on navigation** -- reset `#main-content` scroll position on route change so every page starts from the top
 - **Returns Analysis FY switching** (issue #88) -- CAGR and Monthly ROI now update when changing fiscal year

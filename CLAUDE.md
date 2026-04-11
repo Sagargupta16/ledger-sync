@@ -76,10 +76,10 @@ Root `package.json` uses `concurrently` to coordinate both services. Backend use
 Layered architecture:
 
 - **`api/`** - FastAPI routers. Each file is a router module (auth, oauth, upload, transactions, analytics, analytics_v2, calculations, preferences, account_classifications, exchange_rates, meta, reports). Routers are registered in `main.py`. All endpoints require JWT auth via `get_current_user` dependency from `deps.py`. `oauth.py` handles Google/GitHub authorization code exchange. `preferences.py` includes salary-structure, rsu-grants, and growth-assumptions endpoints.
-- **`core/`** - Business logic. `sync_engine.py` orchestrates Excel imports. `reconciler.py` handles deduplication via SHA-256 hashing. `calculator.py` and `analytics_engine.py` compute financial metrics. `query_helpers.py` provides shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`) used by both `calculations.py` and `analytics.py`. `insights.py` generates smart financial insights. `report_generator.py` builds exportable reports. `time_filter.py` handles date range/fiscal year filtering logic. `core/auth/` handles JWT token creation/verification.
-- **`ingest/`** - Data ingestion pipeline: `excel_loader.py` -> `normalizer.py` -> `validator.py` -> `hash_id.py`. Processes Excel uploads into normalized transaction records.
+- **`core/`** - Business logic. `sync_engine.py` orchestrates imports -- `import_rows()` for JSON uploads from the frontend, `import_file()` for CLI file imports. `reconciler.py` handles deduplication via SHA-256 hashing. `calculator.py` and `analytics_engine.py` compute financial metrics. `query_helpers.py` provides shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`) used by both `calculations.py` and `analytics.py`. `insights.py` generates smart financial insights. `report_generator.py` builds exportable reports. `time_filter.py` handles date range/fiscal year filtering logic. `core/auth/` handles JWT token creation/verification.
+- **`ingest/`** - Data ingestion pipeline used by CLI: `excel_loader.py` -> `normalizer.py` -> `validator.py` -> `hash_id.py`. The web upload path bypasses the file loaders -- frontend parses files client-side and sends structured JSON; `normalizer.normalize_from_dict()` handles dict-based normalization.
 - **`db/`** - SQLAlchemy 2.0 models and session factory. `models.py` defines all tables (users, transactions, import_logs, user_preferences, investment_accounts, budget_goals, recurring_transactions, anomalies, account_classifications). All data is user-scoped. `user_preferences` includes JSON columns for `salary_structure`, `rsu_grants`, and `growth_assumptions`.
-- **`schemas/`** - Pydantic models for request/response validation. Includes `salary.py` with `SalaryComponents`, `RsuGrant`, `GrowthAssumptions` schemas for tax projection inputs.
+- **`schemas/`** - Pydantic models for request/response validation. Includes `upload.py` with `TransactionRow` and `TransactionUploadRequest` for JSON upload validation, and `salary.py` with `SalaryComponents`, `RsuGrant`, `GrowthAssumptions` schemas for tax projection inputs.
 - **`config/settings.py`** - Pydantic BaseSettings. All env vars prefixed with `LEDGER_SYNC_` (e.g., `LEDGER_SYNC_DATABASE_URL`, `LEDGER_SYNC_JWT_SECRET_KEY`).
 
 ### Frontend (`frontend/src/`)
@@ -90,8 +90,8 @@ Layered architecture:
 - **`services/api/`** - Axios-based API client. Axios interceptor auto-attaches JWT `Authorization` header.
 - **`store/`** - Zustand stores: `authStore` (JWT tokens with persist middleware), `accountStore`, `budgetStore`, `investmentAccountStore`, `preferencesStore`.
 - **`types/`** - Shared TypeScript type definitions. `salary.ts` defines `SalaryComponents`, `RsuGrant`, `GrowthAssumptions`, and `ProjectedFYBreakdown` interfaces.
-- **`constants/`** - Colors, animations, chart configuration tokens.
-- **`lib/`** - Utility functions: formatters, date utils, tax calculator, export helpers. `projectionCalculator.ts` provides pure functions (`projectFiscalYear`, `projectMultipleYears`, `getRsuVestingsByFY`) for multi-year salary/tax projections with full TDD test coverage in `__tests__/projectionCalculator.test.ts`.
+- **`constants/`** - Colors, animations, chart configuration tokens. `columns.ts` defines flexible column name mappings (`COLUMN_MAPPINGS`), required columns, and valid transaction types for the client-side file parser.
+- **`lib/`** - Utility functions: formatters, date utils, tax calculator, export helpers. `fileParser.ts` handles client-side Excel/CSV parsing (lazy-loads SheetJS, computes SHA-256 hash via `crypto.subtle`, maps columns, validates rows). `projectionCalculator.ts` provides pure functions (`projectFiscalYear`, `projectMultipleYears`, `getRsuVestingsByFY`) for multi-year salary/tax projections with full TDD test coverage in `__tests__/projectionCalculator.test.ts`.
 
 ### Key Patterns
 
@@ -99,11 +99,12 @@ Layered architecture:
 - **Path alias**: `@/*` maps to `./src/*` in frontend TypeScript config.
 - **Styling**: Tailwind CSS 4 with extensive CSS custom properties in `index.css` (design tokens for colors, typography, spacing, animations). Dark-theme-only design using an iOS-inspired color palette with financial semantic colors (income=green, expense=red, savings=purple, transfer=teal, investment=blue).
 - **API proxy**: Vite proxies `/api` requests to `http://localhost:8000` during development.
+- **Upload pipeline**: Files are parsed client-side using SheetJS (lazy-loaded). The frontend computes a SHA-256 file hash via `crypto.subtle`, maps flexible column names to standard fields, validates each row, and sends structured JSON to `POST /api/upload`. The backend receives `TransactionUploadRequest` (file_name, file_hash, rows, force), normalizes via `normalize_from_dict()`, and reconciles. The CLI still uses the old file-based `import_file()` path.
 - **Data deduplication**: Transactions are identified by SHA-256 hash of (date, amount, category, account). Re-uploading files is safe.
 - **Database**: SQLite for development (`./ledger_sync.db`), Neon PostgreSQL 17 in production (Singapore region, free tier, 0.5 GB). Schema managed by Alembic migrations. Database auto-initializes on app startup via `init_db()`. SQLite connections apply performance PRAGMAs (WAL mode, 64MB cache, NORMAL sync). PostgreSQL connections use pooling (pool_size=5, max_overflow=3, pool_recycle=300, pool_pre_ping=True) with 30s statement timeout set per-connection (compatible with Neon's PgBouncer pooler).
 - **Database-agnostic SQL**: SQLite uses `strftime()`, PostgreSQL uses `to_char()`. Always use `query_helpers.py` helpers (`fmt_year_month`, `fmt_year`, `fmt_month`, `fmt_date`) instead of `func.strftime()` directly -- raw SQLite SQL will break production.
 - **DB URL normalization**: `session.py` auto-converts `postgresql://` and `postgresql+psycopg2://` to `postgresql+psycopg://` (psycopg v3 driver).
-- **Security**: Rate limiting (slowapi), security headers (CSP, HSTS, X-Frame-Options), token blacklist, chunked file uploads, query timeouts. OAuth secrets stored server-side only; frontend never sees provider tokens.
+- **Security**: Rate limiting (slowapi), security headers (CSP, HSTS, X-Frame-Options), token blacklist, query timeouts. SheetJS installed from CDN (`cdn.sheetjs.com/xlsx-0.20.3`) to avoid npm registry vulnerabilities. OAuth secrets stored server-side only; frontend never sees provider tokens.
 
 ### Deployment
 
