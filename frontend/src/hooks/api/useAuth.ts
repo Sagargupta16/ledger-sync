@@ -142,13 +142,14 @@ export const useDeleteAccount = () => {
 }
 
 /**
- * Hook for resetting account to fresh state
+ * Hook for resetting account data.
+ * @param mode - "full" clears everything; "transactions" preserves preferences/budgets/goals
  */
 export const useResetAccount = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: authApi.resetAccount,
+    mutationFn: (mode: 'full' | 'transactions' = 'full') => authApi.resetAccount(mode),
     onSuccess: () => {
       // Clear all cached data since account is reset
       queryClient.clear()

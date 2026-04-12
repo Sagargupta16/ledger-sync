@@ -87,6 +87,42 @@ function processInvestmentTransaction(
   }
 }
 
+type TransactionLike = { type: string; category: string; note?: string; subcategory?: string; amount: number }
+
+function computeNetInvestmentPL(transactions: TransactionLike[]): number {
+  const txText = (tx: TransactionLike) =>
+    `${tx.category} ${tx.note ?? ''} ${tx.subcategory ?? ''}`.toLowerCase()
+
+  const filterSum = (type: string, test: (l: string) => boolean, investOnly = false) =>
+    transactions
+      .filter(tx => {
+        if (tx.type !== type) return false
+        const lower = txText(tx)
+        if (investOnly) {
+          const cat = tx.category.toLowerCase()
+          if (!cat.includes('investment') && !cat.includes('stock') && !cat.includes('trading')) return false
+        }
+        return test(lower)
+      })
+      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+
+  const dividendIncome = filterSum('Income', l => l.includes('dividend') || l.includes('divid'))
+  const interestIncome = filterSum('Income', l => l.includes('interest') || l.includes('int.') || l.includes('int cr'))
+  const investmentProfit = filterSum('Income', l => l.includes('profit') || l.includes('gain') || l.includes('realized'))
+  const brokerFees = filterSum('Expense', l =>
+    (l.includes('broker') && (l.includes('charge') || l.includes('fee'))) ||
+    l.includes('brokerage') ||
+    (l.includes('demat') && l.includes('charge')) ||
+    (l.includes('trading') && (l.includes('charge') || l.includes('fee'))) ||
+    (l.includes('transaction') && l.includes('charge')),
+    true)
+  const investmentLoss = filterSum('Expense', l =>
+    !l.includes('broker') && !l.includes('brokerage') && (l.includes('loss') || l.includes('write')),
+    true)
+
+  return (investmentProfit + dividendIncome + interestIncome) - (investmentLoss + brokerFees)
+}
+
 function ariaSort(activeKey: string | null, column: string, dir: 'asc' | 'desc'): 'ascending' | 'descending' | 'none' {
   if (activeKey !== column) return 'none'
   return dir === 'asc' ? 'ascending' : 'descending'
@@ -144,39 +180,7 @@ export default function InvestmentAnalyticsPage() {
   const totalInvestmentValue = filteredInvestmentTotals.total
 
   // Compute actual Net Investment P&L — same logic as ReturnsAnalysisPage
-  const netInvestmentPL = useMemo(() => {
-    const txText = (tx: { category: string; note?: string; subcategory?: string }) =>
-      `${tx.category} ${tx.note ?? ''} ${tx.subcategory ?? ''}`.toLowerCase()
-
-    const filterSum = (type: string, test: (l: string) => boolean, investOnly = false) =>
-      transactions
-        .filter(tx => {
-          if (tx.type !== type) return false
-          const lower = txText(tx)
-          if (investOnly) {
-            const cat = tx.category.toLowerCase()
-            if (!cat.includes('investment') && !cat.includes('stock') && !cat.includes('trading')) return false
-          }
-          return test(lower)
-        })
-        .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-
-    const dividendIncome = filterSum('Income', l => l.includes('dividend') || l.includes('divid'))
-    const interestIncome = filterSum('Income', l => l.includes('interest') || l.includes('int.') || l.includes('int cr'))
-    const investmentProfit = filterSum('Income', l => l.includes('profit') || l.includes('gain') || l.includes('realized'))
-    const brokerFees = filterSum('Expense', l =>
-      (l.includes('broker') && (l.includes('charge') || l.includes('fee'))) ||
-      l.includes('brokerage') ||
-      (l.includes('demat') && l.includes('charge')) ||
-      (l.includes('trading') && (l.includes('charge') || l.includes('fee'))) ||
-      (l.includes('transaction') && l.includes('charge')),
-      true)
-    const investmentLoss = filterSum('Expense', l =>
-      !l.includes('broker') && !l.includes('brokerage') && (l.includes('loss') || l.includes('write')),
-      true)
-
-    return (investmentProfit + dividendIncome + interestIncome) - (investmentLoss + brokerFees)
-  }, [transactions])
+  const netInvestmentPL = useMemo(() => computeNetInvestmentPL(transactions), [transactions])
 
   const plPercent = totalInvestmentValue > 0 ? (netInvestmentPL / totalInvestmentValue) * 100 : 0
 

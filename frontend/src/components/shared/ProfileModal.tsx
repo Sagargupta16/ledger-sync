@@ -59,7 +59,8 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
   const [nameInput, setNameInput] = useState(user?.full_name || '')
 
   // Reset account state
-  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [showTxResetConfirm, setShowTxResetConfirm] = useState(false)
+  const [showFullResetConfirm, setShowFullResetConfirm] = useState(false)
   const [resetConfirmText, setResetConfirmText] = useState('')
 
   // Delete account state
@@ -94,11 +95,16 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
     })
   }
 
-  const handleReset = () => {
-    resetAccount.mutate(undefined, {
+  const handleReset = (mode: 'full' | 'transactions') => {
+    resetAccount.mutate(mode, {
       onSuccess: () => {
-        toast.success('Account reset successfully. All data cleared.')
-        setShowResetConfirm(false)
+        const msg = mode === 'transactions'
+          ? 'Transactions cleared. Preferences preserved.'
+          : 'Account reset successfully. All data cleared.'
+        toast.success(msg)
+        setShowTxResetConfirm(false)
+        setShowFullResetConfirm(false)
+        setResetConfirmText('')
         globalThis.location.reload()
       },
       onError: () => toast.error('Failed to reset account.'),
@@ -275,20 +281,20 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                 )}
               </div>
 
-              {/* Reset Account */}
+              {/* Reset Transactions */}
               <div className="rounded-xl border border-orange-500/15 bg-orange-500/5 p-4">
                 <button
                   type="button"
-                  onClick={() => { setShowResetConfirm((v) => !v); setResetConfirmText('') }}
+                  onClick={() => { setShowTxResetConfirm((v) => !v); setShowFullResetConfirm(false); setResetConfirmText('') }}
                   className="w-full flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2">
                     <RotateCcw size={14} className="text-orange-400" />
                     <span className="text-sm font-medium text-orange-400">
-                      Reset Account
+                      Reset Transactions
                     </span>
                   </div>
-                  {showResetConfirm ? (
+                  {showTxResetConfirm ? (
                     <ChevronUp size={14} className="text-orange-400" />
                   ) : (
                     <ChevronDown size={14} className="text-orange-400" />
@@ -296,7 +302,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                 </button>
 
                 <AnimatePresence>
-                  {showResetConfirm && (
+                  {showTxResetConfirm && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
@@ -306,9 +312,9 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                     >
                       <div className="pt-3 space-y-3">
                         <p className="text-xs text-muted-foreground">
-                          This will permanently delete all transactions, subscriptions,
-                          budgets, goals, import history, investment data, and reset
-                          preferences. Your account and login method will be preserved.
+                          Clears all transactions, import history, and analytics.
+                          Your preferences, budgets, goals, and account classifications
+                          will be preserved.
                         </p>
                         <p className="text-orange-400 text-xs font-medium">
                           Type{' '}
@@ -327,9 +333,83 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={handleReset}
+                            onClick={() => handleReset('transactions')}
                             disabled={resetConfirmText !== 'RESET' || resetAccount.isPending}
                             className="flex items-center gap-2 px-3 py-1.5 bg-orange-500/90 hover:bg-orange-500 text-white text-sm rounded-lg transition-colors duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {resetAccount.isPending
+                              ? 'Resetting...'
+                              : 'Clear Transactions'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowTxResetConfirm(false); setResetConfirmText('') }}
+                            className="px-3 py-1.5 bg-white/[0.06] border border-white/[0.08] text-white text-sm rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Complete Reset */}
+              <div className="rounded-xl border border-amber-600/15 bg-amber-600/5 p-4">
+                <button
+                  type="button"
+                  onClick={() => { setShowFullResetConfirm((v) => !v); setShowTxResetConfirm(false); setResetConfirmText('') }}
+                  className="w-full flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <RotateCcw size={14} className="text-amber-500" />
+                    <span className="text-sm font-medium text-amber-500">
+                      Complete Reset
+                    </span>
+                  </div>
+                  {showFullResetConfirm ? (
+                    <ChevronUp size={14} className="text-amber-500" />
+                  ) : (
+                    <ChevronDown size={14} className="text-amber-500" />
+                  )}
+                </button>
+
+                <AnimatePresence>
+                  {showFullResetConfirm && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pt-3 space-y-3">
+                        <p className="text-xs text-muted-foreground">
+                          Permanently deletes all data -- transactions, preferences,
+                          budgets, goals, import history, and analytics. Your account
+                          and login method will be preserved.
+                        </p>
+                        <p className="text-amber-500 text-xs font-medium">
+                          Type{' '}
+                          <span className="font-mono bg-amber-500/20 px-1 rounded">
+                            RESET
+                          </span>{' '}
+                          to confirm:
+                        </p>
+                        <input
+                          type="text"
+                          value={resetConfirmText}
+                          onChange={(e) => setResetConfirmText(e.target.value)}
+                          placeholder="Type RESET to confirm"
+                          className="w-full px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-white text-sm focus:border-amber-500/50 focus:outline-none transition-colors duration-150 ease-out"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleReset('full')}
+                            disabled={resetConfirmText !== 'RESET' || resetAccount.isPending}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-amber-600/90 hover:bg-amber-600 text-white text-sm rounded-lg transition-colors duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {resetAccount.isPending
                               ? 'Resetting...'
@@ -337,7 +417,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => { setShowResetConfirm(false); setResetConfirmText('') }}
+                            onClick={() => { setShowFullResetConfirm(false); setResetConfirmText('') }}
                             className="px-3 py-1.5 bg-white/[0.06] border border-white/[0.08] text-white text-sm rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out"
                           >
                             Cancel

@@ -178,190 +178,222 @@ const NOTES_MAP: Record<string, string[]> = {
   'Brokerage Fees': ['Groww Brokerage', 'DP Charges', 'STT Charges'],
 }
 
-/**
- * Generate ~1000 realistic Indian tech professional transactions spanning 24 months.
- * Output is deterministic (same data every call).
- */
-export function generateDemoTransactions(): Transaction[] {
-  const rng = createRng(42)
-  const txs: Transaction[] = []
-  let idx = 0
+// ---------------------------------------------------------------------------
+// Month generation context — shared across income/expense/transfer helpers
+// ---------------------------------------------------------------------------
 
-  const now = new Date()
-  // Start 24 months ago, on the 1st
-  const startDate = new Date(now.getFullYear(), now.getMonth() - 23, 1)
+type Rng = ReturnType<typeof createRng>
 
-  for (let m = 0; m < 24; m++) {
-    const year = startDate.getFullYear() + Math.floor((startDate.getMonth() + m) / 12)
-    const month = (startDate.getMonth() + m) % 12
-    const daysInMonth = new Date(year, month + 1, 0).getDate()
+interface MonthCtx {
+  rng: Rng
+  txs: Transaction[]
+  idx: number
+  year: number
+  month: number
+  m: number // month index 0-23
+  daysInMonth: number
+}
 
-    // ─── INCOME ──────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Income generation
+// ---------------------------------------------------------------------------
 
-    // Salary (1st of month, with career growth)
-    const baseSalary = 145000 + Math.floor(m / 6) * 8000
-    const salary = baseSalary + rng.int(-3000, 3000)
+function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
+  const { rng, txs, year, month, m } = ctx
+
+  // Salary (1st of month, with career growth)
+  const baseSalary = 145000 + Math.floor(m / 6) * 8000
+  const salary = baseSalary + rng.int(-3000, 3000)
+  txs.push({
+    id: txId(ctx.idx++),
+    date: formatDate(new Date(year, month, 1)),
+    amount: salary,
+    type: 'Income',
+    category: 'Employment Income',
+    subcategory: 'Salary',
+    account: ACCOUNTS.hdfc,
+    note: 'Monthly Salary Credit',
+    currency: 'INR',
+  })
+
+  // EPF employer contribution (1st of month)
+  txs.push({
+    id: txId(ctx.idx++),
+    date: formatDate(new Date(year, month, 1)),
+    amount: Math.round(salary * 0.024),
+    type: 'Income',
+    category: 'Employment Income',
+    subcategory: 'EPF Contribution',
+    account: ACCOUNTS.epf,
+    note: 'Employer EPF Contribution',
+    currency: 'INR',
+  })
+
+  // Bonuses (every 6 months + random)
+  if (m % 6 === 5 || (m % 3 === 0 && rng.next() < 0.3)) {
     txs.push({
-      id: txId(idx++),
-      date: formatDate(new Date(year, month, 1)),
-      amount: salary,
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(15, 28))),
+      amount: rng.int(5000, 25000),
       type: 'Income',
       category: 'Employment Income',
-      subcategory: 'Salary',
+      subcategory: 'Bonuses',
       account: ACCOUNTS.hdfc,
-      note: 'Monthly Salary Credit',
+      note: rng.pick(['Performance Bonus', 'Spot Bonus', 'Quarterly Incentive', 'Festival Bonus']),
       currency: 'INR',
     })
+  }
 
-    // EPF employer contribution (1st of month)
-    const epfAmount = Math.round(salary * 0.024)
+  // Expense reimbursements (occasional)
+  if (rng.next() < 0.2) {
     txs.push({
-      id: txId(idx++),
-      date: formatDate(new Date(year, month, 1)),
-      amount: epfAmount,
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(10, 25))),
+      amount: rng.int(500, 5000),
       type: 'Income',
       category: 'Employment Income',
-      subcategory: 'EPF Contribution',
-      account: ACCOUNTS.epf,
-      note: 'Employer EPF Contribution',
+      subcategory: 'Expense Reimbursement',
+      account: ACCOUNTS.hdfc,
+      note: rng.pick(['WiFi Bill Reimbursement', 'Team Lunch Reimbursement', 'Travel Reimbursement']),
       currency: 'INR',
     })
+  }
 
-    // Bonuses (every 6 months + random)
-    if (m % 6 === 5 || (m % 3 === 0 && rng.next() < 0.3)) {
+  // Interest income (quarterly)
+  if (month % 3 === 0) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(15, 28))),
+      amount: rng.int(200, 3000),
+      type: 'Income',
+      category: 'Investment Income',
+      subcategory: 'Interest',
+      account: ACCOUNTS.sbi,
+      note: rng.pick(['Savings Interest', 'FD Interest Credit', 'RD Interest']),
+      currency: 'INR',
+    })
+  }
+
+  // Dividends (2x per year)
+  if (month % 6 === 2) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(10, 25))),
+      amount: rng.int(200, 2000),
+      type: 'Income',
+      category: 'Investment Income',
+      subcategory: 'Dividends',
+      account: ACCOUNTS.growStocks,
+      note: 'Dividend Credit',
+      currency: 'INR',
+    })
+  }
+
+  // Stock market profits (occasional)
+  if (rng.next() < 0.15) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(5, 25))),
+      amount: rng.int(1000, 20000),
+      type: 'Income',
+      category: 'Investment Income',
+      subcategory: 'Stock Market Profit',
+      account: ACCOUNTS.growStocks,
+      note: rng.pick(['NIFTY Bees Sold', 'Stock Sale Profit', 'Intraday Profit']),
+      currency: 'INR',
+    })
+  }
+
+  // Cashbacks, refunds, gifts
+  generateMonthlyCashbacksAndRefunds(ctx)
+
+  return { salary }
+}
+
+function generateMonthlyCashbacksAndRefunds(ctx: MonthCtx): void {
+  const { rng, txs, year, month, m, daysInMonth } = ctx
+
+  // Cashbacks (2-4 per month, small amounts)
+  const cashbackCount = rng.int(2, 4)
+  for (let c = 0; c < cashbackCount; c++) {
+    const isCCCashback = rng.next() < 0.3
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
+      amount: isCCCashback ? rng.int(100, 2000) : rng.int(5, 100),
+      type: 'Income',
+      category: 'Refund & Cashbacks',
+      subcategory: isCCCashback ? 'Credit Card Cashbacks' : 'Other Cashbacks',
+      account: isCCCashback ? ACCOUNTS.cashbackPool : rng.pick([ACCOUNTS.gpay, ACCOUNTS.amazonWallet]),
+      note: isCCCashback
+        ? rng.pick(['Swiggy CC Cashback', 'Amazon CC Cashback', 'CRED Cashback'])
+        : rng.pick(['GPay Reward', 'Paytm Cashback', 'PhonePe Reward', 'Amazon Pay Cashback']),
+      currency: 'INR',
+    })
+  }
+
+  // Refunds (occasional)
+  if (rng.next() < 0.25) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
+      amount: rng.int(100, 2000),
+      type: 'Income',
+      category: 'Refund & Cashbacks',
+      subcategory: 'Product Refunds',
+      account: rng.pick([ACCOUNTS.amazonCC, ACCOUNTS.swiggyCC]),
+      note: rng.pick(['Amazon Return Refund', 'Swiggy Refund', 'Order Cancelled', 'Flipkart Refund']),
+      currency: 'INR',
+    })
+  }
+
+  // Pocket money / gifts (early months only)
+  if (m < 6 && rng.next() < 0.4) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(1, 15))),
+      amount: rng.int(1000, 5000),
+      type: 'Income',
+      category: 'Other Income',
+      subcategory: 'Gifts',
+      account: ACCOUNTS.sbi,
+      note: rng.pick(['Birthday Gift', 'Festival Gift', 'Family Gift']),
+      currency: 'INR',
+    })
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Expense generation
+// ---------------------------------------------------------------------------
+
+function generateMonthlyExpenses(ctx: MonthCtx): void {
+  const { rng, txs, year, month, daysInMonth } = ctx
+
+  for (const tmpl of EXPENSE_TEMPLATES) {
+    if (tmpl.day !== undefined) {
+      const day = Math.min(tmpl.day, daysInMonth)
+      const amount = rng.int(tmpl.min, tmpl.max)
+      const notes = NOTES_MAP[tmpl.subcategory]
       txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(15, 28))),
-        amount: rng.int(5000, 25000),
-        type: 'Income',
-        category: 'Employment Income',
-        subcategory: 'Bonuses',
-        account: ACCOUNTS.hdfc,
-        note: rng.pick(['Performance Bonus', 'Spot Bonus', 'Quarterly Incentive', 'Festival Bonus']),
+        id: txId(ctx.idx++),
+        date: formatDate(new Date(year, month, day)),
+        amount,
+        type: 'Expense',
+        category: tmpl.category,
+        subcategory: tmpl.subcategory,
+        account: tmpl.account,
+        note: notes ? rng.pick(notes) : tmpl.subcategory,
         currency: 'INR',
       })
-    }
-
-    // Expense reimbursements (occasional)
-    if (rng.next() < 0.2) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(10, 25))),
-        amount: rng.int(500, 5000),
-        type: 'Income',
-        category: 'Employment Income',
-        subcategory: 'Expense Reimbursement',
-        account: ACCOUNTS.hdfc,
-        note: rng.pick(['WiFi Bill Reimbursement', 'Team Lunch Reimbursement', 'Travel Reimbursement']),
-        currency: 'INR',
-      })
-    }
-
-    // Interest income (quarterly)
-    if (month % 3 === 0) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(15, 28))),
-        amount: rng.int(200, 3000),
-        type: 'Income',
-        category: 'Investment Income',
-        subcategory: 'Interest',
-        account: ACCOUNTS.sbi,
-        note: rng.pick(['Savings Interest', 'FD Interest Credit', 'RD Interest']),
-        currency: 'INR',
-      })
-    }
-
-    // Dividends (2x per year)
-    if (month % 6 === 2) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(10, 25))),
-        amount: rng.int(200, 2000),
-        type: 'Income',
-        category: 'Investment Income',
-        subcategory: 'Dividends',
-        account: ACCOUNTS.growStocks,
-        note: 'Dividend Credit',
-        currency: 'INR',
-      })
-    }
-
-    // Stock market profits (occasional)
-    if (rng.next() < 0.15) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(5, 25))),
-        amount: rng.int(1000, 20000),
-        type: 'Income',
-        category: 'Investment Income',
-        subcategory: 'Stock Market Profit',
-        account: ACCOUNTS.growStocks,
-        note: rng.pick(['NIFTY Bees Sold', 'Stock Sale Profit', 'Intraday Profit']),
-        currency: 'INR',
-      })
-    }
-
-    // Cashbacks (2-4 per month, small amounts)
-    const cashbackCount = rng.int(2, 4)
-    for (let c = 0; c < cashbackCount; c++) {
-      const isCCCashback = rng.next() < 0.3
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
-        amount: isCCCashback ? rng.int(100, 2000) : rng.int(5, 100),
-        type: 'Income',
-        category: 'Refund & Cashbacks',
-        subcategory: isCCCashback ? 'Credit Card Cashbacks' : 'Other Cashbacks',
-        account: isCCCashback ? ACCOUNTS.cashbackPool : rng.pick([ACCOUNTS.gpay, ACCOUNTS.amazonWallet]),
-        note: isCCCashback
-          ? rng.pick(['Swiggy CC Cashback', 'Amazon CC Cashback', 'CRED Cashback'])
-          : rng.pick(['GPay Reward', 'Paytm Cashback', 'PhonePe Reward', 'Amazon Pay Cashback']),
-        currency: 'INR',
-      })
-    }
-
-    // Refunds (occasional)
-    if (rng.next() < 0.25) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
-        amount: rng.int(100, 2000),
-        type: 'Income',
-        category: 'Refund & Cashbacks',
-        subcategory: 'Product Refunds',
-        account: rng.pick([ACCOUNTS.amazonCC, ACCOUNTS.swiggyCC]),
-        note: rng.pick(['Amazon Return Refund', 'Swiggy Refund', 'Order Cancelled', 'Flipkart Refund']),
-        currency: 'INR',
-      })
-    }
-
-    // Pocket money / gifts (early months only — simulating earlier career)
-    if (m < 6 && rng.next() < 0.4) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(1, 15))),
-        amount: rng.int(1000, 5000),
-        type: 'Income',
-        category: 'Other Income',
-        subcategory: 'Gifts',
-        account: ACCOUNTS.sbi,
-        note: rng.pick(['Birthday Gift', 'Festival Gift', 'Family Gift']),
-        currency: 'INR',
-      })
-    }
-
-    // ─── EXPENSES ──────────────────────────────────────────────────────
-
-    for (const tmpl of EXPENSE_TEMPLATES) {
-      if (tmpl.day !== undefined) {
-        // Fixed monthly expense on a specific day
-        const day = Math.min(tmpl.day, daysInMonth)
+    } else if (tmpl.freq !== undefined) {
+      const count = Math.round(tmpl.freq + (rng.next() - 0.5) * tmpl.freq * 0.6)
+      for (let j = 0; j < Math.max(0, count); j++) {
         const amount = rng.int(tmpl.min, tmpl.max)
         const notes = NOTES_MAP[tmpl.subcategory]
         txs.push({
-          id: txId(idx++),
-          date: formatDate(new Date(year, month, day)),
+          id: txId(ctx.idx++),
+          date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
           amount,
           type: 'Expense',
           category: tmpl.category,
@@ -370,264 +402,287 @@ export function generateDemoTransactions(): Transaction[] {
           note: notes ? rng.pick(notes) : tmpl.subcategory,
           currency: 'INR',
         })
-      } else if (tmpl.freq !== undefined) {
-        // Variable frequency expense
-        const count = Math.round(tmpl.freq + (rng.next() - 0.5) * tmpl.freq * 0.6)
-        for (let j = 0; j < Math.max(0, count); j++) {
-          const amount = rng.int(tmpl.min, tmpl.max)
-          const notes = NOTES_MAP[tmpl.subcategory]
-          txs.push({
-            id: txId(idx++),
-            date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
-            amount,
-            type: 'Expense',
-            category: tmpl.category,
-            subcategory: tmpl.subcategory,
-            account: tmpl.account,
-            note: notes ? rng.pick(notes) : tmpl.subcategory,
-            currency: 'INR',
-          })
-        }
       }
     }
+  }
+}
 
-    // ─── TRANSFERS ──────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Transfer generation
+// ---------------------------------------------------------------------------
 
-    // Salary account -> savings (monthly sweep) + SIP to mutual funds (10th)
-    txs.push(
-      {
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, 2)),
-        amount: rng.int(50000, 70000),
-        type: 'Transfer',
-        category: 'Transfer',
-        subcategory: 'Bank Transfer',
-        account: ACCOUNTS.hdfc,
-        from_account: ACCOUNTS.hdfc,
-        to_account: ACCOUNTS.sbi,
-        note: 'HDFC to SBI Monthly Sweep',
-        is_transfer: true,
-        currency: 'INR',
-      },
-      {
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, 10)),
-        amount: rng.pick([10000, 15000, 20000, 25000]),
-        type: 'Transfer',
-        category: 'Investment',
-        subcategory: 'SIP',
-        account: ACCOUNTS.sbi,
-        from_account: ACCOUNTS.sbi,
-        to_account: ACCOUNTS.growMF,
-        note: rng.pick(['SIP - Axis Bluechip Fund', 'SIP - Parag Parikh Flexi Cap', 'SIP - Nifty 50 Index']),
-        is_transfer: true,
-        currency: 'INR',
-      },
-    )
+function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
+  const { rng, txs, year, month, daysInMonth } = ctx
 
-    // Stock investments (0-2 per month, capped to keep bank balances healthy)
-    const stockTxCount = rng.int(0, 2)
-    for (let s = 0; s < stockTxCount; s++) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
-        amount: rng.int(2000, 15000),
-        type: 'Transfer',
-        category: 'Investment',
-        subcategory: 'Stocks',
-        account: ACCOUNTS.sbi,
-        from_account: ACCOUNTS.sbi,
-        to_account: ACCOUNTS.growStocks,
-        note: rng.pick(['NIFTY Bees', 'HDFC Bank Shares', 'Reliance Stock', 'TCS Stock', 'Infosys Stock']),
-        is_transfer: true,
-        currency: 'INR',
-      })
-    }
-
-    // EPF employee contribution (1st)
-    txs.push({
-      id: txId(idx++),
-      date: formatDate(new Date(year, month, 1)),
-      amount: Math.round(salary * 0.12),
-      type: 'Transfer',
-      category: 'Investment',
-      subcategory: 'EPF',
-      account: ACCOUNTS.hdfc,
-      from_account: ACCOUNTS.hdfc,
-      to_account: ACCOUNTS.epf,
-      note: 'EPF Contribution (Employee)',
-      is_transfer: true,
-      currency: 'INR',
-    })
-
-    // PPF (quarterly)
-    if (month % 3 === 0) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, 15)),
-        amount: rng.pick([5000, 10000, 12500]),
-        type: 'Transfer',
-        category: 'Investment',
-        subcategory: 'PPF',
-        account: ACCOUNTS.sbi,
-        from_account: ACCOUNTS.sbi,
-        to_account: ACCOUNTS.ppf,
-        note: 'PPF Contribution',
-        is_transfer: true,
-        currency: 'INR',
-      })
-    }
-
-    // FD booking (every 4 months, optional)
-    if (month % 4 === 2 && rng.next() < 0.5) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(20, 28))),
-        amount: rng.int(15000, 40000),
-        type: 'Transfer',
-        category: 'Investment',
-        subcategory: 'Fixed Deposit',
-        account: ACCOUNTS.sbi,
-        from_account: ACCOUNTS.sbi,
-        to_account: ACCOUNTS.fd,
-        note: 'FD Booking',
-        is_transfer: true,
-        currency: 'INR',
-      })
-    }
-
-    // Stock sale (return to bank, occasional)
-    if (rng.next() < 0.25) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(5, 25))),
-        amount: rng.int(5000, 80000),
-        type: 'Transfer',
-        category: 'Investment',
-        subcategory: 'Stock Sale',
-        account: ACCOUNTS.growStocks,
-        from_account: ACCOUNTS.growStocks,
-        to_account: ACCOUNTS.sbi,
-        note: rng.pick(['Stock Sale - Withdrawal', 'Portfolio Rebalance', 'Profit Booking']),
-        is_transfer: true,
-        currency: 'INR',
-      })
-    }
-
-    // UPI wallet top-up (2-3 per month)
-    const walletTopups = rng.int(2, 3)
-    for (let w = 0; w < walletTopups; w++) {
-      txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
-        amount: rng.pick([500, 1000, 1500, 2000]),
-        type: 'Transfer',
-        category: 'Transfer',
-        subcategory: 'Wallet Top-up',
-        account: ACCOUNTS.sbi,
-        from_account: ACCOUNTS.sbi,
-        to_account: ACCOUNTS.gpay,
-        note: 'GPay UPI Top-up',
-        is_transfer: true,
-        currency: 'INR',
-      })
-    }
-
-    // Pluxee meal card top-up (monthly)
-    txs.push({
-      id: txId(idx++),
-      date: formatDate(new Date(year, month, 3)),
-      amount: 2200,
+  // Salary account -> savings (monthly sweep) + SIP to mutual funds (10th)
+  txs.push(
+    {
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, 2)),
+      amount: rng.int(50000, 70000),
       type: 'Transfer',
       category: 'Transfer',
-      subcategory: 'Meal Card',
+      subcategory: 'Bank Transfer',
       account: ACCOUNTS.hdfc,
       from_account: ACCOUNTS.hdfc,
-      to_account: ACCOUNTS.pluxee,
-      note: 'Pluxee Meal Card Top-up',
+      to_account: ACCOUNTS.sbi,
+      note: 'HDFC to SBI Monthly Sweep',
+      is_transfer: true,
+      currency: 'INR',
+    },
+    {
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, 10)),
+      amount: rng.pick([10000, 15000, 20000, 25000]),
+      type: 'Transfer',
+      category: 'Investment',
+      subcategory: 'SIP',
+      account: ACCOUNTS.sbi,
+      from_account: ACCOUNTS.sbi,
+      to_account: ACCOUNTS.growMF,
+      note: rng.pick(['SIP - Axis Bluechip Fund', 'SIP - Parag Parikh Flexi Cap', 'SIP - Nifty 50 Index']),
+      is_transfer: true,
+      currency: 'INR',
+    },
+  )
+
+  // Stock investments (0-2 per month)
+  const stockTxCount = rng.int(0, 2)
+  for (let s = 0; s < stockTxCount; s++) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
+      amount: rng.int(2000, 15000),
+      type: 'Transfer',
+      category: 'Investment',
+      subcategory: 'Stocks',
+      account: ACCOUNTS.sbi,
+      from_account: ACCOUNTS.sbi,
+      to_account: ACCOUNTS.growStocks,
+      note: rng.pick(['NIFTY Bees', 'HDFC Bank Shares', 'Reliance Stock', 'TCS Stock', 'Infosys Stock']),
       is_transfer: true,
       currency: 'INR',
     })
+  }
 
-    // Friends account settlements (1-3 per month)
-    const friendsCount = rng.int(1, 3)
-    for (let f = 0; f < friendsCount; f++) {
-      const toFriends = rng.next() < 0.5
-      const friendAmt = rng.int(200, 5000)
+  // EPF employee contribution (1st)
+  txs.push({
+    id: txId(ctx.idx++),
+    date: formatDate(new Date(year, month, 1)),
+    amount: Math.round(salary * 0.12),
+    type: 'Transfer',
+    category: 'Investment',
+    subcategory: 'EPF',
+    account: ACCOUNTS.hdfc,
+    from_account: ACCOUNTS.hdfc,
+    to_account: ACCOUNTS.epf,
+    note: 'EPF Contribution (Employee)',
+    is_transfer: true,
+    currency: 'INR',
+  })
+
+  // PPF (quarterly)
+  if (month % 3 === 0) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, 15)),
+      amount: rng.pick([5000, 10000, 12500]),
+      type: 'Transfer',
+      category: 'Investment',
+      subcategory: 'PPF',
+      account: ACCOUNTS.sbi,
+      from_account: ACCOUNTS.sbi,
+      to_account: ACCOUNTS.ppf,
+      note: 'PPF Contribution',
+      is_transfer: true,
+      currency: 'INR',
+    })
+  }
+
+  // FD booking (every 4 months, optional)
+  if (month % 4 === 2 && rng.next() < 0.5) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(20, 28))),
+      amount: rng.int(15000, 40000),
+      type: 'Transfer',
+      category: 'Investment',
+      subcategory: 'Fixed Deposit',
+      account: ACCOUNTS.sbi,
+      from_account: ACCOUNTS.sbi,
+      to_account: ACCOUNTS.fd,
+      note: 'FD Booking',
+      is_transfer: true,
+      currency: 'INR',
+    })
+  }
+
+  // Stock sale (return to bank, occasional)
+  if (rng.next() < 0.25) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(5, 25))),
+      amount: rng.int(5000, 80000),
+      type: 'Transfer',
+      category: 'Investment',
+      subcategory: 'Stock Sale',
+      account: ACCOUNTS.growStocks,
+      from_account: ACCOUNTS.growStocks,
+      to_account: ACCOUNTS.sbi,
+      note: rng.pick(['Stock Sale - Withdrawal', 'Portfolio Rebalance', 'Profit Booking']),
+      is_transfer: true,
+      currency: 'INR',
+    })
+  }
+
+  // UPI wallet top-up (2-3 per month)
+  const walletTopups = rng.int(2, 3)
+  for (let w = 0; w < walletTopups; w++) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
+      amount: rng.pick([500, 1000, 1500, 2000]),
+      type: 'Transfer',
+      category: 'Transfer',
+      subcategory: 'Wallet Top-up',
+      account: ACCOUNTS.sbi,
+      from_account: ACCOUNTS.sbi,
+      to_account: ACCOUNTS.gpay,
+      note: 'GPay UPI Top-up',
+      is_transfer: true,
+      currency: 'INR',
+    })
+  }
+
+  // Pluxee meal card top-up (monthly)
+  txs.push({
+    id: txId(ctx.idx++),
+    date: formatDate(new Date(year, month, 3)),
+    amount: 2200,
+    type: 'Transfer',
+    category: 'Transfer',
+    subcategory: 'Meal Card',
+    account: ACCOUNTS.hdfc,
+    from_account: ACCOUNTS.hdfc,
+    to_account: ACCOUNTS.pluxee,
+    note: 'Pluxee Meal Card Top-up',
+    is_transfer: true,
+    currency: 'INR',
+  })
+
+  // Friends account settlements (1-3 per month)
+  const friendsCount = rng.int(1, 3)
+  for (let f = 0; f < friendsCount; f++) {
+    const toFriends = rng.next() < 0.5
+    const friendAmt = rng.int(200, 5000)
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
+      amount: friendAmt,
+      type: 'Transfer',
+      category: 'Transfer',
+      subcategory: 'Settlement',
+      account: toFriends ? ACCOUNTS.sbi : ACCOUNTS.friends,
+      from_account: toFriends ? ACCOUNTS.sbi : ACCOUNTS.friends,
+      to_account: toFriends ? ACCOUNTS.friends : ACCOUNTS.sbi,
+      note: rng.pick(['Splitwise Settlement', 'Dinner Split', 'Cab Share', 'Trip Settlement', 'Food Split']),
+      is_transfer: true,
+      currency: 'INR',
+    })
+  }
+
+  // Flat shared expenses (monthly) + Family support transfer (monthly)
+  txs.push(
+    {
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(5, 10))),
+      amount: rng.int(1000, 4000),
+      type: 'Transfer',
+      category: 'Transfer',
+      subcategory: 'Shared Expenses',
+      account: ACCOUNTS.gpay,
+      from_account: ACCOUNTS.gpay,
+      to_account: ACCOUNTS.flat,
+      note: rng.pick(['Flat Groceries Share', 'Flat Utilities Share', 'Flat Maintenance Share']),
+      is_transfer: true,
+      currency: 'INR',
+    },
+    {
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, 5)),
+      amount: rng.int(10000, 20000),
+      type: 'Transfer',
+      category: 'Transfer',
+      subcategory: 'Family Transfer',
+      account: ACCOUNTS.hdfc,
+      from_account: ACCOUNTS.hdfc,
+      to_account: ACCOUNTS.family,
+      note: 'Monthly Family Transfer',
+      is_transfer: true,
+      currency: 'INR',
+    },
+  )
+
+  // Credit card bill payments (25th)
+  generateCCBillPayments(ctx)
+}
+
+function generateCCBillPayments(ctx: MonthCtx): void {
+  const { txs, year, month } = ctx
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
+  const ccAccounts = [ACCOUNTS.swiggyCC, ACCOUNTS.amazonCC, ACCOUNTS.axisCC]
+
+  for (const cc of ccAccounts) {
+    const monthlyOnCC = txs.filter((t) => t.account === cc && t.date.startsWith(monthPrefix))
+    const ccExpenses = monthlyOnCC.filter((t) => t.type === 'Expense').reduce((s, t) => s + t.amount, 0)
+    const ccRefunds = monthlyOnCC.filter((t) => t.type === 'Income').reduce((s, t) => s + t.amount, 0)
+    const ccBillAmount = ccExpenses - ccRefunds
+
+    if (ccBillAmount > 0) {
       txs.push({
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
-        amount: friendAmt,
+        id: txId(ctx.idx++),
+        date: formatDate(new Date(year, month, 25)),
+        amount: ccBillAmount,
         type: 'Transfer',
         category: 'Transfer',
-        subcategory: 'Settlement',
-        account: toFriends ? ACCOUNTS.sbi : ACCOUNTS.friends,
-        from_account: toFriends ? ACCOUNTS.sbi : ACCOUNTS.friends,
-        to_account: toFriends ? ACCOUNTS.friends : ACCOUNTS.sbi,
-        note: rng.pick(['Splitwise Settlement', 'Dinner Split', 'Cab Share', 'Trip Settlement', 'Food Split']),
+        subcategory: 'Credit Card Payment',
+        account: ACCOUNTS.hdfc,
+        from_account: ACCOUNTS.hdfc,
+        to_account: cc,
+        note: `${cc} Bill Payment`,
         is_transfer: true,
         currency: 'INR',
       })
     }
+  }
+}
 
-    // Flat shared expenses (monthly) + Family support transfer (monthly)
-    txs.push(
-      {
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, rng.int(5, 10))),
-        amount: rng.int(1000, 4000),
-        type: 'Transfer',
-        category: 'Transfer',
-        subcategory: 'Shared Expenses',
-        account: ACCOUNTS.gpay,
-        from_account: ACCOUNTS.gpay,
-        to_account: ACCOUNTS.flat,
-        note: rng.pick(['Flat Groceries Share', 'Flat Utilities Share', 'Flat Maintenance Share']),
-        is_transfer: true,
-        currency: 'INR',
-      },
-      {
-        id: txId(idx++),
-        date: formatDate(new Date(year, month, 5)),
-        amount: rng.int(10000, 20000),
-        type: 'Transfer',
-        category: 'Transfer',
-        subcategory: 'Family Transfer',
-        account: ACCOUNTS.hdfc,
-        from_account: ACCOUNTS.hdfc,
-        to_account: ACCOUNTS.family,
-        note: 'Monthly Family Transfer',
-        is_transfer: true,
-        currency: 'INR',
-      },
-    )
+// ---------------------------------------------------------------------------
+// Main generator
+// ---------------------------------------------------------------------------
 
-    // Credit card bill payments (25th) -- pay off full balance so CC resets to 0
-    const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
-    const ccAccounts = [ACCOUNTS.swiggyCC, ACCOUNTS.amazonCC, ACCOUNTS.axisCC]
-    for (const cc of ccAccounts) {
-      const monthlyOnCC = txs.filter((t) => t.account === cc && t.date.startsWith(monthPrefix))
-      const ccExpenses = monthlyOnCC.filter((t) => t.type === 'Expense').reduce((s, t) => s + t.amount, 0)
-      const ccRefunds = monthlyOnCC.filter((t) => t.type === 'Income').reduce((s, t) => s + t.amount, 0)
-      const ccBillAmount = ccExpenses - ccRefunds
+/**
+ * Generate ~1000 realistic Indian tech professional transactions spanning 24 months.
+ * Output is deterministic (same data every call).
+ */
+export function generateDemoTransactions(): Transaction[] {
+  const rng = createRng(42)
+  const txs: Transaction[] = []
 
-      if (ccBillAmount > 0) {
-        txs.push({
-          id: txId(idx++),
-          date: formatDate(new Date(year, month, 25)),
-          amount: ccBillAmount,
-          type: 'Transfer',
-          category: 'Transfer',
-          subcategory: 'Credit Card Payment',
-          account: ACCOUNTS.hdfc,
-          from_account: ACCOUNTS.hdfc,
-          to_account: cc,
-          note: `${cc} Bill Payment`,
-          is_transfer: true,
-          currency: 'INR',
-        })
-      }
-    }
+  const now = new Date()
+  const startDate = new Date(now.getFullYear(), now.getMonth() - 23, 1)
+
+  const ctx: MonthCtx = { rng, txs, idx: 0, year: 0, month: 0, m: 0, daysInMonth: 0 }
+
+  for (let m = 0; m < 24; m++) {
+    ctx.m = m
+    ctx.year = startDate.getFullYear() + Math.floor((startDate.getMonth() + m) / 12)
+    ctx.month = (startDate.getMonth() + m) % 12
+    ctx.daysInMonth = new Date(ctx.year, ctx.month + 1, 0).getDate()
+
+    const { salary } = generateMonthlyIncome(ctx)
+    generateMonthlyExpenses(ctx)
+    generateMonthlyTransfers(ctx, salary)
   }
 
   // Sort by date descending (newest first, matching real API behavior)

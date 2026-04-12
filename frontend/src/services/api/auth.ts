@@ -59,10 +59,13 @@ export const deleteAccount = async (): Promise<{ message: string }> => {
 }
 
 /**
- * Reset account to fresh state (keeps OAuth login, removes all data)
+ * Reset account data (keeps OAuth login).
+ * @param mode - "full" clears everything; "transactions" preserves preferences/budgets/goals
  */
-export const resetAccount = async (): Promise<{ message: string }> => {
-  const response = await apiClient.post<{ message: string }>(`${AUTH_BASE}/account/reset`)
+export const resetAccount = async (mode: 'full' | 'transactions' = 'full'): Promise<{ message: string }> => {
+  const response = await apiClient.post<{ message: string }>(`${AUTH_BASE}/account/reset`, null, {
+    params: { mode },
+  })
   return response.data
 }
 
