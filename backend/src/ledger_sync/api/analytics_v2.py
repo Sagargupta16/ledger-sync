@@ -9,7 +9,6 @@ All aggregation tables are scoped to user_id for multi-user safety.
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
-import anyio
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import desc
@@ -79,27 +78,26 @@ router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
 
 
 @router.post("/refresh")
-async def refresh_analytics(
+def refresh_analytics(
     current_user: CurrentUser,
 ) -> dict[str, Any]:
     """Recompute all pre-aggregated analytics tables.
 
     Called by the frontend after a successful upload to ensure analytics
     are fresh. Uses its own DB session (not the request-scoped DI session)
-    because analytics runs in a worker thread and SQLAlchemy sessions
-    are not thread-safe.
+    so it is independent of the request lifecycle.
+
+    Defined as a sync ``def`` so FastAPI runs it in an external threadpool
+    automatically -- this avoids ``anyio.to_thread`` issues under Mangum
+    on Vercel serverless where the one-shot event loop can't reliably
+    spawn worker threads.
     """
-    user_id = current_user.id
-
-    def _run() -> dict[str, Any]:
-        session = SessionLocal()
-        try:
-            engine = AnalyticsEngine(session, user_id=user_id)
-            return engine.run_full_analytics(source_file="manual-refresh")
-        finally:
-            session.close()
-
-    results = await anyio.to_thread.run_sync(_run)
+    session = SessionLocal()
+    try:
+        engine = AnalyticsEngine(session, user_id=current_user.id)
+        results = engine.run_full_analytics(source_file="manual-refresh")
+    finally:
+        session.close()
     return {"success": True, "analytics": {k: v for k, v in results.items() if isinstance(v, int)}}
 
 
