@@ -236,6 +236,31 @@ class Reconciler:
         )
         return self.session.execute(stmt).scalar_one_or_none()
 
+    def _batch_fetch_existing(self, record_ids: list[str], user_id: int) -> dict[str, Transaction]:
+        """Batch-fetch existing transactions by IDs in a single query.
+
+        Fetches in chunks of 500 to avoid SQL parameter limits.
+
+        Args:
+            record_ids: List of transaction/transfer IDs.
+            user_id: The user ID.
+
+        Returns:
+            Dict mapping transaction_id -> Transaction for existing records.
+
+        """
+        existing: dict[str, Transaction] = {}
+        chunk_size = 500
+        for i in range(0, len(record_ids), chunk_size):
+            chunk = record_ids[i : i + chunk_size]
+            stmt = select(Transaction).where(
+                Transaction.transaction_id.in_(chunk),
+                Transaction.user_id == user_id,
+            )
+            for tx in self.session.execute(stmt).scalars():
+                existing[tx.transaction_id] = tx
+        return existing
+
     def reconcile_transaction(
         self,
         normalized_row: dict[str, Any],
@@ -461,6 +486,9 @@ class Reconciler:
     ) -> ReconciliationStats:
         """Reconcile a batch of transactions.
 
+        Uses batch-fetch to pre-load all existing records in one query,
+        avoiding N+1 SELECT overhead on high-latency connections.
+
         Args:
             normalized_rows: List of normalized transaction data
             source_file: Source file name
@@ -473,23 +501,84 @@ class Reconciler:
             ValueError: If user_id is not set in multi-user mode
 
         """
-        self._ensure_user_id()
+        user_id = self._ensure_user_id()
 
         stats = ReconciliationStats()
-        seen_in_batch: dict[str, int] = {}
 
+        # Phase 1: Pre-compute all transaction IDs (in-memory, no DB)
+        seen_in_batch: dict[str, int] = {}
+        row_ids: list[str] = []
         for row in normalized_rows:
             try:
-                self._process_transaction_row(
-                    row,
-                    seen_in_batch,
-                    stats,
-                    source_file,
-                    import_time,
+                base_id = self.hasher.generate_transaction_id(
+                    date=row["date"],
+                    amount=row["amount"],
+                    account=row["account"],
+                    note=row["note"],
+                    category=row["category"],
+                    subcategory=row["subcategory"],
+                    tx_type=row["type"],
+                    user_id=user_id,
                 )
+                occurrence = seen_in_batch.get(base_id, 0)
+                seen_in_batch[base_id] = occurrence + 1
+                actual_id = self.hasher.generate_transaction_id(
+                    date=row["date"],
+                    amount=row["amount"],
+                    account=row["account"],
+                    note=row["note"],
+                    category=row["category"],
+                    subcategory=row["subcategory"],
+                    tx_type=row["type"],
+                    user_id=user_id,
+                    occurrence=occurrence,
+                )
+                row_ids.append(actual_id)
             except (ValueError, TypeError, KeyError) as e:
-                logger.error("Error reconciling transaction: %s", e)
+                logger.error("Error computing ID for transaction: %s", e)
+                row_ids.append("")
+
+        # Phase 2: Batch-fetch all existing records (1-2 queries instead of N)
+        valid_ids = [rid for rid in row_ids if rid]
+        existing_map = self._batch_fetch_existing(valid_ids, user_id)
+
+        # Phase 3: Process each row using pre-fetched data
+        updateable_fields = ["category", "subcategory", "note", "type"]
+        for idx, row in enumerate(normalized_rows):
+            tx_id = row_ids[idx]
+            if not tx_id:
                 continue
+
+            stats.processed += 1
+            existing = existing_map.get(tx_id)
+
+            if existing is None:
+                transaction = Transaction(
+                    transaction_id=tx_id,
+                    user_id=user_id,
+                    date=row["date"],
+                    amount=row["amount"],
+                    currency=row["currency"],
+                    type=row["type"],
+                    account=row["account"],
+                    category=row["category"],
+                    subcategory=row["subcategory"],
+                    note=row["note"],
+                    source_file=source_file,
+                    last_seen_at=import_time,
+                    is_deleted=False,
+                )
+                self.session.add(transaction)
+                stats.inserted += 1
+            else:
+                _, action = self._apply_existing_update(
+                    existing,
+                    tx_id,
+                    import_time,
+                    updateable_fields,
+                    row,
+                )
+                self._update_stats_for_action(stats, action)
 
         # Commit all changes
         self.session.commit()
@@ -613,6 +702,9 @@ class Reconciler:
     ) -> ReconciliationStats:
         """Reconcile a batch of transfers.
 
+        Uses batch-fetch to pre-load all existing records in one query,
+        avoiding N+1 SELECT overhead on high-latency connections.
+
         Args:
             normalized_rows: List of normalized transfer data
             source_file: Source file name
@@ -625,23 +717,92 @@ class Reconciler:
             ValueError: If user_id is not set in multi-user mode
 
         """
-        self._ensure_user_id()
+        user_id = self._ensure_user_id()
 
         stats = ReconciliationStats()
-        seen_in_batch: set[str] = set()
 
+        # Phase 1: Pre-compute all transfer IDs and deduplicate pairs
+        seen_in_batch: set[str] = set()
+        row_ids: list[str] = []
+        skip_flags: list[bool] = []
         for row in normalized_rows:
             try:
-                self._process_transfer_row(
-                    row,
-                    seen_in_batch,
-                    stats,
-                    source_file,
-                    import_time,
+                record_id = self.hasher.generate_transaction_id(
+                    date=row["date"],
+                    amount=row["amount"],
+                    account=row["from_account"],
+                    note=row["note"],
+                    category=row["category"],
+                    subcategory=row["subcategory"],
+                    tx_type=row["type"],
+                    user_id=user_id,
                 )
+                if record_id in seen_in_batch:
+                    self._log_batch_duplicate(row, record_id, is_transfer=True)
+                    row_ids.append(record_id)
+                    skip_flags.append(True)
+                else:
+                    seen_in_batch.add(record_id)
+                    row_ids.append(record_id)
+                    skip_flags.append(False)
             except (ValueError, TypeError, KeyError) as e:
-                logger.error("Error reconciling transfer: %s", e)
+                logger.error("Error computing ID for transfer: %s", e)
+                row_ids.append("")
+                skip_flags.append(True)
+
+        # Phase 2: Batch-fetch all existing records
+        valid_ids = [rid for rid, skip in zip(row_ids, skip_flags) if rid and not skip]
+        existing_map = self._batch_fetch_existing(valid_ids, user_id)
+
+        # Phase 3: Process each row using pre-fetched data
+        updateable_fields = [
+            "category",
+            "subcategory",
+            "note",
+            "type",
+            "from_account",
+            "to_account",
+        ]
+        for idx, row in enumerate(normalized_rows):
+            tx_id = row_ids[idx]
+            stats.processed += 1
+
+            if skip_flags[idx] or not tx_id:
+                stats.skipped += 1
                 continue
+
+            existing = existing_map.get(tx_id)
+
+            if existing is None:
+                transfer = Transaction(
+                    transaction_id=tx_id,
+                    user_id=user_id,
+                    date=row["date"],
+                    amount=row["amount"],
+                    currency=row["currency"],
+                    type=row["type"],
+                    account=row["from_account"],
+                    from_account=row["from_account"],
+                    to_account=row["to_account"],
+                    category=row["category"],
+                    subcategory=row["subcategory"],
+                    note=row["note"],
+                    source_file=source_file,
+                    last_seen_at=import_time,
+                    is_deleted=False,
+                )
+                self.session.add(transfer)
+                stats.inserted += 1
+            else:
+                _, action = self._apply_existing_update(
+                    existing,
+                    tx_id,
+                    import_time,
+                    updateable_fields,
+                    row,
+                    log_level="debug",
+                )
+                self._update_stats_for_action(stats, action)
 
         # Commit all changes
         self.session.commit()
