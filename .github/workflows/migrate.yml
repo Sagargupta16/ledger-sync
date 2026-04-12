@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'backend/alembic/**'
+      - 'backend/src/ledger_sync/db/migrations/**'
       - 'backend/src/ledger_sync/db/models.py'
 
   workflow_dispatch: # Allow manual trigger
