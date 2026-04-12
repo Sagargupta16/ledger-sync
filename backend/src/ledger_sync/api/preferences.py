@@ -28,7 +28,7 @@ from ledger_sync.schemas.salary import (
     SalaryStructureConfig,
 )
 
-router = APIRouter(prefix="/preferences", tags=["preferences"])
+router = APIRouter(prefix="/api/preferences", tags=["preferences"])
 
 
 # ----- Pydantic Models -----

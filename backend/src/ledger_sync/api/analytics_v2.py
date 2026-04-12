@@ -34,6 +34,7 @@ from ledger_sync.db.models import (
     TransferFlow,
     User,
 )
+from ledger_sync.db.session import SessionLocal
 
 _FREQUENCY_DAYS = {
     "daily": 1,
@@ -80,20 +81,23 @@ router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
 @router.post("/refresh")
 async def refresh_analytics(
     current_user: CurrentUser,
-    db: DatabaseSession,
 ) -> dict[str, Any]:
     """Recompute all pre-aggregated analytics tables.
 
     Called by the frontend after a successful upload to ensure analytics
-    are fresh. Runs synchronously so the response is only sent after
-    all tables are updated (avoids the stale-data problem with
-    BackgroundTasks on serverless platforms like Vercel).
+    are fresh. Uses its own DB session (not the request-scoped DI session)
+    because analytics runs in a worker thread and SQLAlchemy sessions
+    are not thread-safe.
     """
     user_id = current_user.id
 
     def _run() -> dict[str, Any]:
-        engine = AnalyticsEngine(db, user_id=user_id)
-        return engine.run_full_analytics(source_file="manual-refresh")
+        session = SessionLocal()
+        try:
+            engine = AnalyticsEngine(session, user_id=user_id)
+            return engine.run_full_analytics(source_file="manual-refresh")
+        finally:
+            session.close()
 
     results = await anyio.to_thread.run_sync(_run)
     return {"success": True, "analytics": {k: v for k, v in results.items() if isinstance(v, int)}}

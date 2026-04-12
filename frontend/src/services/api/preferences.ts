@@ -177,7 +177,7 @@ export interface GrowthAssumptionsConfig {
 // Helper to create section-specific updaters
 function createSectionUpdater<T>(endpoint: string) {
   return async (config: T): Promise<UserPreferences> => {
-    const response = await apiClient.put<UserPreferences>(`/preferences/${endpoint}`, config)
+    const response = await apiClient.put<UserPreferences>(`/api/preferences/${endpoint}`, config)
     return response.data
   }
 }
@@ -188,7 +188,7 @@ export const preferencesService = {
    * Get current user preferences
    */
   async getPreferences(): Promise<UserPreferences> {
-    const response = await apiClient.get<UserPreferences>('/preferences')
+    const response = await apiClient.get<UserPreferences>('/api/preferences')
     return response.data
   },
 
@@ -196,7 +196,7 @@ export const preferencesService = {
    * Update user preferences (partial update supported)
    */
   async updatePreferences(updates: UserPreferencesUpdate): Promise<UserPreferences> {
-    const response = await apiClient.put<UserPreferences>('/preferences', updates)
+    const response = await apiClient.put<UserPreferences>('/api/preferences', updates)
     return response.data
   },
 
@@ -204,7 +204,7 @@ export const preferencesService = {
    * Reset all preferences to defaults
    */
   async resetPreferences(): Promise<UserPreferences> {
-    const response = await apiClient.post<UserPreferences>('/preferences/reset')
+    const response = await apiClient.post<UserPreferences>('/api/preferences/reset')
     return response.data
   },
 

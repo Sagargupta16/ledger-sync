@@ -150,7 +150,7 @@ Runs on push/PR to main. Python 3.12, Node 22, pnpm 10, uv (latest).
 - **Colors**: Use CSS custom properties from `index.css` (`var(--color-income)`, `var(--color-expense)`, etc.). Never raw hex/rgb.
 - **Charts**: Wrap in `ChartContainer`. Use Recharts. Use colors from `constants/`.
 - **Layout**: Use `PageHeader` for page titles, `MetricCard` for KPIs, `EmptyState` for no-data states.
-- **Dark-only**: No light theme. Don't add `dark:` prefixes or theme toggles.
+- **Dark-only (for now)**: Light theme planned (#79). Until then, don't add `dark:` prefixes or theme toggles.
 - **No inline styles** for layout -- use Tailwind classes.
 
 ## Import Conventions
