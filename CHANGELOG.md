@@ -25,6 +25,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Salary Pydantic schemas** -- `SalaryComponents`, `RsuGrant`, `GrowthAssumptions` with backend validation
 - **Three new preference endpoints** -- `PUT /api/preferences/salary-structure`, `PUT /api/preferences/rsu-grants`, `PUT /api/preferences/growth-assumptions`
 - **Alembic migration** -- adds `salary_structure`, `rsu_grants`, `growth_assumptions` JSON columns to `user_preferences`
+- **Indirect Tax (GST) analysis page** -- estimates GST paid on expenses using official slab rates (0/3/5/18/28%) with subcategory-first lookup; includes summary cards, GST-by-slab donut chart, monthly trend bar chart, and category breakdown table
+- **YoY % change badges** -- Tax Planning summary cards show year-over-year percentage changes comparing actual data for past FYs and salary projections for current/future FYs
+- **Stock price auto-fetch** -- RSU grant editor fetches live stock prices via Yahoo Finance backend proxy (`GET /api/stock-price/{symbol}`), auto-converts from stock currency to display currency
+- **Account reset modes** -- Profile modal offers two reset options: "Reset Transactions" (preserves preferences, budgets, goals) and "Complete Reset" (wipes everything); backend `POST /api/auth/account/reset` accepts `mode` query parameter (`full` | `transactions`)
 
 ### Changed
 
@@ -52,7 +56,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **TaxPlanningPage cognitive complexity** -- extracted helper functions to bring SonarCloud score under threshold
 - **Chart hover/tooltip standardization** -- consistent hover states and tooltip styling across all chart pages
 - **SonarCloud findings** -- `localeCompare` for string sorts, `Number.parseInt` over global `parseInt`, `findLast` over `filter().at(-1)`, extracted nested ternaries, composite keys for RSU vesting rows
+- **SonarCloud cognitive complexity** -- extracted helper functions in QuickInsights, InvestmentAnalyticsPage, generateDerivedData, and generateTransactions to bring S3776 scores under threshold
 - **Projected tax bar color** -- uses orange instead of green to distinguish from paid tax
+- **Sidebar double-highlight** -- NavLink `end` prop prevents parent route from highlighting alongside child
 
 ---
 

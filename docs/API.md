@@ -30,9 +30,37 @@ OAuth-only authentication via Google and GitHub. The API issues JWT Bearer token
 | PUT | `/api/auth/me` | Yes | Update profile (name) |
 | POST | `/api/auth/logout` | Yes | Logout (blacklist token) |
 | DELETE | `/api/auth/account` | Yes | Delete account permanently |
-| POST | `/api/auth/account/reset` | Yes | Reset account data |
+| POST | `/api/auth/account/reset` | Yes | Reset account data (supports `mode` param) |
 
 All other endpoints require `Authorization: Bearer <access_token>` header.
+
+### Reset Account
+
+**POST** `/api/auth/account/reset`
+
+Reset account data while keeping the OAuth login. Supports two modes:
+
+**Query Parameters:**
+
+- `mode` (string, optional) - Reset scope (default: `full`)
+  - `full` — Deletes all user data (transactions, analytics, preferences, budgets, goals, account classifications)
+  - `transactions` — Deletes only transactions, import logs, and analytics. Preserves preferences, budgets, goals, and account classifications.
+
+**Response (200 OK):**
+
+```json
+{
+  "message": "Transactions and analytics cleared. Preferences preserved."
+}
+```
+
+or (for `mode=full`):
+
+```json
+{
+  "message": "Account reset to fresh state. All data cleared."
+}
+```
 
 ## Common Response Format
 
@@ -60,16 +88,39 @@ All other endpoints require `Authorization: Bearer <access_token>` header.
 
 ## Upload Endpoints
 
-### Upload Excel File
+### Upload Transactions (JSON)
 
 **POST** `/api/upload`
 
-Upload an Excel file for transaction import and reconciliation.
+Upload pre-parsed transaction rows as structured JSON. Files are parsed client-side using SheetJS; the frontend computes a SHA-256 file hash, maps columns, validates rows, and sends the result here.
 
-**Parameters:**
+**Request Body (JSON):**
 
-- `file` (multipart/form-data, required) - Excel file (.xlsx or .xls)
-- `force` (query param, optional) - Force re-import if file already exists
+```json
+{
+  "file_name": "MoneyManager.xlsx",
+  "file_hash": "a1b2c3d4e5f6...",
+  "rows": [
+    {
+      "date": "2025-01-15",
+      "amount": 5000.0,
+      "type": "Expense",
+      "category": "Groceries",
+      "subcategory": "Supermarket",
+      "account": "HDFC Savings",
+      "note": "Weekly groceries"
+    }
+  ],
+  "force": false
+}
+```
+
+**Fields:**
+
+- `file_name` (string, required) - Original file name
+- `file_hash` (string, required) - SHA-256 hash of the file (for deduplication)
+- `rows` (array, required) - Array of `TransactionRow` objects with `date`, `amount`, `type`, `category`, `subcategory`, `account`, `note`
+- `force` (boolean, optional) - Force re-import if file hash already exists (default: false)
 
 **Response (200 OK):**
 
@@ -90,15 +141,22 @@ Upload an Excel file for transaction import and reconciliation.
 
 **Error Responses:**
 
-- 400: Invalid file format
-- 409: File already imported (use force=true to override)
+- 400: Invalid data or missing required fields
+- 409: File already imported (use `force: true` to override)
 - 500: Server error
 
 **Example:**
 
 ```bash
 curl -X POST http://localhost:8000/api/upload \
-  -F "file=@transactions.xlsx"
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_name": "transactions.xlsx",
+    "file_hash": "abc123...",
+    "rows": [{"date": "2025-01-15", "amount": 5000, "type": "Expense", "category": "Food", "subcategory": "Dining", "account": "HDFC", "note": ""}],
+    "force": false
+  }'
 ```
 
 ---
@@ -1005,6 +1063,35 @@ Fetch live exchange rates from the European Central Bank (via frankfurter.dev) w
 ```
 
 **Fallback behavior:** Fresh cache -> stale cache -> hardcoded fallback rates. Returns 502 only if all three tiers fail.
+
+---
+
+## Stock Price Endpoints
+
+### Get Stock Price
+
+**GET** `/api/stock-price/{symbol}`
+
+Fetch the latest regular-market price for a stock ticker via Yahoo Finance. Proxied through the backend to avoid CORS restrictions.
+
+**Path Parameters:**
+
+- `symbol` (string, required) - Stock ticker symbol (e.g. `AMZN`, `AAPL`, `GOOGL`). Max 10 characters.
+
+**Response (200 OK):**
+
+```json
+{
+  "symbol": "AMZN",
+  "price": 186.49,
+  "currency": "USD"
+}
+```
+
+**Error Responses:**
+
+- 400: Invalid symbol (empty or exceeds 10 chars)
+- 502: Could not fetch price from Yahoo Finance
 
 ---
 
