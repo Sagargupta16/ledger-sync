@@ -7,11 +7,15 @@ import {
   Banknote,
   ChevronLeft,
   ChevronRight,
+  Loader2,
   Plus,
+  RefreshCw,
   Trash2,
   TrendingUp,
   X,
 } from 'lucide-react'
+import { preferencesService } from '@/services/api/preferences'
+import { usePreferencesStore, selectDisplayCurrency } from '@/store/preferencesStore'
 import { formatCurrency } from '@/lib/formatters'
 import { FY_START_MONTH } from '@/lib/taxCalculator'
 import type { SalaryComponents, RsuGrant, RsuVesting, GrowthAssumptions } from '@/types/salary'
@@ -210,6 +214,34 @@ export default function SalaryStructureSection({
     [localRsuGrants, updateGrant],
   )
 
+  // -- Fetch live stock price --
+  const [fetchingPriceFor, setFetchingPriceFor] = useState<string | null>(null)
+  const displayCurrency = usePreferencesStore(selectDisplayCurrency)
+
+  const fetchStockPrice = useCallback(async (grant: RsuGrant) => {
+    if (!grant.stock_name.trim()) return
+    setFetchingPriceFor(grant.id)
+    try {
+      const result = await preferencesService.getStockPrice(grant.stock_name.trim())
+      let price = result.price
+
+      // Convert from stock currency (usually USD) to display currency
+      if (result.currency && result.currency !== displayCurrency) {
+        const rates = await preferencesService.getExchangeRates(result.currency)
+        const rate = rates.rates[displayCurrency]
+        if (rate) {
+          price = Math.round(price * rate * 100) / 100
+        }
+      }
+
+      updateGrant(grant.id, { stock_price: price })
+    } catch {
+      // Silently fail — user can still enter manually
+    } finally {
+      setFetchingPriceFor(null)
+    }
+  }, [updateGrant, displayCurrency])
+
   // RSU totals
   const rsuTotals = useMemo(() => {
     let shares = 0
@@ -382,20 +414,33 @@ export default function SalaryStructureSection({
                 </div>
                 <div>
                   <FieldLabel htmlFor={`grant-price-${grant.id}`}>Price / Share</FieldLabel>
-                  <input
-                    id={`grant-price-${grant.id}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={grant.stock_price || ''}
-                    onChange={(e) =>
-                      updateGrant(grant.id, {
-                        stock_price: e.target.value === '' ? 0 : Number(e.target.value),
-                      })
-                    }
-                    placeholder="0"
-                    className={inputClass}
-                  />
+                  <div className="flex gap-1.5">
+                    <input
+                      id={`grant-price-${grant.id}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={grant.stock_price || ''}
+                      onChange={(e) =>
+                        updateGrant(grant.id, {
+                          stock_price: e.target.value === '' ? 0 : Number(e.target.value),
+                        })
+                      }
+                      placeholder="0"
+                      className={inputClass}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fetchStockPrice(grant)}
+                      disabled={!grant.stock_name.trim() || fetchingPriceFor === grant.id}
+                      title={grant.stock_name.trim() ? `Fetch latest price for ${grant.stock_name}` : 'Enter stock name first'}
+                      className="shrink-0 p-2 rounded-lg border border-border text-muted-foreground hover:text-white hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {fetchingPriceFor === grant.id
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <RefreshCw className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <FieldLabel htmlFor={`grant-notes-${grant.id}`}>Notes</FieldLabel>
