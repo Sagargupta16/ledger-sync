@@ -494,7 +494,13 @@ _VALID_FREQUENCIES = {
 }
 
 
-@router.patch("/recurring-transactions/{item_id}")
+@router.patch(
+    "/recurring-transactions/{item_id}",
+    responses={
+        404: {"description": "Recurring transaction not found"},
+        422: {"description": "Invalid frequency value"},
+    },
+)
 def update_recurring_transaction(
     item_id: int,
     body: RecurringTransactionUpdate,
@@ -545,7 +551,12 @@ class RecurringTransactionCreate(BaseModel):
     expected_day: int | None = None
 
 
-@router.post("/recurring-transactions")
+@router.post(
+    "/recurring-transactions",
+    responses={
+        422: {"description": "Invalid frequency or transaction type"},
+    },
+)
 def create_recurring_transaction(
     body: RecurringTransactionCreate,
     current_user: CurrentUser,
@@ -587,7 +598,12 @@ def create_recurring_transaction(
     return {"status": "ok", "id": record.id}
 
 
-@router.delete("/recurring-transactions/{item_id}")
+@router.delete(
+    "/recurring-transactions/{item_id}",
+    responses={
+        404: {"description": "Recurring transaction not found"},
+    },
+)
 def delete_recurring_transaction(
     item_id: int,
     current_user: CurrentUser,

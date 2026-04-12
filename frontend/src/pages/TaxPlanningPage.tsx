@@ -127,7 +127,33 @@ function groupTransactionsByFY(
   return grouped
 }
 
+type TaxRegimeOverride = 'new' | 'old' | null
+
 interface YearlyTaxDatum { fy: string; paidTax: number; projected: number; cumulative: number }
+
+function computePaidTax(
+  fy: string,
+  fyData: FYData,
+  regimeOverride: TaxRegimeOverride,
+  preferredRegime: string,
+): number {
+  const taxableAmt = (fyData.taxableIncome > 0) ? fyData.taxableIncome : fyData.income
+  const salaryMonths = fyData.salaryMonths?.size || 0
+  const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
+  return Math.round(computed.taxAlreadyPaid)
+}
+
+function computeProjectedTax(
+  hasTxData: boolean,
+  projTotal: number,
+  paidTax: number,
+  fy: string,
+  currentFYLabel: string,
+): number {
+  if (!hasTxData && projTotal > 0) return projTotal
+  if (fy === currentFYLabel && projTotal > paidTax) return projTotal - paidTax
+  return 0
+}
 
 /** Build yearly tax chart data from FY list and projections */
 function buildYearlyTaxData(
@@ -135,7 +161,7 @@ function buildYearlyTaxData(
   transactionsByFY: Record<string, FYData>,
   multiYearProjections: ProjectedFYBreakdown[],
   currentFYLabel: string,
-  regimeOverride: 'new' | 'old' | null,
+  regimeOverride: TaxRegimeOverride,
   preferredRegime: string,
 ): YearlyTaxDatum[] {
   const projectedTaxByFY: Record<string, number> = {}
@@ -147,21 +173,8 @@ function buildYearlyTaxData(
     const hasTxData = !!fyData
     const projTotal = Math.round(projectedTaxByFY[bareFY] ?? 0)
 
-    let paidTax = 0
-    if (hasTxData) {
-      const taxableAmt = (fyData.taxableIncome > 0) ? fyData.taxableIncome : fyData.income
-      const salaryMonths = fyData.salaryMonths?.size || 0
-      const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
-      paidTax = Math.round(computed.taxAlreadyPaid)
-    }
-
-    const isFuture = !hasTxData && projTotal > 0
-    let projected = 0
-    if (isFuture) {
-      projected = projTotal
-    } else if (fy === currentFYLabel && projTotal > paidTax) {
-      projected = projTotal - paidTax
-    }
+    const paidTax = hasTxData ? computePaidTax(fy, fyData, regimeOverride, preferredRegime) : 0
+    const projected = computeProjectedTax(hasTxData, projTotal, paidTax, fy, currentFYLabel)
 
     return { fy, paidTax, projected, cumulative: 0 }
   })
@@ -174,7 +187,7 @@ function buildYearlyTaxData(
 /** Determine the selected tax regime based on FY availability and user preference */
 function resolveSelectedRegime(
   newRegimeAvailable: boolean,
-  regimeOverride: 'new' | 'old' | null,
+  regimeOverride: TaxRegimeOverride,
   preferredRegime: string,
 ): 'new' | 'old' {
   if (!newRegimeAvailable) return 'old'
@@ -187,7 +200,7 @@ function computeTaxForFY(
   selectedFY: string,
   netTaxableIncome: number,
   salaryMonthsCount: number,
-  regimeOverride: 'new' | 'old' | null,
+  regimeOverride: TaxRegimeOverride,
   preferredRegime: string,
 ) {
   const fyYear = selectedFY ? parseFYStartYear(selectedFY) : 0
@@ -354,7 +367,7 @@ export default function TaxPlanningPage() {
 
   // Tax regime preference: default from user preferences, overridable via toggle
   const preferredRegime = preferences?.preferred_tax_regime || 'new'
-  const [regimeOverride, setRegimeOverride] = useState<'new' | 'old' | null>(null)
+  const [regimeOverride, setRegimeOverride] = useState<TaxRegimeOverride>(null)
 
   // Get fiscal year start month from preferences (default to April)
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || FY_START_MONTH
@@ -749,6 +762,68 @@ function TaxTip({ title, amount, description }: Readonly<{ title: string; amount
   )
 }
 
+function calculateBreakEvenDeduction(
+  grossIncome: number,
+  fyYear: number,
+  standardDeduction: number,
+  salaryMonthsCount: number,
+  newRegimeTax: number,
+): number {
+  for (let d = 0; d <= 1000000; d += 10000) {
+    const oldWithDeductions = calculateTax(
+      Math.max(0, grossIncome - d), getTaxSlabs(fyYear, 'old'),
+      standardDeduction, true, salaryMonthsCount, false, fyYear,
+    )
+    if (oldWithDeductions.totalTax <= newRegimeTax) return d
+  }
+  return 0
+}
+
+function RegimeVerdictDetail({ newIsBetter, totalDeductions, breakEvenDeduction, grossIncome }: Readonly<{
+  newIsBetter: boolean
+  totalDeductions: number
+  breakEvenDeduction: number
+  grossIncome: number
+}>) {
+  if (newIsBetter && totalDeductions === 0 && breakEvenDeduction > 0) {
+    return (
+      <p className="text-sm mt-2 text-muted-foreground">
+        Old Regime becomes better only if you claim at least{' '}
+        <span className="font-semibold text-foreground">{formatCurrency(breakEvenDeduction)}</span>
+        {' '}in deductions (80C + 80D + HRA + 24b etc). Enter your deductions above to check.
+      </p>
+    )
+  }
+
+  if (newIsBetter && breakEvenDeduction === 0 && grossIncome > 500000) {
+    return (
+      <p className="text-sm mt-2 text-muted-foreground">
+        At your income level, New Regime is better even with maximum Old Regime deductions.
+      </p>
+    )
+  }
+
+  if (newIsBetter && totalDeductions > 0) {
+    return (
+      <p className="text-sm mt-2 text-muted-foreground">
+        Even with {formatCurrency(totalDeductions)} in deductions, New Regime is cheaper. You need {formatCurrency(Math.max(0, breakEvenDeduction - totalDeductions))} more in deductions for Old Regime to win.
+      </p>
+    )
+  }
+
+  if (!newIsBetter) {
+    return (
+      <p className="text-sm mt-2 text-muted-foreground">
+        {totalDeductions > 0
+          ? `With ${formatCurrency(totalDeductions)} in deductions, Old Regime saves you more. Make sure to claim all these deductions when filing.`
+          : "The Old Regime's higher slab rates are offset by deductions available. Enter your deductions above to see exact savings."}
+      </p>
+    )
+  }
+
+  return null
+}
+
 /** Regime comparison — shows tax under both regimes with optional deduction inputs */
 function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonthsCount }: Readonly<{
   grossIncome: number
@@ -765,7 +840,6 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
   const totalDeductions = sec80C + sec80D + hra + sec24b
 
   const newTax = calculateTax(grossIncome, getTaxSlabs(fyYear, 'new'), standardDeduction, true, salaryMonthsCount, true, fyYear)
-  // Apply user deductions to old regime income
   const oldRegimeIncome = Math.max(0, grossIncome - totalDeductions)
   const oldTax = calculateTax(oldRegimeIncome, getTaxSlabs(fyYear, 'old'), standardDeduction, true, salaryMonthsCount, false, fyYear)
 
@@ -776,20 +850,9 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
   const oldIsBetter = !newIsBetter
   const betterRegime = newIsBetter ? 'New Regime' : 'Old Regime'
 
-  // Calculate how much deduction needed in Old Regime to beat New Regime
-  let breakEvenDeduction = 0
-  if (newIsBetter && grossIncome > 0) {
-    for (let d = 0; d <= 1000000; d += 10000) {
-      const oldWithDeductions = calculateTax(
-        Math.max(0, grossIncome - d), getTaxSlabs(fyYear, 'old'),
-        standardDeduction, true, salaryMonthsCount, false, fyYear,
-      )
-      if (oldWithDeductions.totalTax <= newTotal) {
-        breakEvenDeduction = d
-        break
-      }
-    }
-  }
+  const breakEvenDeduction = (newIsBetter && grossIncome > 0)
+    ? calculateBreakEvenDeduction(grossIncome, fyYear, standardDeduction, salaryMonthsCount, newTotal)
+    : 0
 
   if (grossIncome <= 0) return null
 
@@ -859,33 +922,12 @@ function RegimeComparison({ grossIncome, fyYear, standardDeduction, salaryMonths
           {newIsBetter && totalDeductions === 0 ? ' (without any deductions).' : '.'}
         </p>
 
-        {newIsBetter && totalDeductions === 0 && breakEvenDeduction > 0 && (
-          <p className="text-sm mt-2 text-muted-foreground">
-            Old Regime becomes better only if you claim at least{' '}
-            <span className="font-semibold text-foreground">{formatCurrency(breakEvenDeduction)}</span>
-            {' '}in deductions (80C + 80D + HRA + 24b etc). Enter your deductions above to check.
-          </p>
-        )}
-
-        {newIsBetter && breakEvenDeduction === 0 && grossIncome > 500000 && (
-          <p className="text-sm mt-2 text-muted-foreground">
-            At your income level, New Regime is better even with maximum Old Regime deductions.
-          </p>
-        )}
-
-        {newIsBetter && totalDeductions > 0 && (
-          <p className="text-sm mt-2 text-muted-foreground">
-            Even with {formatCurrency(totalDeductions)} in deductions, New Regime is cheaper. You need {formatCurrency(Math.max(0, breakEvenDeduction - totalDeductions))} more in deductions for Old Regime to win.
-          </p>
-        )}
-
-        {oldIsBetter && (
-          <p className="text-sm mt-2 text-muted-foreground">
-            {totalDeductions > 0
-              ? `With ${formatCurrency(totalDeductions)} in deductions, Old Regime saves you more. Make sure to claim all these deductions when filing.`
-              : "The Old Regime's higher slab rates are offset by deductions available. Enter your deductions above to see exact savings."}
-          </p>
-        )}
+        <RegimeVerdictDetail
+          newIsBetter={newIsBetter}
+          totalDeductions={totalDeductions}
+          breakEvenDeduction={breakEvenDeduction}
+          grossIncome={grossIncome}
+        />
       </div>
     </div>
   )

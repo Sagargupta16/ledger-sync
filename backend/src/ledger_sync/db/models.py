@@ -24,6 +24,7 @@ from ledger_sync.db.base import Base
 
 # Foreign key reference constant for user relationships
 USER_FK = "users.id"
+CASCADE_ALL_DELETE_ORPHAN = "all, delete-orphan"
 
 # =============================================================================
 # USER AUTHENTICATION
@@ -69,49 +70,49 @@ class User(Base):
         "Transaction",
         back_populates="user",
         lazy="select",
-        cascade="all, delete-orphan",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
     preferences: Mapped["UserPreferences | None"] = relationship(
         "UserPreferences",
         back_populates="user",
         uselist=False,
-        cascade="all, delete-orphan",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
     import_logs: Mapped["list[ImportLog]"] = relationship(
         "ImportLog",
         back_populates="user",
         lazy="select",
-        cascade="all, delete-orphan",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
     budgets: Mapped["list[Budget]"] = relationship(
         "Budget",
         back_populates="user",
         lazy="select",
-        cascade="all, delete-orphan",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
     financial_goals: Mapped["list[FinancialGoal]"] = relationship(
         "FinancialGoal",
         back_populates="user",
         lazy="select",
-        cascade="all, delete-orphan",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
     anomalies: Mapped["list[Anomaly]"] = relationship(
         "Anomaly",
         back_populates="user",
         lazy="select",
-        cascade="all, delete-orphan",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
     audit_logs: Mapped["list[AuditLog]"] = relationship(
         "AuditLog",
         back_populates="user",
         lazy="select",
-        cascade="all, delete-orphan",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
 

@@ -45,4 +45,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Intentionally empty: rollback requires a database backup (see CLAUDE.md)
     pass
