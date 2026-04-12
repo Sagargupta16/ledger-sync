@@ -11,7 +11,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.analytics_engine import AnalyticsEngine
@@ -84,18 +84,28 @@ def refresh_analytics(
     """Recompute all pre-aggregated analytics tables.
 
     Called by the frontend after a successful upload to ensure analytics
-    are fresh. Uses its own DB session (not the request-scoped DI session)
-    so it is independent of the request lifecycle.
+    are fresh. Uses its own DB session with a relaxed statement timeout
+    (analytics runs many heavy computations that can exceed the default
+    30 s limit).
 
     Defined as a sync ``def`` so FastAPI runs it in an external threadpool
-    automatically -- this avoids ``anyio.to_thread`` issues under Mangum
-    on Vercel serverless where the one-shot event loop can't reliably
-    spawn worker threads.
+    automatically -- avoids event-loop issues under Mangum on Vercel.
     """
     session = SessionLocal()
     try:
+        # Relax timeouts for the heavy analytics workload.
+        # Default connection listener sets 30 s statement / 60 s idle-in-txn,
+        # which is too tight for a full analytics recompute.
+        session.execute(text("SET statement_timeout = '120s'"))
+        session.execute(text("SET idle_in_transaction_session_timeout = '300s'"))
+
         engine = AnalyticsEngine(session, user_id=current_user.id)
         results = engine.run_full_analytics(source_file="manual-refresh")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Analytics refresh failed: {exc}",
+        ) from exc
     finally:
         session.close()
     return {"success": True, "analytics": {k: v for k, v in results.items() if isinstance(v, int)}}
