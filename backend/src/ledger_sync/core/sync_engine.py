@@ -154,17 +154,22 @@ class SyncEngine:
         self.session.commit()
 
         logger.info("Import completed: %s", stats)
+        return stats
 
-        # Run analytics
+    def run_post_import_analytics(self, source_file: str) -> None:
+        """Run analytics after import. Safe to call separately or in background.
+
+        Args:
+            source_file: Source file name for analytics context.
+
+        """
         logger.info("Running post-import analytics...")
         try:
             analytics_engine = AnalyticsEngine(self.session, user_id=self.user_id)
-            analytics_results = analytics_engine.run_full_analytics(source_file=file_name)
+            analytics_results = analytics_engine.run_full_analytics(source_file=source_file)
             logger.info("Analytics completed: %s", analytics_results)
         except (ValueError, TypeError, RuntimeError) as e:
             logger.error("Analytics calculation failed (non-fatal): %s", e)
-
-        return stats
 
     def import_file(self, file_path: Path, force: bool = False) -> ReconciliationStats:
         """Import an Excel or CSV file and synchronize with database.
@@ -265,14 +270,7 @@ class SyncEngine:
 
         logger.info(f"Import completed: {stats}")
 
-        # Step 6: Run analytics calculations
-        logger.info("Running post-import analytics...")
-        try:
-            analytics_engine = AnalyticsEngine(self.session, user_id=self.user_id)
-            analytics_results = analytics_engine.run_full_analytics(source_file=file_path.name)
-            logger.info(f"Analytics completed: {analytics_results}")
-        except (ValueError, TypeError, RuntimeError) as e:
-            # Analytics failure shouldn't fail the import
-            logger.error(f"Analytics calculation failed (non-fatal): {e}")
+        # Step 6: Run analytics calculations (inline for CLI)
+        self.run_post_import_analytics(file_path.name)
 
         return stats

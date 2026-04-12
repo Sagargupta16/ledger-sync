@@ -21,6 +21,8 @@ export const uploadService = {
       file_hash: fileHash,
       rows,
       force,
+    }, {
+      timeout: 120_000,
     })
 
     return response.data
