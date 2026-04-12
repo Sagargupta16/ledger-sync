@@ -72,9 +72,8 @@ export default function AccountClassificationsSection({
       {/* Account type drop zones grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {ACCOUNT_TYPES.map((category) => (
-          <div
+          <fieldset
             key={category}
-            role="group"
             aria-label={`Drop zone for ${category} accounts`}
             onDragOver={handleDragOver}
             onDrop={() => onDropOnCategory(category)}
@@ -110,7 +109,7 @@ export default function AccountClassificationsSection({
                 <p className="text-xs text-text-tertiary py-3 w-full text-center">Drop here</p>
               )}
             </div>
-          </div>
+          </fieldset>
         ))}
       </div>
     </Section>

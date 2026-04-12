@@ -54,6 +54,39 @@ const mapToCategory = (investmentType: string): InvestmentCategory => {
   return 'Mutual Funds'
 }
 
+function processInvestmentTransaction(
+  tx: { type: string; to_account?: string; from_account?: string; account?: string; amount: number },
+  investmentAccounts: string[],
+  accountToCategory: Record<string, InvestmentCategory>,
+  byAccount: Record<string, number>,
+  byCategory: Record<InvestmentCategory, number>,
+) {
+  if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
+    const toAccount = tx.to_account || ''
+    byAccount[toAccount] = (byAccount[toAccount] || 0) + tx.amount
+    const category = accountToCategory[toAccount] || 'Mutual Funds'
+    byCategory[category] += tx.amount
+  }
+  if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) {
+    const fromAccount = tx.from_account || ''
+    byAccount[fromAccount] = (byAccount[fromAccount] || 0) - tx.amount
+    const category = accountToCategory[fromAccount] || 'Mutual Funds'
+    byCategory[category] -= tx.amount
+  }
+  if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) {
+    const account = tx.account || ''
+    byAccount[account] = (byAccount[account] || 0) + tx.amount
+    const category = accountToCategory[account] || 'Mutual Funds'
+    byCategory[category] += tx.amount
+  }
+  if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) {
+    const account = tx.account || ''
+    byAccount[account] = (byAccount[account] || 0) - tx.amount
+    const category = accountToCategory[account] || 'Mutual Funds'
+    byCategory[category] -= tx.amount
+  }
+}
+
 function ariaSort(activeKey: string | null, column: string, dir: 'asc' | 'desc'): 'ascending' | 'descending' | 'none' {
   if (activeKey !== column) return 'none'
   return dir === 'asc' ? 'ascending' : 'descending'
@@ -99,34 +132,7 @@ export default function InvestmentAnalyticsPage() {
 
     // Calculate NET investments (IN - OUT)
     transactions.forEach(tx => {
-      // Transfers TO investment accounts (ADD)
-      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
-        const toAccount = tx.to_account || ''
-        byAccount[toAccount] = (byAccount[toAccount] || 0) + tx.amount
-        const category = accountToCategory[toAccount] || 'Mutual Funds'
-        byCategory[category] += tx.amount
-      }
-      // Transfers FROM investment accounts (SUBTRACT)
-      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) {
-        const fromAccount = tx.from_account || ''
-        byAccount[fromAccount] = (byAccount[fromAccount] || 0) - tx.amount
-        const category = accountToCategory[fromAccount] || 'Mutual Funds'
-        byCategory[category] -= tx.amount
-      }
-      // Income on investment accounts (dividends, interest) - ADD
-      if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) {
-        const account = tx.account || ''
-        byAccount[account] = (byAccount[account] || 0) + tx.amount
-        const category = accountToCategory[account] || 'Mutual Funds'
-        byCategory[category] += tx.amount
-      }
-      // Expenses on investment accounts - SUBTRACT
-      if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) {
-        const account = tx.account || ''
-        byAccount[account] = (byAccount[account] || 0) - tx.amount
-        const category = accountToCategory[account] || 'Mutual Funds'
-        byCategory[category] -= tx.amount
-      }
+      processInvestmentTransaction(tx, investmentAccounts, accountToCategory, byAccount, byCategory)
     })
 
     const total = Object.values(byCategory).reduce((sum, val) => sum + val, 0)

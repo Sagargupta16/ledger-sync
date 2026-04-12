@@ -118,9 +118,7 @@ export default function CohortSpendingAnalysis() {
         {view === 'monthly' && 'Average monthly spending across years (highlights festival season Oct-Dec)'}
       </p>
 
-      {!hasData ? (
-        <ChartEmptyState height={260} message="No expense data available" />
-      ) : (
+      {hasData ? (
         <ChartContainer height={260}>
           <BarChart data={currentData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <CartesianGrid {...GRID_DEFAULTS} />
@@ -143,6 +141,8 @@ export default function CohortSpendingAnalysis() {
             />
           </BarChart>
         </ChartContainer>
+      ) : (
+        <ChartEmptyState height={260} message="No expense data available" />
       )}
     </motion.div>
   )

@@ -35,6 +35,34 @@ function computeGrowthRate(values: number[]): number {
   return ((secondAvg - firstAvg) / firstAvg) * 100
 }
 
+function computeCategoryCreep(
+  cat: string,
+  recentMonths: string[],
+  monthlyData: Record<string, MonthlyTotals>,
+  incomeGrowth: number,
+): CreepResult | null {
+  const values = recentMonths.map((m) => monthlyData[m].categories[cat] || 0)
+  const total = values.reduce((a, b) => a + b, 0)
+  if (total === 0) return null
+
+  const categoryGrowth = computeGrowthRate(values)
+  const creepScore = categoryGrowth - incomeGrowth
+
+  let classification: CreepResult['classification']
+  if (creepScore > 5) classification = 'accelerating'
+  else if (creepScore < -5) classification = 'declining'
+  else classification = 'stable'
+
+  return {
+    category: cat,
+    creepScore: Math.round(creepScore * 10) / 10,
+    categoryGrowth: Math.round(categoryGrowth * 10) / 10,
+    incomeGrowth: Math.round(incomeGrowth * 10) / 10,
+    classification,
+    avgMonthly: total / recentMonths.length,
+  }
+}
+
 export function computeCreepScores(
   transactions: Array<{ type: string; category?: string; amount: number; date: string }>,
   minMonths = 4,
@@ -74,26 +102,8 @@ export function computeCreepScores(
   // Compute creep score per category
   const results: CreepResult[] = []
   for (const cat of allCategories) {
-    const values = recentMonths.map((m) => monthlyData[m].categories[cat] || 0)
-    const total = values.reduce((a, b) => a + b, 0)
-    if (total === 0) continue
-
-    const categoryGrowth = computeGrowthRate(values)
-    const creepScore = categoryGrowth - incomeGrowth
-
-    let classification: CreepResult['classification']
-    if (creepScore > 5) classification = 'accelerating'
-    else if (creepScore < -5) classification = 'declining'
-    else classification = 'stable'
-
-    results.push({
-      category: cat,
-      creepScore: Math.round(creepScore * 10) / 10,
-      categoryGrowth: Math.round(categoryGrowth * 10) / 10,
-      incomeGrowth: Math.round(incomeGrowth * 10) / 10,
-      classification,
-      avgMonthly: total / recentMonths.length,
-    })
+    const result = computeCategoryCreep(cat, recentMonths, monthlyData, incomeGrowth)
+    if (result) results.push(result)
   }
 
   // Sort by creep score descending (biggest lifestyle creep first)

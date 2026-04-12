@@ -390,7 +390,7 @@ export default function CommandPalette() {
                               />
                             </div>
                             <span
-                              className={`flex-1 text-sm font-medium ${isSelected ? 'text-white' : 'text-white'}`}
+                              className={`flex-1 text-sm font-medium ${isSelected ? 'text-white' : 'text-text-secondary'}`}
                             >
                               {page.label}
                             </span>
@@ -457,7 +457,7 @@ export default function CommandPalette() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p
-                                className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-white'}`}
+                                className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-text-secondary'}`}
                               >
                                 {tx.note || tx.category}
                               </p>

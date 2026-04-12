@@ -393,37 +393,37 @@ export function generateDemoTransactions(): Transaction[] {
 
     // ─── TRANSFERS ──────────────────────────────────────────────────────
 
-    // Salary account -> savings (monthly sweep, enough to cover SBI outflows)
-    txs.push({
-      id: txId(idx++),
-      date: formatDate(new Date(year, month, 2)),
-      amount: rng.int(50000, 70000),
-      type: 'Transfer',
-      category: 'Transfer',
-      subcategory: 'Bank Transfer',
-      account: ACCOUNTS.hdfc,
-      from_account: ACCOUNTS.hdfc,
-      to_account: ACCOUNTS.sbi,
-      note: 'HDFC to SBI Monthly Sweep',
-      is_transfer: true,
-      currency: 'INR',
-    })
-
-    // SIP to mutual funds (10th)
-    txs.push({
-      id: txId(idx++),
-      date: formatDate(new Date(year, month, 10)),
-      amount: rng.pick([10000, 15000, 20000, 25000]),
-      type: 'Transfer',
-      category: 'Investment',
-      subcategory: 'SIP',
-      account: ACCOUNTS.sbi,
-      from_account: ACCOUNTS.sbi,
-      to_account: ACCOUNTS.growMF,
-      note: rng.pick(['SIP - Axis Bluechip Fund', 'SIP - Parag Parikh Flexi Cap', 'SIP - Nifty 50 Index']),
-      is_transfer: true,
-      currency: 'INR',
-    })
+    // Salary account -> savings (monthly sweep) + SIP to mutual funds (10th)
+    txs.push(
+      {
+        id: txId(idx++),
+        date: formatDate(new Date(year, month, 2)),
+        amount: rng.int(50000, 70000),
+        type: 'Transfer',
+        category: 'Transfer',
+        subcategory: 'Bank Transfer',
+        account: ACCOUNTS.hdfc,
+        from_account: ACCOUNTS.hdfc,
+        to_account: ACCOUNTS.sbi,
+        note: 'HDFC to SBI Monthly Sweep',
+        is_transfer: true,
+        currency: 'INR',
+      },
+      {
+        id: txId(idx++),
+        date: formatDate(new Date(year, month, 10)),
+        amount: rng.pick([10000, 15000, 20000, 25000]),
+        type: 'Transfer',
+        category: 'Investment',
+        subcategory: 'SIP',
+        account: ACCOUNTS.sbi,
+        from_account: ACCOUNTS.sbi,
+        to_account: ACCOUNTS.growMF,
+        note: rng.pick(['SIP - Axis Bluechip Fund', 'SIP - Parag Parikh Flexi Cap', 'SIP - Nifty 50 Index']),
+        is_transfer: true,
+        currency: 'INR',
+      },
+    )
 
     // Stock investments (0-2 per month, capped to keep bank balances healthy)
     const stockTxCount = rng.int(0, 2)
@@ -570,37 +570,37 @@ export function generateDemoTransactions(): Transaction[] {
       })
     }
 
-    // Flat shared expenses (monthly)
-    txs.push({
-      id: txId(idx++),
-      date: formatDate(new Date(year, month, rng.int(5, 10))),
-      amount: rng.int(1000, 4000),
-      type: 'Transfer',
-      category: 'Transfer',
-      subcategory: 'Shared Expenses',
-      account: ACCOUNTS.gpay,
-      from_account: ACCOUNTS.gpay,
-      to_account: ACCOUNTS.flat,
-      note: rng.pick(['Flat Groceries Share', 'Flat Utilities Share', 'Flat Maintenance Share']),
-      is_transfer: true,
-      currency: 'INR',
-    })
-
-    // Family support transfer (monthly)
-    txs.push({
-      id: txId(idx++),
-      date: formatDate(new Date(year, month, 5)),
-      amount: rng.int(10000, 20000),
-      type: 'Transfer',
-      category: 'Transfer',
-      subcategory: 'Family Transfer',
-      account: ACCOUNTS.hdfc,
-      from_account: ACCOUNTS.hdfc,
-      to_account: ACCOUNTS.family,
-      note: 'Monthly Family Transfer',
-      is_transfer: true,
-      currency: 'INR',
-    })
+    // Flat shared expenses (monthly) + Family support transfer (monthly)
+    txs.push(
+      {
+        id: txId(idx++),
+        date: formatDate(new Date(year, month, rng.int(5, 10))),
+        amount: rng.int(1000, 4000),
+        type: 'Transfer',
+        category: 'Transfer',
+        subcategory: 'Shared Expenses',
+        account: ACCOUNTS.gpay,
+        from_account: ACCOUNTS.gpay,
+        to_account: ACCOUNTS.flat,
+        note: rng.pick(['Flat Groceries Share', 'Flat Utilities Share', 'Flat Maintenance Share']),
+        is_transfer: true,
+        currency: 'INR',
+      },
+      {
+        id: txId(idx++),
+        date: formatDate(new Date(year, month, 5)),
+        amount: rng.int(10000, 20000),
+        type: 'Transfer',
+        category: 'Transfer',
+        subcategory: 'Family Transfer',
+        account: ACCOUNTS.hdfc,
+        from_account: ACCOUNTS.hdfc,
+        to_account: ACCOUNTS.family,
+        note: 'Monthly Family Transfer',
+        is_transfer: true,
+        currency: 'INR',
+      },
+    )
 
     // Credit card bill payments (25th) -- pay off full balance so CC resets to 0
     const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`

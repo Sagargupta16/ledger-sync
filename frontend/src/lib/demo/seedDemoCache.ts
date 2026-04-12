@@ -25,7 +25,7 @@ import {
 let cachedTransactions: ReturnType<typeof generateDemoTransactions> | null = null
 
 export function getDemoTransactions() {
-  if (!cachedTransactions) cachedTransactions = generateDemoTransactions()
+  cachedTransactions ??= generateDemoTransactions()
   return cachedTransactions
 }
 

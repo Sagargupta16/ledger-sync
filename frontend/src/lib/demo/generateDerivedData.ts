@@ -244,8 +244,49 @@ const NON_NEGATIVE_ACCOUNTS = new Set([
   'EPF Account', 'PPF Account', 'Groww Stocks', 'Groww Mutual Funds', 'SBI FD',
 ])
 
+type AccountEntry = { balance: number; transactions: number; last_transaction: string | null }
+
+function ensureAccount(
+  accounts: Record<string, AccountEntry>,
+  name: string,
+): AccountEntry {
+  if (!accounts[name]) accounts[name] = { balance: 0, transactions: 0, last_transaction: null }
+  return accounts[name]
+}
+
+function applyBalanceDelta(entry: AccountEntry, tx: Transaction): void {
+  if (isIncome(tx)) entry.balance += tx.amount
+  else if (isExpense(tx)) entry.balance -= tx.amount
+  else if (isTransfer(tx)) entry.balance -= tx.amount
+}
+
+function recordTransaction(entry: AccountEntry, date: string): void {
+  entry.transactions++
+  if (!entry.last_transaction || date > entry.last_transaction) {
+    entry.last_transaction = date
+  }
+}
+
+function creditTransferDestination(
+  accounts: Record<string, AccountEntry>,
+  tx: Transaction,
+): void {
+  if (!isTransfer(tx) || !tx.to_account) return
+  const dest = ensureAccount(accounts, tx.to_account)
+  dest.balance += tx.amount
+  recordTransaction(dest, tx.date)
+}
+
+function clampNonNegativeBalances(accounts: Record<string, AccountEntry>): void {
+  for (const [name, data] of Object.entries(accounts)) {
+    if (NON_NEGATIVE_ACCOUNTS.has(name) && data.balance < 0) {
+      data.balance = 0
+    }
+  }
+}
+
 export function generateDemoAccountBalances(txs: Transaction[]): AccountBalances {
-  const accounts: Record<string, { balance: number; transactions: number; last_transaction: string | null }> = {}
+  const accounts: Record<string, AccountEntry> = {}
 
   // Seed opening balances
   for (const [name, balance] of Object.entries(OPENING_BALANCES)) {
@@ -253,37 +294,13 @@ export function generateDemoAccountBalances(txs: Transaction[]): AccountBalances
   }
 
   for (const tx of txs) {
-    const acct = tx.account
-    if (!accounts[acct]) accounts[acct] = { balance: 0, transactions: 0, last_transaction: null }
-    const entry = accounts[acct]
-
-    if (isIncome(tx)) entry.balance += tx.amount
-    else if (isExpense(tx)) entry.balance -= tx.amount
-    else if (isTransfer(tx)) entry.balance -= tx.amount
-
-    entry.transactions++
-    if (!entry.last_transaction || tx.date > entry.last_transaction) {
-      entry.last_transaction = tx.date
-    }
-
-    // Credit the destination account for transfers
-    if (isTransfer(tx) && tx.to_account) {
-      if (!accounts[tx.to_account]) accounts[tx.to_account] = { balance: 0, transactions: 0, last_transaction: null }
-      const dest = accounts[tx.to_account]
-      dest.balance += tx.amount
-      dest.transactions++
-      if (!dest.last_transaction || tx.date > dest.last_transaction) {
-        dest.last_transaction = tx.date
-      }
-    }
+    const entry = ensureAccount(accounts, tx.account)
+    applyBalanceDelta(entry, tx)
+    recordTransaction(entry, tx.date)
+    creditTransferDestination(accounts, tx)
   }
 
-  // Clamp bank/wallet/investment accounts to zero minimum (no overdrafts)
-  for (const [name, data] of Object.entries(accounts)) {
-    if (NON_NEGATIVE_ACCOUNTS.has(name) && data.balance < 0) {
-      data.balance = 0
-    }
-  }
+  clampNonNegativeBalances(accounts)
 
   const balances = Object.values(accounts).map((a) => a.balance)
   const positiveCount = balances.filter((b) => b >= 0).length
@@ -371,7 +388,7 @@ export function generateDemoKPIs(txs: Transaction[]): KPIData {
   // Days in data range
   const dates = txs.map((t) => t.date).sort((a, b) => a.localeCompare(b))
   const daySpan = dates.length > 1
-    ? (new Date(dates[dates.length - 1]).getTime() - new Date(dates[0]).getTime()) / 86400000
+    ? (new Date(dates.at(-1)!).getTime() - new Date(dates[0]).getTime()) / 86400000
     : 1
 
   return {
@@ -382,7 +399,7 @@ export function generateDemoKPIs(txs: Transaction[]): KPIData {
     category_concentration: hhi * 100,
     consistency_score: Math.max(0, Math.min(100, (1 - cv) * 100)),
     lifestyle_inflation: months.length >= 6
-      ? ((months[months.length - 1].expense - months[0].expense) / (months[0].expense || 1)) * 100
+      ? ((months.at(-1)!.expense - months[0].expense) / (months[0].expense || 1)) * 100
       : 0,
     convenience_spending_pct: 0,
   }
@@ -423,7 +440,7 @@ export function generateDemoBehavior(txs: Transaction[]): BehaviorData {
   // Spending frequency: avg transactions per day
   const dates = txs.map((t) => t.date).sort((a, b) => a.localeCompare(b))
   const daySpan = dates.length > 1
-    ? (new Date(dates[dates.length - 1]).getTime() - new Date(dates[0]).getTime()) / 86400000
+    ? (new Date(dates.at(-1)!).getTime() - new Date(dates[0]).getTime()) / 86400000
     : 1
 
   const catTotals: Record<string, number> = {}
@@ -472,6 +489,32 @@ export function generateDemoTrends(txs: Transaction[]): TrendsData {
 // Analytics V2
 // ---------------------------------------------------------------------------
 
+function computeIncomeBreakdown(txs: Transaction[], mk: string) {
+  const incomeItems = txs.filter((t) => isIncome(t) && monthKey(t.date) === mk)
+  const salary = sum(incomeItems.filter((t) => t.category === 'Employment Income').map((t) => t.amount))
+  const investment = sum(incomeItems.filter((t) => t.category === 'Investment Income').map((t) => t.amount))
+  return { items: incomeItems, salary, investment }
+}
+
+function computeExpenseBreakdown(txs: Transaction[], mk: string) {
+  const expenseItems = txs.filter((t) => isExpense(t) && monthKey(t.date) === mk)
+  const essential = sum(
+    expenseItems.filter((t) => ESSENTIAL_CATEGORIES.includes(t.category)).map((t) => t.amount),
+  )
+  return { items: expenseItems, essential }
+}
+
+function computeTransferTotals(txs: Transaction[], mk: string) {
+  const transfers = txs.filter((t) => isTransfer(t) && monthKey(t.date) === mk)
+  const out = sum(transfers.filter((t) => t.from_account).map((t) => t.amount))
+  return { count: transfers.length, out, in: 0 }
+}
+
+function computeChangePct(current: number, previous: number | null): number | null {
+  if (previous === null || previous <= 0) return null
+  return ((current - previous) / previous) * 100
+}
+
 export function generateDemoMonthlySummaries(txs: Transaction[]): MonthlySummary[] {
   const monthly = generateDemoMonthlyAggregation(txs)
   const sortedMonths = Object.keys(monthly).sort((a, b) => a.localeCompare(b))
@@ -480,31 +523,16 @@ export function generateDemoMonthlySummaries(txs: Transaction[]): MonthlySummary
   return sortedMonths.map((mk, i) => {
     const data = monthly[mk]
     const [yearStr, monthStr] = mk.split('-')
-    const year = parseInt(yearStr)
-    const month = parseInt(monthStr)
+    const year = Number.parseInt(yearStr)
+    const month = Number.parseInt(monthStr)
 
-    const incomeItems = txs.filter((t) => isIncome(t) && monthKey(t.date) === mk)
-    const salaryIncome = sum(incomeItems.filter((t) => t.category === 'Employment Income').map((t) => t.amount))
-    const investIncome = sum(incomeItems.filter((t) => t.category === 'Investment Income').map((t) => t.amount))
-    const otherIncome = data.income - salaryIncome - investIncome
-
-    const expenseItems = txs.filter((t) => isExpense(t) && monthKey(t.date) === mk)
-    const essentialExp = sum(
-      expenseItems.filter((t) => ESSENTIAL_CATEGORIES.includes(t.category)).map((t) => t.amount),
-    )
-    const discretionaryExp = data.expense - essentialExp
-
-    const transfers = txs.filter((t) => isTransfer(t) && monthKey(t.date) === mk)
-    const transferOut = sum(transfers.filter((t) => t.from_account).map((t) => t.amount))
-    const transferIn = 0 // Demo data uses unified 'Transfer' type; in-flows are on the to_account side
+    const inc = computeIncomeBreakdown(txs, mk)
+    const exp = computeExpenseBreakdown(txs, mk)
+    const xfer = computeTransferTotals(txs, mk)
 
     const prevMonth = i > 0 ? monthly[sortedMonths[i - 1]] : null
-    const incomeChangePct = prevMonth && prevMonth.income > 0
-      ? ((data.income - prevMonth.income) / prevMonth.income) * 100
-      : null
-    const expenseChangePct = prevMonth && prevMonth.expense > 0
-      ? ((data.expense - prevMonth.expense) / prevMonth.expense) * 100
-      : null
+    const incomeChangePct = computeChangePct(data.income, prevMonth?.income ?? null)
+    const expenseChangePct = computeChangePct(data.expense, prevMonth?.expense ?? null)
 
     return {
       period: mk,
@@ -512,24 +540,24 @@ export function generateDemoMonthlySummaries(txs: Transaction[]): MonthlySummary
       month,
       income: {
         total: data.income,
-        salary: salaryIncome,
-        investment: investIncome,
-        other: otherIncome,
-        count: incomeItems.length,
+        salary: inc.salary,
+        investment: inc.investment,
+        other: data.income - inc.salary - inc.investment,
+        count: inc.items.length,
         change_pct: incomeChangePct,
       },
       expenses: {
         total: data.expense,
-        essential: essentialExp,
-        discretionary: discretionaryExp,
-        count: expenseItems.length,
+        essential: exp.essential,
+        discretionary: data.expense - exp.essential,
+        count: exp.items.length,
         change_pct: expenseChangePct,
       },
       transfers: {
-        out: transferOut,
-        in: transferIn,
-        net_investment: transferOut - transferIn,
-        count: transfers.length,
+        out: xfer.out,
+        in: xfer.in,
+        net_investment: xfer.out - xfer.in,
+        count: xfer.count,
       },
       savings: {
         net: data.net_savings,

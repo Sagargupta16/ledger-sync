@@ -76,25 +76,25 @@ export const ANOMALY_TYPES = [
 // Income classification types
 export const INCOME_CLASSIFICATION_TYPES = [
   {
-    value: 'taxable',
+    value: 'taxable' as const,
     label: '💰 Taxable Income',
     color: 'from-app-red to-app-orange',
     description: 'Salary, bonus, freelance income',
   },
   {
-    value: 'investment',
+    value: 'investment' as const,
     label: '📈 Investment Returns',
     color: 'from-app-green to-app-green',
     description: 'Dividends, interest, capital gains',
   },
   {
-    value: 'non_taxable',
+    value: 'non_taxable' as const,
     label: '💳 Cashbacks',
     color: 'from-app-blue to-app-teal',
     description: 'Refunds, cashbacks, rewards',
   },
   {
-    value: 'other',
+    value: 'other' as const,
     label: '📦 Others',
     color: 'from-app-purple to-app-pink',
     description: 'Gifts, prizes, miscellaneous',

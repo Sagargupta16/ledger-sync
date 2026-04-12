@@ -240,21 +240,21 @@ function AccountCategoryTable({
                 acc.elements.push(
                   <tr
                     key={`header-${currentCategory}`}
-                    className="bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
-                    onClick={() => onToggleCategory(currentCategory)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleCategory(currentCategory) } }}
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={expandedCategories.has(currentCategory)}
+                    className="bg-white/5 hover:bg-white/10 transition-colors"
                   >
                     <td className="py-2 px-4 text-sm font-semibold text-primary">
-                      <span className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onToggleCategory(currentCategory)}
+                        aria-expanded={expandedCategories.has(currentCategory)}
+                        className="flex items-center gap-2 w-full bg-transparent border-none cursor-pointer text-inherit font-inherit p-0"
+                      >
                         {expandedCategories.has(currentCategory)
                           ? <ChevronDown className="w-4 h-4" />
                           : <ChevronRight className="w-4 h-4" />}
                         {currentCategory}
                         <span className="text-xs text-text-tertiary font-normal">({categoryAccounts.length})</span>
-                      </span>
+                      </button>
                     </td>
                     <td className={`py-2 px-4 text-right text-sm font-medium ${headerBalanceColorClass}`}>
                       {formatCurrency(catBalance)}

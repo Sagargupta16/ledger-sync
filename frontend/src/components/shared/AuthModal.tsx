@@ -64,7 +64,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
 
   const handleOAuthLogin = (provider: OAuthProviderConfig) => {
     // Navigate to provider's authorize URL — will redirect back to /auth/callback/:provider
-    globalThis.location.href = buildAuthorizeUrl(provider)
+    globalThis.location.assign(buildAuthorizeUrl(provider))
   }
 
   const isLoadingProviders = oauthProviders === null
@@ -116,43 +116,51 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
               </div>
 
               {/* OAuth Buttons */}
-              {isLoadingProviders ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-app-blue animate-spin" />
-                </div>
-              ) : hasOAuth ? (
-                <div className="space-y-3">
-                  {googleProvider && (
-                    <button
-                      type="button"
-                      onClick={() => handleOAuthLogin(googleProvider)}
-                      className="w-full py-3 px-4 rounded-xl font-medium text-white flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10]"
-                    >
-                      <GoogleIcon className="w-5 h-5" />
-                      Continue with Google
-                    </button>
-                  )}
-                  {githubProvider && (
-                    <button
-                      type="button"
-                      onClick={() => handleOAuthLogin(githubProvider)}
-                      className="w-full py-3 px-4 rounded-xl font-medium text-white flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10]"
-                    >
-                      <GitHubIcon className="w-5 h-5" />
-                      Continue with GitHub
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-muted-foreground text-sm">
-                    OAuth sign-in is not configured yet.
-                  </p>
-                  <p className="text-text-tertiary text-xs mt-1">
-                    Contact the administrator to enable Google or GitHub login.
-                  </p>
-                </div>
-              )}
+              {(() => {
+                if (isLoadingProviders) {
+                  return (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="w-6 h-6 text-app-blue animate-spin" />
+                    </div>
+                  )
+                }
+                if (hasOAuth) {
+                  return (
+                    <div className="space-y-3">
+                      {googleProvider && (
+                        <button
+                          type="button"
+                          onClick={() => handleOAuthLogin(googleProvider)}
+                          className="w-full py-3 px-4 rounded-xl font-medium text-white flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10]"
+                        >
+                          <GoogleIcon className="w-5 h-5" />
+                          Continue with Google
+                        </button>
+                      )}
+                      {githubProvider && (
+                        <button
+                          type="button"
+                          onClick={() => handleOAuthLogin(githubProvider)}
+                          className="w-full py-3 px-4 rounded-xl font-medium text-white flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10]"
+                        >
+                          <GitHubIcon className="w-5 h-5" />
+                          Continue with GitHub
+                        </button>
+                      )}
+                    </div>
+                  )
+                }
+                return (
+                  <div className="text-center py-4">
+                    <p className="text-muted-foreground text-sm">
+                      OAuth sign-in is not configured yet.
+                    </p>
+                    <p className="text-text-tertiary text-xs mt-1">
+                      Contact the administrator to enable Google or GitHub login.
+                    </p>
+                  </div>
+                )
+              })()}
 
               {/* Footer */}
               <p className="text-text-tertiary text-xs text-center mt-6 border-t border-border pt-5">

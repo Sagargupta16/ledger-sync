@@ -74,6 +74,73 @@ DEFAULT_INVESTMENT_ACCOUNT_PATTERNS = {
 }
 
 
+def _group_txns_by_pattern(
+    transactions: list[Transaction],
+    normalize_fn: Any,
+) -> dict[tuple[str, str], list[Transaction]]:
+    patterns: dict[tuple[str, str], list[Transaction]] = defaultdict(list)
+    for txn in transactions:
+        label = normalize_fn(txn.note)
+        if not label:
+            label = txn.category.lower()
+            if txn.subcategory:
+                label = f"{txn.category.lower()} - {txn.subcategory.lower()}"
+        key = (label, txn.type.value)
+        patterns[key].append(txn)
+    return patterns
+
+
+def _resolve_pattern_display(
+    txns: list[Transaction],
+    dates: list[datetime],
+    avg_amount: float,
+    amount_variance: float,
+    frequency: RecurrenceFrequency,
+    confidence: float,
+    expected_day: int | None,
+    txn_type: str,
+) -> dict[str, Any]:
+    most_recent = max(txns, key=lambda t: t.date)
+    pattern_name = most_recent.note or most_recent.category
+    if not most_recent.note and most_recent.subcategory:
+        pattern_name = f"{most_recent.category} - {most_recent.subcategory}"
+
+    return {
+        "pattern_name": pattern_name,
+        "category": most_recent.category,
+        "subcategory": most_recent.subcategory,
+        "account": most_recent.account,
+        "txn_type": txn_type,
+        "frequency": frequency,
+        "expected_amount": Decimal(str(avg_amount)),
+        "amount_variance": Decimal(str(amount_variance)),
+        "expected_day": expected_day,
+        "confidence": confidence,
+        "occurrences": len(txns),
+        "last_occurrence": max(dates),
+    }
+
+
+def _aggregate_holdings_data(
+    transactions: list[Transaction],
+    is_investment_account: Any,
+) -> dict[str, dict[str, Any]]:
+    holdings_data: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"invested": Decimal(0), "income": Decimal(0), "expense": Decimal(0)},
+    )
+    for txn in transactions:
+        if txn.type == TransactionType.TRANSFER:
+            if txn.to_account and is_investment_account(txn.to_account):
+                holdings_data[txn.to_account]["invested"] += Decimal(str(txn.amount))
+            if txn.from_account and is_investment_account(txn.from_account):
+                holdings_data[txn.from_account]["invested"] -= Decimal(str(txn.amount))
+        elif txn.type == TransactionType.INCOME and is_investment_account(txn.account):
+            holdings_data[txn.account]["income"] += Decimal(str(txn.amount))
+        elif txn.type == TransactionType.EXPENSE and is_investment_account(txn.account):
+            holdings_data[txn.account]["expense"] += Decimal(str(txn.amount))
+    return holdings_data
+
+
 class AnalyticsEngine:
     """Engine for calculating and persisting analytics data."""
 
@@ -1092,16 +1159,7 @@ class AnalyticsEngine:
 
         # Group by normalized note + type.  Transactions without a note
         # fall back to category + subcategory so they still get detected.
-        patterns: dict[tuple[str, str], list[Transaction]] = defaultdict(list)
-        for txn in transactions:
-            label = self._normalize_note(txn.note)
-            if not label:
-                # Fallback: use category - subcategory as the grouping key
-                label = txn.category.lower()
-                if txn.subcategory:
-                    label = f"{txn.category.lower()} - {txn.subcategory.lower()}"
-            key = (label, txn.type.value)
-            patterns[key].append(txn)
+        patterns = _group_txns_by_pattern(transactions, self._normalize_note)
 
         # Delete only non-confirmed records; user-confirmed ones are preserved
         del_stmt = delete(RecurringTransaction).where(
@@ -1143,43 +1201,43 @@ class AnalyticsEngine:
             avg_amount = mean(amounts)
             amount_variance = stdev(amounts) if len(amounts) > 1 else 0
 
-            # Use the original note from the most recent transaction as display name
-            most_recent = max(txns, key=lambda t: t.date)
-            pattern_name = most_recent.note or most_recent.category
-            if not most_recent.note and most_recent.subcategory:
-                pattern_name = f"{most_recent.category} - {most_recent.subcategory}"
-
-            # Pick category/subcategory/account from most recent transaction
-            category = most_recent.category
-            subcategory = most_recent.subcategory
-            account = most_recent.account
+            info = _resolve_pattern_display(
+                txns,
+                dates,
+                avg_amount,
+                amount_variance,
+                frequency,
+                confidence,
+                expected_day,
+                txn_type,
+            )
 
             # If a user-confirmed record matches, update its stats instead
             if label in confirmed_names:
                 existing = confirmed_names[label]
-                existing.occurrences_detected = len(txns)
-                existing.last_occurrence = max(dates)
-                existing.confidence_score = confidence
-                existing.expected_amount = Decimal(str(avg_amount))
-                existing.amount_variance = Decimal(str(amount_variance))
+                existing.occurrences_detected = info["occurrences"]
+                existing.last_occurrence = info["last_occurrence"]
+                existing.confidence_score = info["confidence"]
+                existing.expected_amount = info["expected_amount"]
+                existing.amount_variance = info["amount_variance"]
                 existing.last_updated = datetime.now(UTC)
                 count += 1
                 continue
 
             recurring = RecurringTransaction(
                 user_id=self.user_id,
-                pattern_name=pattern_name,
-                category=category,
-                subcategory=subcategory,
-                account=account,
-                transaction_type=TransactionType(txn_type),
-                frequency=frequency,
-                expected_amount=Decimal(str(avg_amount)),
-                amount_variance=Decimal(str(amount_variance)),
-                expected_day=expected_day,
-                confidence_score=confidence,
-                occurrences_detected=len(txns),
-                last_occurrence=max(dates),
+                pattern_name=info["pattern_name"],
+                category=info["category"],
+                subcategory=info["subcategory"],
+                account=info["account"],
+                transaction_type=TransactionType(info["txn_type"]),
+                frequency=info["frequency"],
+                expected_amount=info["expected_amount"],
+                amount_variance=info["amount_variance"],
+                expected_day=info["expected_day"],
+                confidence_score=info["confidence"],
+                occurrences_detected=info["occurrences"],
+                last_occurrence=info["last_occurrence"],
                 is_active=True,
                 first_detected=datetime.now(UTC),
                 last_updated=datetime.now(UTC),
@@ -1414,29 +1472,11 @@ class AnalyticsEngine:
         if all_transactions is None:
             all_transactions = self._user_transaction_query().all()
 
-        inv_patterns = self.investment_account_patterns
-        if not inv_patterns:
+        if not self.investment_account_patterns:
             return 0
 
         # Aggregate net investment per account from transfers and direct transactions
-        holdings_data: dict[str, dict[str, Any]] = defaultdict(
-            lambda: {"invested": Decimal(0), "income": Decimal(0), "expense": Decimal(0)},
-        )
-
-        for txn in all_transactions:
-            if txn.type == TransactionType.TRANSFER:
-                # Transfer TO investment account = money invested
-                if txn.to_account and self._is_investment_account(txn.to_account):
-                    holdings_data[txn.to_account]["invested"] += Decimal(str(txn.amount))
-                # Transfer FROM investment account = money withdrawn
-                if txn.from_account and self._is_investment_account(txn.from_account):
-                    holdings_data[txn.from_account]["invested"] -= Decimal(str(txn.amount))
-            elif txn.type == TransactionType.INCOME and self._is_investment_account(txn.account):
-                # Dividends, interest on investment accounts
-                holdings_data[txn.account]["income"] += Decimal(str(txn.amount))
-            elif txn.type == TransactionType.EXPENSE and self._is_investment_account(txn.account):
-                # Brokerage, fees on investment accounts
-                holdings_data[txn.account]["expense"] += Decimal(str(txn.amount))
+        holdings_data = _aggregate_holdings_data(all_transactions, self._is_investment_account)
 
         if not holdings_data:
             return 0

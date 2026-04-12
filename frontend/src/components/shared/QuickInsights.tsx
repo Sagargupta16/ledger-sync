@@ -80,6 +80,33 @@ interface CategoryData {
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+interface InsightItem {
+  icon: React.ComponentType<{ className?: string }>
+  color: string
+  bg: string
+  title: string
+  value: string
+  subtitle?: string
+}
+
+function InsightCard({ item }: { item: InsightItem }) {
+  return (
+    <motion.div
+      variants={fadeUpItem}
+      className="flex items-center gap-3 p-3 bg-white/[0.04] border border-border rounded-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-150"
+    >
+      <div className={`p-2 ${item.bg} rounded-lg shrink-0`}>
+        <item.icon className={`w-4 h-4 ${item.color}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] text-muted-foreground">{item.title}</p>
+        <p className="text-sm font-semibold text-white truncate">{item.value}</p>
+        {item.subtitle && <p className="text-[11px] text-text-tertiary truncate">{item.subtitle}</p>}
+      </div>
+    </motion.div>
+  )
+}
+
 // ─── Computation helpers (extracted to reduce component complexity) ────
 
 interface DateRange {
@@ -186,6 +213,41 @@ function computeTopByCategory(transactions: Transaction[]) {
   return Object.entries(byCat).sort(([, a], [, b]) => b - a)[0] ?? null
 }
 
+function computeMostExpensiveMonth(transactions: Transaction[]) {
+  const byMonth: Record<string, number> = {}
+  for (const t of transactions) {
+    const key = t.date.slice(0, 7)
+    byMonth[key] = (byMonth[key] || 0) + Math.abs(t.amount)
+  }
+  const entries = Object.entries(byMonth)
+  if (entries.length === 0) return null
+  const [monthKey, amount] = entries.reduce((max, cur) => cur[1] > max[1] ? cur : max, entries[0])
+  const [y, m] = monthKey.split('-')
+  const label = new Date(Number(y), Number(m) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return { label, amount }
+}
+
+function computeNetCashback(allTransactions: Transaction[]) {
+  const cashbackTxs = allTransactions.filter(
+    (t) =>
+      t.category === 'Refund & Cashbacks' &&
+      t.type === 'Income' &&
+      (t.subcategory === 'Credit Card Cashbacks' || t.subcategory === 'Other Cashbacks'),
+  )
+  const sharedTxs = allTransactions.filter(
+    (t) => t.type === 'Transfer' && t.to_account === 'Cashback Shared',
+  )
+  const totalCashback = cashbackTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  const totalShared = sharedTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  return { netCashback: totalCashback - totalShared, cashbackCount: cashbackTxs.length }
+}
+
+function fmtChange(v: number | undefined, label: string) {
+  if (v == null) return ''
+  const sign = v > 0 ? '+' : ''
+  return `${sign}${v}% ${label}`
+}
+
 // ─── Main component ─────────────────────────────────────────────────────
 
 export default function QuickInsights({
@@ -224,18 +286,7 @@ export default function QuickInsights({
   const monthlyBurnRate = totalSpending / monthsInRange
 
   // Cashback
-  const cashbackTransactions = allTransactions.filter(
-    (t) =>
-      t.category === 'Refund & Cashbacks' &&
-      t.type === 'Income' &&
-      (t.subcategory === 'Credit Card Cashbacks' || t.subcategory === 'Other Cashbacks')
-  )
-  const cashbackSharedTransactions = allTransactions.filter(
-    (t) => t.type === 'Transfer' && t.to_account === 'Cashback Shared'
-  )
-  const totalCashback = cashbackTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
-  const totalCashbackShared = cashbackSharedTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
-  const netCashback = totalCashback - totalCashbackShared
+  const { netCashback, cashbackCount } = computeNetCashback(allTransactions)
 
   const avgTransactionAmount = transactions.length > 0 ? totalSpending / transactions.length : 0
 
@@ -274,25 +325,8 @@ export default function QuickInsights({
   const incomeExpenseRatio = totalIncome > 0 ? totalExpenseAbs / totalIncome : 0
 
   // Most expensive month
-  const mostExpensiveMonth = (() => {
-    const byMonth: Record<string, number> = {}
-    for (const t of transactions) {
-      const key = t.date.slice(0, 7) // YYYY-MM
-      byMonth[key] = (byMonth[key] || 0) + Math.abs(t.amount)
-    }
-    const entries = Object.entries(byMonth)
-    if (entries.length === 0) return null
-    const [monthKey, amount] = entries.reduce((max, cur) => cur[1] > max[1] ? cur : max, entries[0])
-    const [y, m] = monthKey.split('-')
-    const label = new Date(Number(y), Number(m) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    return { label, amount }
-  })()
+  const mostExpensiveMonth = computeMostExpensiveMonth(transactions)
 
-  const fmtChange = (v: number | undefined, label: string) => {
-    if (v == null) return ''
-    const sign = v > 0 ? '+' : ''
-    return `${sign}${v}% ${label}`
-  }
   const incomeChange = fmtChange(momChanges?.income, momChanges?.label ?? '')
   const expenseChange = fmtChange(momChanges?.expense, momChanges?.label ?? '')
   const savingsChange = fmtChange(momChanges?.savings, momChanges?.label ?? '')
@@ -302,8 +336,8 @@ export default function QuickInsights({
     { icon: TrendingDown, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Total Expenses', value: formatCurrency(Math.abs(totalsData?.total_expenses ?? 0)), subtitle: expenseChange },
     { icon: DollarSign, color: 'text-app-blue', bg: 'bg-app-blue/10', title: 'Net Savings', value: formatCurrency(netSavings), subtitle: savingsChange },
     { icon: Percent, color: 'text-app-purple', bg: 'bg-app-purple/10', title: 'Savings Rate', value: `${savingsRate.toFixed(1)}%`, subtitle: totalIncome > 0 ? `${formatCurrency(netSavings)} saved of ${formatCurrency(totalIncome)}` : 'No income recorded' },
-    ...(ageOfMoney != null ? [{ icon: Hourglass, color: 'text-app-indigo', bg: 'bg-app-indigo/10', title: 'Age of Money', value: `${ageOfMoney} days`, subtitle: ageOfMoneyLabel(ageOfMoney) }] : []),
-    ...(daysOfBuffering != null ? [{ icon: ShieldCheck, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Days of Buffering', value: `${daysOfBuffering} days`, subtitle: 'At current spending rate' }] : []),
+    ...(ageOfMoney == null ? [] : [{ icon: Hourglass, color: 'text-app-indigo', bg: 'bg-app-indigo/10', title: 'Age of Money', value: `${ageOfMoney} days`, subtitle: ageOfMoneyLabel(ageOfMoney) }]),
+    ...(daysOfBuffering == null ? [] : [{ icon: ShieldCheck, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Days of Buffering', value: `${daysOfBuffering} days`, subtitle: 'At current spending rate' }]),
     ...(fixedCommitmentsMonthly > 0 ? [{ icon: Lock, color: 'text-app-orange', bg: 'bg-app-orange/10', title: 'Fixed Commitments', value: formatCurrency(fixedCommitmentsMonthly), subtitle: `${fixedCount} active recurring` }] : []),
     ...(fixedCommitmentsMonthly > 0 ? [{ icon: Repeat, color: 'text-app-yellow', bg: 'bg-app-yellow/10', title: 'Recurring Coverage', value: `${recurringCoverage.toFixed(1)}%`, subtitle: recurringCoverageLabel(recurringCoverage) }] : []),
   ]
@@ -311,7 +345,7 @@ export default function QuickInsights({
   const funFacts = [
     { icon: ShoppingBag, color: 'text-app-purple', bg: 'bg-app-purple/10', title: 'Top Spending Category', value: topCategory ? topCategory[0] : 'N/A', subtitle: topCategory ? formatCurrency(Math.abs((topCategory[1] as CategoryData).total)) : '' },
     { icon: Landmark, color: 'text-sky-400', bg: 'bg-sky-500/10', title: 'Top Income Source', value: topIncomeSource ? topIncomeSource[0] : 'N/A', subtitle: topIncomeSource ? formatCurrency(topIncomeSource[1]) : '' },
-    { icon: Gift, color: 'text-app-green', bg: 'bg-app-green/10', title: 'Net Cashback Earned', value: formatCurrency(netCashback), subtitle: `From ${cashbackTransactions.length} cashback transactions` },
+    { icon: Gift, color: 'text-app-green', bg: 'bg-app-green/10', title: 'Net Cashback Earned', value: formatCurrency(netCashback), subtitle: `From ${cashbackCount} cashback transactions` },
     { icon: TrendingUp, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Biggest Transaction', value: formatCurrency(Math.abs(biggestTransaction?.amount || 0)), subtitle: biggestTransaction?.category || '' },
     { icon: BarChart3, color: 'text-app-purple', bg: 'bg-app-purple/10', title: 'Median Transaction', value: formatCurrency(medianTransaction), subtitle: avgTransactionAmount > medianTransaction ? 'Few large purchases skew average up' : 'Spending is fairly even' },
     { icon: Zap, color: 'text-app-yellow', bg: 'bg-app-yellow/10', title: 'Average Daily Spending', value: formatCurrency(avgDailySpending), subtitle: `Over ${daysInRange} days` },
@@ -355,22 +389,6 @@ export default function QuickInsights({
       </div>
     )
   }
-
-  const InsightCard = ({ item }: { item: typeof quickInsights[number] }) => (
-    <motion.div
-      variants={fadeUpItem}
-      className="flex items-center gap-3 p-3 bg-white/[0.04] border border-border rounded-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-150"
-    >
-      <div className={`p-2 ${item.bg} rounded-lg shrink-0`}>
-        <item.icon className={`w-4 h-4 ${item.color}`} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-muted-foreground">{item.title}</p>
-        <p className="text-sm font-semibold text-white truncate">{item.value}</p>
-        {item.subtitle && <p className="text-[11px] text-text-tertiary truncate">{item.subtitle}</p>}
-      </div>
-    </motion.div>
-  )
 
   return (
     <div className="space-y-6">

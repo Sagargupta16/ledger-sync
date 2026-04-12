@@ -44,6 +44,47 @@ function linearRegression(x: number[], y: number[]): { slope: number; intercept:
   return { slope, intercept, rSquared }
 }
 
+function computeCategoryElasticity(
+  cat: string,
+  catMonths: Record<string, number>,
+  months: string[],
+  monthlyIncome: Record<string, number>,
+  minMonths: number,
+): ElasticityResult | null {
+  const incomeValues: number[] = []
+  const spendingValues: number[] = []
+
+  for (const m of months) {
+    if (monthlyIncome[m] > 0 && catMonths[m] !== undefined) {
+      incomeValues.push(monthlyIncome[m])
+      spendingValues.push(catMonths[m])
+    }
+  }
+
+  if (incomeValues.length < minMonths) return null
+
+  const { slope, rSquared } = linearRegression(incomeValues, spendingValues)
+  const meanIncome = incomeValues.reduce((a, b) => a + b, 0) / incomeValues.length
+  const meanSpending = spendingValues.reduce((a, b) => a + b, 0) / spendingValues.length
+
+  if (meanSpending === 0) return null
+
+  const elasticity = (slope * meanIncome) / meanSpending
+
+  let classification: ElasticityResult['classification']
+  if (elasticity > 1.1) classification = 'elastic'
+  else if (elasticity < 0.9) classification = 'inelastic'
+  else classification = 'unit-elastic'
+
+  return {
+    category: cat,
+    elasticity: Math.round(elasticity * 100) / 100,
+    rSquared: Math.round(rSquared * 100) / 100,
+    classification,
+    avgMonthly: Math.round(meanSpending),
+  }
+}
+
 export function computeElasticity(
   transactions: Array<{ type: string; category?: string; amount: number; date: string }>,
   minMonths = 6,
@@ -69,38 +110,8 @@ export function computeElasticity(
   const results: ElasticityResult[] = []
 
   for (const [cat, catMonths] of Object.entries(monthlyCatSpending)) {
-    const incomeValues: number[] = []
-    const spendingValues: number[] = []
-
-    for (const m of months) {
-      if (monthlyIncome[m] > 0 && catMonths[m] !== undefined) {
-        incomeValues.push(monthlyIncome[m])
-        spendingValues.push(catMonths[m])
-      }
-    }
-
-    if (incomeValues.length < minMonths) continue
-
-    const { slope, rSquared } = linearRegression(incomeValues, spendingValues)
-    const meanIncome = incomeValues.reduce((a, b) => a + b, 0) / incomeValues.length
-    const meanSpending = spendingValues.reduce((a, b) => a + b, 0) / spendingValues.length
-
-    if (meanSpending === 0) continue
-
-    const elasticity = (slope * meanIncome) / meanSpending
-
-    let classification: ElasticityResult['classification']
-    if (elasticity > 1.1) classification = 'elastic'
-    else if (elasticity < 0.9) classification = 'inelastic'
-    else classification = 'unit-elastic'
-
-    results.push({
-      category: cat,
-      elasticity: Math.round(elasticity * 100) / 100,
-      rSquared: Math.round(rSquared * 100) / 100,
-      classification,
-      avgMonthly: Math.round(meanSpending),
-    })
+    const result = computeCategoryElasticity(cat, catMonths, months, monthlyIncome, minMonths)
+    if (result) results.push(result)
   }
 
   // Sort by elasticity descending (most elastic first)
