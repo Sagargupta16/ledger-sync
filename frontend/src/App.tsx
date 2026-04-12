@@ -26,6 +26,7 @@ const pageImports = {
   MutualFundProjectionPage: () => import('@/pages/MutualFundProjectionPage'),
   ReturnsAnalysisPage: () => import('@/pages/ReturnsAnalysisPage'),
   TaxPlanningPage: () => import('@/pages/TaxPlanningPage'),
+  GSTAnalysisPage: () => import('@/pages/GSTAnalysisPage'),
   NetWorthPage: () => import('@/pages/NetWorthPage'),
   SpendingAnalysisPage: () => import('@/pages/SpendingAnalysisPage'),
   IncomeAnalysisPage: () => import('@/pages/IncomeAnalysisPage'),
@@ -49,6 +50,7 @@ const InvestmentAnalyticsPage = lazy(pageImports.InvestmentAnalyticsPage)
 const MutualFundProjectionPage = lazy(pageImports.MutualFundProjectionPage)
 const ReturnsAnalysisPage = lazy(pageImports.ReturnsAnalysisPage)
 const TaxPlanningPage = lazy(pageImports.TaxPlanningPage)
+const GSTAnalysisPage = lazy(pageImports.GSTAnalysisPage)
 const NetWorthPage = lazy(pageImports.NetWorthPage)
 const SpendingAnalysisPage = lazy(pageImports.SpendingAnalysisPage)
 const IncomeAnalysisPage = lazy(pageImports.IncomeAnalysisPage)
@@ -220,6 +222,7 @@ function App() {
                     <Route path={toRelativePath(ROUTES.MUTUAL_FUND_PROJECTION)} element={<MutualFundProjectionPage />} />
                     <Route path={toRelativePath(ROUTES.RETURNS_ANALYSIS)} element={<ReturnsAnalysisPage />} />
                     <Route path={toRelativePath(ROUTES.TAX_PLANNING)} element={<TaxPlanningPage />} />
+                    <Route path={toRelativePath(ROUTES.GST_ANALYSIS)} element={<GSTAnalysisPage />} />
                     <Route path={toRelativePath(ROUTES.NET_WORTH)} element={<NetWorthPage />} />
                     <Route path={toRelativePath(ROUTES.SPENDING_ANALYSIS)} element={<SpendingAnalysisPage />} />
                     <Route path={toRelativePath(ROUTES.INCOME_ANALYSIS)} element={<IncomeAnalysisPage />} />

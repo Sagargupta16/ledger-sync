@@ -22,6 +22,7 @@ export default function SidebarItem({
   return (
     <NavLink
       to={to}
+      end
       onClick={onNavigate}
       className={({ isActive }) =>
         cn(
