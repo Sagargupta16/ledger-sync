@@ -21,7 +21,13 @@ class StockPriceResponse(BaseModel):
     currency: str
 
 
-@router.get("/{symbol}", response_model=StockPriceResponse)
+@router.get(
+    "/{symbol}",
+    responses={
+        400: {"description": "Invalid symbol"},
+        502: {"description": "Could not fetch price from upstream"},
+    },
+)
 async def get_stock_price(
     symbol: str,
     request: Request,

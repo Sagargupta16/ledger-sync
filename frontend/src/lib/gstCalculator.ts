@@ -323,19 +323,21 @@ export function computeGSTAnalysis(
     const nearestSlab = GST_SLABS.reduce((prev, curr) =>
       Math.abs(curr - cat.gstRate) < Math.abs(prev - cat.gstRate) ? curr : prev,
     )
-    const entry = slabMap.get(nearestSlab)!
-    entry.spending += cat.spending
-    entry.gst += cat.gstAmount
-    entry.categories += 1
+    const entry = slabMap.get(nearestSlab)
+    if (entry) {
+      entry.spending += cat.spending
+      entry.gst += cat.gstAmount
+      entry.categories += 1
+    }
   }
 
   const slabBreakdown: GSTSlabBreakdown[] = GST_SLABS.map((slab) => {
-    const data = slabMap.get(slab)!
+    const data = slabMap.get(slab)
     return {
       slab,
-      spending: data.spending,
-      gstAmount: data.gst,
-      categoryCount: data.categories,
+      spending: data?.spending ?? 0,
+      gstAmount: data?.gst ?? 0,
+      categoryCount: data?.categories ?? 0,
     }
   }).filter((s) => s.spending > 0)
 
@@ -378,5 +380,5 @@ export function getExpenseFYs(
       fys.add(getFYFromDate(tx.date, fiscalYearStartMonth))
     }
   }
-  return Array.from(fys).sort().reverse()
+  return Array.from(fys).sort((a, b) => b.localeCompare(a))
 }
