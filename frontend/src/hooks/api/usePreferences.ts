@@ -41,12 +41,14 @@ function invalidatePreferenceDependents(queryClient: ReturnType<typeof useQueryC
 export function usePreferences() {
   const hydrateFromApi = usePreferencesStore((state) => state.hydrateFromApi)
   const accessToken = useAuthStore((state) => state.accessToken)
+  const isLoading = useAuthStore((state) => state.isLoading)
 
   const query = useQuery<UserPreferences>({
     queryKey: PREFERENCES_KEY,
     queryFn: () => preferencesService.getPreferences(),
-    // Only fetch when the user is authenticated (prevents 401 before login)
-    enabled: !!accessToken,
+    // Wait for useAuthInit to finish verifying the token before fetching.
+    // Without `!isLoading`, a stale token from localStorage triggers a 401.
+    enabled: !!accessToken && !isLoading,
     // Preferences only change on explicit save (mutations invalidate this key).
     staleTime: Infinity,
   })
