@@ -6,9 +6,9 @@ and account delete/reset. Login is handled by the OAuth router.
 Rate-limited refresh to prevent abuse (CWE-307).
 """
 
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -111,11 +111,17 @@ def delete_account(
 def reset_account(
     current_user: CurrentUser,
     auth_service: AuthServiceDep,
+    mode: Literal["full", "transactions"] = Query("full"),
 ) -> MessageResponse:
-    """Reset account to fresh state, keeping OAuth login.
+    """Reset account data, keeping OAuth login.
 
     Requires active authentication (JWT token).
-    Removes all data but preserves the account.
+
+    - **full** (default): Removes all data and recreates default preferences.
+    - **transactions**: Removes only transactions, import logs, and analytics.
+      Preserves preferences, budgets, goals, and account classifications.
     """
-    auth_service.reset_account(current_user)
+    auth_service.reset_account(current_user, transactions_only=(mode == "transactions"))
+    if mode == "transactions":
+        return MessageResponse(message="Transactions and analytics cleared. Preferences preserved.")
     return MessageResponse(message="Account reset to fresh state. All data cleared.")

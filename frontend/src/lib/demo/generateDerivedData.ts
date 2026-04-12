@@ -570,9 +570,10 @@ export function generateDemoMonthlySummaries(txs: Transaction[]): MonthlySummary
   })
 }
 
-export function generateDemoCategoryTrends(txs: Transaction[]): CategoryTrend[] {
-  const grouped: Record<string, Record<string, { total: number; count: number; amounts: number[] }>> = {}
+type GroupedEntry = { total: number; count: number; amounts: number[] }
 
+function groupTransactionsByMonth(txs: Transaction[]): Record<string, Record<string, GroupedEntry>> {
+  const grouped: Record<string, Record<string, GroupedEntry>> = {}
   for (const tx of txs) {
     if (isTransfer(tx)) continue
     const mk = monthKey(tx.date)
@@ -583,7 +584,38 @@ export function generateDemoCategoryTrends(txs: Transaction[]): CategoryTrend[] 
     grouped[mk][key].count++
     grouped[mk][key].amounts.push(tx.amount)
   }
+  return grouped
+}
 
+function buildTrendEntry(
+  mk: string,
+  key: string,
+  data: GroupedEntry,
+  prevData: GroupedEntry | null | undefined,
+): CategoryTrend {
+  const [category, subcategory] = key.split('|')
+  const avg = data.count > 0 ? data.total / data.count : 0
+  const momChange = prevData ? data.total - prevData.total : 0
+  const momChangePct = prevData && prevData.total > 0 ? (momChange / prevData.total) * 100 : null
+
+  return {
+    period: mk,
+    category,
+    subcategory: subcategory || null,
+    type: null,
+    total: data.total,
+    count: data.count,
+    avg,
+    max: Math.max(...data.amounts),
+    min: Math.min(...data.amounts),
+    pct_of_monthly: null,
+    mom_change: momChange,
+    mom_change_pct: momChangePct,
+  }
+}
+
+export function generateDemoCategoryTrends(txs: Transaction[]): CategoryTrend[] {
+  const grouped = groupTransactionsByMonth(txs)
   const sortedMonths = Object.keys(grouped).sort((a, b) => a.localeCompare(b))
   const trends: CategoryTrend[] = []
 
@@ -592,26 +624,8 @@ export function generateDemoCategoryTrends(txs: Transaction[]): CategoryTrend[] 
     const prevMk = i > 0 ? sortedMonths[i - 1] : null
 
     for (const [key, data] of Object.entries(grouped[mk])) {
-      const [category, subcategory] = key.split('|')
-      const avg = data.count > 0 ? data.total / data.count : 0
       const prevData = prevMk ? grouped[prevMk]?.[key] : null
-      const momChange = prevData ? data.total - prevData.total : 0
-      const momChangePct = prevData && prevData.total > 0 ? (momChange / prevData.total) * 100 : null
-
-      trends.push({
-        period: mk,
-        category,
-        subcategory: subcategory || null,
-        type: null,
-        total: data.total,
-        count: data.count,
-        avg,
-        max: Math.max(...data.amounts),
-        min: Math.min(...data.amounts),
-        pct_of_monthly: null,
-        mom_change: momChange,
-        mom_change_pct: momChangePct,
-      })
+      trends.push(buildTrendEntry(mk, key, data, prevData))
     }
   }
 

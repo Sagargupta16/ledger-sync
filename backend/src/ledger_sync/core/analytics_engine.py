@@ -1145,6 +1145,20 @@ class AnalyticsEngine:
         text = re.sub(r" #?\d+$", "", text)
         return text.strip() or None
 
+    def _load_confirmed_recurring(self) -> dict[str, RecurringTransaction]:
+        """Load user-confirmed recurring transactions keyed by lowercase pattern name."""
+        if self.user_id is None:
+            return {}
+        confirmed = (
+            self.db.query(RecurringTransaction)
+            .filter(
+                RecurringTransaction.user_id == self.user_id,
+                RecurringTransaction.is_user_confirmed.is_(True),
+            )
+            .all()
+        )
+        return {c.pattern_name.lower(): c for c in confirmed}
+
     def _detect_recurring_transactions(self, transactions: list[Transaction] | None = None) -> int:
         """Detect recurring transaction patterns by grouping on note (payee name)."""
         if transactions is None:
@@ -1169,20 +1183,7 @@ class AnalyticsEngine:
             del_stmt = del_stmt.where(RecurringTransaction.user_id == self.user_id)
         self.db.execute(del_stmt)
 
-        # Build set of confirmed pattern names to update instead of re-create
-        confirmed_names: dict[str, RecurringTransaction] = {}
-        if self.user_id is not None:
-            confirmed = (
-                self.db.query(RecurringTransaction)
-                .filter(
-                    RecurringTransaction.user_id == self.user_id,
-                    RecurringTransaction.is_user_confirmed.is_(True),
-                )
-                .all()
-            )
-            for c in confirmed:
-                confirmed_names[c.pattern_name.lower()] = c
-
+        confirmed_names = self._load_confirmed_recurring()
         min_conf = self.recurring_min_confidence
 
         count = 0

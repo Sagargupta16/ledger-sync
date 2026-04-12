@@ -34,7 +34,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/investments/analytics': 'Investment Analytics',
   '/investments/sip-projection': 'SIP Projections',
   '/investments/returns': 'Returns Analysis',
-  '/tax': 'Tax Planning',
+  '/tax': 'Income Tax',
+  '/tax/gst': 'Indirect Tax (GST)',
   '/upload': 'Upload & Sync',
   '/settings': 'Settings',
 }

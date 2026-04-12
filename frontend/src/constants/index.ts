@@ -22,8 +22,9 @@ export const ROUTES = {
   MUTUAL_FUND_PROJECTION: '/investments/sip-projection',
   RETURNS_ANALYSIS: '/investments/returns',
 
-  // Tax Planning
+  // Tax
   TAX_PLANNING: '/tax',
+  GST_ANALYSIS: '/tax/gst',
 
   // Net Worth
   NET_WORTH: '/net-worth',

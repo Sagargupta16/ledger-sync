@@ -56,6 +56,23 @@ function getVisibleWidgetKeys(): Set<string> | null {
   return null // null = show all
 }
 
+/** Legacy widget keys that users may have toggled in Settings */
+const LEGACY_WIDGET_KEYS = new Set([
+  'savings_rate', 'top_spending', 'top_income', 'cashback',
+  'total_transactions', 'biggest_transaction', 'median_transaction',
+  'daily_spending', 'weekend_spending', 'peak_day', 'burn_rate',
+  'spending_diversity', 'avg_transaction', 'total_transfers',
+])
+
+function filterByVisibility<T extends { title: string }>(items: T[], visibleKeys: Set<string> | null): T[] {
+  if (!visibleKeys) return items
+  return items.filter((i) => {
+    const key = TITLE_TO_WIDGET_KEY[i.title]
+    if (!key || !LEGACY_WIDGET_KEYS.has(key)) return true
+    return visibleKeys.has(key)
+  })
+}
+
 interface QuickInsightsProps {
   readonly dateRange?: { start_date?: string; end_date?: string }
   readonly ageOfMoney?: number | null
@@ -361,21 +378,6 @@ export default function QuickInsights({
 
   // Filter by user widget prefs
   const visibleKeys = useMemo(() => getVisibleWidgetKeys(), [])
-  // Legacy widget keys that users may have toggled in Settings
-  const LEGACY_KEYS = new Set([
-    'savings_rate', 'top_spending', 'top_income', 'cashback',
-    'total_transactions', 'biggest_transaction', 'median_transaction',
-    'daily_spending', 'weekend_spending', 'peak_day', 'burn_rate',
-    'spending_diversity', 'avg_transaction', 'total_transfers',
-  ])
-  const filterByVis = <T extends { title: string }>(items: T[]) => {
-    if (!visibleKeys) return items
-    return items.filter((i) => {
-      const key = TITLE_TO_WIDGET_KEY[i.title]
-      if (!key || !LEGACY_KEYS.has(key)) return true // new items always show
-      return visibleKeys.has(key)
-    })
-  }
 
   if (isLoading) {
     return (
@@ -397,7 +399,7 @@ export default function QuickInsights({
         className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
         variants={staggerContainer} initial="hidden" animate="visible"
       >
-        {filterByVis(quickInsights).map((item) => <InsightCard key={item.title} item={item} />)}
+        {filterByVisibility(quickInsights, visibleKeys).map((item) => <InsightCard key={item.title} item={item} />)}
       </motion.div>
 
       {/* Fun Facts */}
@@ -407,7 +409,7 @@ export default function QuickInsights({
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
           variants={staggerContainer} initial="hidden" animate="visible"
         >
-          {filterByVis(funFacts).map((item) => <InsightCard key={item.title} item={item} />)}
+          {filterByVisibility(funFacts, visibleKeys).map((item) => <InsightCard key={item.title} item={item} />)}
         </motion.div>
       </div>
     </div>

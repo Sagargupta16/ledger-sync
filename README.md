@@ -2,7 +2,7 @@
 
 **See where every rupee goes.** Import your bank statements, get instant insights, and finally understand your money -- all from a single, self-hosted dashboard you actually own.
 
-No subscriptions. No data harvesting. Just 23 pages of analytics built from your own Excel exports, running on your own infrastructure.
+No subscriptions. No data harvesting. Just 24 pages of analytics built from your own Excel exports, running on your own infrastructure.
 
 ![Version](https://img.shields.io/badge/version-2.0.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -28,7 +28,7 @@ No subscriptions. No data harvesting. Just 23 pages of analytics built from your
 - Client-side parsing via SheetJS -- files never leave your browser, only structured data is sent to the server
 - Browser-native SHA-256 hashing for intelligent duplicate detection
 - Idempotent syncing -- re-upload anytime without duplicates
-- Three-phase upload UX: Parsing (client) -> Uploading (network) -> Processing (server)
+- Four-phase upload UX: Parsing (client) -> Processing (server) -> Uploading -> Computing Analytics
 - Real-time toast notifications for upload status
 
 ### Spending Analysis
@@ -203,6 +203,7 @@ ledger-sync/
 | **Mutual Fund Projection** | SIP calculator and projections                      |
 | **Returns Analysis**       | Investment returns tracking                         |
 | **Tax Planning**           | India FY tax estimation with salary-based projections |
+| **Indirect Tax (GST)**     | GST estimation by slab rate, monthly trends, category breakdown |
 | **FIRE Calculator**        | FIRE number, Coast FIRE, retirement corpus planner  |
 | **Net Worth**              | Assets, liabilities, and credit card health         |
 | **Budget**                 | Budget tracking and monitoring                      |

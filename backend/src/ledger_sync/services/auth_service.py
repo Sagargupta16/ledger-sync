@@ -245,18 +245,55 @@ class AuthService:
         self.session.commit()
         logger.info("Account deleted: user_id=%s", user_id)
 
-    def reset_account(self, user: User) -> None:
-        """Reset account to fresh state, keeping the OAuth account.
+    def _delete_transaction_data(self, user_id: int) -> None:
+        """Delete transaction-derived data, preserving user preferences and goals.
 
-        Removes all data but preserves the user account and
-        creates fresh default preferences.
+        Removes transactions, import logs, analytics, and detected patterns
+        while keeping budgets, goals, account classifications, and preferences.
+        """
+        # Tables with FK to transactions — must be deleted first
+        self.session.query(Anomaly).filter(Anomaly.user_id == user_id).delete()
+
+        # Transaction-derived data
+        self.session.query(Transaction).filter(Transaction.user_id == user_id).delete()
+        self.session.query(ImportLog).filter(ImportLog.user_id == user_id).delete()
+        self.session.query(RecurringTransaction).filter(
+            RecurringTransaction.user_id == user_id
+        ).delete()
+        self.session.query(ScheduledTransaction).filter(
+            ScheduledTransaction.user_id == user_id
+        ).delete()
+
+        # Analytics / aggregation tables
+        self.session.query(MonthlySummary).filter(MonthlySummary.user_id == user_id).delete()
+        self.session.query(CategoryTrend).filter(CategoryTrend.user_id == user_id).delete()
+        self.session.query(TransferFlow).filter(TransferFlow.user_id == user_id).delete()
+        self.session.query(NetWorthSnapshot).filter(NetWorthSnapshot.user_id == user_id).delete()
+        self.session.query(MerchantIntelligence).filter(
+            MerchantIntelligence.user_id == user_id
+        ).delete()
+        self.session.query(FYSummary).filter(FYSummary.user_id == user_id).delete()
+        self.session.query(TaxRecord).filter(TaxRecord.user_id == user_id).delete()
+
+    def reset_account(self, user: User, *, transactions_only: bool = False) -> None:
+        """Reset account data, keeping the OAuth account.
+
+        Args:
+            user: The authenticated user.
+            transactions_only: If True, only delete transaction-derived data
+                (transactions, import logs, analytics). Preserves preferences,
+                budgets, goals, and account classifications.
         """
         user_id = user.id
-        self._delete_all_user_data(user_id)
 
-        # Create fresh default preferences
-        preferences = UserPreferences(user_id=user_id)
-        self.session.add(preferences)
+        if transactions_only:
+            self._delete_transaction_data(user_id)
+        else:
+            self._delete_all_user_data(user_id)
+            # Create fresh default preferences
+            preferences = UserPreferences(user_id=user_id)
+            self.session.add(preferences)
 
         self.session.commit()
-        logger.info("Account reset: user_id=%s", user_id)
+        mode = "transactions" if transactions_only else "full"
+        logger.info("Account reset (%s): user_id=%s", mode, user_id)

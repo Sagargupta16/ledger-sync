@@ -113,7 +113,8 @@ const navigationSections: NavSection[] = [
   {
     title: 'Tax',
     items: [
-      { path: ROUTES.TAX_PLANNING, label: 'Tax Summary', icon: Landmark },
+      { path: ROUTES.TAX_PLANNING, label: 'Income Tax', icon: Landmark },
+      { path: ROUTES.GST_ANALYSIS, label: 'Indirect Tax (GST)', icon: Receipt },
     ],
   },
 ]

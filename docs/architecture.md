@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ledger Sync is a self-hosted personal finance dashboard built as a full-stack application with clear separation between backend and frontend. The system imports Excel bank statements, reconciles transactions via SHA-256 hashing, and delivers 23 pages of financial analytics -- from spending breakdowns to investment tracking and tax projections -- with multi-currency display support.
+Ledger Sync is a self-hosted personal finance dashboard built as a full-stack application with clear separation between backend and frontend. The system imports Excel bank statements, reconciles transactions via SHA-256 hashing, and delivers 24 pages of financial analytics -- from spending breakdowns to investment tracking and tax projections -- with multi-currency display support.
 
 ## High-Level Architecture
 
@@ -136,7 +136,7 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
 #### 1. **Pages Layer** (`src/pages/`)
 
 - **Responsibility**: Screen-level components, layout, page composition
-- **Components** (23 pages):
+- **Components** (24 pages):
   - `HomePage` - Landing page
   - `DashboardPage` - Main dashboard with KPIs, sparklines, and quick insights
   - `UploadSyncPage` - Hero upload UI with sample format preview

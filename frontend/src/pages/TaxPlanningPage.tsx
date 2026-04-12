@@ -18,7 +18,7 @@ import {
 } from '@/lib/taxCalculator'
 import { projectFiscalYear, projectMultipleYears } from '@/lib/projectionCalculator'
 import type { Transaction } from '@/types'
-import type { ProjectedFYBreakdown } from '@/types/salary'
+import type { ProjectedFYBreakdown, SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/salary'
 import { PageHeader, ChartContainer, chartTooltipProps, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS, ACTIVE_DOT } from '@/components/ui'
 import { BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { rawColors } from '@/constants/colors'
@@ -125,6 +125,52 @@ function groupTransactionsByFY(
     }
   }
   return grouped
+}
+
+/** Compute the previous FY's display values for YoY comparison badges */
+function computePrevFYDisplay(
+  effectiveFY: string,
+  currentFYLabel: string,
+  transactionsByFY: Record<string, FYData>,
+  regimeOverride: TaxRegimeOverride,
+  preferredRegime: string,
+  hasSalaryData: boolean,
+  salaryStructure: Record<string, SalaryComponents>,
+  rsuGrants: RsuGrant[],
+  growthAssumptions: GrowthAssumptions,
+  fiscalYearStartMonth: number,
+  isNewRegime: boolean,
+): { net: number; gross: number; totalTax: number } | null {
+  if (!effectiveFY) return null
+  const startYear = parseFYStartYear(effectiveFY)
+  if (!startYear) return null
+  const prevStart = startYear - 1
+  const prevEnd = startYear % 100
+  const prevFYLabel = `FY ${prevStart}-${String(prevEnd).padStart(2, '0')}`
+
+  const currentStart = parseFYStartYear(currentFYLabel)
+  const prevIsComplete = prevStart < currentStart
+
+  if (prevIsComplete) {
+    const prevFYData = transactionsByFY[prevFYLabel]
+    if (prevFYData) {
+      const prevResult = computeTaxForFY(prevFYLabel, prevFYData.taxableIncome || 0, prevFYData.salaryMonths?.size || 0, regimeOverride, preferredRegime)
+      return { net: prevFYData.taxableIncome || 0, gross: prevResult.grossTaxableIncome, totalTax: prevResult.taxAlreadyPaid }
+    }
+  }
+
+  if (hasSalaryData) {
+    const prevFYForProjector = prevFYLabel.replace(/^FY\s+/i, '')
+    const prevProjection = projectFiscalYear(prevFYForProjector, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth)
+    if (prevProjection) {
+      const prevSlabs = getTaxSlabs(prevStart, isNewRegime ? 'new' : 'old')
+      const prevStdDeduction = getStandardDeduction(prevStart)
+      const prevTax = calculateTax(prevProjection.grossTaxable, prevSlabs, prevStdDeduction, true, 12, isNewRegime, prevStart)
+      return { net: prevProjection.grossTaxable - prevTax.totalTax, gross: prevProjection.grossTaxable, totalTax: prevTax.totalTax }
+    }
+  }
+
+  return null
 }
 
 type TaxRegimeOverride = 'new' | 'old' | null
@@ -500,6 +546,13 @@ export default function TaxPlanningPage() {
     }
   }, [salaryTaxResult, salaryProjection, grossTaxableIncome, netTaxableIncome, taxAlreadyPaid, baseTax, cess, professionalTax, slabBreakdown, rebate87A, surcharge, income])
 
+  // ── Previous FY values for YoY % change badges ─────────────────────
+
+  const prevFYDisplay = useMemo(
+    () => computePrevFYDisplay(effectiveFY, currentFYLabel, transactionsByFY, regimeOverride, preferredRegime, hasSalaryData, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth, isNewRegime),
+    [effectiveFY, currentFYLabel, transactionsByFY, regimeOverride, preferredRegime, hasSalaryData, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth, isNewRegime],
+  )
+
   // ── FY navigation ───────────────────────────────────────────────────
 
   const currentIndex = fyList.indexOf(effectiveFY)
@@ -558,6 +611,9 @@ export default function TaxPlanningPage() {
             grossTaxableIncome={display.gross}
             taxAlreadyPaid={display.totalTax}
             isProjecting={useSalaryProjection}
+            prevNetTaxableIncome={prevFYDisplay?.net}
+            prevGrossTaxableIncome={prevFYDisplay?.gross}
+            prevTaxAlreadyPaid={prevFYDisplay?.totalTax}
           />
         </motion.div>
 

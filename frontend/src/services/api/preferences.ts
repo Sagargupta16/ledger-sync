@@ -224,6 +224,13 @@ export const preferencesService = {
   updateRsuGrants: createSectionUpdater<RsuGrantsConfig>('rsu-grants'),
   updateGrowthAssumptions: createSectionUpdater<GrowthAssumptionsConfig>('growth-assumptions'),
 
+  async getStockPrice(symbol: string): Promise<{ symbol: string; price: number; currency: string }> {
+    const response = await apiClient.get<{ symbol: string; price: number; currency: string }>(
+      `/stock-price/${encodeURIComponent(symbol)}`,
+    )
+    return response.data
+  },
+
   async getExchangeRates(base: string = 'INR'): Promise<{
     base: string
     rates: Record<string, number>
