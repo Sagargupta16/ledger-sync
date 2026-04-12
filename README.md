@@ -28,7 +28,7 @@ No subscriptions. No data harvesting. Just 24 pages of analytics built from your
 - Client-side parsing via SheetJS -- files never leave your browser, only structured data is sent to the server
 - Browser-native SHA-256 hashing for intelligent duplicate detection
 - Idempotent syncing -- re-upload anytime without duplicates
-- Three-phase upload UX: Parsing (client) -> Uploading (network) -> Processing (server)
+- Four-phase upload UX: Parsing (client) -> Processing (server) -> Uploading -> Computing Analytics
 - Real-time toast notifications for upload status
 
 ### Spending Analysis

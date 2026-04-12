@@ -817,6 +817,35 @@ Pre-aggregated analytics data. All require authentication.
 | POST | `/api/analytics/v2/budgets` | Create a new budget |
 | POST | `/api/analytics/v2/goals` | Create a new financial goal |
 | POST | `/api/analytics/v2/anomalies/{id}/review` | Mark anomaly as reviewed |
+| POST | `/api/analytics/v2/refresh` | Recompute all pre-aggregated analytics tables |
+
+### Refresh Analytics
+
+**POST** `/api/analytics/v2/refresh`
+
+Recompute all pre-aggregated analytics tables (daily summaries, monthly summaries, category trends, transfer flows, merchants, recurring transactions, net worth, investment holdings, FY summaries, anomalies, budgets). Called by the frontend after a successful upload to ensure analytics data is fresh.
+
+Runs synchronously -- the response is only sent after all tables are updated. This replaces the previous `BackgroundTasks` approach which was unreliable on Vercel serverless.
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "analytics": {
+    "daily_summaries": 730,
+    "monthly_summaries": 24,
+    "category_trends": 156,
+    "transfer_flows": 42,
+    "merchants": 18,
+    "recurring": 12,
+    "investment_holdings": 5,
+    "fy_summaries": 3,
+    "anomalies": 7,
+    "budgets_updated": 4
+  }
+}
+```
 
 ---
 

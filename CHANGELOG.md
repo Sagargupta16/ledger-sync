@@ -29,10 +29,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **YoY % change badges** -- Tax Planning summary cards show year-over-year percentage changes comparing actual data for past FYs and salary projections for current/future FYs
 - **Stock price auto-fetch** -- RSU grant editor fetches live stock prices via Yahoo Finance backend proxy (`GET /api/stock-price/{symbol}`), auto-converts from stock currency to display currency
 - **Account reset modes** -- Profile modal offers two reset options: "Reset Transactions" (preserves preferences, budgets, goals) and "Complete Reset" (wipes everything); backend `POST /api/auth/account/reset` accepts `mode` query parameter (`full` | `transactions`)
+- **Analytics refresh endpoint** -- `POST /api/analytics/v2/refresh` recomputes all pre-aggregated analytics tables synchronously; called by the frontend after upload instead of relying on `BackgroundTasks` (which can be killed on Vercel serverless before completion)
 
 ### Changed
 
-- **Upload pipeline** -- three-phase UX (Parsing -> Uploading -> Processing) with clear progress indication; force-reupload reuses already-parsed data without re-parsing the file
+- **Upload pipeline** -- four-phase UX (Parsing -> Processing -> Uploading -> Computing Analytics) with clear progress indication; analytics refresh is a separate synchronous request for serverless reliability; force-reupload reuses already-parsed data without re-parsing the file
 - **Upload API** -- `POST /api/upload` now accepts `{ file_name, file_hash, rows, force }` JSON body instead of multipart file upload (breaking change)
 - **SheetJS upgraded** -- migrated from vulnerable npm `xlsx@0.18.5` to CDN-distributed `xlsx@0.20.3` (fixes GHSA-4r6h-8v6p-xvw6 Prototype Pollution and GHSA-5pgg-2g8v-p4x9 ReDoS)
 - **Upload error handling** -- Axios error codes mapped to user-friendly toast messages; conflict state (duplicate file) now offers force-reupload inline
