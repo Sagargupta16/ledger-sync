@@ -1,33 +1,21 @@
 """Upload API endpoint for pre-parsed transaction data.
 
 The frontend parses Excel/CSV files client-side and sends structured JSON rows.
-This endpoint validates, normalizes, hashes, reconciles, and runs analytics.
+This endpoint validates, normalizes, hashes, and reconciles transactions.
+Analytics recomputation is triggered separately via POST /api/analytics/v2/refresh.
 """
 
 import anyio
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.sync_engine import SyncEngine
-from ledger_sync.db.session import SessionLocal
 from ledger_sync.ingest.normalizer import NormalizationError
 from ledger_sync.schemas.transactions import UploadResponse
 from ledger_sync.schemas.upload import TransactionUploadRequest
 from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="", tags=["upload"])
-
-
-def _run_analytics_background(user_id: int, file_name: str) -> None:
-    """Run post-import analytics in a background task with its own DB session."""
-    session = SessionLocal()
-    try:
-        engine = SyncEngine(session, user_id=user_id)
-        engine.run_post_import_analytics(file_name)
-    except Exception as e:
-        logger.error("Background analytics failed: %s", e)
-    finally:
-        session.close()
 
 
 @router.post(
@@ -43,12 +31,13 @@ async def upload_transactions(
     payload: TransactionUploadRequest,
     current_user: CurrentUser,
     db: DatabaseSession,
-    background_tasks: BackgroundTasks,
 ) -> UploadResponse:
     """Upload pre-parsed transaction rows.
 
     The frontend parses Excel/CSV files and sends structured JSON.
-    This endpoint normalizes, hashes, reconciles, and runs analytics.
+    This endpoint normalizes, hashes, and reconciles transactions.
+    Analytics recomputation is triggered by the frontend via a
+    separate POST /api/analytics/v2/refresh call after upload.
 
     Args:
         payload: JSON body with file_name, file_hash, rows, and force flag.
@@ -80,8 +69,6 @@ async def upload_transactions(
                 force=payload.force,
             )
         )
-
-        background_tasks.add_task(_run_analytics_background, current_user.id, payload.file_name)
 
         return UploadResponse(
             success=True,

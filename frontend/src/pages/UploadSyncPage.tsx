@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useUpload } from '@/hooks/api/useUpload'
+import { uploadService } from '@/services/api/upload'
 import { parseFile, FileParseError } from '@/lib/fileParser'
 import type { ParseResult } from '@/lib/fileParser'
 import { motion } from 'framer-motion'
@@ -19,7 +20,7 @@ import { getApiErrorMessage } from '@/lib/errorUtils'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import type { AxiosError } from 'axios'
 
-type UploadPhase = 'parsing' | 'uploading' | 'processing' | null
+type UploadPhase = 'parsing' | 'uploading' | 'processing' | 'analytics' | null
 
 function getUploadErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError
@@ -39,7 +40,8 @@ function getUploadErrorMessage(error: unknown): string {
 const PHASE_LABELS: Record<NonNullable<UploadPhase>, string> = {
   parsing: 'Parsing file...',
   uploading: 'Uploading data...',
-  processing: 'Processing your data...',
+  processing: 'Processing transactions...',
+  analytics: 'Computing analytics...',
 }
 
 // Sample data to show expected Excel format
@@ -94,6 +96,15 @@ export default function UploadSyncPage() {
         rows: parsed.rows,
         force,
       })
+
+      // Phase 3: Recompute analytics (separate request for serverless reliability)
+      setPhase('analytics')
+      try {
+        await uploadService.refreshAnalytics()
+      } catch {
+        toast.warning('Analytics refresh failed — dashboard may show stale data until next upload.')
+      }
+
       setPhase(null)
       setSelectedFile(null)
 
@@ -138,6 +149,14 @@ export default function UploadSyncPage() {
         rows: parsed.rows,
         force: true,
       })
+
+      setPhase('analytics')
+      try {
+        await uploadService.refreshAnalytics()
+      } catch {
+        toast.warning('Analytics refresh failed — dashboard may show stale data until next upload.')
+      }
+
       setPhase(null)
       setSelectedFile(null)
 

@@ -27,4 +27,10 @@ export const uploadService = {
 
     return response.data
   },
+
+  refreshAnalytics: async (): Promise<void> => {
+    await apiClient.post('/api/analytics/v2/refresh', null, {
+      timeout: 120_000,
+    })
+  },
 }
