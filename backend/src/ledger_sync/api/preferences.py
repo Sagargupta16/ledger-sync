@@ -15,12 +15,13 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.encryption import decrypt_api_key, encrypt_api_key
 from ledger_sync.db.models import User, UserPreferences
 from ledger_sync.schemas.salary import (
     GrowthAssumptionsConfig,
@@ -700,3 +701,93 @@ def update_growth_assumptions(
 ) -> UserPreferencesResponse:
     """Update growth assumptions for tax projections."""
     return _update_section(session, current_user, config, json_fields={"growth_assumptions"})
+
+
+# ----- AI Assistant Configuration -----
+
+
+class AIConfigUpdate(BaseModel):
+    """AI assistant configuration."""
+
+    provider: str = Field(pattern=r"^(openai|anthropic|bedrock)$", description="LLM provider")
+    model: str = Field(min_length=1, max_length=100, description="Model ID")
+    api_key: str = Field(min_length=1, description="Provider API key (will be encrypted)")
+    region: str | None = Field(default=None, max_length=20, description="AWS region for Bedrock")
+
+
+class AIConfigResponse(BaseModel):
+    """AI config response (never includes raw key)."""
+
+    provider: str | None = None
+    model: str | None = None
+    has_key: bool = False
+    region: str | None = None
+
+
+@router.put("/ai-config")
+def update_ai_config(
+    current_user: CurrentUser,
+    config: AIConfigUpdate,
+    session: DatabaseSession,
+) -> AIConfigResponse:
+    """Store AI provider configuration with encrypted API key."""
+    prefs = _get_or_create_preferences(session, current_user)
+    prefs.ai_provider = config.provider
+    prefs.ai_model = config.model
+    if config.region and config.provider == "bedrock":
+        prefs.ai_model = f"{config.model}|{config.region}"
+    prefs.ai_api_key_encrypted = encrypt_api_key(config.api_key)
+    prefs.updated_at = datetime.now(UTC)
+    session.commit()
+    return AIConfigResponse(
+        provider=prefs.ai_provider,
+        model=config.model,
+        has_key=True,
+        region=config.region,
+    )
+
+
+@router.get("/ai-config")
+def get_ai_config(
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> AIConfigResponse:
+    """Get AI config (without the raw key)."""
+    prefs = _get_or_create_preferences(session, current_user)
+    model = prefs.ai_model
+    region = None
+    if model and "|" in model:
+        model, region = model.rsplit("|", 1)
+    return AIConfigResponse(
+        provider=prefs.ai_provider,
+        model=model,
+        has_key=prefs.ai_api_key_encrypted is not None,
+        region=region,
+    )
+
+
+@router.get("/ai-config/key")
+def get_ai_key(
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> dict[str, str]:
+    """Decrypt and return the API key for frontend LLM calls."""
+    prefs = _get_or_create_preferences(session, current_user)
+    if not prefs.ai_api_key_encrypted:
+        raise HTTPException(status_code=404, detail="No AI key configured")
+    return {"api_key": decrypt_api_key(prefs.ai_api_key_encrypted)}
+
+
+@router.delete("/ai-config")
+def delete_ai_config(
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> dict[str, str]:
+    """Remove AI configuration and encrypted key."""
+    prefs = _get_or_create_preferences(session, current_user)
+    prefs.ai_provider = None
+    prefs.ai_model = None
+    prefs.ai_api_key_encrypted = None
+    prefs.updated_at = datetime.now(UTC)
+    session.commit()
+    return {"status": "deleted"}

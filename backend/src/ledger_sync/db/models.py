@@ -1330,6 +1330,11 @@ class UserPreferences(Base):
     rsu_grants: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     growth_assumptions: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
 
+    # ── AI Assistant Configuration ───────────────────────────────────────
+    ai_provider: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
+    ai_model: Mapped[str | None] = mapped_column(String(100), nullable=True, default=None)
+    ai_api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
