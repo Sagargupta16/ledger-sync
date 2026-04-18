@@ -216,3 +216,7 @@ typings/
 .claude/
 .mcp.json
 .superpowers/
+
+# Added for consistency
+.env.*.local
+Thumbs.db
