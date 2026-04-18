@@ -18,6 +18,7 @@ import SalaryStructureSection from './settings/SalaryStructureSection'
 import FinancialSettingsSection from './settings/FinancialSettingsSection'
 import DisplayPreferencesSection from './settings/DisplayPreferencesSection'
 import NotificationsSection from './settings/NotificationsSection'
+import AIAssistantSection from './settings/AIAssistantSection'
 import AdvancedSection from './settings/AdvancedSection'
 import DashboardWidgetsSection from './settings/DashboardWidgetsSection'
 
@@ -147,6 +148,8 @@ export default function SettingsPage() {
           localGrowthAssumptions={s.localGrowthAssumptions}
           updateGrowthAssumptions={s.updateGrowthAssumptions}
         />
+
+        <AIAssistantSection index={sectionIndex++} />
 
         {s.localPrefs && (
           <FinancialSettingsSection

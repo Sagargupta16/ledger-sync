@@ -94,6 +94,10 @@ export interface UserPreferences {
   rsu_grants: RsuGrant[]
   growth_assumptions: GrowthAssumptions
 
+  // AI Assistant
+  ai_provider: string | null
+  ai_model: string | null
+
   // Metadata
   created_at: string | null
   updated_at: string | null
