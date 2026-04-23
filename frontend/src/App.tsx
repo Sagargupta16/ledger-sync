@@ -40,7 +40,7 @@ const pageImports = {
   GoalsPage: () => import('@/pages/GoalsPage'),
   InsightsPage: () => import('@/pages/InsightsPage'),
   SubscriptionTrackerPage: () => import('@/pages/SubscriptionTrackerPage'),
-  BillCalendarPage: () => import('@/pages/BillCalendarPage'),
+  BillCalendarPage: () => import('@/pages/bill-calendar/BillCalendarPage'),
   FIRECalculatorPage: () => import('@/pages/FIRECalculatorPage'),
 }
 
