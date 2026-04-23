@@ -45,7 +45,7 @@ export async function buildFinancialContext(): Promise<string> {
       apiClient.get<CategoryItem[]>('/api/calculations/category-breakdown', {
         params: { transaction_type: 'expense', limit: 10 },
       }),
-      apiClient.get<RecurringItem[]>('/api/analytics/v2/recurring'),
+      apiClient.get<RecurringItem[]>('/api/analytics/v2/recurring-transactions'),
       apiClient.get<NetWorthSnapshot[]>('/api/analytics/v2/net-worth', {
         params: { limit: 1 },
       }),

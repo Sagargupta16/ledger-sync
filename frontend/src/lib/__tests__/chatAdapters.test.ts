@@ -30,15 +30,15 @@ describe('buildAnthropicRequest', () => {
 })
 
 describe('buildBedrockRequest', () => {
-  it('formats for Bedrock Converse API', () => {
+  it('formats for backend Bedrock proxy', () => {
     const req = buildBedrockRequest({
-      model: 'us.anthropic.claude-sonnet-4-5-v2',
+      model: 'us.anthropic.claude-sonnet-4-6-v1',
       systemPrompt: 'Finance.',
       messages: [{ role: 'user', content: 'Test' }],
       region: 'us-east-1',
     })
-    expect(req.url).toContain('us-east-1')
-    expect(req.url).toContain('us.anthropic.claude-sonnet-4-5-v2')
-    expect(req.body.system).toEqual([{ text: 'Finance.' }])
+    expect(req.url).toBe('/api/ai/bedrock/chat')
+    expect(req.body.system_prompt).toBe('Finance.')
+    expect(req.body.messages[0]).toEqual({ role: 'user', content: 'Test' })
   })
 })

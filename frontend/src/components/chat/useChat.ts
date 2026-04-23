@@ -3,6 +3,7 @@ import type { ChatMessage } from '@/lib/chatAdapters'
 import { streamChat } from '@/lib/chatAdapters'
 import { buildFinancialContext } from '@/lib/chatContext'
 import { aiConfigService } from '@/services/api/aiConfig'
+import { useAuthStore } from '@/store/authStore'
 
 interface UseChatReturn {
   messages: ChatMessage[]
@@ -30,65 +31,54 @@ export function useChat(
       if (!provider || !model || isStreaming) return
 
       setError(null)
+      setIsStreaming(true)
+
       const userMsg: ChatMessage = { role: 'user', content }
+      const allMessages = [...messages, userMsg]
+      setMessages([...allMessages, { role: 'assistant', content: '' }])
 
-      setMessages((prev) => {
-        const updated = [...prev, userMsg]
-        doStream(updated, provider, model, region)
-        return updated
-      })
+      try {
+        const accessToken = useAuthStore.getState().accessToken
+        const apiKey = provider === 'bedrock' ? (accessToken ?? '') : await aiConfigService.getKey()
 
-      async function doStream(
-        allMessages: ChatMessage[],
-        prov: string,
-        mod: string,
-        reg: string | null,
-      ) {
-        setIsStreaming(true)
-        try {
-          const apiKey = await aiConfigService.getKey()
-
-          const now = Date.now()
-          if (!contextRef.current || now - contextTimestamp.current > 5 * 60 * 1000) {
-            contextRef.current = await buildFinancialContext()
-            contextTimestamp.current = now
-          }
-
-          setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
-
-          const controller = new AbortController()
-          abortRef.current = controller
-
-          await streamChat(prov, {
-            model: mod,
-            systemPrompt: contextRef.current,
-            messages: allMessages,
-            apiKey,
-            region: reg ?? undefined,
-            signal: controller.signal,
-            onToken: (token) => {
-              setMessages((prev) => {
-                const updated = [...prev]
-                const last = updated[updated.length - 1]
-                if (last.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, content: last.content + token }
-                }
-                return updated
-              })
-            },
-            onDone: () => setIsStreaming(false),
-            onError: (err) => {
-              setError(err)
-              setIsStreaming(false)
-            },
-          })
-        } catch (err: unknown) {
-          setError(err instanceof Error ? err.message : 'Failed to send message')
-          setIsStreaming(false)
+        const now = Date.now()
+        if (!contextRef.current || now - contextTimestamp.current > 5 * 60 * 1000) {
+          contextRef.current = await buildFinancialContext()
+          contextTimestamp.current = now
         }
+
+        const controller = new AbortController()
+        abortRef.current = controller
+
+        await streamChat(provider, {
+          model,
+          systemPrompt: contextRef.current,
+          messages: allMessages,
+          apiKey,
+          region: region ?? undefined,
+          signal: controller.signal,
+          onToken: (token) => {
+            setMessages((prev) => {
+              const updated = [...prev]
+              const last = updated.at(-1)
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = { ...last, content: last.content + token }
+              }
+              return updated
+            })
+          },
+          onDone: () => setIsStreaming(false),
+          onError: (err) => {
+            setError(err)
+            setIsStreaming(false)
+          },
+        })
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to send message')
+        setIsStreaming(false)
       }
     },
-    [provider, model, region, isStreaming],
+    [provider, model, region, isStreaming, messages],
   )
 
   const stop = useCallback(() => {

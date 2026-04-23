@@ -49,17 +49,16 @@ export function buildAnthropicRequest(params: BuildParams) {
 }
 
 export function buildBedrockRequest(params: BuildParams) {
-  const region = params.region ?? 'us-east-1'
   return {
-    url: `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(params.model)}/converse-stream`,
+    url: '/api/ai/bedrock/chat',
     headers: { 'Content-Type': 'application/json' },
     body: {
       messages: params.messages.map((m) => ({
         role: m.role,
-        content: [{ text: m.content }],
+        content: m.content,
       })),
-      system: [{ text: params.systemPrompt }],
-      inferenceConfig: { maxTokens: 1024 },
+      system_prompt: params.systemPrompt,
+      max_tokens: 1024,
     },
   }
 }
@@ -146,30 +145,13 @@ async function streamBedrock(params: StreamParams) {
   })
   if (!response.ok) {
     const err = await response.json().catch(() => ({}))
-    throw new Error(err.message ?? `Bedrock error ${response.status}`)
+    throw new Error((err as { detail?: string }).detail ?? `Bedrock error ${response.status}`)
   }
-  const reader = response.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop()!
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      try {
-        const json = JSON.parse(trimmed)
-        const token = (json as { contentBlockDelta?: { delta?: { text?: string } } })
-          .contentBlockDelta?.delta?.text
-        if (token) params.onToken(token)
-      } catch {
-        // skip
-      }
-    }
-  }
+  await parseSSEStream(
+    response.body!.getReader(),
+    (json) => (json as { token?: string }).token,
+    params.onToken,
+  )
   params.onDone()
 }
 

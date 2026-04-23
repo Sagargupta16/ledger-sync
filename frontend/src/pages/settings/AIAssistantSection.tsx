@@ -13,25 +13,32 @@ const PROVIDERS = [
 
 const MODELS: Record<string, { value: string; label: string }[]> = {
   openai: [
-    { value: 'gpt-4o', label: 'GPT-4o' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'o3', label: 'O3' },
+    { value: 'o4-mini', label: 'O4 Mini' },
     { value: 'gpt-4.1', label: 'GPT-4.1' },
     { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
     { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
+    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
   ],
   anthropic: [
-    { value: 'claude-sonnet-4-5-20250514', label: 'Claude Sonnet 4.5' },
+    { value: 'claude-opus-4-7', label: 'Claude Opus 4.7' },
+    { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
     { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
   ],
   bedrock: [
-    { value: 'us.anthropic.claude-sonnet-4-5-v2', label: 'Claude Sonnet 4.5 (Bedrock)' },
-    { value: 'us.anthropic.claude-haiku-4-5-v2', label: 'Claude Haiku 4.5 (Bedrock)' },
+    { value: 'us.anthropic.claude-opus-4-7-v1', label: 'Claude Opus 4.7 (Bedrock)' },
+    { value: 'us.anthropic.claude-opus-4-6-v1', label: 'Claude Opus 4.6 (Bedrock)' },
+    { value: 'us.anthropic.claude-sonnet-4-6-v1', label: 'Claude Sonnet 4.6 (Bedrock)' },
+    { value: 'us.anthropic.claude-haiku-4-5-v1', label: 'Claude Haiku 4.5 (Bedrock)' },
   ],
 }
 
 interface Props {
   index: number
 }
+
+const isBedrock = (p: string) => p === 'bedrock'
 
 export default function AIAssistantSection({ index }: Readonly<Props>) {
   const queryClient = useQueryClient()
@@ -68,17 +75,19 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   })
 
   const handleSave = () => {
-    if (!provider || !model || !apiKey) return
+    if (!provider || !model) return
+    if (!isBedrock(provider) && !apiKey) return
     saveMutation.mutate({
       provider,
       model,
-      api_key: apiKey,
-      region: provider === 'bedrock' ? region : undefined,
+      api_key: isBedrock(provider) ? 'bedrock-uses-aws-credentials' : apiKey,
+      region: isBedrock(provider) ? region : undefined,
     })
   }
 
   const handleTest = async () => {
-    if (!provider || !model || !apiKey) return
+    if (!provider || !model) return
+    if (!isBedrock(provider) && !apiKey) return
     setTestStatus('testing')
     setTestError('')
     try {
@@ -108,8 +117,11 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
           messages: [{ role: 'user', content: testPrompt }],
           max_tokens: 5,
         })
+      } else if (isBedrock(provider)) {
+        setTestError('Save config, then test via the chat widget (Bedrock uses server-side AWS credentials)')
+        setTestStatus('error')
+        return
       } else {
-        setTestStatus('success')
         return
       }
 
@@ -130,6 +142,8 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   }
 
   const providerModels = MODELS[provider] ?? []
+  const needsApiKey = provider && !isBedrock(provider)
+  const canSave = provider && model && (isBedrock(provider) || apiKey)
 
   if (isLoading) return null
 
@@ -164,8 +178,9 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
             ))}
           </select>
           <FieldHint>
-            Your API key is encrypted and stored securely. LLM calls go directly from your browser
-            to the provider.
+            {isBedrock(provider)
+              ? 'Bedrock uses server-side AWS credentials (env vars or ~/.aws/credentials).'
+              : 'Your API key is encrypted and stored securely. LLM calls go directly from your browser to the provider.'}
           </FieldHint>
         </div>
 
@@ -187,7 +202,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
           </div>
         )}
 
-        {provider === 'bedrock' && (
+        {isBedrock(provider) && (
           <div>
             <FieldLabel htmlFor="ai-region">AWS Region</FieldLabel>
             <input
@@ -201,7 +216,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
           </div>
         )}
 
-        {provider && (
+        {needsApiKey && (
           <div>
             <FieldLabel htmlFor="ai-key">
               {config?.has_key ? 'Update API Key' : 'API Key'}
@@ -233,18 +248,20 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
 
         {provider && (
           <div className="flex items-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={handleTest}
-              disabled={!apiKey || testStatus === 'testing'}
-              className="px-4 py-2 text-sm bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors disabled:opacity-40"
-            >
-              {testStatus === 'testing' ? 'Testing...' : 'Test Connection'}
-            </button>
+            {!isBedrock(provider) && (
+              <button
+                type="button"
+                onClick={handleTest}
+                disabled={!apiKey || testStatus === 'testing'}
+                className="px-4 py-2 text-sm bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors disabled:opacity-40"
+              >
+                {testStatus === 'testing' ? 'Testing...' : 'Test Connection'}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleSave}
-              disabled={!apiKey || !model || saveMutation.isPending}
+              disabled={!canSave || saveMutation.isPending}
               className="px-4 py-2 text-sm bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg disabled:opacity-40 font-medium"
             >
               {saveMutation.isPending ? 'Saving...' : 'Save'}

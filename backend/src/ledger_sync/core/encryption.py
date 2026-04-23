@@ -35,10 +35,20 @@ def encrypt_api_key(plaintext: str) -> str:
     return base64.b64encode(nonce + ciphertext).decode()
 
 
+class DecryptionError(Exception):
+    """Raised when decryption fails (e.g. key changed between restarts)."""
+
+
 def decrypt_api_key(encrypted: str) -> str:
     key = _derive_key()
     raw = base64.b64decode(encrypted)
     nonce = raw[:_NONCE_LENGTH]
     ciphertext = raw[_NONCE_LENGTH:]
     aesgcm = AESGCM(key)
-    return aesgcm.decrypt(nonce, ciphertext, None).decode()
+    try:
+        return aesgcm.decrypt(nonce, ciphertext, None).decode()
+    except Exception as exc:
+        raise DecryptionError(
+            "Cannot decrypt API key -- the server secret likely changed since the key "
+            "was saved. Please re-enter your API key in Settings."
+        ) from exc

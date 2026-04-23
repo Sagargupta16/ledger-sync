@@ -21,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.core.encryption import decrypt_api_key, encrypt_api_key
+from ledger_sync.core.encryption import DecryptionError, decrypt_api_key, encrypt_api_key
 from ledger_sync.db.models import User, UserPreferences
 from ledger_sync.schemas.salary import (
     GrowthAssumptionsConfig,
@@ -775,7 +775,10 @@ def get_ai_key(
     prefs = _get_or_create_preferences(session, current_user)
     if not prefs.ai_api_key_encrypted:
         raise HTTPException(status_code=404, detail="No AI key configured")
-    return {"api_key": decrypt_api_key(prefs.ai_api_key_encrypted)}
+    try:
+        return {"api_key": decrypt_api_key(prefs.ai_api_key_encrypted)}
+    except DecryptionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.delete("/ai-config")
