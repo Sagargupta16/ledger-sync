@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar/Sidebar'
 import CommandPalette from '@/components/shared/CommandPalette'
+import ChatWidget from '@/components/chat/ChatWidget'
 import { DemoBanner } from '@/components/shared/DemoBanner'
 import { useDemoStore } from '@/store/demoStore'
 import { useExchangeRate } from '@/hooks/api/useExchangeRate'
@@ -91,6 +92,7 @@ export default function AppLayout() {
 
       {/* Global command palette — Cmd+K / Ctrl+K */}
       <CommandPalette />
+      <ChatWidget />
     </div>
   )
 }

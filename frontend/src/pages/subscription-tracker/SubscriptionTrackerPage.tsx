@@ -16,7 +16,7 @@ import {
   useDeleteRecurringTransaction,
 } from '@/hooks/api/useAnalyticsV2'
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
-import { SummaryCard } from './SummaryCard'
+import { SummaryCard } from './components/SummaryCard'
 import { toMonthlyAmount, capitalize, formatDate } from './helpers'
 
 // ── Suggestions ──────────────────────────────────────────────────────────────

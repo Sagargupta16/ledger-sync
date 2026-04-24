@@ -4,12 +4,12 @@ import { rawColors } from '@/constants/colors'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/ui'
 import { useComparisonData } from './useComparisonData'
-import { PeriodSelector } from './PeriodSelector'
-import { KpiCard } from './KpiCard'
-import { OverviewMetricRow } from './OverviewMetricRow'
-import { QuickStat } from './QuickStat'
-import { SpendingDistribution } from './SpendingDistribution'
-import { CategorySection } from './CategorySection'
+import { PeriodSelector } from './components/PeriodSelector'
+import { KpiCard } from './components/KpiCard'
+import { OverviewMetricRow } from './components/OverviewMetricRow'
+import { QuickStat } from './components/QuickStat'
+import { SpendingDistribution } from './components/SpendingDistribution'
+import { CategorySection } from './components/CategorySection'
 
 export default function ComparisonPage() {
   const {

@@ -178,6 +178,8 @@ export function generateDemoPreferences(): UserPreferences {
       stock_price_appreciation_pct: 12,
       projection_years: 3,
     },
+    ai_provider: null,
+    ai_model: null,
     created_at: null,
     updated_at: null,
   }

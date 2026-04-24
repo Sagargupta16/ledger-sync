@@ -18,6 +18,7 @@ from sqlalchemy.exc import OperationalError
 from ledger_sync.api.account_classifications import (
     router as account_classifications_router,
 )
+from ledger_sync.api.ai_chat import router as ai_chat_router
 from ledger_sync.api.analytics import router as analytics_router
 from ledger_sync.api.analytics_v2 import router as analytics_v2_router
 from ledger_sync.api.auth import router as auth_router
@@ -250,6 +251,7 @@ app.include_router(transactions_router)
 app.include_router(upload_router)
 app.include_router(exchange_rates_router)
 app.include_router(stock_price_router)
+app.include_router(ai_chat_router)
 
 
 # ─── Health Check ────────────────────────────────────────────────────────────
