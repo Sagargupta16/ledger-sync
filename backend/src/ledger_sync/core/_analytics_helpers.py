@@ -86,6 +86,30 @@ def resolve_pattern_display(
     }
 
 
+def infer_expected_day_of_month(days: list[int]) -> int | None:
+    """Infer the intended billing day from observed day-of-month values.
+
+    For a subscription set to the 31st, short months clamp it to 28/30, producing
+    values like [31, 28, 31, 30, 31]. A plain mode can pick the wrong "canonical"
+    day. Heuristic:
+
+    - If any observation is >= 25, assume a late-month bill and return the max
+      (the "intended" day before short-month clamping).
+    - Otherwise return the median (robust to occasional 1-day drifts like
+      weekend settlement lag).
+    """
+    if not days:
+        return None
+    if max(days) >= 25:
+        return max(days)
+    sorted_days = sorted(days)
+    mid = len(sorted_days) // 2
+    if len(sorted_days) % 2 == 1:
+        return sorted_days[mid]
+    # For even count, pick the lower median (integers, no averaging)
+    return sorted_days[mid - 1]
+
+
 def aggregate_holdings_data(
     transactions: list[Transaction],
     is_investment_account: Callable[[str | None], bool],

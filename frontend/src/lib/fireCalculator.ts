@@ -61,9 +61,15 @@ export function computeFatFIRE(fireNumber: number): number {
 }
 
 /**
- * Years to FIRE using compound growth formula
- * Formula: ln(FIRE * SWR / annualSavings + 1) / ln(1 + realReturn)
- * Accounts for existing portfolio value
+ * Years to FIRE, solving for n in the future-value equation:
+ *   P(1+r)^n + S * [((1+r)^n - 1) / r] = F
+ * where P = current portfolio, S = annual savings, r = real return, F = FIRE number.
+ *
+ * Rearranged:
+ *   (1+r)^n = (F + S/r) / (P + S/r)
+ *   n = ln((F + S/r) / (P + S/r)) / ln(1 + r)
+ *
+ * Handles edge cases: already at FIRE, zero savings, zero return, zero portfolio.
  */
 export function computeYearsToFIRE(
   fireNumber: number,
@@ -71,13 +77,26 @@ export function computeYearsToFIRE(
   realReturn: number,
   currentPortfolio = 0,
 ): number {
-  if (annualSavings <= 0 || realReturn <= 0) return Infinity
-  const target = fireNumber - currentPortfolio * Math.pow(1 + realReturn, 1)
-  if (target <= 0) return 0
-  // Future value of annuity formula solved for n
-  const fvFactor = (target * realReturn) / annualSavings + 1
-  if (fvFactor <= 0) return Infinity
-  return Math.max(0, Math.log(fvFactor) / Math.log(1 + realReturn))
+  // Already there
+  if (currentPortfolio >= fireNumber) return 0
+
+  // Zero-growth case: portfolio never grows, must reach via savings alone
+  if (realReturn <= 0) {
+    if (annualSavings <= 0) return Infinity
+    return Math.max(0, (fireNumber - currentPortfolio) / annualSavings)
+  }
+
+  // Zero-savings case: pure compounding of existing portfolio
+  if (annualSavings <= 0) {
+    if (currentPortfolio <= 0) return Infinity
+    return Math.max(0, Math.log(fireNumber / currentPortfolio) / Math.log(1 + realReturn))
+  }
+
+  // General case: both portfolio growth and ongoing savings
+  const savingsPerpetuity = annualSavings / realReturn
+  const ratio = (fireNumber + savingsPerpetuity) / (currentPortfolio + savingsPerpetuity)
+  if (ratio <= 0) return Infinity
+  return Math.max(0, Math.log(ratio) / Math.log(1 + realReturn))
 }
 
 /**
