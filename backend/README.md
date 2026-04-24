@@ -1,6 +1,6 @@
 # Ledger Sync -- Backend
 
-FastAPI backend powering the Ledger Sync personal finance dashboard. Handles Excel import, transaction reconciliation, financial analytics, exchange rate proxying, and user preferences.
+FastAPI backend powering the Ledger Sync personal finance dashboard. Handles Excel import, transaction reconciliation, financial analytics, exchange rate proxying, user preferences, AI assistant configuration with encrypted key storage, and Bedrock streaming proxy.
 
 ## Features
 
@@ -10,6 +10,8 @@ FastAPI backend powering the Ledger Sync personal finance dashboard. Handles Exc
 - Financial analytics and calculations
 - SQLite (dev) / PostgreSQL (prod) with SQLAlchemy ORM
 - Alembic database migrations
+- AI assistant config with AES-256-GCM encrypted API keys (PBKDF2 + per-ciphertext random salt)
+- Bedrock streaming proxy via boto3 (SigV4 auth + EventStream parsing)
 
 ## Tech Stack
 
@@ -45,34 +47,49 @@ Backend available at http://localhost:8000
 ```
 backend/
 ├── src/ledger_sync/
-│   ├── api/              # FastAPI endpoints
+│   ├── api/              # FastAPI routers (one file per resource)
 │   │   ├── main.py       # Application entry point
 │   │   ├── auth.py       # Token refresh, logout, profile
 │   │   ├── oauth.py      # Google/GitHub OAuth login
-│   │   ├── analytics.py  # Analytics endpoints
-│   │   ├── analytics_v2.py # V2 analytics
-│   │   ├── calculations.py # Calculations
-│   │   ├── preferences.py  # User preferences
-│   │   └── account_classifications.py
+│   │   ├── analytics.py  # On-the-fly analytics
+│   │   ├── analytics_v2.py  # Pre-aggregated analytics
+│   │   ├── calculations.py  # Financial calculation endpoints
+│   │   ├── preferences.py   # User preferences (incl. AI config)
+│   │   ├── ai_chat.py       # Bedrock streaming proxy
+│   │   ├── account_classifications.py
+│   │   ├── exchange_rates.py, stock_price.py
+│   │   └── meta.py, reports.py, transactions.py, upload.py
 │   ├── core/             # Business logic
-│   │   ├── reconciler.py # Transaction reconciliation
-│   │   ├── calculator.py # Financial calculations
-│   │   └── analytics_engine.py
+│   │   ├── reconciler.py          # Transaction reconciliation
+│   │   ├── calculator.py          # Financial calculations
+│   │   ├── analytics_engine.py    # Heavy analytics computation
+│   │   ├── _analytics_helpers.py  # Module-level helpers for analytics_engine
+│   │   ├── encryption.py          # AES-256-GCM for API keys
+│   │   ├── sync_engine.py         # Upload orchestration
+│   │   ├── query_helpers.py       # Shared SQL aggregation helpers
+│   │   ├── time_filter.py, insights.py, report_generator.py
+│   │   └── auth/                  # JWT token creation/verification
 │   ├── db/               # Database layer
-│   │   ├── models.py     # SQLAlchemy models
-│   │   └── session.py    # Database session
-│   ├── ingest/           # Data ingestion
-│   │   ├── excel_loader.py # Excel processing
-│   │   ├── normalizer.py # Data normalization
-│   │   ├── validator.py  # Validation
-│   │   └── hash_id.py    # Hash ID generation
+│   │   ├── models.py     # 21-line facade that re-exports from _models/
+│   │   ├── _models/      # Split by bounded context
+│   │   │   ├── __init__.py, _constants.py, enums.py
+│   │   │   ├── user.py, transactions.py
+│   │   │   └── investments.py, analytics.py, planning.py
+│   │   ├── session.py    # Database session
+│   │   ├── base.py
+│   │   └── migrations/versions/  # Alembic migrations
+│   ├── schemas/          # Pydantic request/response models
+│   ├── services/         # Cross-cutting services
+│   ├── ingest/           # Data ingestion (CLI path only)
+│   │   ├── excel_loader.py, csv_loader.py
+│   │   ├── normalizer.py, validator.py, hash_id.py
 │   ├── config/           # Configuration
-│   │   └── settings.py   # App settings
+│   │   └── settings.py
 │   └── utils/            # Utilities
 ├── tests/                # Test suite
-│   ├── unit/            # Unit tests
-│   └── integration/     # Integration tests
-└── alembic/             # Database migrations
+│   ├── unit/             # Unit tests
+│   └── integration/      # Integration tests
+└── pyproject.toml        # Dependencies (uv)
 ```
 
 ## API Endpoints

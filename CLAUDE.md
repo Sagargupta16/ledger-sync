@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ledger Sync is a self-hosted personal finance dashboard that turns Excel bank statements into 24 pages of analytics -- spending breakdowns, investment tracking, tax planning, cash flow visualization, and more. Supports multi-currency display with live exchange rates. Monorepo: Python FastAPI backend + React TypeScript frontend.
+Ledger Sync is a self-hosted personal finance dashboard that turns Excel bank statements into 24 pages of analytics -- spending breakdowns, investment tracking, tax planning, cash flow visualization, AI-powered chat, and more. Supports multi-currency display with live exchange rates. Monorepo: Python FastAPI backend + React TypeScript frontend.
 
 ## Commands
 
@@ -75,23 +75,23 @@ Root `package.json` uses `concurrently` to coordinate both services. Backend use
 
 Layered architecture:
 
-- **`api/`** - FastAPI routers. Each file is a router module (auth, oauth, upload, transactions, analytics, analytics_v2, calculations, preferences, account_classifications, exchange_rates, stock_price, meta, reports). Routers are registered in `main.py`. All endpoints require JWT auth via `get_current_user` dependency from `deps.py`. `oauth.py` handles Google/GitHub authorization code exchange. `preferences.py` includes salary-structure, rsu-grants, and growth-assumptions endpoints.
-- **`core/`** - Business logic. `sync_engine.py` orchestrates imports -- `import_rows()` for JSON uploads from the frontend, `import_file()` for CLI file imports. `reconciler.py` handles deduplication via SHA-256 hashing. `calculator.py` and `analytics_engine.py` compute financial metrics. `query_helpers.py` provides shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`) used by both `calculations.py` and `analytics.py`. `insights.py` generates smart financial insights. `report_generator.py` builds exportable reports. `time_filter.py` handles date range/fiscal year filtering logic. `core/auth/` handles JWT token creation/verification.
+- **`api/`** - FastAPI routers. Each file is a router module (auth, oauth, upload, transactions, analytics, analytics_v2, calculations, preferences, account_classifications, exchange_rates, stock_price, meta, reports, ai_chat). Routers are registered in `main.py`. All endpoints require JWT auth via `get_current_user` dependency from `deps.py`. `oauth.py` handles Google/GitHub authorization code exchange. `preferences.py` includes salary-structure, rsu-grants, growth-assumptions, and ai-config endpoints. `ai_chat.py` proxies Bedrock streaming calls (required because Bedrock needs SigV4 auth and doesn't support CORS).
+- **`core/`** - Business logic. `sync_engine.py` orchestrates imports -- `import_rows()` for JSON uploads from the frontend, `import_file()` for CLI file imports. `reconciler.py` handles deduplication via SHA-256 hashing. `calculator.py` and `analytics_engine.py` compute financial metrics (with module-level helpers extracted to `_analytics_helpers.py`). `query_helpers.py` provides shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`) used by both `calculations.py` and `analytics.py`. `insights.py` generates smart financial insights. `report_generator.py` builds exportable reports. `time_filter.py` handles date range/fiscal year filtering logic. `encryption.py` provides AES-256-GCM encrypt/decrypt for API keys (PBKDF2-HMAC-SHA256 with per-ciphertext random salt). `core/auth/` handles JWT token creation/verification.
 - **`ingest/`** - Data ingestion pipeline used by CLI: `excel_loader.py` -> `normalizer.py` -> `validator.py` -> `hash_id.py`. The web upload path bypasses the file loaders -- frontend parses files client-side and sends structured JSON; `normalizer.normalize_from_dict()` handles dict-based normalization.
-- **`db/`** - SQLAlchemy 2.0 models and session factory. `models.py` defines all tables (users, transactions, import_logs, user_preferences, investment_accounts, budget_goals, recurring_transactions, anomalies, account_classifications). All data is user-scoped. `user_preferences` includes JSON columns for `salary_structure`, `rsu_grants`, and `growth_assumptions`.
+- **`db/`** - SQLAlchemy 2.0 models and session factory. `models.py` is a 21-line facade that re-exports from the `_models/` package (split by domain: `enums.py`, `user.py`, `transactions.py`, `investments.py`, `analytics.py`, `planning.py`). All consumer imports use `from ledger_sync.db.models import X` -- never import directly from `_models`. All data is user-scoped. `user_preferences` includes JSON columns for `salary_structure`, `rsu_grants`, `growth_assumptions`, plus `ai_provider`, `ai_model`, `ai_api_key_encrypted` columns.
 - **`schemas/`** - Pydantic models for request/response validation. Includes `upload.py` with `TransactionRow` and `TransactionUploadRequest` for JSON upload validation, and `salary.py` with `SalaryComponents`, `RsuGrant`, `GrowthAssumptions` schemas for tax projection inputs.
 - **`config/settings.py`** - Pydantic BaseSettings. All env vars prefixed with `LEDGER_SYNC_` (e.g., `LEDGER_SYNC_DATABASE_URL`, `LEDGER_SYNC_JWT_SECRET_KEY`).
 
 ### Frontend (`frontend/src/`)
 
-- **`pages/`** - 24 page components, all lazy-loaded via `React.lazy` for code splitting. Pages import directly (no barrel re-export). Includes FIRECalculatorPage, SubscriptionTrackerPage, BillCalendarPage, InsightsPage, and YearInReviewPage. `settings/SalaryStructureSection.tsx` provides salary CTC grid, RSU grant editor, and growth assumption sliders.
-- **`components/`** - Organized by domain: `analytics/` (chart components including `CategoryBreakdown` for shared category treemaps), `layout/` (AppLayout, Sidebar with ProfileModal), `shared/` (reusable components like MetricCard, AnalyticsTimeFilter, ProtectedRoute, ProfileModal, ChunkErrorBoundary, EmptyState, QuickInsights), `transactions/`, `upload/`, `ui/` (base primitives including ChartContainer, PageHeader, ConfirmDialog, CollapsibleSection).
+- **`pages/`** - 24 page components, all lazy-loaded via `React.lazy` for code splitting. Pages import directly (no barrel re-export). **Structure convention**: multi-file pages use kebab-case directories (`bill-calendar/`, `year-in-review/`, `tax-planning/`, `trends-forecasts/`, `comparison/`, `goals/`, `income-expense-flow/`, `settings/`, `subscription-tracker/`) -- each containing `PageName.tsx` + `use<Page>.ts` + `types.ts` + `*utils.ts` + `components/` subfolder. Single-file pages use PascalCase (`DashboardPage.tsx`, `BudgetPage.tsx`, etc.). Settings uses `sections/` (instead of `components/`) because "section" is the domain term. `settings/sectionPrimitives.tsx` provides shared Section/FieldLabel/FieldHint primitives.
+- **`components/`** - Organized by domain: `analytics/` (chart components including `CategoryBreakdown` for shared category treemaps), `chat/` (ChatWidget, ChatPanel, ChatMessage, useChat hook for AI chatbot), `layout/` (AppLayout, Sidebar with ProfileModal), `shared/` (reusable components like MetricCard, AnalyticsTimeFilter, ProtectedRoute, ProfileModal, ChunkErrorBoundary, EmptyState, QuickInsights), `transactions/`, `upload/`, `ui/` (base primitives including ChartContainer, PageHeader, ConfirmDialog, CollapsibleSection).
 - **`hooks/`** - Custom React hooks. `useAnalyticsTimeFilter` encapsulates time-filter state (view mode, date range, FY) shared across all analytics pages. `useChartDimensions` provides responsive chart sizing. `hooks/api/` contains TanStack Query hooks for API calls, configured with `staleTime: Infinity` and `gcTime: 1 hour`.
-- **`services/api/`** - Axios-based API client. Axios interceptor auto-attaches JWT `Authorization` header.
+- **`services/api/`** - Axios-based API client. Axios interceptor auto-attaches JWT `Authorization` header. `aiConfig.ts` handles AI provider configuration CRUD.
 - **`store/`** - Zustand stores: `authStore` (JWT tokens with persist middleware), `accountStore`, `budgetStore`, `investmentAccountStore`, `preferencesStore`.
 - **`types/`** - Shared TypeScript type definitions. `salary.ts` defines `SalaryComponents`, `RsuGrant`, `GrowthAssumptions`, and `ProjectedFYBreakdown` interfaces.
 - **`constants/`** - Colors, animations, chart configuration tokens. `columns.ts` defines flexible column name mappings (`COLUMN_MAPPINGS`), required columns, and valid transaction types for the client-side file parser.
-- **`lib/`** - Utility functions: formatters, date utils, tax calculator, export helpers. `fileParser.ts` handles client-side Excel/CSV parsing (lazy-loads SheetJS, computes SHA-256 hash via `crypto.subtle`, maps columns, validates rows). `projectionCalculator.ts` provides pure functions (`projectFiscalYear`, `projectMultipleYears`, `getRsuVestingsByFY`) for multi-year salary/tax projections with full TDD test coverage in `__tests__/projectionCalculator.test.ts`.
+- **`lib/`** - Utility functions: formatters, date utils, tax calculator, export helpers. `fileParser.ts` handles client-side Excel/CSV parsing (lazy-loads SheetJS, computes SHA-256 hash via `crypto.subtle`, maps columns, validates rows). `projectionCalculator.ts` provides pure functions (`projectFiscalYear`, `projectMultipleYears`, `getRsuVestingsByFY`) for multi-year salary/tax projections with full TDD test coverage in `__tests__/projectionCalculator.test.ts`. `chatAdapters.ts` provides streaming request builders and SSE parsers for OpenAI/Anthropic/Bedrock. `chatContext.ts` builds a compressed financial context prompt from existing V2 analytics endpoints.
 
 ### Key Patterns
 
@@ -104,7 +104,8 @@ Layered architecture:
 - **Database**: SQLite for development (`./ledger_sync.db`), Neon PostgreSQL 17 in production (Singapore region, free tier, 0.5 GB). Schema managed by Alembic migrations. Database auto-initializes on app startup via `init_db()`. SQLite connections apply performance PRAGMAs (WAL mode, 64MB cache, NORMAL sync). PostgreSQL connections use pooling (pool_size=5, max_overflow=3, pool_recycle=300, pool_pre_ping=True) with 30s statement timeout set per-connection (compatible with Neon's PgBouncer pooler).
 - **Database-agnostic SQL**: SQLite uses `strftime()`, PostgreSQL uses `to_char()`. Always use `query_helpers.py` helpers (`fmt_year_month`, `fmt_year`, `fmt_month`, `fmt_date`) instead of `func.strftime()` directly -- raw SQLite SQL will break production.
 - **DB URL normalization**: `session.py` auto-converts `postgresql://` and `postgresql+psycopg2://` to `postgresql+psycopg://` (psycopg v3 driver).
-- **Security**: Rate limiting (slowapi), security headers (CSP, HSTS, X-Frame-Options), token blacklist, query timeouts. SheetJS installed from CDN (`cdn.sheetjs.com/xlsx-0.20.3`) to avoid npm registry vulnerabilities. OAuth secrets stored server-side only; frontend never sees provider tokens.
+- **Security**: Rate limiting (slowapi), security headers (CSP, HSTS, X-Frame-Options), token blacklist, query timeouts. SheetJS installed from CDN (`cdn.sheetjs.com/xlsx-0.20.3`) to avoid npm registry vulnerabilities. OAuth secrets stored server-side only; frontend never sees provider tokens. AI API keys encrypted at rest with AES-256-GCM (PBKDF2-derived key from JWT secret, per-ciphertext random 128-bit salt).
+- **AI Chatbot (BYOK)**: Users configure provider (OpenAI/Anthropic/Bedrock), model, and API key in Settings > AI Assistant. OpenAI and Anthropic calls go browser-direct (both support CORS; Anthropic needs `anthropic-dangerous-direct-browser-access: true`). Bedrock goes through backend proxy (`/api/ai/bedrock/chat`) because it requires SigV4 auth and doesn't support CORS -- `boto3.client('bedrock-runtime').converse_stream()` is called server-side and re-streamed as SSE. Financial context is built from existing V2 endpoints (monthly summaries, categories, recurring bills, net worth, goals) and compressed into a ~2-4K token system prompt cached for 5 minutes client-side.
 
 ### Deployment
 
@@ -139,11 +140,13 @@ Runs on push/PR to main. Python 3.12, Node 22, pnpm 10, uv (latest).
 
 ## New Feature Patterns
 
-- **New page**: Create in `pages/`, add lazy import in router, add sidebar entry. Never eager-import pages.
-- **New API endpoint**: Router in `api/`, business logic in `core/`, schema in `schemas/`. No business logic in routers.
+- **New page (single-file)**: Create `<PageName>Page.tsx` directly in `pages/`. Use PascalCase. Add lazy import in `App.tsx`, add sidebar entry. Keep under 300 lines.
+- **New page (multi-file, >300 lines)**: Create kebab-case directory: `pages/<page-name>/`. Structure: `<PageName>Page.tsx` (thin orchestrator) + `use<Page>.ts` (hook for state/data) + `types.ts` + `<page>Utils.ts` + `components/` subfolder for sub-components. Never eager-import pages.
+- **New API endpoint**: Router in `api/`, business logic in `core/`, schema in `schemas/`. No business logic in routers. Always prefix routes with `/api/...` in the router prefix for consistency.
+- **New DB model**: Add to appropriate `db/_models/` file (e.g., `user.py`, `transactions.py`). Re-export from `db/_models/__init__.py`. The `db/models.py` facade picks it up automatically. Always create an Alembic migration.
 - **New hook**: API hooks in `hooks/api/` using TanStack Query with `staleTime: Infinity`. UI hooks in `hooks/`.
 - **New store**: Zustand only for truly global state (auth, preferences). Use local state or URL params for page-level state.
-- **New dependency**: Don't add new npm/pip packages without asking first.
+- **New dependency**: Don't add new npm/pip packages without asking first. For transitive-dep security fixes, use `constraint-dependencies` in `pyproject.toml` (see `python-dotenv>=1.2.2` pattern), not a direct dep.
 
 ## Design System Constraints
 
@@ -157,7 +160,8 @@ Runs on push/PR to main. Python 3.12, Node 22, pnpm 10, uv (latest).
 
 - **Order**: React, third-party libs, `@/components`, `@/hooks`, `@/lib`, `@/types`, `@/constants`, relative imports.
 - **Path alias**: Always use `@/` for non-relative imports. Never `../../`.
-- **No barrel files**: Don't create `index.ts` that re-exports. Import directly from source files.
+- **No barrel files at page level**: Don't create `index.ts` that re-exports in `pages/`. Some shared `components/`, `hooks/`, `lib/`, `services/api/` barrels still exist for convenience -- don't add new ones, but don't mass-remove existing ones either.
+- **Page imports in router**: `App.tsx` lazy-imports each page's main file directly, e.g. `import('@/pages/bill-calendar/BillCalendarPage')` -- never `import('@/pages/bill-calendar')` (no barrel).
 
 ## Testing Expectations
 

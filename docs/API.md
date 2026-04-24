@@ -951,6 +951,105 @@ Update the assumptions used for multi-year tax projections.
 
 ---
 
+## AI Assistant Endpoints
+
+User-provided LLM credentials for the chat widget. Keys are encrypted at rest with AES-256-GCM (PBKDF2-derived from the app's JWT secret + per-ciphertext random 128-bit salt). OpenAI and Anthropic calls go browser-direct using the decrypted key; Bedrock is proxied via the backend because it requires SigV4 auth.
+
+### Get AI Config
+
+**GET** `/api/preferences/ai-config`
+
+Returns the user's AI configuration without the raw key.
+
+**Response:**
+
+```json
+{
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-6",
+  "has_key": true,
+  "region": null
+}
+```
+
+For Bedrock, `region` is set (e.g., `"us-east-1"`). If the user has not configured AI, all fields are `null`/`false`.
+
+### Update AI Config
+
+**PUT** `/api/preferences/ai-config`
+
+Stores AI provider configuration with the key encrypted at rest.
+
+**Request Body:**
+
+```json
+{
+  "provider": "openai",
+  "model": "gpt-4.1",
+  "api_key": "sk-...",
+  "region": null
+}
+```
+
+`provider` must be one of `openai`, `anthropic`, `bedrock`. For Bedrock, set `region` (e.g. `"us-east-1"`); `api_key` is still stored but Bedrock calls currently use the server's AWS credential chain via boto3.
+
+### Get Decrypted API Key
+
+**GET** `/api/preferences/ai-config/key`
+
+Returns the decrypted API key for use in browser-direct streaming calls (OpenAI, Anthropic). The frontend calls this on each chat send; the key is never cached in localStorage.
+
+**Response:**
+
+```json
+{ "api_key": "sk-..." }
+```
+
+**Error Responses:**
+
+- `404` if no key is configured
+- `400` with detail `"Cannot decrypt API key -- the server secret likely changed..."` if the JWT secret rotated since the key was saved (user must re-enter their key in Settings)
+
+### Delete AI Config
+
+**DELETE** `/api/preferences/ai-config`
+
+Clears the stored provider, model, and encrypted key. Returns `{"status": "deleted"}`.
+
+### Bedrock Streaming Proxy
+
+**POST** `/api/ai/bedrock/chat`
+
+Streams a Bedrock converse-stream response as Server-Sent Events. Required because Bedrock needs SigV4 authentication and doesn't support CORS for browser-direct calls. Uses `boto3.client('bedrock-runtime').converse_stream()` server-side.
+
+**Request Body:**
+
+```json
+{
+  "messages": [
+    { "role": "user", "content": "How much did I spend last month?" }
+  ],
+  "system_prompt": "You are a financial assistant...",
+  "max_tokens": 1024
+}
+```
+
+**Response:** `text/event-stream` (SSE). Each event is either a token or an error:
+
+```
+data: {"token": "Based"}
+
+data: {"token": " on"}
+
+data: {"token": " your"}
+
+data: [DONE]
+```
+
+Errors are sent as `data: {"error": "..."}` followed by `data: [DONE]`.
+
+---
+
 ## Chart Data Endpoints
 
 ### Income/Expense Chart

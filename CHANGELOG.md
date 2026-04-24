@@ -6,6 +6,74 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.1.4 - 2026-04-24
+
+### Security
+
+- **python-dotenv CVE-2026-28684** -- constrained to `>=1.2.2` via `pyproject.toml`'s `constraint-dependencies`. The vulnerability allowed arbitrary file overwrite via cross-device rename fallback when `.env` was a symlink
+- **PBKDF2 salt hardened** -- initial encryption implementation used a hardcoded salt; now uses a random 128-bit salt per ciphertext (salt + nonce + ciphertext base64-encoded into a single field). Flagged by SonarCloud
+
+---
+
+## 2.1.3 - 2026-04-24
+
+### Changed
+
+- **Pages folder structure standardized** -- every multi-file page now has the same layout: `<page>/PageName.tsx + use<Page>.ts + types.ts + *utils.ts + components/`. Kebab-case for directories, PascalCase for single-file pages
+- **`pages/IncomeExpenseFlowPage/`** renamed to `pages/income-expense-flow/` for kebab-case consistency
+- **`pages/SettingsPage.tsx`** moved into `pages/settings/SettingsPage.tsx`; sub-sections moved into `pages/settings/sections/`; `settings/components.tsx` renamed to `settings/sectionPrimitives.tsx`
+- **Frontend page-level `index.ts` barrel files** removed per CLAUDE.md policy ("no barrel files")
+- **Thin re-export stubs deleted** -- `ComparisonPage.tsx`, `GoalsPage.tsx`, `SubscriptionTrackerPage.tsx` were one-line re-exports and have been removed; routes now import directly from the page folders
+- Every multi-file page folder now has a `components/` subfolder (settings uses `sections/` instead because "section" is the domain term)
+
+### Removed
+
+- **Issue backlog cleanup** -- closed #70 (Recharts -> Nivo migration, no user benefit for massive work), #13 (Finance Levels gamification page, out of scope), #84 (Lighthouse CI, maintenance burden > value for solo-dev project), #89 (already fixed by enum migration)
+
+---
+
+## 2.1.2 - 2026-04-24
+
+### Changed
+
+- **`pages/BillCalendarPage.tsx`** (799 lines) split into `pages/bill-calendar/` module: `BillCalendarPage.tsx`, `useBillCalendar.ts`, `billUtils.ts`, `types.ts`, plus 4 sub-components in `components/`
+- **`pages/YearInReviewPage.tsx`** (757 lines) split into `pages/year-in-review/` module: orchestrator + `useYearInReview.ts` + `heatmapUtils.ts` + `types.ts` + 4 new sub-components; existing StatCard/InsightRow/DayOfWeekChart moved into `components/`
+- **`pages/TrendsForecastsPage.tsx`** (775 lines) split into `pages/trends-forecasts/` module with same structure
+- **`pages/TaxPlanningPage.tsx`** (1,090 lines) split into `pages/tax-planning/` module with `useTaxPlanning.ts` + `taxPlanningUtils.ts` + `types.ts` + 6 sub-components (TaxPageActions, TaxTip, RegimeVerdictDetail, RegimeComparison, DeductionInput, MultiYearProjectionTable)
+- **`core/analytics_engine.py`** -- extracted module-level helpers (`_group_txns_by_pattern`, `_resolve_pattern_display`, `_aggregate_holdings_data`) and constants (`DEFAULT_ESSENTIAL_CATEGORIES`, `DEFAULT_INVESTMENT_ACCOUNT_PATTERNS`) into new `core/_analytics_helpers.py` (full class-level mixin split deferred to a future PR)
+
+---
+
+## 2.1.1 - 2026-04-24
+
+### Changed
+
+- **`db/models.py`** split into `db/_models/` package (7 domain files: `enums.py`, `user.py`, `transactions.py`, `investments.py`, `analytics.py`, `planning.py` + `__init__.py` facade). `db/models.py` is now a 21-line re-export facade; consumer imports unchanged
+
+---
+
+## 2.1.0 - 2026-04-24
+
+### Added
+
+- **AI Finance Chatbot** (closes #90) -- floating chat widget (bottom-right) with glass-morphism UI, streaming token-by-token responses, and conversation history per session
+- **Bring Your Own Key (BYOK)** -- configure OpenAI, Anthropic, or AWS Bedrock in Settings > AI Assistant; provider list updated to current models (O3, O4 Mini, GPT-4.1 family, GPT-4o family, Claude Opus 4.7, Sonnet 4.6, Haiku 4.5, Bedrock `us.anthropic.claude-*-v1` variants)
+- **AES-256-GCM encryption** (`core/encryption.py`) -- API keys encrypted at rest with PBKDF2-HMAC-SHA256 key derivation
+- **Bedrock streaming proxy** (`api/ai_chat.py`) -- browser cannot call Bedrock directly (requires SigV4 + binary EventStream parsing), so `POST /api/ai/bedrock/chat` proxies via `boto3.client('bedrock-runtime').converse_stream()`
+- **Financial context builder** (`lib/chatContext.ts`) -- fetches monthly summaries, category breakdowns, recurring bills, net worth, and goals from existing V2 endpoints; compresses into a ~2-4K token system prompt so the AI has full financial context
+- **Chat adapters** (`lib/chatAdapters.ts`) -- provider-specific streaming request builders and SSE stream parsers (OpenAI/Anthropic go browser-direct, Bedrock goes through backend proxy)
+- **AI config endpoints** -- `PUT/GET/DELETE /api/preferences/ai-config` for configuring provider/model/api_key; `GET /api/preferences/ai-config/key` returns decrypted key for frontend streaming calls
+- **`DecryptionError` class** -- raised when the JWT secret rotates between saving and using a key; frontend shows "re-enter your API key" prompt
+- **Alembic migration** -- adds `ai_provider`, `ai_model`, `ai_api_key_encrypted` columns to `user_preferences`
+
+### Fixed
+
+- **Bedrock 400 errors from browser** -- bearer tokens don't work for Bedrock inference (SigV4 required), CORS is not supported. Proxy through backend fixed both issues
+- **Chat widget double-rendering** -- `doStream()` was being called inside a `setMessages` updater, causing React StrictMode to spawn two parallel streams in dev; rewritten to call streaming outside the state updater
+- **Recurring frequency enum bug** (closes #89) -- semi-annual, weekly, biweekly, quarterly recurring transactions were returning 500 errors due to missing enum values in PostgreSQL; fixed by migration `20260412_1200_add_missing_recurrence_enum_values.py`
+
+---
+
 ## 2.0.0 - 2026-04-12
 
 ### Added
