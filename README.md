@@ -4,7 +4,7 @@
 
 No subscriptions. No data harvesting. Just 24 pages of analytics built from your own Excel exports, running on your own infrastructure.
 
-![Version](https://img.shields.io/badge/version-2.0.0-green.svg)
+![Version](https://img.shields.io/badge/version-2.1.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![React](https://img.shields.io/badge/react-19-blue.svg)
@@ -13,6 +13,15 @@ No subscriptions. No data harvesting. Just 24 pages of analytics built from your
 **Live:** [sagargupta.online/ledger-sync](https://sagargupta.online/ledger-sync/) | **Demo:** [Try it now](https://sagargupta.online/ledger-sync/demo) | **API:** [ledger-sync-api.vercel.app](https://ledger-sync-api.vercel.app/docs)
 
 ## Features
+
+### AI Finance Chatbot (BYOK)
+
+- **Chat with your financial data** -- floating widget in the bottom-right corner, ask any question about your spending, trends, tax, or goals
+- **Bring Your Own Key** -- configure OpenAI, Anthropic, or AWS Bedrock in Settings; your API key is encrypted at rest with AES-256-GCM
+- **Provider choice** -- latest models supported: OpenAI (O3, O4 Mini, GPT-4.1 family, GPT-4o), Anthropic (Claude Opus 4.7, Sonnet 4.6, Haiku 4.5), AWS Bedrock (same Claude models via Bedrock)
+- **Full financial context** -- the AI sees compressed summaries of your monthly spending, categories, recurring bills, net worth, and goals (~2-4K tokens)
+- **Token-by-token streaming** -- see responses appear as they're generated
+- **Hidden in demo mode** -- chat widget only appears when you're logged in
 
 ### Demo Mode
 
@@ -272,8 +281,9 @@ VITE_API_BASE_URL=http://localhost:8000                # Set in GitHub Actions v
 
 ## Documentation
 
-- [Changelog](CHANGELOG.md) - Version history and release notes
+- [Changelog](CHANGELOG.md) - Version history with granular release notes
 - [Architecture](docs/architecture.md) - System design and data flow
+- [Calculations & Data Processing](docs/CALCULATIONS.md) - How every metric, chart, and derived number is computed
 - [API Reference](docs/API.md) - REST endpoint documentation
 - [Database Schema](docs/DATABASE.md) - Models and migrations
 - [Development Guide](docs/DEVELOPMENT.md) - Setup and workflow

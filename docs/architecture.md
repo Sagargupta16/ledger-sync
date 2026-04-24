@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ledger Sync is a self-hosted personal finance dashboard built as a full-stack application with clear separation between backend and frontend. The system imports Excel bank statements, reconciles transactions via SHA-256 hashing, and delivers 24 pages of financial analytics -- from spending breakdowns to investment tracking and tax projections -- with multi-currency display support.
+Ledger Sync is a self-hosted personal finance dashboard built as a full-stack application with clear separation between backend and frontend. The system imports Excel bank statements, reconciles transactions via SHA-256 hashing, and delivers 24 pages of financial analytics -- from spending breakdowns to investment tracking and tax projections -- with multi-currency display and an AI chatbot that has full context of your financial data.
 
 ## High-Level Architecture
 
@@ -21,9 +21,13 @@ Ledger Sync is a self-hosted personal finance dashboard built as a full-stack ap
   - `main.py` - FastAPI application setup, middleware, CORS, security headers
   - `auth.py` - Token refresh, logout, profile management
   - `oauth.py` - OAuth login via Google and GitHub (authorization code exchange via `httpx`)
-  - `analytics.py` - Analytics endpoints (overview, KPIs, trends, behavior)
+  - `analytics.py` - On-the-fly analytics endpoints (overview, KPIs, trends, behavior)
+  - `analytics_v2.py` - Pre-aggregated analytics endpoints (reads from summary tables for speed)
   - `calculations.py` - Financial calculation endpoints
+  - `preferences.py` - User preferences CRUD (includes AI config endpoints: `PUT/GET/DELETE /api/preferences/ai-config`)
+  - `ai_chat.py` - Bedrock streaming proxy (`POST /api/ai/bedrock/chat`). Required because Bedrock needs SigV4 auth and doesn't support CORS for browser-direct calls. Uses `boto3.client('bedrock-runtime').converse_stream()` and re-streams as SSE
   - `exchange_rates.py` - Exchange rate proxy with 24h cache (frankfurter.dev)
+  - `stock_price.py` - Yahoo Finance proxy for RSU grant stock prices
   - `deps.py` - JWT authentication dependency (`get_current_user`)
   - Routes requests to business logic and return JSON responses
 - **Authentication**: OAuth-only (no email/password). Google/GitHub OAuth providers configured via environment variables. Backend exchanges authorization codes for user info, then issues JWT access/refresh tokens.
@@ -39,17 +43,29 @@ Ledger Sync is a self-hosted personal finance dashboard built as a full-stack ap
     - Uses SHA-256 hashing for deterministic IDs
   - `sync_engine.py` - Data synchronization orchestration
   - `calculator.py` - Financial calculations (income, expenses, insights)
+  - `analytics_engine.py` - Heavy analytics computation (monthly summaries, category trends, net worth snapshots, anomaly detection, FY summaries). Module-level helpers (`_group_txns_by_pattern`, `_resolve_pattern_display`, `_aggregate_holdings_data`) + constants (`DEFAULT_ESSENTIAL_CATEGORIES`, `DEFAULT_INVESTMENT_ACCOUNT_PATTERNS`) extracted into `_analytics_helpers.py`
+  - `insights.py` - Smart financial insight generation
   - `query_helpers.py` - Shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`) used by both `calculations.py` and `analytics.py` to eliminate duplicated CASE/SUM patterns
   - `time_filter.py` - Time range filtering logic
+  - `encryption.py` - AES-256-GCM encrypt/decrypt for AI API keys. Uses PBKDF2-HMAC-SHA256 to derive an encryption key from the JWT secret, with a per-ciphertext random 128-bit salt. Output format: base64(salt[16] || nonce[12] || ciphertext). `DecryptionError` raised on tag mismatch so callers can prompt for re-entry.
+  - `auth/` - JWT token creation, verification, and blacklisting
 
 #### 3. **Data Access Layer** (`src/ledger_sync/db/`)
 
 - **Responsibility**: Database interactions, ORM operations
 - **Components**:
-  - `models.py` - SQLAlchemy models (Transaction, Account, etc.)
+  - `models.py` - 21-line facade that re-exports from `_models/` package. All consumer code imports from here (`from ledger_sync.db.models import User, Transaction, ...`)
+  - `_models/` - SQLAlchemy models split by bounded context:
+    - `_constants.py` - Length constants used across models
+    - `enums.py` - `TransactionType`, `AccountType`, `AnomalyType`, `RecurrenceFrequency`, `GoalStatus`
+    - `user.py` - `User`, `UserPreferences` (now includes `ai_provider`, `ai_model`, `ai_api_key_encrypted`), `AuditLog`
+    - `transactions.py` - `Transaction`, `ImportLog`, `AccountClassification`, `ColumnMappingLog`
+    - `investments.py` - `NetWorthSnapshot`, `InvestmentHolding`, `TaxRecord`
+    - `analytics.py` - `DailySummary`, `MonthlySummary`, `CategoryTrend`, `TransferFlow`, `FYSummary`, `MerchantIntelligence`
+    - `planning.py` - `RecurringTransaction`, `ScheduledTransaction`, `Anomaly`, `Budget`, `FinancialGoal`
   - `session.py` - Database session management
   - `base.py` - Base configuration
-  - Direct database queries and transactions
+  - `migrations/` - Alembic migration scripts
 
 #### 4. **Ingestion Layer** (`src/ledger_sync/ingest/`)
 
@@ -136,30 +152,35 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
 #### 1. **Pages Layer** (`src/pages/`)
 
 - **Responsibility**: Screen-level components, layout, page composition
-- **Components** (24 pages):
+- **Structure convention**:
+  - **Single-file pages** use PascalCase (e.g., `DashboardPage.tsx`, `BudgetPage.tsx`)
+  - **Multi-file pages** use kebab-case directories, each containing `<PageName>Page.tsx` (thin orchestrator) + `use<Page>.ts` (state/data hook) + `types.ts` + `*utils.ts` + `components/` subfolder for sub-components
+  - Barrel files (`index.ts`) are **not** used at the page level; `App.tsx` lazy-imports each page's main file directly
+- **Multi-file page folders**: `bill-calendar/`, `comparison/`, `goals/`, `income-expense-flow/`, `settings/`, `subscription-tracker/`, `tax-planning/`, `trends-forecasts/`, `year-in-review/`. Settings uses `sections/` instead of `components/` because "section" is the domain term.
+- **Pages** (24 total):
   - `HomePage` - Landing page
   - `DashboardPage` - Main dashboard with KPIs, sparklines, and quick insights
   - `UploadSyncPage` - Hero upload UI with sample format preview
   - `TransactionsPage` - Transaction table with filtering
   - `SpendingAnalysisPage` - 50/30/20 budget rule analysis
   - `IncomeAnalysisPage` - Income sources and growth tracking
-  - `ComparisonPage` - Period-over-period financial comparison
-  - `TrendsForecastsPage` - Trends and forecasting
-  - `IncomeExpenseFlowPage` - Sankey diagram cash flow visualization
+  - `comparison/` - Period-over-period financial comparison (multi-file)
+  - `trends-forecasts/` - Trends and forecasting (multi-file)
+  - `income-expense-flow/` - Sankey diagram cash flow visualization (multi-file)
   - `InvestmentAnalyticsPage` - 4-category investment portfolio
   - `MutualFundProjectionPage` - SIP/MF projections
   - `ReturnsAnalysisPage` - Investment returns tracking
-  - `TaxPlanningPage` - Tax planning with salary-based multi-year projections
+  - `tax-planning/` - Tax planning with salary-based multi-year projections (multi-file)
   - `FIRECalculatorPage` - FIRE number, Coast FIRE, retirement corpus planner
   - `NetWorthPage` - Net worth tracking
   - `BudgetPage` - Budget tracking and monitoring
-  - `GoalsPage` - Financial goal setting with savings allocation
+  - `goals/` - Financial goal setting with savings allocation (multi-file)
   - `InsightsPage` - Advanced analytics (velocity, stability, milestones)
   - `AnomalyReviewPage` - Flag and review unusual transactions
-  - `YearInReviewPage` - Annual financial summary
-  - `SubscriptionTrackerPage` - Recurring expense detection and manual tracking
-  - `BillCalendarPage` - Monthly calendar of upcoming bills
-  - `SettingsPage` - Single-page settings with collapsible sections (incl. SalaryStructureSection)
+  - `year-in-review/` - Annual financial summary with heatmap (multi-file)
+  - `subscription-tracker/` - Recurring expense detection and manual tracking (multi-file)
+  - `bill-calendar/` - Monthly calendar of upcoming bills (multi-file)
+  - `settings/` - Single-page settings with collapsible sections, including AIAssistantSection and SalaryStructureSection (multi-file)
 
 #### 2. **Components Layer** (`src/components/`)
 
@@ -179,6 +200,7 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
     - `StandardBarChart` - Reusable bar chart wrapper with consistent theming and defaults
     - `StandardAreaChart` - Reusable area chart wrapper with gradient fills and consistent styling
     - `StandardPieChart` - Reusable pie/donut chart wrapper with legend defaults
+  - `chat/` - AI chatbot widget (`ChatWidget`, `ChatPanel`, `ChatMessage`, `useChat` hook). Floating bottom-right button expands into a glass-morphism panel; streams responses token-by-token via provider adapters
   - `layout/` - Layout components (AppLayout, Sidebar)
   - `shared/` - Shared components (EmptyState, AnalyticsTimeFilter, MetricCard)
   - `transactions/` - Transaction table components
@@ -223,6 +245,8 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
   - `taxCalculator.ts` - India tax slab computation (old and new regime)
   - `fireCalculator.ts` - FIRE number, Coast FIRE, retirement corpus calculations
   - `formatters.ts` - Currency and number formatting with multi-currency conversion
+  - `chatAdapters.ts` - Streaming chat adapters for OpenAI, Anthropic, and Bedrock (OpenAI/Anthropic browser-direct, Bedrock via backend proxy)
+  - `chatContext.ts` - Financial context builder that fetches V2 analytics endpoints and compresses them into a ~2-4K token system prompt
 
 ### Component Hierarchy
 
@@ -385,6 +409,13 @@ GET    /api/meta/*                      - Metadata endpoints
 3. **CORS**
    - Frontend and backend on different ports
    - CORS middleware configured in FastAPI
+
+4. **AI API Key Encryption**
+   - User-provided AI provider API keys (OpenAI, Anthropic, Bedrock) are encrypted at rest with AES-256-GCM
+   - Encryption key derived from `LEDGER_SYNC_JWT_SECRET_KEY` via PBKDF2-HMAC-SHA256 (100,000 iterations)
+   - Each ciphertext uses a fresh random 128-bit salt stored alongside nonce and ciphertext
+   - Decryption errors (tag mismatch) raise `DecryptionError`, prompting the user to re-enter their key (happens if JWT secret rotates between saving and using)
+   - OpenAI/Anthropic streaming calls go browser-direct to the provider; Bedrock goes through backend proxy because it requires SigV4 auth and has no CORS headers
 
 ## Scalability Considerations
 

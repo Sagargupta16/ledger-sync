@@ -18,31 +18,39 @@ Modern financial analytics dashboard built with React 19, TypeScript 5.9, and Vi
 
 ```
 src/
-├── pages/                    # Page components (23 pages)
+├── pages/                          # Page components (24 total)
+│   # Single-file pages (PascalCase):
 │   ├── HomePage.tsx
 │   ├── DashboardPage.tsx
 │   ├── UploadSyncPage.tsx
 │   ├── TransactionsPage.tsx
 │   ├── SpendingAnalysisPage.tsx
 │   ├── IncomeAnalysisPage.tsx
-│   ├── ComparisonPage.tsx
-│   ├── TrendsForecastsPage.tsx
-│   ├── IncomeExpenseFlowPage/     # Sankey diagrams
 │   ├── InvestmentAnalyticsPage.tsx
 │   ├── MutualFundProjectionPage.tsx
 │   ├── ReturnsAnalysisPage.tsx
-│   ├── TaxPlanningPage.tsx
+│   ├── FIRECalculatorPage.tsx
 │   ├── NetWorthPage.tsx
 │   ├── BudgetPage.tsx
-│   ├── GoalsPage.tsx
 │   ├── InsightsPage.tsx
 │   ├── AnomalyReviewPage.tsx
-│   ├── YearInReviewPage.tsx
-│   ├── SubscriptionTrackerPage.tsx  # Recurring expense tracking
-│   ├── BillCalendarPage.tsx         # Monthly bill calendar
-│   └── SettingsPage.tsx
+│   ├── GSTAnalysisPage.tsx
+│   ├── DemoEntryPage.tsx
+│   ├── OAuthCallbackPage.tsx
+│   │
+│   # Folder-based pages (kebab-case; each has PageName.tsx + use<Page>.ts + types.ts + *utils.ts + components/):
+│   ├── bill-calendar/
+│   ├── comparison/
+│   ├── goals/
+│   ├── income-expense-flow/
+│   ├── settings/                   # Uses sections/ instead of components/
+│   ├── subscription-tracker/
+│   ├── tax-planning/
+│   ├── trends-forecasts/
+│   └── year-in-review/
 ├── components/
 │   ├── analytics/      # Analytics components (25+)
+│   ├── chat/           # AI chatbot widget (ChatWidget, ChatPanel, useChat)
 │   ├── layout/         # Layout components (Sidebar, AppLayout)
 │   ├── shared/         # Shared components (EmptyState, TimeFilter, MetricCard)
 │   ├── transactions/   # Transaction table components
@@ -51,15 +59,23 @@ src/
 ├── hooks/              # Custom React hooks
 │   ├── api/            # TanStack Query hooks
 │   └── useDashboardMetrics.ts
-├── services/api/       # API client modules
+├── services/api/       # API client modules (incl. aiConfig.ts)
 ├── store/              # Zustand state stores
-├── lib/                # Utilities (formatters, dateUtils, transactionUtils)
+├── lib/                # Utilities (formatters, dateUtils, transactionUtils, chatAdapters, chatContext)
 │   └── demo/           # Demo mode data generators and cache seeder
 ├── types/              # TypeScript type definitions
 └── constants/          # Colors, animations, chart config
 ```
 
 ## Key Features
+
+### AI Chatbot (BYOK)
+
+- Floating widget in bottom-right; click to expand into a glass-morphism chat panel
+- User configures OpenAI / Anthropic / AWS Bedrock in Settings > AI Assistant
+- API keys encrypted server-side with AES-256-GCM (PBKDF2 + per-ciphertext random salt)
+- Financial context (monthly summaries, categories, recurring bills, net worth, goals) compressed into ~2-4K token system prompt and cached 5 minutes client-side
+- OpenAI/Anthropic calls stream browser-direct; Bedrock streams through backend proxy (SigV4 + CORS constraints)
 
 ### Demo Mode
 

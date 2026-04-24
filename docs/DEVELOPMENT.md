@@ -79,18 +79,34 @@ pnpm run dev
 ```
 backend/
 ├── src/ledger_sync/
-│   ├── api/              # FastAPI endpoints
+│   ├── api/              # FastAPI routers (one file per resource)
+│   │   ├── ai_chat.py    # Bedrock streaming proxy
+│   │   ├── analytics.py, analytics_v2.py
+│   │   ├── preferences.py  # incl. AI config endpoints
+│   │   └── ...
 │   ├── core/             # Business logic
-│   │   ├── query_helpers.py  # Shared SQL aggregation helpers
+│   │   ├── query_helpers.py     # Shared SQL aggregation helpers
 │   │   ├── analytics_engine.py
+│   │   ├── _analytics_helpers.py  # Module-level helpers for analytics_engine
+│   │   ├── encryption.py        # AES-256-GCM for API keys
 │   │   ├── calculator.py
 │   │   ├── reconciler.py
-│   │   └── sync_engine.py
+│   │   ├── sync_engine.py
+│   │   └── auth/                # JWT token creation/verification
 │   ├── db/               # Database layer
-│   ├── ingest/           # Data ingestion
+│   │   ├── models.py            # 21-line facade that re-exports from _models/
+│   │   ├── _models/             # Split by bounded context
+│   │   │   ├── enums.py, user.py, transactions.py
+│   │   │   ├── investments.py, analytics.py, planning.py
+│   │   │   └── __init__.py
+│   │   ├── session.py, base.py
+│   │   └── migrations/versions/
+│   ├── schemas/          # Pydantic models (request/response)
+│   ├── services/         # Cross-cutting services
+│   ├── ingest/           # Data ingestion (CLI path only)
+│   ├── config/           # Settings
 │   └── utils/            # Utilities
 ├── tests/                # Test suite
-├── alembic/              # Migrations
 └── pyproject.toml        # Dependencies (uv)
 ```
 
@@ -249,9 +265,23 @@ print(f"Elapsed: {end - start:.3f}s")
 ```
 frontend/
 ├── src/
-│   ├── pages/           # 24 page components
+│   ├── pages/                  # 24 page components
+│   │   ├── DashboardPage.tsx   # Single-file pages (PascalCase)
+│   │   ├── BudgetPage.tsx
+│   │   ├── ...
+│   │   ├── bill-calendar/      # Folder-based pages (kebab-case)
+│   │   ├── comparison/
+│   │   ├── goals/
+│   │   ├── income-expense-flow/
+│   │   ├── settings/           # Uses sections/ instead of components/
+│   │   ├── subscription-tracker/
+│   │   ├── tax-planning/
+│   │   ├── trends-forecasts/
+│   │   └── year-in-review/
+│   │       (Each folder: PageName.tsx + use<Page>.ts + types.ts + *utils.ts + components/)
 │   ├── components/      # UI components
 │   │   ├── analytics/   # Analytics components (25+, including CategoryBreakdown)
+│   │   ├── chat/        # AI chatbot widget (ChatWidget, ChatPanel, useChat)
 │   │   ├── layout/      # Layout components
 │   │   ├── shared/      # Shared components
 │   │   ├── transactions/ # Transaction components
@@ -261,9 +291,9 @@ frontend/
 │   │   ├── useAnalyticsTimeFilter.ts  # Shared time-filter state for analytics pages
 │   │   ├── useChartDimensions.ts      # Responsive chart sizing
 │   │   └── api/         # API-specific hooks (TanStack Query)
-│   ├── lib/             # Utilities (formatters, tax/projection calculators, queryClient)
+│   ├── lib/             # Utilities (formatters, tax/projection calculators, chat adapters/context, queryClient)
 │   ├── services/        # API client
-│   │   └── api/         # API service modules
+│   │   └── api/         # API service modules (incl. aiConfig.ts)
 │   ├── store/           # Zustand state stores
 │   ├── types/           # TypeScript types
 │   └── constants/       # App constants
@@ -277,7 +307,22 @@ The frontend uses Vite's HMR (Hot Module Replacement). Changes automatically ref
 
 ### Creating New Pages
 
-1. **Create page component** in `src/pages/`:
+**Decide between single-file and folder-based layout:**
+
+- **Single-file** (under ~300 lines, one concern): create `src/pages/<PageName>Page.tsx` using PascalCase
+- **Folder-based** (multi-concern, has sub-components, custom hook, utility functions): create `src/pages/<page-name>/` using kebab-case with the following structure:
+  ```
+  pages/<page-name>/
+  ├── <PageName>Page.tsx    # thin orchestrator (<300 lines)
+  ├── use<Page>.ts          # state/data hook
+  ├── types.ts              # page-specific types
+  ├── <page>Utils.ts        # pure helper functions
+  └── components/           # sub-components (no barrels)
+      ├── SubComponent1.tsx
+      └── SubComponent2.tsx
+  ```
+
+**Single-file example:**
 
 ```tsx
 // src/pages/NewPage.tsx
@@ -291,9 +336,13 @@ export default function NewPage() {
 }
 ```
 
-2. **Add lazy import and route** in `App.tsx` (inside `pageImports` and `<Routes>`). Never eager-import pages.
+**Then:**
 
-3. **Add sidebar entry** in `Sidebar.tsx` under the appropriate navigation group.
+1. **Add lazy import and route** in `App.tsx` (inside `pageImports` and `<Routes>`). Never eager-import pages. For folder-based pages, import the main file directly: `import('@/pages/my-page/MyPage')` -- don't rely on barrel files.
+
+2. **Add sidebar entry** in `Sidebar.tsx` under the appropriate navigation group.
+
+**Reference implementations** of folder-based pages: `bill-calendar/`, `year-in-review/`, `tax-planning/`, `trends-forecasts/`, `goals/`, `comparison/`, `subscription-tracker/`, `settings/` (uses `sections/` instead of `components/`).
 
 ### Creating New Analytics Components
 
