@@ -45,7 +45,8 @@ dev = [
 [tool.uv]
 package = true
 # Force pygments >=2.20.0 to fix CVE-2026-4539
-constraint-dependencies = ["pygments>=2.20.0"]
+# Force python-dotenv >=1.2.2 to fix CVE-2026-28684
+constraint-dependencies = ["pygments>=2.20.0", "python-dotenv>=1.2.2"]
 
 [tool.ruff]
 line-length = 100
