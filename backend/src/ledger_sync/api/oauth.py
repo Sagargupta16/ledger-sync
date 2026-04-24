@@ -178,7 +178,17 @@ async def google_callback(
         },
     )
     if resp.status_code != 200:
-        logger.warning("Google token exchange failed: %s %s", resp.status_code, resp.text)
+        # Provider responses can include short-lived codes or internal URLs
+        # -- log only the status and the error field (if any), not full body.
+        try:
+            error_code = resp.json().get("error")
+        except ValueError:
+            error_code = None
+        logger.warning(
+            "Google token exchange failed: status=%s error=%s",
+            resp.status_code,
+            error_code or "unknown",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Google token exchange failed",
@@ -248,7 +258,15 @@ async def github_callback(
         headers={"Accept": "application/json"},
     )
     if resp.status_code != 200:
-        logger.warning("GitHub token exchange failed: %s %s", resp.status_code, resp.text)
+        try:
+            error_code = resp.json().get("error")
+        except ValueError:
+            error_code = None
+        logger.warning(
+            "GitHub token exchange failed: status=%s error=%s",
+            resp.status_code,
+            error_code or "unknown",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="GitHub token exchange failed",

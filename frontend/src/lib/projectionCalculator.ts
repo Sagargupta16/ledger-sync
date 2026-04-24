@@ -26,11 +26,15 @@ function parseFYStart(fy: string): number {
   return Number.parseInt(stripped.split('-')[0], 10)
 }
 
+/** Last two digits of a year: 2025 -> "25", 2100 -> "00", 2099 -> "99". */
+function twoDigitYear(year: number): string {
+  return String(year % 100).padStart(2, '0')
+}
+
 /** Increment a FY string by N years: "2025-26" + 1 -> "2026-27" */
 function offsetFY(fy: string, offset: number): string {
   const startYear = parseFYStart(fy) + offset
-  const endYear = (startYear + 1) % 100
-  return `${startYear}-${String(endYear).padStart(2, '0')}`
+  return `${startYear}-${twoDigitYear(startYear + 1)}`
 }
 
 /** Get the FY string a date falls into given a fiscal year start month. */
@@ -39,8 +43,7 @@ function dateToFY(dateStr: string, fyStartMonth: number): string {
   const month = d.getMonth() + 1
   const year = d.getFullYear()
   const fyStartYear = month >= fyStartMonth ? year : year - 1
-  const endYear = (fyStartYear + 1) % 100
-  return `${fyStartYear}-${String(endYear).padStart(2, '0')}`
+  return `${fyStartYear}-${twoDigitYear(fyStartYear + 1)}`
 }
 
 /** Safely coerce a value (possibly string from JSON) to number. */

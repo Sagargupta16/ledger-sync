@@ -6,6 +6,35 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.1.5 - 2026-04-24
+
+Second-pass audit: fixed calculation bugs, tightened user scoping, and hardened a few response/log paths. No UX changes.
+
+### Fixed
+
+- **FIRE monthly SIP compounding** -- `computeRetirementCorpus` used the naive `expectedReturn/12` as the monthly rate. At 12% effective annual that compounded to ~12.68% and understated the required SIP by ~12-13% for long horizons. Now uses `(1+r)^(1/12) - 1`. The year-by-year projection loop was rewritten to use the same monthly annuity-due so the final projected corpus converges on `requiredCorpus` within 1%
+- **Tax surcharge order** -- surcharge is now computed on base tax (before Section 87A rebate), matching Indian tax code. Cess still applies on tax-after-rebate + surcharge. No practical impact today (87A ceiling sits well below any surcharge threshold) but the ordering is now correct for any future rule change
+- **FY string year-2100 wraparound** -- `(year+1) % 100` formatted FY 2099-2100 as "2099-00"; now uses a helper that zero-pads the last two digits so 2100 renders as "00" correctly and collisions can't happen
+- **Anomaly detection division-by-zero** -- `_detect_high_expense_months` raised `ZeroDivisionError` when all months had zero expenses. Guarded at the top: zero average short-circuits with no anomalies
+
+### Security
+
+- **Cross-user aggregation hardened** -- `AnalyticsEngine` now refuses per-user aggregations when `user_id` is `None` (previously those queries silently scanned every user's data). Three anomaly/budget queries (`_detect_high_expense_months`, `_detect_large_transactions`, `_update_budget_tracking`) rewired to use the explicit user filter
+- **`/api/preferences/ai-config/key` response hardened** -- sets `Cache-Control: no-store, no-cache, private, max-age=0` and `Pragma: no-cache` so the decrypted API key can't land in intermediary proxy caches, disk cache, or service workers
+- **OAuth error logs redacted** -- Google and GitHub token-exchange failures now log only `status` and the provider's `error` field instead of the full response body. Prevents leaking short-lived codes or internal provider URLs into log aggregators
+- **Upload row cap** -- `TransactionUploadRequest.rows` bounded at 100_000 (well above a busy user's annual volume). Prevents an authenticated client from DoS-ing via arbitrarily large request bodies
+
+### Tests
+
+- Added `taxCalculator.test.ts` (12 tests: slab math, 87A rebate, surcharge-on-base-tax, cess, FY helpers)
+- Extended `fireCalculator.test.ts` (+3 tests: effective-monthly-rate regression, projection convergence, zero-return handling)
+- Extended `projectionCalculator.test.ts` (+1 test: FY 2099/2100 wrap)
+- Added `test_analytics_user_scoping.py` (5 integration tests: zero-guard, user-id-required, cross-user isolation for two anomaly paths)
+- Added `test_upload_schema.py` (3 unit tests: row cap enforcement)
+- Totals: backend 70 tests (up from 62), frontend 65 tests (up from 49)
+
+---
+
 ## 2.1.4 - 2026-04-24
 
 ### Security

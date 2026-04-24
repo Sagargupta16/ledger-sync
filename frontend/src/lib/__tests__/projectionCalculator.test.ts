@@ -52,6 +52,26 @@ describe('getRsuVestingsByFY', () => {
     const result = getRsuVestingsByFY([], 4, 0)
     expect(Object.keys(result)).toHaveLength(0)
   })
+
+  it('formats FY strings correctly across the year-2100 boundary (regression test)', () => {
+    // Old code used `(year + 1) % 100` which formatted FY 2099-2100 as
+    // "2099-00" (invalid) and would then collide with any other FY whose
+    // mod-100 happened to equal 0. Ensure the wrap is handled cleanly.
+    const futureGrant: RsuGrant = {
+      id: 'g-future',
+      stock_name: 'FUT',
+      stock_price: 1,
+      grant_date: null,
+      notes: null,
+      vestings: [
+        { date: '2099-06-15', quantity: 1 }, // FY 2099 -> "2099-00"
+        { date: '2100-06-15', quantity: 1 }, // FY 2100 -> "2100-01"
+      ],
+    }
+    const result = getRsuVestingsByFY([futureGrant], 4, 0)
+    expect(result['2099-00']).toBeDefined()
+    expect(result['2100-01']).toBeDefined()
+  })
 })
 
 describe('projectFiscalYear', () => {

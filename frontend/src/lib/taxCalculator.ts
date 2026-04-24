@@ -215,7 +215,23 @@ export function calculateTax(
     }
   }
 
-  // 2. Apply Section 87A rebate (before surcharge)
+  // Indian tax order of operations:
+  //   1. Compute base tax from slabs
+  //   2. Apply surcharge on base tax (if income crosses thresholds)
+  //   3. Apply Section 87A rebate on base tax (not on surcharge)
+  //   4. Add 4% Health & Education Cess on (tax after rebate + surcharge)
+  //   5. Add professional tax (flat, outside slab math)
+  //
+  // NOTE: Surcharge is computed on BASE TAX, before rebate. In current
+  // Indian tax policy the 87A rebate ceiling (<=12L new / <=5L old) sits
+  // far below any surcharge threshold (>=50L), so the two don't overlap
+  // today -- but the formula is written correctly so future rule changes
+  // won't silently undercount.
+
+  // 2. Surcharge on base tax
+  const surcharge = computeSurcharge(taxableIncome, baseTax, isNewRegime)
+
+  // 3. Section 87A rebate on base tax
   const rebateConfig = getRebateConfig(isNewRegime, fyStartYear)
   let rebate87A = 0
   if (taxableIncome <= rebateConfig.maxIncome) {
@@ -223,12 +239,7 @@ export function calculateTax(
   }
   const taxAfterRebate = Math.max(0, baseTax - rebate87A)
 
-  // 3. Compute surcharge
-  const surcharge = computeSurcharge(
-    taxableIncome, taxAfterRebate, isNewRegime
-  )
-
-  // 4. Health & Education Cess (4% on tax + surcharge)
+  // 4. Health & Education Cess (4% on tax-after-rebate + surcharge)
   const cess = (taxAfterRebate + surcharge) * CESS_RATE
 
   // 5. Professional Tax

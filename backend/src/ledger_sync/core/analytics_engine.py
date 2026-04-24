@@ -77,7 +77,10 @@ class AnalyticsEngine:
 
         Args:
             db: Database session
-            user_id: ID of the authenticated user (required for multi-user scoping)
+            user_id: ID of the authenticated user. REQUIRED in production.
+                ``None`` is accepted only for legacy single-user tooling paths.
+                All per-user aggregations below (anomalies, recurring patterns,
+                budgets, etc.) will refuse to run without a concrete user_id.
 
         """
         self.db = db
@@ -85,6 +88,20 @@ class AnalyticsEngine:
         self.logger = get_analytics_logger()
         self._preferences: UserPreferences | None = None
         self._load_preferences()
+
+    def _require_user_id(self) -> int:
+        """Return ``self.user_id`` or raise if it is ``None``.
+
+        Used by code paths that aggregate per-user data and would otherwise
+        leak across users.
+        """
+        if self.user_id is None:
+            raise RuntimeError(
+                "AnalyticsEngine requires a user_id for per-user aggregations; "
+                "got None. This usually means the engine was constructed from "
+                "a tooling path that should be updated to pass a concrete user.",
+            )
+        return self.user_id
 
     def _load_preferences(self) -> None:
         """Load user preferences from database."""
@@ -1784,17 +1801,17 @@ class AnalyticsEngine:
 
         """
         sym = self._currency_symbol
+        user_id = self._require_user_id()
         period_col = fmt_year_month(Transaction.date)
         monthly_query = (
             self.db.query(
                 period_col.label("period"),
                 func.sum(Transaction.amount).label("total"),
             )
+            .filter(Transaction.user_id == user_id)
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
         )
-        if self.user_id is not None:
-            monthly_query = monthly_query.filter(Transaction.user_id == self.user_id)
         monthly_expenses = monthly_query.group_by(period_col).all()
 
         if len(monthly_expenses) <= 3:
@@ -1803,6 +1820,10 @@ class AnalyticsEngine:
         expense_values = [float(m.total) for m in monthly_expenses]
         avg_expense = mean(expense_values)
         std_expense = stdev(expense_values) if len(expense_values) > 1 else 0
+
+        # If average is zero (all-zero months), there's no meaningful "unusual" to flag
+        if avg_expense <= 0:
+            return
 
         for month in monthly_expenses:
             month_total = float(month.total)
@@ -1836,13 +1857,13 @@ class AnalyticsEngine:
 
         """
         sym = self._currency_symbol
+        user_id = self._require_user_id()
         cat_avg_query = (
             self.db.query(Transaction.category, func.avg(Transaction.amount).label("avg_amount"))
+            .filter(Transaction.user_id == user_id)
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
         )
-        if self.user_id is not None:
-            cat_avg_query = cat_avg_query.filter(Transaction.user_id == self.user_id)
         category_avgs = cat_avg_query.group_by(Transaction.category).all()
         category_avg_map = {c.category: float(c.avg_amount) for c in category_avgs}
 
@@ -1871,9 +1892,12 @@ class AnalyticsEngine:
     def _update_budget_tracking(self) -> int:
         """Update budget tracking with current month's spending."""
         sym = self._currency_symbol
-        budget_query = self.db.query(Budget).filter(Budget.is_active.is_(True))
-        if self.user_id is not None:
-            budget_query = budget_query.filter(Budget.user_id == self.user_id)
+        user_id = self._require_user_id()
+        budget_query = (
+            self.db.query(Budget)
+            .filter(Budget.user_id == user_id)
+            .filter(Budget.is_active.is_(True))
+        )
         budgets = budget_query.all()
 
         if not budgets:
@@ -1885,13 +1909,12 @@ class AnalyticsEngine:
 
         spending_query = (
             self.db.query(Transaction.category, func.sum(Transaction.amount).label("total"))
+            .filter(Transaction.user_id == user_id)
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
             .filter(fmt_year_month(Transaction.date) == current_period)
             .group_by(Transaction.category)
         )
-        if self.user_id is not None:
-            spending_query = spending_query.filter(Transaction.user_id == self.user_id)
         current_spending = spending_query.all()
         spending_map = {c.category: float(c.total) for c in current_spending}
 

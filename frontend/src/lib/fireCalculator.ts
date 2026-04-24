@@ -168,24 +168,35 @@ export function computeRetirementCorpus(params: {
   // Corpus needed = annual expense at retirement / SWR
   const requiredCorpus = Math.round(annualExpenseAtRetirement / swr)
 
-  // Monthly SIP needed: Corpus = SIP * [(1+r)^n - 1] / r * (1+r)
-  // where r = monthly return, n = total months
-  const monthlyReturn = expectedReturn / 12
+  // Monthly SIP needed -- future-value annuity-due at the effective monthly rate.
+  //
+  // ``expectedReturn`` is treated as an EFFECTIVE annual return, so the
+  // matching monthly rate is (1+r)^(1/12) - 1. Using the naive ``r/12`` here
+  // would compound to ~12.68% instead of 12% and understate the required SIP.
+  //
+  //   Corpus = SIP * [((1+rMonthly)^n - 1) / rMonthly] * (1 + rMonthly)
+  //
+  // with n = total months, annuity-due (beginning-of-month contributions).
+  const monthlyReturn = Math.pow(1 + expectedReturn, 1 / 12) - 1
   const totalMonths = yearsToRetirement * 12
-  const fvFactor = (Math.pow(1 + monthlyReturn, totalMonths) - 1) / monthlyReturn * (1 + monthlyReturn)
+  const fvFactor = monthlyReturn > 0
+    ? ((Math.pow(1 + monthlyReturn, totalMonths) - 1) / monthlyReturn) * (1 + monthlyReturn)
+    : totalMonths
   const monthlySIP = fvFactor > 0 ? Math.round(requiredCorpus / fvFactor) : 0
 
   // Lump sum today that would grow to the corpus
   const lumpSumToday = Math.round(requiredCorpus / Math.pow(1 + expectedReturn, yearsToRetirement))
 
-  // Year-by-year projection
+  // Year-by-year projection -- model the SAME monthly-contribution annuity-due
+  // (rather than one lump annual contribution) so it matches the SIP above.
   const projectionData: RetirementResult['projectionData'] = []
   let accumulated = 0
   let totalContributed = 0
   for (let year = 1; year <= yearsToRetirement; year++) {
-    const annualSIP = monthlySIP * 12
-    totalContributed += annualSIP
-    accumulated = (accumulated + annualSIP) * (1 + expectedReturn)
+    for (let m = 0; m < 12; m++) {
+      accumulated = (accumulated + monthlySIP) * (1 + monthlyReturn)
+      totalContributed += monthlySIP
+    }
     projectionData.push({
       year,
       corpus: Math.round(accumulated),

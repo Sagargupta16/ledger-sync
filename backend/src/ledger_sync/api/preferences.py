@@ -15,7 +15,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -770,15 +770,23 @@ def get_ai_config(
 def get_ai_key(
     current_user: CurrentUser,
     session: DatabaseSession,
+    response: Response,
 ) -> dict[str, str]:
-    """Decrypt and return the API key for frontend LLM calls."""
+    """Decrypt and return the API key for frontend LLM calls.
+
+    Sets strict no-store cache headers so the decrypted key never lands in
+    intermediary proxy caches, browser disk cache, or service-worker storage.
+    """
     prefs = _get_or_create_preferences(session, current_user)
     if not prefs.ai_api_key_encrypted:
         raise HTTPException(status_code=404, detail="No AI key configured")
     try:
-        return {"api_key": decrypt_api_key(prefs.ai_api_key_encrypted)}
+        decrypted = decrypt_api_key(prefs.ai_api_key_encrypted)
     except DecryptionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    response.headers["Cache-Control"] = "no-store, no-cache, private, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return {"api_key": decrypted}
 
 
 @router.delete("/ai-config")
