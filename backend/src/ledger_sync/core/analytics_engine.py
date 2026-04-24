@@ -36,6 +36,9 @@ from ledger_sync.core._analytics_helpers import (
     group_txns_by_pattern as _group_txns_by_pattern,
 )
 from ledger_sync.core._analytics_helpers import (
+    infer_expected_day_of_month as _infer_expected_day_of_month,
+)
+from ledger_sync.core._analytics_helpers import (
     resolve_pattern_display as _resolve_pattern_display,
 )
 from ledger_sync.core.query_helpers import fmt_year_month
@@ -1218,8 +1221,7 @@ class AnalyticsEngine:
             RecurrenceFrequency.SEMIANNUAL,
             RecurrenceFrequency.YEARLY,
         ):
-            days_of_month = [d.day for d in sorted_dates]
-            expected_day = max(set(days_of_month), key=days_of_month.count)
+            expected_day = _infer_expected_day_of_month([d.day for d in sorted_dates])
 
         return frequency, confidence, expected_day
 
