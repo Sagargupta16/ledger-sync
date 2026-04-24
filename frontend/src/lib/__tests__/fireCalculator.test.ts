@@ -135,4 +135,60 @@ describe('computeRetirementCorpus', () => {
     expect(result.monthlySIP).toBe(0)
     expect(result.projectionData).toEqual([])
   })
+
+  it('uses effective-monthly compounding, not naive r/12 (regression test)', () => {
+    // At r=12% effective annual and corpus=1.2Cr the correct monthly rate is
+    //   rMonthly = (1.12)^(1/12) - 1 ≈ 0.00948879
+    // and FV-annuity-due factor ((1+rm)^360 - 1)/rm * (1+rm) ≈ 3080.97
+    //   =>  SIP ≈ 12_000_000 / 3080.97 ≈ 3895.
+    //
+    // The old buggy code used r/12 = 0.01 which yields fvFactor ≈ 3529.91
+    //   =>  SIP ≈ 3400, ~12.7% too low -- a big underestimate for retirement.
+    // Lock the CORRECTED SIP (~3895) and ensure we're well above the bug.
+    const result = computeRetirementCorpus({
+      monthlyExpenses: 30000,
+      inflationRate: 0, // keep corpus simple: 30k*12/0.03 = 1.2Cr
+      expectedReturn: 0.12,
+      yearsToRetirement: 30,
+      swr: 0.03,
+    })
+    expect(result.requiredCorpus).toBe(12_000_000)
+    expect(result.monthlySIP).toBeGreaterThan(3880)
+    expect(result.monthlySIP).toBeLessThan(3910)
+    // Old buggy r/12 path would have given SIP ≈ 3400 -- outside the new band
+    expect(result.monthlySIP).toBeGreaterThan(3500)
+  })
+
+  it('projection loop ends near the target corpus', () => {
+    // Internal consistency: accumulating the computed monthlySIP for
+    // yearsToRetirement years at the same monthly rate should converge on
+    // requiredCorpus to within rounding (<1% drift). Locks the fact that SIP
+    // formula and projection loop use the SAME rate.
+    const result = computeRetirementCorpus({
+      monthlyExpenses: 50000,
+      inflationRate: 0.065,
+      expectedReturn: 0.12,
+      yearsToRetirement: 30,
+      swr: 0.03,
+    })
+    const finalEntry = result.projectionData.at(-1)
+    expect(finalEntry).toBeDefined()
+    const driftPct =
+      Math.abs((finalEntry?.corpus ?? 0) - result.requiredCorpus) / result.requiredCorpus
+    expect(driftPct).toBeLessThan(0.01)
+  })
+
+  it('handles zero expected return (no compounding)', () => {
+    const result = computeRetirementCorpus({
+      monthlyExpenses: 10000,
+      inflationRate: 0,
+      expectedReturn: 0,
+      yearsToRetirement: 10,
+      swr: 0.04,
+    })
+    // Required: 10k*12/0.04 = 3_000_000; monthly SIP over 120 months with no
+    // growth is exactly corpus/120 = 25_000
+    expect(result.requiredCorpus).toBe(3_000_000)
+    expect(result.monthlySIP).toBe(25_000)
+  })
 })
