@@ -1,5 +1,5 @@
 import { formatCurrency } from '@/lib/formatters'
-import type { DayCell } from '../DayOfWeekChart'
+import type { DayCell } from './DayOfWeekChart'
 
 interface Props {
   hoveredDay: DayCell | null

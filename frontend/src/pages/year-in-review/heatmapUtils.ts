@@ -1,5 +1,5 @@
 import { rawColors } from '@/constants/colors'
-import type { DayCell } from './DayOfWeekChart'
+import type { DayCell } from './components/DayOfWeekChart'
 import { MONTHS_SHORT, type HeatmapMode } from './types'
 
 export function getIntensityLevel(value: number, max: number): number {

@@ -1,4 +1,4 @@
-import type { DayCell } from '../DayOfWeekChart'
+import type { DayCell } from './DayOfWeekChart'
 import { getIntensityLevel } from '../heatmapUtils'
 import { heatmapColors, modeAccent, type HeatmapMode } from '../types'
 

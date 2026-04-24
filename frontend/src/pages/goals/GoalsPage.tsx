@@ -6,10 +6,10 @@ import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
 
 import useGoalsState from './useGoalsState'
-import SavingsPoolSummary from './SavingsPoolSummary'
-import FeasibilityWarning from './FeasibilityWarning'
-import CreateGoalForm from './CreateGoalForm'
-import GoalCard from './GoalCard'
+import SavingsPoolSummary from './components/SavingsPoolSummary'
+import FeasibilityWarning from './components/FeasibilityWarning'
+import CreateGoalForm from './components/CreateGoalForm'
+import GoalCard from './components/GoalCard'
 
 const DEFAULT_PROJECTION = {
   monthsRemaining: 0,

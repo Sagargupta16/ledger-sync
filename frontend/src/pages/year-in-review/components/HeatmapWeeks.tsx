@@ -1,4 +1,4 @@
-import type { DayCell } from '../DayOfWeekChart'
+import type { DayCell } from './DayOfWeekChart'
 import type { HeatmapMode } from '../types'
 import HeatmapCell from './HeatmapCell'
 

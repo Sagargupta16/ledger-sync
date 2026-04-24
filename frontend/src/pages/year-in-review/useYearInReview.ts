@@ -4,7 +4,7 @@ import { useDailySummaries } from '@/hooks/api/useAnalyticsV2'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { getCurrentFY, getCurrentMonth, getCurrentYear, type AnalyticsViewMode } from '@/lib/dateUtils'
-import type { DayCell } from './DayOfWeekChart'
+import type { DayCell } from './components/DayOfWeekChart'
 import {
   accumulateStats,
   aggregateDayTotals,
