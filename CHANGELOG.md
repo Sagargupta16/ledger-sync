@@ -6,18 +6,32 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.2.1 - 2026-04-25
+
+Rework of the net-worth milestones feature from 2.2.0 after self-review found two visual issues.
+
+### Changed
+
+- **Unified Milestones table** -- the separate "Milestones Achieved" and "Next Targets" tables from 2.2.0 have been merged into a single "Net Worth Milestones" table. One row per threshold (₹1L through ₹10Cr), sorted low-to-high, with a Status column (✓ Achieved / ⏳ Upcoming), date, and notes. Removes visual redundancy and makes the "just crossed" → "next target" progression obvious at a glance.
+
+### Fixed
+
+- **Projection used a different "current" value than the chart ends at.** Old code passed the account-balance-derived `netWorth` (MetricCard value) into `projectNetWorth`, while the chart ended at the cumulative income-minus-expense series. On users where those two differ, the projection line had a vertical discontinuity at "today". Fixed: the projection anchor is now the last point of the filtered chart series, and milestones/ETAs use the same anchor value. No more jump.
+- **Daily + monthly dates mixed on a categorical x-axis stretched the projection horizontally.** With 1,448 historical daily points + 60 monthly points on the same string-keyed axis, Recharts gave each unique date equal width, so the 60 projected months visually occupied ~4% of the axis while representing 5 years. When projection is ON, historical data is now downsampled to month-end points so the whole timeline renders at uniform monthly spacing.
+- **"Today" reference line moved to the actual projection start** (the last historical point, labeled "Now") -- previously it used `new Date()` which could sit a few days past the last data point and create tiny visual artifacts.
+
+### Internal
+
+- `netWorthProjection.ts` API simplified: one `buildMilestoneRows(series, anchor, growth)` replaces the previous `detectMilestonesAchieved` + `computeMilestoneETAs` pair. Added `downsampleToMonthly` helper. `projectNetWorth` signature now takes an anchor point (date + value) instead of just a number.
+- Removed `MilestonesAchieved.tsx` and `TargetProjectionsTable.tsx`. New `MilestonesTable.tsx` is the single consumer. 18 unit tests.
+
+---
+
 ## 2.2.0 - 2026-04-25
 
 ### Added
 
-- **Net Worth milestones** -- new "Milestones Achieved" section on the Net Worth page shows when your net worth first crossed each threshold (₹1L, ₹5L, ₹10L, ₹25L, ₹50L, ₹1Cr, ₹2.5Cr, ₹5Cr, ₹10Cr). Each row displays the date, the milestone amount, and how long after the previous milestone it took.
-- **Target ETA projections** -- paired "Next Targets" table projects when the next milestones will be reached, using a trailing 12-month average monthly growth rate. Columns: target label, amount, gap to current, ETA duration, ETA date. Hidden when growth is zero or negative (projection would never converge).
-- **Project toggle on Net Worth Trend chart** -- a 🔮 button extends the net-worth line 60 months into the future at the current average monthly growth rate, with a dashed blue overlay, a "Today" reference line, and an auto-adjusted x-axis. Disabled when growth is non-positive.
-
-### Internal
-
-- New pure-function module `pages/net-worth/netWorthProjection.ts` with 4 helpers: `detectMilestonesAchieved`, `computeAvgMonthlyGrowth`, `projectNetWorth`, `computeMilestoneETAs`. Fully covered by 14 unit tests in `__tests__/netWorthProjection.test.ts`.
-- New sub-components `MilestonesAchieved.tsx` and `TargetProjectionsTable.tsx` in `pages/net-worth/components/`.
+- **Net Worth milestones + projection** -- see 2.2.1 for the shipped design. This version had two separate tables and a projection anchor mismatch; fixed immediately in 2.2.1.
 
 ### Fixed (production data)
 

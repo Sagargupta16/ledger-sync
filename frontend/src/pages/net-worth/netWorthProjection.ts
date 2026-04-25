@@ -1,8 +1,10 @@
 /**
  * Net-worth milestone detection + projection helpers.
  *
- * Pure functions. No React, no side effects. Used by MilestonesTimeline and
- * NetWorthProjection components.
+ * All three views (milestones table, ETA rows, chart projection overlay)
+ * share ONE "current" value and ONE growth rate so the numbers stay
+ * self-consistent. Anchor: the last point of the historical series that
+ * the chart itself is rendering.
  */
 
 export interface NetWorthPoint {
@@ -17,23 +19,22 @@ export interface Milestone {
   label: string
 }
 
-export interface MilestoneAchieved extends Milestone {
-  /** ISO date YYYY-MM-DD when net worth first crossed this threshold. */
-  achievedOn: string
-  /** How many days it took from the first tracked point to this milestone. */
-  daysFromStart: number
-}
+export type MilestoneStatus = 'achieved' | 'upcoming'
 
-export interface MilestoneETA extends Milestone {
-  /** Projected ISO date when net worth will reach this milestone. */
-  etaDate: string
-  /** Months from today. */
-  monthsAway: number
+export interface MilestoneRow extends Milestone {
+  status: MilestoneStatus
+  /** ISO date YYYY-MM-DD. For 'achieved' = when it was crossed. For 'upcoming' = ETA. */
+  date: string | null
+  /**
+   * For 'achieved': days elapsed from series start to this crossing.
+   * For 'upcoming': months away from the anchor date (can be fractional).
+   */
+  distance: number | null
 }
 
 /**
  * Default milestones for an Indian-rupee net-worth context.
- * Hand-picked to span useful ranges. Could be preference-driven later.
+ * Hand-picked round numbers; could be preference-driven later.
  */
 export const DEFAULT_MILESTONES: readonly Milestone[] = [
   { value: 100_000, label: '₹1L' },
@@ -48,46 +49,6 @@ export const DEFAULT_MILESTONES: readonly Milestone[] = [
 ] as const
 
 /**
- * Walk a chronologically-sorted net-worth series and find the date each
- * milestone was first reached (net worth >= threshold).
- *
- * Returns only milestones actually achieved, in chronological order.
- */
-export function detectMilestonesAchieved(
-  series: readonly NetWorthPoint[],
-  milestones: readonly Milestone[] = DEFAULT_MILESTONES,
-): MilestoneAchieved[] {
-  if (series.length === 0) return []
-
-  const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
-  const startDate = new Date(sorted[0].date)
-  const achieved: MilestoneAchieved[] = []
-  const remaining = new Set(milestones)
-
-  for (const point of sorted) {
-    if (remaining.size === 0) break
-    for (const milestone of milestones) {
-      if (!remaining.has(milestone)) continue
-      if (point.netWorth >= milestone.value) {
-        const d = new Date(point.date)
-        const daysFromStart = Math.max(
-          0,
-          Math.round((d.getTime() - startDate.getTime()) / 86_400_000),
-        )
-        achieved.push({
-          ...milestone,
-          achievedOn: point.date.substring(0, 10),
-          daysFromStart,
-        })
-        remaining.delete(milestone)
-      }
-    }
-  }
-
-  return achieved
-}
-
-/**
  * Compute average monthly net-worth change over the last ``lookbackMonths``.
  * Returns 0 if there's not enough data.
  */
@@ -96,7 +57,6 @@ export function computeAvgMonthlyGrowth(
   lookbackMonths = 12,
 ): number {
   if (series.length < 2) return 0
-
   const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
 
   // Bucket by month, keep last point per month (end-of-month net worth)
@@ -109,74 +69,139 @@ export function computeAvgMonthlyGrowth(
   const months = Object.keys(monthlyLast).sort((a, b) => a.localeCompare(b))
   if (months.length < 2) return 0
 
-  // Take only the tail
   const windowMonths = months.slice(-Math.max(2, lookbackMonths + 1))
   const deltas: number[] = []
   for (let i = 1; i < windowMonths.length; i++) {
     deltas.push(monthlyLast[windowMonths[i]] - monthlyLast[windowMonths[i - 1]])
   }
   if (deltas.length === 0) return 0
-
   return deltas.reduce((sum, d) => sum + d, 0) / deltas.length
 }
 
 /**
- * Project future net-worth points at a constant monthly growth rate.
+ * Downsample a daily series to one point per month (the LAST point per month).
+ * Used when the chart needs to show historical + projected together at the
+ * same monthly resolution so the x-axis doesn't visually stretch the future.
+ */
+export function downsampleToMonthly(
+  series: readonly NetWorthPoint[],
+): NetWorthPoint[] {
+  if (series.length === 0) return []
+  const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
+  const byMonth: Record<string, NetWorthPoint> = {}
+  for (const p of sorted) {
+    byMonth[p.date.substring(0, 7)] = p
+  }
+  return Object.keys(byMonth)
+    .sort((a, b) => a.localeCompare(b))
+    .map((m) => byMonth[m])
+}
+
+/**
+ * Project future monthly net-worth points from ``anchor`` at a constant rate.
  *
- * @param currentNetWorth  Net worth today (last observed value).
- * @param monthlyGrowth    Expected net-worth delta per month.
- * @param horizonMonths    How many months into the future to project.
- * @returns One data point per month (start from "today + 1 month").
+ * The anchor's own ``date`` is not included in the output; the first projected
+ * point is one month after the anchor.
  */
 export function projectNetWorth(
-  currentNetWorth: number,
+  anchor: NetWorthPoint,
   monthlyGrowth: number,
   horizonMonths = 60,
 ): NetWorthPoint[] {
   if (horizonMonths <= 0) return []
   const points: NetWorthPoint[] = []
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const start = new Date(anchor.date)
+  start.setUTCHours(0, 0, 0, 0)
   for (let i = 1; i <= horizonMonths; i++) {
-    const d = new Date(today)
-    d.setMonth(d.getMonth() + i)
+    const d = new Date(start)
+    d.setUTCMonth(d.getUTCMonth() + i)
     points.push({
       date: d.toISOString().substring(0, 10),
-      netWorth: currentNetWorth + monthlyGrowth * i,
+      netWorth: anchor.netWorth + monthlyGrowth * i,
     })
   }
   return points
 }
 
-/**
- * Compute ETA (date + months-away) for each milestone that hasn't been hit yet.
- *
- * If monthly growth is zero or negative, milestones that aren't already
- * achieved are omitted -- projection would be infinite / non-convergent.
- */
-export function computeMilestoneETAs(
-  currentNetWorth: number,
-  monthlyGrowth: number,
-  achieved: readonly MilestoneAchieved[],
-  milestones: readonly Milestone[] = DEFAULT_MILESTONES,
-): MilestoneETA[] {
-  if (monthlyGrowth <= 0) return []
-
-  const achievedValues = new Set(achieved.map(m => m.value))
-  const pending = milestones.filter(m => !achievedValues.has(m.value) && m.value > currentNetWorth)
-  if (pending.length === 0) return []
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  return pending.map(milestone => {
-    const monthsAway = (milestone.value - currentNetWorth) / monthlyGrowth
-    const eta = new Date(today)
-    eta.setDate(eta.getDate() + Math.round(monthsAway * 30.44))
-    return {
-      ...milestone,
-      etaDate: eta.toISOString().substring(0, 10),
-      monthsAway: Math.round(monthsAway * 10) / 10,
+/** First-crossing scan: returns value -> ISO date for every milestone reached. */
+function scanAchievements(
+  series: readonly NetWorthPoint[],
+  milestones: readonly Milestone[],
+): Map<number, string> {
+  const achieved = new Map<number, string>()
+  const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
+  const remaining = new Set(milestones.map((m) => m.value))
+  for (const point of sorted) {
+    if (remaining.size === 0) break
+    for (const m of milestones) {
+      if (remaining.has(m.value) && point.netWorth >= m.value) {
+        achieved.set(m.value, point.date.substring(0, 10))
+        remaining.delete(m.value)
+      }
     }
+  }
+  return achieved
+}
+
+function buildUpcomingRow(
+  m: Milestone,
+  anchor: NetWorthPoint,
+  monthlyGrowth: number,
+): MilestoneRow {
+  if (monthlyGrowth <= 0 || m.value <= anchor.netWorth) {
+    return { ...m, status: 'upcoming', date: null, distance: null }
+  }
+  const monthsAway = (m.value - anchor.netWorth) / monthlyGrowth
+  const eta = new Date(anchor.date)
+  eta.setUTCDate(eta.getUTCDate() + Math.round(monthsAway * 30.44))
+  return {
+    ...m,
+    status: 'upcoming',
+    date: eta.toISOString().substring(0, 10),
+    distance: Math.round(monthsAway * 10) / 10,
+  }
+}
+
+/**
+ * Build a SINGLE unified list of milestones with status + date + distance,
+ * consistent with the anchor + growth rate used by the chart overlay.
+ *
+ * - achieved: rows whose value was ever crossed by the series.
+ * - upcoming: rows whose value is above the anchor's net worth. ETA is
+ *   anchor.date + (value - anchor.netWorth) / monthlyGrowth months.
+ *   Omitted from the upcoming set when growth <= 0.
+ */
+export function buildMilestoneRows(
+  series: readonly NetWorthPoint[],
+  anchor: NetWorthPoint | null,
+  monthlyGrowth: number,
+  milestones: readonly Milestone[] = DEFAULT_MILESTONES,
+): MilestoneRow[] {
+  if (series.length === 0 || anchor === null) {
+    return milestones.map((m) => ({
+      ...m,
+      status: 'upcoming',
+      date: null,
+      distance: null,
+    }))
+  }
+
+  const achievedDate = scanAchievements(series, milestones)
+  const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
+  const startDate = new Date(sorted[0].date)
+
+  const rows: MilestoneRow[] = milestones.map((m) => {
+    const dateStr = achievedDate.get(m.value)
+    if (dateStr !== undefined) {
+      const daysFromStart = Math.max(
+        0,
+        Math.round((new Date(dateStr).getTime() - startDate.getTime()) / 86_400_000),
+      )
+      return { ...m, status: 'achieved', date: dateStr, distance: daysFromStart }
+    }
+    return buildUpcomingRow(m, anchor, monthlyGrowth)
   })
+
+  // Sort by value so the table reads low-to-high regardless of status.
+  return rows.sort((a, b) => a.value - b.value)
 }
