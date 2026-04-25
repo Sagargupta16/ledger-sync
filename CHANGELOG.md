@@ -6,6 +6,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.4.2 - 2026-04-25
+
+Further mobile polish after device testing.
+
+### Changed
+
+- **PWA icon redesigned.** The old mark had the L-glyph in the top-left corner leaving dead space bottom-right, and read as "a bar chart" at 64px. New icon is a centered bold rupee (₹) glyph over a subtle ascending trend line on the blue-to-indigo gradient. Reads clearly at 64px home-screen badge size, stays recognisable after Android's maskable crop, and ties the mark to the product (personal finance) rather than a generic chart. Regenerated all 6 PNG sizes from [pwa-icon-source.svg](frontend/public/pwa-icon-source.svg).
+- **Cash Flow on mobile is now a dedicated vertical view, not a shrunken Sankey.** Phones get [MobileFlowView](frontend/src/pages/income-expense-flow/components/MobileFlowView.tsx) -- a stacked sequence (Income sources -> Total Income -> Savings + Expenses split -> Expense categories) with proportional bars and currency-accurate labels. No swipe, no cramped nodes, no horizontal scroll. Desktop still gets the full Sankey.
+
+### Fixed
+
+- **Chart heights auto-cap at 280px on mobile** via a new `MOBILE_HEIGHT_CAP` in [ChartContainer](frontend/src/components/ui/ChartContainer.tsx). Previously a chart with `height={400}` would eat ~60% of a 667px iPhone viewport. Now any numeric height greater than 280 is auto-shrunk on `max-width: 639px`; percent heights (`'100%'`) and the new optional `mobileHeight` prop still win. Affects ~20 chart call-sites with one change.
+- **Numeric columns in DataTable now use `tabular-nums`.** Right-aligned cells align digit-by-digit vertically, which matters most on mobile where rows are tight.
+- **CommandPalette (Cmd+K) on mobile** -- panel no longer pushed off-screen by the on-screen keyboard. Top offset drops from `15vh` to `8vh` below `sm`, panel is `flex flex-col max-h-[80vh]` so the input stays visible while results scroll inside.
+- **Shared `useIsMobile` hook** extracted to [hooks/useIsMobile.ts](frontend/src/hooks/useIsMobile.ts) from the inline definition in `IncomeExpenseFlowPage`.
+
+---
+
 ## 2.4.1 - 2026-04-25
 
 Follow-up mobile-UX pass after installing the 2.4.0 PWA on iPhone and finding real-device issues.

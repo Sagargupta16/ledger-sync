@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react'
@@ -10,8 +10,11 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { getDateKey } from '@/lib/dateUtils'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { PageHeader, ChartContainer } from '@/components/ui'
 import { chartTooltipProps } from '@/components/ui/ChartTooltip'
+
+import MobileFlowView from './components/MobileFlowView'
 
 /** Guard against NaN values that Recharts passes for zero-value nodes */
 function safeNumber(value: number): number {
@@ -155,19 +158,6 @@ function createSankeyNodeComponent(context: SankeyNodeWrapperProps) {
   return SankeyNodeComponent
 }
 
-function useIsMobile(breakpoint = 640): boolean {
-  const [isMobile, setIsMobile] = useState(
-    () => globalThis.window !== undefined && globalThis.window.innerWidth < breakpoint,
-  )
-  useEffect(() => {
-    const mq = globalThis.window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
-    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [breakpoint])
-  return isMobile
-}
-
 const IncomeExpenseFlowPage = () => {
   const { data: allTransactions = [], isLoading } = useTransactions()
   const isMobile = useIsMobile()
@@ -186,10 +176,12 @@ const IncomeExpenseFlowPage = () => {
     })
   }, [allTransactions, dateRange])
 
-  // Calculate income and expense totals by category and prepare Sankey data
+  // Calculate income and expense totals by category and prepare Sankey data.
+  // Also returns sorted top-10 arrays for the mobile flow view.
   const {
     totalIncome, totalExpense, netSavings, savingsRate,
     sankeyData, sankeyNodeComponent,
+    topIncome, topExpense,
   } = useMemo(() => {
     const incomeByCategory = fyTransactions
       .filter(txn => txn.type === 'Income')
@@ -321,10 +313,20 @@ const IncomeExpenseFlowPage = () => {
       fontSize: isMobile ? 11 : 13,
     })
 
+    const topIncome = Object.entries(incomeByCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, amount]) => ({ name, amount }))
+    const topExpense = Object.entries(expenseByCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, amount]) => ({ name, amount }))
+
     return {
       totalIncome, totalExpense, netSavings, savingsRate,
       sankeyData: { nodes, links },
       sankeyNodeComponent,
+      topIncome, topExpense,
     }
   }, [fyTransactions, isMobile])
 
@@ -392,7 +394,7 @@ const IncomeExpenseFlowPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-2xl border border-border p-4 md:p-6 lg:p-8"
+        className="glass rounded-2xl border border-border p-3 sm:p-6 lg:p-8"
       >
         <div className="flex items-center justify-between mb-4 sm:mb-8">
           <div className="flex items-center gap-3">
@@ -400,10 +402,12 @@ const IncomeExpenseFlowPage = () => {
               <ArrowRightLeft className="w-6 h-6 text-app-purple" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">Cash Flow Sankey</h3>
+              <h3 className="text-lg font-semibold text-white">
+                <span className="sm:hidden">Cash Flow</span>
+                <span className="hidden sm:inline">Cash Flow Sankey</span>
+              </h3>
               <p className="text-sm text-muted-foreground">
-                <span className="sm:hidden">Swipe to explore &rarr;</span>
-                <span className="hidden sm:inline">Income sources flowing to savings and expenses</span>
+                Income sources flowing to savings and expenses
               </p>
             </div>
           </div>
@@ -417,29 +421,26 @@ const IncomeExpenseFlowPage = () => {
             </div>
           </div>
         )}
-        {!isLoading && sankeyData.nodes.length > 0 && (
-          <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-3 sm:p-6 overflow-x-auto data-table-scroll">
-            {/* On mobile, fix the diagram to 720px so the Sankey has enough plot width
-                and let users swipe horizontally. Desktop fills the container. */}
-            <div
-              style={{
-                width: isMobile ? 720 : '100%',
-                minWidth: isMobile ? 720 : undefined,
-                height: isMobile ? 520 : 700,
-                position: 'relative',
-              }}
-            >
-              <ChartContainer height={isMobile ? 520 : 700}>
+        {/* Mobile: dedicated vertical flow (no Sankey).
+            Desktop: the real Sankey. */}
+        {!isLoading && isMobile && sankeyData.nodes.length > 0 && (
+          <MobileFlowView
+            incomeByCategory={topIncome}
+            expenseByCategory={topExpense}
+            totalIncome={totalIncome}
+            totalExpense={totalExpense}
+            netSavings={netSavings}
+          />
+        )}
+        {!isLoading && !isMobile && sankeyData.nodes.length > 0 && (
+          <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6">
+            <div style={{ width: '100%', height: 700, position: 'relative' }}>
+              <ChartContainer height={700}>
                 <Sankey
                   data={sankeyData as { nodes: Array<{ name: string }>; links: Array<{ source: number; target: number; value: number }> }}
-                  nodeWidth={isMobile ? 14 : 20}
-                  nodePadding={isMobile ? 30 : 60}
-                  margin={{
-                    top: 20,
-                    right: isMobile ? 110 : 200,
-                    bottom: 20,
-                    left: isMobile ? 110 : 200,
-                  }}
+                  nodeWidth={20}
+                  nodePadding={60}
+                  margin={{ top: 30, right: 200, bottom: 30, left: 200 }}
                   node={sankeyNodeComponent}
                   link={{
                     stroke: rawColors.app.purple,

@@ -35,7 +35,9 @@ export interface DataTableProps<T> {
 
 const ALIGN_CLASS: Record<Align, string> = {
   left: 'text-left',
-  right: 'text-right',
+  // `tabular-nums` keeps digit glyphs a uniform width so currency columns
+  // line up vertically when rows have different decimal widths.
+  right: 'text-right tabular-nums',
   center: 'text-center',
 }
 
