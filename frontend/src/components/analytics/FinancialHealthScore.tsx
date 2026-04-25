@@ -1,15 +1,12 @@
 import { memo, useMemo } from 'react'
 
 import { motion } from 'framer-motion'
-import {
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
-} from 'recharts'
 import { Shield } from 'lucide-react'
 
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
-import { ChartContainer, chartTooltipProps } from '@/components/ui'
+import StandardRadarChart from '@/components/analytics/StandardRadarChart'
 import { rawColors } from '@/constants/colors'
 import type { Transaction } from '@/types'
 import { computeCFPScore } from '@/lib/financialHealthCalculator'
@@ -80,17 +77,14 @@ function ScoreHeader({ title, score, subtitle, color }: Readonly<{
 function RadarVisualization({ metrics, chartColor }: Readonly<{ metrics: Array<{ dimension: string; score: number; fullMark: number }>; chartColor: string }>) {
   return (
     <div className="mb-2">
-      <ChartContainer height={200}>
-        <RadarChart data={metrics}>
-          <PolarGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-          <PolarAngleAxis dataKey="dimension" tick={{ fill: '#71717a', fontSize: 9 }} />
-          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-          <Radar name="Score" dataKey="score" stroke={chartColor} fill={chartColor}
-            fillOpacity={0.15} strokeWidth={2} dot={{ r: 2, fill: chartColor, strokeWidth: 0 }}
-            animationDuration={600} animationEasing="ease-out" />
-          <Tooltip {...chartTooltipProps} />
-        </RadarChart>
-      </ChartContainer>
+      <StandardRadarChart
+        data={metrics}
+        dataKey="score"
+        categoryKey="dimension"
+        color={chartColor}
+        name="Score"
+        labelFontSize={9}
+      />
     </div>
   )
 }

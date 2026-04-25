@@ -2,14 +2,11 @@ import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { Users } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
-
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useTotals } from '@/hooks/api/useAnalytics'
 import { getBenchmarkForCategory } from '@/constants/benchmarks'
 import { rawColors } from '@/constants/colors'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui/chartDefaults'
+import StandardBarChart from '@/components/analytics/StandardBarChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface ComparisonItem {
@@ -72,46 +69,27 @@ export default function PeerComparisonBenchmarks() {
         <ChartEmptyState height={280} message="Need income and categorized expense data" />
       ) : (
         <>
-          <ChartContainer height={320}>
-            <BarChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 10 }}>
-              <CartesianGrid {...GRID_DEFAULTS} />
-              <XAxis
-                {...xAxisDefaults(data.length, { angle: -35, height: 60 })}
-                dataKey="category"
-                tickFormatter={undefined}
-              />
-              <YAxis
-                {...yAxisDefaults({ currency: false, width: 45 })}
-                tickFormatter={(v: number) => `${v}%`}
-              />
-              <Tooltip
-                {...chartTooltipProps}
-                formatter={(value: number | undefined) => `${value ?? 0}%`}
-              />
-              <Legend {...LEGEND_DEFAULTS} />
-              <Bar
-                dataKey="you"
-                name="You"
-                fill={rawColors.app.blue}
-                radius={[4, 4, 0, 0]}
-                barSize={16}
-                animationDuration={600}
-                animationEasing="ease-out"
-                isAnimationActive={shouldAnimate(data.length)}
-              />
-              <Bar
-                dataKey="benchmark"
-                name="Average"
-                fill={rawColors.app.purple}
-                radius={[4, 4, 0, 0]}
-                barSize={16}
-                animationDuration={600}
-                animationEasing="ease-out"
-                isAnimationActive={shouldAnimate(data.length)}
-                fillOpacity={0.5}
-              />
-            </BarChart>
-          </ChartContainer>
+          <StandardBarChart
+            data={data}
+            dataKey="category"
+            height={320}
+            xAngle={-35}
+            xHeight={60}
+            yWidth={45}
+            yTickFormatter={(v) => `${v}%`}
+            tooltipFormatter={(v) => `${v}%`}
+            margin={{ right: 20, left: 10 }}
+            bars={[
+              { key: 'you', label: 'You', color: rawColors.app.blue, barSize: 16 },
+              {
+                key: 'benchmark',
+                label: 'Average',
+                color: rawColors.app.purple,
+                barSize: 16,
+                fillOpacity: 0.5,
+              },
+            ]}
+          />
 
           {/* Summary badges */}
           <div className="mt-4 flex flex-wrap gap-2">

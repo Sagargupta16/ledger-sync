@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { Wallet, CreditCard } from 'lucide-react'
-import { PieChart, Pie, Cell, Tooltip } from 'recharts'
+import StandardPieChart from '@/components/analytics/StandardPieChart'
 
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import QuickInsights from '@/components/shared/QuickInsights'
@@ -11,7 +11,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore } from '@/components/analytics'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
-import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
+import { PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -105,20 +105,13 @@ export default function DashboardPage() {
           </h2>
           {incomeChartData.length > 0 ? (
             <div className="space-y-4">
-              <div className="h-[180px]">
-                <ChartContainer>
-                  <PieChart>
-                    <Pie data={incomeChartData} dataKey="value" nameKey="name" innerRadius="55%" outerRadius="80%" paddingAngle={2} strokeWidth={0}>
-                      {incomeChartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip {...chartTooltipProps} formatter={(v: number | undefined) => formatCurrency(v ?? 0)} />
-                    <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                      <tspan x="50%" dy="-6" fill="#fafafa" fontSize="16" fontWeight="700">{formatCurrencyCompact(incomeTotal)}</tspan>
-                      <tspan x="50%" dy="18" fill="#71717a" fontSize="11">Total</tspan>
-                    </text>
-                  </PieChart>
-                </ChartContainer>
-              </div>
+              <StandardPieChart
+                data={incomeChartData}
+                height={180}
+                showLegend={false}
+                centerValue={formatCurrencyCompact(incomeTotal)}
+                centerLabel="Total"
+              />
               <div className="space-y-2">
                 {incomeChartData.map((item, i) => (
                   <div key={item.name} className="flex items-center justify-between">
@@ -158,20 +151,13 @@ export default function DashboardPage() {
           </h2>
           {expenseChartData.length > 0 ? (
             <div className="space-y-4">
-              <div className="h-[180px]">
-                <ChartContainer>
-                  <PieChart>
-                    <Pie data={expenseChartData} dataKey="value" nameKey="name" innerRadius="55%" outerRadius="80%" paddingAngle={2} strokeWidth={0}>
-                      {expenseChartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip {...chartTooltipProps} formatter={(v: number | undefined) => formatCurrency(v ?? 0)} />
-                    <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                      <tspan x="50%" dy="-6" fill="#fafafa" fontSize="16" fontWeight="700">{formatCurrencyCompact(expenseTotal)}</tspan>
-                      <tspan x="50%" dy="18" fill="#71717a" fontSize="11">Total</tspan>
-                    </text>
-                  </PieChart>
-                </ChartContainer>
-              </div>
+              <StandardPieChart
+                data={expenseChartData}
+                height={180}
+                showLegend={false}
+                centerValue={formatCurrencyCompact(expenseTotal)}
+                centerLabel="Total"
+              />
               <div className="space-y-2">
                 {expenseChartData.map((item, i) => (
                   <div key={item.name} className="flex items-center justify-between">

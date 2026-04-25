@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts'
-import { formatCurrency } from '@/lib/formatters'
-import { chartTooltipProps, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, BAR_RADIUS, shouldAnimate } from '@/components/ui'
-import { rawColors } from '@/constants/colors'
+
+import StandardBarChart from '@/components/analytics/StandardBarChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { rawColors } from '@/constants/colors'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -41,27 +40,22 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
     }))
   }, [grid])
 
-  const hasData = grid.some(c => c.hasTx)
+  const hasData = grid.some((c) => c.hasTx)
 
   if (!hasData) {
     return <ChartEmptyState height={192} />
   }
 
   return (
-    <div className="h-48">
-      <ChartContainer>
-        <BarChart data={data} barGap={4}>
-          <CartesianGrid {...GRID_DEFAULTS} />
-          <XAxis {...xAxisDefaults(data.length)} dataKey="name" />
-          <YAxis {...yAxisDefaults()} />
-          <RechartsTooltip
-            {...chartTooltipProps}
-            formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
-          />
-          <Bar dataKey="Avg Spending" fill={rawColors.app.red} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(data.length)} animationDuration={600} animationEasing="ease-out" />
-          <Bar dataKey="Avg Earning" fill={rawColors.app.green} radius={BAR_RADIUS} opacity={0.8} isAnimationActive={shouldAnimate(data.length)} animationDuration={600} animationEasing="ease-out" />
-        </BarChart>
-      </ChartContainer>
-    </div>
+    <StandardBarChart
+      data={data}
+      dataKey="name"
+      height={192}
+      barGap={4}
+      bars={[
+        { key: 'Avg Spending', color: rawColors.app.red, fillOpacity: 0.8 },
+        { key: 'Avg Earning', color: rawColors.app.green, fillOpacity: 0.8 },
+      ]}
+    />
   )
 }

@@ -2,13 +2,9 @@ import { useMemo, useState } from 'react'
 
 import { motion } from 'framer-motion'
 import { Calendar } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS } from '@/components/ui/chartDefaults'
+import StandardBarChart from '@/components/analytics/StandardBarChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -121,28 +117,21 @@ export default function CohortSpendingAnalysis() {
       </p>
 
       {hasData ? (
-        <ChartContainer height={260}>
-          <BarChart data={currentData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
-            <CartesianGrid {...GRID_DEFAULTS} />
-            <XAxis {...xAxisDefaults(currentData.length)} dataKey="name" tickFormatter={undefined} />
-            <YAxis {...yAxisDefaults()} />
-            <Tooltip
-              {...chartTooltipProps}
-              formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
-            />
-            <Bar
-              dataKey="avg"
-              name="Avg Spending"
-              fill={rawColors.app.teal}
-              fillOpacity={0.7}
-              radius={BAR_RADIUS}
-              maxBarSize={view === 'day-of-month' ? 14 : 30}
-              animationDuration={600}
-              animationEasing="ease-out"
-              isAnimationActive={shouldAnimate(currentData.length)}
-            />
-          </BarChart>
-        </ChartContainer>
+        <StandardBarChart
+          data={currentData}
+          dataKey="name"
+          height={260}
+          bars={[
+            {
+              key: 'avg',
+              label: 'Avg Spending',
+              color: rawColors.app.teal,
+              fillOpacity: 0.7,
+              barSize: view === 'day-of-month' ? 14 : 30,
+            },
+          ]}
+          showLegend={false}
+        />
       ) : (
         <ChartEmptyState height={260} message="No expense data available" />
       )}

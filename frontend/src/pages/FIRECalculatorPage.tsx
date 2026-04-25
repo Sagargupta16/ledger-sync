@@ -2,8 +2,6 @@ import { useState, useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { Flame, Calculator } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -12,9 +10,8 @@ import { formatCurrency } from '@/lib/formatters'
 import { computeFIRE, computeRetirementCorpus } from '@/lib/fireCalculator'
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
-import { PageHeader, ChartContainer } from '@/components/ui'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl, ACTIVE_DOT } from '@/components/ui/chartDefaults'
-import { chartTooltipProps } from '@/components/ui/ChartTooltip'
+import StandardAreaChart from '@/components/analytics/StandardAreaChart'
+import { PageHeader } from '@/components/ui'
 
 function SliderInput({ id, label, value, min, max, step, unit, onChange }: Readonly<{
   id: string; label: string; value: number; min: number; max: number; step: number; unit: string
@@ -183,26 +180,22 @@ export default function FIRECalculatorPage() {
             {retirementResult.projectionData.length > 0 && (
               <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
                 <h3 className="text-lg font-semibold mb-4">Corpus Growth Projection</h3>
-                <ChartContainer height={320}>
-                  <AreaChart data={retirementResult.projectionData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
-                    <defs>
-                      {areaGradient('corpus', rawColors.app.blue)}
-                      {areaGradient('contributed', rawColors.app.green, 0.2, 0.02)}
-                    </defs>
-                    <CartesianGrid {...GRID_DEFAULTS} />
-                    <XAxis {...xAxisDefaults(retirementResult.projectionData.length)} dataKey="year" tickFormatter={(v: number) => `Yr ${v}`} />
-                    <YAxis {...yAxisDefaults()} />
-                    <Tooltip
-                      {...chartTooltipProps}
-                      formatter={(value: number | undefined, name: string | undefined) => [
-                        formatCurrency(value ?? 0),
-                        name === 'corpus' ? 'Total Corpus' : 'Contributed',
-                      ]}
-                    />
-                    <Area type="monotone" dataKey="corpus" stroke={rawColors.app.blue} fill={areaGradientUrl('corpus')} strokeWidth={2} dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }} isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
-                    <Area type="monotone" dataKey="contributed" stroke={rawColors.app.green} fill={areaGradientUrl('contributed')} strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.green }} isAnimationActive={shouldAnimate(retirementResult.projectionData.length)} />
-                  </AreaChart>
-                </ChartContainer>
+                <StandardAreaChart
+                  data={retirementResult.projectionData}
+                  dataKey="year"
+                  height={320}
+                  xTickFormatter={(v) => `Yr ${v}`}
+                  tooltipFormatter={(value) => formatCurrency(value)}
+                  areas={[
+                    { key: 'corpus', color: rawColors.app.blue, label: 'Total Corpus' },
+                    {
+                      key: 'contributed',
+                      color: rawColors.app.green,
+                      label: 'Contributed',
+                      strokeDasharray: '4 4',
+                    },
+                  ]}
+                />
               </motion.div>
             )}
 
