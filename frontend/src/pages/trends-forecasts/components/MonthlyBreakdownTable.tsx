@@ -1,34 +1,62 @@
 import { motion } from 'framer-motion'
 import { TrendingUp } from 'lucide-react'
-import { formatCurrency } from '@/lib/formatters'
+
 import EmptyState from '@/components/shared/EmptyState'
-import { ariaSort } from '../trendsUtils'
+import { DataTable, type DataTableColumn } from '@/components/ui'
+import { formatCurrency } from '@/lib/formatters'
+
 import type { MonthlyTrendRow } from '../types'
 
 interface Props {
-  isLoading: boolean
-  chartData: MonthlyTrendRow[]
-  sortedChartData: MonthlyTrendRow[]
-  trendSortKey: string | null
-  trendSortDir: 'asc' | 'desc'
-  toggleTrendSort: (key: string) => void
+  readonly isLoading: boolean
+  readonly chartData: readonly MonthlyTrendRow[]
 }
 
-const SORT_KEYS: { key: string; label: string }[] = [
-  { key: 'income', label: 'Income' },
-  { key: 'expenses', label: 'Spending' },
-  { key: 'surplus', label: 'Savings' },
-  { key: 'rawSavingsRate', label: 'Savings Rate' },
+const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
+  {
+    key: 'month',
+    header: 'Month',
+    cell: (row) => <span className="font-medium text-white">{row.month}</span>,
+  },
+  {
+    key: 'income',
+    header: 'Income',
+    align: 'right',
+    sortable: true,
+    cell: (row) => <span className="text-app-green">{formatCurrency(row.income)}</span>,
+  },
+  {
+    key: 'expenses',
+    header: 'Spending',
+    align: 'right',
+    sortable: true,
+    cell: (row) => <span className="text-app-red">{formatCurrency(row.expenses)}</span>,
+  },
+  {
+    key: 'surplus',
+    header: 'Savings',
+    align: 'right',
+    sortable: true,
+    cell: (row) => (
+      <span className={`font-bold ${row.surplus >= 0 ? 'text-app-purple' : 'text-app-red'}`}>
+        {formatCurrency(row.surplus)}
+      </span>
+    ),
+  },
+  {
+    key: 'rawSavingsRate',
+    header: 'Savings Rate',
+    align: 'right',
+    sortable: true,
+    cell: (row) => (
+      <span className={row.rawSavingsRate >= 0 ? 'text-foreground' : 'text-app-red'}>
+        {row.rawSavingsRate.toFixed(1)}%
+      </span>
+    ),
+  },
 ]
 
-export default function MonthlyBreakdownTable({
-  isLoading,
-  chartData,
-  sortedChartData,
-  trendSortKey,
-  trendSortDir,
-  toggleTrendSort,
-}: Readonly<Props>) {
+export default function MonthlyBreakdownTable({ isLoading, chartData }: Readonly<Props>) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 40 }}
@@ -40,65 +68,12 @@ export default function MonthlyBreakdownTable({
       <h3 className="text-lg font-semibold text-white mb-4">Month-on-Month Breakdown</h3>
       {isLoading && <div className="text-center py-8 text-muted-foreground">Loading data...</div>}
       {!isLoading && chartData.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
-                  Month
-                </th>
-                {SORT_KEYS.map(({ key, label }) => (
-                  <th
-                    key={key}
-                    onClick={() => toggleTrendSort(key)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        toggleTrendSort(key)
-                      }
-                    }}
-                    tabIndex={0}
-                    aria-sort={ariaSort(trendSortKey, key, trendSortDir)}
-                    className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
-                  >
-                    {label}{' '}
-                    {trendSortKey === key && (trendSortDir === 'asc' ? '↑' : '↓')}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <motion.tbody
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-            >
-              {sortedChartData.map((trend) => (
-                <tr
-                  key={trend.month}
-                  className="border-b border-border hover:bg-white/10 transition-colors"
-                >
-                  <td className="py-3 px-4 text-white font-medium">{trend.month}</td>
-                  <td className="py-3 px-4 text-right text-app-green">
-                    {formatCurrency(trend.income)}
-                  </td>
-                  <td className="py-3 px-4 text-right text-app-red">
-                    {formatCurrency(trend.expenses)}
-                  </td>
-                  <td
-                    className={`py-3 px-4 text-right font-bold ${trend.surplus >= 0 ? 'text-app-purple' : 'text-app-red'}`}
-                  >
-                    {formatCurrency(trend.surplus)}
-                  </td>
-                  <td
-                    className={`py-3 px-4 text-right ${trend.rawSavingsRate >= 0 ? 'text-foreground' : 'text-app-red'}`}
-                  >
-                    {trend.rawSavingsRate.toFixed(1)}%
-                  </td>
-                </tr>
-              ))}
-            </motion.tbody>
-          </table>
-        </div>
+        <DataTable<MonthlyTrendRow>
+          columns={COLUMNS}
+          rows={chartData}
+          rowKey={(row) => row.month}
+          ariaLabel="Month on month breakdown"
+        />
       )}
       {!isLoading && chartData.length === 0 && (
         <EmptyState

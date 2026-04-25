@@ -6,6 +6,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.3.0 - 2026-04-25
+
+First step of a codebase-wide consolidation of hand-rolled UI primitives. A component-reuse audit found 35+ files re-implementing the same `<table>` + `<thead>` + `<tbody>` + hover + sort boilerplate. This release ships the first shared table primitive; the same audit flagged ~30 files repeating recharts config which will migrate in later PRs.
+
+### Added
+
+- **`DataTable` primitive** ([frontend/src/components/ui/DataTable.tsx](frontend/src/components/ui/DataTable.tsx)) -- a generic, type-safe `<table>` with column-driven config, internal sort state (click or keyboard Enter/Space on sortable headers), optional row animation (auto-disabled above 200 rows), and per-row/per-cell className callbacks. Exported from `@/components/ui`. 10 unit tests cover sort cycling, keyboard activation, initialSort, custom sortValue, empty state, and rowClassName.
+
+### Changed
+
+- **`MilestonesTable` (Net Worth page) migrated to `DataTable`.** Visual output identical; summary strip and disclaimer live outside the table now.
+- **`MonthlyBreakdownTable` (Trends & Forecasts page) migrated to `DataTable`.** Sort state moved off `useTrendsForecasts` into the table itself; the hook now exposes `recentChartData` instead of the old sort-state tuple (`sortedChartData`, `trendSortKey`, `trendSortDir`, `toggleTrendSort`). `ariaSort` helper removed from `trendsUtils.tsx` (was only used by this table).
+
+### Internal
+
+- Net ~100 LOC deleted across the two migrated tables + hook. Same visual output, one source of truth for sort/hover/animation behavior.
+- Deferred: the other two tables ([TaxableIncomeTable](frontend/src/components/analytics/TaxableIncomeTable.tsx) with expandable parent/child groups, [MultiYearProjectionTable](frontend/src/pages/tax-planning/components/MultiYearProjectionTable.tsx) as a transposed pivot) have materially different shapes and will get dedicated primitives rather than being forced into `DataTable`.
+
+---
+
 ## 2.2.1 - 2026-04-25
 
 Rework of the net-worth milestones feature from 2.2.0 after self-review found two visual issues.

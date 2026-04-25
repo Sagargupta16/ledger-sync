@@ -4,6 +4,8 @@ export { default as Button } from './Button'
 export { default as ChartContainer } from './ChartContainer'
 export { default as CollapsibleSection } from './CollapsibleSection'
 export { default as ConfirmDialog } from './ConfirmDialog'
+export { default as DataTable } from './DataTable'
+export type { DataTableColumn, DataTableProps } from './DataTable'
 export { default as Input, Select } from './Input'
 export { default as PageHeader } from './PageHeader'
 export {

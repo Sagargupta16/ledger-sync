@@ -153,6 +153,7 @@ Runs on push/PR to main. Python 3.12, Node 22, pnpm 10, uv (latest).
 - **Colors**: Use CSS custom properties from `index.css` (`var(--color-income)`, `var(--color-expense)`, etc.). Never raw hex/rgb.
 - **Charts**: Wrap in `ChartContainer`. Use Recharts. Use colors from `constants/`.
 - **Layout**: Use `PageHeader` for page titles, `MetricCard` for KPIs, `EmptyState` for no-data states.
+- **Tables**: Use `DataTable` from `@/components/ui` for flat + sortable tables. Column-driven API (`DataTableColumn<T>`), internal sort state, keyboard-accessible sort headers, optional row animation. Don't hand-roll `<table>`/`<thead>`/`<tbody>` unless the shape is genuinely different (expandable groups, pivoted rows-as-columns) -- and in that case, open an issue to add a new primitive rather than copying boilerplate.
 - **Dark-only (for now)**: Light theme planned (#79). Until then, don't add `dark:` prefixes or theme toggles.
 - **No inline styles** for layout -- use Tailwind classes.
 
