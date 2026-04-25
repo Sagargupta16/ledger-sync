@@ -6,7 +6,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## 2.3.1 - 2026-04-26
+## 2.3.2 - 2026-04-25
 
 ### Fixed
 
@@ -14,6 +14,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Backend: `build_transaction_query(apply_earning_start=True)` default flipped to `False`. `_apply_date_range` in `transactions.py` no longer accepts a `user` parameter. Three analytics_v2 endpoints (`/monthly-summaries`, `/daily-summaries`, `/category-trends`) no longer clamp their period by earning-start. The `_get_earning_start_period` helper is removed (dead code).
   - Frontend: `useTransactions` hook no longer filters by earning-start-date. `useAnalyticsTimeFilter` now applies earning-start to `dateRange.start_date` (the chart-window lower bound) via a new `clampStartToEarningStart` helper with unit tests. Net Worth milestones scan the full unfiltered history, so "First Reached" dates from before earning-start remain visible.
   - 8 new unit tests (7 for `clampStartToEarningStart`, 1 regression for milestone preservation).
+
+---
+
+## 2.3.1 - 2026-04-25
+
+Milestones table redesigned around the question users actually ask: "have I *held* this threshold, or just touched it once?"
+
+### Changed
+
+- **[Milestones table](frontend/src/pages/net-worth/components/MilestonesTable.tsx) columns simplified to 5:** Target | Status | First Reached | Stable Since | Expected to Reach. Dropped the separate Amount column (now shown as a subline under the Target label) and the Notes column (replaced by structured date columns).
+- **Status now has 3 states** instead of 2:
+  - **Stable** (green ✓) -- crossed the threshold and never dipped below since.
+  - **Reached** (yellow ○) -- crossed once but later dipped below; still achieved, not stable.
+  - **Upcoming** (muted ⊙) -- not yet crossed.
+- **Header stats** now show Current net worth, Avg monthly growth, Stable X/N, and Reached X/N (was: Achieved X/N only).
+
+### Added
+
+- **`stableSince` field** on [`MilestoneRow`](frontend/src/pages/net-worth/netWorthProjection.ts). Computed by scanning backward for the last dip below target; returns the crossing date that stuck. `null` when the milestone is upcoming or when net worth is currently below threshold after a prior crossing. 5 new unit tests covering never-dipped, dipped-then-recovered, dipped-still-below, upcoming, and multiple-dips scenarios.
 
 ---
 

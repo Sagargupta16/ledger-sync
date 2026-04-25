@@ -30,6 +30,14 @@ export interface MilestoneRow extends Milestone {
    * For 'upcoming': months away from the anchor date (can be fractional).
    */
   distance: number | null
+  /**
+   * ISO date YYYY-MM-DD from which net worth never dropped back below this
+   * milestone value. `null` when the row is upcoming, or when net worth has
+   * dipped below the threshold after the most recent crossing and is still
+   * below at the anchor. When the milestone was crossed once and never dipped,
+   * equals the `date` field.
+   */
+  stableSince: string | null
 }
 
 /**
@@ -143,13 +151,52 @@ function scanAchievements(
   return achieved
 }
 
+/**
+ * Find the date from which net worth never dropped below `target`.
+ *
+ * Scans from the end backward: finds the last index where value < target.
+ * - If no such index exists: stable since the first crossing.
+ * - If that index is the final point: not stable (still below).
+ * - Otherwise: stable since the crossing that immediately follows that dip.
+ */
+function findStableSince(
+  sortedSeries: readonly NetWorthPoint[],
+  target: number,
+  firstCrossing: string,
+): string | null {
+  if (sortedSeries.length === 0) return null
+
+  // Find last index where value is below target
+  let lastBelowIndex = -1
+  for (let i = sortedSeries.length - 1; i >= 0; i--) {
+    if (sortedSeries[i].netWorth < target) {
+      lastBelowIndex = i
+      break
+    }
+  }
+
+  // Never dipped below target -> stable from first crossing
+  if (lastBelowIndex === -1) return firstCrossing
+
+  // Currently below target -> not stable
+  if (lastBelowIndex === sortedSeries.length - 1) return null
+
+  // Stable from the first point after the last dip that's >= target
+  for (let i = lastBelowIndex + 1; i < sortedSeries.length; i++) {
+    if (sortedSeries[i].netWorth >= target) {
+      return sortedSeries[i].date.substring(0, 10)
+    }
+  }
+  return null
+}
+
 function buildUpcomingRow(
   m: Milestone,
   anchor: NetWorthPoint,
   monthlyGrowth: number,
 ): MilestoneRow {
   if (monthlyGrowth <= 0 || m.value <= anchor.netWorth) {
-    return { ...m, status: 'upcoming', date: null, distance: null }
+    return { ...m, status: 'upcoming', date: null, distance: null, stableSince: null }
   }
   const monthsAway = (m.value - anchor.netWorth) / monthlyGrowth
   const eta = new Date(anchor.date)
@@ -159,6 +206,7 @@ function buildUpcomingRow(
     status: 'upcoming',
     date: eta.toISOString().substring(0, 10),
     distance: Math.round(monthsAway * 10) / 10,
+    stableSince: null,
   }
 }
 
@@ -183,6 +231,7 @@ export function buildMilestoneRows(
       status: 'upcoming',
       date: null,
       distance: null,
+      stableSince: null,
     }))
   }
 
@@ -197,7 +246,13 @@ export function buildMilestoneRows(
         0,
         Math.round((new Date(dateStr).getTime() - startDate.getTime()) / 86_400_000),
       )
-      return { ...m, status: 'achieved', date: dateStr, distance: daysFromStart }
+      return {
+        ...m,
+        status: 'achieved',
+        date: dateStr,
+        distance: daysFromStart,
+        stableSince: findStableSince(sorted, m.value, dateStr),
+      }
     }
     return buildUpcomingRow(m, anchor, monthlyGrowth)
   })
