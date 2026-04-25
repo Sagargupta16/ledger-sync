@@ -84,6 +84,27 @@ describe('buildMilestoneRows', () => {
     expect(oneL.date).toBe('2024-01-01')
   })
 
+  it('preserves milestones crossed before any view/earning-start cutoff', () => {
+    // The caller is expected to pass the FULL history (not a view-filtered
+    // slice) so historical crossings remain visible even after the user
+    // sets an earning-start preference that would otherwise hide them.
+    const fullHistory = [
+      { date: '2023-06-01', netWorth: 150_000 }, // crossed ₹1L in 2023
+      { date: '2023-12-01', netWorth: 400_000 },
+      { date: '2024-06-01', netWorth: 700_000 }, // crossed ₹5L in 2024
+    ]
+    const anchor = { date: '2024-06-01', netWorth: 700_000 }
+    const rows = buildMilestoneRows(fullHistory, anchor, 50_000)
+
+    const oneL = requireRow(rows, '₹1L')
+    expect(oneL.status).toBe('achieved')
+    expect(oneL.date).toBe('2023-06-01')
+
+    const fiveL = requireRow(rows, '₹5L')
+    expect(fiveL.status).toBe('achieved')
+    expect(fiveL.date).toBe('2024-06-01')
+  })
+
   describe('stableSince', () => {
     it('equals first crossing when value never dips below', () => {
       const series = [

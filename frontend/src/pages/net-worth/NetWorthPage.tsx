@@ -462,6 +462,19 @@ export default function NetWorthPage() {
     [filteredNetWorthData],
   )
 
+  // Milestones scan the FULL history (unfiltered) so "First Reached"
+  // stays a historical fact, not a window-bound observation. Anchor
+  // + growth still come from the filtered chart window so the
+  // projection line remains self-consistent with what the user sees.
+  const fullSeries: NetWorthPoint[] = useMemo(
+    () =>
+      netWorthData.map((p) => ({
+        date: p.date as string,
+        netWorth: p.netWorth as number,
+      })),
+    [netWorthData],
+  )
+
   const anchor: NetWorthPoint | null = useMemo(
     () => (chartSeries.length > 0 ? chartSeries[chartSeries.length - 1] : null),
     [chartSeries],
@@ -473,8 +486,8 @@ export default function NetWorthPage() {
   )
 
   const milestoneRows = useMemo(
-    () => buildMilestoneRows(chartSeries, anchor, avgMonthlyGrowth),
-    [chartSeries, anchor, avgMonthlyGrowth],
+    () => buildMilestoneRows(fullSeries, anchor, avgMonthlyGrowth),
+    [fullSeries, anchor, avgMonthlyGrowth],
   )
 
   /**

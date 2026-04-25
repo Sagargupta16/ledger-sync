@@ -68,6 +68,14 @@ Frontend pages call either:
 - `/api/analytics/v2/*` -- **pre-aggregated** tables (fast, used for default views)
 - `/api/calculations/*` -- medium-weight aggregations (totals, monthly breakdowns, category splits) with a fast path that reads from V2 tables when no date filter is active
 
+### Earning-Start-Date: View Filter, Not Data Filter
+
+The `earning_start_date` + `use_earning_start_date` preferences are a **chart x-axis lower bound**, not a data cutoff. Backend queries and the `useTransactions` hook do not honor them — underlying data (account balances, totals, historical milestones) is always derived from the user's full transaction history.
+
+The clamp is applied only at the view layer in `frontend/src/hooks/useAnalyticsTimeFilter.ts` via `clampStartToEarningStart`, which raises the chart window's `start_date` to the earning date when the preference is active. Consumers that compute historical facts (e.g. "when did I first cross ₹1L?") must scan the full unfiltered series, not the chart-windowed slice.
+
+If you need "data since I started earning" semantics for a specific query, call `build_transaction_query(..., apply_earning_start=True)` explicitly — it's opt-in, never implicit.
+
 ---
 
 ## Upload & Reconciliation

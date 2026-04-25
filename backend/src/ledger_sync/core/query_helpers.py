@@ -152,15 +152,21 @@ def build_transaction_query(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     *,
-    apply_earning_start: bool = True,
+    apply_earning_start: bool = False,
 ) -> Query[Transaction]:
     """Build a filtered ``Transaction`` query for *user*.
 
     Applies:
     * ``user_id`` filter
     * ``is_deleted = False`` filter
-    * Earning-start-date clamping (when *apply_earning_start* is True)
+    * Earning-start-date clamping (**opt-in** via *apply_earning_start=True*)
     * Optional *start_date* / *end_date* range filters
+
+    Earning-start is a *view* preference (chart x-axis lower bound),
+    not a data-boundary. Most callers want factual totals/balances across
+    the user's full history and should leave *apply_earning_start* at its
+    default of False. Pass True only when you want "show X since I started
+    earning" behavior.
 
     Returns an **un-executed** SQLAlchemy query that callers can further
     refine with extra filters, ``.subquery()``, ``.all()``, etc.

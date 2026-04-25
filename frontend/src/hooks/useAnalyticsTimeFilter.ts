@@ -9,6 +9,24 @@ import {
   type AnalyticsViewMode,
 } from '@/lib/dateUtils'
 
+/**
+ * Clamp a nullable start-date to the earning-start preference when active.
+ * This is the **view-layer** application of earning-start — charts visually
+ * start at the earning date; underlying data is untouched.
+ *
+ * Exported for unit testing only.
+ */
+export function clampStartToEarningStart(
+  startDate: string | null,
+  earningStartDate: string | null,
+  useEarningStartDate: boolean,
+): string | null {
+  if (!useEarningStartDate || !earningStartDate) return startDate
+  const cutoff = earningStartDate.substring(0, 10)
+  if (!startDate) return cutoff
+  return startDate < cutoff ? cutoff : startDate
+}
+
 interface UseAnalyticsTimeFilterOptions {
   defaultViewMode?: AnalyticsViewMode
   availableModes?: AnalyticsViewMode[]
@@ -32,6 +50,8 @@ export function useAnalyticsTimeFilter(
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
   const { displayPreferences } = usePreferencesStore()
+  const earningStartDate = usePreferencesStore((s) => s.earningStartDate)
+  const useEarningStartDate = usePreferencesStore((s) => s.useEarningStartDate)
 
   const defaultMode =
     options?.defaultViewMode ??
@@ -42,24 +62,41 @@ export function useAnalyticsTimeFilter(
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
 
-  const dateRange = useMemo(
-    () =>
-      getAnalyticsDateRange(
-        viewMode,
-        currentYear,
-        currentMonth,
-        currentFY,
-        fiscalYearStartMonth,
+  const dateRange = useMemo(() => {
+    const raw = getAnalyticsDateRange(
+      viewMode,
+      currentYear,
+      currentMonth,
+      currentFY,
+      fiscalYearStartMonth,
+    )
+    return {
+      ...raw,
+      start_date: clampStartToEarningStart(
+        raw.start_date,
+        earningStartDate,
+        useEarningStartDate,
       ),
-    [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth],
-  )
+    }
+  }, [
+    viewMode,
+    currentYear,
+    currentMonth,
+    currentFY,
+    fiscalYearStartMonth,
+    earningStartDate,
+    useEarningStartDate,
+  ])
 
   const dataDateRange = useMemo(() => {
     if (!transactions || transactions.length === 0)
       return { minDate: undefined, maxDate: undefined }
     const dates = transactions.map((t) => t.date.substring(0, 10)).sort((a, b) => a.localeCompare(b))
-    return { minDate: dates[0], maxDate: dates.at(-1) }
-  }, [transactions])
+    const rawMin = dates[0]
+    const clampedMin =
+      clampStartToEarningStart(rawMin, earningStartDate, useEarningStartDate) ?? rawMin
+    return { minDate: clampedMin, maxDate: dates.at(-1) }
+  }, [transactions, earningStartDate, useEarningStartDate])
 
   const timeFilterProps = {
     viewMode,

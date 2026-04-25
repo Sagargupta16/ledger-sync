@@ -3,7 +3,6 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 import { transactionsService, type TransactionFilters } from '@/services/api/transactions'
-import { usePreferencesStore } from '@/store/preferencesStore'
 
 import { usePreferences } from './usePreferences'
 
@@ -27,18 +26,16 @@ function parseExcludedAccounts(raw: string[] | string | undefined): Set<string> 
 }
 
 /**
- * Check whether a date string represents a valid date (YYYY-MM-DD or similar).
+ * Fetch the user's transactions.
+ *
+ * Filters applied here are *account-level* data filters (excluded accounts).
+ * Earning-start-date is a **view** preference (chart x-axis lower bound) and
+ * is intentionally NOT applied here -- consumers that need view-window
+ * cropping should apply it at the chart/series level (see
+ * `useAnalyticsTimeFilter`).
  */
-function isValidDateString(s: string | null | undefined): s is string {
-  if (!s || typeof s !== 'string') return false
-  const d = new Date(s)
-  return !Number.isNaN(d.getTime())
-}
-
 export function useTransactions(filters?: TransactionFilters) {
   const { data: preferences } = usePreferences()
-  const earningStartDate = usePreferencesStore((s) => s.earningStartDate)
-  const useEarningStartDate = usePreferencesStore((s) => s.useEarningStartDate)
 
   const query = useQuery({
     queryKey: ['transactions', filters],
@@ -54,25 +51,15 @@ export function useTransactions(filters?: TransactionFilters) {
     [preferences?.excluded_accounts],
   )
 
-  // Resolve the effective earning start date cutoff (if enabled and valid)
-  const earningCutoff = useMemo(() => {
-    if (!useEarningStartDate || !isValidDateString(earningStartDate)) return null
-    // Normalize to YYYY-MM-DD for string comparison with tx.date
-    return earningStartDate.substring(0, 10)
-  }, [useEarningStartDate, earningStartDate])
-
   const filteredData = useMemo(() => {
     if (!query.data) return query.data
-    if (excludedAccounts.size === 0 && !earningCutoff) return query.data
+    if (excludedAccounts.size === 0) return query.data
     return query.data.filter((tx) => {
-      // Exclude transactions from excluded accounts
       const account = tx.account?.toLowerCase()
       if (account && excludedAccounts.has(account)) return false
-      // Exclude transactions before the earning start date
-      if (earningCutoff && tx.date < earningCutoff) return false
       return true
     })
-  }, [query.data, excludedAccounts, earningCutoff])
+  }, [query.data, excludedAccounts])
 
   return {
     ...query,
