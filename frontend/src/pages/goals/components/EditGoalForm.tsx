@@ -62,6 +62,7 @@ export default function EditGoalForm({
             <input
               id={`edit-amount-${goal.id}`}
               type="number"
+              inputMode="decimal"
               min={0}
               step="any"
               value={targetAmount}

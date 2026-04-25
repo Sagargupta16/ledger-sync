@@ -20,7 +20,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
   return (
     <div className="md:col-span-2 lg:col-span-3">
       <FieldLabel>Spending Rule</FieldLabel>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label htmlFor="needs-percent" className="text-xs text-muted-foreground mb-1 block">
             Needs %
@@ -28,6 +28,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
           <input
             id="needs-percent"
             type="number"
+            inputMode="decimal"
             min="0"
             max="100"
             value={localPrefs.needs_target_percent}
@@ -42,6 +43,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
           <input
             id="wants-percent"
             type="number"
+            inputMode="decimal"
             min="0"
             max="100"
             value={localPrefs.wants_target_percent}
@@ -56,6 +58,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
           <input
             id="savings-percent"
             type="number"
+            inputMode="decimal"
             min="0"
             max="100"
             value={localPrefs.savings_target_percent}

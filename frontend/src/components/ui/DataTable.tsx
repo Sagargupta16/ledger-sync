@@ -100,7 +100,7 @@ export default function DataTable<T>({
   const shouldAnimate = animateRows && sortedRows.length <= 200
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto data-table-scroll">
       <table className="w-full" aria-label={ariaLabel}>
         <thead>
           <tr className="border-b border-border">

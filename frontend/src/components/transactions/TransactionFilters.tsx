@@ -230,6 +230,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
                 <label className="text-sm font-medium text-muted-foreground">Min Amount ({currencySymbol})</label>
                 <input
                   type="number"
+                  inputMode="decimal"
                   placeholder="0"
                   value={filters.min_amount || ''}
                   onChange={(e) => handleFilterChange('min_amount', e.target.value ? Number(e.target.value) : undefined)}
@@ -242,6 +243,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
                 <label className="text-sm font-medium text-muted-foreground">Max Amount ({currencySymbol})</label>
                 <input
                   type="number"
+                  inputMode="decimal"
                   placeholder="∞"
                   value={filters.max_amount || ''}
                   onChange={(e) => handleFilterChange('max_amount', e.target.value ? Number(e.target.value) : undefined)}

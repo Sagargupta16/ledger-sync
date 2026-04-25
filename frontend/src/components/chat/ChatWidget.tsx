@@ -43,7 +43,10 @@ export default function ChatWidget() {
   if (!accessToken || isDemoMode) return null
 
   return (
-    <div className="fixed bottom-6 right-6 z-40">
+    <div
+      className="fixed right-6 z-40"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}
+    >
       <AnimatePresence>
         {isOpen && isConfigured && (
           <ChatPanel

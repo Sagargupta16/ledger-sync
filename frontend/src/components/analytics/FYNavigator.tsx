@@ -37,17 +37,17 @@ export default function FYNavigator({
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-2xl border border-border p-6"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <button
           onClick={onGoBack}
           disabled={!canGoBack}
-          className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border"
+          className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border shrink-0"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
 
-        <div className="text-center flex-1">
-          <div className="flex items-center justify-center gap-4">
+        <div className="text-center flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
             <div>
               <h2 className="text-2xl sm:text-3xl font-bold text-white">{selectedFY || 'Select FY'}</h2>
               <p className="text-sm text-muted-foreground mt-1">
@@ -85,7 +85,7 @@ export default function FYNavigator({
         <button
           onClick={onGoForward}
           disabled={!canGoForward}
-          className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border"
+          className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border shrink-0"
         >
           <ChevronRight className="w-5 h-5" />
         </button>

@@ -12,6 +12,7 @@ export default function DeductionInput({ label, sublabel, value, max, onChange }
       <label className="text-xs font-medium text-muted-foreground block mb-1">{label}</label>
       <input
         type="number"
+        inputMode="decimal"
         min={0}
         max={max}
         value={value || ''}

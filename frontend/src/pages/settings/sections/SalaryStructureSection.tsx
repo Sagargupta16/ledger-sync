@@ -342,6 +342,7 @@ export default function SalaryStructureSection({
                   <input
                     id={`salary-${f.key}`}
                     type="number"
+                    inputMode="decimal"
                     min="0"
                     step="100"
                     value={currentSalary[f.key] || ''}
@@ -418,6 +419,7 @@ export default function SalaryStructureSection({
                     <input
                       id={`grant-price-${grant.id}`}
                       type="number"
+                      inputMode="decimal"
                       min="0"
                       step="0.01"
                       value={grant.stock_price || ''}
@@ -498,6 +500,7 @@ export default function SalaryStructureSection({
                           <td className="py-2 pr-3">
                             <input
                               type="number"
+                              inputMode="decimal"
                               min="0"
                               value={v.quantity || ''}
                               onChange={(e) =>
@@ -574,6 +577,7 @@ export default function SalaryStructureSection({
             <input
               id="growth-base"
               type="number"
+              inputMode="decimal"
               min="0"
               max="100"
               step="0.5"
@@ -588,6 +592,7 @@ export default function SalaryStructureSection({
             <input
               id="growth-stock"
               type="number"
+              inputMode="decimal"
               min="-50"
               max="200"
               step="0.5"
@@ -602,6 +607,7 @@ export default function SalaryStructureSection({
             <input
               id="growth-horizon"
               type="number"
+              inputMode="decimal"
               min="1"
               max="30"
               step="1"
@@ -616,6 +622,7 @@ export default function SalaryStructureSection({
             <input
               id="growth-bonus"
               type="number"
+              inputMode="decimal"
               min="0"
               max="100"
               step="0.5"
@@ -630,6 +637,7 @@ export default function SalaryStructureSection({
             <input
               id="growth-nps"
               type="number"
+              inputMode="decimal"
               min="0"
               max="100"
               step="0.5"

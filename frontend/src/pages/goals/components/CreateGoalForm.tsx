@@ -53,6 +53,7 @@ export default function CreateGoalForm({
           </select>
           <input
             type="number"
+            inputMode="decimal"
             placeholder="Target amount *"
             value={formData.target_amount}
             onChange={(e) => onFormDataChange({ ...formData, target_amount: e.target.value })}

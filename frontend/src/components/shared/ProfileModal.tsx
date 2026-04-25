@@ -181,7 +181,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
               <button
                 type="button"
                 onClick={handleClose}
-                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-transparent hover:bg-white/[0.06] flex items-center justify-center transition-colors duration-150 ease-out"
+                className="absolute top-4 right-4 w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-transparent hover:bg-white/[0.06] flex items-center justify-center transition-colors duration-150 ease-out"
               >
                 <X size={16} className="text-text-tertiary hover:text-white" />
               </button>

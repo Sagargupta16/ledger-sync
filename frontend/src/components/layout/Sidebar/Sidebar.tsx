@@ -223,10 +223,11 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile toggle */}
+      {/* Mobile toggle -- offset by safe-area-inset-top so it clears the iOS notch in PWA mode. */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-900/90 border border-white/[0.08] backdrop-blur-sm active:scale-95 transition-transform"
+        className="lg:hidden fixed left-4 z-50 w-11 h-11 flex items-center justify-center rounded-xl bg-zinc-900/90 border border-white/[0.08] backdrop-blur-sm active:scale-95 transition-transform"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
         aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
       >
         {isMobileOpen
@@ -299,8 +300,11 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          {/* Bottom icon bar */}
-          <div className="border-t border-border px-3 py-2.5">
+          {/* Bottom icon bar -- extra bottom padding on iOS to clear the home-indicator. */}
+          <div
+            className="border-t border-border px-3 py-2.5"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.625rem)' }}
+          >
             <div className="flex items-center justify-center gap-1">
               <CurrencySwitcher />
               <NotificationCenter />
@@ -309,7 +313,7 @@ export default function Sidebar() {
                   key={item.path}
                   to={item.path}
                   onClick={closeMobile}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] transition-colors duration-150"
+                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] transition-colors duration-150"
                   title={item.label}
                 >
                   <item.icon size={18} />
@@ -319,7 +323,7 @@ export default function Sidebar() {
                 <button
                   type="button"
                   onClick={() => exitDemoMode(queryClient, navigate)}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150"
+                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150"
                   title="Exit Demo"
                 >
                   <LogOut size={18} />
@@ -329,7 +333,7 @@ export default function Sidebar() {
                   type="button"
                   onClick={handleLogout}
                   disabled={logout.isPending}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 disabled:opacity-50"
+                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 disabled:opacity-50"
                   title="Sign out"
                 >
                   <LogOut size={18} />

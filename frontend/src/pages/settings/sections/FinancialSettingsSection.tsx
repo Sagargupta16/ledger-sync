@@ -65,6 +65,7 @@ export default function FinancialSettingsSection({
             <input
               id="savings-goal"
               type="number"
+              inputMode="decimal"
               min="0"
               max="100"
               value={localPrefs.savings_goal_percent ?? 20}
@@ -84,6 +85,7 @@ export default function FinancialSettingsSection({
             <input
               id="investment-target"
               type="number"
+              inputMode="decimal"
               min="0"
               step="1000"
               value={localPrefs.monthly_investment_target ?? 0}
