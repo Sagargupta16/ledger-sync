@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 
 import { motion } from 'framer-motion'
 import { ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react'
@@ -53,6 +53,8 @@ interface SankeyNodeRendererProps {
   readonly savingsNodeIndex: number
   readonly expensesNodeIndex: number
   readonly totalIncome: number
+  readonly chartWidth: number
+  readonly fontSize: number
 }
 
 const SankeyNodeRenderer = ({
@@ -68,6 +70,8 @@ const SankeyNodeRenderer = ({
   savingsNodeIndex,
   expensesNodeIndex,
   totalIncome,
+  chartWidth,
+  fontSize,
 }: SankeyNodeRendererProps) => {
   const x = safeNumber(rawX)
   const y = safeNumber(rawY)
@@ -77,6 +81,11 @@ const SankeyNodeRenderer = ({
   const value = nodeValues.get(index) || 0
   const percentage = totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0'
   const fillColor = getNodeFillColor(index, incomeCategoryCount, totalIncomeNodeIndex, savingsNodeIndex, expensesNodeIndex)
+
+  // Position labels outside the node, on whichever side has more room (left vs right).
+  const onLeftSide = x < chartWidth / 2
+  const labelX = onLeftSide ? x - 8 : x + width + 8
+  const anchor: 'end' | 'start' = onLeftSide ? 'end' : 'start'
 
   return (
     <g>
@@ -92,26 +101,24 @@ const SankeyNodeRenderer = ({
         rx={4}
         ry={4}
       />
-      {/* Node label - positioned to the side */}
       <text
-        x={x < 400 ? x - 10 : x + width + 10}
-        y={y + height / 2}
-        textAnchor={x < 400 ? 'end' : 'start'}
+        x={labelX}
+        y={y + height / 2 - fontSize * 0.25}
+        textAnchor={anchor}
         dominantBaseline="middle"
         fill="#ffffff"
-        fontSize={13}
+        fontSize={fontSize}
         fontWeight="600"
       >
         {payload.name}
       </text>
-      {/* Value and percentage */}
       <text
-        x={x < 400 ? x - 10 : x + width + 10}
-        y={y + height / 2 + 16}
-        textAnchor={x < 400 ? 'end' : 'start'}
+        x={labelX}
+        y={y + height / 2 + fontSize * 0.9}
+        textAnchor={anchor}
         dominantBaseline="middle"
         fill={rawColors.app.purple}
-        fontSize={11}
+        fontSize={fontSize - 2}
         fontWeight="500"
       >
         {formatCurrency(value)} ({percentage}%)
@@ -127,6 +134,8 @@ interface SankeyNodeWrapperProps {
   readonly savingsNodeIndex: number
   readonly expensesNodeIndex: number
   readonly totalIncome: number
+  readonly chartWidth: number
+  readonly fontSize: number
 }
 
 function createSankeyNodeComponent(context: SankeyNodeWrapperProps) {
@@ -139,13 +148,29 @@ function createSankeyNodeComponent(context: SankeyNodeWrapperProps) {
       savingsNodeIndex={context.savingsNodeIndex}
       expensesNodeIndex={context.expensesNodeIndex}
       totalIncome={context.totalIncome}
+      chartWidth={context.chartWidth}
+      fontSize={context.fontSize}
     />
   )
   return SankeyNodeComponent
 }
 
+function useIsMobile(breakpoint = 640): boolean {
+  const [isMobile, setIsMobile] = useState(
+    () => globalThis.window !== undefined && globalThis.window.innerWidth < breakpoint,
+  )
+  useEffect(() => {
+    const mq = globalThis.window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [breakpoint])
+  return isMobile
+}
+
 const IncomeExpenseFlowPage = () => {
   const { data: allTransactions = [], isLoading } = useTransactions()
+  const isMobile = useIsMobile()
 
   const { dateRange, currentFY, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
 
@@ -282,6 +307,9 @@ const IncomeExpenseFlowPage = () => {
       })
 
     const incomeCategoryCount = Object.keys(incomeByCategory).length
+    // Chart width passed into the node renderer for left/right label decisions.
+    // On mobile the diagram is 720px (scrollable); on desktop it fills its container (~900px typical).
+    const chartWidth = isMobile ? 720 : 900
     const sankeyNodeComponent = createSankeyNodeComponent({
       nodeValues,
       incomeCategoryCount,
@@ -289,6 +317,8 @@ const IncomeExpenseFlowPage = () => {
       savingsNodeIndex,
       expensesNodeIndex,
       totalIncome,
+      chartWidth,
+      fontSize: isMobile ? 11 : 13,
     })
 
     return {
@@ -296,7 +326,7 @@ const IncomeExpenseFlowPage = () => {
       sankeyData: { nodes, links },
       sankeyNodeComponent,
     }
-  }, [fyTransactions])
+  }, [fyTransactions, isMobile])
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
@@ -364,14 +394,17 @@ const IncomeExpenseFlowPage = () => {
         transition={{ delay: 0.2 }}
         className="glass rounded-2xl border border-border p-4 md:p-6 lg:p-8"
       >
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-8">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-app-purple/20 rounded-xl">
               <ArrowRightLeft className="w-6 h-6 text-app-purple" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-white">Cash Flow Sankey</h3>
-              <p className="text-sm text-muted-foreground">Income sources flowing to savings and expenses</p>
+              <p className="text-sm text-muted-foreground">
+                <span className="sm:hidden">Swipe to explore &rarr;</span>
+                <span className="hidden sm:inline">Income sources flowing to savings and expenses</span>
+              </p>
             </div>
           </div>
         </div>
@@ -385,14 +418,28 @@ const IncomeExpenseFlowPage = () => {
           </div>
         )}
         {!isLoading && sankeyData.nodes.length > 0 && (
-          <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6 overflow-x-auto">
-            <div style={{ minWidth: "min(1000px, 90vw)", height: '700px', position: 'relative' }}>
-              <ChartContainer height={globalThis.window !== undefined && globalThis.window.innerWidth < 768 ? 400 : 700}>
+          <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-3 sm:p-6 overflow-x-auto data-table-scroll">
+            {/* On mobile, fix the diagram to 720px so the Sankey has enough plot width
+                and let users swipe horizontally. Desktop fills the container. */}
+            <div
+              style={{
+                width: isMobile ? 720 : '100%',
+                minWidth: isMobile ? 720 : undefined,
+                height: isMobile ? 520 : 700,
+                position: 'relative',
+              }}
+            >
+              <ChartContainer height={isMobile ? 520 : 700}>
                 <Sankey
                   data={sankeyData as { nodes: Array<{ name: string }>; links: Array<{ source: number; target: number; value: number }> }}
-                  nodeWidth={20}
-                  nodePadding={60}
-                  margin={{ top: 30, right: 200, bottom: 30, left: 200 }}
+                  nodeWidth={isMobile ? 14 : 20}
+                  nodePadding={isMobile ? 30 : 60}
+                  margin={{
+                    top: 20,
+                    right: isMobile ? 110 : 200,
+                    bottom: 20,
+                    left: isMobile ? 110 : 200,
+                  }}
                   node={sankeyNodeComponent}
                   link={{
                     stroke: rawColors.app.purple,

@@ -331,7 +331,7 @@ export default function BudgetPage() {
         title="Budget Tracker"
         subtitle="Set limits and track spending by category"
         action={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             {/* View Mode Toggle */}
             <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">
               {([['category', 'Category'], ['subcategory', 'Subcategory']] as const).map(([val, label]) => (

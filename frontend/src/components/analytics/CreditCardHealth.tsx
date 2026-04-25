@@ -199,7 +199,7 @@ export default function CreditCardHealth() {
       )}
 
       {/* Tips */}
-      <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3 text-center">
         <div className="p-2 rounded-lg bg-app-green/10">
           <p className="text-xs font-medium text-app-green">&lt;30%</p>
           <p className="text-caption text-muted-foreground">Excellent</p>

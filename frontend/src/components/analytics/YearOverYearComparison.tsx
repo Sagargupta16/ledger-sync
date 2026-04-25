@@ -189,7 +189,7 @@ export default function YearOverYearComparison() {
 
       {/* Key Metrics Comparison */}
       {comparison && selectedCategory === 'all' && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="p-4 rounded-xl bg-app-green/10 border border-app-green/20">
             <p className="text-sm text-muted-foreground mb-1">Income Change</p>
             <div className="flex items-center gap-2">

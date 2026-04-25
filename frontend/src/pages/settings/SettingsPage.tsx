@@ -62,7 +62,7 @@ export default function SettingsPage() {
           title="Settings"
           subtitle="Configure your financial preferences"
           action={
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               {s.hasChanges && (
                 <span className="text-sm text-app-yellow flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-app-yellow animate-pulse" /> Unsaved

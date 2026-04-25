@@ -83,19 +83,19 @@ export default function GoalCard({
 
       {/* Amount Details */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-5">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs text-text-tertiary">Target</p>
-          <p className="text-sm font-medium text-white">{formatCurrency(goal.target_amount)}</p>
+          <p className="text-sm font-medium text-white break-all">{formatCurrency(goal.target_amount)}</p>
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-xs text-text-tertiary">Allocated</p>
-          <p className="text-sm font-medium" style={{ color }}>
+          <p className="text-sm font-medium break-all" style={{ color }}>
             {formatCurrency(effectiveAmount)}
           </p>
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-xs text-text-tertiary">Remaining</p>
-          <p className="text-sm font-medium text-foreground">{formatCurrency(remaining)}</p>
+          <p className="text-sm font-medium text-foreground break-all">{formatCurrency(remaining)}</p>
         </div>
       </div>
 

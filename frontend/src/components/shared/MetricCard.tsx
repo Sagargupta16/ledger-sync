@@ -107,7 +107,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
             initial={{ opacity: 0.6, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
-            className="text-lg sm:text-xl font-bold text-white leading-tight"
+            className="text-lg sm:text-xl font-bold text-white leading-tight break-all"
           >
             <AnimatedValue value={value} />
           </motion.p>

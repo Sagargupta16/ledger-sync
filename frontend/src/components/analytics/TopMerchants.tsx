@@ -204,13 +204,13 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
 
       {/* Summary */}
       {merchantData.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-4 text-center">
+        <div className="mt-4 pt-4 border-t border-border grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-2xl font-bold text-app-orange">{merchantData.length}</p>
             <p className="text-xs text-muted-foreground">Top Merchants</p>
           </div>
           <div>
-            <p className="text-2xl font-bold">{formatCurrency(totalSpentAtTopMerchants)}</p>
+            <p className="text-2xl font-bold break-all">{formatCurrency(totalSpentAtTopMerchants)}</p>
             <p className="text-xs text-muted-foreground">Total at Top 10</p>
           </div>
           <div>

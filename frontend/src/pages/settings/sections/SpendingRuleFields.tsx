@@ -20,7 +20,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
   return (
     <div className="md:col-span-2 lg:col-span-3">
       <FieldLabel>Spending Rule</FieldLabel>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label htmlFor="needs-percent" className="text-xs text-muted-foreground mb-1 block">
             Needs %

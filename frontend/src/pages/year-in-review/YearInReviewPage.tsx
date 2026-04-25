@@ -80,7 +80,7 @@ export default function YearInReviewPage() {
         title="Year in Review"
         subtitle="Your annual financial highlights and insights"
         action={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <AnalyticsTimeFilter
               viewMode={viewMode}
               onViewModeChange={setViewMode}
