@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 
 import { motion } from 'framer-motion'
-import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight, Award, Target, type LucideIcon } from 'lucide-react'
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts'
 
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
@@ -19,6 +19,15 @@ import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
+
+import MilestonesAchieved from './components/MilestonesAchieved'
+import TargetProjectionsTable from './components/TargetProjectionsTable'
+import {
+  computeAvgMonthlyGrowth,
+  computeMilestoneETAs,
+  detectMilestonesAchieved,
+  projectNetWorth,
+} from './netWorthProjection'
 
 // Category display configuration
 const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
@@ -312,6 +321,7 @@ export default function NetWorthPage() {
   const { data: transactions = [], isLoading: transactionsLoading } = useTransactions()
   const { data: preferences } = usePreferences()
   const [showStacked, setShowStacked] = useState(false)
+  const [showProjection, setShowProjection] = useState(false)
   const [classifications, setClassifications] = useState<Record<string, string>>({})
   const [expandedAssetCategories, setExpandedAssetCategories] = useState<Set<string>>(new Set())
   const [expandedLiabilityCategories, setExpandedLiabilityCategories] = useState<Set<string>>(new Set())
@@ -440,6 +450,45 @@ export default function NetWorthPage() {
     })
   }, [filteredNetWorthData])
 
+  // Milestones + projection data derived from the daily net-worth series
+  const baseSeries = useMemo(
+    () =>
+      netWorthData.map((p) => ({
+        date: p.date as string,
+        netWorth: p.netWorth as number,
+      })),
+    [netWorthData],
+  )
+
+  const milestonesAchieved = useMemo(
+    () => detectMilestonesAchieved(baseSeries),
+    [baseSeries],
+  )
+
+  const avgMonthlyGrowth = useMemo(
+    () => computeAvgMonthlyGrowth(baseSeries, 12),
+    [baseSeries],
+  )
+
+  const milestoneETAs = useMemo(
+    () => computeMilestoneETAs(netWorth, avgMonthlyGrowth, milestonesAchieved),
+    [netWorth, avgMonthlyGrowth, milestonesAchieved],
+  )
+
+  // Combine historical + projected series for the chart when projection toggle is on.
+  // Historical rows get `netWorth`, future rows get `projected` -- Recharts plots
+  // each line with nulls elsewhere so they render as one continuous track.
+  const chartData = useMemo(() => {
+    if (!showProjection || avgMonthlyGrowth <= 0 || filteredNetWorthData.length === 0) {
+      return filteredNetWorthData
+    }
+    const projection = projectNetWorth(netWorth, avgMonthlyGrowth, 60)
+    return [
+      ...filteredNetWorthData.map((p) => ({ ...p, projected: null })),
+      ...projection.map((p) => ({ date: p.date, projected: p.netWorth })),
+    ]
+  }, [filteredNetWorthData, showProjection, netWorth, avgMonthlyGrowth])
+
   const renderWaterfallTooltip = useCallback(({ active, payload, label }: { active?: boolean; payload?: Array<{ payload?: { change: number; endValue: number } }>; label?: string }) => {
     if (!active || !payload?.length) return null
     const item = payload[0]?.payload
@@ -496,21 +545,39 @@ export default function NetWorthPage() {
           transition={{ delay: 0.4 }}
           className="glass rounded-2xl border border-border p-4 md:p-6"
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <BarChart3 className="w-5 h-5 text-app-blue" />
               <h3 className="text-lg font-semibold text-white">Net Worth Trend</h3>
             </div>
-            <button
-              onClick={() => setShowStacked(!showStacked)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                showStacked
-                  ? 'bg-primary text-white'
-                  : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
-              }`}
-            >
-              {showStacked ? '📊 Stacked View' : '📈 Total View'}
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setShowProjection(!showProjection)}
+                disabled={avgMonthlyGrowth <= 0}
+                title={
+                  avgMonthlyGrowth <= 0
+                    ? 'Need positive monthly growth to project'
+                    : 'Extend line at your recent growth rate'
+                }
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  showProjection
+                    ? 'bg-app-blue/20 text-white border border-app-blue/40'
+                    : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                {showProjection ? '🔮 Projecting' : '🔮 Project'}
+              </button>
+              <button
+                onClick={() => setShowStacked(!showStacked)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  showStacked
+                    ? 'bg-primary text-white'
+                    : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
+                }`}
+              >
+                {showStacked ? '📊 Stacked View' : '📈 Total View'}
+              </button>
+            </div>
           </div>
           {(() => {
             if (isLoading) {
@@ -522,9 +589,11 @@ export default function NetWorthPage() {
             }
             if (filteredNetWorthData.length > 0) {
               const formattedValue = (value: number | undefined) => value === undefined ? '' : formatCurrency(value)
+              const todayIso = new Date().toISOString().substring(0, 10)
+              const showProjectionLine = showProjection && avgMonthlyGrowth > 0
               return (
                 <ChartContainer height={320}>
-                  <AreaChart data={filteredNetWorthData}>
+                  <AreaChart data={chartData}>
                     <defs>
                       {areaGradient('netWorth', rawColors.app.purple)}
                       {areaGradient('income', rawColors.app.green, 0.6, 0.1)}
@@ -541,7 +610,7 @@ export default function NetWorthPage() {
                       })}
                     </defs>
                     <CartesianGrid {...GRID_DEFAULTS} />
-                    <XAxis {...xAxisDefaults(filteredNetWorthData.length, { angle: dims.angleXLabels ? -45 : undefined, height: 80, dateFormatter: true })} dataKey="date" />
+                    <XAxis {...xAxisDefaults(chartData.length, { angle: dims.angleXLabels ? -45 : undefined, height: 80, dateFormatter: true })} dataKey="date" />
                     <YAxis {...yAxisDefaults()} />
                     <Tooltip
                       {...chartTooltipProps}
@@ -549,6 +618,14 @@ export default function NetWorthPage() {
                       labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                     />
                     {dims.showLegend && <Legend {...LEGEND_DEFAULTS} />}
+                    {showProjectionLine && (
+                      <ReferenceLine
+                        x={todayIso}
+                        stroke={rawColors.text.tertiary}
+                        strokeDasharray="4 4"
+                        label={{ value: 'Today', fill: rawColors.text.secondary, fontSize: 11, position: 'top' }}
+                      />
+                    )}
                     {showStacked ? (
                       <>
                         {allCategories.map((cat) => {
@@ -574,20 +651,37 @@ export default function NetWorthPage() {
                         })}
                       </>
                     ) : (
-                      <Area
-                        type="monotone"
-                        dataKey="netWorth"
-                        stroke={rawColors.app.purple}
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.purple }}
-                        fillOpacity={1}
-                        fill={areaGradientUrl('netWorth')}
-                        name="Net Worth"
-                        isAnimationActive={shouldAnimate(filteredNetWorthData.length)}
-                        animationDuration={600}
-                        animationEasing="ease-out"
-                      />
+                      <>
+                        <Area
+                          type="monotone"
+                          dataKey="netWorth"
+                          stroke={rawColors.app.purple}
+                          strokeWidth={2}
+                          dot={false}
+                          activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.purple }}
+                          fillOpacity={1}
+                          fill={areaGradientUrl('netWorth')}
+                          name="Net Worth"
+                          isAnimationActive={shouldAnimate(filteredNetWorthData.length)}
+                          animationDuration={600}
+                          animationEasing="ease-out"
+                        />
+                        {showProjectionLine && (
+                          <Area
+                            type="monotone"
+                            dataKey="projected"
+                            stroke={rawColors.app.blue}
+                            strokeWidth={2}
+                            strokeDasharray="6 4"
+                            dot={false}
+                            activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
+                            fill="transparent"
+                            name="Projected"
+                            connectNulls
+                            isAnimationActive={false}
+                          />
+                        )}
+                      </>
                     )}
                   </AreaChart>
                 </ChartContainer>
@@ -673,6 +767,45 @@ export default function NetWorthPage() {
             )}
           </motion.div>
         )}
+
+        {/* Milestones achieved + target ETAs */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-50px' }}
+            transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="glass rounded-2xl border border-border p-4 md:p-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Award className="w-5 h-5 text-app-green" />
+              <h3 className="text-lg font-semibold text-white">Milestones Achieved</h3>
+              <span className="text-xs text-muted-foreground">
+                ({milestonesAchieved.length} reached)
+              </span>
+            </div>
+            <MilestonesAchieved milestones={milestonesAchieved} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-50px' }}
+            transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="glass rounded-2xl border border-border p-4 md:p-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Target className="w-5 h-5 text-app-blue" />
+              <h3 className="text-lg font-semibold text-white">Next Targets</h3>
+              <span className="text-xs text-muted-foreground">(projected ETAs)</span>
+            </div>
+            <TargetProjectionsTable
+              etas={milestoneETAs}
+              monthlyGrowth={avgMonthlyGrowth}
+              currentNetWorth={netWorth}
+            />
+          </motion.div>
+        </div>
 
         <motion.div
           initial={{ opacity: 0, y: 40 }}

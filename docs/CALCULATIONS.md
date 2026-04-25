@@ -537,6 +537,38 @@ For the snapshot:
 
 **Snapshot cadence**: one snapshot per day maximum (upserts by date). Used for the Net Worth time-series chart.
 
+### Net Worth Milestones
+
+**Code**: `frontend/src/pages/net-worth/netWorthProjection.ts` -> `detectMilestonesAchieved`
+
+Walks the chronologically-sorted daily net-worth series and records the first date each default threshold was reached (net worth >= target).
+
+Defaults: ₹1L, ₹5L, ₹10L, ₹25L, ₹50L, ₹1Cr, ₹2.5Cr, ₹5Cr, ₹10Cr. Only the **first** crossing is recorded -- subsequent re-crossings after a dip don't create duplicate milestones. Days-from-start is computed relative to the earliest point in the series so consecutive milestones can report "+N days/months from the prior milestone".
+
+### Net Worth Projection + Target ETAs
+
+**Code**: `frontend/src/pages/net-worth/netWorthProjection.ts` -> `computeAvgMonthlyGrowth`, `projectNetWorth`, `computeMilestoneETAs`
+
+```
+avg_monthly_growth = mean(monthly net-worth deltas over last 12 months)
+  # One data point per month (end-of-month net worth); N deltas from N+1 months.
+
+if avg_monthly_growth <= 0:
+    # Projection disabled -- no ETA would converge.
+    return []
+
+for each milestone not yet achieved and > current_net_worth:
+    months_away  = (milestone_value - current_net_worth) / avg_monthly_growth
+    eta_date     = today + months_away * 30.44 days
+
+projection_series = [
+    { date: today + i months, netWorth: current + avg_monthly_growth * i }
+    for i in 1..60
+]
+```
+
+The projection assumes constant linear growth, so it's a **"if recent trend holds"** estimate, not a forecast. A bad month, windfall, or market swing will shift the dates. When the toggle is on, the Net Worth Trend chart extends by 60 months with a dashed blue overlay starting from today.
+
 ### CAGR (Returns Analysis)
 
 **Code**: `frontend/src/pages/ReturnsAnalysisPage.tsx`

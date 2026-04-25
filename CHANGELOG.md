@@ -6,6 +6,39 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.2.0 - 2026-04-25
+
+### Added
+
+- **Net Worth milestones** -- new "Milestones Achieved" section on the Net Worth page shows when your net worth first crossed each threshold (₹1L, ₹5L, ₹10L, ₹25L, ₹50L, ₹1Cr, ₹2.5Cr, ₹5Cr, ₹10Cr). Each row displays the date, the milestone amount, and how long after the previous milestone it took.
+- **Target ETA projections** -- paired "Next Targets" table projects when the next milestones will be reached, using a trailing 12-month average monthly growth rate. Columns: target label, amount, gap to current, ETA duration, ETA date. Hidden when growth is zero or negative (projection would never converge).
+- **Project toggle on Net Worth Trend chart** -- a 🔮 button extends the net-worth line 60 months into the future at the current average monthly growth rate, with a dashed blue overlay, a "Today" reference line, and an auto-adjusted x-axis. Disabled when growth is non-positive.
+
+### Internal
+
+- New pure-function module `pages/net-worth/netWorthProjection.ts` with 4 helpers: `detectMilestonesAchieved`, `computeAvgMonthlyGrowth`, `projectNetWorth`, `computeMilestoneETAs`. Fully covered by 14 unit tests in `__tests__/netWorthProjection.test.ts`.
+- New sub-components `MilestonesAchieved.tsx` and `TargetProjectionsTable.tsx` in `pages/net-worth/components/`.
+
+### Fixed (production data)
+
+After the transfer-dedup fix in 2.1.6, production user 1's Cashback Shared account still showed a phantom -₹39 balance because the broken raw transactions never got re-ingested. Re-uploading through the UI (with force=true) recovers the 3 silently-dropped same-day duplicate transfer pairs and restores the 0.00 balance.
+
+---
+
+## 2.1.6 - 2026-04-25
+
+Ingestion-pipeline fixes from a full xlsx vs DB audit.
+
+### Fixed
+
+- **Transfer reconciliation silently dropped duplicate same-day transfers** -- each real transfer appears in the source export as two rows (Transfer-In + Transfer-Out). The reconciler correctly collapsed paired legs via a set-based hash but couldn't distinguish "paired leg of same transfer" from "genuine second transfer of the same amount on the same day between the same accounts", so any user who recorded two identical transfers on one day lost one. Fix: normalizer emits `transfer_leg = "in" | "out"`; reconciler uses per-direction occurrence counters keyed on the canonical (date, amount, from, to, category, subcategory, note) tuple. 5 new regression tests in `test_transfer_reconciliation.py`.
+- **`POST /api/analytics/v2/refresh` returned HTTP 500 on SQLite** -- the endpoint ran `SET statement_timeout = '120s'` (Postgres-only) unconditionally. Now guarded with `if session.bind.dialect.name == "postgresql"`.
+- **`_calculate_category_trends` scrambled subcategory attribution** -- grouping key was `(period, category, type)` and stored subcategory was whichever sub appeared last in the loop. "Refund & Cashbacks" INCOME showed Credit Card Cashbacks ₹18,706 and Other Cashbacks ₹27,773 instead of the correct ₹43,774 / ₹4,086. Now groups by `(period, category, subcategory, type)`; 1,110 rows in `category_trends` instead of 594, matching raw totals exactly.
+- **`AuditLog.user_id` was always NULL** -- `AnalyticsEngine._log_audit` never passed `user_id=self.user_id`. Now scoped per user so the audit trail can distinguish runs.
+- **`/api/upload` now auto-triggers `run_full_analytics`** -- the defense-in-depth fix ensures pre-aggregated tables never drift from raw transactions when a client skips the explicit `/refresh` call.
+
+---
+
 ## 2.1.5 - 2026-04-24
 
 Second-pass audit: fixed calculation bugs, tightened user scoping, and hardened a few response/log paths. No UX changes.
