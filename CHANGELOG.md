@@ -6,6 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.4.0 - 2026-04-25
+
+### Added
+
+- **PWA support** (#80) -- Ledger Sync is now installable on iOS, Android, and desktop. Closes #80.
+  - Web App Manifest with `display: standalone`, dark theme color (`#09090b`), portrait orientation, and 4 icon sizes (64, 192, 512, maskable 512). Manifest `start_url` and `scope` are relative so they resolve correctly under the `/ledger-sync/` GitHub Pages base path.
+  - Service worker via `vite-plugin-pwa` (Workbox under the hood) with `registerType: 'autoUpdate'` -- updates propagate within one app restart. Precaches the entire app shell (JS/CSS/HTML/fonts/icons, ~2.4 MiB across 68 entries) so the UI loads instantly offline.
+  - **Financial data is intentionally NOT cached.** The service worker explicitly denies `/api/*` via `navigateFallbackDenylist` -- API calls always hit the network, so account balances and analytics are never stale. TanStack Query's existing error-state handling covers the offline-with-data case.
+  - iOS/Android install meta tags: `apple-mobile-web-app-capable`, `mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style=black-translucent`, `apple-mobile-web-app-title`, and a 180x180 apple-touch-icon.
+  - Icon source committed as [frontend/public/pwa-icon-source.svg](frontend/public/pwa-icon-source.svg). Regenerate with `pnpm run generate:icons` (uses `@vite-pwa/assets-generator` + sharp).
+
+---
+
 ## 2.3.2 - 2026-04-25
 
 ### Fixed

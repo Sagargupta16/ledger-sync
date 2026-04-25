@@ -12,7 +12,8 @@
     "format": "eslint . --fix",
     "clean": "rimraf dist node_modules/.vite",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "generate:icons": "pwa-assets-generator --preset minimal-2023 public/pwa-icon-source.svg"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
@@ -36,7 +37,11 @@
     "overrides": {
       "undici": ">=7.24.0",
       "follow-redirects": ">=1.15.12"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -46,6 +51,7 @@
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/plugin-react": "^5.1.4",
     "eslint": "^10.0.2",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -60,6 +66,7 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1",
+    "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.18"
   }
 }
