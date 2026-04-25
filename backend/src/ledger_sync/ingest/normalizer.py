@@ -379,10 +379,12 @@ class DataNormalizer:
             # Money coming IN: category is source (from), account is destination (to)
             from_account = self._standardize_account(category)
             to_account = self._standardize_account(account)
+            leg = "in"
         else:
             # Money going OUT (default): account is source (from), category is destination (to)
             from_account = self._standardize_account(account)
             to_account = self._standardize_account(category)
+            leg = "out"
 
         return {
             "date": self.normalize_date(row[column_mapping["date"]]),
@@ -396,6 +398,11 @@ class DataNormalizer:
             "subcategory": subcategory,
             "note": note,
             "is_transfer": True,
+            # Preserve which LEG of the transfer pair this row represents
+            # (Transfer-In vs Transfer-Out in the source) so the reconciler
+            # can distinguish "paired leg of same transfer" from "genuine
+            # second transfer of the same amount on the same day".
+            "transfer_leg": leg,
         }
 
     def normalize_row(self, row: pd.Series, column_mapping: dict[str, str]) -> dict[str, Any]:
@@ -509,9 +516,11 @@ class DataNormalizer:
                 if TRANSFER_IN_HYPHEN in raw_type or TRANSFER_IN in raw_type:
                     from_account = self._standardize_account(category)
                     to_account = self._standardize_account(account)
+                    leg = "in"
                 else:
                     from_account = self._standardize_account(account)
                     to_account = self._standardize_account(category)
+                    leg = "out"
 
                 return {
                     "date": date,
@@ -525,6 +534,7 @@ class DataNormalizer:
                     "subcategory": subcategory,
                     "note": note,
                     "is_transfer": True,
+                    "transfer_leg": leg,
                 }
 
             return {

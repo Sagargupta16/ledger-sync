@@ -1,5 +1,6 @@
 """Transaction reconciliation logic."""
 
+from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
@@ -594,6 +595,8 @@ class Reconciler:
         normalized_row: dict[str, Any],
         source_file: str,
         import_time: datetime,
+        *,
+        occurrence: int = 0,
     ) -> tuple[Transaction, str]:
         """Reconcile a single transfer (now stored as Transaction with type='Transfer').
 
@@ -601,6 +604,8 @@ class Reconciler:
             normalized_row: Normalized transfer data
             source_file: Source file name
             import_time: Import timestamp
+            occurrence: Zero-based index for hash disambiguation when multiple
+                genuine transfers share the same (date, amount, from, to).
 
         Returns:
             Tuple of (Transaction, action) where action is "inserted", "updated", or "skipped"
@@ -621,6 +626,7 @@ class Reconciler:
             subcategory=normalized_row["subcategory"],
             tx_type=normalized_row["type"],
             user_id=user_id,
+            occurrence=occurrence,
         )
 
         existing = self._find_existing_record(transfer_id, user_id)
@@ -705,6 +711,13 @@ class Reconciler:
         Uses batch-fetch to pre-load all existing records in one query,
         avoiding N+1 SELECT overhead on high-latency connections.
 
+        Each real transfer appears TWICE in the source export (once as
+        Transfer-In, once as Transfer-Out). Legs are counted per-direction
+        so two genuinely-identical transfers on the same day (same amount
+        between the same accounts) are NOT collapsed into one by dedup -
+        the first In + first Out pair up (occurrence 0), the second In +
+        second Out pair up (occurrence 1), and so on.
+
         Args:
             normalized_rows: List of normalized transfer data
             source_file: Source file name
@@ -721,12 +734,34 @@ class Reconciler:
 
         stats = ReconciliationStats()
 
-        # Phase 1: Pre-compute all transfer IDs and deduplicate pairs
+        # Phase 1: Pre-compute transfer IDs.
+        # Per-leg-direction occurrence counters: first leg in each direction
+        # for a given (canonical key) pairs with the first leg in the other
+        # direction to form one transfer (occurrence 0). The second in each
+        # direction form the second transfer (occurrence 1). And so on.
+        legs_seen: dict[tuple[Any, ...], dict[str, int]] = defaultdict(
+            lambda: {"in": 0, "out": 0},
+        )
         seen_in_batch: set[str] = set()
         row_ids: list[str] = []
         skip_flags: list[bool] = []
         for row in normalized_rows:
             try:
+                # Canonical key ignores leg direction: both In and Out rows
+                # for the same real transfer produce the same key.
+                canonical_key = (
+                    row["date"],
+                    row["amount"],
+                    row["from_account"],
+                    row["to_account"],
+                    row.get("category"),
+                    row.get("subcategory"),
+                    row.get("note"),
+                )
+                leg = row.get("transfer_leg", "out")
+                occurrence = legs_seen[canonical_key][leg]
+                legs_seen[canonical_key][leg] += 1
+
                 record_id = self.hasher.generate_transaction_id(
                     date=row["date"],
                     amount=row["amount"],
@@ -736,8 +771,11 @@ class Reconciler:
                     subcategory=row["subcategory"],
                     tx_type=row["type"],
                     user_id=user_id,
+                    occurrence=occurrence,
                 )
                 if record_id in seen_in_batch:
+                    # This row is the paired leg (same occurrence) of an
+                    # earlier row we already kept. Safe to skip.
                     self._log_batch_duplicate(row, record_id, is_transfer=True)
                     row_ids.append(record_id)
                     skip_flags.append(True)
