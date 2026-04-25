@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 
 import { motion } from 'framer-motion'
-import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight, Award, Target, type LucideIcon } from 'lucide-react'
+import { TrendingUp, PiggyBank, CreditCard, BarChart3, ChevronDown, ChevronRight, Target, type LucideIcon } from 'lucide-react'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts'
 
 import { rawColors } from '@/constants/colors'
@@ -20,13 +20,13 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
-import MilestonesAchieved from './components/MilestonesAchieved'
-import TargetProjectionsTable from './components/TargetProjectionsTable'
+import MilestonesTable from './components/MilestonesTable'
 import {
+  buildMilestoneRows,
   computeAvgMonthlyGrowth,
-  computeMilestoneETAs,
-  detectMilestonesAchieved,
+  downsampleToMonthly,
   projectNetWorth,
+  type NetWorthPoint,
 } from './netWorthProjection'
 
 // Category display configuration
@@ -450,44 +450,68 @@ export default function NetWorthPage() {
     })
   }, [filteredNetWorthData])
 
-  // Milestones + projection data derived from the daily net-worth series
-  const baseSeries = useMemo(
+  // Milestones + projection share ONE "current" value and ONE growth rate,
+  // derived from the filtered (chart) series. That guarantees the chart
+  // overlay, the unified milestones table, and ETA dates all agree.
+  const chartSeries: NetWorthPoint[] = useMemo(
     () =>
-      netWorthData.map((p) => ({
+      filteredNetWorthData.map((p) => ({
         date: p.date as string,
         netWorth: p.netWorth as number,
       })),
-    [netWorthData],
+    [filteredNetWorthData],
   )
 
-  const milestonesAchieved = useMemo(
-    () => detectMilestonesAchieved(baseSeries),
-    [baseSeries],
+  const anchor: NetWorthPoint | null = useMemo(
+    () => (chartSeries.length > 0 ? chartSeries[chartSeries.length - 1] : null),
+    [chartSeries],
   )
 
   const avgMonthlyGrowth = useMemo(
-    () => computeAvgMonthlyGrowth(baseSeries, 12),
-    [baseSeries],
+    () => computeAvgMonthlyGrowth(chartSeries, 12),
+    [chartSeries],
   )
 
-  const milestoneETAs = useMemo(
-    () => computeMilestoneETAs(netWorth, avgMonthlyGrowth, milestonesAchieved),
-    [netWorth, avgMonthlyGrowth, milestonesAchieved],
+  const milestoneRows = useMemo(
+    () => buildMilestoneRows(chartSeries, anchor, avgMonthlyGrowth),
+    [chartSeries, anchor, avgMonthlyGrowth],
   )
 
-  // Combine historical + projected series for the chart when projection toggle is on.
-  // Historical rows get `netWorth`, future rows get `projected` -- Recharts plots
-  // each line with nulls elsewhere so they render as one continuous track.
+  /**
+   * Chart data when the projection toggle is ON:
+   *  - historical series is DOWNSAMPLED to month-end points so the
+   *    monthly projection points don't get visually squeezed next to
+   *    thousands of daily points (which caused the "stretched future"
+   *    effect on the previous version)
+   *  - projection starts at anchor (last historical point) so there is
+   *    zero vertical discontinuity when the line crosses "today"
+   */
   const chartData = useMemo(() => {
-    if (!showProjection || avgMonthlyGrowth <= 0 || filteredNetWorthData.length === 0) {
+    if (!showProjection || avgMonthlyGrowth <= 0 || anchor === null) {
       return filteredNetWorthData
     }
-    const projection = projectNetWorth(netWorth, avgMonthlyGrowth, 60)
-    return [
-      ...filteredNetWorthData.map((p) => ({ ...p, projected: null })),
-      ...projection.map((p) => ({ date: p.date, projected: p.netWorth })),
+    const monthlyHistorical = downsampleToMonthly(chartSeries)
+    const projection = projectNetWorth(anchor, avgMonthlyGrowth, 60)
+
+    const historicalPoints = monthlyHistorical.map((p) => ({
+      date: p.date,
+      netWorth: p.netWorth,
+      projected: null as number | null,
+    }))
+    // Duplicate the anchor into the projected series so the dashed line
+    // visually starts FROM the last historical point (no gap).
+    const projectedPoints = [
+      { date: anchor.date, netWorth: null as number | null, projected: anchor.netWorth },
+      ...projection.map((p) => ({
+        date: p.date,
+        netWorth: null as number | null,
+        projected: p.netWorth,
+      })),
     ]
-  }, [filteredNetWorthData, showProjection, netWorth, avgMonthlyGrowth])
+    return [...historicalPoints, ...projectedPoints]
+  }, [showProjection, anchor, avgMonthlyGrowth, chartSeries, filteredNetWorthData])
+
+  const currentNetWorth = anchor?.netWorth ?? 0
 
   const renderWaterfallTooltip = useCallback(({ active, payload, label }: { active?: boolean; payload?: Array<{ payload?: { change: number; endValue: number } }>; label?: string }) => {
     if (!active || !payload?.length) return null
@@ -589,7 +613,8 @@ export default function NetWorthPage() {
             }
             if (filteredNetWorthData.length > 0) {
               const formattedValue = (value: number | undefined) => value === undefined ? '' : formatCurrency(value)
-              const todayIso = new Date().toISOString().substring(0, 10)
+              // Anchor date is the last historical point; projection starts from here.
+              const anchorDateIso = anchor?.date ?? new Date().toISOString().substring(0, 10)
               const showProjectionLine = showProjection && avgMonthlyGrowth > 0
               return (
                 <ChartContainer height={320}>
@@ -620,10 +645,10 @@ export default function NetWorthPage() {
                     {dims.showLegend && <Legend {...LEGEND_DEFAULTS} />}
                     {showProjectionLine && (
                       <ReferenceLine
-                        x={todayIso}
+                        x={anchorDateIso}
                         stroke={rawColors.text.tertiary}
                         strokeDasharray="4 4"
-                        label={{ value: 'Today', fill: rawColors.text.secondary, fontSize: 11, position: 'top' }}
+                        label={{ value: 'Now', fill: rawColors.text.secondary, fontSize: 11, position: 'top' }}
                       />
                     )}
                     {showStacked ? (
@@ -768,44 +793,24 @@ export default function NetWorthPage() {
           </motion.div>
         )}
 
-        {/* Milestones achieved + target ETAs */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-50px' }}
-            transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="glass rounded-2xl border border-border p-4 md:p-6"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <Award className="w-5 h-5 text-app-green" />
-              <h3 className="text-lg font-semibold text-white">Milestones Achieved</h3>
-              <span className="text-xs text-muted-foreground">
-                ({milestonesAchieved.length} reached)
-              </span>
-            </div>
-            <MilestonesAchieved milestones={milestonesAchieved} />
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-50px' }}
-            transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="glass rounded-2xl border border-border p-4 md:p-6"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <Target className="w-5 h-5 text-app-blue" />
-              <h3 className="text-lg font-semibold text-white">Next Targets</h3>
-              <span className="text-xs text-muted-foreground">(projected ETAs)</span>
-            </div>
-            <TargetProjectionsTable
-              etas={milestoneETAs}
-              monthlyGrowth={avgMonthlyGrowth}
-              currentNetWorth={netWorth}
-            />
-          </motion.div>
-        </div>
+        {/* Unified milestones table: achieved crossings + upcoming ETAs in one list */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="glass rounded-2xl border border-border p-4 md:p-6"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <Target className="w-5 h-5 text-app-blue" />
+            <h3 className="text-lg font-semibold text-white">Net Worth Milestones</h3>
+          </div>
+          <MilestonesTable
+            rows={milestoneRows}
+            currentNetWorth={currentNetWorth}
+            monthlyGrowth={avgMonthlyGrowth}
+          />
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 40 }}

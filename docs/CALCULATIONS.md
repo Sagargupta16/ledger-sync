@@ -537,37 +537,48 @@ For the snapshot:
 
 **Snapshot cadence**: one snapshot per day maximum (upserts by date). Used for the Net Worth time-series chart.
 
-### Net Worth Milestones
+### Net Worth Milestones + Projections (unified)
 
-**Code**: `frontend/src/pages/net-worth/netWorthProjection.ts` -> `detectMilestonesAchieved`
+**Code**: `frontend/src/pages/net-worth/netWorthProjection.ts`
 
-Walks the chronologically-sorted daily net-worth series and records the first date each default threshold was reached (net worth >= target).
-
-Defaults: ₹1L, ₹5L, ₹10L, ₹25L, ₹50L, ₹1Cr, ₹2.5Cr, ₹5Cr, ₹10Cr. Only the **first** crossing is recorded -- subsequent re-crossings after a dip don't create duplicate milestones. Days-from-start is computed relative to the earliest point in the series so consecutive milestones can report "+N days/months from the prior milestone".
-
-### Net Worth Projection + Target ETAs
-
-**Code**: `frontend/src/pages/net-worth/netWorthProjection.ts` -> `computeAvgMonthlyGrowth`, `projectNetWorth`, `computeMilestoneETAs`
+All three views on the Net Worth page -- the Milestones table, the ETA rows inside it, and the chart projection overlay -- share ONE anchor point (the last observation on the filtered chart series) and ONE growth rate (trailing 12-month average monthly delta of that same series). This keeps every number self-consistent.
 
 ```
-avg_monthly_growth = mean(monthly net-worth deltas over last 12 months)
-  # One data point per month (end-of-month net worth); N deltas from N+1 months.
+anchor = last point of the filtered chart series    # (date, netWorth)
+avg_monthly_growth = mean(
+    monthly_end_netWorth[i] - monthly_end_netWorth[i-1]
+    for the last 12 months in the series
+)
 
-if avg_monthly_growth <= 0:
-    # Projection disabled -- no ETA would converge.
-    return []
-
-for each milestone not yet achieved and > current_net_worth:
-    months_away  = (milestone_value - current_net_worth) / avg_monthly_growth
-    eta_date     = today + months_away * 30.44 days
-
-projection_series = [
-    { date: today + i months, netWorth: current + avg_monthly_growth * i }
-    for i in 1..60
-]
+buildMilestoneRows(series, anchor, growth):
+    # Scan the series once, record FIRST crossing of each threshold.
+    # Defaults: ₹1L, ₹5L, ₹10L, ₹25L, ₹50L, ₹1Cr, ₹2.5Cr, ₹5Cr, ₹10Cr.
+    for each default milestone:
+        if ever crossed in series:
+            status = "achieved", date = crossing_date
+        elif growth > 0 and value > anchor.netWorth:
+            months_away = (value - anchor.netWorth) / growth
+            status = "upcoming", date = anchor.date + months_away * 30.44 days
+        else:
+            status = "upcoming", date = null  # unprojectable
+    sort rows by value ascending
 ```
 
-The projection assumes constant linear growth, so it's a **"if recent trend holds"** estimate, not a forecast. A bad month, windfall, or market swing will shift the dates. When the toggle is on, the Net Worth Trend chart extends by 60 months with a dashed blue overlay starting from today.
+**Chart projection overlay** (toggle-gated):
+
+```
+if growth > 0:
+    historical = downsampleToMonthly(filtered_series)   # one point per month-end
+    projection = projectNetWorth(anchor, growth, horizon=60):
+        for i in 1..60:
+            date = anchor.date + i months
+            netWorth = anchor.netWorth + growth * i
+    chartData = [historical..., anchor, projection...]
+```
+
+The historical series is **downsampled to monthly** whenever the projection is on. This prevents ~1,400 daily points + 60 monthly points from sharing a categorical x-axis (which made the projected 5 years visually compress to ~4% of the chart).
+
+The projection is **"if recent trend holds"** -- constant linear growth, not a forecast. A bad month, windfall, or market swing will shift the ETA dates. A "Now" reference line marks where the historical data ends.
 
 ### CAGR (Returns Analysis)
 
