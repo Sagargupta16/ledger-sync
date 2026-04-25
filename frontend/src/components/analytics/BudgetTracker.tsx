@@ -192,6 +192,7 @@ export default function BudgetTracker() {
             </select>
             <input
               type="number"
+              inputMode="decimal"
               value={newLimit}
               onChange={(e) => setNewLimit(e.target.value)}
               placeholder="Budget limit"
@@ -243,6 +244,7 @@ export default function BudgetTracker() {
                   {editingCategory === budget.category ? (
                     <input
                       type="number"
+                      inputMode="decimal"
                       defaultValue={budget.limit}
                       onBlur={(e) => handleEditBudget(budget.category, Number.parseFloat(e.target.value))}
                       onKeyDown={(e) => {

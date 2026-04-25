@@ -48,6 +48,7 @@ export default function UpdateProgressForm({
           <input
             id={`allocation-${goalId}`}
             type="number"
+            inputMode="decimal"
             min={0}
             max={targetAmount}
             step="any"

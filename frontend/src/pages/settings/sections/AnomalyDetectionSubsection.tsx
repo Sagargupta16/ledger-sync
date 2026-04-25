@@ -39,6 +39,7 @@ export default function AnomalyDetectionSubsection({
           <input
             id="expense-threshold"
             type="number"
+            inputMode="decimal"
             min="1"
             max="10"
             step="0.5"

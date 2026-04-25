@@ -65,7 +65,7 @@ export default function ChatPanel({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className="absolute bottom-16 right-0 w-[380px] max-h-[500px] glass rounded-2xl border border-border flex flex-col overflow-hidden shadow-2xl"
+      className="absolute bottom-16 right-0 w-[calc(100vw-2rem)] max-w-[380px] max-h-[70vh] sm:max-h-[500px] glass rounded-2xl border border-border flex flex-col overflow-hidden shadow-2xl"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
@@ -76,18 +76,18 @@ export default function ChatPanel({
           <button
             type="button"
             onClick={onClear}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
+            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
             title="Clear chat"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
           <button
             type="button"
             onClick={onMinimize}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
+            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
             title="Minimize"
           >
-            <Minus className="w-3.5 h-3.5" />
+            <Minus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
       </div>

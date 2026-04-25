@@ -39,6 +39,7 @@ export default function CreditCardLimitsSubsection({
                 <span className="text-xs text-muted-foreground">Limit:</span>
                 <input
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="10000"
                   value={localPrefs.credit_card_limits[card] ?? 100000}

@@ -28,6 +28,7 @@ export default function BudgetDefaultsSubsection({
           <input
             id="alert-threshold"
             type="number"
+            inputMode="decimal"
             min="0"
             max="100"
             value={localPrefs.default_budget_alert_threshold}

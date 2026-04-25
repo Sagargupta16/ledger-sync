@@ -33,7 +33,9 @@ const PageHeader = memo(function PageHeader({ title, subtitle, action }: PageHea
       }}
     >
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-        <div className="min-w-0">
+        {/* Mobile: center title, leave room for the hamburger (lg:hidden, fixed top-4 left-4, 40px).
+            Desktop (sm+): left-aligned, original layout. */}
+        <div className="min-w-0 px-12 text-center sm:px-0 sm:text-left">
           <h1
             className="text-page-title text-white tracking-tight transition-all duration-150 ease-out"
             style={{ fontSize: scrolled ? '1.25rem' : undefined }}

@@ -28,6 +28,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
           <input
             id="needs-percent"
             type="number"
+            inputMode="decimal"
             min="0"
             max="100"
             value={localPrefs.needs_target_percent}
@@ -42,6 +43,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
           <input
             id="wants-percent"
             type="number"
+            inputMode="decimal"
             min="0"
             max="100"
             value={localPrefs.wants_target_percent}
@@ -56,6 +58,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
           <input
             id="savings-percent"
             type="number"
+            inputMode="decimal"
             min="0"
             max="100"
             value={localPrefs.savings_target_percent}

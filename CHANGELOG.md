@@ -6,6 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.4.1 - 2026-04-25
+
+Follow-up mobile-UX pass after installing the 2.4.0 PWA on iPhone and finding real-device issues.
+
+### Fixed
+
+- **iOS Safari auto-zoom on input focus.** Every input with `font-size < 16px` (all of them -- default was `text-sm` = 14px) triggered a viewport zoom on tap, which then failed to zoom back out. Now any input/select/textarea on viewports below the `sm` breakpoint (640px) renders at 16px. Desktop typography is unchanged. Single global rule in [frontend/src/index.css](frontend/src/index.css).
+- **PWA content hidden under the iPhone notch.** Added `viewport-fit=cover` to [index.html](frontend/index.html) and safe-area-inset utility classes (`pt-safe`, `pb-safe`, etc.) to index.css. The sidebar hamburger button and chat widget now offset themselves by `env(safe-area-inset-top)` / `env(safe-area-inset-bottom)` so they clear the notch and home indicator in standalone PWA mode.
+- **Hamburger button overlapping page titles.** The `lg:hidden` hamburger at `fixed top-4 left-4` was sitting directly over every page's `<h1>`. [PageHeader](frontend/src/components/ui/PageHeader.tsx) now adds `px-12 text-center` on mobile (reserves 48px for the hamburger on each side and centers the title) and reverts to `px-0 text-left` at `sm+`. Affects all 22 pages that use `PageHeader`.
+- **ChatPanel overflowing 375px viewport.** Hardcoded `w-[380px]` caused horizontal scroll on iPhone SE. Now `w-[calc(100vw-2rem)] max-w-[380px]` and `max-h-[70vh] sm:max-h-[500px]` in [ChatPanel.tsx](frontend/src/components/chat/ChatPanel.tsx).
+- **Below-minimum touch targets (< 44px).** Grew the sidebar bottom-bar icons, chat-panel header buttons, and profile-modal close button from 32-36px to 44px on mobile, keeping the desktop dimensions via `sm:` resets. Apple HIG minimum is 44x44 px.
+- **Numeric inputs showing full alphabetic keyboard on mobile.** Added `inputMode="decimal"` to 31 currency/percentage inputs across 14 files (budget forms, goals, settings, tax deductions, mutual fund projections, etc.). Mobile users now see a decimal-optimized keypad.
+- **DataTable horizontal scroll invisible on mobile.** Existing 4px scrollbar was invisible on touch devices. The scroll wrapper now shows a thin scrollbar on viewports below `sm` and uses `-webkit-overflow-scrolling: touch` + `overscroll-behavior-x: contain` for smooth momentum scroll without rubber-banding the outer page.
+
+---
+
 ## 2.4.0 - 2026-04-25
 
 ### Added

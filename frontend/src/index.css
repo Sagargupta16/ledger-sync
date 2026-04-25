@@ -396,6 +396,47 @@ input:not([type="checkbox"]):not([type="radio"]):focus {
   box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.12);
 }
 
+/* ===== MOBILE: prevent iOS Safari auto-zoom on input focus =====
+   iOS zooms the viewport when focusing any input with font-size < 16px.
+   We apply 16px below the `sm` breakpoint (640px) to every interactive
+   text field; desktop keeps its existing typography via Tailwind utilities. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* ===== SAFE AREA SUPPORT (iOS notch / home indicator) =====
+   With `viewport-fit=cover` + `apple-mobile-web-app-status-bar-style: black-translucent`,
+   the PWA paints under the status bar. These utilities let layout components
+   inset their padding/margin by the device-reported safe area. */
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pr-safe { padding-right: env(safe-area-inset-right); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.pl-safe { padding-left: env(safe-area-inset-left); }
+.top-safe { top: env(safe-area-inset-top); }
+.bottom-safe { bottom: env(safe-area-inset-bottom); }
+.left-safe { left: env(safe-area-inset-left); }
+.right-safe { right: env(safe-area-inset-right); }
+
+/* ===== DATATABLE MOBILE SCROLL =====
+   Smooth momentum scroll on iOS + a visible thin scrollbar so users
+   know horizontal scrolling is available. Desktop keeps the default. */
+.data-table-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+@media (max-width: 639px) {
+  .data-table-scroll::-webkit-scrollbar { height: 4px; }
+  .data-table-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+  }
+  .data-table-scroll { scrollbar-width: thin; }
+}
+
 /* ===== RECHARTS OVERRIDES ===== */
 
 .recharts-tooltip-wrapper {

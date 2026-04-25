@@ -479,6 +479,7 @@ function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionProps>) {
           <input
             id="current-value"
             type="number"
+            inputMode="decimal"
             value={currentValueInput || ''}
             placeholder={formatCurrency(currentBalance).replace('\u20B9', '').trim()}
             onChange={(e) => onCurrentValueChange(Number(e.target.value))}
@@ -737,6 +738,7 @@ export default function MutualFundProjectionPage() {
                 <input
                   id="monthly-sip"
                   type="number"
+                  inputMode="decimal"
                   value={sipInputValue}
                   onChange={(e) => {
                     setMonthlySIP(Number(e.target.value))
@@ -758,6 +760,7 @@ export default function MutualFundProjectionPage() {
                 <input
                   id="expected-return"
                   type="number"
+                  inputMode="decimal"
                   value={expectedReturn}
                   onChange={(e) => setExpectedReturn(Number(e.target.value))}
                   className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
@@ -774,6 +777,7 @@ export default function MutualFundProjectionPage() {
                 <input
                   id="projection-years"
                   type="number"
+                  inputMode="decimal"
                   value={projectionYears}
                   onChange={(e) => setProjectionYears(Number(e.target.value))}
                   className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
@@ -789,6 +793,7 @@ export default function MutualFundProjectionPage() {
                 <input
                   id="sip-growth"
                   type="number"
+                  inputMode="decimal"
                   value={sipGrowthRate}
                   onChange={(e) => setSipGrowthRate(Number(e.target.value))}
                   className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
