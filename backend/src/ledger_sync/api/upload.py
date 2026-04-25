@@ -1,14 +1,18 @@
 """Upload API endpoint for pre-parsed transaction data.
 
-The frontend parses Excel/CSV files client-side and sends structured JSON rows.
-This endpoint validates, normalizes, hashes, and reconciles transactions.
-Analytics recomputation is triggered separately via POST /api/analytics/v2/refresh.
+The frontend parses Excel/CSV files client-side and sends structured JSON
+rows. This endpoint validates, normalizes, hashes, and reconciles
+transactions, then triggers analytics recomputation so pre-aggregated
+tables (monthly_summaries, daily_summaries, investment_holdings, etc.)
+stay in sync with the raw transactions. The explicit POST
+/api/analytics/v2/refresh endpoint remains available for manual re-syncs.
 """
 
 import anyio
 from fastapi import APIRouter, HTTPException
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.analytics import AnalyticsEngine
 from ledger_sync.core.sync_engine import SyncEngine
 from ledger_sync.ingest.normalizer import NormalizationError
 from ledger_sync.schemas.transactions import UploadResponse
@@ -34,10 +38,11 @@ async def upload_transactions(
 ) -> UploadResponse:
     """Upload pre-parsed transaction rows.
 
-    The frontend parses Excel/CSV files and sends structured JSON.
-    This endpoint normalizes, hashes, and reconciles transactions.
-    Analytics recomputation is triggered by the frontend via a
-    separate POST /api/analytics/v2/refresh call after upload.
+    The frontend parses Excel/CSV files and sends structured JSON. This
+    endpoint normalizes, hashes, reconciles the transactions, and then
+    triggers a full analytics refresh so pre-aggregated tables stay in
+    sync with the raw data. If the analytics step fails the upload still
+    succeeds and the user can re-run POST /api/analytics/v2/refresh.
 
     Args:
         payload: JSON body with file_name, file_hash, rows, and force flag.
@@ -69,6 +74,24 @@ async def upload_transactions(
                 force=payload.force,
             )
         )
+
+        # Defense-in-depth: recompute analytics synchronously so pre-aggregated
+        # tables (monthly/daily summaries, category trends, investment
+        # holdings, etc.) stay consistent with the raw transactions even if
+        # the client skips the explicit /api/analytics/v2/refresh call.
+        try:
+            analytics = AnalyticsEngine(db, user_id=current_user.id)
+            await anyio.to_thread.run_sync(
+                lambda: analytics.run_full_analytics(source_file=payload.file_name),
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            # Don't fail the upload if the post-upload refresh blows up -- the
+            # raw data is safely persisted; the user can re-run /refresh.
+            logger.warning(
+                "Post-upload analytics refresh failed for user_id=%s: %s",
+                current_user.id,
+                exc,
+            )
 
         return UploadResponse(
             success=True,
