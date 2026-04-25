@@ -1,4 +1,4 @@
-import { CheckCircle2, Target, TrendingUp } from 'lucide-react'
+import { CheckCircle2, Circle, Target, TrendingUp } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
 import { DataTable, type DataTableColumn } from '@/components/ui'
@@ -22,82 +22,111 @@ function formatMonthsAway(monthsAway: number): string {
   return rem > 0 ? `${years}y ${rem}mo` : `${years}y`
 }
 
-/** "Mar 2024" style */
+/** "Mar 2024" */
 function formatMonthYear(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
-function buildColumns(currentNetWorth: number): DataTableColumn<MilestoneRow>[] {
+function StatusCell({ row }: Readonly<{ row: MilestoneRow }>) {
+  if (row.status === 'achieved' && row.stableSince !== null) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-app-green text-sm">
+        <CheckCircle2 className="w-4 h-4" aria-hidden />
+        Stable
+      </span>
+    )
+  }
+  if (row.status === 'achieved') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-app-yellow text-sm">
+        <Circle className="w-4 h-4" aria-hidden />
+        Reached
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-muted-foreground text-sm">
+      <Target className="w-4 h-4" aria-hidden />
+      Upcoming
+    </span>
+  )
+}
+
+function buildColumns(): DataTableColumn<MilestoneRow>[] {
   return [
     {
       key: 'label',
       header: 'Target',
-      widthClass: 'w-24',
-      cell: (row) => <span className="font-semibold text-white">{row.label}</span>,
-    },
-    {
-      key: 'value',
-      header: 'Amount',
-      align: 'right',
-      cell: (row) => <span className="text-muted-foreground">{formatCurrency(row.value)}</span>,
+      widthClass: 'w-28',
+      cell: (row) => (
+        <div>
+          <div className="font-semibold text-white">{row.label}</div>
+          <div className="text-xs text-muted-foreground">{formatCurrency(row.value)}</div>
+        </div>
+      ),
     },
     {
       key: 'status',
       header: 'Status',
-      cell: (row) => {
-        if (row.status === 'achieved' && row.date !== null) {
-          return (
-            <span className="inline-flex items-center gap-1.5 text-app-green text-sm">
-              <CheckCircle2 className="w-4 h-4" aria-hidden />
-              Achieved
-            </span>
-          )
-        }
-        if (row.date !== null && row.distance !== null) {
-          return (
-            <span className="inline-flex items-center gap-1.5 text-app-blue text-sm">
-              <Target className="w-4 h-4" aria-hidden />
-              Upcoming
-            </span>
-          )
-        }
-        return (
-          <span className="inline-flex items-center gap-1.5 text-muted-foreground text-sm">
-            <Target className="w-4 h-4" aria-hidden />
-            Upcoming
-          </span>
-        )
-      },
+      widthClass: 'w-32',
+      cell: (row) => <StatusCell row={row} />,
     },
     {
-      key: 'when',
-      header: 'When',
+      key: 'firstReached',
+      header: 'First Reached',
       align: 'right',
+      widthClass: 'w-36',
       cell: (row) => {
-        const isAchieved = row.status === 'achieved'
-        const color = isAchieved ? rawColors.app.green : rawColors.app.blue
-        if (row.date === null) return <span className="text-muted-foreground text-sm">—</span>
+        if (row.date === null || row.status !== 'achieved') {
+          return <span className="text-muted-foreground">—</span>
+        }
         return (
-          <span className="text-sm font-semibold" style={{ color }}>
+          <span className="text-sm font-medium" style={{ color: rawColors.app.green }}>
             {formatMonthYear(row.date)}
           </span>
         )
       },
     },
     {
-      key: 'notes',
-      header: 'Notes',
+      key: 'stableSince',
+      header: 'Stable Since',
+      align: 'right',
+      widthClass: 'w-36',
+      cell: (row) => {
+        if (row.stableSince === null) {
+          if (row.status === 'achieved') {
+            return <span className="text-app-yellow text-xs">dipped below</span>
+          }
+          return <span className="text-muted-foreground">—</span>
+        }
+        return (
+          <span className="text-sm font-medium" style={{ color: rawColors.app.green }}>
+            {formatMonthYear(row.stableSince)}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'expectedToReach',
+      header: 'Expected to Reach',
       align: 'right',
       cell: (row) => {
-        let notes: string
-        if (row.status === 'achieved' && row.date !== null) {
-          notes = 'Crossed'
-        } else if (row.date !== null && row.distance !== null) {
-          notes = `in ${formatMonthsAway(row.distance)} · gap ${formatCurrency(row.value - currentNetWorth)}`
-        } else {
-          notes = 'Need positive growth to project'
+        if (row.status === 'achieved') {
+          return <span className="text-muted-foreground">—</span>
         }
-        return <span className="text-muted-foreground text-xs">{notes}</span>
+        if (row.date === null || row.distance === null) {
+          return <span className="text-muted-foreground text-xs">need positive growth</span>
+        }
+        return (
+          <div className="text-right">
+            <div className="text-sm font-semibold" style={{ color: rawColors.app.blue }}>
+              {formatMonthYear(row.date)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              in {formatMonthsAway(row.distance)}
+            </div>
+          </div>
+        )
       },
     },
   ]
@@ -108,9 +137,10 @@ export default function MilestonesTable({
   currentNetWorth,
   monthlyGrowth,
 }: MilestonesTableProps) {
-  const achievedCount = rows.filter((r) => r.status === 'achieved').length
+  const stableCount = rows.filter((r) => r.stableSince !== null).length
+  const reachedCount = rows.filter((r) => r.status === 'achieved').length
   const hasGrowth = monthlyGrowth > 0
-  const columns = buildColumns(currentNetWorth)
+  const columns = buildColumns()
 
   if (rows.length === 0) {
     return (
@@ -127,7 +157,7 @@ export default function MilestonesTable({
     <div className="space-y-4">
       <div className="flex items-center gap-6 text-sm flex-wrap">
         <span className="text-muted-foreground">
-          Current net worth:{' '}
+          Current:{' '}
           <span className="text-white font-semibold">{formatCurrency(currentNetWorth)}</span>
         </span>
         <span className="text-muted-foreground">
@@ -140,9 +170,15 @@ export default function MilestonesTable({
           </span>
         </span>
         <span className="text-muted-foreground">
-          Achieved:{' '}
+          Stable:{' '}
+          <span className="text-app-green font-semibold">
+            {stableCount} / {rows.length}
+          </span>
+        </span>
+        <span className="text-muted-foreground">
+          Reached:{' '}
           <span className="text-white font-semibold">
-            {achievedCount} / {rows.length}
+            {reachedCount} / {rows.length}
           </span>
         </span>
       </div>
@@ -151,13 +187,19 @@ export default function MilestonesTable({
         columns={columns}
         rows={rows}
         rowKey={(row) => String(row.value)}
-        rowClassName={(row) => (row.status === 'achieved' ? 'opacity-95' : 'opacity-80')}
+        rowClassName={(row) => {
+          if (row.stableSince !== null) return 'opacity-100'
+          if (row.status === 'achieved') return 'opacity-85'
+          return 'opacity-75'
+        }}
         ariaLabel="Net worth milestones"
       />
 
       <p className="text-xs text-muted-foreground">
-        ETAs assume your average monthly growth over the last 12 months continues. A bad month,
-        windfall, or market swing will shift these dates.
+        <span className="text-app-green">Stable</span> means your net worth never dropped below
+        that threshold after the crossing.{' '}
+        <span className="text-app-yellow">Reached</span> means you crossed it but later dipped
+        below. ETAs assume your last 12 months of growth continues.
       </p>
     </div>
   )
