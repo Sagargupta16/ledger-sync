@@ -2,13 +2,10 @@ import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { Flag, CheckCircle, Circle } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
-
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate } from '@/components/ui/chartDefaults'
+import StandardAreaChart from '@/components/analytics/StandardAreaChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 const MILESTONES = [10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000]
@@ -72,52 +69,27 @@ export default function SavingsMilestonesTimeline() {
       ) : (
         <>
           {/* Chart */}
-          <ChartContainer height={350}>
-            <AreaChart data={chartData}>
-              <defs>
-                {areaGradient('savings', rawColors.app.green)}
-              </defs>
-              <CartesianGrid {...GRID_DEFAULTS} />
-              <XAxis
-                {...xAxisDefaults(chartData.length, { angle: -45, height: 80, dateFormatter: true })}
-                dataKey="date"
-              />
-              <YAxis {...yAxisDefaults()} />
-              <Tooltip
-                {...chartTooltipProps}
-                labelFormatter={(label) =>
-                  new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                }
-                formatter={(value: number | undefined) => [formatCurrency(value ?? 0), 'Cumulative Savings']}
-              />
-              {/* Milestone reference lines */}
-              {relevantMilestones.map((m) => (
-                <ReferenceLine
-                  key={m}
-                  y={m}
-                  stroke="rgba(255,255,255,0.15)"
-                  strokeDasharray="6 4"
-                  label={{
-                    value: formatCurrencyShort(m),
-                    position: 'right',
-                    fill: rawColors.text.tertiary,
-                    fontSize: 10,
-                  }}
-                />
-              ))}
-              <Area
-                type="monotone"
-                dataKey="savings"
-                stroke={rawColors.app.green}
-                strokeWidth={2}
-                dot={false}
-                fill={areaGradientUrl('savings')}
-                isAnimationActive={shouldAnimate(chartData.length)}
-                animationDuration={600}
-                animationEasing="ease-out"
-              />
-            </AreaChart>
-          </ChartContainer>
+          <StandardAreaChart
+            data={chartData}
+            dataKey="date"
+            height={350}
+            xAngle={-45}
+            tooltipLabelFormatter={(label) =>
+              new Date(label).toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            }
+            tooltipFormatter={(value) => formatCurrency(value)}
+            referenceLines={relevantMilestones.map((m) => ({
+              y: m,
+              label: formatCurrencyShort(m),
+              color: 'rgba(255,255,255,0.15)',
+            }))}
+            areas={[{ key: 'savings', color: rawColors.app.green, label: 'Cumulative Savings' }]}
+            showLegend={false}
+          />
 
           {/* Milestone Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">

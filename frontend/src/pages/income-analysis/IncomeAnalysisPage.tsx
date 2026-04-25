@@ -3,7 +3,9 @@ import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine, PieChart, Pie, Cell } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine } from 'recharts'
+
+import StandardPieChart from '@/components/analytics/StandardPieChart'
 
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
@@ -179,36 +181,17 @@ export default function IncomeAnalysisPage() {
           <h3 className="text-lg font-semibold text-white mb-4">Income by Category</h3>
           {incomeTypeChartData.length > 0 ? (
             <div className="flex flex-col lg:flex-row items-center gap-4 md:gap-6 lg:gap-8">
-              <div className="w-64 h-64">
-                <ChartContainer>
-                  <PieChart>
-                    <Pie
-                      data={incomeTypeChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={90}
-                      dataKey="value"
-                      strokeWidth={0}
-                      paddingAngle={2}
-                      isAnimationActive={shouldAnimate(incomeTypeChartData.length)}
-                      animationDuration={600}
-                      animationEasing="ease-out"
-                      onClick={(data: { name?: string }) => {
-                        if (data?.name) navigate(`/transactions?type=Income&category=${encodeURIComponent(data.name)}`)
-                      }}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {incomeTypeChartData.map((entry) => (
-                        <Cell key={`cell-${entry.name}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      {...chartTooltipProps}
-                      formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
-                    />
-                  </PieChart>
-                </ChartContainer>
+              <div className="w-64">
+                <StandardPieChart
+                  data={incomeTypeChartData}
+                  height={256}
+                  innerRadius={50}
+                  outerRadius={90}
+                  showLegend={false}
+                  onSliceClick={(name) =>
+                    navigate(`/transactions?type=Income&category=${encodeURIComponent(name)}`)
+                  }
+                />
               </div>
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {incomeTypeChartData.map((item) => {

@@ -1,10 +1,9 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Landmark, IndianRupee, PiggyBank, TrendingUp, Percent } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
-import { chartTooltipProps, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
+import StandardAreaChart from '@/components/analytics/StandardAreaChart'
 import MetricCard from '@/components/shared/MetricCard'
 import { projectPPF, projectEPF, projectNPS } from '@/lib/instrumentCalculators'
 import type { ProjectionResult } from '@/lib/instrumentCalculators'
@@ -70,46 +69,17 @@ function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) {
   }))
 
   return (
-    <ChartContainer height={280}>
-      <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
-        <defs>
-          {areaGradient('contributed', rawColors.app.blue, 0.7, 0.1)}
-          {areaGradient('returns', rawColors.app.green, 0.7, 0.1)}
-        </defs>
-        <CartesianGrid {...GRID_DEFAULTS} />
-        <XAxis {...xAxisDefaults(chartData.length)} dataKey="year" />
-        <YAxis {...yAxisDefaults()} />
-        <Tooltip
-          {...chartTooltipProps}
-          formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
-        />
-        <Legend {...LEGEND_DEFAULTS} />
-        <Area
-          type="monotone"
-          dataKey="Contributed"
-          stackId="1"
-          stroke={rawColors.app.blue}
-          fill={areaGradientUrl('contributed')}
-          strokeWidth={2}
-          dot={false}
-          isAnimationActive={shouldAnimate(chartData.length)}
-          animationDuration={600}
-          animationEasing="ease-out"
-        />
-        <Area
-          type="monotone"
-          dataKey="Returns"
-          stackId="1"
-          stroke={rawColors.app.green}
-          fill={areaGradientUrl('returns')}
-          strokeWidth={2}
-          dot={false}
-          isAnimationActive={shouldAnimate(chartData.length)}
-          animationDuration={600}
-          animationEasing="ease-out"
-        />
-      </AreaChart>
-    </ChartContainer>
+    <StandardAreaChart
+      data={chartData}
+      dataKey="year"
+      height={280}
+      stacked
+      tooltipFormatter={formatCurrency}
+      areas={[
+        { key: 'Contributed', color: rawColors.app.blue, fillOpacity: 0.7 },
+        { key: 'Returns', color: rawColors.app.green, fillOpacity: 0.7 },
+      ]}
+    />
   )
 }
 

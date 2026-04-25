@@ -1,9 +1,6 @@
 import { memo, useMemo } from 'react'
-import {
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
-} from 'recharts'
 import { rawColors } from '@/constants/colors'
-import { ChartContainer, chartTooltipProps } from '@/components/ui'
+import StandardRadarChart from '@/components/analytics/StandardRadarChart'
 import { computeCFPScore, type CFPRatio } from '@/lib/financialHealthCalculator'
 import type { AnalysisResult } from './healthScoreUtils'
 
@@ -70,17 +67,16 @@ const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPSc
     <div className="space-y-4">
       {/* Radar chart */}
       <div className="mb-2">
-        <ChartContainer height={240}>
-          <RadarChart data={radarData}>
-            <PolarGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-            <PolarAngleAxis dataKey="dimension" tick={{ fill: '#71717a', fontSize: 10 }} />
-            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#52525b', fontSize: 9 }} axisLine={false} />
-            <Radar name="CFP Score" dataKey="score" stroke={rawColors.app.teal} fill={rawColors.app.teal}
-              fillOpacity={0.15} strokeWidth={2} dot={{ r: 3, fill: rawColors.app.teal, strokeWidth: 0 }}
-              animationDuration={600} animationEasing="ease-out" />
-            <Tooltip {...chartTooltipProps} />
-          </RadarChart>
-        </ChartContainer>
+        <StandardRadarChart
+          data={radarData}
+          dataKey="score"
+          categoryKey="dimension"
+          color={rawColors.app.teal}
+          name="CFP Score"
+          height={240}
+          showRadiusTicks
+          dotRadius={3}
+        />
       </div>
 
       {/* Ratio Cards */}

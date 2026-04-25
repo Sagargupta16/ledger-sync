@@ -28,6 +28,7 @@ interface AreaConfig {
   label?: string
   type?: 'monotone' | 'natural' | 'linear' | 'step'
   strokeWidth?: number
+  strokeDasharray?: string
   fillOpacity?: number
   /** Set false to show just a line with no area fill */
   showFill?: boolean
@@ -43,7 +44,7 @@ interface ReferenceLineConfig {
 }
 
 interface StandardAreaChartProps {
-  readonly data: Array<Record<string, unknown>>
+  readonly data: ReadonlyArray<object>
   readonly dataKey?: string
   readonly areas: AreaConfig[]
   readonly height?: number
@@ -128,6 +129,7 @@ export default function StandardAreaChart({
             name={area.label ?? area.key}
             stroke={area.color}
             strokeWidth={area.strokeWidth ?? 2}
+            strokeDasharray={area.strokeDasharray}
             fill={(area.showFill ?? true) ? areaGradientUrl(area.key) : 'transparent'}
             fillOpacity={1}
             dot={false}

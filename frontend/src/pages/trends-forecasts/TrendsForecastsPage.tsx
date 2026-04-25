@@ -46,16 +46,12 @@ export default function TrendsForecastsPage() {
     isLoading,
     timeFilterProps,
     metrics,
-    chartData,
     dailySavingsData,
     monthlyTrendWithAvg,
     peakIncome,
     peakExpenses,
     peakSavings,
-    trendSortKey,
-    trendSortDir,
-    toggleTrendSort,
-    sortedChartData,
+    recentChartData,
     activeLabel,
     setActiveLabel,
   } = useTrendsForecasts()
@@ -340,14 +336,7 @@ export default function TrendsForecastsPage() {
           )}
         </motion.div>
 
-        <MonthlyBreakdownTable
-          isLoading={isLoading}
-          chartData={chartData}
-          sortedChartData={sortedChartData}
-          trendSortKey={trendSortKey}
-          trendSortDir={trendSortDir}
-          toggleTrendSort={toggleTrendSort}
-        />
+        <MonthlyBreakdownTable isLoading={isLoading} chartData={recentChartData} />
 
         <CashFlowForecast />
       </div>

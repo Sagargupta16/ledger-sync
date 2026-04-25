@@ -2,13 +2,10 @@ import { useMemo, useState } from 'react'
 
 import { motion } from 'framer-motion'
 import { Store } from 'lucide-react'
-import { PieChart, Pie, Cell, Tooltip } from 'recharts'
-
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import StandardPieChart from '@/components/analytics/StandardPieChart'
 import { CHART_COLORS } from '@/constants/chartColors'
-import { shouldAnimate } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface MerchantData {
@@ -106,9 +103,10 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
   const totalSpentAtTopMerchants = merchantData.reduce((sum, m) => sum + m.totalSpent, 0)
 
   // Pie chart data
-  const pieData = merchantData.slice(0, 8).map((m) => ({
+  const pieData = merchantData.slice(0, 8).map((m, i) => ({
     name: m.name,
     value: viewMode === 'amount' ? m.totalSpent : m.transactionCount,
+    color: COLORS[i % COLORS.length],
   }))
 
   if (isLoading) {
@@ -165,36 +163,16 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pie Chart */}
-          <div className="h-64">
-            <ChartContainer>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  strokeWidth={0}
-                  dataKey="value"
-                  isAnimationActive={shouldAnimate(pieData.length)}
-                  animationDuration={600}
-                  animationEasing="ease-out"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  {...chartTooltipProps}
-                  formatter={(value: number | undefined) => {
-                    if (value === undefined) return ''
-                    return viewMode === 'amount' ? formatCurrency(value) : `${value} visits`
-                  }}
-                />
-              </PieChart>
-            </ChartContainer>
-          </div>
+          <StandardPieChart
+            data={pieData}
+            height={256}
+            innerRadius={60}
+            outerRadius={80}
+            showLegend={false}
+            tooltipFormatter={(value) =>
+              viewMode === 'amount' ? formatCurrency(value) : `${value} visits`
+            }
+          />
 
           {/* Merchant List */}
           <div className="space-y-2 max-h-64 overflow-y-auto">

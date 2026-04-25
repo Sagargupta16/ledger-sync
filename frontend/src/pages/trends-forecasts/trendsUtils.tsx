@@ -21,15 +21,6 @@ export function formatTooltipName(name: string | undefined): string {
   return name || ''
 }
 
-export function ariaSort(
-  activeKey: string | null,
-  column: string,
-  dir: 'asc' | 'desc',
-): 'ascending' | 'descending' | 'none' {
-  if (activeKey !== column) return 'none'
-  return dir === 'asc' ? 'ascending' : 'descending'
-}
-
 export function getTrendDirection(change: number): TrendDirection {
   if (Math.abs(change) < 2) return 'stable'
   return change > 0 ? 'up' : 'down'

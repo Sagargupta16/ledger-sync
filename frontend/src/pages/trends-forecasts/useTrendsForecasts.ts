@@ -196,31 +196,7 @@ export function useTrendsForecasts() {
     [monthlyTrendChartData],
   )
 
-  const [trendSortKey, setTrendSortKey] = useState<string | null>(null)
-  const [trendSortDir, setTrendSortDir] = useState<'asc' | 'desc'>('desc')
-
-  const toggleTrendSort = (key: string) => {
-    if (trendSortKey === key) {
-      setTrendSortDir(trendSortDir === 'asc' ? 'desc' : 'asc')
-    } else {
-      setTrendSortKey(key)
-      setTrendSortDir('desc')
-    }
-  }
-
-  const sortedChartData = useMemo(() => {
-    const data = chartData.slice(-8)
-    if (!trendSortKey) return data
-    return [...data].sort((a, b) => {
-      const av = a[trendSortKey as keyof typeof a]
-      const bv = b[trendSortKey as keyof typeof b]
-      const cmp =
-        typeof av === 'number' && typeof bv === 'number'
-          ? av - bv
-          : String(av).localeCompare(String(bv))
-      return trendSortDir === 'asc' ? cmp : -cmp
-    })
-  }, [chartData, trendSortKey, trendSortDir])
+  const recentChartData = useMemo(() => chartData.slice(-8), [chartData])
 
   const [activeLabel, setActiveLabel] = useState<string | null>(null)
 
@@ -235,10 +211,7 @@ export function useTrendsForecasts() {
     peakIncome,
     peakExpenses,
     peakSavings,
-    trendSortKey,
-    trendSortDir,
-    toggleTrendSort,
-    sortedChartData,
+    recentChartData,
     activeLabel,
     setActiveLabel,
   }

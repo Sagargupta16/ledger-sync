@@ -1,9 +1,7 @@
-import type { ReactNode } from 'react'
-
-import { motion } from 'framer-motion'
 import { CheckCircle2, Target, TrendingUp } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
+import { DataTable, type DataTableColumn } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
 
@@ -29,6 +27,82 @@ function formatMonthYear(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
+function buildColumns(currentNetWorth: number): DataTableColumn<MilestoneRow>[] {
+  return [
+    {
+      key: 'label',
+      header: 'Target',
+      widthClass: 'w-24',
+      cell: (row) => <span className="font-semibold text-white">{row.label}</span>,
+    },
+    {
+      key: 'value',
+      header: 'Amount',
+      align: 'right',
+      cell: (row) => <span className="text-muted-foreground">{formatCurrency(row.value)}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (row) => {
+        if (row.status === 'achieved' && row.date !== null) {
+          return (
+            <span className="inline-flex items-center gap-1.5 text-app-green text-sm">
+              <CheckCircle2 className="w-4 h-4" aria-hidden />
+              Achieved
+            </span>
+          )
+        }
+        if (row.date !== null && row.distance !== null) {
+          return (
+            <span className="inline-flex items-center gap-1.5 text-app-blue text-sm">
+              <Target className="w-4 h-4" aria-hidden />
+              Upcoming
+            </span>
+          )
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground text-sm">
+            <Target className="w-4 h-4" aria-hidden />
+            Upcoming
+          </span>
+        )
+      },
+    },
+    {
+      key: 'when',
+      header: 'When',
+      align: 'right',
+      cell: (row) => {
+        const isAchieved = row.status === 'achieved'
+        const color = isAchieved ? rawColors.app.green : rawColors.app.blue
+        if (row.date === null) return <span className="text-muted-foreground text-sm">—</span>
+        return (
+          <span className="text-sm font-semibold" style={{ color }}>
+            {formatMonthYear(row.date)}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'notes',
+      header: 'Notes',
+      align: 'right',
+      cell: (row) => {
+        let notes: string
+        if (row.status === 'achieved' && row.date !== null) {
+          notes = 'Crossed'
+        } else if (row.date !== null && row.distance !== null) {
+          notes = `in ${formatMonthsAway(row.distance)} · gap ${formatCurrency(row.value - currentNetWorth)}`
+        } else {
+          notes = 'Need positive growth to project'
+        }
+        return <span className="text-muted-foreground text-xs">{notes}</span>
+      },
+    },
+  ]
+}
+
 export default function MilestonesTable({
   rows,
   currentNetWorth,
@@ -36,6 +110,7 @@ export default function MilestonesTable({
 }: MilestonesTableProps) {
   const achievedCount = rows.filter((r) => r.status === 'achieved').length
   const hasGrowth = monthlyGrowth > 0
+  const columns = buildColumns(currentNetWorth)
 
   if (rows.length === 0) {
     return (
@@ -72,109 +147,18 @@ export default function MilestonesTable({
         </span>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground w-24">
-                Target
-              </th>
-              <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">
-                Amount
-              </th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
-                Status
-              </th>
-              <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">
-                When
-              </th>
-              <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">
-                Notes
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <MilestoneRowView
-                key={row.value}
-                row={row}
-                index={i}
-                currentNetWorth={currentNetWorth}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable<MilestoneRow>
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => String(row.value)}
+        rowClassName={(row) => (row.status === 'achieved' ? 'opacity-95' : 'opacity-80')}
+        ariaLabel="Net worth milestones"
+      />
 
       <p className="text-xs text-muted-foreground">
         ETAs assume your average monthly growth over the last 12 months continues. A bad month,
         windfall, or market swing will shift these dates.
       </p>
     </div>
-  )
-}
-
-interface MilestoneRowViewProps {
-  readonly row: MilestoneRow
-  readonly index: number
-  readonly currentNetWorth: number
-}
-
-function MilestoneRowView({ row, index, currentNetWorth }: MilestoneRowViewProps) {
-  const isAchieved = row.status === 'achieved'
-
-  let statusCell: ReactNode
-  let whenCell: string
-  let notesCell: string
-
-  if (isAchieved && row.date !== null) {
-    statusCell = (
-      <span className="inline-flex items-center gap-1.5 text-app-green">
-        <CheckCircle2 className="w-4 h-4" aria-hidden />
-        Achieved
-      </span>
-    )
-    whenCell = formatMonthYear(row.date)
-    notesCell = 'Crossed'
-  } else if (row.date !== null && row.distance !== null) {
-    statusCell = (
-      <span className="inline-flex items-center gap-1.5 text-app-blue">
-        <Target className="w-4 h-4" aria-hidden />
-        Upcoming
-      </span>
-    )
-    whenCell = formatMonthYear(row.date)
-    notesCell = `in ${formatMonthsAway(row.distance)} · gap ${formatCurrency(row.value - currentNetWorth)}`
-  } else {
-    statusCell = (
-      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-        <Target className="w-4 h-4" aria-hidden />
-        Upcoming
-      </span>
-    )
-    whenCell = '—'
-    notesCell = 'Need positive growth to project'
-  }
-
-  return (
-    <motion.tr
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.03, 0.25) }}
-      className={`border-b border-border hover:bg-white/5 transition-colors ${
-        isAchieved ? 'opacity-95' : 'opacity-80'
-      }`}
-    >
-      <td className="py-3 px-4 font-semibold text-white">{row.label}</td>
-      <td className="py-3 px-4 text-right text-muted-foreground">{formatCurrency(row.value)}</td>
-      <td className="py-3 px-4 text-sm">{statusCell}</td>
-      <td
-        className="py-3 px-4 text-right text-sm font-semibold"
-        style={{ color: isAchieved ? rawColors.app.green : rawColors.app.blue }}
-      >
-        {whenCell}
-      </td>
-      <td className="py-3 px-4 text-right text-muted-foreground text-xs">{notesCell}</td>
-    </motion.tr>
   )
 }

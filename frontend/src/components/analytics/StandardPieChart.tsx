@@ -37,6 +37,8 @@ interface StandardPieChartProps {
   readonly centerLabel?: string
   readonly centerValue?: string
   readonly paddingAngle?: number
+  /** Click handler for pie slices. Receives the clicked item's name. Adds pointer cursor. */
+  readonly onSliceClick?: (name: string) => void
 }
 
 export default function StandardPieChart({
@@ -51,6 +53,7 @@ export default function StandardPieChart({
   centerLabel,
   centerValue,
   paddingAngle = 2,
+  onSliceClick,
 }: StandardPieChartProps) {
   const filteredData = data.filter((d) => d.value > 0)
 
@@ -76,6 +79,12 @@ export default function StandardPieChart({
           isAnimationActive={animate}
           animationDuration={600}
           animationEasing="ease-out"
+          {...(onSliceClick && {
+            onClick: (data: { name?: string }) => {
+              if (data?.name) onSliceClick(data.name)
+            },
+            style: { cursor: 'pointer' },
+          })}
           label={showLabels ? (({ name, percent }: { name?: string; percent?: number }) => (
             `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
           )) as never : undefined}

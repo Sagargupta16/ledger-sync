@@ -2,13 +2,10 @@ import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { Shield } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
-
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate } from '@/components/ui/chartDefaults'
+import StandardBarChart from '@/components/analytics/StandardBarChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 function getEmergencyFundMonths(cv: number): string {
@@ -115,30 +112,33 @@ export default function IncomeStabilityIndex() {
           </div>
 
           {/* Chart */}
-          <ChartContainer height={280}>
-            <BarChart data={sources} layout="vertical" margin={{ top: 8, right: 20, bottom: 8, left: 10 }}>
-              <CartesianGrid {...GRID_DEFAULTS} horizontal={false} />
-              <XAxis {...xAxisDefaults(sources.length)} type="number" domain={[0, 100]} tickFormatter={undefined} />
-              <YAxis
-                {...yAxisDefaults({ currency: false, width: 120 })}
-                dataKey="name"
-                type="category"
-                tickFormatter={(v: string) => v.length > 15 ? `${v.substring(0, 12)}...` : v}
-              />
-              <Tooltip
-                {...chartTooltipProps}
-                formatter={(value: number | undefined, _name: string | undefined, entry: { payload?: { name: string; mean: number } }) => [
-                  `${value ?? 0}/100 — Avg: ${formatCurrency(entry.payload?.mean ?? 0)}/mo`,
-                  entry.payload?.name ?? '',
-                ]}
-              />
-              <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={20} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(sources.length)}>
-                {sources.map((s) => (
-                  <Cell key={s.name} fill={getStabilityColor(s.score)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
+          <StandardBarChart
+            data={sources as unknown as Array<Record<string, unknown>>}
+            layout="vertical"
+            height={280}
+            xDomain={[0, 100]}
+            yCategoryKey="name"
+            yWidth={120}
+            yTickFormatter={(v) =>
+              typeof v === 'string' && v.length > 15 ? `${v.substring(0, 12)}...` : String(v)
+            }
+            tooltipValueWithPayload={(value, payload) => [
+              `${value}/100 — Avg: ${formatCurrency((payload.mean as number) ?? 0)}/mo`,
+              (payload.name as string) ?? '',
+            ]}
+            margin={{ right: 20, left: 10 }}
+            hideHorizontalGrid
+            bars={[
+              {
+                key: 'score',
+                color: rawColors.app.blue,
+                radius: [0, 4, 4, 0],
+                barSize: 20,
+                getCellColor: (row) => getStabilityColor((row.score as number) ?? 0),
+              },
+            ]}
+            showLegend={false}
+          />
 
           {/* Legend */}
           <div className="flex items-center gap-4 mt-4 justify-center">

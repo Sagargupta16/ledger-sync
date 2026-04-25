@@ -2,14 +2,11 @@ import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { TrendingUp } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine } from 'recharts'
-
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { computeCreepScores } from '@/lib/lifestyleCreepCalculator'
 import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate } from '@/components/ui/chartDefaults'
+import StandardBarChart from '@/components/analytics/StandardBarChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 function getCreepColor(score: number): string {
@@ -64,35 +61,33 @@ export default function LifestyleCreepDetection() {
         <ChartEmptyState height={280} message="Need at least 4 months of transaction data" />
       ) : (
         <>
-          <ChartContainer height={300}>
-            <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 20, bottom: 8, left: 10 }}>
-              <CartesianGrid {...GRID_DEFAULTS} horizontal={false} />
-              <XAxis
-                {...xAxisDefaults(chartData.length)}
-                type="number"
-                tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${v}%`}
-              />
-              <YAxis
-                {...yAxisDefaults({ currency: false, width: 120 })}
-                dataKey="name"
-                type="category"
-                tickFormatter={undefined}
-              />
-              <ReferenceLine x={0} stroke={rawColors.text.tertiary} strokeDasharray="3 3" />
-              <Tooltip
-                {...chartTooltipProps}
-                formatter={(value: number | undefined, _name: string | undefined, entry: { payload?: { fullName: string; avgMonthly: number; classification: string } }) => [
-                  `${(value ?? 0) > 0 ? '+' : ''}${value ?? 0}% -- Avg: ${formatCurrency(entry.payload?.avgMonthly ?? 0)}/mo (${entry.payload?.classification ?? ''})`,
-                  entry.payload?.fullName ?? '',
-                ]}
-              />
-              <Bar dataKey="creep" radius={[0, 4, 4, 0]} barSize={18} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(chartData.length)}>
-                {chartData.map((d) => (
-                  <Cell key={d.name} fill={getCreepColor(d.creep)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
+          <StandardBarChart
+            data={chartData}
+            layout="vertical"
+            height={300}
+            yCategoryKey="name"
+            yWidth={120}
+            xTickFormatter={(v) => `${(v as number) > 0 ? '+' : ''}${v}%`}
+            tooltipValueWithPayload={(value, payload) => [
+              `${value > 0 ? '+' : ''}${value}% -- Avg: ${formatCurrency((payload.avgMonthly as number) ?? 0)}/mo (${(payload.classification as string) ?? ''})`,
+              (payload.fullName as string) ?? '',
+            ]}
+            referenceLines={[
+              { x: 0, color: rawColors.text.tertiary, strokeDasharray: '3 3' },
+            ]}
+            margin={{ right: 20, left: 10 }}
+            hideHorizontalGrid
+            bars={[
+              {
+                key: 'creep',
+                color: rawColors.app.orange,
+                radius: [0, 4, 4, 0],
+                barSize: 18,
+                getCellColor: (row) => getCreepColor((row.creep as number) ?? 0),
+              },
+            ]}
+            showLegend={false}
+          />
 
           {/* Legend */}
           <div className="flex items-center gap-4 mt-4 justify-center flex-wrap">

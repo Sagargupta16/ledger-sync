@@ -2,13 +2,10 @@ import { useState, useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { ArrowUpRight, ArrowDownRight, Minus, Calendar } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
-
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency, formatCurrencyShort, percentChange } from '@/lib/formatters'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import { formatCurrencyShort, percentChange } from '@/lib/formatters'
+import StandardBarChart from '@/components/analytics/StandardBarChart'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, BAR_RADIUS, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 // Get Financial Year from date (April to March)
@@ -233,28 +230,21 @@ export default function YearOverYearComparison() {
       )}
 
       {/* Chart */}
-      <div className="h-64 mb-6">
-        <ChartContainer>
-          <BarChart data={chartData}>
-            <CartesianGrid {...GRID_DEFAULTS} />
-            <XAxis {...xAxisDefaults(chartData.length)} dataKey="name" />
-            <YAxis {...yAxisDefaults()} />
-            <Tooltip
-              {...chartTooltipProps}
-              formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
-            />
-            <Legend {...LEGEND_DEFAULTS} />
-            {selectedCategory === 'all' ? (
-              <>
-                <Bar dataKey="Income" fill={SEMANTIC_COLORS.income} radius={BAR_RADIUS} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(chartData.length)} />
-                <Bar dataKey="Expenses" fill={SEMANTIC_COLORS.expense} radius={BAR_RADIUS} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(chartData.length)} />
-                <Bar dataKey="Savings" fill={SEMANTIC_COLORS.investment} radius={BAR_RADIUS} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(chartData.length)} />
-              </>
-            ) : (
-              <Bar dataKey={selectedCategory} fill={SEMANTIC_COLORS.savings} radius={BAR_RADIUS} animationDuration={600} animationEasing="ease-out" isAnimationActive={shouldAnimate(chartData.length)} />
-            )}
-          </BarChart>
-        </ChartContainer>
+      <div className="mb-6">
+        <StandardBarChart
+          data={chartData}
+          dataKey="name"
+          height={256}
+          bars={
+            selectedCategory === 'all'
+              ? [
+                  { key: 'Income', color: SEMANTIC_COLORS.income, label: 'Income' },
+                  { key: 'Expenses', color: SEMANTIC_COLORS.expense, label: 'Expenses' },
+                  { key: 'Savings', color: SEMANTIC_COLORS.investment, label: 'Savings' },
+                ]
+              : [{ key: selectedCategory, color: SEMANTIC_COLORS.savings }]
+          }
+        />
       </div>
 
       {/* Category Changes */}
