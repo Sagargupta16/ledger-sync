@@ -285,7 +285,7 @@ export default function CommandPalette() {
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
+          className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] sm:pt-[15vh] px-4"
           variants={overlayVariants}
           initial="hidden"
           animate="visible"
@@ -301,7 +301,7 @@ export default function CommandPalette() {
 
           {/* Panel */}
           <motion.div
-            className="relative w-full max-w-xl mx-4 rounded-2xl overflow-hidden shadow-2xl bg-[#1a1a1c]/95 backdrop-blur-lg border border-white/[0.08]"
+            className="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl bg-[#1a1a1c]/95 backdrop-blur-lg border border-white/[0.08] flex flex-col max-h-[80vh]"
             style={{
               boxShadow: `0 25px 60px rgba(0, 0, 0, 0.5), 0 0 80px ${rawColors.app.blue}10`,
             }}
@@ -341,7 +341,7 @@ export default function CommandPalette() {
             {/* Results list */}
             <ul
               ref={listRef}
-              className="max-h-[50vh] overflow-y-auto overflow-x-hidden py-2 scrollbar-none list-none m-0 p-0"
+              className="flex-1 min-h-0 sm:max-h-[50vh] overflow-y-auto overflow-x-hidden py-2 scrollbar-none list-none m-0 p-0"
               aria-label="Search results"
             >
               {results.length === 0 && query.trim() !== '' && (
