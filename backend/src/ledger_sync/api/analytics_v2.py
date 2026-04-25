@@ -31,7 +31,6 @@ from ledger_sync.db.models import (
     RecurringTransaction,
     TransactionType,
     TransferFlow,
-    User,
 )
 from ledger_sync.db.session import SessionLocal
 
@@ -133,17 +132,6 @@ class ReviewAnomalyRequest(BaseModel):
     notes: str | None = None
 
 
-def _get_earning_start_period(user: User) -> str | None:
-    """Return the earning start date as a YYYY-MM period key, or None."""
-    prefs = user.preferences
-    if prefs is None:
-        return None
-    if not prefs.use_earning_start_date or not prefs.earning_start_date:
-        return None
-    # earning_start_date is YYYY-MM-DD; take first 7 chars for YYYY-MM
-    return prefs.earning_start_date[:7]
-
-
 @router.get("/monthly-summaries")
 def get_monthly_summaries(
     current_user: CurrentUser,
@@ -159,12 +147,11 @@ def get_monthly_summaries(
     - Expense breakdown (essential vs discretionary)
     - Savings metrics
     - Month-over-month changes
-    """
-    # Clamp start_period to earning start date if enabled
-    earning_period = _get_earning_start_period(current_user)
-    if earning_period:
-        start_period = max(start_period, earning_period) if start_period else earning_period
 
+    Earning-start-date is deliberately NOT applied here. This endpoint
+    returns factual monthly aggregates; view-window cropping belongs on
+    the frontend chart layer, not in the data source.
+    """
     query = (
         db.query(MonthlySummary)
         .filter(MonthlySummary.user_id == current_user.id)
@@ -231,17 +218,14 @@ def get_daily_summaries(
 
     Used by YearInReview heatmap and daily trend charts.
     Returns daily income/expense/net totals with transaction counts.
-    """
-    earning_period = _get_earning_start_period(current_user)
-    earning_date = f"{earning_period}-01" if earning_period else None
 
+    Earning-start-date is deliberately NOT applied here. View-window
+    cropping belongs on the frontend chart layer.
+    """
     query = db.query(DailySummary).filter(DailySummary.user_id == current_user.id)
 
-    effective_start = start_date
-    if earning_date:
-        effective_start = max(effective_start, earning_date) if effective_start else earning_date
-    if effective_start:
-        query = query.filter(DailySummary.date >= effective_start)
+    if start_date:
+        query = query.filter(DailySummary.date >= start_date)
     if end_date:
         query = query.filter(DailySummary.date <= end_date)
 
@@ -336,12 +320,10 @@ def get_category_trends(
     - Time series charts per category
     - Category growth/decline analysis
     - Spending pattern identification
-    """
-    # Clamp start_period to earning start date if enabled
-    earning_period = _get_earning_start_period(current_user)
-    if earning_period:
-        start_period = max(start_period, earning_period) if start_period else earning_period
 
+    Earning-start-date is deliberately NOT applied here. View-window
+    cropping belongs on the frontend chart layer.
+    """
     query = (
         db.query(CategoryTrend)
         .filter(CategoryTrend.user_id == current_user.id)

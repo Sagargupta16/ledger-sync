@@ -13,8 +13,7 @@ from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.core.query_helpers import apply_earning_start_date as _apply_earning_start_date
-from ledger_sync.db.models import Transaction, TransactionType, User
+from ledger_sync.db.models import Transaction, TransactionType
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.schemas.transactions import (
     TransactionCreateRequest,
@@ -186,14 +185,13 @@ def _apply_date_range(
     query: SAQuery[Transaction],
     start_date: datetime | None,
     end_date: datetime | None,
-    user: User | None = None,
 ) -> SAQuery[Transaction]:
-    """Apply date range filters (converting datetime to date).
+    """Apply explicit date-range filters to a transaction query.
 
-    When *user* is provided, clamps start_date to the earning start date preference.
+    Earning-start is deliberately NOT applied here: transactions
+    endpoints return factual raw data, and the caller supplies the
+    window it wants. View-layer clamping belongs on the client.
     """
-    if user is not None:
-        start_date = _apply_earning_start_date(user, start_date)
     if start_date:
         query = query.filter(Transaction.date >= start_date.date())
     if end_date:
@@ -229,7 +227,7 @@ async def get_transactions(
     """
     # Build query - filter by user and date range
     query = _base_transaction_query(db, current_user.id)
-    query = _apply_date_range(query, start_date, end_date, user=current_user)
+    query = _apply_date_range(query, start_date, end_date)
 
     # Get total count before pagination
     total = query.count()
@@ -260,7 +258,7 @@ async def get_all_transactions(
     response.
     """
     query = _base_transaction_query(db, current_user.id)
-    query = _apply_date_range(query, start_date, end_date, user=current_user)
+    query = _apply_date_range(query, start_date, end_date)
 
     transactions = query.order_by(Transaction.date.desc()).all()
 
@@ -330,7 +328,7 @@ async def export_transactions(
 ) -> Response:
     """Export all non-deleted transactions as CSV for the current user."""
     query = _base_transaction_query(db, current_user.id)
-    query = _apply_date_range(query, start_date, end_date, user=current_user)
+    query = _apply_date_range(query, start_date, end_date)
     transactions = query.all()
 
     output = io.StringIO()
