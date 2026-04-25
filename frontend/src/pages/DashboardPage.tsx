@@ -1,14 +1,16 @@
 import { useMemo } from 'react'
+
 import { motion } from 'framer-motion'
-import { SCROLL_FADE_UP } from '@/constants/animations'
 import { Wallet, CreditCard } from 'lucide-react'
+import { PieChart, Pie, Cell, Tooltip } from 'recharts'
+
+import { SCROLL_FADE_UP } from '@/constants/animations'
 import QuickInsights from '@/components/shared/QuickInsights'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore } from '@/components/analytics'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
-import { PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, PageHeader, ChartContainer } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'

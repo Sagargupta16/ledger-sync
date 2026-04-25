@@ -1,5 +1,7 @@
-import type { QueryClient } from '@tanstack/react-query'
 import type { NavigateFunction } from 'react-router-dom'
+
+import type { QueryClient } from '@tanstack/react-query'
+
 import { useDemoStore } from '@/store/demoStore'
 import { useAuthStore } from '@/store/authStore'
 

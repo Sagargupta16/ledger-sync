@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { useUpload } from '@/hooks/api/useUpload'
-import { uploadService } from '@/services/api/upload'
-import { parseFile, FileParseError } from '@/lib/fileParser'
-import type { ParseResult } from '@/lib/fileParser'
+import { useDropzone } from 'react-dropzone'
+
 import { motion } from 'framer-motion'
 import {
   Upload,
@@ -14,11 +12,15 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useDropzone } from 'react-dropzone'
+import type { AxiosError } from 'axios'
+
+import { useUpload } from '@/hooks/api/useUpload'
+import { uploadService } from '@/services/api/upload'
+import { parseFile, FileParseError } from '@/lib/fileParser'
+import type { ParseResult } from '@/lib/fileParser'
 import { cn } from '@/lib/cn'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
-import type { AxiosError } from 'axios'
 
 type UploadPhase = 'parsing' | 'uploading' | 'processing' | 'analytics' | null
 

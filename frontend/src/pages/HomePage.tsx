@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
+
+import { motion } from 'framer-motion'
 import {
   PiggyBank,
   TrendingUp,
@@ -18,6 +19,7 @@ import {
   Eye,
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
+
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
 import { useAuthStore } from '@/store/authStore'

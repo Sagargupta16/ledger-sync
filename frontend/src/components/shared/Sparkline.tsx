@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { rawColors } from '@/constants/colors'
+
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
+
+import { rawColors } from '@/constants/colors'
 import { formatCurrencyShort } from '@/lib/formatters'
 
 interface SparklineProps {

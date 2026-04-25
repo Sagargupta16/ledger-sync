@@ -1,9 +1,11 @@
+import { useMemo, useState } from 'react'
+
 import { motion } from 'framer-motion'
 import { Store } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { PieChart, Pie, Cell, Tooltip } from 'recharts'
+
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
-import { PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { CHART_COLORS } from '@/constants/chartColors'
 import { shouldAnimate } from '@/components/ui/chartDefaults'

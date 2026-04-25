@@ -1,6 +1,8 @@
+import { useState, useMemo, useCallback } from 'react'
+
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus, Zap, Calendar, ArrowLeftRight } from 'lucide-react'
-import { useState, useMemo, useCallback } from 'react'
+
 import { useMonthlyAggregation } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'

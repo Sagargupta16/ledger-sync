@@ -1,3 +1,6 @@
+import { useState, useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Target,
@@ -11,20 +14,6 @@ import {
   BarChart3,
   X,
 } from 'lucide-react'
-import { useState, useMemo, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
-import StatCard from '@/pages/year-in-review/components/StatCard'
-import { useTransactions } from '@/hooks/api/useTransactions'
-import { useBudgetStore } from '@/store/budgetStore'
-import { formatCurrency, formatCurrencyShort, formatPercent, parseStringArray } from '@/lib/formatters'
-import { rawColors } from '@/constants/colors'
-import { staggerContainer, fadeUpItem } from '@/constants/animations'
-import { getCurrentFY, getFYDateRange } from '@/lib/dateUtils'
-import { usePreferences } from '@/hooks/api/usePreferences'
-import Sparkline from '@/components/shared/Sparkline'
-import { computeCategoryMomentum } from '@/lib/momentumCalculator'
 import {
   BarChart,
   Bar,
@@ -43,6 +32,19 @@ import {
   PolarRadiusAxis,
   Radar,
 } from 'recharts'
+
+import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
+import StatCard from '@/pages/year-in-review/components/StatCard'
+import { useTransactions } from '@/hooks/api/useTransactions'
+import { useBudgetStore } from '@/store/budgetStore'
+import { formatCurrency, formatCurrencyShort, formatPercent, parseStringArray } from '@/lib/formatters'
+import { rawColors } from '@/constants/colors'
+import { staggerContainer, fadeUpItem } from '@/constants/animations'
+import { getCurrentFY, getFYDateRange } from '@/lib/dateUtils'
+import { usePreferences } from '@/hooks/api/usePreferences'
+import Sparkline from '@/components/shared/Sparkline'
+import { computeCategoryMomentum } from '@/lib/momentumCalculator'
 import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS, areaGradient, areaGradientUrl } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 

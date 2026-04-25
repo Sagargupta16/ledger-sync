@@ -1,6 +1,7 @@
-import type { UploadStats } from '@/types'
 import { CheckCircle, AlertCircle, Trash2, Copy, Clock } from 'lucide-react'
 import { motion } from 'framer-motion'
+
+import type { UploadStats } from '@/types'
 
 interface UploadResultsProps {
   stats: UploadStats

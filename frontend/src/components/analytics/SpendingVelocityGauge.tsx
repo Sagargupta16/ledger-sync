@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
+
 import { motion } from 'framer-motion'
 import { Gauge } from 'lucide-react'
+
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, percentChange } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'

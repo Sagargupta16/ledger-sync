@@ -1,15 +1,19 @@
+import { memo, useMemo } from 'react'
+
 import { motion } from 'framer-motion'
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
 } from 'recharts'
 import { Shield } from 'lucide-react'
-import { memo, useMemo } from 'react'
+
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
 import { ChartContainer, chartTooltipProps } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import type { Transaction } from '@/types'
+import { computeCFPScore } from '@/lib/financialHealthCalculator'
+
 import type { HealthMetric } from './health/healthScoreUtils'
 import {
   computeMonthlyData,
@@ -19,7 +23,6 @@ import {
   getSummary,
 } from './health/healthScoreUtils'
 import CFPScoreView from './health/CFPScoreView'
-import { computeCFPScore } from '@/lib/financialHealthCalculator'
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 

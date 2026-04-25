@@ -1,8 +1,11 @@
 import { useMemo } from 'react'
+
 import { useQuery } from '@tanstack/react-query'
+
 import { transactionsService, type TransactionFilters } from '@/services/api/transactions'
-import { usePreferences } from './usePreferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
+
+import { usePreferences } from './usePreferences'
 
 /**
  * Parse excluded_accounts from preferences (may be JSON string or array).

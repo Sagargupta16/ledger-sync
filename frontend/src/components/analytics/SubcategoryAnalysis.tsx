@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useTransactions } from '@/hooks/api/useTransactions'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+
+import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
 import { getCurrentYear, getCurrentMonth } from '@/lib/dateUtils'

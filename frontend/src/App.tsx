@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+
 import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClient } from '@/lib/queryClient'
 import { Toaster } from 'sonner'
+
+import { queryClient } from '@/lib/queryClient'
 import { ROUTES } from '@/constants'
 import AppLayout from '@/components/layout/AppLayout'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'

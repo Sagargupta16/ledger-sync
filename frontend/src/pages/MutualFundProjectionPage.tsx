@@ -1,8 +1,7 @@
+import { useState, useMemo, useEffect } from 'react'
+
 import { motion } from 'framer-motion'
-import { rawColors } from '@/constants/colors'
 import { TrendingUp, Calculator, Percent, BarChart3 } from 'lucide-react'
-import { useAccountBalances } from '@/hooks/api/useAnalytics'
-import { accountClassificationsService } from '@/services/api/accountClassifications'
 import {
   XAxis,
   YAxis,
@@ -12,7 +11,10 @@ import {
   AreaChart,
   Area,
 } from 'recharts'
-import { useState, useMemo, useEffect } from 'react'
+
+import { rawColors } from '@/constants/colors'
+import { useAccountBalances } from '@/hooks/api/useAnalytics'
+import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'

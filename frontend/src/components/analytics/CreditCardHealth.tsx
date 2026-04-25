@@ -1,6 +1,8 @@
+import { useMemo } from 'react'
+
 import { motion } from 'framer-motion'
 import { CreditCard, AlertTriangle, CheckCircle } from 'lucide-react'
-import { useMemo } from 'react'
+
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { usePreferencesStore, selectCreditCardLimits } from '@/store/preferencesStore'

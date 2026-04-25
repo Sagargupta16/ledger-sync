@@ -1,7 +1,9 @@
 import { useState, useMemo, useCallback } from 'react'
+
+import { toast } from 'sonner'
+
 import { useGoals, useCreateGoal, useMonthlySummaries } from '@/hooks/api/useAnalyticsV2'
 import { useTotals } from '@/hooks/api/useAnalytics'
-import { toast } from 'sonner'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 
 import { computeGoalProjection, loadAllocations, saveAllocations, loadDeletedGoals, saveDeletedGoals, loadGoalOverrides, saveGoalOverrides } from './helpers'

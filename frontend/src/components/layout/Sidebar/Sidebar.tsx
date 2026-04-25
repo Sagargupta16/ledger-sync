@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+
 import { useQueryClient } from '@tanstack/react-query'
 import {
   LayoutDashboard,
@@ -31,11 +32,9 @@ import {
   Flame,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+
 import { ROUTES } from '@/constants'
 import { cn } from '@/lib/cn'
-import SidebarSection from './SidebarSection'
-import SidebarItem from './SidebarItem'
-import CurrencySwitcher from './CurrencySwitcher'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { useLogout } from '@/hooks/api/useAuth'
@@ -43,6 +42,10 @@ import NotificationCenter from '@/components/shared/NotificationCenter'
 import ProfileModal from '@/components/shared/ProfileModal'
 import { useBudgets, useAnomalies, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { exitDemoMode } from '@/lib/demo'
+
+import SidebarSection from './SidebarSection'
+import SidebarItem from './SidebarItem'
+import CurrencySwitcher from './CurrencySwitcher'
 
 // ─── Navigation config ──────────────────────────────────────────────────────
 

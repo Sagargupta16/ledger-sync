@@ -1,7 +1,9 @@
+import { type ReactNode, useEffect, useRef } from 'react'
+
 import { motion, animate } from 'framer-motion'
 import type { LucideIcon } from 'lucide-react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
-import { type ReactNode, useEffect, useRef } from 'react'
+
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
 
 /** Parse a formatted string like "$1,234.56" or "₹12,345" into parts */

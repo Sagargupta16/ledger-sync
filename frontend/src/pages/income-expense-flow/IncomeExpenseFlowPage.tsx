@@ -1,8 +1,10 @@
-import { motion } from 'framer-motion'
-import { rawColors } from '@/constants/colors'
-import { ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react'
 import { useMemo } from 'react'
+
+import { motion } from 'framer-motion'
+import { ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react'
 import { Sankey, Tooltip } from 'recharts'
+
+import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'

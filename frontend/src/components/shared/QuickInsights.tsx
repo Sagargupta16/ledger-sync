@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+
 import { motion } from 'framer-motion'
 import {
   ShoppingBag, TrendingUp, TrendingDown, Zap, Gift, Receipt,
@@ -6,11 +7,13 @@ import {
   Clock, Layers, DollarSign, Hourglass, ShieldCheck, Lock, Percent,
   Repeat, Scale, CalendarRange,
 } from 'lucide-react'
+
 import { useCategoryBreakdown, useTotals } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
-import LoadingSkeleton from './LoadingSkeleton'
 import { formatCurrency } from '@/lib/formatters'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
+
+import LoadingSkeleton from './LoadingSkeleton'
 
 /** Maps insight titles to widget keys used in Settings → Dashboard Widgets */
 const TITLE_TO_WIDGET_KEY: Record<string, string> = {
