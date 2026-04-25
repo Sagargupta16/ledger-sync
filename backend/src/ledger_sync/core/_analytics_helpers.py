@@ -7,6 +7,7 @@ engine's state -- they take the engine's lookup callables as parameters.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
@@ -129,3 +130,64 @@ def aggregate_holdings_data(
         elif txn.type == TransactionType.EXPENSE and is_investment_account(txn.account):
             holdings_data[txn.account]["expense"] += Decimal(str(txn.amount))
     return holdings_data
+
+
+def mom_change_pct(current: Decimal, previous: Decimal | None) -> float:
+    """Return month-over-month percentage change, or 0 when previous is falsy."""
+    if previous and previous > 0:
+        return float((current - previous) / previous * 100)
+    return 0.0
+
+
+def monthly_type_totals(
+    transactions: list[Transaction],
+) -> dict[str, dict[str, Decimal]]:
+    """Aggregate transaction amounts by YYYY-MM period and transaction type."""
+    totals: dict[str, dict[str, Decimal]] = defaultdict(
+        lambda: {"Income": Decimal(0), "Expense": Decimal(0)},
+    )
+    for txn in transactions:
+        period_key = txn.date.strftime("%Y-%m")
+        totals[period_key][txn.type.value] += Decimal(str(txn.amount))
+    return totals
+
+
+# Precompile once so normalize_note() isn't paying regex-compile cost per call.
+_MONTH_TRAILER = re.compile(
+    r" (?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?: \d{1,4})?$",
+)
+_DATE_TRAILER = re.compile(r" \d{1,2}[/\-]\d{2,4}$")
+_NUMBER_TRAILER = re.compile(r" #?\d+$")
+
+
+def normalize_note(note: str | None) -> str | None:
+    """Normalize a transaction note for grouping.
+
+    Strips whitespace, lowercases, and removes trailing date-like tokens so
+    notes like "Rent Jan 2026" and "Rent Feb 2026" collapse to the same key.
+    """
+    if not note or not note.strip():
+        return None
+    text = " ".join(note.split()).lower()
+    text = _MONTH_TRAILER.sub("", text)
+    text = _DATE_TRAILER.sub("", text)
+    text = _NUMBER_TRAILER.sub("", text)
+    return text.strip() or None
+
+
+def compute_account_balances(
+    transactions: list[Transaction],
+) -> dict[str, Decimal]:
+    """Derive a net balance per account by walking the transaction history."""
+    balances: dict[str, Decimal] = defaultdict(Decimal)
+    for txn in transactions:
+        if txn.type == TransactionType.TRANSFER:
+            if txn.from_account:
+                balances[txn.from_account] -= Decimal(str(txn.amount))
+            if txn.to_account:
+                balances[txn.to_account] += Decimal(str(txn.amount))
+        elif txn.type == TransactionType.INCOME:
+            balances[txn.account] += Decimal(str(txn.amount))
+        elif txn.type == TransactionType.EXPENSE:
+            balances[txn.account] -= Decimal(str(txn.amount))
+    return balances

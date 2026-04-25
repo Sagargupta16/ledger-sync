@@ -33,10 +33,22 @@ from ledger_sync.core._analytics_helpers import (
     aggregate_holdings_data as _aggregate_holdings_data,
 )
 from ledger_sync.core._analytics_helpers import (
+    compute_account_balances as _compute_account_balances,
+)
+from ledger_sync.core._analytics_helpers import (
     group_txns_by_pattern as _group_txns_by_pattern,
 )
 from ledger_sync.core._analytics_helpers import (
     infer_expected_day_of_month as _infer_expected_day_of_month,
+)
+from ledger_sync.core._analytics_helpers import (
+    mom_change_pct as _mom_change_pct,
+)
+from ledger_sync.core._analytics_helpers import (
+    monthly_type_totals as _monthly_type_totals,
+)
+from ledger_sync.core._analytics_helpers import (
+    normalize_note as _normalize_note,
 )
 from ledger_sync.core._analytics_helpers import (
     resolve_pattern_display as _resolve_pattern_display,
@@ -550,8 +562,8 @@ class AnalyticsEngine:
             expense_ratio = float(total_expenses / total_income * 100) if total_income > 0 else 0
 
             # Calculate MoM changes
-            income_change_pct = self._mom_change_pct(total_income, prev_income)
-            expense_change_pct = self._mom_change_pct(total_expenses, prev_expenses)
+            income_change_pct = _mom_change_pct(total_income, prev_income)
+            expense_change_pct = _mom_change_pct(total_expenses, prev_expenses)
 
             now = datetime.now(UTC)
             total_txns = data["income_count"] + data["expense_count"] + data["transfer_count"]
@@ -583,16 +595,6 @@ class AnalyticsEngine:
             stale.delete(synchronize_session=False)
 
         return count
-
-    @staticmethod
-    def _mom_change_pct(
-        current: Decimal,
-        previous: Decimal | None,
-    ) -> float:
-        """Return month-over-month percentage change."""
-        if previous and previous > 0:
-            return float((current - previous) / previous * 100)
-        return 0.0
 
     def _upsert_monthly_summary(
         self,
@@ -807,7 +809,7 @@ class AnalyticsEngine:
             category_data[key]["subcategory"] = txn.subcategory
 
         # Get monthly totals for percentage calculation
-        monthly_totals = self._monthly_type_totals(transactions)
+        monthly_totals = _monthly_type_totals(transactions)
 
         # Delete existing for this user and insert new
         del_stmt = delete(CategoryTrend)
@@ -853,24 +855,6 @@ class AnalyticsEngine:
             prev_amounts[prev_key] = total
 
         return count
-
-    @staticmethod
-    def _monthly_type_totals(
-        transactions: list[Transaction],
-    ) -> dict[str, dict[str, Decimal]]:
-        """Aggregate transaction amounts by period and type.
-
-        Returns:
-            Mapping of period_key -> {type_value -> total_amount}.
-
-        """
-        totals: dict[str, dict[str, Decimal]] = defaultdict(
-            lambda: {"Income": Decimal(0), "Expense": Decimal(0)},
-        )
-        for txn in transactions:
-            period_key = txn.date.strftime("%Y-%m")
-            totals[period_key][txn.type.value] += Decimal(str(txn.amount))
-        return totals
 
     def _calculate_transfer_flows(self, transfers: list[Transaction] | None = None) -> int:
         """Calculate aggregated transfer flows between accounts."""
@@ -1070,26 +1054,6 @@ class AnalyticsEngine:
 
         return None
 
-    @staticmethod
-    def _normalize_note(note: str | None) -> str | None:
-        """Normalize a transaction note for grouping.
-
-        Strips whitespace, lowercases, and removes trailing numbers/dates
-        so "Rent Jan 2026" and "Rent Feb 2026" group together.
-        """
-        if not note or not note.strip():
-            return None
-        import re
-
-        text = " ".join(note.split()).lower()
-        # Remove trailing date-like patterns (jan 2026, 01/2026, etc.)
-        month_pat = r" (?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?: \d{1,4})?$"
-        text = re.sub(month_pat, "", text)
-        text = re.sub(r" \d{1,2}[/\-]\d{2,4}$", "", text)
-        # Remove trailing standalone numbers (invoice #, month number)
-        text = re.sub(r" #?\d+$", "", text)
-        return text.strip() or None
-
     def _load_confirmed_recurring(self) -> dict[str, RecurringTransaction]:
         """Load user-confirmed recurring transactions keyed by lowercase pattern name."""
         if self.user_id is None:
@@ -1118,7 +1082,7 @@ class AnalyticsEngine:
 
         # Group by normalized note + type.  Transactions without a note
         # fall back to category + subcategory so they still get detected.
-        patterns = _group_txns_by_pattern(transactions, self._normalize_note)
+        patterns = _group_txns_by_pattern(transactions, _normalize_note)
 
         # Delete only non-confirmed records; user-confirmed ones are preserved
         del_stmt = delete(RecurringTransaction).where(
@@ -1251,7 +1215,7 @@ class AnalyticsEngine:
             all_transactions = self._user_transaction_query().all()
 
         # Track net position per account from all transactions
-        account_balances = self._compute_account_balances(all_transactions)
+        account_balances = _compute_account_balances(all_transactions)
 
         # Categorize accounts
         ac_query = self.db.query(AccountClassification)
@@ -1296,24 +1260,6 @@ class AnalyticsEngine:
             "change": float(net_worth_change),
             "change_pct": net_worth_change_pct,
         }
-
-    @staticmethod
-    def _compute_account_balances(
-        transactions: list[Transaction],
-    ) -> dict[str, Decimal]:
-        """Derive net balance per account from a list of transactions."""
-        balances: dict[str, Decimal] = defaultdict(Decimal)
-        for txn in transactions:
-            if txn.type == TransactionType.TRANSFER:
-                if txn.from_account:
-                    balances[txn.from_account] -= Decimal(str(txn.amount))
-                if txn.to_account:
-                    balances[txn.to_account] += Decimal(str(txn.amount))
-            elif txn.type == TransactionType.INCOME:
-                balances[txn.account] += Decimal(str(txn.amount))
-            elif txn.type == TransactionType.EXPENSE:
-                balances[txn.account] -= Decimal(str(txn.amount))
-        return balances
 
     def _get_net_worth_change(
         self,
