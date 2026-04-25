@@ -214,8 +214,13 @@ class AnalyticsEngine(
         changes_summary: str | None = None,
         source_file: str | None = None,
     ) -> None:
-        """Append an AuditLog row (flushed with the main commit)."""
+        """Append an AuditLog row (flushed with the main commit).
+
+        Scoped to ``self.user_id`` so the audit trail can distinguish runs
+        per user (previously all rows landed with ``user_id=NULL``).
+        """
         audit = AuditLog(
+            user_id=self.user_id,
             operation=operation,
             entity_type=entity_type,
             entity_id=entity_id,
