@@ -8,7 +8,7 @@ import { chartTooltipProps, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisD
 import MetricCard from '@/components/shared/MetricCard'
 import { projectPPF, projectEPF, projectNPS } from '@/lib/instrumentCalculators'
 import type { ProjectionResult } from '@/lib/instrumentCalculators'
-import { useAccountBalances } from '@/hooks/useAnalytics'
+import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import type { AccountBalances } from '@/services/api/calculations'
 
 type Instrument = 'ppf' | 'epf' | 'nps'

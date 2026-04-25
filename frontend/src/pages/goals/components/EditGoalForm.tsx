@@ -1,9 +1,11 @@
 import { useState } from 'react'
+
 import { motion } from 'framer-motion'
 import { Save, X } from 'lucide-react'
+import { toast } from 'sonner'
+
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { rawColors } from '@/constants/colors'
-import { toast } from 'sonner'
 
 export default function EditGoalForm({
   goal,

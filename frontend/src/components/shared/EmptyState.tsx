@@ -1,5 +1,6 @@
-import { type LucideIcon, FileQuestion, Settings, Upload, TrendingUp, PiggyBank } from 'lucide-react'
 import { Link } from 'react-router-dom'
+
+import { type LucideIcon, FileQuestion, Settings, Upload, TrendingUp, PiggyBank } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 interface EmptyStateProps {

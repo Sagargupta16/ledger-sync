@@ -1,7 +1,9 @@
+import { useState, useMemo } from 'react'
+
 import { motion } from 'framer-motion'
 import { Target, Plus, Trash2, AlertTriangle, CheckCircle, Edit2 } from 'lucide-react'
-import { useState, useMemo } from 'react'
-import { useCategoryBreakdown } from '@/hooks/useAnalytics'
+
+import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useBudgetStore } from '@/store/budgetStore'
 import { formatCurrency, formatPercent } from '@/lib/formatters'

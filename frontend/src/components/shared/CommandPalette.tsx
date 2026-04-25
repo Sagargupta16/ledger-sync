@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useDeferredValue } from 'react'
 import { useNavigate } from 'react-router-dom'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
@@ -25,11 +26,12 @@ import {
   ArrowRight,
   Command,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
-import type { LucideIcon } from 'lucide-react'
 import type { Transaction } from '@/types'
 
 // ─── Page definitions with icons ────────────────────────────────────────────

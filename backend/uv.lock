@@ -12,6 +12,8 @@ resolution-markers = [
 
 [manifest]
 constraints = [
+    { name = "pillow", specifier = ">=12.2.0" },
+    { name = "pyasn1", specifier = ">=0.6.3" },
     { name = "pygments", specifier = ">=2.20.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
 ]

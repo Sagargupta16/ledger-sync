@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
-import { useCategoryBreakdown } from '@/hooks/useAnalytics'
+import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
 import { formatCurrency } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'

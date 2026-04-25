@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
+
 import { motion } from 'framer-motion'
 import { Users } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useTotals } from '@/hooks/api/useAnalytics'
 import { getBenchmarkForCategory } from '@/constants/benchmarks'
 import { rawColors } from '@/constants/colors'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'

@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+
 import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClient } from '@/lib/queryClient'
 import { Toaster } from 'sonner'
+
+import { queryClient } from '@/lib/queryClient'
 import { ROUTES } from '@/constants'
 import AppLayout from '@/components/layout/AppLayout'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
@@ -13,27 +15,27 @@ import { useAuthStore } from '@/store/authStore'
 import { useAuthInit } from '@/hooks/api/useAuth'
 
 // Eagerly loaded — core pages the user hits immediately
-import HomePage from '@/pages/HomePage'
+import HomePage from '@/pages/home/HomePage'
 import DashboardPage from '@/pages/DashboardPage'
 import OAuthCallbackPage from '@/pages/OAuthCallbackPage'
 import DemoEntryPage from '@/pages/DemoEntryPage'
 
 // Lazy-loaded — heavier pages, prefetched in background after initial load
 const pageImports = {
-  UploadSyncPage: () => import('@/pages/UploadSyncPage'),
+  UploadSyncPage: () => import('@/pages/upload-sync/UploadSyncPage'),
   TransactionsPage: () => import('@/pages/TransactionsPage'),
-  InvestmentAnalyticsPage: () => import('@/pages/InvestmentAnalyticsPage'),
-  MutualFundProjectionPage: () => import('@/pages/MutualFundProjectionPage'),
-  ReturnsAnalysisPage: () => import('@/pages/ReturnsAnalysisPage'),
+  InvestmentAnalyticsPage: () => import('@/pages/investment-analytics/InvestmentAnalyticsPage'),
+  MutualFundProjectionPage: () => import('@/pages/mutual-fund-projection/MutualFundProjectionPage'),
+  ReturnsAnalysisPage: () => import('@/pages/returns-analysis/ReturnsAnalysisPage'),
   TaxPlanningPage: () => import('@/pages/tax-planning/TaxPlanningPage'),
-  GSTAnalysisPage: () => import('@/pages/GSTAnalysisPage'),
-  NetWorthPage: () => import('@/pages/NetWorthPage'),
-  SpendingAnalysisPage: () => import('@/pages/SpendingAnalysisPage'),
-  IncomeAnalysisPage: () => import('@/pages/IncomeAnalysisPage'),
+  GSTAnalysisPage: () => import('@/pages/gst-analysis/GSTAnalysisPage'),
+  NetWorthPage: () => import('@/pages/net-worth/NetWorthPage'),
+  SpendingAnalysisPage: () => import('@/pages/spending-analysis/SpendingAnalysisPage'),
+  IncomeAnalysisPage: () => import('@/pages/income-analysis/IncomeAnalysisPage'),
   IncomeExpenseFlowPage: () => import('@/pages/income-expense-flow/IncomeExpenseFlowPage'),
   TrendsForecastsPage: () => import('@/pages/trends-forecasts/TrendsForecastsPage'),
   ComparisonPage: () => import('@/pages/comparison/ComparisonPage'),
-  BudgetPage: () => import('@/pages/BudgetPage'),
+  BudgetPage: () => import('@/pages/budget/BudgetPage'),
   YearInReviewPage: () => import('@/pages/year-in-review/YearInReviewPage'),
   SettingsPage: () => import('@/pages/settings/SettingsPage'),
   AnomalyReviewPage: () => import('@/pages/AnomalyReviewPage'),

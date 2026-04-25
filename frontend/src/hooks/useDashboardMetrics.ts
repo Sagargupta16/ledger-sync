@@ -9,7 +9,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRecentTransactions } from '@/hooks/api/useAnalytics'
-import { useMonthlyAggregation, useTotals } from '@/hooks/useAnalytics'
+import { useMonthlyAggregation, useTotals } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePreferencesStore } from '@/store/preferencesStore'

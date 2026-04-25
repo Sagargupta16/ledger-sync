@@ -1,9 +1,11 @@
 import { memo } from 'react'
+
 import { motion } from 'framer-motion'
-import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { TrendingUp, TrendingDown, Calendar, Tag } from 'lucide-react'
-import type { Transaction } from '@/types'
 import { format } from 'date-fns'
+
+import { staggerContainer, fadeUpItem } from '@/constants/animations'
+import type { Transaction } from '@/types'
 import { formatCurrency } from '@/lib/formatters'
 
 interface RecentTransactionsProps {

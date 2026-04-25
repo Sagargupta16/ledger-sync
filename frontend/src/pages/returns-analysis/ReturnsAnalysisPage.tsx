@@ -1,20 +1,22 @@
+import { useMemo, useCallback } from 'react'
+
 import { motion } from 'framer-motion'
-import { rawColors } from '@/constants/colors'
-import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { TrendingUp, TrendingDown, Banknote, Receipt, Activity } from 'lucide-react'
-import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
 import {
   AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Line, ReferenceLine,
 } from 'recharts'
+
+import { rawColors } from '@/constants/colors'
+import { staggerContainer, fadeUpItem } from '@/constants/animations'
+import { useAccountBalances, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
+import { useTransactions } from '@/hooks/api/useTransactions'
 import {
   PageHeader, ChartContainer,
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl,
   shouldAnimate, ACTIVE_DOT, chartTooltipProps,
 } from '@/components/ui'
 import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE } from '@/components/ui/ChartTooltip'
-import { useMemo, useCallback } from 'react'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'

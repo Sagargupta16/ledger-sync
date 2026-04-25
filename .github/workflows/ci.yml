@@ -50,7 +50,10 @@ jobs:
       # ── Dependency audit ────────────────────────────────────────────
       - name: Backend dependency audit
         working-directory: backend
-        run: uv run pip-audit
+        # CVE-2026-3219 is against pip itself and has no fix version yet; pip
+        # isn't part of our runtime either (uv manages deps). Ignore until a
+        # fixed pip is released, then drop the flag.
+        run: uv run pip-audit --ignore-vuln CVE-2026-3219
 
       - name: Frontend dependency audit
         working-directory: frontend

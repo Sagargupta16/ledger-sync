@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion'
 import { Check, Info, Settings2 } from 'lucide-react'
-import { useAccountBalances } from '@/hooks/useAnalytics'
+import { toast } from 'sonner'
+
+import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useAccountStore } from '@/store/accountStore'
 import type { AccountType } from '@/types'
-import { toast } from 'sonner'
 
 const CLASSIFIER_TYPES: Array<{ type: AccountType; activeColor: string; hoverColor: string; label: string }> = [
   { type: 'investment', activeColor: 'bg-app-purple border-app-purple', hoverColor: 'border-border-strong hover:border-app-purple', label: 'Investment' },

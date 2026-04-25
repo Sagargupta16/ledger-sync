@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
+
 import { motion } from 'framer-motion'
 import { TrendingUp } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine } from 'recharts'
+
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { computeCreepScores } from '@/lib/lifestyleCreepCalculator'
 import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine } from 'recharts'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'

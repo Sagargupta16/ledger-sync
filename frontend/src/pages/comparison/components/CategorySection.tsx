@@ -1,6 +1,9 @@
-import { motion } from 'framer-motion'
 import type { ReactNode } from 'react'
+
+import { motion } from 'framer-motion'
+
 import { rawColors } from '@/constants/colors'
+
 import type { PeriodSummary, CategoryDelta } from '../types'
 import { CategoryDeltaRow } from './CategoryDeltaRow'
 

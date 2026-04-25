@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
+
 import { Send, Square, Trash2, Minus, AlertCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
-import ChatMessage from './ChatMessage'
+
 import type { ChatMessage as ChatMessageType } from '@/lib/chatAdapters'
+
+import ChatMessage from './ChatMessage'
 
 interface Props {
   messages: ChatMessageType[]

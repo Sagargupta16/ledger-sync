@@ -1,9 +1,11 @@
 import { useState } from 'react'
+
 import { motion } from 'framer-motion'
 import { Save, X } from 'lucide-react'
+import { toast } from 'sonner'
+
 import { formatCurrencyCompact } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { toast } from 'sonner'
 
 export default function UpdateProgressForm({
   goalId,

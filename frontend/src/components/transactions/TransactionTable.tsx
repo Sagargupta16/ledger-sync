@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+
 import {
   useReactTable,
   getCoreRowModel,
@@ -9,10 +10,11 @@ import {
   type Updater,
 } from '@tanstack/react-table'
 import { ArrowUpDown, TrendingUp, TrendingDown, Search } from 'lucide-react'
-import type { Transaction } from '@/types'
 import { format } from 'date-fns'
-import { formatCurrency } from '@/lib/formatters'
 import { motion } from 'framer-motion'
+
+import type { Transaction } from '@/types'
+import { formatCurrency } from '@/lib/formatters'
 import EmptyState from '@/components/shared/EmptyState'
 
 interface TransactionTableProps {

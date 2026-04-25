@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react'
+
 import { motion } from 'framer-motion'
 import { Flame, Calculator } from 'lucide-react'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -12,7 +15,6 @@ import MetricCard from '@/components/shared/MetricCard'
 import { PageHeader, ChartContainer } from '@/components/ui'
 import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl, ACTIVE_DOT } from '@/components/ui/chartDefaults'
 import { chartTooltipProps } from '@/components/ui/ChartTooltip'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 
 function SliderInput({ id, label, value, min, max, step, unit, onChange }: Readonly<{
   id: string; label: string; value: number; min: number; max: number; step: number; unit: string

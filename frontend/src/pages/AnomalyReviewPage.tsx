@@ -1,13 +1,15 @@
 import { useState, useMemo } from 'react'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, Check, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { toast } from 'sonner'
+
 import { PageHeader, StatCard } from '@/components/ui'
 import { useAnomalies, useReviewAnomaly } from '@/hooks/api/useAnalyticsV2'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
-import { toast } from 'sonner'
 import EmptyState from '@/components/shared/EmptyState'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 
