@@ -555,14 +555,32 @@ buildMilestoneRows(series, anchor, growth):
     # Defaults: ₹1L, ₹5L, ₹10L, ₹25L, ₹50L, ₹1Cr, ₹2.5Cr, ₹5Cr, ₹10Cr.
     for each default milestone:
         if ever crossed in series:
-            status = "achieved", date = crossing_date
+            status = "achieved"
+            date = first_crossing_date
+            stableSince = findStableSince(series, value, first_crossing_date)
         elif growth > 0 and value > anchor.netWorth:
             months_away = (value - anchor.netWorth) / growth
-            status = "upcoming", date = anchor.date + months_away * 30.44 days
+            status = "upcoming"
+            date = anchor.date + months_away * 30.44 days
+            stableSince = null
         else:
-            status = "upcoming", date = null  # unprojectable
+            status = "upcoming", date = null, stableSince = null
     sort rows by value ascending
+
+findStableSince(series, target, firstCrossing):
+    # Scan backward for the last index where value < target.
+    # Never dipped below -> stable since firstCrossing.
+    # Last index is the final point -> not stable (null).
+    # Otherwise -> stable since the first point after that dip that is >= target.
 ```
+
+**Three status tiers** (displayed in the Milestones table):
+
+- **Stable** -- `stableSince !== null`: crossed and never dipped back below. Green.
+- **Reached** -- `status === 'achieved' && stableSince === null`: crossed at least once but net worth is currently (or was recently) below the threshold. Yellow.
+- **Upcoming** -- `status === 'upcoming'`: not yet crossed. Muted.
+
+The "Reached but not Stable" tier exists because touching a milestone once is weaker evidence than holding it -- a user who crossed ₹10L on a bonus day and then dipped back should not be told "₹10L achieved" the same way as a user who crossed it on salary growth and held.
 
 **Chart projection overlay** (toggle-gated):
 

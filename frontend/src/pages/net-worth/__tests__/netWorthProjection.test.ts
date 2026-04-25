@@ -83,6 +83,73 @@ describe('buildMilestoneRows', () => {
     const oneL = requireRow(rows, '₹1L')
     expect(oneL.date).toBe('2024-01-01')
   })
+
+  describe('stableSince', () => {
+    it('equals first crossing when value never dips below', () => {
+      const series = [
+        { date: '2024-01-01', netWorth: 80_000 },
+        { date: '2024-02-01', netWorth: 120_000 }, // crosses 1L
+        { date: '2024-03-01', netWorth: 150_000 }, // still above
+        { date: '2024-04-01', netWorth: 200_000 }, // still above
+      ]
+      const rows = buildMilestoneRows(series, series[3], 0)
+      const oneL = requireRow(rows, '₹1L')
+      expect(oneL.stableSince).toBe('2024-02-01')
+      expect(oneL.stableSince).toBe(oneL.date)
+    })
+
+    it('is the recovery date when value dips then recovers', () => {
+      const series = [
+        { date: '2024-01-01', netWorth: 110_000 }, // 1L crossed
+        { date: '2024-02-01', netWorth: 90_000 }, // dipped below
+        { date: '2024-03-01', netWorth: 95_000 }, // still below
+        { date: '2024-04-01', netWorth: 130_000 }, // recovered
+        { date: '2024-05-01', netWorth: 140_000 }, // stays above
+      ]
+      const rows = buildMilestoneRows(series, series[4], 0)
+      const oneL = requireRow(rows, '₹1L')
+      expect(oneL.date).toBe('2024-01-01')
+      expect(oneL.stableSince).toBe('2024-04-01')
+    })
+
+    it('is null when the milestone was crossed but anchor is currently below', () => {
+      const series = [
+        { date: '2024-01-01', netWorth: 110_000 }, // crossed
+        { date: '2024-02-01', netWorth: 90_000 }, // fell back below
+      ]
+      const rows = buildMilestoneRows(series, series[1], 0)
+      const oneL = requireRow(rows, '₹1L')
+      expect(oneL.status).toBe('achieved') // was reached once
+      expect(oneL.date).toBe('2024-01-01')
+      expect(oneL.stableSince).toBeNull()
+    })
+
+    it('is null for upcoming (not-yet-achieved) rows', () => {
+      const series = [
+        { date: '2024-01-01', netWorth: 50_000 },
+        { date: '2024-12-01', netWorth: 500_000 },
+      ]
+      const anchor = { date: '2024-12-01', netWorth: 500_000 }
+      const rows = buildMilestoneRows(series, anchor, 50_000)
+      const tenL = requireRow(rows, '₹10L')
+      expect(tenL.status).toBe('upcoming')
+      expect(tenL.stableSince).toBeNull()
+    })
+
+    it('picks the latest recovery when there are multiple dips', () => {
+      const series = [
+        { date: '2024-01-01', netWorth: 110_000 }, // crossed
+        { date: '2024-02-01', netWorth: 90_000 }, // dip 1
+        { date: '2024-03-01', netWorth: 130_000 }, // recovered
+        { date: '2024-04-01', netWorth: 85_000 }, // dip 2
+        { date: '2024-05-01', netWorth: 120_000 }, // recovered again
+        { date: '2024-06-01', netWorth: 140_000 }, // holds
+      ]
+      const rows = buildMilestoneRows(series, series[5], 0)
+      const oneL = requireRow(rows, '₹1L')
+      expect(oneL.stableSince).toBe('2024-05-01')
+    })
+  })
 })
 
 describe('computeAvgMonthlyGrowth', () => {

@@ -6,6 +6,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.3.1 - 2026-04-25
+
+Milestones table redesigned around the question users actually ask: "have I *held* this threshold, or just touched it once?"
+
+### Changed
+
+- **[Milestones table](frontend/src/pages/net-worth/components/MilestonesTable.tsx) columns simplified to 5:** Target | Status | First Reached | Stable Since | Expected to Reach. Dropped the separate Amount column (now shown as a subline under the Target label) and the Notes column (replaced by structured date columns).
+- **Status now has 3 states** instead of 2:
+  - **Stable** (green ✓) -- crossed the threshold and never dipped below since.
+  - **Reached** (yellow ○) -- crossed once but later dipped below; still achieved, not stable.
+  - **Upcoming** (muted ⊙) -- not yet crossed.
+- **Header stats** now show Current net worth, Avg monthly growth, Stable X/N, and Reached X/N (was: Achieved X/N only).
+
+### Added
+
+- **`stableSince` field** on [`MilestoneRow`](frontend/src/pages/net-worth/netWorthProjection.ts). Computed by scanning backward for the last dip below target; returns the crossing date that stuck. `null` when the milestone is upcoming or when net worth is currently below threshold after a prior crossing. 5 new unit tests covering never-dipped, dipped-then-recovered, dipped-still-below, upcoming, and multiple-dips scenarios.
+
+---
+
 ## 2.3.0 - 2026-04-25
 
 Codebase-wide consolidation of hand-rolled UI primitives. A component-reuse audit found 35+ files re-implementing identical `<table>` + `<thead>` + `<tbody>` boilerplate and ~30 files repeating recharts config. This release ships a shared table primitive, a new radar chart wrapper, and migrates every file where the chart shape cleanly fits the existing wrappers.
