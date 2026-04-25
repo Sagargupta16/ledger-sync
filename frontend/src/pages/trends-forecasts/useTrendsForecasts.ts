@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useTrends } from '@/hooks/useAnalytics'
+import { useTrends } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'

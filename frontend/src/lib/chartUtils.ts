@@ -6,6 +6,7 @@
  * - Currency-aware label formatters for Recharts LabelList
  */
 
+import { CHART_TEXT } from '@/constants/chartColors'
 import { formatCurrencyShort } from './formatters'
 
 /**
@@ -73,7 +74,7 @@ export function barLabelFormatter(value: number): string {
  * Returns style object suitable for <LabelList> content prop.
  */
 export const barLabelStyle = {
-  fill: '#f5f5f7',
+  fill: CHART_TEXT.secondary,
   fontSize: 10,
   fontWeight: 500,
 } as const

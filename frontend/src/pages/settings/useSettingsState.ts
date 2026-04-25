@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useAccountBalances, useMasterCategories } from '@/hooks/useAnalytics'
+import { useAccountBalances, useMasterCategories } from '@/hooks/api/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { preferencesService } from '@/services/api/preferences'
 import { usePreferences, useUpdatePreferences, useResetPreferences } from '@/hooks/api/usePreferences'

@@ -14,7 +14,7 @@ import {
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { useCategoryBreakdown } from '@/hooks/useAnalytics'
+import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
 import StatCard from '@/pages/year-in-review/components/StatCard'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useBudgetStore } from '@/store/budgetStore'

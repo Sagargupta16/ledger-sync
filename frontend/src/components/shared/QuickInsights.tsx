@@ -6,7 +6,7 @@ import {
   Clock, Layers, DollarSign, Hourglass, ShieldCheck, Lock, Percent,
   Repeat, Scale, CalendarRange,
 } from 'lucide-react'
-import { useCategoryBreakdown, useTotals } from '@/hooks/useAnalytics'
+import { useCategoryBreakdown, useTotals } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import LoadingSkeleton from './LoadingSkeleton'
 import { formatCurrency } from '@/lib/formatters'

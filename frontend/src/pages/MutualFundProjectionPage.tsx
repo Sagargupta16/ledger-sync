@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
 import { TrendingUp, Calculator, Percent, BarChart3 } from 'lucide-react'
-import { useAccountBalances } from '@/hooks/useAnalytics'
+import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import {
   XAxis,

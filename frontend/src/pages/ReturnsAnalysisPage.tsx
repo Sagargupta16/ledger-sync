@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { TrendingUp, TrendingDown, Banknote, Receipt, Activity } from 'lucide-react'
-import { useAccountBalances, useMonthlyAggregation } from '@/hooks/useAnalytics'
+import { useAccountBalances, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import {
   AreaChart, Area, XAxis, YAxis,
