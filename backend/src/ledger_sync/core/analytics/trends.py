@@ -21,6 +21,56 @@ from ledger_sync.db.models import (
 )
 
 
+def _cat_trend_sort_key(
+    item: tuple[tuple[str, str, str | None, str], list[float]],
+) -> tuple[str, str, str, str]:
+    """Sort key for category-trend iteration.
+
+    Tolerates ``subcategory=None`` by substituting an empty string so the
+    natural tuple ordering stays total-ordered.
+    """
+    period, cat, sub, tp = item[0]
+    return (period, cat, sub or "", tp)
+
+
+def _build_category_trend(
+    *,
+    user_id: int | None,
+    period_key: str,
+    category: str,
+    subcategory: str | None,
+    txn_type: str,
+    amounts: list[float],
+    total: float,
+    monthly_type_total: float,
+    prev_total: float | None,
+) -> CategoryTrend:
+    """Build a single CategoryTrend row from aggregated per-month data."""
+    pct = (total / monthly_type_total * 100) if monthly_type_total > 0 else 0
+    mom_change = 0.0
+    mom_change_pct = 0.0
+    if prev_total is not None and prev_total > 0:
+        mom_change = total - prev_total
+        mom_change_pct = (mom_change / prev_total) * 100
+
+    return CategoryTrend(
+        user_id=user_id,
+        period_key=period_key,
+        category=category,
+        subcategory=subcategory,
+        transaction_type=TransactionType(txn_type),
+        total_amount=Decimal(str(total)),
+        transaction_count=len(amounts),
+        avg_transaction=Decimal(str(mean(amounts))) if amounts else Decimal(0),
+        max_transaction=Decimal(str(max(amounts))) if amounts else Decimal(0),
+        min_transaction=Decimal(str(min(amounts))) if amounts else Decimal(0),
+        pct_of_monthly_total=pct,
+        mom_change=Decimal(str(mom_change)),
+        mom_change_pct=mom_change_pct,
+        last_calculated=datetime.now(UTC),
+    )
+
+
 class TrendsMixin(AnalyticsEngineBase):
     """Mixin: category trends and transfer flows persistence."""
 
@@ -28,26 +78,26 @@ class TrendsMixin(AnalyticsEngineBase):
         self,
         all_transactions: list[Transaction] | None = None,
     ) -> int:
-        """Calculate category-level trends over time."""
+        """Calculate category + subcategory trends over time.
+
+        Grouping key is ``(period, category, subcategory, type)``: previously
+        we grouped by ``(period, category, type)`` and overwrote ``subcategory``
+        with the last-seen value, which scrambled subcategory totals across
+        months (e.g. Cashbacks under the wrong subcategory heading).
+        """
         transactions = [
             t
             for t in (all_transactions or self._user_transaction_query().all())
             if t.type != TransactionType.TRANSFER
         ]
 
-        # Group by period + category + type
-        category_data: dict[tuple[str, str, str], dict[str, Any]] = defaultdict(
-            lambda: {
-                "amounts": [],
-                "subcategory": None,
-            },
+        category_data: dict[tuple[str, str, str | None, str], list[float]] = defaultdict(
+            list,
         )
-
         for txn in transactions:
             period_key = txn.date.strftime("%Y-%m")
-            key = (period_key, txn.category, txn.type.value)
-            category_data[key]["amounts"].append(float(txn.amount))
-            category_data[key]["subcategory"] = txn.subcategory
+            key = (period_key, txn.category, txn.subcategory, txn.type.value)
+            category_data[key].append(float(txn.amount))
 
         monthly_totals = _monthly_type_totals(transactions)
 
@@ -58,37 +108,26 @@ class TrendsMixin(AnalyticsEngineBase):
         self.db.execute(del_stmt)
 
         count = 0
-        prev_amounts: dict[tuple[str, str], float] = {}
+        # MoM change is computed at the (category, subcategory, type) granularity
+        # so a "Food & Dining / Groceries" row compares to the prior month's
+        # "Food & Dining / Groceries" row, not "Food & Dining / Restaurants".
+        prev_amounts: dict[tuple[str, str | None, str], float] = {}
 
-        for (period_key, category, txn_type), data in sorted(category_data.items()):
-            amounts = data["amounts"]
+        for key, amounts in sorted(category_data.items(), key=_cat_trend_sort_key):
+            period_key, category, subcategory, txn_type = key
             total = sum(amounts)
             monthly_type_total = float(monthly_totals[period_key].get(txn_type, Decimal(0)))
-            pct = (total / monthly_type_total * 100) if monthly_type_total > 0 else 0
-
-            # MoM change
-            prev_key = (category, txn_type)
-            mom_change = 0.0
-            mom_change_pct = 0.0
-            if prev_key in prev_amounts and prev_amounts[prev_key] > 0:
-                mom_change = total - prev_amounts[prev_key]
-                mom_change_pct = (mom_change / prev_amounts[prev_key]) * 100
-
-            trend = CategoryTrend(
+            prev_key = (category, subcategory, txn_type)
+            trend = _build_category_trend(
                 user_id=self.user_id,
                 period_key=period_key,
                 category=category,
-                subcategory=data["subcategory"],
-                transaction_type=TransactionType(txn_type),
-                total_amount=Decimal(str(total)),
-                transaction_count=len(amounts),
-                avg_transaction=Decimal(str(mean(amounts))) if amounts else Decimal(0),
-                max_transaction=Decimal(str(max(amounts))) if amounts else Decimal(0),
-                min_transaction=Decimal(str(min(amounts))) if amounts else Decimal(0),
-                pct_of_monthly_total=pct,
-                mom_change=Decimal(str(mom_change)),
-                mom_change_pct=mom_change_pct,
-                last_calculated=datetime.now(UTC),
+                subcategory=subcategory,
+                txn_type=txn_type,
+                amounts=amounts,
+                total=total,
+                monthly_type_total=monthly_type_total,
+                prev_total=prev_amounts.get(prev_key),
             )
             self.db.add(trend)
             count += 1
