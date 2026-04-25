@@ -93,11 +93,13 @@ def refresh_analytics(
     """
     session = SessionLocal()
     try:
-        # Relax timeouts for the heavy analytics workload.
-        # Default connection listener sets 30 s statement / 60 s idle-in-txn,
-        # which is too tight for a full analytics recompute.
-        session.execute(text("SET statement_timeout = '120s'"))
-        session.execute(text("SET idle_in_transaction_session_timeout = '300s'"))
+        # Relax timeouts for the heavy analytics workload. The per-connection
+        # listener in db/session.py sets 30 s / 60 s by default on Postgres,
+        # which is too tight for a full recompute. These SETs are Postgres-only
+        # syntax -- SQLite has no equivalent, so we skip them for local dev.
+        if session.bind is not None and session.bind.dialect.name == "postgresql":
+            session.execute(text("SET statement_timeout = '120s'"))
+            session.execute(text("SET idle_in_transaction_session_timeout = '300s'"))
 
         engine = AnalyticsEngine(session, user_id=current_user.id)
         results = engine.run_full_analytics(source_file="manual-refresh")
