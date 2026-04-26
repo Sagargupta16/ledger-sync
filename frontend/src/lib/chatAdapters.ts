@@ -135,6 +135,13 @@ async function streamAnthropic(params: StreamParams) {
   params.onDone()
 }
 
+/**
+ * Bedrock goes through our Vercel serverless backend which uses Mangum
+ * (Lambda-style adapter). Mangum buffers the whole response, so SSE
+ * streaming over that proxy doesn't actually stream -- the browser sits
+ * on "processing" until the generator drains. We use a plain JSON
+ * request/response on this path and emit the full reply as one token.
+ */
 async function streamBedrock(params: StreamParams) {
   const req = buildBedrockRequest(params)
   const response = await fetch(req.url, {
@@ -147,11 +154,8 @@ async function streamBedrock(params: StreamParams) {
     const err = await response.json().catch(() => ({}))
     throw new Error((err as { detail?: string }).detail ?? `Bedrock error ${response.status}`)
   }
-  await parseSSEStream(
-    response.body!.getReader(),
-    (json) => (json as { token?: string }).token,
-    params.onToken,
-  )
+  const data = (await response.json()) as { content?: string }
+  if (data.content) params.onToken(data.content)
   params.onDone()
 }
 

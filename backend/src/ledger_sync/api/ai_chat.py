@@ -1,4 +1,4 @@
-"""Bedrock streaming proxy.
+"""Bedrock chat proxy.
 
 Browser-direct calls to AWS Bedrock fail (no CORS, SigV4 auth required).
 This endpoint proxies chat requests to Bedrock using boto3 which handles
@@ -6,16 +6,27 @@ SigV4 signing and AWS Event Stream binary parsing automatically.
 
 Credentials come from the standard AWS credential chain (env vars,
 ~/.aws/credentials, IAM role, etc.) -- no stored API key needed.
+
+Why non-streaming JSON instead of SSE:
+---------------------------------------
+The backend runs on Vercel via Mangum (Lambda-style adapter). Mangum
+buffers the entire response before returning, so `StreamingResponse`
+doesn't actually stream end-to-end -- the browser sits on "processing"
+until the Bedrock stream fully drains and the serverless function
+returns. For short replies this made the UI feel frozen; for long
+replies it would hit Vercel's 10s Hobby timeout and silently fail.
+
+We use `converse` (non-streaming) and return plain JSON. The UX is now
+"processing... 2-5s... full reply appears" instead of "processing...
+forever... nothing". Anthropic and OpenAI paths keep their browser-
+direct SSE streaming since they don't go through Mangum.
 """
 
 from __future__ import annotations
 
-import json
-from collections.abc import AsyncGenerator
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -29,6 +40,10 @@ class BedrockChatRequest(BaseModel):
     messages: list[dict[str, str]] = Field(min_length=1)
     system_prompt: str = ""
     max_tokens: int = Field(default=1024, ge=1, le=4096)
+
+
+class BedrockChatResponse(BaseModel):
+    content: str
 
 
 def _get_bedrock_model_region(prefs: UserPreferences) -> tuple[str, str]:
@@ -48,13 +63,13 @@ def _get_bedrock_model_region(prefs: UserPreferences) -> tuple[str, str]:
     return model, region
 
 
-@router.post("/bedrock/chat")
+@router.post("/bedrock/chat", response_model=BedrockChatResponse)
 def bedrock_chat_proxy(
     current_user: CurrentUser,
     request: BedrockChatRequest,
     session: DatabaseSession,
-) -> StreamingResponse:
-    """Stream a Bedrock converse-stream response as SSE."""
+) -> BedrockChatResponse:
+    """Call Bedrock Converse API and return the full assistant reply."""
     result = session.execute(
         select(UserPreferences).where(UserPreferences.user_id == current_user.id)
     )
@@ -76,35 +91,24 @@ def bedrock_chat_proxy(
     if request.system_prompt:
         kwargs["system"] = [{"text": request.system_prompt}]
 
-    return StreamingResponse(
-        _stream_bedrock(region, kwargs),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-async def _stream_bedrock(
-    region: str,
-    kwargs: dict[str, Any],
-) -> AsyncGenerator[bytes, None]:
     import boto3
 
     try:
         client = boto3.client("bedrock-runtime", region_name=region)
-        response = client.converse_stream(**kwargs)
+        response = client.converse(**kwargs)
     except Exception as exc:
-        error_msg = str(exc)
-        yield f"data: {json.dumps({'error': error_msg})}\n\n".encode()
-        return
+        # Surface the real boto/AWS error to the client so the UI can display
+        # something actionable (bad model id, auth failure, region mismatch).
+        raise HTTPException(status_code=502, detail=f"Bedrock error: {exc}") from exc
 
+    # Converse response shape:
+    # { "output": { "message": { "content": [{ "text": "..." }, ...] } }, ... }
     try:
-        for event in response.get("stream", []):
-            if "contentBlockDelta" in event:
-                delta = event["contentBlockDelta"].get("delta", {})
-                text = delta.get("text")
-                if text:
-                    yield f"data: {json.dumps({'token': text})}\n\n".encode()
-    except Exception as exc:
-        yield f"data: {json.dumps({'error': str(exc)})}\n\n".encode()
+        content_blocks = response["output"]["message"]["content"]
+        text = "".join(block.get("text", "") for block in content_blocks if "text" in block)
+    except (KeyError, TypeError) as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Unexpected Bedrock response shape: {exc}"
+        ) from exc
 
-    yield b"data: [DONE]\n\n"
+    return BedrockChatResponse(content=text)

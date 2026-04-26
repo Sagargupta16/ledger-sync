@@ -8,18 +8,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## 2.4.2 - 2026-04-25
 
-Further mobile polish after device testing.
+Further mobile polish after device testing, plus an AI chat fix.
 
 ### Changed
 
 - **PWA icon redesigned.** The old mark had the L-glyph in the top-left corner leaving dead space bottom-right, and read as "a bar chart" at 64px. New icon is a centered bold rupee (₹) glyph over a subtle ascending trend line on the blue-to-indigo gradient. Reads clearly at 64px home-screen badge size, stays recognisable after Android's maskable crop, and ties the mark to the product (personal finance) rather than a generic chart. Regenerated all 6 PNG sizes from [pwa-icon-source.svg](frontend/public/pwa-icon-source.svg).
 - **Cash Flow on mobile is now a dedicated vertical view, not a shrunken Sankey.** Phones get [MobileFlowView](frontend/src/pages/income-expense-flow/components/MobileFlowView.tsx) -- a stacked sequence (Income sources -> Total Income -> Savings + Expenses split -> Expense categories) with proportional bars and currency-accurate labels. No swipe, no cramped nodes, no horizontal scroll. Desktop still gets the full Sankey.
+- **Bedrock chat path switched from SSE streaming to plain JSON.** The backend runs on Vercel via Mangum, which buffers streaming responses end-to-end, so the old `StreamingResponse` made the UI sit on "processing" forever -- the browser only saw the first byte once boto3's `converse_stream` generator had fully drained (or the function timed out). Now the backend calls `converse` (non-streaming), collects the full reply, and returns `{ "content": "..." }`. The frontend [Bedrock adapter](frontend/src/lib/chatAdapters.ts) fetches once, parses JSON, emits the full text as a single token. Anthropic and OpenAI paths still stream browser-direct since they don't go through Mangum.
 
 ### Fixed
 
 - **Chart heights auto-cap at 280px on mobile** via a new `MOBILE_HEIGHT_CAP` in [ChartContainer](frontend/src/components/ui/ChartContainer.tsx). Previously a chart with `height={400}` would eat ~60% of a 667px iPhone viewport. Now any numeric height greater than 280 is auto-shrunk on `max-width: 639px`; percent heights (`'100%'`) and the new optional `mobileHeight` prop still win. Affects ~20 chart call-sites with one change.
 - **Numeric columns in DataTable now use `tabular-nums`.** Right-aligned cells align digit-by-digit vertically, which matters most on mobile where rows are tight.
 - **CommandPalette (Cmd+K) on mobile** -- panel no longer pushed off-screen by the on-screen keyboard. Top offset drops from `15vh` to `8vh` below `sm`, panel is `flex flex-col max-h-[80vh]` so the input stays visible while results scroll inside.
+- **AI chat "processing... forever" with no error surfaced.** Silent `{"error": "..."}` SSE events from the Bedrock proxy were dropped by the token extractor (it only looked for `{"token": "..."}`), so invalid model IDs, auth failures, region mismatches, and timeouts all looked identical to the user: a spinner that never resolved. With the new JSON path, Bedrock errors surface as HTTP 502 with a readable `detail`; the existing `onError` path displays them in the chat UI.
+- **AI model selection now has a "Custom model ID" free-text field.** The hardcoded Bedrock model list can get stale the moment AWS ships a new inference profile; a user who picked "Claude Opus 4.7 (Bedrock)" was sending `us.anthropic.claude-opus-4-7-v1` which Bedrock no longer accepts. The dropdown now includes "Custom model ID..." which enables a text input below so the exact `modelId` (e.g. `us.anthropic.claude-opus-4-1-20250805-v1:0`) can be pasted straight from the Bedrock console -- no code update required. Also shown/editable when a saved value doesn't match any dropdown option, so users migrating from stale IDs can see and fix them.
 - **Shared `useIsMobile` hook** extracted to [hooks/useIsMobile.ts](frontend/src/hooks/useIsMobile.ts) from the inline definition in `IncomeExpenseFlowPage`.
 
 ---
