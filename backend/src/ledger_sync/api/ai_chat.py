@@ -20,6 +20,12 @@ We use `converse` (non-streaming) and return plain JSON. The UX is now
 "processing... 2-5s... full reply appears" instead of "processing...
 forever... nothing". Anthropic and OpenAI paths keep their browser-
 direct SSE streaming since they don't go through Mangum.
+
+Tool use:
+---------
+If the request includes `tools`, we pass `toolConfig` to `converse()`.
+The response may contain tool_use blocks alongside text, which the
+frontend will execute and feed back on the next call.
 """
 
 from __future__ import annotations
@@ -37,14 +43,53 @@ from ledger_sync.db.models import UserPreferences
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 
+class ContentBlock(BaseModel):
+    """One content block inside a message. Mirrors Bedrock's Converse schema.
+
+    Exactly one of text/toolUse/toolResult is populated per block. We accept
+    them as an open dict so the frontend can pass them through without the
+    backend needing a discriminated union.
+    """
+
+    type: str  # "text" | "tool_use" | "tool_result"
+    text: str | None = None
+    tool_use_id: str | None = None
+    name: str | None = None
+    input: dict[str, Any] | None = None
+    content: list[dict[str, Any]] | None = None
+
+
+class StructuredMessage(BaseModel):
+    role: str  # "user" | "assistant"
+    # Either `content` (simple string) or `blocks` (structured). Simple
+    # strings get wrapped into a single text block before calling Bedrock.
+    content: str | None = None
+    blocks: list[ContentBlock] | None = None
+
+
+class ToolSpec(BaseModel):
+    name: str
+    description: str
+    parameters: dict[str, Any]
+
+
 class BedrockChatRequest(BaseModel):
-    messages: list[dict[str, str]] = Field(min_length=1)
+    messages: list[StructuredMessage] = Field(min_length=1)
     system_prompt: str = ""
     max_tokens: int = Field(default=1024, ge=1, le=4096)
+    tools: list[ToolSpec] | None = None
 
 
 class BedrockChatResponse(BaseModel):
-    content: str
+    """Response envelope compatible with tool-calling.
+
+    `blocks` mirrors the Bedrock Converse output: a list of content blocks
+    that may mix text and tool_use. The frontend inspects them to decide
+    whether to execute tools or display the reply.
+    """
+
+    blocks: list[dict[str, Any]]
+    stop_reason: str | None = None
 
 
 def _get_bedrock_model_region(prefs: UserPreferences) -> tuple[str, str]:
@@ -64,6 +109,56 @@ def _get_bedrock_model_region(prefs: UserPreferences) -> tuple[str, str]:
     return model, region
 
 
+def _to_bedrock_message(msg: StructuredMessage) -> dict[str, Any]:
+    """Convert our wire format to Bedrock's converse message format."""
+    if msg.blocks is not None:
+        bedrock_blocks: list[dict[str, Any]] = []
+        for b in msg.blocks:
+            if b.type == "text" and b.text is not None:
+                bedrock_blocks.append({"text": b.text})
+            elif b.type == "tool_use":
+                bedrock_blocks.append(
+                    {
+                        "toolUse": {
+                            "toolUseId": b.tool_use_id,
+                            "name": b.name,
+                            "input": b.input or {},
+                        }
+                    }
+                )
+            elif b.type == "tool_result":
+                bedrock_blocks.append(
+                    {
+                        "toolResult": {
+                            "toolUseId": b.tool_use_id,
+                            "content": b.content or [],
+                        }
+                    }
+                )
+        return {"role": msg.role, "content": bedrock_blocks}
+    # Simple string content -- wrap in a text block
+    return {"role": msg.role, "content": [{"text": msg.content or ""}]}
+
+
+def _from_bedrock_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert Bedrock output blocks to our wire format (same as input)."""
+    out: list[dict[str, Any]] = []
+    for b in blocks:
+        if "text" in b:
+            out.append({"type": "text", "text": b["text"]})
+        elif "toolUse" in b:
+            tu = b["toolUse"]
+            out.append(
+                {
+                    "type": "tool_use",
+                    "tool_use_id": tu.get("toolUseId"),
+                    "name": tu.get("name"),
+                    "input": tu.get("input", {}),
+                }
+            )
+    return out
+
+
 @router.post("/bedrock/chat", response_model=BedrockChatResponse)
 def bedrock_chat_proxy(
     current_user: CurrentUser,
@@ -80,9 +175,7 @@ def bedrock_chat_proxy(
 
     model_id, region = _get_bedrock_model_region(prefs)
 
-    bedrock_messages: list[dict[str, Any]] = [
-        {"role": m["role"], "content": [{"text": m["content"]}]} for m in request.messages
-    ]
+    bedrock_messages = [_to_bedrock_message(m) for m in request.messages]
 
     kwargs: dict[str, Any] = {
         "modelId": model_id,
@@ -91,6 +184,20 @@ def bedrock_chat_proxy(
     }
     if request.system_prompt:
         kwargs["system"] = [{"text": request.system_prompt}]
+
+    if request.tools:
+        kwargs["toolConfig"] = {
+            "tools": [
+                {
+                    "toolSpec": {
+                        "name": t.name,
+                        "description": t.description,
+                        "inputSchema": {"json": t.parameters},
+                    }
+                }
+                for t in request.tools
+            ]
+        }
 
     # Pre-flight: if no auth mechanism is reachable, give a clear error instead
     # of letting boto3 surface its misleading "model identifier is invalid"
@@ -117,14 +224,14 @@ def bedrock_chat_proxy(
         # something actionable (bad model id, auth failure, region mismatch).
         raise HTTPException(status_code=502, detail=f"Bedrock error: {exc}") from exc
 
-    # Converse response shape:
-    # { "output": { "message": { "content": [{ "text": "..." }, ...] } }, ... }
     try:
         content_blocks = response["output"]["message"]["content"]
-        text = "".join(block.get("text", "") for block in content_blocks if "text" in block)
     except (KeyError, TypeError) as exc:
         raise HTTPException(
             status_code=502, detail=f"Unexpected Bedrock response shape: {exc}"
         ) from exc
 
-    return BedrockChatResponse(content=text)
+    return BedrockChatResponse(
+        blocks=_from_bedrock_blocks(content_blocks),
+        stop_reason=response.get("stopReason"),
+    )

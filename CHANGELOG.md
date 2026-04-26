@@ -6,6 +6,30 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.5.0 - 2026-04-26
+
+Major AI chat upgrade: the bot can now answer questions about *any* of your data, not just the six fields we pre-loaded into the system prompt.
+
+### Changed
+
+- **AI chat now uses tool calling instead of context stuffing.** Previously `buildFinancialContext` fetched six endpoints up front and crammed them into the system prompt; anything outside that fixed slice ("when did I last go for a haircut?", "how many bank accounts?") was unanswerable. The model now has nine read-only tools it can call on demand -- `list_accounts`, `search_transactions`, `get_monthly_summary`, `list_categories`, `get_category_spending`, `get_net_worth`, `list_recurring`, `list_goals`, `list_recent_months` -- and picks the right one based on the question. Same tool schema works across OpenAI, Anthropic, and Bedrock (each provider has a native tool-calling API).
+- **System prompt shrunk to ~10 lines.** Just preferences (currency, fiscal year), today's date, tool-usage guidance, and an anti-hallucination nudge. The bot reaches for tools instead of making up plausible numbers.
+- **All three providers are now non-streaming.** Tool-calling requires handling `tool_use` events between turns, which makes SSE streaming awkward. Plain JSON for all providers keeps the tool loop simple (one HTTP call per round). Users see "processing... 2-5s... full reply" instead of token-by-token streaming.
+
+### Added
+
+- **`backend/src/ledger_sync/api/ai_tools.py`** -- tool registry + `/api/ai/tools` (list) + `/api/ai/tools/execute` (run). Every tool is user-scoped via `CurrentUser`, enforced at the FastAPI dependency level so the LLM can never see another user's data.
+- **`search_transactions` tool** -- full-text search over transaction notes/category/subcategory/account with optional date, category, account, type, and amount filters. Capped at 100 results to prevent runaway queries.
+- **Frontend tool-calling loop in `useChat`.** Sends -> receives `tool_use` -> executes tools in parallel -> appends `tool_result` -> sends again -> repeats until `end_turn` or 6-round limit (prevents runaway loops).
+- **16 new tests:** 7 for `/api/ai/bedrock/chat` covering the new block-based message shape (`tool_use`/`tool_result` round-trip, `toolConfig` forwarding), 9 for `/api/ai/tools` covering every tool against a real SQLite DB with seeded data. Backend test count 75 -> 91.
+- **6 rewritten frontend tests** for `chatAdapters.ts` covering OpenAI/Anthropic/Bedrock request + response mapping including tool-call conversion.
+
+### Why tool calling over a vector database (RAG)
+
+Finance data is structured. `SELECT category, SUM(amount) FROM transactions WHERE user_id = ? AND date >= ?` beats any embedding similarity search when the question is a database query in disguise. Vector DBs are worth adding later for semantic merchant matching ("food delivery", "subscriptions I don't use") but are overkill for 90% of finance questions.
+
+---
+
 ## 2.4.2 - 2026-04-25
 
 Further mobile polish after device testing, plus an AI chat fix.

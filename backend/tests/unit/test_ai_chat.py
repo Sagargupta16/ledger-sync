@@ -147,7 +147,8 @@ def test_successful_converse_returns_content(
         )
 
     assert resp.status_code == 200
-    assert resp.json() == {"content": "OK"}
+    body = resp.json()
+    assert body["blocks"] == [{"type": "text", "text": "OK"}]
 
     # Verify we passed the model ID through correctly
     call_kwargs = mock_boto_client.converse.call_args.kwargs
@@ -171,3 +172,104 @@ def test_boto3_exception_surfaces_as_502(monkeypatch: pytest.MonkeyPatch) -> Non
 
     assert resp.status_code == 502
     assert "ValidationException" in resp.json()["detail"]
+
+
+def test_tools_passed_as_tool_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When the request includes `tools`, Bedrock must receive `toolConfig`."""
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
+    app, session, user = _make_app()
+    _make_prefs(session, user)
+    client = TestClient(app)
+
+    fake = {"output": {"message": {"content": [{"text": "ack"}]}}}
+    mock_boto = MagicMock()
+    mock_boto.converse.return_value = fake
+
+    tools = [
+        {
+            "name": "list_accounts",
+            "description": "List accounts",
+            "parameters": {"type": "object", "properties": {}},
+        }
+    ]
+
+    with patch("boto3.client", return_value=mock_boto):
+        resp = client.post(
+            "/api/ai/bedrock/chat",
+            json={"messages": [{"role": "user", "content": "hi"}], "tools": tools},
+        )
+
+    assert resp.status_code == 200
+    call = mock_boto.converse.call_args.kwargs
+    assert "toolConfig" in call
+    spec_list = call["toolConfig"]["tools"]
+    assert spec_list[0]["toolSpec"]["name"] == "list_accounts"
+    assert spec_list[0]["toolSpec"]["inputSchema"]["json"]["type"] == "object"
+
+
+def test_tool_use_and_tool_result_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bedrock's tool_use response is returned intact; tool_result messages
+    on the way back are converted to the expected Bedrock shape."""
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
+    app, session, user = _make_app()
+    _make_prefs(session, user)
+    client = TestClient(app)
+
+    fake = {
+        "output": {
+            "message": {
+                "content": [
+                    {
+                        "toolUse": {
+                            "toolUseId": "tu_1",
+                            "name": "list_accounts",
+                            "input": {},
+                        }
+                    }
+                ]
+            }
+        },
+        "stopReason": "tool_use",
+    }
+    mock_boto = MagicMock()
+    mock_boto.converse.return_value = fake
+
+    messages = [
+        {"role": "user", "content": "how many accounts"},
+        {
+            "role": "assistant",
+            "blocks": [
+                {
+                    "type": "tool_use",
+                    "tool_use_id": "tu_0",
+                    "name": "list_accounts",
+                    "input": {},
+                }
+            ],
+        },
+        {
+            "role": "user",
+            "blocks": [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": "tu_0",
+                    "content": [{"json": {"accounts": [], "count": 0}}],
+                }
+            ],
+        },
+    ]
+
+    with patch("boto3.client", return_value=mock_boto):
+        resp = client.post("/api/ai/bedrock/chat", json={"messages": messages})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["stop_reason"] == "tool_use"
+    assert body["blocks"][0]["type"] == "tool_use"
+    assert body["blocks"][0]["name"] == "list_accounts"
+
+    # Verify tool_result was forwarded to Bedrock in the expected shape
+    call = mock_boto.converse.call_args.kwargs
+    third_msg = call["messages"][2]["content"][0]
+    assert "toolResult" in third_msg
+    assert third_msg["toolResult"]["toolUseId"] == "tu_0"
