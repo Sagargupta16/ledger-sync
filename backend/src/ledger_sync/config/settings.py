@@ -1,5 +1,6 @@
 """Application settings and configuration."""
 
+import os
 import secrets
 import warnings
 from pathlib import Path
@@ -61,6 +62,11 @@ class Settings(BaseSettings):
     # Frontend URL for OAuth redirect callbacks.
     # Dev: http://localhost:5173 | Prod: your actual frontend URL.
     frontend_url: str = "http://localhost:5173"
+
+    # AI / Bedrock settings. If LEDGER_SYNC_BEDROCK_API_KEY is set, it's
+    # injected into AWS_BEARER_TOKEN_BEDROCK below so boto3 picks it up.
+    # This lets all app secrets share the LEDGER_SYNC_ prefix on Vercel.
+    bedrock_api_key: str = ""
 
     # CORS settings — override with LEDGER_SYNC_CORS_ORIGINS env var (JSON array).
     # Defaults include localhost origins for development only.
@@ -137,6 +143,14 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
+# Bridge LEDGER_SYNC_BEDROCK_API_KEY -> AWS_BEARER_TOKEN_BEDROCK.
+# boto3 1.39+ reads the AWS_ env var natively for Bedrock API-key auth, but
+# we want Vercel users to store the value under the LEDGER_SYNC_ prefix along
+# with the rest of the app's secrets. Only override if the AWS_ var isn't
+# already set by the deployment platform (so explicit AWS config still wins).
+if settings.bedrock_api_key and not os.environ.get("AWS_BEARER_TOKEN_BEDROCK"):
+    os.environ["AWS_BEARER_TOKEN_BEDROCK"] = settings.bedrock_api_key
 
 # In development, auto-generate a random secret so tokens work without config.
 # This is NOT used in production — the startup validator blocks non-dev

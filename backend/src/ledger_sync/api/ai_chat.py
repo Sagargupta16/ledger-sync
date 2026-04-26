@@ -24,6 +24,7 @@ direct SSE streaming since they don't go through Mangum.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -90,6 +91,21 @@ def bedrock_chat_proxy(
     }
     if request.system_prompt:
         kwargs["system"] = [{"text": request.system_prompt}]
+
+    # Pre-flight: if no auth mechanism is reachable, give a clear error instead
+    # of letting boto3 surface its misleading "model identifier is invalid"
+    # exception (which is what it says when it can't sign the request).
+    has_bearer = bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
+    has_sigv4 = bool(os.environ.get("AWS_ACCESS_KEY_ID")) or bool(os.environ.get("AWS_PROFILE"))
+    if not has_bearer and not has_sigv4:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Bedrock is not configured on the server. Set "
+                "LEDGER_SYNC_BEDROCK_API_KEY (or AWS_BEARER_TOKEN_BEDROCK) "
+                "in the backend environment."
+            ),
+        )
 
     import boto3
 
