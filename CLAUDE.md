@@ -124,6 +124,7 @@ Three services, all free tier:
 - **Neon connection string** must use the pooler URL with `?sslmode=require` and must NOT include `channel_binding=require` (PgBouncer doesn't support it).
 - **OAuth redirect URIs** must be registered separately per environment (dev vs prod) -- GitHub only allows one callback URL per OAuth app.
 - **JWT secret** is auto-generated in development. In production, `LEDGER_SYNC_JWT_SECRET_KEY` must be set (min 32 chars) or the app refuses to start.
+- **Bedrock chat** requires a Bedrock API key: set `LEDGER_SYNC_BEDROCK_API_KEY` (or `AWS_BEARER_TOKEN_BEDROCK`) on Vercel. boto3 1.39+ auto-detects the AWS var; the `LEDGER_SYNC_` variant is bridged to it at startup in `config/settings.py`. Without either, the `/api/ai/bedrock/chat` endpoint returns HTTP 503 with a "not configured" message instead of boto3's misleading "model identifier is invalid" error.
 
 ### CI Pipeline (`.github/workflows/ci.yml`)
 
