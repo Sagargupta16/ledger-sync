@@ -6,20 +6,54 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.5.0 - 2026-04-26
+
+Major AI chat upgrade: the bot can now answer questions about *any* of your data, not just the six fields we pre-loaded into the system prompt.
+
+### Changed
+
+- **AI chat now uses tool calling instead of context stuffing.** Previously `buildFinancialContext` fetched six endpoints up front and crammed them into the system prompt; anything outside that fixed slice ("when did I last go for a haircut?", "how many bank accounts?") was unanswerable. The model now has nine read-only tools it can call on demand -- `list_accounts`, `search_transactions`, `get_monthly_summary`, `list_categories`, `get_category_spending`, `get_net_worth`, `list_recurring`, `list_goals`, `list_recent_months` -- and picks the right one based on the question. Same tool schema works across OpenAI, Anthropic, and Bedrock (each provider has a native tool-calling API).
+- **System prompt shrunk to ~10 lines.** Just preferences (currency, fiscal year), today's date, tool-usage guidance, and an anti-hallucination nudge. The bot reaches for tools instead of making up plausible numbers.
+- **All three providers are now non-streaming.** Tool-calling requires handling `tool_use` events between turns, which makes SSE streaming awkward. Plain JSON for all providers keeps the tool loop simple (one HTTP call per round). Users see "processing... 2-5s... full reply" instead of token-by-token streaming.
+
+### Added
+
+- **`backend/src/ledger_sync/api/ai_tools.py`** -- tool registry + `/api/ai/tools` (list) + `/api/ai/tools/execute` (run). Every tool is user-scoped via `CurrentUser`, enforced at the FastAPI dependency level so the LLM can never see another user's data.
+- **`search_transactions` tool** -- full-text search over transaction notes/category/subcategory/account with optional date, category, account, type, and amount filters. Capped at 100 results to prevent runaway queries.
+- **Frontend tool-calling loop in `useChat`.** Sends -> receives `tool_use` -> executes tools in parallel -> appends `tool_result` -> sends again -> repeats until `end_turn` or 6-round limit (prevents runaway loops).
+- **16 new tests:** 7 for `/api/ai/bedrock/chat` covering the new block-based message shape (`tool_use`/`tool_result` round-trip, `toolConfig` forwarding), 9 for `/api/ai/tools` covering every tool against a real SQLite DB with seeded data. Backend test count 75 -> 91.
+- **6 rewritten frontend tests** for `chatAdapters.ts` covering OpenAI/Anthropic/Bedrock request + response mapping including tool-call conversion.
+
+### Why tool calling over a vector database (RAG)
+
+Finance data is structured. `SELECT category, SUM(amount) FROM transactions WHERE user_id = ? AND date >= ?` beats any embedding similarity search when the question is a database query in disguise. Vector DBs are worth adding later for semantic merchant matching ("food delivery", "subscriptions I don't use") but are overkill for 90% of finance questions.
+
+---
+
 ## 2.4.2 - 2026-04-25
 
-Further mobile polish after device testing.
+Further mobile polish after device testing, plus an AI chat fix.
 
 ### Changed
 
 - **PWA icon redesigned.** The old mark had the L-glyph in the top-left corner leaving dead space bottom-right, and read as "a bar chart" at 64px. New icon is a centered bold rupee (₹) glyph over a subtle ascending trend line on the blue-to-indigo gradient. Reads clearly at 64px home-screen badge size, stays recognisable after Android's maskable crop, and ties the mark to the product (personal finance) rather than a generic chart. Regenerated all 6 PNG sizes from [pwa-icon-source.svg](frontend/public/pwa-icon-source.svg).
 - **Cash Flow on mobile is now a dedicated vertical view, not a shrunken Sankey.** Phones get [MobileFlowView](frontend/src/pages/income-expense-flow/components/MobileFlowView.tsx) -- a stacked sequence (Income sources -> Total Income -> Savings + Expenses split -> Expense categories) with proportional bars and currency-accurate labels. No swipe, no cramped nodes, no horizontal scroll. Desktop still gets the full Sankey.
+- **Bedrock chat path switched from SSE streaming to plain JSON.** The backend runs on Vercel via Mangum, which buffers streaming responses end-to-end, so the old `StreamingResponse` made the UI sit on "processing" forever -- the browser only saw the first byte once boto3's `converse_stream` generator had fully drained (or the function timed out). Now the backend calls `converse` (non-streaming), collects the full reply, and returns `{ "content": "..." }`. The frontend [Bedrock adapter](frontend/src/lib/chatAdapters.ts) fetches once, parses JSON, emits the full text as a single token. Anthropic and OpenAI paths still stream browser-direct since they don't go through Mangum.
 
 ### Fixed
 
 - **Chart heights auto-cap at 280px on mobile** via a new `MOBILE_HEIGHT_CAP` in [ChartContainer](frontend/src/components/ui/ChartContainer.tsx). Previously a chart with `height={400}` would eat ~60% of a 667px iPhone viewport. Now any numeric height greater than 280 is auto-shrunk on `max-width: 639px`; percent heights (`'100%'`) and the new optional `mobileHeight` prop still win. Affects ~20 chart call-sites with one change.
 - **Numeric columns in DataTable now use `tabular-nums`.** Right-aligned cells align digit-by-digit vertically, which matters most on mobile where rows are tight.
 - **CommandPalette (Cmd+K) on mobile** -- panel no longer pushed off-screen by the on-screen keyboard. Top offset drops from `15vh` to `8vh` below `sm`, panel is `flex flex-col max-h-[80vh]` so the input stays visible while results scroll inside.
+- **AI chat "processing... forever" with no error surfaced.** Silent `{"error": "..."}` SSE events from the Bedrock proxy were dropped by the token extractor (it only looked for `{"token": "..."}`), so invalid model IDs, auth failures, region mismatches, and timeouts all looked identical to the user: a spinner that never resolved. With the new JSON path, Bedrock errors surface as HTTP 502 with a readable `detail`; the existing `onError` path displays them in the chat UI.
+- **AI model selection now has a "Custom model ID" free-text field.** The hardcoded Bedrock model list can get stale the moment AWS ships a new inference profile; a user who picked "Claude Opus 4.7 (Bedrock)" was sending `us.anthropic.claude-opus-4-7-v1` which Bedrock no longer accepts. The dropdown now includes "Custom model ID..." which enables a text input below so the exact `modelId` (e.g. `us.anthropic.claude-opus-4-1-20250805-v1:0`) can be pasted straight from the Bedrock console -- no code update required. Also shown/editable when a saved value doesn't match any dropdown option, so users migrating from stale IDs can see and fix them.
+- **Bedrock auth via bearer token (`AWS_BEARER_TOKEN_BEDROCK`).** The server-side proxy used `boto3.client("bedrock-runtime").converse(...)` expecting SigV4 credentials, but production was running with only a Bedrock API key. boto3 1.39+ auto-detects `AWS_BEARER_TOKEN_BEDROCK`, so the existing code works once the env var is in place. Added a [`LEDGER_SYNC_BEDROCK_API_KEY`](backend/src/ledger_sync/config/settings.py) setting that gets injected into `AWS_BEARER_TOKEN_BEDROCK` on startup, so all app secrets stay under the `LEDGER_SYNC_` prefix on Vercel. Added a pre-flight check that returns HTTP 503 with a clear "server not configured" message when no auth mechanism is present -- before, boto3's error surfaced as the misleading "model identifier is invalid".
+- **AI chat had zero financial context despite `buildFinancialContext`.** The context builder expected flat response shapes like `summary.income` as a number, but every V2 endpoint returns `{ data: [...], count: N }` with **nested** objects (`summary.income.total`). Every section's `Array.isArray && length > 0` guard silently skipped, `Promise.allSettled` swallowed fetch errors, and the chat shipped with an empty system prompt -- which is why the assistant replied "I don't have access to your financial data." Rewrote [chatContext.ts](frontend/src/lib/chatContext.ts) to match the actual V2 response shapes (monthly-summaries, category-breakdown `{ categories, total }`, recurring, net-worth `current`, goals) and log failures with `console.warn` so future endpoint shape changes don't silently return an empty prompt.
+
+### New
+
+- **5 unit tests for the Bedrock chat endpoint** ([test_ai_chat.py](backend/tests/unit/test_ai_chat.py)): no-preferences, wrong-provider, missing-AWS-auth, successful converse, boto3-exception handling. Uses `StaticPool` + `check_same_thread=False` so `TestClient` (httpx worker thread) can reuse the in-memory SQLite DB.
+- **Live Bedrock smoke-test script** ([backend/scripts/bedrock_smoke_test.py](backend/scripts/bedrock_smoke_test.py)): runs `converse()` against a real model to verify the bearer-token path end-to-end. Kept out of the pytest suite because CI has no AWS access; invoked with `AWS_BEARER_TOKEN_BEDROCK=... uv run python scripts/bedrock_smoke_test.py`.
 - **Shared `useIsMobile` hook** extracted to [hooks/useIsMobile.ts](frontend/src/hooks/useIsMobile.ts) from the inline definition in `IncomeExpenseFlowPage`.
 
 ---

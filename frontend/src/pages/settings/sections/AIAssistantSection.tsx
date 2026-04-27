@@ -26,11 +26,14 @@ const MODELS: Record<string, { value: string; label: string }[]> = {
     { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
     { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
   ],
+  // Bedrock cross-region inference-profile IDs. Version suffixes here are
+  // inconsistent by design -- they mirror the exact identifiers AWS ships.
+  // If a newer ID is needed, pick "Custom model ID..." below and paste it
+  // from the Bedrock console rather than editing this list each time.
   bedrock: [
-    { value: 'us.anthropic.claude-opus-4-7-v1', label: 'Claude Opus 4.7 (Bedrock)' },
-    { value: 'us.anthropic.claude-opus-4-6-v1', label: 'Claude Opus 4.6 (Bedrock)' },
-    { value: 'us.anthropic.claude-sonnet-4-6-v1', label: 'Claude Sonnet 4.6 (Bedrock)' },
-    { value: 'us.anthropic.claude-haiku-4-5-v1', label: 'Claude Haiku 4.5 (Bedrock)' },
+    { value: 'us.anthropic.claude-opus-4-7', label: 'Claude Opus 4.7 (Bedrock)' },
+    { value: 'us.anthropic.claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (Bedrock)' },
+    { value: 'us.anthropic.claude-haiku-4-5-20251001-v1:0', label: 'Claude Haiku 4.5 (Bedrock)' },
   ],
 }
 
@@ -189,8 +192,8 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
             <FieldLabel htmlFor="ai-model">Model</FieldLabel>
             <select
               id="ai-model"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
+              value={providerModels.some((m) => m.value === model) ? model : '__custom'}
+              onChange={(e) => setModel(e.target.value === '__custom' ? '' : e.target.value)}
               className={selectClass}
             >
               {providerModels.map((m) => (
@@ -198,7 +201,30 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
                   {m.label}
                 </option>
               ))}
+              <option value="__custom" className="bg-background">
+                Custom model ID...
+              </option>
             </select>
+            {/* Free-text field so users can paste any model ID (Bedrock inference
+                profile IDs, new OpenAI/Anthropic model names, etc.) without
+                waiting on a code update when vendor catalogs change. */}
+            <input
+              id="ai-model-custom"
+              type="text"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder={
+                isBedrock(provider)
+                  ? 'e.g. us.anthropic.claude-opus-4-1-20250805-v1:0'
+                  : 'Model identifier'
+              }
+              className={`${inputClass} mt-2 font-mono text-xs`}
+            />
+            <FieldHint>
+              {isBedrock(provider)
+                ? 'Use the exact Bedrock model ID or inference-profile ID from the AWS console. If the dropdown list is out of date, pick "Custom" and paste the current ID.'
+                : 'Pick from the list or enter a model identifier directly.'}
+            </FieldHint>
           </div>
         )}
 

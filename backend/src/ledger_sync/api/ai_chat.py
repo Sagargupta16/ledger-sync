@@ -1,4 +1,4 @@
-"""Bedrock streaming proxy.
+"""Bedrock chat proxy.
 
 Browser-direct calls to AWS Bedrock fail (no CORS, SigV4 auth required).
 This endpoint proxies chat requests to Bedrock using boto3 which handles
@@ -6,16 +6,34 @@ SigV4 signing and AWS Event Stream binary parsing automatically.
 
 Credentials come from the standard AWS credential chain (env vars,
 ~/.aws/credentials, IAM role, etc.) -- no stored API key needed.
+
+Why non-streaming JSON instead of SSE:
+---------------------------------------
+The backend runs on Vercel via Mangum (Lambda-style adapter). Mangum
+buffers the entire response before returning, so `StreamingResponse`
+doesn't actually stream end-to-end -- the browser sits on "processing"
+until the Bedrock stream fully drains and the serverless function
+returns. For short replies this made the UI feel frozen; for long
+replies it would hit Vercel's 10s Hobby timeout and silently fail.
+
+We use `converse` (non-streaming) and return plain JSON. The UX is now
+"processing... 2-5s... full reply appears" instead of "processing...
+forever... nothing". Anthropic and OpenAI paths keep their browser-
+direct SSE streaming since they don't go through Mangum.
+
+Tool use:
+---------
+If the request includes `tools`, we pass `toolConfig` to `converse()`.
+The response may contain tool_use blocks alongside text, which the
+frontend will execute and feed back on the next call.
 """
 
 from __future__ import annotations
 
-import json
-from collections.abc import AsyncGenerator
+import os
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -25,10 +43,53 @@ from ledger_sync.db.models import UserPreferences
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 
+class ContentBlock(BaseModel):
+    """One content block inside a message. Mirrors Bedrock's Converse schema.
+
+    Exactly one of text/toolUse/toolResult is populated per block. We accept
+    them as an open dict so the frontend can pass them through without the
+    backend needing a discriminated union.
+    """
+
+    type: str  # "text" | "tool_use" | "tool_result"
+    text: str | None = None
+    tool_use_id: str | None = None
+    name: str | None = None
+    input: dict[str, Any] | None = None
+    content: list[dict[str, Any]] | None = None
+
+
+class StructuredMessage(BaseModel):
+    role: str  # "user" | "assistant"
+    # Either `content` (simple string) or `blocks` (structured). Simple
+    # strings get wrapped into a single text block before calling Bedrock.
+    content: str | None = None
+    blocks: list[ContentBlock] | None = None
+
+
+class ToolSpec(BaseModel):
+    name: str
+    description: str
+    parameters: dict[str, Any]
+
+
 class BedrockChatRequest(BaseModel):
-    messages: list[dict[str, str]] = Field(min_length=1)
+    messages: list[StructuredMessage] = Field(min_length=1)
     system_prompt: str = ""
     max_tokens: int = Field(default=1024, ge=1, le=4096)
+    tools: list[ToolSpec] | None = None
+
+
+class BedrockChatResponse(BaseModel):
+    """Response envelope compatible with tool-calling.
+
+    `blocks` mirrors the Bedrock Converse output: a list of content blocks
+    that may mix text and tool_use. The frontend inspects them to decide
+    whether to execute tools or display the reply.
+    """
+
+    blocks: list[dict[str, Any]]
+    stop_reason: str | None = None
 
 
 def _get_bedrock_model_region(prefs: UserPreferences) -> tuple[str, str]:
@@ -48,13 +109,63 @@ def _get_bedrock_model_region(prefs: UserPreferences) -> tuple[str, str]:
     return model, region
 
 
-@router.post("/bedrock/chat")
+def _to_bedrock_message(msg: StructuredMessage) -> dict[str, Any]:
+    """Convert our wire format to Bedrock's converse message format."""
+    if msg.blocks is not None:
+        bedrock_blocks: list[dict[str, Any]] = []
+        for b in msg.blocks:
+            if b.type == "text" and b.text is not None:
+                bedrock_blocks.append({"text": b.text})
+            elif b.type == "tool_use":
+                bedrock_blocks.append(
+                    {
+                        "toolUse": {
+                            "toolUseId": b.tool_use_id,
+                            "name": b.name,
+                            "input": b.input or {},
+                        }
+                    }
+                )
+            elif b.type == "tool_result":
+                bedrock_blocks.append(
+                    {
+                        "toolResult": {
+                            "toolUseId": b.tool_use_id,
+                            "content": b.content or [],
+                        }
+                    }
+                )
+        return {"role": msg.role, "content": bedrock_blocks}
+    # Simple string content -- wrap in a text block
+    return {"role": msg.role, "content": [{"text": msg.content or ""}]}
+
+
+def _from_bedrock_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert Bedrock output blocks to our wire format (same as input)."""
+    out: list[dict[str, Any]] = []
+    for b in blocks:
+        if "text" in b:
+            out.append({"type": "text", "text": b["text"]})
+        elif "toolUse" in b:
+            tu = b["toolUse"]
+            out.append(
+                {
+                    "type": "tool_use",
+                    "tool_use_id": tu.get("toolUseId"),
+                    "name": tu.get("name"),
+                    "input": tu.get("input", {}),
+                }
+            )
+    return out
+
+
+@router.post("/bedrock/chat", response_model=BedrockChatResponse)
 def bedrock_chat_proxy(
     current_user: CurrentUser,
     request: BedrockChatRequest,
     session: DatabaseSession,
-) -> StreamingResponse:
-    """Stream a Bedrock converse-stream response as SSE."""
+) -> BedrockChatResponse:
+    """Call Bedrock Converse API and return the full assistant reply."""
     result = session.execute(
         select(UserPreferences).where(UserPreferences.user_id == current_user.id)
     )
@@ -64,9 +175,7 @@ def bedrock_chat_proxy(
 
     model_id, region = _get_bedrock_model_region(prefs)
 
-    bedrock_messages: list[dict[str, Any]] = [
-        {"role": m["role"], "content": [{"text": m["content"]}]} for m in request.messages
-    ]
+    bedrock_messages = [_to_bedrock_message(m) for m in request.messages]
 
     kwargs: dict[str, Any] = {
         "modelId": model_id,
@@ -76,35 +185,53 @@ def bedrock_chat_proxy(
     if request.system_prompt:
         kwargs["system"] = [{"text": request.system_prompt}]
 
-    return StreamingResponse(
-        _stream_bedrock(region, kwargs),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    if request.tools:
+        kwargs["toolConfig"] = {
+            "tools": [
+                {
+                    "toolSpec": {
+                        "name": t.name,
+                        "description": t.description,
+                        "inputSchema": {"json": t.parameters},
+                    }
+                }
+                for t in request.tools
+            ]
+        }
 
+    # Pre-flight: if no auth mechanism is reachable, give a clear error instead
+    # of letting boto3 surface its misleading "model identifier is invalid"
+    # exception (which is what it says when it can't sign the request).
+    has_bearer = bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
+    has_sigv4 = bool(os.environ.get("AWS_ACCESS_KEY_ID")) or bool(os.environ.get("AWS_PROFILE"))
+    if not has_bearer and not has_sigv4:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Bedrock is not configured on the server. Set "
+                "LEDGER_SYNC_BEDROCK_API_KEY (or AWS_BEARER_TOKEN_BEDROCK) "
+                "in the backend environment."
+            ),
+        )
 
-async def _stream_bedrock(
-    region: str,
-    kwargs: dict[str, Any],
-) -> AsyncGenerator[bytes, None]:
     import boto3
 
     try:
         client = boto3.client("bedrock-runtime", region_name=region)
-        response = client.converse_stream(**kwargs)
+        response = client.converse(**kwargs)
     except Exception as exc:
-        error_msg = str(exc)
-        yield f"data: {json.dumps({'error': error_msg})}\n\n".encode()
-        return
+        # Surface the real boto/AWS error to the client so the UI can display
+        # something actionable (bad model id, auth failure, region mismatch).
+        raise HTTPException(status_code=502, detail=f"Bedrock error: {exc}") from exc
 
     try:
-        for event in response.get("stream", []):
-            if "contentBlockDelta" in event:
-                delta = event["contentBlockDelta"].get("delta", {})
-                text = delta.get("text")
-                if text:
-                    yield f"data: {json.dumps({'token': text})}\n\n".encode()
-    except Exception as exc:
-        yield f"data: {json.dumps({'error': str(exc)})}\n\n".encode()
+        content_blocks = response["output"]["message"]["content"]
+    except (KeyError, TypeError) as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Unexpected Bedrock response shape: {exc}"
+        ) from exc
 
-    yield b"data: [DONE]\n\n"
+    return BedrockChatResponse(
+        blocks=_from_bedrock_blocks(content_blocks),
+        stop_reason=response.get("stopReason"),
+    )

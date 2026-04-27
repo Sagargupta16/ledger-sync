@@ -1,131 +1,57 @@
 import { apiClient } from '@/services/api/client'
 
-interface MonthlySummary {
-  period: string
-  income: number
-  expenses: number
-  savings_rate: number
+interface PreferencesResponse {
+  readonly currency_symbol?: string
+  readonly display_currency?: string
+  readonly fiscal_year_start_month?: number
 }
 
-interface CategoryItem {
-  category: string
-  total_amount: number
-  pct_of_monthly_total: number
-}
-
-interface RecurringItem {
-  pattern_name: string
-  expected_amount: number
-  frequency: string
-}
-
-interface NetWorthSnapshot {
-  total_assets: number
-  total_liabilities: number
-  net_worth: number
-}
-
-interface GoalItem {
-  name: string
-  target_amount: number
-  current_amount: number
-  target_date: string | null
-}
-
-function fmtAmount(n: number, symbol: string): string {
-  return `${symbol}${Math.round(n).toLocaleString()}`
-}
-
+/**
+ * Build the system prompt for the chat.
+ *
+ * With tool calling we no longer pre-fetch summaries, categories, net worth,
+ * etc. -- the LLM fetches whatever it needs on demand via tools. The context
+ * is now minimal:
+ *   - user's display currency so amounts are formatted correctly
+ *   - today's date (ISO) so "last month" etc. anchor correctly
+ *   - a fiscal-year hint for Indian FY users
+ *   - tool-use guidance + an anti-hallucination nudge
+ *
+ * If the preferences call fails, we still return a reasonable default so the
+ * chat keeps working.
+ */
 export async function buildFinancialContext(): Promise<string> {
-  const [summariesRes, categoriesRes, recurringRes, netWorthRes, goalsRes, prefsRes] =
-    await Promise.allSettled([
-      apiClient.get<MonthlySummary[]>('/api/analytics/v2/monthly-summaries', {
-        params: { limit: 6 },
-      }),
-      apiClient.get<CategoryItem[]>('/api/calculations/category-breakdown', {
-        params: { transaction_type: 'expense', limit: 10 },
-      }),
-      apiClient.get<RecurringItem[]>('/api/analytics/v2/recurring-transactions'),
-      apiClient.get<NetWorthSnapshot[]>('/api/analytics/v2/net-worth', {
-        params: { limit: 1 },
-      }),
-      apiClient.get<GoalItem[]>('/api/analytics/v2/goals'),
-      apiClient.get('/api/preferences'),
-    ])
-
-  const summaries: MonthlySummary[] =
-    summariesRes.status === 'fulfilled' ? summariesRes.value.data : []
-  const categories: CategoryItem[] =
-    categoriesRes.status === 'fulfilled' ? categoriesRes.value.data : []
-  const recurring: RecurringItem[] =
-    recurringRes.status === 'fulfilled' ? recurringRes.value.data : []
-  const netWorthList: NetWorthSnapshot[] =
-    netWorthRes.status === 'fulfilled' ? netWorthRes.value.data : []
-  const goals: GoalItem[] =
-    goalsRes.status === 'fulfilled' ? goalsRes.value.data : []
-  const prefs = prefsRes.status === 'fulfilled' ? prefsRes.value.data : null
+  let prefs: PreferencesResponse | null = null
+  try {
+    const res = await apiClient.get<PreferencesResponse>('/api/preferences')
+    prefs = res.data
+  } catch (err: unknown) {
+    console.warn('[chatContext] failed to fetch preferences:', err)
+  }
 
   const currency = prefs?.currency_symbol ?? '₹'
   const displayCurrency = prefs?.display_currency ?? 'INR'
-  const sections: string[] = []
+  const fyStart = prefs?.fiscal_year_start_month ?? 4
+  const today = new Date().toISOString().slice(0, 10)
 
-  sections.push(
-    `You are a personal finance assistant. Currency: ${currency} (${displayCurrency}).`,
-  )
+  return [
+    `You are the finance assistant for a user of Ledger Sync. All amounts are in ${currency} (${displayCurrency}).`,
+    `Today is ${today}. The user's fiscal year starts in month ${fyStart} (${monthName(fyStart)}).`,
+    '',
+    'You have tools for accessing the user\'s actual financial data: accounts, transactions, monthly summaries, spending by category, net worth, recurring bills, and goals.',
+    'Rules:',
+    '- Always use tools to look up real numbers. Never invent or estimate amounts.',
+    '- For questions like "last month", "this year", "how much did I spend on X", call the relevant tool with a concrete date range.',
+    `- Format currency as ${currency}{amount} with Indian-style grouping (e.g. ${currency}1,25,000).`,
+    '- If a tool returns no results, say so plainly. Do not fill in plausible-looking numbers.',
+    '- Keep replies concise. Use bullet lists for multi-item answers.',
+  ].join('\n')
+}
 
-  if (Array.isArray(summaries) && summaries.length > 0) {
-    const rows = summaries
-      .map(
-        (s) =>
-          `| ${s.period} | ${fmtAmount(s.income, currency)} | ${fmtAmount(s.expenses, currency)} | ${Math.round(s.savings_rate)}% |`,
-      )
-      .join('\n')
-    sections.push(
-      `## Monthly Summary (Recent)\n| Month | Income | Expenses | Savings Rate |\n|---|---|---|---|\n${rows}`,
-    )
-  }
-
-  if (Array.isArray(categories) && categories.length > 0) {
-    const rows = categories
-      .slice(0, 8)
-      .map(
-        (c, i) =>
-          `${i + 1}. ${c.category}: ${fmtAmount(c.total_amount, currency)} (${Math.round(c.pct_of_monthly_total)}%)`,
-      )
-      .join('\n')
-    sections.push(`## Top Spending Categories\n${rows}`)
-  }
-
-  if (Array.isArray(recurring) && recurring.length > 0) {
-    const rows = recurring
-      .slice(0, 10)
-      .map((r) => `- ${r.pattern_name}: ${fmtAmount(r.expected_amount, currency)}/${r.frequency}`)
-      .join('\n')
-    sections.push(`## Recurring Bills & Subscriptions\n${rows}`)
-  }
-
-  if (Array.isArray(netWorthList) && netWorthList.length > 0) {
-    const nw = netWorthList[0]
-    sections.push(
-      `## Net Worth\nTotal: ${fmtAmount(nw.net_worth, currency)} (Assets: ${fmtAmount(nw.total_assets, currency)}, Liabilities: ${fmtAmount(nw.total_liabilities, currency)})`,
-    )
-  }
-
-  if (Array.isArray(goals) && goals.length > 0) {
-    const rows = goals
-      .slice(0, 5)
-      .map((g) => {
-        const pct =
-          g.target_amount > 0 ? Math.round((g.current_amount / g.target_amount) * 100) : 0
-        return `- ${g.name}: ${fmtAmount(g.current_amount, currency)}/${fmtAmount(g.target_amount, currency)} (${pct}%)`
-      })
-      .join('\n')
-    sections.push(`## Financial Goals\n${rows}`)
-  }
-
-  sections.push(
-    `\nAnswer questions about the user's finances based on this data. Be specific with numbers. Use ${currency} currency. Keep responses concise. If you lack data to answer, say so.`,
-  )
-
-  return sections.join('\n\n')
+function monthName(m: number): string {
+  const names = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ]
+  return names[(m - 1) % 12] ?? 'April'
 }
