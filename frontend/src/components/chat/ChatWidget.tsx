@@ -20,12 +20,19 @@ export default function ChatWidget() {
     staleTime: Infinity,
   })
 
-  const isConfigured = aiConfig?.has_key ?? false
+  const mode = aiConfig?.mode ?? 'app_bedrock'
   const provider = aiConfig?.provider ?? null
   const model = aiConfig?.model ?? null
   const region = aiConfig?.region ?? null
+  // App mode is always ready (no key required); BYOK needs a stored key.
+  const isConfigured = mode === 'app_bedrock' ? true : aiConfig?.has_key === true
 
-  const { messages, isStreaming, error, send, stop, clear } = useChat(provider, model, region)
+  const { messages, isStreaming, error, send, stop, clear } = useChat(
+    mode,
+    provider,
+    model,
+    region,
+  )
 
   const handleToggle = useCallback(() => {
     if (!isConfigured) return

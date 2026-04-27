@@ -20,14 +20,19 @@ from ledger_sync.api.ai_tools import router as tools_router
 from ledger_sync.api.deps import get_current_user
 from ledger_sync.db.base import Base
 from ledger_sync.db.models import (
+    Budget,
     FinancialGoal,
+    FYSummary,
     GoalStatus,
+    MonthlySummary,
     NetWorthSnapshot,
     RecurrenceFrequency,
     RecurringTransaction,
+    TaxRecord,
     Transaction,
     TransactionType,
     User,
+    UserPreferences,
 )
 from ledger_sync.db.session import get_session
 
@@ -312,3 +317,222 @@ def test_list_goals() -> None:
     result = _exec(client, "list_goals")
     assert result["count"] == 1
     assert result["goals"][0]["progress_pct"] == pytest.approx(50.0)
+
+
+# ---------------------------------------------------------------------------
+# Tests for tools added in PR #125 (analytics + tax + usage)
+# ---------------------------------------------------------------------------
+
+
+def _add_fy_summary(session: Session, user: User, fy: str, income: str, tax: str) -> None:
+    session.add(
+        FYSummary(
+            user_id=user.id,
+            fiscal_year=fy,
+            start_date=datetime(2024, 4, 1, tzinfo=UTC),
+            end_date=datetime(2025, 3, 31, tzinfo=UTC),
+            total_income=Decimal(income),
+            salary_income=Decimal(income),
+            total_expenses=Decimal("0"),
+            tax_paid=Decimal(tax),
+            net_savings=Decimal(income) - Decimal(tax),
+            savings_rate=50.0,
+        )
+    )
+    session.commit()
+
+
+def test_get_fy_summary_returns_latest_when_no_arg() -> None:
+    app, session, user = _make_app_with_data()
+    _add_fy_summary(session, user, "FY2024-25", "1000000", "100000")
+    client = TestClient(app)
+    result = _exec(client, "get_fy_summary")
+    assert result["found"] is True
+    assert result["fiscal_year"] == "FY2024-25"
+    assert result["income"]["total"] == pytest.approx(1_000_000)
+    assert result["tax_paid"] == pytest.approx(100_000)
+
+
+def test_get_fy_summary_returns_not_found_for_unknown_fy() -> None:
+    app, _s, _u = _make_app_with_data()
+    client = TestClient(app)
+    result = _exec(client, "get_fy_summary", {"fiscal_year": "FY1999-00"})
+    assert result["found"] is False
+
+
+def test_get_tax_summary_prefers_filed_record_over_derived() -> None:
+    app, session, user = _make_app_with_data()
+    # Derived-only path: FYSummary but no TaxRecord
+    _add_fy_summary(session, user, "FY2023-24", "800000", "45000")
+    client = TestClient(app)
+    result = _exec(client, "get_tax_summary", {"fiscal_year": "FY2023-24"})
+    assert result["found"] is True
+    assert result["filed_return"] is False
+    assert result["source"] == "derived_from_transactions"
+    assert result["tax_paid"]["total"] == pytest.approx(45_000)
+
+    # Now add a filed TaxRecord -- should win
+    session.add(
+        TaxRecord(
+            user_id=user.id,
+            financial_year="FY2023-24",
+            gross_salary=Decimal("900000"),
+            total_gross_income=Decimal("900000"),
+            tds_deducted=Decimal("75000"),
+            advance_tax=Decimal("10000"),
+            self_assessment_tax=Decimal("5000"),
+            total_tax_paid=Decimal("90000"),
+            taxable_income=Decimal("830000"),
+            standard_deduction=Decimal("50000"),
+            section_80c=Decimal("150000"),
+            source_file="form16.pdf",
+        )
+    )
+    session.commit()
+
+    result2 = _exec(client, "get_tax_summary", {"fiscal_year": "FY2023-24"})
+    assert result2["filed_return"] is True
+    assert result2["source"] == "filed_tax_record"
+    assert result2["income"]["gross_salary"] == pytest.approx(900_000)
+    assert result2["tax_paid"]["tds"] == pytest.approx(75_000)
+    assert result2["tax_paid"]["total"] == pytest.approx(90_000)
+    assert result2["deductions"]["section_80c"] == pytest.approx(150_000)
+
+
+def _add_monthly_summary(
+    session: Session,
+    user: User,
+    period: str,
+    income: str,
+    expense: str,
+) -> None:
+    income_d = Decimal(income)
+    expense_d = Decimal(expense)
+    session.add(
+        MonthlySummary(
+            user_id=user.id,
+            period_key=period,
+            year=int(period.split("-")[0]),
+            month=int(period.split("-")[1]),
+            total_income=income_d,
+            salary_income=income_d,
+            investment_income=Decimal("0"),
+            other_income=Decimal("0"),
+            income_count=1,
+            total_expenses=expense_d,
+            essential_expenses=expense_d,
+            discretionary_expenses=Decimal("0"),
+            expense_count=1,
+            total_transfers_out=Decimal("0"),
+            total_transfers_in=Decimal("0"),
+            net_investment_flow=Decimal("0"),
+            transfer_count=0,
+            net_savings=income_d - expense_d,
+            savings_rate=50.0,
+            expense_ratio=0.5,
+            total_transactions=2,
+        )
+    )
+
+
+def test_get_cash_flow_returns_oldest_to_newest_series() -> None:
+    app, session, user = _make_app_with_data()
+    _add_monthly_summary(session, user, "2026-01", "100000", "50000")
+    _add_monthly_summary(session, user, "2026-02", "110000", "60000")
+    _add_monthly_summary(session, user, "2026-03", "120000", "70000")
+    session.commit()
+
+    client = TestClient(app)
+    result = _exec(client, "get_cash_flow", {"months": 6})
+    periods = [p["period"] for p in result["series"]]
+    assert periods == ["2026-01", "2026-02", "2026-03"]
+    assert result["months"] == 3
+    assert result["totals"]["income"] == pytest.approx(330_000)
+    assert result["averages"]["net"] == pytest.approx(50_000)  # 150_000 / 3
+
+
+def test_list_budgets_returns_active_with_usage() -> None:
+    app, session, user = _make_app_with_data()
+    session.add(
+        Budget(
+            user_id=user.id,
+            category="Food",
+            monthly_limit=Decimal("10000"),
+            alert_threshold_pct=80.0,
+            current_month_spent=Decimal("9500"),
+            current_month_remaining=Decimal("500"),
+            current_month_pct=95.0,
+            is_active=True,
+        )
+    )
+    session.add(
+        Budget(
+            user_id=user.id,
+            category="Rent",
+            monthly_limit=Decimal("30000"),
+            alert_threshold_pct=80.0,
+            current_month_spent=Decimal("30000"),
+            current_month_remaining=Decimal("0"),
+            current_month_pct=100.0,
+            is_active=False,  # should be filtered out
+        )
+    )
+    session.commit()
+
+    client = TestClient(app)
+    result = _exec(client, "list_budgets")
+    assert result["count"] == 1
+    assert result["budgets"][0]["category"] == "Food"
+    assert result["budgets"][0]["usage_pct"] == pytest.approx(95.0)
+
+
+def test_get_preferences_summary_parses_salary_structure() -> None:
+    app, session, user = _make_app_with_data()
+    session.add(
+        UserPreferences(
+            user_id=user.id,
+            currency_symbol="₹",
+            display_currency="INR",
+            fiscal_year_start_month=4,
+            salary_structure='{"basic": 50000, "hra": 20000, "ctc": 1200000, "notes": "ignored"}',
+        )
+    )
+    session.commit()
+
+    client = TestClient(app)
+    result = _exec(client, "get_preferences_summary")
+    assert result["found"] is True
+    assert result["currency_symbol"] == "₹"
+    assert result["fiscal_year_start_month"] == 4
+    assert result["salary_structure_configured"] is True
+    # Whitelist keeps known salary fields and drops `notes`
+    assert "basic" in result["salary_components"]
+    assert "notes" not in result["salary_components"]
+
+
+def test_list_tools_returns_fifteen_after_pr() -> None:
+    """Sanity-check: the expanded registry exposes all 15 tools to the LLM.
+    If this breaks, update the expected set below alongside the ai_tools.py
+    _register() calls so the frontend sees the right list."""
+    app, _s, _u = _make_app_with_data()
+    client = TestClient(app)
+    names = {t["name"] for t in client.get("/api/ai/tools").json()["tools"]}
+    assert names == {
+        # PR #124
+        "list_accounts",
+        "search_transactions",
+        "get_monthly_summary",
+        "list_categories",
+        "get_category_spending",
+        "get_net_worth",
+        "list_recurring",
+        "list_goals",
+        "list_recent_months",
+        # PR #125
+        "get_fy_summary",
+        "get_tax_summary",
+        "get_cash_flow",
+        "list_budgets",
+        "list_anomalies",
+        "get_preferences_summary",
+    }

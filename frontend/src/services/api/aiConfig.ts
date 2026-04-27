@@ -1,10 +1,18 @@
 import { apiClient } from './client'
 
+/** "app_bedrock" = uses the shared server Bedrock key (rate-limited).
+ *  "byok" = user brings their own OpenAI / Anthropic / Bedrock key. */
+export type AIMode = 'app_bedrock' | 'byok'
+
 export interface AIConfig {
+  mode: AIMode
   provider: string | null
   model: string | null
   has_key: boolean
   region: string | null
+  /** Per-user daily/monthly token caps (BYOK only). `null` = no limit. */
+  daily_token_limit: number | null
+  monthly_token_limit: number | null
 }
 
 export interface AIConfigUpdate {
@@ -32,5 +40,10 @@ export const aiConfigService = {
 
   async deleteConfig(): Promise<void> {
     await apiClient.delete('/api/preferences/ai-config')
+  },
+
+  async setMode(mode: AIMode): Promise<AIConfig> {
+    const response = await apiClient.patch<AIConfig>('/api/preferences/ai-config/mode', { mode })
+    return response.data
   },
 }

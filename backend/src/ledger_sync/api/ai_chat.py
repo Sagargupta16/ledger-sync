@@ -37,7 +37,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from ledger_sync.api.ai_usage import (
+    check_app_message_limit,
+    check_token_limits,
+    record_usage,
+)
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.config.settings import settings
 from ledger_sync.db.models import UserPreferences
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -93,7 +99,17 @@ class BedrockChatResponse(BaseModel):
 
 
 def _get_bedrock_model_region(prefs: UserPreferences) -> tuple[str, str]:
-    """Return (model_id, region) from user preferences."""
+    """Resolve Bedrock (model_id, region) based on the user's mode.
+
+    app_bedrock -> the model + region configured at the app level, ignoring
+    any stale BYOK config rows. Users don't pick their own model here.
+
+    byok -> the user's configured Bedrock model. They own the AWS key.
+    """
+    if prefs.ai_mode == "app_bedrock":
+        return settings.ai_default_bedrock_model, settings.ai_default_bedrock_region
+
+    # BYOK path
     if prefs.ai_provider != "bedrock":
         raise HTTPException(status_code=400, detail="Bedrock not configured")
 
@@ -214,6 +230,15 @@ def bedrock_chat_proxy(
             ),
         )
 
+    # Gate by mode:
+    #   app_bedrock -> count messages, enforce app-wide daily cap
+    #   byok        -> the user owns the bill; only their optional per-user
+    #                  token caps apply.
+    if prefs.ai_mode == "app_bedrock":
+        check_app_message_limit(session, current_user.id)
+    else:
+        check_token_limits(session, current_user.id)
+
     import boto3
 
     try:
@@ -230,6 +255,19 @@ def bedrock_chat_proxy(
         raise HTTPException(
             status_code=502, detail=f"Unexpected Bedrock response shape: {exc}"
         ) from exc
+
+    # Record usage from Bedrock's reported counters. Bedrock exposes these
+    # in `usage: {inputTokens, outputTokens, totalTokens}` on converse().
+    usage = response.get("usage") or {}
+    record_usage(
+        session,
+        current_user.id,
+        provider="bedrock",
+        model=model_id,
+        input_tokens=int(usage.get("inputTokens") or 0),
+        output_tokens=int(usage.get("outputTokens") or 0),
+        tool_rounds=1,
+    )
 
     return BedrockChatResponse(
         blocks=_from_bedrock_blocks(content_blocks),

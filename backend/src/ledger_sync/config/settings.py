@@ -67,6 +67,17 @@ class Settings(BaseSettings):
     # injected into AWS_BEARER_TOKEN_BEDROCK below so boto3 picks it up.
     # This lets all app secrets share the LEDGER_SYNC_ prefix on Vercel.
     bedrock_api_key: str = ""
+    # Default Bedrock model used by users in "app_bedrock" mode (the app
+    # picks so we can control cost/latency). Override via env var if needed.
+    # Haiku is the cheap default; operators can switch to Sonnet/Opus when
+    # willing to absorb the bill.
+    ai_default_bedrock_model: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    ai_default_bedrock_region: str = "us-east-1"
+    # Hard cap per user per day in "app_bedrock" mode, counted in user
+    # messages (one outer send, regardless of how many tool rounds it
+    # spawns). Users who want more switch to BYOK. Make it generous enough
+    # for normal finance Q&A without being a blank check.
+    ai_daily_message_limit: int = 10
 
     # CORS settings — override with LEDGER_SYNC_CORS_ORIGINS env var (JSON array).
     # Defaults include localhost origins for development only.

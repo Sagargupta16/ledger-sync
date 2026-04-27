@@ -5,7 +5,8 @@ import type { Block, ChatMessage, ToolSpec } from '@/lib/chatAdapters'
 import { sendChat } from '@/lib/chatAdapters'
 import { buildFinancialContext } from '@/lib/chatContext'
 import { executeTool, fetchTools } from '@/lib/chatTools'
-import { aiConfigService } from '@/services/api/aiConfig'
+import { aiConfigService, type AIMode } from '@/services/api/aiConfig'
+import { aiUsageService } from '@/services/api/aiUsage'
 import { useAuthStore } from '@/store/authStore'
 
 /** Hard cap on tool-calling rounds per user message -- stops runaway loops. */
@@ -32,7 +33,49 @@ function textFromBlocks(blocks: Block[]): string {
     .join('')
 }
 
+interface ResolvedCredentials {
+  provider: string
+  model: string
+  region: string | null
+  apiKey: string
+}
+
+/**
+ * Map user-visible mode/provider/model/region to the concrete values that
+ * `sendChat` expects. In app_bedrock we force provider=bedrock and use a
+ * placeholder model (the backend ignores it and picks the configured
+ * default). In BYOK we trust the user's selections and fetch the stored
+ * API key for browser-direct providers.
+ *
+ * Extracted from `useChat.send` to keep that callback's cognitive
+ * complexity under the Sonar threshold.
+ */
+async function resolveCredentials(
+  mode: AIMode,
+  provider: string | null,
+  model: string | null,
+  region: string | null,
+): Promise<ResolvedCredentials> {
+  if (mode === 'app_bedrock') {
+    return {
+      provider: 'bedrock',
+      model: 'app-default',
+      region: null,
+      apiKey: useAuthStore.getState().accessToken ?? '',
+    }
+  }
+  // BYOK path: provider/model validated by the caller, so `!` is safe.
+  const p = provider!
+  const m = model!
+  const apiKey =
+    p === 'bedrock'
+      ? useAuthStore.getState().accessToken ?? ''
+      : await aiConfigService.getKey()
+  return { provider: p, model: m, region, apiKey }
+}
+
 export function useChat(
+  mode: AIMode,
   provider: string | null,
   model: string | null,
   region: string | null,
@@ -56,7 +99,9 @@ export function useChat(
 
   const send = useCallback(
     async (content: string) => {
-      if (!provider || !model || isStreaming) return
+      if (isStreaming) return
+      // BYOK requires a configured provider+model; app mode provides its own.
+      if (mode === 'byok' && (!provider || !model)) return
 
       setError(null)
       setIsStreaming(true)
@@ -67,10 +112,7 @@ export function useChat(
       setMessages([...conversation, { role: 'assistant', content: '' }])
 
       try {
-        const apiKey =
-          provider === 'bedrock'
-            ? useAuthStore.getState().accessToken ?? ''
-            : await aiConfigService.getKey()
+        const resolved = await resolveCredentials(mode, provider, model, region)
 
         const now = Date.now()
         if (!contextRef.current || now - contextTimestamp.current > 5 * 60 * 1000) {
@@ -82,10 +124,10 @@ export function useChat(
         abortRef.current = controller
 
         await runToolLoop({
-          provider,
-          model,
-          region,
-          apiKey,
+          provider: resolved.provider,
+          model: resolved.model,
+          region: resolved.region,
+          apiKey: resolved.apiKey,
           systemPrompt: contextRef.current,
           conversation,
           tools: tools ?? [],
@@ -122,7 +164,7 @@ export function useChat(
         setIsStreaming(false)
       }
     },
-    [provider, model, region, isStreaming, messages, tools],
+    [mode, provider, model, region, isStreaming, messages, tools],
   )
 
   const stop = useCallback(() => {
@@ -179,6 +221,25 @@ async function runToolLoop(params: LoopParams): Promise<void> {
       signal: params.signal,
     })
 
+    // Report usage back to our server. For Bedrock the backend already
+    // logged it (usage === null) so we skip; for OpenAI/Anthropic we post
+    // the provider-reported token counts so the user's usage dashboard
+    // and limit enforcement stay accurate.
+    if (response.usage) {
+      aiUsageService
+        .log({
+          provider: params.provider,
+          model: params.model,
+          input_tokens: response.usage.inputTokens,
+          output_tokens: response.usage.outputTokens,
+          tool_rounds: 1,
+        })
+        .catch((err: unknown) => {
+          // Usage logging is best-effort -- never fail the chat over it.
+          console.warn('[useChat] failed to log usage:', err)
+        })
+    }
+
     // Append the assistant turn (whatever mix of text + tool_use).
     convo.push({ role: 'assistant', blocks: response.blocks })
 
@@ -215,7 +276,7 @@ async function runToolLoop(params: LoopParams): Promise<void> {
   }
 
   // Fell off the loop limit -- still show whatever the model last said.
-  const lastAssistant = convo[convo.length - 1]
+  const lastAssistant = convo.at(-1)
   if (lastAssistant?.role === 'assistant' && lastAssistant.blocks) {
     params.onFinalText(
       textFromBlocks(lastAssistant.blocks) ||

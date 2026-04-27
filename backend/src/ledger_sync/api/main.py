@@ -20,6 +20,7 @@ from ledger_sync.api.account_classifications import (
 )
 from ledger_sync.api.ai_chat import router as ai_chat_router
 from ledger_sync.api.ai_tools import router as ai_tools_router
+from ledger_sync.api.ai_usage import router as ai_usage_router
 from ledger_sync.api.analytics import router as analytics_router
 from ledger_sync.api.analytics_v2 import router as analytics_v2_router
 from ledger_sync.api.auth import router as auth_router
@@ -254,6 +255,7 @@ app.include_router(exchange_rates_router)
 app.include_router(stock_price_router)
 app.include_router(ai_chat_router)
 app.include_router(ai_tools_router)
+app.include_router(ai_usage_router)
 
 
 # ─── Health Check ────────────────────────────────────────────────────────────
