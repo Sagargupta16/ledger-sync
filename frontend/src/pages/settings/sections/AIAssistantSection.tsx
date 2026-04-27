@@ -1,7 +1,13 @@
 import { useState } from 'react'
-import { Sparkles, Eye, EyeOff, Trash2, CheckCircle, AlertCircle } from 'lucide-react'
+import { Sparkles, Eye, EyeOff, Trash2, CheckCircle, AlertCircle, Zap, Key } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { aiConfigService, type AIConfig, type AIConfigUpdate } from '@/services/api/aiConfig'
+import {
+  aiConfigService,
+  type AIConfig,
+  type AIConfigUpdate,
+  type AIMode,
+} from '@/services/api/aiConfig'
+import { aiUsageService, type UsageResponse } from '@/services/api/aiUsage'
 import { Section, FieldLabel, FieldHint } from '../sectionPrimitives'
 import { selectClass, inputClass } from '../styles'
 
@@ -43,6 +49,13 @@ interface Props {
 
 const isBedrock = (p: string) => p === 'bedrock'
 
+/** Compact token formatter: 1234 -> "1.2k", 1_500_000 -> "1.5M". */
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
+  return String(n)
+}
+
 export default function AIAssistantSection({ index }: Readonly<Props>) {
   const queryClient = useQueryClient()
   const { data: config, isLoading } = useQuery<AIConfig>({
@@ -59,6 +72,40 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
   const [testError, setTestError] = useState('')
 
+  // Token-limit fields are edited as strings to keep "empty = no limit" UX.
+  // Blank input means "clear the limit"; a parsed positive int sets it.
+  // React 19 disallows setState-in-effect for syncing to props, so we use
+  // the "track previous snapshot" pattern: when the persisted limits change
+  // (e.g. initial load, or after a save from another tab), reset the inputs
+  // to the new persisted value during render. Users editing the input keep
+  // their in-progress value because the persisted prop hasn't changed.
+  const [dailyLimit, setDailyLimit] = useState<string>(
+    () => (config?.daily_token_limit != null ? String(config.daily_token_limit) : ''),
+  )
+  const [monthlyLimit, setMonthlyLimit] = useState<string>(
+    () => (config?.monthly_token_limit != null ? String(config.monthly_token_limit) : ''),
+  )
+  const [lastSyncedDaily, setLastSyncedDaily] = useState(config?.daily_token_limit ?? null)
+  const [lastSyncedMonthly, setLastSyncedMonthly] = useState(config?.monthly_token_limit ?? null)
+  const persistedDaily = config?.daily_token_limit ?? null
+  const persistedMonthly = config?.monthly_token_limit ?? null
+  if (persistedDaily !== lastSyncedDaily) {
+    setLastSyncedDaily(persistedDaily)
+    setDailyLimit(persistedDaily != null ? String(persistedDaily) : '')
+  }
+  if (persistedMonthly !== lastSyncedMonthly) {
+    setLastSyncedMonthly(persistedMonthly)
+    setMonthlyLimit(persistedMonthly != null ? String(persistedMonthly) : '')
+  }
+
+  // Live usage panel: "1.2k of 50k today · $0.04".
+  const { data: usage } = useQuery<UsageResponse>({
+    queryKey: ['ai-usage'],
+    queryFn: () => aiUsageService.get(),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  })
+
   const saveMutation = useMutation({
     mutationFn: (data: AIConfigUpdate) => aiConfigService.updateConfig(data),
     onSuccess: () => {
@@ -74,6 +121,33 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       setProvider('')
       setModel('')
       setApiKey('')
+    },
+  })
+
+  const modeMutation = useMutation({
+    mutationFn: (mode: AIMode) => aiConfigService.setMode(mode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-config'] })
+      queryClient.invalidateQueries({ queryKey: ['ai-usage'] })
+    },
+  })
+
+  const limitsMutation = useMutation({
+    mutationFn: async () => {
+      // Empty string -> clear_* flag so nullable limits can actually be nulled.
+      const daily = dailyLimit.trim()
+      const monthly = monthlyLimit.trim()
+      await aiUsageService.updateLimits({
+        daily_token_limit: daily === '' ? undefined : Math.max(0, Number.parseInt(daily, 10)),
+        monthly_token_limit:
+          monthly === '' ? undefined : Math.max(0, Number.parseInt(monthly, 10)),
+        clear_daily: daily === '',
+        clear_monthly: monthly === '',
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-config'] })
+      queryClient.invalidateQueries({ queryKey: ['ai-usage'] })
     },
   })
 
@@ -150,15 +224,50 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
 
   if (isLoading) return null
 
+  // Single source of truth for which mode is active. Default is app_bedrock
+  // if the backend hasn't returned prefs yet -- matches the server default.
+  const mode: AIMode = config?.mode ?? 'app_bedrock'
+  const isByok = mode === 'byok'
+
   return (
     <Section
       index={index}
       icon={Sparkles}
       title="AI Assistant"
-      description="Configure your AI provider to chat with your financial data"
-      defaultCollapsed={!config?.has_key}
+      description="Chat with your financial data"
+      // Keep collapsed initially only when the user hasn't set anything up.
+      // App-mode users are considered "set up" because they can chat right away.
+      defaultCollapsed={mode === 'byok' && !config?.has_key}
     >
       <div className="space-y-4">
+        {/* Mode picker -- stacked cards so each option's trade-offs fit. */}
+        <ModeToggle
+          mode={mode}
+          onChange={(next) => modeMutation.mutate(next)}
+          appLimit={usage?.limits.app_daily_messages ?? 10}
+          pending={modeMutation.isPending}
+        />
+
+        {/* App-mode panel: the server owns the provider/model/key. Users just
+            see the default model + "X of N messages left today". */}
+        {!isByok && (
+          <div className="border border-border rounded-xl p-4 space-y-2 bg-white/[0.02]">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-white">Today's usage</span>
+              <AppMessageBadge usage={usage} />
+            </div>
+            <FieldHint>
+              App mode uses a shared AWS Bedrock key and is rate-limited so it stays free.
+              Switch to "Bring your own key" above for unlimited usage with your own provider.
+            </FieldHint>
+          </div>
+        )}
+
+        {/* Everything below is BYOK-only: provider + model + API key + per-user
+            token limits. Wrapped in a single conditional so the diff stays
+            small and app-mode users see a clean, uncluttered panel. */}
+        {isByok && (
+          <>
         <div>
           <FieldLabel htmlFor="ai-provider">Provider</FieldLabel>
           <select
@@ -272,6 +381,85 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
           </div>
         )}
 
+        {/* Usage + token limits panel. Always visible when the user has
+            ever sent a chat (usage exists) or has configured an AI provider
+            (so new users can proactively set limits before using BYOK). */}
+        {(provider || (usage && usage.all_time.call_count > 0)) && (
+          <div className="border-t border-border pt-4 space-y-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <FieldLabel htmlFor="ai-daily-limit">Token usage &amp; limits</FieldLabel>
+              {usage && (
+                <div className="text-xs text-muted-foreground font-mono">
+                  Today {formatTokens(usage.today.total_tokens)}
+                  {usage.limits.daily ? ` / ${formatTokens(usage.limits.daily)}` : ''}
+                  <span className="text-text-quaternary"> · </span>
+                  MTD {formatTokens(usage.month_to_date.total_tokens)}
+                  {usage.limits.monthly ? ` / ${formatTokens(usage.limits.monthly)}` : ''}
+                  {usage.all_time.cost_usd > 0 && (
+                    <>
+                      <span className="text-text-quaternary"> · </span>
+                      <span title="All-time estimated cost (USD)">
+                        ${usage.all_time.cost_usd.toFixed(2)}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="ai-daily-limit" className="text-xs text-muted-foreground mb-1 block">
+                  Daily limit (tokens)
+                </label>
+                <input
+                  id="ai-daily-limit"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1000}
+                  value={dailyLimit}
+                  onChange={(e) => setDailyLimit(e.target.value)}
+                  placeholder="No limit"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="ai-monthly-limit"
+                  className="text-xs text-muted-foreground mb-1 block"
+                >
+                  Monthly limit (tokens)
+                </label>
+                <input
+                  id="ai-monthly-limit"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={10000}
+                  value={monthlyLimit}
+                  onChange={(e) => setMonthlyLimit(e.target.value)}
+                  placeholder="No limit"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <FieldHint>
+              Leave blank for no cap. Server-side Bedrock calls are blocked when
+              today's or this month's usage would exceed the limit. For
+              browser-direct providers (OpenAI, Anthropic) the limits are
+              informational only -- the provider still charges your key.
+            </FieldHint>
+            <button
+              type="button"
+              onClick={() => limitsMutation.mutate()}
+              disabled={limitsMutation.isPending}
+              className="px-3 py-1.5 text-xs bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors disabled:opacity-40"
+            >
+              {limitsMutation.isPending ? 'Saving limits...' : 'Save limits'}
+            </button>
+          </div>
+        )}
+
         {provider && (
           <div className="flex items-center gap-3 pt-2">
             {!isBedrock(provider) && (
@@ -324,7 +512,107 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
             AI configuration saved. Open the chat widget (bottom-right) to start.
           </div>
         )}
+        {/* end of BYOK-only block */}
+        </>
+        )}
       </div>
     </Section>
+  )
+}
+
+/**
+ * Two stacked radio cards: "App (shared Bedrock, rate-limited)" and
+ * "Bring your own key". Server-side PATCH commits the change immediately --
+ * no "Save" button needed because flipping modes is reversible and has no
+ * other state to sync.
+ */
+function ModeToggle({
+  mode,
+  onChange,
+  appLimit,
+  pending,
+}: Readonly<{
+  mode: AIMode
+  onChange: (mode: AIMode) => void
+  appLimit: number
+  pending: boolean
+}>) {
+  return (
+    <div className="space-y-2">
+      <FieldLabel htmlFor="">How to power the chat</FieldLabel>
+      <div className="grid grid-cols-1 gap-2">
+        <ModeCard
+          selected={mode === 'app_bedrock'}
+          disabled={pending}
+          onClick={() => onChange('app_bedrock')}
+          icon={<Zap className="w-4 h-4" />}
+          title="Use the app's shared key (free, limited)"
+          subtitle={`Up to ${appLimit} messages per day. No setup. Model picked by the app.`}
+        />
+        <ModeCard
+          selected={mode === 'byok'}
+          disabled={pending}
+          onClick={() => onChange('byok')}
+          icon={<Key className="w-4 h-4" />}
+          title="Bring your own key (BYOK)"
+          subtitle="Unlimited usage with your own OpenAI, Anthropic, or Bedrock key. You pay your provider."
+        />
+      </div>
+    </div>
+  )
+}
+
+function ModeCard({
+  selected,
+  disabled,
+  onClick,
+  icon,
+  title,
+  subtitle,
+}: Readonly<{
+  selected: boolean
+  disabled: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  title: string
+  subtitle: string
+}>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`text-left border rounded-xl p-3 transition-colors ${
+        selected
+          ? 'border-primary bg-primary/5'
+          : 'border-border bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+      } disabled:opacity-50 disabled:cursor-wait`}
+    >
+      <div className="flex items-center gap-2">
+        <span className={selected ? 'text-primary' : 'text-muted-foreground'}>{icon}</span>
+        <span className="text-sm font-medium text-white">{title}</span>
+        {selected && <CheckCircle className="w-3.5 h-3.5 text-primary ml-auto" />}
+      </div>
+      <p className="text-xs text-muted-foreground mt-1 ml-6">{subtitle}</p>
+    </button>
+  )
+}
+
+/**
+ * Shows "7 of 10 messages left today · resets midnight UTC" when the user
+ * is in app_bedrock mode. Colours degrade red/yellow as the cap approaches.
+ */
+function AppMessageBadge({ usage }: Readonly<{ usage: UsageResponse | undefined }>) {
+  if (!usage) return null
+  const used = usage.messages_today
+  const cap = usage.limits.app_daily_messages
+  const remaining = Math.max(cap - used, 0)
+  const ratio = cap > 0 ? used / cap : 0
+  const tone =
+    ratio >= 1 ? 'text-app-red' : ratio >= 0.8 ? 'text-app-yellow' : 'text-muted-foreground'
+  return (
+    <span className={`text-xs font-mono ${tone}`}>
+      {remaining} / {cap} left
+    </span>
   )
 }

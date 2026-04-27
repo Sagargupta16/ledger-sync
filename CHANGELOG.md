@@ -30,6 +30,56 @@ Finance data is structured. `SELECT category, SUM(amount) FROM transactions WHER
 
 ---
 
+## 2.6.0 - 2026-04-27
+
+Follow-up to 2.5.0's tool-calling chat. Biggest change: the chat now has a **two-mode split** so users can either use the app's shared Bedrock key (free, rate-limited) or bring their own API key (unlimited, they pay). Plus six new tools expose tax / FY / cash-flow / budget data to the assistant, and every LLM round-trip is now logged for cost transparency.
+
+### Added — App vs BYOK mode split
+
+- **`ai_mode` column** on `user_preferences` (`'app_bedrock'` default or `'byok'`) + `PATCH /api/preferences/ai-config/mode` to toggle.
+- **App mode (default):** new users get a working chatbot immediately. No provider picker, no key input — the server uses the app's shared Bedrock bearer token and a fixed cheap default model (`us.anthropic.claude-haiku-4-5-20251001-v1:0`). Rate-limited to `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` messages per day (default 10) so our AWS bill stays predictable. Users who hit the cap get a clear 429 with a "switch to BYOK" pointer.
+- **BYOK mode:** existing provider/model/key picker + per-user token limits. Users pay their own provider. No app-level cap (the provider bills them directly).
+- **`settings.py`** gains three new env-overridable fields: `ai_default_bedrock_model`, `ai_default_bedrock_region`, `ai_daily_message_limit`.
+- **Settings → AI Assistant** rebuilt with a stacked two-card mode picker. App-mode panel shows a live "3 / 10 left" counter with a small explainer. BYOK-mode panel unchanged from 2.5.0 (provider/model/key + optional token limits).
+- **ChatPanel usage badge** is now mode-aware: `"· 3 / 10 left"` in app mode (messages), `"· 1.2k / 50k"` in BYOK mode (tokens).
+- **ChatWidget gating:** opening the chat no longer requires `has_key` when the user is in app mode — they can chat out of the box.
+
+### Added — 6 new AI tools (registry now 15)
+
+- `get_fy_summary` — fiscal-year rollup (income by source, tax paid, savings, YoY change) from the `fy_summaries` table.
+- `get_tax_summary` — prefers uploaded `TaxRecord` filings (gross/TDS/advance/self-assessment/80C/80D/standard deductions) and falls back to transaction-derived totals when no filing is available.
+- `get_cash_flow` — monthly income-vs-expense time series with totals and averages.
+- `list_budgets` — active budgets with current-month usage %, ranked by usage.
+- `list_anomalies` — recent unusual-spending alerts the system detected.
+- `get_preferences_summary` — currency, fiscal-year start, and salary-structure components so the LLM can reason about context.
+
+### Added — Usage tracking
+
+- **`ai_usage_log` table** with `(provider, model, input_tokens, output_tokens, tool_rounds, cost_usd, timestamp)`. Bedrock usage is recorded server-side after `converse()`; OpenAI and Anthropic report back from the browser via `POST /api/ai/usage/log`.
+- **Cost estimation** via `core/ai_pricing.py` — per-provider, per-model-prefix USD-per-1M-token table with longest-prefix match. Unknown models fall through to a conservative 10/40 USD-per-1M fallback so we never under-report cost.
+- **`GET /api/ai/usage`** returns today / MTD / all-time rollups + current limits + today's message count (for app mode). Used by Settings and the chat header.
+- **BYOK per-user token limits:** two nullable columns `ai_daily_token_limit` / `ai_monthly_token_limit` plus `PATCH /api/preferences/ai-config/limits`. Applies only in BYOK mode; app mode uses the server-wide message cap instead.
+
+### Changed
+
+- **System prompt stays minimal.** The LLM fetches data via tools instead of having summaries pre-stuffed. ~300 tokens per round instead of ~2K.
+- **Default mode is `app_bedrock`.** Existing users stay in their previous configuration (the migration sets `app_bedrock` as the server-default, but the save-config endpoint now flips prefs to `byok` whenever someone configures a provider key, so migrating users who already had BYOK remain BYOK after their next save).
+
+### Migrations
+
+- **`20260427_1200_add_ai_usage_log_and_token_limits.py`** creates the `ai_usage_log` table + two indexes, adds `ai_daily_token_limit` + `ai_monthly_token_limit` to `user_preferences`, and adds the `ai_mode` column (default `'app_bedrock'`). Downgrade is intentionally empty per project convention.
+
+### Tests
+
+- **Backend:** 32 new tests across 3 suites (`test_ai_tools.py`, `test_ai_usage.py`, `test_ai_chat.py` extensions). Coverage of the 6 new tools, usage rollups, cost estimation edge cases, app-mode message cap enforcement, BYOK bypass of the app cap, and default-model selection. Test count 75 → 107.
+
+### Deploy notes
+
+- Run `uv run alembic upgrade head` once after deploy (auto-runs on Vercel via the migrate workflow).
+- No new required env vars. Optional overrides: `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` (default 10), `LEDGER_SYNC_AI_DEFAULT_BEDROCK_MODEL` (default Haiku), `LEDGER_SYNC_AI_DEFAULT_BEDROCK_REGION` (default `us-east-1`).
+
+---
+
 ## 2.4.2 - 2026-04-25
 
 Further mobile polish after device testing, plus an AI chat fix.

@@ -10,6 +10,7 @@ from ledger_sync.db._models._constants import CASCADE_ALL_DELETE_ORPHAN, USER_FK
 from ledger_sync.db.base import Base
 
 if TYPE_CHECKING:
+    from ledger_sync.db._models.ai_usage import AIUsageLog
     from ledger_sync.db._models.planning import (
         Anomaly,
         Budget,
@@ -69,6 +70,13 @@ class User(Base):
     )
     import_logs: Mapped["list[ImportLog]"] = relationship(
         "ImportLog",
+        back_populates="user",
+        lazy="select",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
+        passive_deletes=True,
+    )
+    ai_usage_logs: Mapped["list[AIUsageLog]"] = relationship(
+        "AIUsageLog",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
@@ -291,9 +299,24 @@ class UserPreferences(Base):
     growth_assumptions: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
 
     # ── AI Assistant Configuration ───────────────────────────────────────
+    # Two modes:
+    #   "app_bedrock" (default) -- user uses the app's shared Bedrock bearer
+    #     token. Rate-limited to LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT messages
+    #     per day (we pay the AWS bill). Model is fixed by the app
+    #     (LEDGER_SYNC_AI_DEFAULT_BEDROCK_MODEL).
+    #   "byok" -- user brings their own OpenAI / Anthropic / Bedrock key.
+    #     Picks provider + model themselves, pays their own provider bill,
+    #     and gets optional per-user token caps for self-control.
+    ai_mode: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="app_bedrock", server_default="app_bedrock"
+    )
     ai_provider: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
     ai_model: Mapped[str | None] = mapped_column(String(100), nullable=True, default=None)
     ai_api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    # BYOK-only token budgets. Nullable -> no limit. In app_bedrock mode the
+    # message cap comes from settings.ai_daily_message_limit instead.
+    ai_daily_token_limit: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    ai_monthly_token_limit: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

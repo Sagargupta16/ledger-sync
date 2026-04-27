@@ -67,12 +67,14 @@ def _make_prefs(
     session: Session,
     user: User,
     *,
+    mode: str = "byok",
     provider: str = "bedrock",
     model: str = "us.anthropic.claude-opus-4-7",
     region: str = "us-east-1",
 ) -> None:
     prefs = UserPreferences(
         user_id=user.id,
+        ai_mode=mode,
         ai_provider=provider,
         ai_model=f"{model}|{region}" if region else model,
     )
@@ -205,6 +207,102 @@ def test_tools_passed_as_tool_config(monkeypatch: pytest.MonkeyPatch) -> None:
     spec_list = call["toolConfig"]["tools"]
     assert spec_list[0]["toolSpec"]["name"] == "list_accounts"
     assert spec_list[0]["toolSpec"]["inputSchema"]["json"]["type"] == "object"
+
+
+def test_app_bedrock_mode_uses_default_model_regardless_of_prefs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """In app_bedrock mode the app picks the model -- stored BYOK model is
+    ignored so users can't override the cheap default we pay for."""
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
+    app, session, user = _make_app()
+    # User has an old BYOK row with a premium model, but mode is app_bedrock
+    _make_prefs(session, user, mode="app_bedrock", model="us.anthropic.claude-opus-4-7")
+    client = TestClient(app)
+
+    fake = {"output": {"message": {"content": [{"text": "OK"}]}}}
+    mock_boto = MagicMock()
+    mock_boto.converse.return_value = fake
+
+    with patch("boto3.client", return_value=mock_boto):
+        resp = client.post(
+            "/api/ai/bedrock/chat",
+            json={"messages": [{"role": "user", "content": "hi"}]},
+        )
+
+    assert resp.status_code == 200
+    call = mock_boto.converse.call_args.kwargs
+    # Picked up from settings.ai_default_bedrock_model (Haiku default) --
+    # NOT the Opus model stored in prefs.
+    assert "haiku" in call["modelId"].lower()
+
+
+def test_app_bedrock_mode_enforces_daily_message_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Once a user hits the configured app-wide daily message cap, further
+    calls return 429 without spending another AWS invoke."""
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
+    # Lower the cap to 2 for a quick test
+    from ledger_sync.config.settings import settings
+
+    monkeypatch.setattr(settings, "ai_daily_message_limit", 2)
+
+    app, session, user = _make_app()
+    _make_prefs(session, user, mode="app_bedrock")
+    client = TestClient(app)
+
+    fake = {"output": {"message": {"content": [{"text": "OK"}]}}}
+    mock_boto = MagicMock()
+    mock_boto.converse.return_value = fake
+
+    with patch("boto3.client", return_value=mock_boto):
+        # First two calls succeed
+        for _ in range(2):
+            r = client.post(
+                "/api/ai/bedrock/chat",
+                json={"messages": [{"role": "user", "content": "hi"}]},
+            )
+            assert r.status_code == 200
+
+        # Third call is rejected
+        r = client.post(
+            "/api/ai/bedrock/chat",
+            json={"messages": [{"role": "user", "content": "hi"}]},
+        )
+        assert r.status_code == 429
+        assert "2/2" in r.json()["detail"] or "limit" in r.json()["detail"].lower()
+
+    # boto3 was only called twice -- the cap blocked the third call before
+    # hitting AWS.
+    assert mock_boto.converse.call_count == 2
+
+
+def test_byok_mode_is_not_subject_to_app_message_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """BYOK users pay their own key; the app cap shouldn't gate them."""
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
+    from ledger_sync.config.settings import settings
+
+    monkeypatch.setattr(settings, "ai_daily_message_limit", 1)
+
+    app, session, user = _make_app()
+    _make_prefs(session, user, mode="byok")  # uses the prefs model
+    client = TestClient(app)
+
+    fake = {"output": {"message": {"content": [{"text": "OK"}]}}}
+    mock_boto = MagicMock()
+    mock_boto.converse.return_value = fake
+
+    with patch("boto3.client", return_value=mock_boto):
+        # Would hit the 1-message cap if it applied -- it doesn't.
+        for _ in range(3):
+            r = client.post(
+                "/api/ai/bedrock/chat",
+                json={"messages": [{"role": "user", "content": "hi"}]},
+            )
+            assert r.status_code == 200
 
 
 def test_tool_use_and_tool_result_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:

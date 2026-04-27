@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 
+import { useQuery } from '@tanstack/react-query'
 import { Send, Square, Trash2, Minus, AlertCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 import type { ChatMessage as ChatMessageType } from '@/lib/chatAdapters'
+import { aiUsageService, type UsageResponse } from '@/services/api/aiUsage'
 
 import ChatMessage from './ChatMessage'
 
@@ -68,11 +70,12 @@ export default function ChatPanel({
       className="absolute bottom-16 right-0 w-[calc(100vw-2rem)] max-w-[380px] max-h-[70vh] sm:max-h-[500px] glass rounded-2xl border border-border flex flex-col overflow-hidden shadow-2xl"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-app-green animate-pulse" />
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2 h-2 rounded-full bg-app-green animate-pulse shrink-0" />
           <span className="text-sm font-medium text-white">AI Assistant</span>
+          <UsageBadge />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={onClear}
@@ -155,4 +158,69 @@ export default function ChatPanel({
       </div>
     </motion.div>
   )
+}
+
+/**
+ * Compact usage chip in the chat header. Polls every 30s while the panel is
+ * open so the count updates after each message round.
+ *
+ * Mode-aware:
+ *   app_bedrock -> "· 3 / 10 left" (messages remaining today, the cap the
+ *     server enforces)
+ *   byok        -> "· 1.2k / 50k" (token count, user-configured optional cap)
+ *
+ * Hidden in BYOK when there's no usage AND no configured token cap (nothing
+ * interesting to show a fresh user).
+ */
+function UsageBadge() {
+  const { data } = useQuery<UsageResponse>({
+    queryKey: ['ai-usage'],
+    queryFn: () => aiUsageService.get(),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  })
+  if (!data) return null
+
+  if (data.mode === 'app_bedrock') {
+    const used = data.messages_today
+    const cap = data.limits.app_daily_messages
+    const remaining = Math.max(cap - used, 0)
+    const pct = cap > 0 ? used / cap : 0
+    return (
+      <span
+        className={`text-[10px] font-mono ${usageTone(pct)} truncate`}
+        title={`Today: ${used} of ${cap} messages. Resets midnight UTC.`}
+      >
+        · {remaining} / {cap} left
+      </span>
+    )
+  }
+
+  // BYOK -- token counts
+  const today = data.today.total_tokens
+  const daily = data.limits.daily
+  if (today === 0 && daily === null) return null
+
+  const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`)
+  const label = daily ? `${fmt(today)} / ${fmt(daily)}` : fmt(today)
+  const pct = daily && daily > 0 ? today / daily : 0
+  const todayStr = today.toLocaleString()
+  const tooltip = daily
+    ? `Today: ${todayStr} tokens of ${daily.toLocaleString()} daily limit`
+    : `Today: ${todayStr} tokens`
+
+  return (
+    <span
+      className={`text-[10px] font-mono ${usageTone(pct)} truncate`}
+      title={tooltip}
+    >
+      · {label}
+    </span>
+  )
+}
+
+function usageTone(pct: number): string {
+  if (pct > 1) return 'text-app-red'
+  if (pct > 0.8) return 'text-app-yellow'
+  return 'text-muted-foreground'
 }

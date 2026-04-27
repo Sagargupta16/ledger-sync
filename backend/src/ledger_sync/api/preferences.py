@@ -718,10 +718,34 @@ class AIConfigUpdate(BaseModel):
 class AIConfigResponse(BaseModel):
     """AI config response (never includes raw key)."""
 
+    # "app_bedrock" = shared server key, rate-limited / "byok" = user's own key
+    mode: str = "app_bedrock"
     provider: str | None = None
     model: str | None = None
     has_key: bool = False
     region: str | None = None
+    # Nullable token budgets (nullable = no limit).
+    daily_token_limit: int | None = None
+    monthly_token_limit: int | None = None
+
+
+class AIModeUpdate(BaseModel):
+    """Patch payload for switching between app_bedrock and byok."""
+
+    mode: str = Field(pattern=r"^(app_bedrock|byok)$")
+
+
+class AILimitsUpdate(BaseModel):
+    """Patch-style update for per-user AI token limits.
+
+    Both fields nullable. Pass `null` to clear a previously-set limit.
+    Missing fields keep the current value.
+    """
+
+    daily_token_limit: int | None = Field(default=None, ge=0, le=10_000_000)
+    monthly_token_limit: int | None = Field(default=None, ge=0, le=100_000_000)
+    clear_daily: bool = False
+    clear_monthly: bool = False
 
 
 @router.put("/ai-config")
@@ -737,13 +761,18 @@ def update_ai_config(
     if config.region and config.provider == "bedrock":
         prefs.ai_model = f"{config.model}|{config.region}"
     prefs.ai_api_key_encrypted = encrypt_api_key(config.api_key)
+    # Saving a provider-specific key implies BYOK intent.
+    prefs.ai_mode = "byok"
     prefs.updated_at = datetime.now(UTC)
     session.commit()
     return AIConfigResponse(
+        mode=prefs.ai_mode,
         provider=prefs.ai_provider,
         model=config.model,
         has_key=True,
         region=config.region,
+        daily_token_limit=prefs.ai_daily_token_limit,
+        monthly_token_limit=prefs.ai_monthly_token_limit,
     )
 
 
@@ -759,10 +788,82 @@ def get_ai_config(
     if model and "|" in model:
         model, region = model.rsplit("|", 1)
     return AIConfigResponse(
+        mode=prefs.ai_mode,
         provider=prefs.ai_provider,
         model=model,
         has_key=prefs.ai_api_key_encrypted is not None,
         region=region,
+        daily_token_limit=prefs.ai_daily_token_limit,
+        monthly_token_limit=prefs.ai_monthly_token_limit,
+    )
+
+
+@router.patch("/ai-config/mode")
+def update_ai_mode(
+    current_user: CurrentUser,
+    update: AIModeUpdate,
+    session: DatabaseSession,
+) -> AIConfigResponse:
+    """Switch between app_bedrock (shared server key) and byok.
+
+    Switching to app_bedrock doesn't delete the stored BYOK key, so users
+    can flip back. We only toggle the mode flag.
+    """
+    prefs = _get_or_create_preferences(session, current_user)
+    prefs.ai_mode = update.mode
+    prefs.updated_at = datetime.now(UTC)
+    session.commit()
+
+    model = prefs.ai_model
+    region: str | None = None
+    if model and "|" in model:
+        model, region = model.rsplit("|", 1)
+    return AIConfigResponse(
+        mode=prefs.ai_mode,
+        provider=prefs.ai_provider,
+        model=model,
+        has_key=prefs.ai_api_key_encrypted is not None,
+        region=region,
+        daily_token_limit=prefs.ai_daily_token_limit,
+        monthly_token_limit=prefs.ai_monthly_token_limit,
+    )
+
+
+@router.patch("/ai-config/limits")
+def update_ai_limits(
+    current_user: CurrentUser,
+    update: AILimitsUpdate,
+    session: DatabaseSession,
+) -> AIConfigResponse:
+    """Update per-user daily/monthly token limits.
+
+    Pass `clear_daily`/`clear_monthly` to null out a previously-set limit.
+    Otherwise only provided fields are updated.
+    """
+    prefs = _get_or_create_preferences(session, current_user)
+    if update.clear_daily:
+        prefs.ai_daily_token_limit = None
+    elif update.daily_token_limit is not None:
+        prefs.ai_daily_token_limit = update.daily_token_limit
+    if update.clear_monthly:
+        prefs.ai_monthly_token_limit = None
+    elif update.monthly_token_limit is not None:
+        prefs.ai_monthly_token_limit = update.monthly_token_limit
+    prefs.updated_at = datetime.now(UTC)
+    session.commit()
+
+    model = prefs.ai_model
+    region: str | None = None
+    if model and "|" in model:
+        model, region = model.rsplit("|", 1)
+    return AIConfigResponse(
+        mode=prefs.ai_mode,
+        provider=prefs.ai_provider,
+        model=model,
+        has_key=prefs.ai_api_key_encrypted is not None,
+        region=region,
+        daily_token_limit=prefs.ai_daily_token_limit,
+        monthly_token_limit=prefs.ai_monthly_token_limit,
     )
 
 

@@ -9,6 +9,7 @@ IMPORTANT: every model module must be imported here so SQLAlchemy's
 """
 
 from ledger_sync.db._models._constants import CASCADE_ALL_DELETE_ORPHAN, USER_FK
+from ledger_sync.db._models.ai_usage import AIUsageLog
 from ledger_sync.db._models.analytics import (
     CategoryTrend,
     DailySummary,
@@ -47,6 +48,7 @@ from ledger_sync.db._models.user import AuditLog, User, UserPreferences
 __all__ = [
     "CASCADE_ALL_DELETE_ORPHAN",
     "USER_FK",
+    "AIUsageLog",
     "AccountClassification",
     "AccountType",
     "Anomaly",

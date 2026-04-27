@@ -54,9 +54,20 @@ export interface SendParams {
 
 export type StopReason = 'end_turn' | 'tool_use' | 'max_tokens' | 'other'
 
+export interface UsageInfo {
+  inputTokens: number
+  outputTokens: number
+}
+
 export interface ChatResponse {
   blocks: Block[]
   stopReason: StopReason
+  /**
+   * Per-round token usage reported by the provider. `null` when the provider
+   * didn't return usage info (older OpenAI endpoints, some error paths).
+   * For Bedrock, usage is logged server-side and not re-reported here.
+   */
+  usage: UsageInfo | null
 }
 
 // --- Small helpers -----------------------------------------------------------
@@ -168,6 +179,10 @@ async function callOpenAI(params: SendParams): Promise<ChatResponse> {
         }>
       }
     }>
+    usage?: {
+      prompt_tokens?: number
+      completion_tokens?: number
+    }
   }
   const choice = data.choices?.[0]
   const blocks: Block[] = []
@@ -188,7 +203,13 @@ async function callOpenAI(params: SendParams): Promise<ChatResponse> {
       input,
     })
   }
-  return { blocks, stopReason: normaliseStopReason(choice?.finish_reason) }
+  const usage: UsageInfo | null = data.usage
+    ? {
+        inputTokens: data.usage.prompt_tokens ?? 0,
+        outputTokens: data.usage.completion_tokens ?? 0,
+      }
+    : null
+  return { blocks, stopReason: normaliseStopReason(choice?.finish_reason), usage }
 }
 
 // --- Anthropic ---------------------------------------------------------------
@@ -251,6 +272,10 @@ async function callAnthropic(params: SendParams): Promise<ChatResponse> {
   const data = (await res.json()) as {
     content?: AnthropicContentBlock[]
     stop_reason?: string | null
+    usage?: {
+      input_tokens?: number
+      output_tokens?: number
+    }
   }
   const blocks: Block[] = []
   for (const b of data.content ?? []) {
@@ -265,7 +290,13 @@ async function callAnthropic(params: SendParams): Promise<ChatResponse> {
       })
     }
   }
-  return { blocks, stopReason: normaliseStopReason(data.stop_reason) }
+  const usage: UsageInfo | null = data.usage
+    ? {
+        inputTokens: data.usage.input_tokens ?? 0,
+        outputTokens: data.usage.output_tokens ?? 0,
+      }
+    : null
+  return { blocks, stopReason: normaliseStopReason(data.stop_reason), usage }
 }
 
 // --- Bedrock -----------------------------------------------------------------
@@ -329,7 +360,9 @@ async function callBedrock(params: SendParams): Promise<ChatResponse> {
       })
     }
   }
-  return { blocks, stopReason: normaliseStopReason(data.stop_reason) }
+  // Bedrock usage is logged server-side in ai_chat.py -- return `null` here
+  // so useChat knows not to double-log via /api/ai/usage/log.
+  return { blocks, stopReason: normaliseStopReason(data.stop_reason), usage: null }
 }
 
 // --- Public API --------------------------------------------------------------
