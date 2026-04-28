@@ -223,11 +223,15 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile toggle -- offset by safe-area-inset-top so it clears the iOS notch in PWA mode. */}
+      {/* Mobile toggle -- offset by safe-area-inset-top so it clears the iOS notch in PWA mode.
+          Left offset also respects safe-area-inset-left for landscape on notched devices. */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed left-4 z-50 w-11 h-11 flex items-center justify-center rounded-xl bg-zinc-900/90 border border-white/[0.08] backdrop-blur-sm active:scale-95 transition-transform"
-        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+        className="lg:hidden fixed z-50 w-11 h-11 flex items-center justify-center rounded-xl bg-zinc-900/90 border border-white/[0.08] backdrop-blur-sm active:scale-95 transition-transform"
+        style={{
+          top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
+          left: 'calc(env(safe-area-inset-left, 0px) + 1rem)',
+        }}
         aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
       >
         {isMobileOpen
@@ -235,17 +239,20 @@ export default function Sidebar() {
           : <Menu size={20} className="text-white" />}
       </button>
 
-      {/* Sidebar */}
+      {/* Sidebar -- h-dvh so the nav tracks the real viewport height
+          (h-screen = 100vh jumps when the mobile browser address bar toggles). */}
       <aside
         className={cn(
-          'fixed lg:sticky top-0 h-screen w-64 z-40',
+          'fixed lg:sticky top-0 h-dvh w-64 z-40',
           'bg-[#111113]/95 backdrop-blur-sm',
           'border-r border-border',
           'transition-transform duration-200 ease-out',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
-        <div className="flex flex-col h-full">
+        {/* pt-safe ensures the brand row clears the iOS notch when the drawer
+            opens in PWA standalone mode; desktop gets no extra padding. */}
+        <div className="flex flex-col h-full pt-safe">
           {/* Brand Header */}
           <BrandHeader
             user={isDemoMode ? { email: 'Demo Mode' } : user}

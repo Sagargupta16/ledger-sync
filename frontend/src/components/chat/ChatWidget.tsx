@@ -51,8 +51,13 @@ export default function ChatWidget() {
 
   return (
     <div
-      className="fixed right-6 z-40"
-      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}
+      className="fixed z-40"
+      style={{
+        // Park the widget above the iOS home bar and clear any right-edge
+        // safe-area inset (landscape on notched devices).
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)',
+        right: 'calc(env(safe-area-inset-right, 0px) + 1.5rem)',
+      }}
     >
       <AnimatePresence>
         {isOpen && isConfigured && (
