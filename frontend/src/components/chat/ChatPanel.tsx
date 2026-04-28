@@ -67,7 +67,7 @@ export default function ChatPanel({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className="absolute bottom-16 right-0 w-[calc(100vw-2rem)] max-w-[380px] max-h-[70vh] sm:max-h-[500px] glass rounded-2xl border border-border flex flex-col overflow-hidden shadow-2xl"
+      className="absolute bottom-16 right-0 w-[calc(100vw-2rem)] max-w-[380px] max-h-[70dvh] sm:max-h-[500px] glass rounded-2xl border border-border flex flex-col overflow-hidden shadow-2xl"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">

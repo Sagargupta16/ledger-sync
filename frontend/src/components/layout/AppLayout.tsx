@@ -59,7 +59,7 @@ export default function AppLayout() {
   }, [location.pathname])
 
   return (
-    <div className="flex h-screen bg-black relative overflow-hidden">
+    <div className="flex h-dvh bg-black relative overflow-hidden">
       {isDemoMode && <DemoBanner />}
 
       {/* Skip to main content link for keyboard users */}
@@ -85,7 +85,17 @@ export default function AppLayout() {
       />
 
       <Sidebar />
-      <main id="main-content" className="flex-1 overflow-auto relative z-10">
+      {/*
+        Mobile PWA notes:
+        - `overscroll-contain` stops the rubber-band scroll from bleeding into
+          the document (which otherwise shows a white flash under the notch).
+        - `pb-safe` on the scrollable main means the last row of any page
+          clears the iOS home indicator without every page having to add it.
+      */}
+      <main
+        id="main-content"
+        className="flex-1 overflow-auto overscroll-contain relative z-10 pb-safe"
+      >
         <AnimatePresence mode="popLayout">
           <motion.div key={location.pathname} {...pageTransition}>
             <Outlet />

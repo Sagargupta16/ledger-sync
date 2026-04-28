@@ -19,8 +19,8 @@ export default defineConfig({
         short_name: 'Ledger',
         description:
           'Self-hosted personal finance dashboard -- analytics, budgeting, and tax planning.',
-        theme_color: '#09090b',
-        background_color: '#09090b',
+        theme_color: '#000000',
+        background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
         // start_url is relative to Vite's `base`, so it resolves to /ledger-sync/ on GH Pages.
