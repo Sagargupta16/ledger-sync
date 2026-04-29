@@ -44,6 +44,7 @@ const pageImports = {
   SubscriptionTrackerPage: () => import('@/pages/subscription-tracker/SubscriptionTrackerPage'),
   BillCalendarPage: () => import('@/pages/bill-calendar/BillCalendarPage'),
   FIRECalculatorPage: () => import('@/pages/FIRECalculatorPage'),
+  MorePage: () => import('@/pages/MorePage'),
 }
 
 const UploadSyncPage = lazy(pageImports.UploadSyncPage)
@@ -68,6 +69,7 @@ const InsightsPage = lazy(pageImports.InsightsPage)
 const SubscriptionTrackerPage = lazy(pageImports.SubscriptionTrackerPage)
 const BillCalendarPage = lazy(pageImports.BillCalendarPage)
 const FIRECalculatorPage = lazy(pageImports.FIRECalculatorPage)
+const MorePage = lazy(pageImports.MorePage)
 
 /**
  * Prefetch all lazy page chunks in the background after initial load.
@@ -239,6 +241,7 @@ function App() {
                     <Route path={toRelativePath(ROUTES.SUBSCRIPTIONS)} element={<SubscriptionTrackerPage />} />
                     <Route path={toRelativePath(ROUTES.BILL_CALENDAR)} element={<BillCalendarPage />} />
                     <Route path={toRelativePath(ROUTES.FIRE_CALCULATOR)} element={<FIRECalculatorPage />} />
+                    <Route path={toRelativePath(ROUTES.MORE)} element={<MorePage />} />
                     {/* 404 catch-all for unmatched routes */}
                     <Route path="*" element={<NotFoundPage />} />
                   </Route>
