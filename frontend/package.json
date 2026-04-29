@@ -13,7 +13,7 @@
     "clean": "rimraf dist node_modules/.vite",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "generate:icons": "pwa-assets-generator"
+    "generate:icons": "pwa-assets-generator --preset minimal-2023 public/pwa-icon-source.svg"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
