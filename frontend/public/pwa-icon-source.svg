@@ -1,36 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
+    <!-- Exact same gradient the web app uses for the PiggyBank brand tile
+         (see HomePage header + Sidebar brand row). Keeps the installed app
+         icon visually identical to what users see in-app. -->
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0%" stop-color="#0A84FF"/>
       <stop offset="100%" stop-color="#5E5CE6"/>
     </linearGradient>
   </defs>
 
-  <!-- Full-bleed tile. Maskable safe zone = central 80% (approx 51..461). -->
+  <!-- Full-bleed tile: gradient paints corner to corner so on iOS the
+       native squircle mask is the only rounding. No whitespace frame. -->
   <rect width="512" height="512" fill="url(#bg)"/>
 
-  <!-- Ascending trend line behind the rupee, low-opacity white.
-       Positioned so it reads as 'growth' beneath the mark. -->
-  <g stroke="#ffffff" stroke-opacity="0.28" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <path d="M 120 360 L 200 300 L 270 330 L 360 220" stroke-width="24"/>
-  </g>
-  <circle cx="360" cy="220" r="20" fill="#ffffff" fill-opacity="0.45"/>
-
-  <!-- Rupee mark (₹) in bold white, centered on the tile.
-       Strokes use rounded caps/joins for a soft, app-icon feel. -->
-  <g fill="none" stroke="#ffffff" stroke-width="36" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Top horizontal bar -->
-    <line x1="168" y1="160" x2="344" y2="160"/>
-    <!-- Second horizontal bar -->
-    <line x1="168" y1="220" x2="344" y2="220"/>
-    <!-- Vertical stem on the left -->
-    <line x1="188" y1="160" x2="188" y2="296"/>
-    <!-- Rupee belly: arc that loops from second bar down to the stem, curling right -->
-    <path d="M 260 220
-             C 330 220, 348 264, 348 288
-             C 348 324, 312 348, 260 348
-             L 188 348"/>
-    <!-- Diagonal descender from under the belly out to the bottom-right -->
-    <line x1="220" y1="344" x2="344" y2="420"/>
+  <!--
+    Lucide `piggy-bank` paths, centered on the tile and scaled to ~68% of
+    the width so the glyph fills confidently without touching the maskable
+    safe zone (central 80% = 51..461). stroke-width 1.9 in the 24-unit space
+    => ~28px in the 512 tile at scale(15), which is thick enough to read
+    at 64x64 favicon sizes without looking heavy at 512x512.
+  -->
+  <g
+    transform="translate(76 76) scale(15)"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="1.9"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M11 17h3v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3a3.16 3.16 0 0 0 2-2h1a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-1a5 5 0 0 0-2-4V3a4 4 0 0 0-3.2 1.6l-.3.4H11a6 6 0 0 0-6 6v1a5 5 0 0 0 2 4v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1z"/>
+    <path d="M16 10h.01"/>
+    <path d="M2 8v1a2 2 0 0 0 2 2h1"/>
   </g>
 </svg>

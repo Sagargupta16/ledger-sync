@@ -10,6 +10,7 @@ import { useDemoStore } from '@/store/demoStore'
 import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 
 import Sidebar from './Sidebar/Sidebar'
+import MobileTabBar from './MobileTabBar'
 
 const pageTransition = {
   initial: { opacity: 0, y: 8 },
@@ -89,12 +90,14 @@ export default function AppLayout() {
         Mobile PWA notes:
         - `overscroll-contain` stops the rubber-band scroll from bleeding into
           the document (which otherwise shows a white flash under the notch).
-        - `pb-safe` on the scrollable main means the last row of any page
-          clears the iOS home indicator without every page having to add it.
+        - On phone (<lg) we reserve ~68px at the bottom for MobileTabBar + its
+          own safe-area padding. On desktop (lg+) the tab bar is hidden, so
+          we fall back to pb-safe so the last row clears the home indicator
+          if someone opens the site on a phone-sized desktop browser window.
       */}
       <main
         id="main-content"
-        className="flex-1 overflow-auto overscroll-contain relative z-10 pb-safe"
+        className="flex-1 overflow-auto overscroll-contain relative z-10 pb-[calc(68px+env(safe-area-inset-bottom,0px))] lg:pb-safe"
       >
         <AnimatePresence mode="popLayout">
           <motion.div key={location.pathname} {...pageTransition}>
@@ -102,6 +105,9 @@ export default function AppLayout() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Bottom tab bar — phone-only. Sidebar handles lg+. */}
+      <MobileTabBar />
 
       {/* Global command palette — Cmd+K / Ctrl+K */}
       <CommandPalette />

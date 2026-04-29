@@ -51,11 +51,11 @@ export default function ChatWidget() {
 
   return (
     <div
-      className="fixed z-40"
+      // Phone: park above the MobileTabBar (~68px) + safe-area-bottom.
+      // Desktop (lg+): smaller offset since there's no tab bar.
+      // Right offset respects safe-area-inset-right for landscape on notched devices.
+      className="fixed z-40 bottom-[calc(68px+env(safe-area-inset-bottom,0px)+0.75rem)] lg:bottom-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]"
       style={{
-        // Park the widget above the iOS home bar and clear any right-edge
-        // safe-area inset (landscape on notched devices).
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)',
         right: 'calc(env(safe-area-inset-right, 0px) + 1.5rem)',
       }}
     >
