@@ -17,8 +17,11 @@ export function useComparisonData() {
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
-  // Mode & selection state
-  const [mode, setMode] = useState<CompareMode>('month')
+  // Mode & selection state.
+  // Default to fiscal-year comparison rather than month-over-month because
+  // month-over-month is noisy (one-off rent/bonus/travel dominates) while FY
+  // is the cadence that actually drives tax + saving-rate decisions.
+  const [mode, setMode] = useState<CompareMode>('fy')
 
   // Month selectors
   const monthOptions = useMemo(() => getMonthOptions(transactions), [transactions])
@@ -117,9 +120,33 @@ export function useComparisonData() {
       ]
     }
 
-    // FY
+    // FY: when fyB is the current (in-progress) FY we truncate BOTH ranges to
+    // the elapsed-day count so the comparison is apples-to-apples (2 months in
+    // vs 2 months of last FY, not 12 months of last FY). Without this, a user
+    // opening the page in May of FY25-26 would see "last FY ₹24L vs this FY
+    // ₹4L - 83% down!" which is just an artifact of the FY being young.
+    const currentFY = getCurrentFY(fiscalYearStartMonth)
     const rangeA = getFYDateRange(fyA, fiscalYearStartMonth)
     const rangeB = getFYDateRange(fyB, fiscalYearStartMonth)
+
+    if (fyB === currentFY) {
+      const today = new Date().toISOString().substring(0, 10)
+      // Cap fyB at today. ISO-8601 dates are pure-ASCII + fixed-width, so
+      // localeCompare() also happens to be chronological here.
+      const truncatedB = today.localeCompare(rangeB.end) < 0 ? today : rangeB.end
+      // Cap fyA at the same day-of-FY: offset = daysElapsedInFY(B)
+      const fyBStart = new Date(rangeB.start)
+      const daysElapsed = Math.floor(
+        (new Date(truncatedB).getTime() - fyBStart.getTime()) / 86_400_000,
+      )
+      const fyAStart = new Date(rangeA.start)
+      fyAStart.setUTCDate(fyAStart.getUTCDate() + daysElapsed)
+      const truncatedA = fyAStart.toISOString().substring(0, 10)
+      return [
+        buildSummary(`${fyA} (to same date)`, rangeA.start, truncatedA),
+        buildSummary(`${fyB} (YTD)`, rangeB.start, truncatedB),
+      ]
+    }
     return [
       buildSummary(fyA, rangeA.start, rangeA.end),
       buildSummary(fyB, rangeB.start, rangeB.end),

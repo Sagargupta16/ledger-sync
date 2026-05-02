@@ -20,6 +20,7 @@ import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { InstrumentProjections } from '@/components/analytics'
+import { calculateXIRR } from '@/lib/xirr'
 import type { Transaction } from '@/types'
 
 // Hide number input spinners
@@ -39,47 +40,6 @@ interface ChartDataPoint {
   invested: number
   value: number
   isHistorical: boolean
-}
-
-// Calculate XIRR using Newton-Raphson method
-const calculateXIRR = (
-  cashFlows: { date: Date; amount: number }[],
-  guess: number = 0.1,
-  maxIterations: number = 100,
-  tolerance: number = 1e-7,
-): number => {
-  if (cashFlows.length < 2) return 0
-
-  const daysBetween = (d1: Date, d2: Date) =>
-    (d2.getTime() - d1.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-
-  const firstDate = cashFlows[0].date
-  let rate = guess
-
-  for (let i = 0; i < maxIterations; i++) {
-    let npv = 0
-    let dnpv = 0
-
-    for (const cf of cashFlows) {
-      const years = daysBetween(firstDate, cf.date)
-      const factor = Math.pow(1 + rate, years)
-      npv += cf.amount / factor
-      if (years !== 0) {
-        dnpv -= (years * cf.amount) / (factor * (1 + rate))
-      }
-    }
-
-    if (Math.abs(dnpv) < 1e-12) break
-
-    const newRate = rate - npv / dnpv
-    if (Math.abs(newRate - rate) < tolerance) return newRate * 100
-    rate = newRate
-
-    // Guard against divergence
-    if (rate < -0.99 || rate > 10) return 0
-  }
-
-  return rate * 100
 }
 
 // Calculate SIP future value with monthly compounding

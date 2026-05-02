@@ -13,12 +13,7 @@ export { default as CashFlowForecast } from './CashFlowForecast'
 export { default as CreditCardHealth } from './CreditCardHealth'
 export { default as BudgetTracker } from './BudgetTracker'
 
-// Financial insights components
-export { default as IncomeStabilityIndex } from './IncomeStabilityIndex'
-export { default as SavingsMilestonesTimeline } from './SavingsMilestonesTimeline'
-
 // Behavioral analytics
-export { default as LifestyleCreepDetection } from './LifestyleCreepDetection'
 export { default as CohortSpendingAnalysis } from './CohortSpendingAnalysis'
 
 // Instrument projection components

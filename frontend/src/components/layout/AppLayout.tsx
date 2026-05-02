@@ -32,7 +32,6 @@ const PAGE_TITLES: Record<string, string> = {
   '/year-in-review': 'Year in Review',
   '/budgets': 'Budget Manager',
   '/goals': 'Financial Goals',
-  '/insights': 'Insights',
   '/anomalies': 'Anomaly Review',
   '/net-worth': 'Net Worth',
   '/forecasts': 'Trends & Forecasts',

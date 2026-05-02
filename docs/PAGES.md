@@ -34,7 +34,6 @@ No third-party financial data feeds — everything you see is inferred from the 
 | More → Planning | [`/budgets`](#budgets) | "Am I staying within limits this month?" |
 | More → Planning | [`/goals`](#goals) | "How close am I to my savings goals?" |
 | More → Planning | [`/fire-calculator`](#fire-calculator) | "When can I retire?" |
-| More → Planning | [`/insights`](#insights) | "What should I know about my spending?" |
 | More → Planning | [`/anomalies`](#anomaly-review) | "Did anything weird happen?" |
 | More → Tax | [`/tax`](#income-tax-planning) | "What will I owe this FY?" |
 | More → Tax | [`/tax/gst`](#gst-analysis) | "What indirect tax did I pay?" |
@@ -418,7 +417,7 @@ A stacked bar across all budgets showing total budget vs total spent vs projecte
 ### Settings
 
 - **Auto-create budgets** (Settings → Financial Settings) — set a default budget for every category based on your trailing 3-month average
-- **Alert threshold** — when Spent ÷ Budget crosses this (default 80 %), the Insights page surfaces it
+- **Alert threshold** — when Spent ÷ Budget crosses this (default 80 %), the budget is flagged on the Dashboard and in the budget list
 - **Rollover** — if enabled, unused budget from month N rolls into month N+1 for that category
 
 All budgets live in the `budgets` table and are month-scoped.
@@ -472,25 +471,6 @@ Stored in the `goals` table. The "current balance" is recomputed on every net-wo
 - Year-by-year table: age, contributions, growth, corpus, passive income at SWR
 
 Pure client-side calculation — no backend call.
-
----
-
-## Insights
-
-**Route:** `/insights` · [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx)
-
-Auto-generated rule-based observations about your financial behaviour.
-
-### Examples of rules
-
-- _"Your dining spending jumped 40 % this month vs 3-month average."_
-- _"You saved ₹12 000 more than last month — keep it going."_
-- _"Fixed commitments are 62 % of income (healthy is < 50 %)."_
-- _"You haven't invested anything for 90 days."_
-- _"Savings rate dropped below 20 % for the first time in 6 months."_
-- _"Category X has exceeded budget by ₹Y."_
-
-Each insight has a severity (info / warning / critical) and a suggested action link. Insights are regenerated on every analytics refresh; the set is cached in `insights_generated`.
 
 ---
 
@@ -599,7 +579,7 @@ Eleven collapsible sections. Since v2.7 every section starts collapsed so the pa
 | **Display Preferences** | Currency, currency symbol position, number format, default time range, theme |
 | **Notifications** | Budget alerts · Anomalies · Upcoming bills — each on/off + days-ahead lead time |
 | **Advanced** | Anomaly types enabled + threshold, credit card limits (per card), excluded accounts (won't appear in analytics) |
-| **Dashboard Widgets** | Which of the 14 Quick Insights appear on the Dashboard |
+| **Dashboard Widgets** | Which of the 14 Quick Insight KPIs appear on the Dashboard (6 on by default) |
 
 ### Reset
 
@@ -669,4 +649,4 @@ Deliberately outside scope:
 - No debt payoff planners (avalanche / snowball) — yet.
 - No multi-user households — every account is single-user.
 - No live market prices for mutual funds / stocks. Investment "current value" is approximated as `invested + realized_gains` only.
-- No budget alerts via email/push — the Insights page shows breaches, but no push notifications yet.
+- No budget alerts via email/push — the Budgets and Anomaly Review pages show breaches, but no push notifications yet.

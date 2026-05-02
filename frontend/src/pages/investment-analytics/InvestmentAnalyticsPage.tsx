@@ -15,6 +15,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
+import { calculateXIRR, type CashFlow } from '@/lib/xirr'
 
 // 4 Investment Categories with colors
 const INVESTMENT_CATEGORIES = ['FD/Bonds', 'Mutual Funds', 'PPF/EPF', 'Stocks'] as const
@@ -180,6 +181,44 @@ export default function InvestmentAnalyticsPage() {
 
   // Calculate portfolio metrics - use filtered totals
   const totalInvestmentValue = filteredInvestmentTotals.total
+
+  // Portfolio-level XIRR -- time-weighted annualized return across ALL investment
+  // flows. Each transfer INTO an investment account is a positive cashflow
+  // (buy); each OUT is negative (withdrawal). The current total value on today
+  // counts as a final negative flow (as if we sold everything). Returns 0 when
+  // fewer than two dated cashflows exist or the solver diverges -- rendered
+  // as "-" in that case.
+  const portfolioXIRR = useMemo((): number => {
+    if (!investmentAccounts.length || !transactions.length) return 0
+
+    const invSet = new Set(investmentAccounts)
+    const cashflows: CashFlow[] = []
+
+    for (const tx of transactions) {
+      if (tx.type !== 'Transfer') continue
+      const d = new Date(tx.date)
+      if (Number.isNaN(d.getTime())) continue
+      const toInv = invSet.has(tx.to_account ?? '')
+      const fromInv = invSet.has(tx.from_account ?? '')
+      if (toInv && !fromInv) {
+        // Money IN -- investment purchase
+        cashflows.push({ date: d, amount: tx.amount })
+      } else if (fromInv && !toInv) {
+        // Money OUT -- investment redemption
+        cashflows.push({ date: d, amount: -tx.amount })
+      }
+    }
+    if (cashflows.length < 1 || totalInvestmentValue <= 0) return 0
+
+    // Final liquidation pseudo-flow at today using the latest invested-total.
+    cashflows.push({ date: new Date(), amount: -totalInvestmentValue })
+
+    // XIRR wants inputs sorted; also ensures the solver anchors off the
+    // earliest event.
+    cashflows.sort((a, b) => a.date.getTime() - b.date.getTime())
+
+    return calculateXIRR(cashflows)
+  }, [transactions, investmentAccounts, totalInvestmentValue])
 
   // Compute actual Net Investment P&L — same logic as ReturnsAnalysisPage
   const netInvestmentPL = useMemo(() => computeNetInvestmentPL(transactions), [transactions])
@@ -421,10 +460,18 @@ export default function InvestmentAnalyticsPage() {
           }
         />
 
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-3 sm:gap-4 lg:gap-6`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 sm:gap-4 lg:gap-6`}>
           <MetricCard title="Total Investment Value" value={formatCurrency(totalInvestmentValue)} icon={TrendingUp} color="green" isLoading={isLoading} />
           <MetricCard title="Portfolio Assets" value={investmentAccounts.length} icon={PieChart} color="blue" isLoading={isLoading} />
           <MetricCard title="Net Investment P&L" value={`${netInvestmentPL >= 0 ? '+' : ''}${formatCurrency(netInvestmentPL)}`} subtitle={`${plPercent >= 0 ? '+' : ''}${formatPercent(plPercent)} of portfolio`} icon={DollarSign} color={netInvestmentPL >= 0 ? 'green' : 'red'} isLoading={isLoading} />
+          <MetricCard
+            title="Portfolio XIRR"
+            value={portfolioXIRR === 0 ? '-' : `${portfolioXIRR >= 0 ? '+' : ''}${portfolioXIRR.toFixed(1)}%`}
+            subtitle={portfolioXIRR === 0 ? 'Needs dated flows' : 'Annualized, all flows'}
+            icon={LineChart}
+            color={portfolioXIRR >= 0 ? 'green' : 'red'}
+            isLoading={isLoading}
+          />
           {monthlyInvestmentTarget > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}

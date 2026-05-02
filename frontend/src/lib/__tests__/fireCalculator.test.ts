@@ -4,6 +4,7 @@ import {
   computeCoastFIRE,
   computeLeanFIRE,
   computeFatFIRE,
+  computeBaristaFIRE,
   computeYearsToFIRE,
   computeFIRE,
   computeRetirementCorpus,
@@ -39,6 +40,29 @@ describe('computeLeanFIRE / computeFatFIRE', () => {
 
   it('fat is 2x FIRE number', () => {
     expect(computeFatFIRE(20_000_000)).toBe(40_000_000)
+  })
+})
+
+describe('computeBaristaFIRE', () => {
+  it('equals full FIRE when barista income is zero', () => {
+    // 6L expenses at 3% SWR = 2Cr, same as computeFIRENumber
+    expect(computeBaristaFIRE(600_000, 0, 0.03)).toBe(20_000_000)
+  })
+
+  it('shrinks the required corpus by the covered income', () => {
+    // 6L expenses, 2L/yr covered by barista work => only need 4L/yr from
+    // the portfolio. At 3% SWR that is 1.333Cr, significantly less than 2Cr.
+    expect(computeBaristaFIRE(600_000, 200_000, 0.03)).toBe(13_333_333)
+  })
+
+  it('clamps to zero when barista income fully covers expenses', () => {
+    // Part-time income >= expenses -> no portfolio needed
+    expect(computeBaristaFIRE(600_000, 700_000, 0.03)).toBe(0)
+  })
+
+  it('returns 0 for zero / negative SWR (undefined division)', () => {
+    expect(computeBaristaFIRE(600_000, 100_000, 0)).toBe(0)
+    expect(computeBaristaFIRE(600_000, 100_000, -0.01)).toBe(0)
   })
 })
 
@@ -103,9 +127,28 @@ describe('computeFIRE orchestrator', () => {
     expect(result.fireNumber).toBe(20_000_000)
     expect(result.leanFIRE).toBe(12_000_000)
     expect(result.fatFIRE).toBe(40_000_000)
+    // With no barista income, baristaFIRE equals standard FIRE.
+    expect(result.baristaFIRE).toBe(20_000_000)
     expect(result.currentSavingsRate).toBeCloseTo(33.33, 1)
     expect(result.yearsToFIRE).toBeGreaterThan(0)
     expect(result.yearsToFIRE).toBeLessThan(Infinity)
+  })
+
+  it('shrinks baristaFIRE when barista income is provided', () => {
+    const result = computeFIRE({
+      annualExpenses: 600000,
+      essentialAnnualExpenses: 360000,
+      annualSavings: 500000,
+      annualIncome: 1500000,
+      swr: 0.03,
+      realReturn: 0.07,
+      yearsToRetire: 25,
+      baristaAnnualIncome: 200_000,
+    })
+    // 4L gap / 3 % SWR = 1.333Cr
+    expect(result.baristaFIRE).toBe(13_333_333)
+    // Standard FIRE is unaffected by the barista-side input.
+    expect(result.fireNumber).toBe(20_000_000)
   })
 })
 

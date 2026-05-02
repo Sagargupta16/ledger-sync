@@ -22,7 +22,6 @@ import {
   Wallet2,
   AlertTriangle,
   Goal,
-  Lightbulb,
   ArrowRight,
   Command,
 } from 'lucide-react'
@@ -60,7 +59,6 @@ const PAGE_ENTRIES: PageEntry[] = [
   { path: ROUTES.GST_ANALYSIS, label: 'Indirect Tax (GST)', icon: Receipt, keywords: ['gst', 'indirect tax', 'vat', 'goods services'] },
   { path: ROUTES.BUDGETS, label: 'Budget Manager', icon: Wallet2, keywords: ['budget', 'plan', 'limit', 'allocation'] },
   { path: ROUTES.GOALS, label: 'Financial Goals', icon: Goal, keywords: ['savings goal', 'target', 'milestone'] },
-  { path: ROUTES.INSIGHTS, label: 'Financial Insights', icon: Lightbulb, keywords: ['tips', 'recommendations', 'advice'] },
   { path: ROUTES.ANOMALIES, label: 'Anomaly Review', icon: AlertTriangle, keywords: ['unusual', 'suspicious', 'outlier'] },
   { path: ROUTES.YEAR_IN_REVIEW, label: 'Year in Review', icon: CalendarDays, keywords: ['annual', 'yearly', 'recap'] },
   { path: ROUTES.SETTINGS, label: 'Account Classification', icon: SlidersHorizontal, keywords: ['preferences', 'config', 'accounts'] },

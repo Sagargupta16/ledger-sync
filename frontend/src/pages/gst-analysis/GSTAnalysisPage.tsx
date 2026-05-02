@@ -110,12 +110,17 @@ export default function GSTAnalysisPage() {
         }
       />
 
-      {/* Disclaimer */}
-      <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-app-blue/5 border border-app-blue/10 text-sm text-muted-foreground">
-        <Info className="w-4 h-4 mt-0.5 text-app-blue shrink-0" />
+      {/* Disclaimer -- made more explicit because users were reading these as
+          precise numbers. Bank statements don't line-item GST; unless you
+          upload receipts, anything here is a lifestyle-scale approximation. */}
+      <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-app-orange/5 border border-app-orange/20 text-sm text-muted-foreground">
+        <Info className="w-4 h-4 mt-0.5 text-app-orange shrink-0" />
         <span>
-          GST amounts are <strong className="text-white">estimates</strong> based on typical category rates.
-          Actual GST varies by item. Prices are assumed GST-inclusive.
+          <strong className="text-white">Approximate figures only.</strong>{' '}
+          GST isn't line-itemed in bank statements, so we apply typical slab
+          rates per category (restaurants 5%, electronics 18%, etc.) to your
+          inclusive-of-tax spend. Use this for lifestyle-scale awareness of
+          indirect tax paid -- not for filing.
         </span>
       </div>
 

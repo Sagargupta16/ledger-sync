@@ -2,9 +2,9 @@
 
 **See where every rupee goes.** Import your bank statements, get instant insights, and finally understand your money -- all from a single, self-hosted dashboard you actually own.
 
-No subscriptions. No data harvesting. Just 24 pages of analytics built from your own Excel exports, running on your own infrastructure.
+No subscriptions. No data harvesting. Just a focused set of analytics pages built from your own Excel exports, running on your own infrastructure.
 
-![Version](https://img.shields.io/badge/version-2.7.1-green.svg)
+![Version](https://img.shields.io/badge/version-2.9.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![React](https://img.shields.io/badge/react-19-blue.svg)
@@ -67,7 +67,7 @@ No subscriptions. No data harvesting. Just 24 pages of analytics built from your
 
 - **India FY tax estimation** -- old vs new regime comparison, slab breakdown, surcharge, cess
 - **Salary-based projections** -- input your CTC structure, RSU grants, and growth assumptions to project multi-year tax liability
-- **FIRE Calculator** -- compute FIRE number, Coast FIRE, years to FIRE, and savings rate from your actual spending data; Lean/Standard/Fat FIRE variants with adjustable SWR, real return, and retirement horizon
+- **FIRE Calculator** -- compute FIRE number, Coast FIRE, years to FIRE, and savings rate from your actual spending data; Lean / **Barista** / Standard / Fat FIRE variants with adjustable SWR, real return, retirement horizon, and part-time-income slider (for soft-landing planning)
 - **Retirement corpus calculator** -- inflation-adjusted corpus, monthly SIP needed, lump-sum alternative, with projection chart
 
 ### Analytics & Insights
@@ -220,8 +220,7 @@ Every page focuses on a specific question you'd ask about your money. A one-line
 | **Bill Calendar** | "What's due when?" (month grid with paid/missed indicators) |
 | **Budgets** | "Am I staying within limits this month?" |
 | **Goals** | "How close am I to my savings goals?" |
-| **FIRE Calculator** | "When can I retire?" (Lean / Standard / Fat variants) |
-| **Insights** | "What should I know about my spending?" (auto-generated observations) |
+| **FIRE Calculator** | "When can I retire?" (Lean / Barista / Standard / Fat variants) |
 | **Anomaly Review** | "Did anything weird happen?" |
 | **Income Tax Planning** | "What will I owe this FY?" (Old vs New regime, multi-year projection) |
 | **GST Analysis** | "What indirect tax did I pay?" |

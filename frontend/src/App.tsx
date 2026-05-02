@@ -40,7 +40,6 @@ const pageImports = {
   SettingsPage: () => import('@/pages/settings/SettingsPage'),
   AnomalyReviewPage: () => import('@/pages/AnomalyReviewPage'),
   GoalsPage: () => import('@/pages/goals/GoalsPage'),
-  InsightsPage: () => import('@/pages/InsightsPage'),
   SubscriptionTrackerPage: () => import('@/pages/subscription-tracker/SubscriptionTrackerPage'),
   BillCalendarPage: () => import('@/pages/bill-calendar/BillCalendarPage'),
   FIRECalculatorPage: () => import('@/pages/FIRECalculatorPage'),
@@ -65,7 +64,6 @@ const YearInReviewPage = lazy(pageImports.YearInReviewPage)
 const SettingsPage = lazy(pageImports.SettingsPage)
 const AnomalyReviewPage = lazy(pageImports.AnomalyReviewPage)
 const GoalsPage = lazy(pageImports.GoalsPage)
-const InsightsPage = lazy(pageImports.InsightsPage)
 const SubscriptionTrackerPage = lazy(pageImports.SubscriptionTrackerPage)
 const BillCalendarPage = lazy(pageImports.BillCalendarPage)
 const FIRECalculatorPage = lazy(pageImports.FIRECalculatorPage)
@@ -237,7 +235,6 @@ function App() {
                     <Route path={toRelativePath(ROUTES.YEAR_IN_REVIEW)} element={<YearInReviewPage />} />
                     <Route path={toRelativePath(ROUTES.ANOMALIES)} element={<AnomalyReviewPage />} />
                     <Route path={toRelativePath(ROUTES.GOALS)} element={<GoalsPage />} />
-                    <Route path={toRelativePath(ROUTES.INSIGHTS)} element={<InsightsPage />} />
                     <Route path={toRelativePath(ROUTES.SUBSCRIPTIONS)} element={<SubscriptionTrackerPage />} />
                     <Route path={toRelativePath(ROUTES.BILL_CALENDAR)} element={<BillCalendarPage />} />
                     <Route path={toRelativePath(ROUTES.FIRE_CALCULATOR)} element={<FIRECalculatorPage />} />

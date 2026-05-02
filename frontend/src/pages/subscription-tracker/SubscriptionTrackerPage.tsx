@@ -283,13 +283,22 @@ export default function SubscriptionTrackerPage() {
     const incomes = active.filter((s) => s.type === 'Income')
     const monthlyExpense = expenses.reduce((s, i) => s + toMonthlyAmount(i.expected_amount, i.frequency), 0)
     const monthlyIncome = incomes.reduce((s, i) => s + toMonthlyAmount(i.expected_amount, i.frequency), 0)
+    // Savings from deactivated Expense items = monthly cost they WOULD be
+    // charging us if the user hadn't marked them deactivated (cancelled a
+    // subscription, paid off an EMI, stopped a gym, etc). Income-typed
+    // inactive items don't count -- those represent lost income, not savings.
+    const deactivatedExpenseSavings = inactive
+      .filter((s) => s.type === 'Expense')
+      .reduce((s, i) => s + toMonthlyAmount(i.expected_amount, i.frequency), 0)
     return {
       monthlyExpense,
       monthlyIncome,
       netMonthly: monthlyIncome - monthlyExpense,
       count: active.length,
+      deactivatedExpenseSavings,
+      deactivatedCount: inactive.filter((s) => s.type === 'Expense').length,
     }
-  }, [active])
+  }, [active, inactive])
 
   const { guardDemoAction } = useDemoGuard()
 
@@ -336,7 +345,7 @@ export default function SubscriptionTrackerPage() {
         />
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
           <SummaryCard icon={ArrowDownCircle} label="Monthly Expense" value={p ?? formatCurrency(summary.monthlyExpense)}
             colorClass="text-app-red" bgClass="bg-app-red/20" shadowClass="shadow-app-red/30" delay={0.1} />
           <SummaryCard icon={ArrowUpCircle} label="Monthly Income" value={p ?? formatCurrency(summary.monthlyIncome)}
@@ -348,6 +357,20 @@ export default function SubscriptionTrackerPage() {
             shadowClass={summary.netMonthly >= 0 ? 'shadow-app-green/30' : 'shadow-app-red/30'} delay={0.3} />
           <SummaryCard icon={Hash} label="Active Recurring" value={p ?? `${summary.count}`}
             colorClass="text-app-blue" bgClass="bg-app-blue/20" shadowClass="shadow-app-blue/30" delay={0.4} />
+          {/* Savings-from-cancellations -- only show once the user has
+              deactivated at least one expense item, otherwise it's a confusing
+              "-" card. */}
+          {summary.deactivatedCount > 0 && (
+            <SummaryCard
+              icon={PowerOff}
+              label={`Saved / mo (${summary.deactivatedCount} cancelled)`}
+              value={p ?? formatCurrency(summary.deactivatedExpenseSavings)}
+              colorClass="text-app-purple"
+              bgClass="bg-app-purple/20"
+              shadowClass="shadow-app-purple/30"
+              delay={0.5}
+            />
+          )}
         </div>
 
         {/* Suggestions */}

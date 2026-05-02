@@ -6,6 +6,34 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.9.0 - 2026-04-29
+
+Follow-up to 2.8.0's audit-driven cleanup: execute the remaining feature gaps that were flagged and delete the Insights page outright.
+
+### Removed
+
+- **Insights page deleted entirely.** The 2.8.0 audit already trimmed it to 3 widgets; user feedback confirmed the whole page was cruft. The route (`/insights`), sidebar + CommandPalette + MorePage entries, `ROUTES.INSIGHTS`, and the remaining three components (`IncomeStabilityIndex`, `LifestyleCreepDetection`, `SavingsMilestonesTimeline`) all gone. The dashboard, comparison, and individual analytics pages cover these insights natively -- there's no single "Insights" page anymore.
+
+### Added
+
+- **Barista FIRE variant** on the FIRE Calculator. New `computeBaristaFIRE()` helper and a monthly-income slider. Shows how much smaller your corpus needs to be when a part-time income covers some of your expenses (soft landing rather than cold stop). Layout bumped from 3 variant cards to 4 (Lean / Barista / Standard / Fat).
+- **Portfolio-level XIRR** metric on the Investment Analytics page. New shared `frontend/src/lib/xirr.ts` helper (extracted from the per-account implementation on the MF projection page, now DRY). Builds cashflows from every investment transfer plus the current total value as a final liquidation event, then solves via Newton-Raphson. Shows `-` when fewer than one dated flow exists or solver diverges.
+- **Subscription Tracker: "Saved per month" KPI** showing estimated monthly savings from deactivated recurring expense items (cancelled subs, paid-off EMIs, stopped gyms). Only appears once the user has at least one deactivated expense item.
+- **"Tune detection" link** from the Anomaly Review page header to Settings, making the existing sensitivity / threshold / anomaly-type preferences discoverable.
+
+### Changed
+
+- **Comparison page default is now FY-over-FY, not month-over-month.** FY is the cadence that drives tax + saving-rate decisions; month-over-month is dominated by one-off rent / bonus / travel noise.
+- **Comparison FY mode truncates both sides to the elapsed-day count when the selected period is the current (in-progress) FY.** Prevents the "last FY ₹24L vs this FY ₹4L = 83 % down!" artifact that appeared when the current FY was only two months in. Labels now read `FY24-25 (to same date)` vs `FY25-26 (YTD)` to make the truncation explicit.
+- **GST Analysis disclaimer rewritten** to be more explicit about what the numbers represent ("approximate only -- GST isn't line-itemed in bank statements, use for lifestyle-scale awareness, not for filing") and coloured warning-orange instead of info-blue so users don't mistake estimates for precision.
+- **XIRR implementation extracted to `frontend/src/lib/xirr.ts`** and consumed by both the MF projection page and the new Investment Analytics XIRR metric. Signature-identical to what was already in the MF projection file; now unit-tested.
+
+### Tests
+
+- **Frontend test count 114 -> 123.** 5 new tests for `computeBaristaFIRE` (zero / partial / full-coverage / zero-SWR edge cases), 4 for `calculateXIRR` (empty, two-flow 10 %, monthly-SIP, divergent same-sign), updated the `computeFIRE` orchestrator test to cover the new `baristaFIRE` field.
+
+---
+
 ## 2.8.0 - 2026-04-29
 
 Audit-driven cleanup and accuracy pass. Comes out of `docs/AUDIT.md` which rated every page, chart, and calculation against the gold-standard personal-finance feature set.
