@@ -22,10 +22,10 @@ import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
 import MilestonesTable from './components/MilestonesTable'
 import {
-  buildMilestoneRows,
-  computeAvgMonthlyGrowth,
+  buildMilestoneRowsCompound,
+  computeMonthlyGrowthRate,
   downsampleToMonthly,
-  projectNetWorth,
+  projectNetWorthCompound,
   type NetWorthPoint,
 } from './netWorthProjection'
 
@@ -480,14 +480,17 @@ export default function NetWorthPage() {
     [chartSeries],
   )
 
-  const avgMonthlyGrowth = useMemo(
-    () => computeAvgMonthlyGrowth(chartSeries, 12),
+  // Compound monthly rate (decimal, e.g. 0.01 = 1 %/month = ~12.7 % annualized)
+  // derived as geometric mean of month-end net worth over the last 12 months.
+  // Compound -- not linear -- because savings + market returns both compound.
+  const monthlyGrowthRate = useMemo(
+    () => computeMonthlyGrowthRate(chartSeries, 12),
     [chartSeries],
   )
 
   const milestoneRows = useMemo(
-    () => buildMilestoneRows(fullSeries, anchor, avgMonthlyGrowth),
-    [fullSeries, anchor, avgMonthlyGrowth],
+    () => buildMilestoneRowsCompound(fullSeries, anchor, monthlyGrowthRate),
+    [fullSeries, anchor, monthlyGrowthRate],
   )
 
   /**
@@ -500,11 +503,11 @@ export default function NetWorthPage() {
    *    zero vertical discontinuity when the line crosses "today"
    */
   const chartData = useMemo(() => {
-    if (!showProjection || avgMonthlyGrowth <= 0 || anchor === null) {
+    if (!showProjection || monthlyGrowthRate <= 0 || anchor === null) {
       return filteredNetWorthData
     }
     const monthlyHistorical = downsampleToMonthly(chartSeries)
-    const projection = projectNetWorth(anchor, avgMonthlyGrowth, 60)
+    const projection = projectNetWorthCompound(anchor, monthlyGrowthRate, 60)
 
     const historicalPoints = monthlyHistorical.map((p) => ({
       date: p.date,
@@ -522,7 +525,7 @@ export default function NetWorthPage() {
       })),
     ]
     return [...historicalPoints, ...projectedPoints]
-  }, [showProjection, anchor, avgMonthlyGrowth, chartSeries, filteredNetWorthData])
+  }, [showProjection, anchor, monthlyGrowthRate, chartSeries, filteredNetWorthData])
 
   const currentNetWorth = anchor?.netWorth ?? 0
 
@@ -590,11 +593,11 @@ export default function NetWorthPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setShowProjection(!showProjection)}
-                disabled={avgMonthlyGrowth <= 0}
+                disabled={monthlyGrowthRate <= 0}
                 title={
-                  avgMonthlyGrowth <= 0
+                  monthlyGrowthRate <= 0
                     ? 'Need positive monthly growth to project'
-                    : 'Extend line at your recent growth rate'
+                    : `Project forward at ${(monthlyGrowthRate * 100).toFixed(2)} %/month compound (~${((((1 + monthlyGrowthRate) ** 12) - 1) * 100).toFixed(1)} % annualized)`
                 }
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   showProjection
@@ -628,7 +631,7 @@ export default function NetWorthPage() {
               const formattedValue = (value: number | undefined) => value === undefined ? '' : formatCurrency(value)
               // Anchor date is the last historical point; projection starts from here.
               const anchorDateIso = anchor?.date ?? new Date().toISOString().substring(0, 10)
-              const showProjectionLine = showProjection && avgMonthlyGrowth > 0
+              const showProjectionLine = showProjection && monthlyGrowthRate > 0
               return (
                 <ChartContainer height={320}>
                   <AreaChart data={chartData}>
@@ -821,7 +824,7 @@ export default function NetWorthPage() {
           <MilestonesTable
             rows={milestoneRows}
             currentNetWorth={currentNetWorth}
-            monthlyGrowth={avgMonthlyGrowth}
+            monthlyGrowthRate={monthlyGrowthRate}
           />
         </motion.div>
 

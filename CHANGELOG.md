@@ -6,6 +6,34 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.8.0 - 2026-04-29
+
+Audit-driven cleanup and accuracy pass. Comes out of `docs/AUDIT.md` which rated every page, chart, and calculation against the gold-standard personal-finance feature set.
+
+### Removed
+
+- **8 underperforming / dead analytics components** (~1 400 lines total) all in `frontend/src/components/analytics/`:
+  - Dead code: `SubcategoryAnalysis.tsx` (superseded by `EnhancedSubcategoryAnalysis`), `YearOverYearComparison.tsx` (never consumed).
+  - Retired from the Insights page: `SpendingVelocityGauge` (gauges are wrong for continuous metrics), `PeerComparisonBenchmarks` (invented peer data), `CategoryCorrelationAnalysis` (correlation numbers without actionable next step), `AccountActivityScore` (paired with the correlation widget - niche), `MonthlyFinancialReportCard` (duplicated Year-in-Review), `ExpenseElasticityChart` (duplicated lifestyle-creep signal).
+
+### Changed
+
+- **Insights page trimmed from 9 widgets to 3 strong ones** -- `IncomeStabilityIndex`, `LifestyleCreepDetection`, `SavingsMilestonesTimeline`. Each drives a specific decision: "how predictable is my cash flow", "is my spending quietly growing faster than income", "what big milestones have I hit / am I nearing".
+- **Net worth projection math fixed: linear regression -> compound (geometric)**. Savings and asset returns both compound, so the old linear model dramatically underestimated time-to-target. A user with ₹50L at 12 % annualized reaches ₹1Cr in ~6 years by compound, but ~17 years by linear extrapolation -- the UI now shows the realistic number. New helpers `computeMonthlyGrowthRate`, `projectNetWorthCompound`, and `buildMilestoneRowsCompound` use geometric mean over the last 12 monthly data points. Old linear helpers kept for backwards compatibility.
+- **Milestone summary bar now shows annualized %** instead of an absolute monthly rupee delta (the delta number was meaningless once the rate is compound). Hover tooltip still shows the approximate rupee gain at the current net worth.
+- **Dashboard default widget count reduced from 14 to 6** on first visit. Power users can still turn on the other 8 from Settings > Dashboard Widgets. New default set: Savings Rate, Top Spending, Top Income, Burn Rate, Daily Spending, Biggest Transaction.
+
+### Added
+
+- **Section 80CCD(1B) deduction input** in Tax Planning's regime-comparison form. Lets users claim the standalone ₹50 000 NPS Tier-1 deduction that sits over and above the 80C ₹1.5L cap -- a common miss for salaried NPS contributors.
+- **Advance Tax Schedule panel** on the Tax Planning page showing the four Indian deadlines (15 Jun / 15 Sep / 15 Dec / 15 Mar) with cumulative percentages (15 / 45 / 75 / 100) and amounts due based on the projected annual liability. Current-FY deadlines within 30 days are highlighted to dodge penalty interest under Sections 234B / 234C. Hidden when total tax is zero.
+
+### Tests
+
+- **10 new tests** for the compound-growth helpers in `netWorthProjection.test.ts`: edge cases (empty / single-point / zero / negative start), geometric-mean recovery against a synthetic 4 %/month series, compound-vs-linear horizon comparison, and compound milestone ETA solver accuracy. Frontend test count 104 -> 114.
+
+---
+
 ## 2.7.1 - 2026-04-29
 
 Polish patch -- Settings UX cleanup and a smarter auto-classifier, plus a new data-focused page catalog.

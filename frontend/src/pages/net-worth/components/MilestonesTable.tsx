@@ -10,7 +10,8 @@ import type { MilestoneRow } from '../netWorthProjection'
 interface MilestonesTableProps {
   readonly rows: readonly MilestoneRow[]
   readonly currentNetWorth: number
-  readonly monthlyGrowth: number
+  /** Compound monthly growth rate (decimal). 0.01 = 1 %/month (~12.7 % annualized). */
+  readonly monthlyGrowthRate: number
 }
 
 /** "3mo" / "1y 2mo" / "2y" */
@@ -135,11 +136,17 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
 export default function MilestonesTable({
   rows,
   currentNetWorth,
-  monthlyGrowth,
+  monthlyGrowthRate,
 }: MilestonesTableProps) {
   const stableCount = rows.filter((r) => r.stableSince !== null).length
   const reachedCount = rows.filter((r) => r.status === 'achieved').length
-  const hasGrowth = monthlyGrowth > 0
+  const hasGrowth = monthlyGrowthRate > 0
+  // Derive a human-readable annualized % from the compound monthly rate.
+  // ((1 + r)^12 - 1) * 100 -- e.g. 1 %/month -> 12.68 % annualized.
+  const annualizedPercent = hasGrowth ? (((1 + monthlyGrowthRate) ** 12) - 1) * 100 : 0
+  // And the approximate absolute monthly rupee gain at the CURRENT net worth.
+  // Shown alongside the % so the number is concrete, not just academic.
+  const approxMonthlyRupees = hasGrowth ? currentNetWorth * monthlyGrowthRate : 0
   const columns = buildColumns()
 
   if (rows.length === 0) {
@@ -161,12 +168,16 @@ export default function MilestonesTable({
           <span className="text-white font-semibold">{formatCurrency(currentNetWorth)}</span>
         </span>
         <span className="text-muted-foreground">
-          Avg monthly growth:{' '}
+          Growth rate:{' '}
           <span
             className={hasGrowth ? 'text-app-green font-semibold' : 'text-app-red font-semibold'}
+            title={
+              hasGrowth
+                ? `~${formatCurrency(Math.round(approxMonthlyRupees))}/mo at current net worth`
+                : 'Need positive growth to project forward'
+            }
           >
-            {hasGrowth ? '+' : ''}
-            {formatCurrency(Math.round(monthlyGrowth))}
+            {hasGrowth ? `+${annualizedPercent.toFixed(1)}%/yr` : 'stalled'}
           </span>
         </span>
         <span className="text-muted-foreground">
@@ -199,7 +210,8 @@ export default function MilestonesTable({
         <span className="text-app-green">Stable</span> means your net worth never dropped below
         that threshold after the crossing.{' '}
         <span className="text-app-yellow">Reached</span> means you crossed it but later dipped
-        below. ETAs assume your last 12 months of growth continues.
+        below. ETAs extrapolate your last 12 months of growth forward at a compound rate -- same
+        way a SIP or PPF/EPF balance actually grows.
       </p>
     </div>
   )

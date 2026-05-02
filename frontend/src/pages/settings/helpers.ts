@@ -19,17 +19,33 @@ export const DASHBOARD_WIDGETS = [
   { key: 'savings_rate', label: 'Savings Rate' },
   { key: 'top_spending', label: 'Top Spending Category' },
   { key: 'top_income', label: 'Top Income Source' },
+  { key: 'burn_rate', label: 'Monthly Burn Rate' },
+  { key: 'daily_spending', label: 'Average Daily Spending' },
+  { key: 'biggest_transaction', label: 'Biggest Transaction' },
   { key: 'cashback', label: 'Net Cashback Earned' },
   { key: 'total_transactions', label: 'Total Transactions' },
-  { key: 'biggest_transaction', label: 'Biggest Transaction' },
   { key: 'median_transaction', label: 'Median Transaction' },
-  { key: 'daily_spending', label: 'Average Daily Spending' },
   { key: 'weekend_spending', label: 'Weekend Spending' },
   { key: 'peak_day', label: 'Peak Spending Day' },
-  { key: 'burn_rate', label: 'Monthly Burn Rate' },
   { key: 'spending_diversity', label: 'Spending Diversity' },
   { key: 'avg_transaction', label: 'Avg Transaction Amount' },
   { key: 'total_transfers', label: 'Total Internal Transfers' },
+] as const
+
+/**
+ * Widgets shown by default on first visit. The Dashboard has 14 possible
+ * Quick Insight widgets in total, but showing them all makes the page feel
+ * cluttered and none of them feel important. These six are the ones an
+ * advisor would actually look at first; the rest are available via Settings
+ * > Dashboard Widgets for power users who want more.
+ */
+export const DEFAULT_VISIBLE_WIDGETS: readonly string[] = [
+  'savings_rate',
+  'top_spending',
+  'top_income',
+  'burn_rate',
+  'daily_spending',
+  'biggest_transaction',
 ] as const
 
 // ---------------------------------------------------------------------------
@@ -241,7 +257,9 @@ export function getStoredWidgets(): string[] {
   } catch {
     // localStorage unavailable or corrupted
   }
-  return DASHBOARD_WIDGETS.map((w) => w.key)
+  // First-time users see a focused 6-widget set instead of all 14. Power users
+  // can turn on the rest via Settings > Dashboard Widgets.
+  return [...DEFAULT_VISIBLE_WIDGETS]
 }
 
 export function getStoredTheme(): 'dark' | 'system' {
