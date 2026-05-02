@@ -81,9 +81,21 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-black/50 border-b border-border">
+    <div className="min-h-dvh flex flex-col">
+      {/*
+        PWA standalone mode has no browser chrome, so `fixed top-0` paints the
+        header flush against the device edge -- straight behind the iOS notch.
+        We bake env(safe-area-inset-top) into paddingTop so the logo and auth
+        button sit below the notch. Same horizontal trick for landscape.
+      */}
+      <header
+        className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-black/50 border-b border-border"
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
+        }}
+      >
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
@@ -118,8 +130,16 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 pt-20">
+      {/*
+        Main content sits below the fixed header. The header is ~80px tall
+        PLUS env(safe-area-inset-top) in PWA mode, so we add both here to
+        keep the hero section from sliding under the notch. On regular mobile
+        Safari inset-top is 0, so this degrades cleanly to the original 80px.
+      */}
+      <main
+        className="flex-1"
+        style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top, 0px))' }}
+      >
         {/* Hero Section */}
         <section className="relative overflow-hidden">
           {/* Background Effects */}
@@ -506,8 +526,12 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="py-8 border-t border-border">
+        {/* Footer -- safe-area padding so the home-indicator doesn't overlap
+            the tagline on iOS standalone. */}
+        <footer
+          className="py-8 border-t border-border"
+          style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <div className="max-w-6xl mx-auto px-6 text-center">
             <p className="text-sm text-text-tertiary">
               Made with ❤️ for better financial management

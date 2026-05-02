@@ -2,10 +2,17 @@ import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { CreditCard, AlertTriangle, CheckCircle } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
+import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { usePreferencesStore, selectCreditCardLimits } from '@/store/preferencesStore'
+
+// Backend enum value -- see backend/src/ledger_sync/db/_models/enums.py.
+// The TS type in accountClassifications.ts says 'Credit Card' (singular) but
+// the API actually returns 'Credit Cards'. We match the server string.
+const CREDIT_CARD_TYPE = 'Credit Cards'
 
 interface CreditCardAccount {
   name: string
@@ -19,8 +26,20 @@ interface CreditCardAccount {
 const DEFAULT_CREDIT_LIMIT = 100000
 
 export default function CreditCardHealth() {
-  const { data: balanceData, isLoading } = useAccountBalances()
+  const { data: balanceData, isLoading: isBalanceLoading } = useAccountBalances()
   const creditCardLimits = usePreferencesStore(selectCreditCardLimits)
+
+  // Primary classification source: user-maintained account types from
+  // Settings -> Accounts. Previously this component only looked for the
+  // literal word "credit" in the account name -- cards named "HDFC Millennia"
+  // or "Amazon Pay Card" were silently dropped.
+  const { data: classifications, isLoading: isClassifyLoading } = useQuery({
+    queryKey: ['account-classifications'],
+    queryFn: () => accountClassificationsService.getAllClassifications(),
+    staleTime: Infinity,
+  })
+
+  const isLoading = isBalanceLoading || isClassifyLoading
 
   const creditCards = useMemo((): CreditCardAccount[] => {
     if (!balanceData?.accounts) return []
@@ -28,8 +47,15 @@ export default function CreditCardHealth() {
     const cards: CreditCardAccount[] = []
 
     Object.entries(balanceData.accounts).forEach(([name, data]) => {
-      // Check if it's a credit card account
-      if (name.toLowerCase().includes('credit')) {
+      // Prefer the user's explicit classification. Fall back to the old name
+      // match only when the account hasn't been classified yet -- so users
+      // who haven't visited Settings > Accounts still see their cards.
+      const classifiedType = classifications?.[name]
+      const isClassifiedCreditCard = classifiedType === CREDIT_CARD_TYPE
+      const isNameHintedCreditCard =
+        !classifiedType && name.toLowerCase().includes('credit')
+
+      if (isClassifiedCreditCard || isNameHintedCreditCard) {
         const balance = Math.abs((data as { balance: number; transactions: number }).balance)
         const creditLimit = creditCardLimits[name] || DEFAULT_CREDIT_LIMIT
         const utilization = (balance / creditLimit) * 100
@@ -51,7 +77,7 @@ export default function CreditCardHealth() {
     })
 
     return cards.sort((a, b) => b.utilization - a.utilization)
-  }, [balanceData, creditCardLimits])
+  }, [balanceData, creditCardLimits, classifications])
 
   const totalBalance = creditCards.reduce((sum, c) => sum + c.balance, 0)
   const totalLimit = creditCards.reduce((sum, c) => sum + c.creditLimit, 0)
