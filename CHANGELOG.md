@@ -6,6 +6,101 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.9.0 - 2026-04-29
+
+Follow-up to 2.8.0's audit-driven cleanup: execute the remaining feature gaps that were flagged and delete the Insights page outright.
+
+### Removed
+
+- **Insights page deleted entirely.** The 2.8.0 audit already trimmed it to 3 widgets; user feedback confirmed the whole page was cruft. The route (`/insights`), sidebar + CommandPalette + MorePage entries, `ROUTES.INSIGHTS`, and the remaining three components (`IncomeStabilityIndex`, `LifestyleCreepDetection`, `SavingsMilestonesTimeline`) all gone. The dashboard, comparison, and individual analytics pages cover these insights natively -- there's no single "Insights" page anymore.
+
+### Added
+
+- **Barista FIRE variant** on the FIRE Calculator. New `computeBaristaFIRE()` helper and a monthly-income slider. Shows how much smaller your corpus needs to be when a part-time income covers some of your expenses (soft landing rather than cold stop). Layout bumped from 3 variant cards to 4 (Lean / Barista / Standard / Fat).
+- **Portfolio-level XIRR** metric on the Investment Analytics page. New shared `frontend/src/lib/xirr.ts` helper (extracted from the per-account implementation on the MF projection page, now DRY). Builds cashflows from every investment transfer plus the current total value as a final liquidation event, then solves via Newton-Raphson. Shows `-` when fewer than one dated flow exists or solver diverges.
+- **Subscription Tracker: "Saved per month" KPI** showing estimated monthly savings from deactivated recurring expense items (cancelled subs, paid-off EMIs, stopped gyms). Only appears once the user has at least one deactivated expense item.
+- **"Tune detection" link** from the Anomaly Review page header to Settings, making the existing sensitivity / threshold / anomaly-type preferences discoverable.
+
+### Changed
+
+- **Comparison page default is now FY-over-FY, not month-over-month.** FY is the cadence that drives tax + saving-rate decisions; month-over-month is dominated by one-off rent / bonus / travel noise.
+- **Comparison FY mode truncates both sides to the elapsed-day count when the selected period is the current (in-progress) FY.** Prevents the "last FY ₹24L vs this FY ₹4L = 83 % down!" artifact that appeared when the current FY was only two months in. Labels now read `FY24-25 (to same date)` vs `FY25-26 (YTD)` to make the truncation explicit.
+- **GST Analysis disclaimer rewritten** to be more explicit about what the numbers represent ("approximate only -- GST isn't line-itemed in bank statements, use for lifestyle-scale awareness, not for filing") and coloured warning-orange instead of info-blue so users don't mistake estimates for precision.
+- **XIRR implementation extracted to `frontend/src/lib/xirr.ts`** and consumed by both the MF projection page and the new Investment Analytics XIRR metric. Signature-identical to what was already in the MF projection file; now unit-tested.
+
+### Tests
+
+- **Frontend test count 114 -> 123.** 5 new tests for `computeBaristaFIRE` (zero / partial / full-coverage / zero-SWR edge cases), 4 for `calculateXIRR` (empty, two-flow 10 %, monthly-SIP, divergent same-sign), updated the `computeFIRE` orchestrator test to cover the new `baristaFIRE` field.
+
+---
+
+## 2.8.0 - 2026-04-29
+
+Audit-driven cleanup and accuracy pass. Comes out of `docs/AUDIT.md` which rated every page, chart, and calculation against the gold-standard personal-finance feature set.
+
+### Removed
+
+- **8 underperforming / dead analytics components** (~1 400 lines total) all in `frontend/src/components/analytics/`:
+  - Dead code: `SubcategoryAnalysis.tsx` (superseded by `EnhancedSubcategoryAnalysis`), `YearOverYearComparison.tsx` (never consumed).
+  - Retired from the Insights page: `SpendingVelocityGauge` (gauges are wrong for continuous metrics), `PeerComparisonBenchmarks` (invented peer data), `CategoryCorrelationAnalysis` (correlation numbers without actionable next step), `AccountActivityScore` (paired with the correlation widget - niche), `MonthlyFinancialReportCard` (duplicated Year-in-Review), `ExpenseElasticityChart` (duplicated lifestyle-creep signal).
+
+### Changed
+
+- **Insights page trimmed from 9 widgets to 3 strong ones** -- `IncomeStabilityIndex`, `LifestyleCreepDetection`, `SavingsMilestonesTimeline`. Each drives a specific decision: "how predictable is my cash flow", "is my spending quietly growing faster than income", "what big milestones have I hit / am I nearing".
+- **Net worth projection math fixed: linear regression -> compound (geometric)**. Savings and asset returns both compound, so the old linear model dramatically underestimated time-to-target. A user with ₹50L at 12 % annualized reaches ₹1Cr in ~6 years by compound, but ~17 years by linear extrapolation -- the UI now shows the realistic number. New helpers `computeMonthlyGrowthRate`, `projectNetWorthCompound`, and `buildMilestoneRowsCompound` use geometric mean over the last 12 monthly data points. Old linear helpers kept for backwards compatibility.
+- **Milestone summary bar now shows annualized %** instead of an absolute monthly rupee delta (the delta number was meaningless once the rate is compound). Hover tooltip still shows the approximate rupee gain at the current net worth.
+- **Dashboard default widget count reduced from 14 to 6** on first visit. Power users can still turn on the other 8 from Settings > Dashboard Widgets. New default set: Savings Rate, Top Spending, Top Income, Burn Rate, Daily Spending, Biggest Transaction.
+
+### Added
+
+- **Section 80CCD(1B) deduction input** in Tax Planning's regime-comparison form. Lets users claim the standalone ₹50 000 NPS Tier-1 deduction that sits over and above the 80C ₹1.5L cap -- a common miss for salaried NPS contributors.
+- **Advance Tax Schedule panel** on the Tax Planning page showing the four Indian deadlines (15 Jun / 15 Sep / 15 Dec / 15 Mar) with cumulative percentages (15 / 45 / 75 / 100) and amounts due based on the projected annual liability. Current-FY deadlines within 30 days are highlighted to dodge penalty interest under Sections 234B / 234C. Hidden when total tax is zero.
+
+### Tests
+
+- **10 new tests** for the compound-growth helpers in `netWorthProjection.test.ts`: edge cases (empty / single-point / zero / negative start), geometric-mean recovery against a synthetic 4 %/month series, compound-vs-linear horizon comparison, and compound milestone ETA solver accuracy. Frontend test count 104 -> 114.
+
+---
+
+## 2.7.1 - 2026-04-29
+
+Polish patch -- Settings UX cleanup and a smarter auto-classifier, plus a new data-focused page catalog.
+
+### Changed
+
+- **Settings sections are collapsed by default.** The `Section` primitive (`frontend/src/pages/settings/sectionPrimitives.tsx`) now defaults `defaultCollapsed` to `true`, so opening Settings shows a scannable list of headers instead of a wall of forms. Dropped the per-mode override on `AIAssistantSection` (was auto-expanding when the user was configured) and the redundant `defaultCollapsed={true}` on `AdvancedSection` so every section has a uniform baseline.
+- **Auto-account classification now studies balance data, not just account names.** `getDefaultClassifications` in `frontend/src/pages/settings/helpers.ts` gained an optional `accountStats` argument and applies a balance-sign refinement pass to anything the keyword dictionary couldn't classify: negative balance + activity -> **Credit Cards**, positive balance + >=3 transactions -> **Bank Accounts**. User-saved classifications still win. Keyword list also extended with Indian card brands the old dictionary missed (Jupiter Edge, OneCard, Slice, Millennia, SimplyCLICK, Regalia, Swiggy HDFC, Amazon Pay ICICI, Flipkart Axis, Amex, Diners) and `jupiter` (neobank).
+
+### Added
+
+- **`docs/PAGES.md`** -- new data-focused catalog documenting every page in the app: what each one shows, the tables/endpoints it reads from, the decisions it helps the user make. Written for "what can I learn from this app?" rather than "how is this built?".
+
+---
+
+## 2.7.0 - 2026-04-29
+
+Mobile PWA polish landed in three stacked PRs (#126 / #127 / #128). The app now installs on iPhone/Android home screens like a native-feeling finance app, with a bottom tab bar for phone-sized viewports and a full-bleed app icon.
+
+### Added
+
+- **Bottom tab bar** for phone viewports (`<lg` breakpoint). `Home / Txns / Flow / More` with a Framer-Motion shared-element active pill and 52px touch targets. Hidden on desktop (sidebar stays).
+- **`/more` route + `MorePage.tsx`** -- grid menu grouping every route that didn't earn a tab slot (Analytics, Investments, Planning, Tax, Data) + sign-out.
+- **Full-bleed PWA app icon** -- uses the same PiggyBank glyph on the blue-to-indigo gradient as the web header. `pwa-assets.config.ts` overrides `minimal-2023`'s apple-touch transform to `padding: 0` + transparent background so the gradient paints edge-to-edge; iOS applies its own squircle mask on install. No more white-ring "unfinished-app" look on the home screen.
+
+### Changed
+
+- **`h-screen` -> `h-dvh`** in `AppLayout` and `Sidebar` so the viewport tracks the dynamic-viewport-height API. No more content jumping when the mobile address bar toggles.
+- **Safe-area insets wired through** the sticky `PageHeader`, chat widget / panel, and `HomePage` header. Sticky headers bake `env(safe-area-inset-top)` into padding so titles don't render behind the iOS notch in standalone mode. Main content gets `pb-safe` so the last row clears the home indicator. `ChatWidget` respects `safe-area-inset-right` for landscape on notched devices.
+- **`theme-color` aligned to `#000000`** (was `#09090b`) in both `index.html` and the PWA manifest so the status bar blends into the app black -- no seam at the top.
+- **Body/HTML reset** in `index.css`: `margin: 0`, `padding: 0`, `overscroll-behavior-y: none`, `html { height: 100% }`, `#root { height: 100% }` so `h-dvh` has a reference and rubber-band scroll doesn't flash white behind the notch.
+- **`CreditCardHealth` widget now uses the user's account classifications** instead of substring-grepping `"credit"` in account names. Cards like "HDFC Millennia" or "Amazon Pay Card" were silently dropped before. Falls back to the old name match only when an account has no classification yet.
+
+### Fixed
+
+- **HomePage layout shifted up behind the notch in PWA standalone mode.** The landing page lives outside `AppLayout` so the safe-area work from the other PRs didn't reach it. Header padding-top/left/right now use `env(safe-area-inset-*)`; main's `pt-20` becomes `calc(5rem + inset-top)`; footer gets `inset-bottom`. `h-screen` -> `min-h-dvh` matches the rest of the app.
+
+---
+
 ## 2.5.0 - 2026-04-26
 
 Major AI chat upgrade: the bot can now answer questions about *any* of your data, not just the six fields we pre-loaded into the system prompt.

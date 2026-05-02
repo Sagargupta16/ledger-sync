@@ -2,9 +2,9 @@
 
 **See where every rupee goes.** Import your bank statements, get instant insights, and finally understand your money -- all from a single, self-hosted dashboard you actually own.
 
-No subscriptions. No data harvesting. Just 24 pages of analytics built from your own Excel exports, running on your own infrastructure.
+No subscriptions. No data harvesting. Just a focused set of analytics pages built from your own Excel exports, running on your own infrastructure.
 
-![Version](https://img.shields.io/badge/version-2.1.0-green.svg)
+![Version](https://img.shields.io/badge/version-2.9.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![React](https://img.shields.io/badge/react-19-blue.svg)
@@ -14,13 +14,16 @@ No subscriptions. No data harvesting. Just 24 pages of analytics built from your
 
 ## Features
 
-### AI Finance Chatbot (BYOK)
+### AI Finance Chatbot (tool-calling, app or BYOK)
 
 - **Chat with your financial data** -- floating widget in the bottom-right corner, ask any question about your spending, trends, tax, or goals
-- **Bring Your Own Key** -- configure OpenAI, Anthropic, or AWS Bedrock in Settings; your API key is encrypted at rest with AES-256-GCM
-- **Provider choice** -- latest models supported: OpenAI (O3, O4 Mini, GPT-4.1 family, GPT-4o), Anthropic (Claude Opus 4.7, Sonnet 4.6, Haiku 4.5), AWS Bedrock (same Claude models via Bedrock)
-- **Full financial context** -- the AI sees compressed summaries of your monthly spending, categories, recurring bills, net worth, and goals (~2-4K tokens)
-- **Token-by-token streaming** -- see responses appear as they're generated
+- **Two modes:**
+  - **App mode (default)** -- zero setup, works immediately for every new user. Uses the server's shared Bedrock key, rate-limited to 10 messages/day (configurable via `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT`)
+  - **BYOK mode** -- paste your own OpenAI / Anthropic / AWS Bedrock key in Settings for unlimited use; your key is encrypted at rest with AES-256-GCM and per-user daily/monthly token caps are available
+- **Tool calling (not context stuffing)** -- the bot has 15 read-only tools (`search_transactions`, `get_monthly_summary`, `get_net_worth`, `get_fy_summary`, `get_category_spending`, `list_recurring`, `list_goals`, `get_investment_holdings`, and more) and picks what to call based on your question. Works across OpenAI, Anthropic, and Bedrock with a shared tool schema
+- **Latest models** -- OpenAI (O3, O4 Mini, GPT-4.1, GPT-4o), Anthropic (Claude Opus 4.7, Sonnet 4.6, Haiku 4.5), AWS Bedrock (same Claude models)
+- **Usage tracking** -- every round-trip is logged (tokens in/out, estimated USD); today / month-to-date / all-time rollups visible in the chat widget badge
+- **User-scoped** -- every tool is enforced at the FastAPI dependency level with `CurrentUser`; the LLM cannot see another user's data
 - **Hidden in demo mode** -- chat widget only appears when you're logged in
 
 ### Demo Mode
@@ -64,7 +67,7 @@ No subscriptions. No data harvesting. Just 24 pages of analytics built from your
 
 - **India FY tax estimation** -- old vs new regime comparison, slab breakdown, surcharge, cess
 - **Salary-based projections** -- input your CTC structure, RSU grants, and growth assumptions to project multi-year tax liability
-- **FIRE Calculator** -- compute FIRE number, Coast FIRE, years to FIRE, and savings rate from your actual spending data; Lean/Standard/Fat FIRE variants with adjustable SWR, real return, and retirement horizon
+- **FIRE Calculator** -- compute FIRE number, Coast FIRE, years to FIRE, and savings rate from your actual spending data; Lean / **Barista** / Standard / Fat FIRE variants with adjustable SWR, real return, retirement horizon, and part-time-income slider (for soft-landing planning)
 - **Retirement corpus calculator** -- inflation-adjusted corpus, monthly SIP needed, lump-sum alternative, with projection chart
 
 ### Analytics & Insights
@@ -197,32 +200,32 @@ ledger-sync/
 
 ## Pages
 
-| Page                       | Description                                         |
-| -------------------------- | --------------------------------------------------- |
-| **Home**                   | Landing page                                        |
-| **Dashboard**              | Overview with KPIs, sparklines, and quick insights  |
-| **Upload & Sync**          | Drag-and-drop upload with sample format preview     |
-| **Transactions**           | Full transaction list with filters and search       |
-| **Spending Analysis**      | 50/30/20 rule, treemap, top merchants, subcategories|
-| **Income Analysis**        | Income sources, growth tracking, breakdown          |
-| **Comparison**             | Period-over-period financial comparison              |
-| **Trends & Forecasts**     | Trend lines, rolling averages, cash flow forecast   |
-| **Cash Flow**              | Sankey diagram of money flow                        |
-| **Investment Analytics**   | Portfolio across 4 categories                       |
-| **Mutual Fund Projection** | SIP calculator and projections                      |
-| **Returns Analysis**       | Investment returns tracking                         |
-| **Tax Planning**           | India FY tax estimation with salary-based projections |
-| **Indirect Tax (GST)**     | GST estimation by slab rate, monthly trends, category breakdown |
-| **FIRE Calculator**        | FIRE number, Coast FIRE, retirement corpus planner  |
-| **Net Worth**              | Assets, liabilities, and credit card health         |
-| **Budget**                 | Budget tracking and monitoring                      |
-| **Goals**                  | Financial goal setting and progress                 |
-| **Insights**               | Advanced analytics (velocity, stability, milestones)|
-| **Anomaly Review**         | Flag and review unusual transactions                |
-| **Year in Review**         | Annual financial summary                            |
-| **Subscription Tracker**   | Recurring expense detection, confirm/add manually   |
-| **Bill Calendar**          | Monthly calendar view of upcoming bills             |
-| **Settings**               | Preferences, account mappings, categories           |
+Every page focuses on a specific question you'd ask about your money. A one-line summary is below; for the **detailed data catalog** -- what each page shows, where the numbers come from, and what decisions it helps you make -- see **[docs/PAGES.md](docs/PAGES.md)**.
+
+| Page | Answers |
+| --- | --- |
+| **Home / Dashboard** | "What happened this month at a glance?" |
+| **Transactions** | "Give me the raw ledger." |
+| **Cash Flow (Sankey)** | "Where did my income actually go?" |
+| **Expense Analysis** | "Am I overspending, and on what?" (50/30/20, treemap, top merchants) |
+| **Income Analysis** | "Where does my money come from?" (by tax bucket) |
+| **Comparison** | "How does this month / FY compare to last?" |
+| **Year in Review** | "Full-year retrospective" (Spotify-Wrapped-style) |
+| **Net Worth** | "What am I actually worth today?" (assets vs liabilities, trend) |
+| **Trends & Forecasts** | "Where is my wealth trending?" (regression + projection) |
+| **Investment Analytics** | "How is my portfolio doing?" (across 8 investment types) |
+| **SIP Projections** | "What will my SIPs be worth later?" |
+| **Returns Analysis** | "Which holdings are winners?" (XIRR + CAGR ranking) |
+| **Recurring / Subscriptions** | "What's auto-draining my account?" (detected + user-confirmed) |
+| **Bill Calendar** | "What's due when?" (month grid with paid/missed indicators) |
+| **Budgets** | "Am I staying within limits this month?" |
+| **Goals** | "How close am I to my savings goals?" |
+| **FIRE Calculator** | "When can I retire?" (Lean / Barista / Standard / Fat variants) |
+| **Anomaly Review** | "Did anything weird happen?" |
+| **Income Tax Planning** | "What will I owe this FY?" (Old vs New regime, multi-year projection) |
+| **GST Analysis** | "What indirect tax did I pay?" |
+| **Upload & Sync** | "How do I add more data?" |
+| **Settings** | "Configure the app." (11 sections; all collapsed by default) |
 
 ## Deployment
 

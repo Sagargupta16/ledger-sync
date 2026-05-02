@@ -20,12 +20,15 @@ export default function RegimeComparison({
   salaryMonthsCount,
 }: Readonly<Props>) {
   const [sec80C, setSec80C] = useState(0)
+  const [sec80CCD1B, setSec80CCD1B] = useState(0)
   const [sec80D, setSec80D] = useState(0)
   const [hra, setHra] = useState(0)
   const [sec24b, setSec24b] = useState(0)
   const [showDeductions, setShowDeductions] = useState(false)
 
-  const totalDeductions = sec80C + sec80D + hra + sec24b
+  // 80CCD(1B) is a standalone ₹50k additional deduction for NPS Tier-1 contributions,
+  // over and above the 80C 1.5L cap. Many salaried users miss it.
+  const totalDeductions = sec80C + sec80CCD1B + sec80D + hra + sec24b
 
   const newTax = calculateTax(
     grossIncome,
@@ -133,13 +136,20 @@ export default function RegimeComparison({
         </button>
 
         {showDeductions && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
             <DeductionInput
               label="Sec 80C"
               sublabel="PPF, ELSS, LIC (max 1.5L)"
               value={sec80C}
               max={150000}
               onChange={setSec80C}
+            />
+            <DeductionInput
+              label="Sec 80CCD(1B)"
+              sublabel="Extra NPS (max 50K, over 80C)"
+              value={sec80CCD1B}
+              max={50000}
+              onChange={setSec80CCD1B}
             />
             <DeductionInput
               label="Sec 80D"

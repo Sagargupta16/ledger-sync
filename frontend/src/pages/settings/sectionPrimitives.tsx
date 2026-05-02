@@ -17,13 +17,19 @@ export function Section({
   title,
   description,
   children,
-  defaultCollapsed = false,
+  defaultCollapsed = true,
 }: Readonly<{
   index: number
   icon: React.ElementType
   title: string
   description?: string
   children: React.ReactNode
+  /**
+   * Whether the section is collapsed on first render. Defaults to true so the
+   * Settings page opens as a scannable list of headers, not a wall of open
+   * forms. Pass `false` for a section that needs to be immediately visible
+   * (e.g. a hero or empty-state prompt).
+   */
   defaultCollapsed?: boolean
 }>) {
   const [expanded, setExpanded] = useState(!defaultCollapsed)

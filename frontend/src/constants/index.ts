@@ -43,10 +43,9 @@ export const ROUTES = {
   // FIRE & Retirement
   FIRE_CALCULATOR: '/fire-calculator',
 
-  // Insights & Monitoring
+  // Monitoring
   ANOMALIES: '/anomalies',
   GOALS: '/goals',
-  INSIGHTS: '/insights',
   SUBSCRIPTIONS: '/subscriptions',
   BILL_CALENDAR: '/bill-calendar',
 

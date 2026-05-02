@@ -3,10 +3,13 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_MILESTONES,
   buildMilestoneRows,
+  buildMilestoneRowsCompound,
   computeAvgMonthlyGrowth,
+  computeMonthlyGrowthRate,
   downsampleToMonthly,
   type MilestoneRow,
   projectNetWorth,
+  projectNetWorthCompound,
 } from '../netWorthProjection'
 
 function requireRow(rows: readonly MilestoneRow[], label: string): MilestoneRow {
@@ -214,6 +217,116 @@ describe('projectNetWorth', () => {
     expect(pts[0].date).toBe('2024-02-01')
     expect(pts[1].date).toBe('2024-03-01')
     expect(pts[2].date).toBe('2024-04-01')
+  })
+})
+
+describe('computeMonthlyGrowthRate (compound, geometric mean)', () => {
+  it('returns 0 with fewer than two monthly data points', () => {
+    expect(computeMonthlyGrowthRate([])).toBe(0)
+    expect(computeMonthlyGrowthRate([{ date: '2024-01-01', netWorth: 100 }])).toBe(0)
+  })
+
+  it('returns 0 when start value is non-positive', () => {
+    expect(
+      computeMonthlyGrowthRate([
+        { date: '2024-01-31', netWorth: 0 },
+        { date: '2024-02-29', netWorth: 100_000 },
+      ]),
+    ).toBe(0)
+    expect(
+      computeMonthlyGrowthRate([
+        { date: '2024-01-31', netWorth: -5_000 },
+        { date: '2024-02-29', netWorth: 100_000 },
+      ]),
+    ).toBe(0)
+  })
+
+  it('recovers a known monthly rate over a synthetic series', () => {
+    // 100_000 -> 161_051 over 12 months is exactly 4%/month compound
+    // (1.04^12 = ~1.60103... so close enough; we use an explicit generator)
+    const series: Array<{ date: string; netWorth: number }> = []
+    let v = 100_000
+    for (let m = 0; m <= 12; m++) {
+      const month = String(m + 1).padStart(2, '0')
+      const endOfMonth = m < 9 ? `2024-${month}-28` : `2025-${String(m - 11).padStart(2, '0')}-28`
+      series.push({ date: m < 12 ? `2024-${month}-28` : endOfMonth, netWorth: v })
+      v *= 1.04
+    }
+    const rate = computeMonthlyGrowthRate(series, 12)
+    expect(rate).toBeCloseTo(0.04, 4)
+  })
+
+  it('rate of 0 when net worth is flat', () => {
+    const series = [
+      { date: '2024-01-31', netWorth: 500_000 },
+      { date: '2024-02-29', netWorth: 500_000 },
+      { date: '2024-03-31', netWorth: 500_000 },
+    ]
+    expect(computeMonthlyGrowthRate(series)).toBe(0)
+  })
+})
+
+describe('projectNetWorthCompound', () => {
+  it('returns empty for zero horizon', () => {
+    expect(
+      projectNetWorthCompound({ date: '2024-01-01', netWorth: 100_000 }, 0.01, 0),
+    ).toEqual([])
+  })
+
+  it('grows geometrically at the given rate', () => {
+    const pts = projectNetWorthCompound({ date: '2024-01-01', netWorth: 100_000 }, 0.05, 3)
+    expect(pts).toHaveLength(3)
+    expect(pts[0].netWorth).toBeCloseTo(105_000, 0)
+    expect(pts[1].netWorth).toBeCloseTo(110_250, 0)
+    expect(pts[2].netWorth).toBeCloseTo(115_762.5, 0)
+    expect(pts[0].date).toBe('2024-02-01')
+    expect(pts[2].date).toBe('2024-04-01')
+  })
+
+  it('outpaces linear projection for longer horizons (the actual user-facing win)', () => {
+    const anchor = { date: '2024-01-01', netWorth: 5_000_000 }
+    const monthlyRate = 0.01 // ~12.68%/year
+    // Equivalent ABSOLUTE gain at anchor for linear comparison
+    const monthlyAbsolute = anchor.netWorth * monthlyRate // ₹50k/month at anchor
+    const linearPt = projectNetWorth(anchor, monthlyAbsolute, 60).at(-1)!
+    const compoundPt = projectNetWorthCompound(anchor, monthlyRate, 60).at(-1)!
+    // Linear says 5M + 50k*60 = 8M. Compound says 5M * 1.01^60 = ~9.08M.
+    // Compound must be meaningfully larger so our milestone ETAs are sooner.
+    expect(compoundPt.netWorth).toBeGreaterThan(linearPt.netWorth * 1.1)
+  })
+})
+
+describe('buildMilestoneRowsCompound', () => {
+  it('returns all-upcoming with nulls for empty series', () => {
+    const rows = buildMilestoneRowsCompound([], null, 0.01)
+    expect(rows).toHaveLength(DEFAULT_MILESTONES.length)
+    expect(rows.every((r) => r.status === 'upcoming' && r.date === null)).toBe(true)
+  })
+
+  it('sets upcoming ETA using log-based solver for positive rate', () => {
+    const series = [
+      { date: '2024-01-31', netWorth: 500_000 },
+      { date: '2024-02-29', netWorth: 515_000 }, // ~3%/month-ish
+    ]
+    const anchor = series.at(-1)
+    if (!anchor) throw new Error('anchor required')
+    const rows = buildMilestoneRowsCompound(series, anchor, 0.03)
+
+    const row10L = requireRow(rows, '₹10L')
+    expect(row10L.status).toBe('upcoming')
+    // ln(1_000_000 / 515_000) / ln(1.03) ≈ 22.5 months
+    expect(row10L.distance).toBeGreaterThan(20)
+    expect(row10L.distance).toBeLessThan(25)
+  })
+
+  it('marks all upcoming dates as null when rate is non-positive', () => {
+    const series = [
+      { date: '2024-01-31', netWorth: 500_000 },
+      { date: '2024-02-29', netWorth: 500_000 },
+    ]
+    const rows = buildMilestoneRowsCompound(series, series[1], 0)
+    const upcomingRows = rows.filter((r) => r.status === 'upcoming')
+    expect(upcomingRows.every((r) => r.date === null && r.distance === null)).toBe(true)
   })
 })
 

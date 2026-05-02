@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, Check, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, Check, X, ChevronDown, ChevronUp, Settings2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { PageHeader, StatCard } from '@/components/ui'
+import { ROUTES } from '@/constants'
 import { useAnomalies, useReviewAnomaly } from '@/hooks/api/useAnalyticsV2'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
@@ -77,6 +79,16 @@ export default function AnomalyReviewPage() {
       <PageHeader
         title="Anomaly Review Board"
         subtitle="Review and manage detected financial anomalies"
+        action={
+          <Link
+            to={ROUTES.SETTINGS}
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-white/[0.02] hover:bg-white/[0.05] text-muted-foreground hover:text-white transition-colors"
+            title="Tune sensitivity, threshold, and which anomaly types are active"
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+            <span>Tune detection</span>
+          </Link>
+        }
       />
 
       {/* Summary Cards */}

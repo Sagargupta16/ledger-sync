@@ -27,6 +27,7 @@ import TaxPageActions from './components/TaxPageActions'
 import TaxTip from './components/TaxTip'
 import RegimeComparison from './components/RegimeComparison'
 import MultiYearProjectionTable from './components/MultiYearProjectionTable'
+import AdvanceTaxSchedule from './components/AdvanceTaxSchedule'
 
 export default function TaxPlanningPage() {
   const {
@@ -140,6 +141,14 @@ export default function TaxPlanningPage() {
                   totalIncome={display.income}
                   totalExpense={expense}
                   isProjecting={useSalaryProjection}
+                />
+              </motion.div>
+
+              <motion.div variants={fadeUpItem}>
+                <AdvanceTaxSchedule
+                  annualTax={display.totalTax}
+                  fyStartYear={fyYear}
+                  isCurrentFY={isCurrentFY}
                 />
               </motion.div>
 

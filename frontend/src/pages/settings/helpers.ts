@@ -19,26 +19,55 @@ export const DASHBOARD_WIDGETS = [
   { key: 'savings_rate', label: 'Savings Rate' },
   { key: 'top_spending', label: 'Top Spending Category' },
   { key: 'top_income', label: 'Top Income Source' },
+  { key: 'burn_rate', label: 'Monthly Burn Rate' },
+  { key: 'daily_spending', label: 'Average Daily Spending' },
+  { key: 'biggest_transaction', label: 'Biggest Transaction' },
   { key: 'cashback', label: 'Net Cashback Earned' },
   { key: 'total_transactions', label: 'Total Transactions' },
-  { key: 'biggest_transaction', label: 'Biggest Transaction' },
   { key: 'median_transaction', label: 'Median Transaction' },
-  { key: 'daily_spending', label: 'Average Daily Spending' },
   { key: 'weekend_spending', label: 'Weekend Spending' },
   { key: 'peak_day', label: 'Peak Spending Day' },
-  { key: 'burn_rate', label: 'Monthly Burn Rate' },
   { key: 'spending_diversity', label: 'Spending Diversity' },
   { key: 'avg_transaction', label: 'Avg Transaction Amount' },
   { key: 'total_transfers', label: 'Total Internal Transfers' },
+] as const
+
+/**
+ * Widgets shown by default on first visit. The Dashboard has 14 possible
+ * Quick Insight widgets in total, but showing them all makes the page feel
+ * cluttered and none of them feel important. These six are the ones an
+ * advisor would actually look at first; the rest are available via Settings
+ * > Dashboard Widgets for power users who want more.
+ */
+export const DEFAULT_VISIBLE_WIDGETS: readonly string[] = [
+  'savings_rate',
+  'top_spending',
+  'top_income',
+  'burn_rate',
+  'daily_spending',
+  'biggest_transaction',
 ] as const
 
 // ---------------------------------------------------------------------------
 // Helper functions
 // ---------------------------------------------------------------------------
 
-// Keyword-to-classification lookup tables (ordered by priority)
+// Keyword-to-classification lookup tables (ordered by priority).
+//
+// Credit-card keywords are intentionally generous -- cards in India are often
+// branded ("Swiggy HDFC", "Amazon Pay ICICI", "Flipkart Axis", "Jupiter Edge",
+// "OneCard", "Slice", "Uni"). Bank names overlap heavily with card names, so
+// we disambiguate later using the account's balance sign.
 const ACCOUNT_CLASSIFICATION_RULES: Array<{ keywords: string[]; endsWith?: string[]; classification: string }> = [
-  { keywords: ['credit card', 'cc ', 'amex'], classification: 'Credit Cards' },
+  {
+    keywords: [
+      'credit card', ' cc', 'cc ', 'amex', 'diners',
+      'jupiter edge', 'onecard', 'slice', ' uni ',
+      'millennia', 'simplyclick', 'simply click', 'regalia',
+      'swiggy hdfc', 'amazon pay icici', 'amazon pay ', 'flipkart axis',
+    ],
+    classification: 'Credit Cards',
+  },
   {
     keywords: [
       'epf', 'ppf', 'nps', 'mutual fund', ' mf', 'groww', 'zerodha', 'kuvera',
@@ -52,7 +81,7 @@ const ACCOUNT_CLASSIFICATION_RULES: Array<{ keywords: string[]; endsWith?: strin
     keywords: [
       'bank', 'checking', 'salary', 'savings', 'saving',
       'hdfc', 'icici', 'sbi', 'axis', 'kotak', 'bob', 'pnb', 'canara', 'idfc',
-      'yes bank', 'indusind', 'rbl', 'federal', 'bandhan', 'union bank',
+      'yes bank', 'indusind', 'rbl', 'federal', 'bandhan', 'union bank', 'jupiter',
     ],
     classification: 'Bank Accounts',
   },
@@ -67,11 +96,67 @@ function matchClassification(lower: string, rules: Array<{ keywords: string[]; e
   return null
 }
 
-/** Derive default account classifications from account names by keyword matching */
-export function getDefaultClassifications(accountNames: string[]): Record<string, string> {
+export interface AccountStats {
+  balance: number
+  transactions: number
+}
+
+/**
+ * Apply balance-sign heuristics for accounts that keyword matching couldn't
+ * classify, or where keywords conflict with the observed behavior.
+ *
+ * Rationale -- in Indian personal-finance software:
+ *   - Credit cards typically show a negative balance (what you owe the bank)
+ *   - Bank accounts, cash, and investments show positive balances
+ *   - Dormant accounts (0 balance, very few transactions) don't need a strong
+ *     guess; "Other Wallets" is the honest default
+ *
+ * Keyword rules always win when they match. This pass only fires for names
+ * the keyword layer left at "Other Wallets". That keeps the behaviour
+ * backwards-compatible for users whose accounts followed the old convention.
+ */
+function refineWithBalance(
+  keywordGuess: string,
+  stats: AccountStats | undefined,
+): string {
+  if (keywordGuess !== 'Other Wallets' || !stats) return keywordGuess
+  if (stats.transactions === 0) return keywordGuess
+
+  // Consistent liability signal -- default to Credit Cards rather than Loans
+  // because cards outnumber personal loans for most users; loans also usually
+  // have the word "loan" in the name and would already have matched.
+  if (stats.balance < 0) return 'Credit Cards'
+
+  // Positive balance with meaningful activity -- most likely a bank/wallet
+  // that just doesn't match any of our keyword dictionaries. Picking
+  // "Bank Accounts" over "Cash" because real users rarely have large cash
+  // holdings but often have bank accounts with non-obvious names.
+  if (stats.balance > 0 && stats.transactions >= 3) return 'Bank Accounts'
+
+  return keywordGuess
+}
+
+/**
+ * Derive default account classifications.
+ *
+ * Two-pass heuristic:
+ *   1. Match each account name against the keyword rule table.
+ *   2. For anything still "Other Wallets", look at the account's observed
+ *      balance + transaction count (if provided) and use balance sign as a
+ *      fallback signal.
+ *
+ * `accountStats` is optional so existing call sites that only have names
+ * keep working unchanged; the balance-based refinement simply doesn't fire.
+ */
+export function getDefaultClassifications(
+  accountNames: string[],
+  accountStats?: Record<string, AccountStats>,
+): Record<string, string> {
   const defaults: Record<string, string> = {}
   for (const name of accountNames) {
-    defaults[name] = matchClassification(name.toLowerCase(), ACCOUNT_CLASSIFICATION_RULES) ?? 'Other Wallets'
+    const keywordGuess =
+      matchClassification(name.toLowerCase(), ACCOUNT_CLASSIFICATION_RULES) ?? 'Other Wallets'
+    defaults[name] = refineWithBalance(keywordGuess, accountStats?.[name])
   }
   return defaults
 }
@@ -172,7 +257,9 @@ export function getStoredWidgets(): string[] {
   } catch {
     // localStorage unavailable or corrupted
   }
-  return DASHBOARD_WIDGETS.map((w) => w.key)
+  // First-time users see a focused 6-widget set instead of all 14. Power users
+  // can turn on the rest via Settings > Dashboard Widgets.
+  return [...DEFAULT_VISIBLE_WIDGETS]
 }
 
 export function getStoredTheme(): 'dark' | 'system' {

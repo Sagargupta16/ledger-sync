@@ -235,9 +235,6 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       icon={Sparkles}
       title="AI Assistant"
       description="Chat with your financial data"
-      // Keep collapsed initially only when the user hasn't set anything up.
-      // App-mode users are considered "set up" because they can chat right away.
-      defaultCollapsed={mode === 'byok' && !config?.has_key}
     >
       <div className="space-y-4">
         {/* Mode picker -- stacked cards so each option's trade-offs fit. */}

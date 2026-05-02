@@ -12,6 +12,14 @@ export interface FIREResult {
   coastFIRE: number
   leanFIRE: number
   fatFIRE: number
+  /**
+   * Barista FIRE: the corpus needed when you plan to cover part of your
+   * expenses with ongoing part-time / passion-work income in retirement.
+   * Portfolio only needs to fund (annual expenses - part-time income) / SWR,
+   * which is materially smaller than full FIRE for anyone planning a soft
+   * landing rather than a cold stop.
+   */
+  baristaFIRE: number
   yearsToFIRE: number
   currentSavingsRate: number
 }
@@ -58,6 +66,24 @@ export function computeLeanFIRE(essentialAnnualExpenses: number, swr = 0.03): nu
  */
 export function computeFatFIRE(fireNumber: number): number {
   return Math.round(fireNumber * 2)
+}
+
+/**
+ * Barista FIRE = (annual expenses - expected part-time annual income) / SWR
+ *
+ * The assumption: post-FIRE you work a low-stress part-time gig that
+ * covers some of your expenses. Your portfolio only has to fund the gap.
+ * Clamps at zero when part-time income fully covers expenses (portfolio not
+ * required -- you're just working forever, which is fine if it's by choice).
+ */
+export function computeBaristaFIRE(
+  annualExpenses: number,
+  partTimeAnnualIncome: number,
+  swr = 0.03,
+): number {
+  if (swr <= 0) return 0
+  const gap = Math.max(0, annualExpenses - partTimeAnnualIncome)
+  return Math.round(gap / swr)
 }
 
 /**
@@ -111,6 +137,8 @@ export function computeFIRE(params: {
   swr?: number
   realReturn?: number
   yearsToRetire?: number
+  /** Expected part-time / passion-work annual income in retirement. Default 0. */
+  baristaAnnualIncome?: number
 }): FIREResult {
   const {
     annualExpenses,
@@ -121,16 +149,18 @@ export function computeFIRE(params: {
     swr = 0.03,
     realReturn = 0.06,
     yearsToRetire = 25,
+    baristaAnnualIncome = 0,
   } = params
 
   const fireNumber = computeFIRENumber(annualExpenses, swr)
   const coastFIRE = computeCoastFIRE(fireNumber, realReturn, yearsToRetire)
   const leanFIRE = computeLeanFIRE(essentialAnnualExpenses, swr)
   const fatFIRE = computeFatFIRE(fireNumber)
+  const baristaFIRE = computeBaristaFIRE(annualExpenses, baristaAnnualIncome, swr)
   const yearsToFIRE = computeYearsToFIRE(fireNumber, annualSavings, realReturn, currentPortfolio)
   const currentSavingsRate = annualIncome > 0 ? (annualSavings / annualIncome) * 100 : 0
 
-  return { fireNumber, coastFIRE, leanFIRE, fatFIRE, yearsToFIRE, currentSavingsRate }
+  return { fireNumber, coastFIRE, leanFIRE, fatFIRE, baristaFIRE, yearsToFIRE, currentSavingsRate }
 }
 
 /**
