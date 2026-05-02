@@ -6,6 +6,45 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.7.1 - 2026-04-29
+
+Polish patch -- Settings UX cleanup and a smarter auto-classifier, plus a new data-focused page catalog.
+
+### Changed
+
+- **Settings sections are collapsed by default.** The `Section` primitive (`frontend/src/pages/settings/sectionPrimitives.tsx`) now defaults `defaultCollapsed` to `true`, so opening Settings shows a scannable list of headers instead of a wall of forms. Dropped the per-mode override on `AIAssistantSection` (was auto-expanding when the user was configured) and the redundant `defaultCollapsed={true}` on `AdvancedSection` so every section has a uniform baseline.
+- **Auto-account classification now studies balance data, not just account names.** `getDefaultClassifications` in `frontend/src/pages/settings/helpers.ts` gained an optional `accountStats` argument and applies a balance-sign refinement pass to anything the keyword dictionary couldn't classify: negative balance + activity -> **Credit Cards**, positive balance + >=3 transactions -> **Bank Accounts**. User-saved classifications still win. Keyword list also extended with Indian card brands the old dictionary missed (Jupiter Edge, OneCard, Slice, Millennia, SimplyCLICK, Regalia, Swiggy HDFC, Amazon Pay ICICI, Flipkart Axis, Amex, Diners) and `jupiter` (neobank).
+
+### Added
+
+- **`docs/PAGES.md`** -- new data-focused catalog documenting every page in the app: what each one shows, the tables/endpoints it reads from, the decisions it helps the user make. Written for "what can I learn from this app?" rather than "how is this built?".
+
+---
+
+## 2.7.0 - 2026-04-29
+
+Mobile PWA polish landed in three stacked PRs (#126 / #127 / #128). The app now installs on iPhone/Android home screens like a native-feeling finance app, with a bottom tab bar for phone-sized viewports and a full-bleed app icon.
+
+### Added
+
+- **Bottom tab bar** for phone viewports (`<lg` breakpoint). `Home / Txns / Flow / More` with a Framer-Motion shared-element active pill and 52px touch targets. Hidden on desktop (sidebar stays).
+- **`/more` route + `MorePage.tsx`** -- grid menu grouping every route that didn't earn a tab slot (Analytics, Investments, Planning, Tax, Data) + sign-out.
+- **Full-bleed PWA app icon** -- uses the same PiggyBank glyph on the blue-to-indigo gradient as the web header. `pwa-assets.config.ts` overrides `minimal-2023`'s apple-touch transform to `padding: 0` + transparent background so the gradient paints edge-to-edge; iOS applies its own squircle mask on install. No more white-ring "unfinished-app" look on the home screen.
+
+### Changed
+
+- **`h-screen` -> `h-dvh`** in `AppLayout` and `Sidebar` so the viewport tracks the dynamic-viewport-height API. No more content jumping when the mobile address bar toggles.
+- **Safe-area insets wired through** the sticky `PageHeader`, chat widget / panel, and `HomePage` header. Sticky headers bake `env(safe-area-inset-top)` into padding so titles don't render behind the iOS notch in standalone mode. Main content gets `pb-safe` so the last row clears the home indicator. `ChatWidget` respects `safe-area-inset-right` for landscape on notched devices.
+- **`theme-color` aligned to `#000000`** (was `#09090b`) in both `index.html` and the PWA manifest so the status bar blends into the app black -- no seam at the top.
+- **Body/HTML reset** in `index.css`: `margin: 0`, `padding: 0`, `overscroll-behavior-y: none`, `html { height: 100% }`, `#root { height: 100% }` so `h-dvh` has a reference and rubber-band scroll doesn't flash white behind the notch.
+- **`CreditCardHealth` widget now uses the user's account classifications** instead of substring-grepping `"credit"` in account names. Cards like "HDFC Millennia" or "Amazon Pay Card" were silently dropped before. Falls back to the old name match only when an account has no classification yet.
+
+### Fixed
+
+- **HomePage layout shifted up behind the notch in PWA standalone mode.** The landing page lives outside `AppLayout` so the safe-area work from the other PRs didn't reach it. Header padding-top/left/right now use `env(safe-area-inset-*)`; main's `pt-20` becomes `calc(5rem + inset-top)`; footer gets `inset-bottom`. `h-screen` -> `min-h-dvh` matches the rest of the app.
+
+---
+
 ## 2.5.0 - 2026-04-26
 
 Major AI chat upgrade: the bot can now answer questions about *any* of your data, not just the six fields we pre-loaded into the system prompt.
