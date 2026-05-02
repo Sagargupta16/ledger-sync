@@ -36,9 +36,22 @@ export const DASHBOARD_WIDGETS = [
 // Helper functions
 // ---------------------------------------------------------------------------
 
-// Keyword-to-classification lookup tables (ordered by priority)
+// Keyword-to-classification lookup tables (ordered by priority).
+//
+// Credit-card keywords are intentionally generous -- cards in India are often
+// branded ("Swiggy HDFC", "Amazon Pay ICICI", "Flipkart Axis", "Jupiter Edge",
+// "OneCard", "Slice", "Uni"). Bank names overlap heavily with card names, so
+// we disambiguate later using the account's balance sign.
 const ACCOUNT_CLASSIFICATION_RULES: Array<{ keywords: string[]; endsWith?: string[]; classification: string }> = [
-  { keywords: ['credit card', 'cc ', 'amex'], classification: 'Credit Cards' },
+  {
+    keywords: [
+      'credit card', ' cc', 'cc ', 'amex', 'diners',
+      'jupiter edge', 'onecard', 'slice', ' uni ',
+      'millennia', 'simplyclick', 'simply click', 'regalia',
+      'swiggy hdfc', 'amazon pay icici', 'amazon pay ', 'flipkart axis',
+    ],
+    classification: 'Credit Cards',
+  },
   {
     keywords: [
       'epf', 'ppf', 'nps', 'mutual fund', ' mf', 'groww', 'zerodha', 'kuvera',
@@ -52,7 +65,7 @@ const ACCOUNT_CLASSIFICATION_RULES: Array<{ keywords: string[]; endsWith?: strin
     keywords: [
       'bank', 'checking', 'salary', 'savings', 'saving',
       'hdfc', 'icici', 'sbi', 'axis', 'kotak', 'bob', 'pnb', 'canara', 'idfc',
-      'yes bank', 'indusind', 'rbl', 'federal', 'bandhan', 'union bank',
+      'yes bank', 'indusind', 'rbl', 'federal', 'bandhan', 'union bank', 'jupiter',
     ],
     classification: 'Bank Accounts',
   },
@@ -67,11 +80,67 @@ function matchClassification(lower: string, rules: Array<{ keywords: string[]; e
   return null
 }
 
-/** Derive default account classifications from account names by keyword matching */
-export function getDefaultClassifications(accountNames: string[]): Record<string, string> {
+export interface AccountStats {
+  balance: number
+  transactions: number
+}
+
+/**
+ * Apply balance-sign heuristics for accounts that keyword matching couldn't
+ * classify, or where keywords conflict with the observed behavior.
+ *
+ * Rationale -- in Indian personal-finance software:
+ *   - Credit cards typically show a negative balance (what you owe the bank)
+ *   - Bank accounts, cash, and investments show positive balances
+ *   - Dormant accounts (0 balance, very few transactions) don't need a strong
+ *     guess; "Other Wallets" is the honest default
+ *
+ * Keyword rules always win when they match. This pass only fires for names
+ * the keyword layer left at "Other Wallets". That keeps the behaviour
+ * backwards-compatible for users whose accounts followed the old convention.
+ */
+function refineWithBalance(
+  keywordGuess: string,
+  stats: AccountStats | undefined,
+): string {
+  if (keywordGuess !== 'Other Wallets' || !stats) return keywordGuess
+  if (stats.transactions === 0) return keywordGuess
+
+  // Consistent liability signal -- default to Credit Cards rather than Loans
+  // because cards outnumber personal loans for most users; loans also usually
+  // have the word "loan" in the name and would already have matched.
+  if (stats.balance < 0) return 'Credit Cards'
+
+  // Positive balance with meaningful activity -- most likely a bank/wallet
+  // that just doesn't match any of our keyword dictionaries. Picking
+  // "Bank Accounts" over "Cash" because real users rarely have large cash
+  // holdings but often have bank accounts with non-obvious names.
+  if (stats.balance > 0 && stats.transactions >= 3) return 'Bank Accounts'
+
+  return keywordGuess
+}
+
+/**
+ * Derive default account classifications.
+ *
+ * Two-pass heuristic:
+ *   1. Match each account name against the keyword rule table.
+ *   2. For anything still "Other Wallets", look at the account's observed
+ *      balance + transaction count (if provided) and use balance sign as a
+ *      fallback signal.
+ *
+ * `accountStats` is optional so existing call sites that only have names
+ * keep working unchanged; the balance-based refinement simply doesn't fire.
+ */
+export function getDefaultClassifications(
+  accountNames: string[],
+  accountStats?: Record<string, AccountStats>,
+): Record<string, string> {
   const defaults: Record<string, string> = {}
   for (const name of accountNames) {
-    defaults[name] = matchClassification(name.toLowerCase(), ACCOUNT_CLASSIFICATION_RULES) ?? 'Other Wallets'
+    const keywordGuess =
+      matchClassification(name.toLowerCase(), ACCOUNT_CLASSIFICATION_RULES) ?? 'Other Wallets'
+    defaults[name] = refineWithBalance(keywordGuess, accountStats?.[name])
   }
   return defaults
 }

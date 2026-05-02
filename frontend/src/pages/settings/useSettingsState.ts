@@ -174,7 +174,9 @@ export function useSettingsState() {
     setHasChanges(true)
   }, [localPrefs, investmentAccounts])
 
-  // Load account classifications
+  // Load account classifications. The default guesses use balance sign as a
+  // second-pass signal (see getDefaultClassifications); user-saved
+  // classifications from the server still win via the spread below.
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -182,7 +184,10 @@ export function useSettingsState() {
       try {
         const data = await accountClassificationsService.getAllClassifications()
         if (cancelled) return
-        setClassifications({ ...getDefaultClassifications(accounts), ...data })
+        const accountStats = balanceData?.accounts as
+          | Record<string, { balance: number; transactions: number }>
+          | undefined
+        setClassifications({ ...getDefaultClassifications(accounts, accountStats), ...data })
       } catch {
         if (!cancelled) toast.error('Failed to load account classifications')
       } finally {
@@ -191,7 +196,7 @@ export function useSettingsState() {
     }
     load()
     return () => { cancelled = true }
-  }, [accounts])
+  }, [accounts, balanceData])
 
   // Core updater
   const updateLocalPref = useCallback(

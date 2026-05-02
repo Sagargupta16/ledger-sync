@@ -33,7 +33,6 @@ export default function AdvancedSection({
       icon={Shield}
       title="Advanced"
       description="Anomaly detection, credit card limits, excluded accounts"
-      defaultCollapsed={true}
     >
       <AnomalyDetectionSubsection localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
 
