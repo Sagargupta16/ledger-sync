@@ -1,65 +1,52 @@
 import { describe, it, expect } from 'vitest'
-import { inferAccountType, isInvestmentAccount } from '../accountTypes'
+import { inferAccountType, isInvestmentAccount, type AccountType } from '../accountTypes'
+
+// Single classification table keeps all the "does input X produce type Y?"
+// assertions in one place and avoids repeating the same `it.each` +
+// expect-body for each type bucket. Add a row here when a new pattern
+// needs coverage.
+const CLASSIFICATION_CASES: ReadonlyArray<[input: string, expected: AccountType, bucket: string]> = [
+  // Credit cards take priority over bank-name tokens
+  ['HDFC CC', 'credit_card', 'credit_card'],
+  ['HDFC Credit Card', 'credit_card', 'credit_card'],
+  ['ICICI Visa', 'credit_card', 'credit_card'],
+  ['Axis Amex', 'credit_card', 'credit_card'],
+  ['SBI MasterCard', 'credit_card', 'credit_card'],
+  ['Rupay Credit', 'credit_card', 'credit_card'],
+  ['Diners Club', 'credit_card', 'credit_card'],
+  // Investments
+  ['HDFC Stocks', 'investment', 'investment'],
+  ['Zerodha Demat', 'investment', 'investment'],
+  ['Groww MF', 'investment', 'investment'],
+  ['DEMAT Account', 'investment', 'investment'],
+  ['My PPF', 'investment', 'investment'],
+  ['EPF Balance', 'investment', 'investment'],
+  ['NPS Tier-I', 'investment', 'investment'],
+  ['Ind Money Stocks', 'investment', 'investment'],
+  ['Company RSUs', 'investment', 'investment'],
+  ['ESPP Account', 'investment', 'investment'],
+  ['Smallcase Portfolio', 'investment', 'investment'],
+  ['Mutual Fund Folio', 'investment', 'investment'],
+  // Bank / deposit
+  ['HDFC Bank', 'deposit', 'deposit'],
+  ['SBI Savings', 'deposit', 'deposit'],
+  ['ICICI Current', 'deposit', 'deposit'],
+  ['Axis FD', 'deposit', 'deposit'],
+  ['Kotak RD', 'deposit', 'deposit'],
+  ['Yes Bank Savings', 'deposit', 'deposit'],
+  ['Paytm Wallet', 'deposit', 'deposit'],
+  ['Cash', 'deposit', 'deposit'],
+  // Loans
+  ['Home Loan', 'loan', 'loan'],
+  ['HDFC Personal Loan', 'loan', 'loan'],
+  ['Car Loan EMI', 'loan', 'loan'],
+  ['Education Loan', 'loan', 'loan'],
+  ['Gold Loan', 'loan', 'loan'],
+]
 
 describe('inferAccountType', () => {
-  describe('credit cards take priority over bank-name tokens', () => {
-    it.each([
-      ['HDFC CC', 'credit_card'],
-      ['HDFC Credit Card', 'credit_card'],
-      ['ICICI Visa', 'credit_card'],
-      ['Axis Amex', 'credit_card'],
-      ['SBI MasterCard', 'credit_card'],
-      ['Rupay Credit', 'credit_card'],
-      ['Diners Club', 'credit_card'],
-    ])('classifies %s as %s', (name, expected) => {
-      expect(inferAccountType(name)).toBe(expected)
-    })
-  })
-
-  describe('investment accounts', () => {
-    it.each([
-      ['HDFC Stocks', 'investment'],
-      ['Zerodha Demat', 'investment'],
-      ['Groww MF', 'investment'],
-      ['DEMAT Account', 'investment'],
-      ['My PPF', 'investment'],
-      ['EPF Balance', 'investment'],
-      ['NPS Tier-I', 'investment'],
-      ['Ind Money Stocks', 'investment'],
-      ['Company RSUs', 'investment'],
-      ['ESPP Account', 'investment'],
-      ['Smallcase Portfolio', 'investment'],
-      ['Mutual Fund Folio', 'investment'],
-    ])('classifies %s as %s', (name, expected) => {
-      expect(inferAccountType(name)).toBe(expected)
-    })
-  })
-
-  describe('bank / deposit accounts', () => {
-    it.each([
-      ['HDFC Bank', 'deposit'],
-      ['SBI Savings', 'deposit'],
-      ['ICICI Current', 'deposit'],
-      ['Axis FD', 'deposit'],
-      ['Kotak RD', 'deposit'],
-      ['Yes Bank Savings', 'deposit'],
-      ['Paytm Wallet', 'deposit'],
-      ['Cash', 'deposit'],
-    ])('classifies %s as %s', (name, expected) => {
-      expect(inferAccountType(name)).toBe(expected)
-    })
-  })
-
-  describe('loans', () => {
-    it.each([
-      ['Home Loan', 'loan'],
-      ['HDFC Personal Loan', 'loan'],
-      ['Car Loan EMI', 'loan'],
-      ['Education Loan', 'loan'],
-      ['Gold Loan', 'loan'],
-    ])('classifies %s as %s', (name, expected) => {
-      expect(inferAccountType(name)).toBe(expected)
-    })
+  it.each(CLASSIFICATION_CASES)('classifies %s as %s (bucket: %s)', (input, expected) => {
+    expect(inferAccountType(input)).toBe(expected)
   })
 
   describe('ambiguous names resolve by priority', () => {
@@ -70,7 +57,6 @@ describe('inferAccountType', () => {
       expect(inferAccountType('ICICI Investment Account')).toBe('investment')
     })
     it('Zerodha Investment CC -> credit_card (CC wins over investment)', () => {
-      // If someone labels a credit card "Zerodha Investment CC", CC wins.
       expect(inferAccountType('Zerodha Investment CC')).toBe('credit_card')
     })
   })
@@ -79,14 +65,13 @@ describe('inferAccountType', () => {
     it('does not match "invest" inside "investigation"', () => {
       expect(inferAccountType('Under Investigation')).toBe(null)
     })
-    it('does not match "rd" inside "credit card"', () => {
-      // "HDFC Credit Card" should be credit_card, not deposit (rd)
+    it('"HDFC Credit Card" wins for credit_card, not deposit via "rd"', () => {
       expect(inferAccountType('HDFC Credit Card')).toBe('credit_card')
     })
   })
 
   describe('edge cases', () => {
-    it('returns null for empty input', () => {
+    it('returns null for empty or whitespace-only input', () => {
       expect(inferAccountType('')).toBe(null)
       expect(inferAccountType('   ')).toBe(null)
     })
