@@ -9,7 +9,9 @@ stay in sync with the raw transactions. The explicit POST
 """
 
 import anyio
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.analytics import AnalyticsEngine
@@ -21,6 +23,12 @@ from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="", tags=["upload"])
 
+# Rate limit uploads. A single user doing normal statement imports won't
+# come close to this; it exists to cap an abusive client that might try to
+# replay / brute force uploads. Keyed by remote address, not user, so an
+# unauthenticated flood is also throttled.
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.post(
     "/api/upload",
@@ -28,10 +36,13 @@ router = APIRouter(prefix="", tags=["upload"])
         400: {"description": "Data format issue"},
         409: {"description": "File already imported"},
         422: {"description": "Validation error"},
+        429: {"description": "Rate limit exceeded"},
         500: {"description": "Processing failed"},
     },
 )
+@limiter.limit("10/minute")
 async def upload_transactions(
+    request: Request,  # required by slowapi  # noqa: ARG001
     payload: TransactionUploadRequest,
     current_user: CurrentUser,
     db: DatabaseSession,

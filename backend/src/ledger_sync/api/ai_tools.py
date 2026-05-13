@@ -46,6 +46,19 @@ from ledger_sync.db.models import (
 
 router = APIRouter(prefix="/api/ai/tools", tags=["ai-tools"])
 
+# --- Central tool limit defaults --------------------------------------------
+# Used in both the Python executor (clamping) and the JSON Schema shipped
+# to the LLM. Keep the two paired so changing a default is one edit.
+
+SEARCH_TRANSACTIONS_DEFAULT_LIMIT = 20
+SEARCH_TRANSACTIONS_MAX_LIMIT = 100
+
+LIST_CATEGORIES_DEFAULT_LIMIT = 15
+LIST_CATEGORIES_MAX_LIMIT = 50
+
+LIST_RECENT_MONTHS_DEFAULT_LIMIT = 6
+LIST_RECENT_MONTHS_MAX_LIMIT = 24
+
 # --- Tool registry -----------------------------------------------------------
 
 ToolExecutor = Callable[[User, Session, dict[str, Any]], Any]
@@ -209,7 +222,10 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
     case-insensitive LIKE. Optional filters narrow results further.
     """
     query = str(args.get("query", "")).strip()
-    limit = min(int(args.get("limit", 20)), 100)
+    limit = min(
+        int(args.get("limit", SEARCH_TRANSACTIONS_DEFAULT_LIMIT)),
+        SEARCH_TRANSACTIONS_MAX_LIMIT,
+    )
     start = _parse_date(args.get("start_date"))
     end = _parse_date(args.get("end_date"))
     category = args.get("category")
@@ -298,7 +314,9 @@ _register(
             "purchases, merchants, dates, or amounts (e.g. 'when did I last go "
             "for a haircut', 'show payments to DMart', 'transactions over 10000 "
             "last week'). `query` matches note/category/subcategory/account. "
-            "All filters optional. Returns up to `limit` results (default 20, max 100)."
+            f"All filters optional. Returns up to `limit` results "
+            f"(default {SEARCH_TRANSACTIONS_DEFAULT_LIMIT}, "
+            f"max {SEARCH_TRANSACTIONS_MAX_LIMIT})."
         ),
         schema={
             "type": "object",
@@ -314,7 +332,12 @@ _register(
                 },
                 "min_amount": {"type": "number"},
                 "max_amount": {"type": "number"},
-                "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20},
+                "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": SEARCH_TRANSACTIONS_MAX_LIMIT,
+                    "default": SEARCH_TRANSACTIONS_DEFAULT_LIMIT,
+                },
             },
             "required": [],
         },
@@ -363,7 +386,10 @@ def _exec_list_categories(user: User, db: Session, args: dict[str, Any]) -> Any:
     start = _parse_date(args.get("start_date"))
     end = _parse_date(args.get("end_date"))
     txn_type = args.get("type", "Expense")
-    limit = min(int(args.get("limit", 15)), 50)
+    limit = min(
+        int(args.get("limit", LIST_CATEGORIES_DEFAULT_LIMIT)),
+        LIST_CATEGORIES_MAX_LIMIT,
+    )
 
     stmt = (
         select(
@@ -411,7 +437,12 @@ _register(
                 "start_date": {"type": "string"},
                 "end_date": {"type": "string"},
                 "type": {"type": "string", "enum": ["Income", "Expense"], "default": "Expense"},
-                "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 15},
+                "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": LIST_CATEGORIES_MAX_LIMIT,
+                    "default": LIST_CATEGORIES_DEFAULT_LIMIT,
+                },
             },
         },
         execute=_exec_list_categories,
@@ -576,7 +607,10 @@ _register(
 
 
 def _exec_list_recent_months(user: User, db: Session, args: dict[str, Any]) -> Any:
-    limit = min(int(args.get("limit", 6)), 24)
+    limit = min(
+        int(args.get("limit", LIST_RECENT_MONTHS_DEFAULT_LIMIT)),
+        LIST_RECENT_MONTHS_MAX_LIMIT,
+    )
     rows = (
         db.execute(
             select(MonthlySummary)
@@ -609,7 +643,12 @@ _register(
         schema={
             "type": "object",
             "properties": {
-                "limit": {"type": "integer", "minimum": 1, "maximum": 24, "default": 6},
+                "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": LIST_RECENT_MONTHS_MAX_LIMIT,
+                    "default": LIST_RECENT_MONTHS_DEFAULT_LIMIT,
+                },
             },
         },
         execute=_exec_list_recent_months,
