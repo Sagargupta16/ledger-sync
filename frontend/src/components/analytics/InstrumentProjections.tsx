@@ -8,6 +8,8 @@ import MetricCard from '@/components/shared/MetricCard'
 import { projectPPF, projectEPF, projectNPS } from '@/lib/instrumentCalculators'
 import type { ProjectionResult } from '@/lib/instrumentCalculators'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
+import { useInstrumentRates } from '@/hooks/api/useInstrumentRates'
+import type { InstrumentRates } from '@/services/api/rates'
 import type { AccountBalances } from '@/services/api/calculations'
 
 type Instrument = 'ppf' | 'epf' | 'nps'
@@ -83,11 +85,14 @@ function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) {
   )
 }
 
-function PPFTab({ initialBalance }: Readonly<{ initialBalance: number }>) {
+function PPFTab({
+  initialBalance,
+  rates,
+}: Readonly<{ initialBalance: number; rates: InstrumentRates }>) {
   const [balance, setBalance] = useState(initialBalance)
   const [annual, setAnnual] = useState(150000)
   const [years, setYears] = useState(15)
-  const [rate, setRate] = useState(7.1)
+  const [rate, setRate] = useState(rates.ppf.rate_pct)
 
   const result = useMemo(() => projectPPF(balance, annual, years, rate), [balance, annual, years, rate])
 
@@ -111,10 +116,13 @@ function PPFTab({ initialBalance }: Readonly<{ initialBalance: number }>) {
   )
 }
 
-function EPFTab({ initialBalance }: Readonly<{ initialBalance: number }>) {
+function EPFTab({
+  initialBalance,
+  rates,
+}: Readonly<{ initialBalance: number; rates: InstrumentRates }>) {
   const [salary, setSalary] = useState(50000)
   const [contribPct, setContribPct] = useState(12)
-  const [rate, setRate] = useState(8.25)
+  const [rate, setRate] = useState(rates.epf.rate_pct)
   const [years, setYears] = useState(25)
   const [balance, setBalance] = useState(initialBalance)
 
@@ -142,7 +150,7 @@ function EPFTab({ initialBalance }: Readonly<{ initialBalance: number }>) {
         <SliderInput id="epf-balance" label="Current EPF Balance" value={balance} onChange={setBalance} min={0} max={10000000} step={10000} prefix="Rs " />
         <SliderInput id="epf-salary" label="Monthly Basic Salary" value={salary} onChange={setSalary} min={15000} max={500000} step={1000} prefix="Rs " />
         <SliderInput id="epf-pct" label={`Contribution (min Rs ${minContrib.toLocaleString('en-IN')})`} value={contribPct} onChange={setContribPct} min={12} max={20} step={0.5} suffix="%" />
-        <SliderInput id="epf-rate" label="Interest Rate (FY25: 8.25%)" value={rate} onChange={setRate} min={5} max={12} step={0.05} suffix="%" />
+        <SliderInput id="epf-rate" label={`Interest Rate (current: ${rates.epf.rate_pct}%)`} value={rate} onChange={setRate} min={5} max={12} step={0.05} suffix="%" />
         <SliderInput id="epf-years" label="Years to Retirement" value={years} onChange={setYears} min={1} max={35} step={1} suffix=" yrs" />
       </div>
       <ProjectionChart data={result} />
@@ -151,11 +159,13 @@ function EPFTab({ initialBalance }: Readonly<{ initialBalance: number }>) {
   )
 }
 
-function NPSTab() {
+function NPSTab({ rates }: Readonly<{ rates: InstrumentRates }>) {
+  const defaultAlloc = rates.nps.default_allocation_pct
+  const returns = rates.nps.historical_return_pct
   const [monthly, setMonthly] = useState(5000)
-  const [equity, setEquity] = useState(50)
-  const [corp, setCorp] = useState(30)
-  const [govt, setGovt] = useState(20)
+  const [equity, setEquity] = useState(defaultAlloc.equity)
+  const [corp, setCorp] = useState(defaultAlloc.corp_bond)
+  const [govt, setGovt] = useState(defaultAlloc.govt_bond)
   const [years, setYears] = useState(25)
   const [balance, setBalance] = useState(0)
 
@@ -169,9 +179,20 @@ function NPSTab() {
   }
 
   const result = useMemo(() => projectNPS({
-    monthlyContribution: monthly, equityPct: equity, corpBondPct: corp, govtBondPct: govt, years, currentBalance: balance,
-  }), [monthly, equity, corp, govt, years, balance])
-  const weightedReturn = (equity / 100) * 10 + (corp / 100) * 8.5 + (govt / 100) * 7.5
+    monthlyContribution: monthly,
+    equityPct: equity,
+    corpBondPct: corp,
+    govtBondPct: govt,
+    equityReturn: returns.equity,
+    corpReturn: returns.corp_bond,
+    govtReturn: returns.govt_bond,
+    years,
+    currentBalance: balance,
+  }), [monthly, equity, corp, govt, returns, years, balance])
+  const weightedReturn =
+    (equity / 100) * returns.equity +
+    (corp / 100) * returns.corp_bond +
+    (govt / 100) * returns.govt_bond
 
   return (
     <div className="space-y-5">
@@ -204,6 +225,7 @@ function findAccountBalance(data: AccountBalances | undefined, pattern: string):
 
 export default function InstrumentProjections() {
   const { data: accountBalances } = useAccountBalances()
+  const { data: rates } = useInstrumentRates()
   const ppfBalance = useMemo(() => findAccountBalance(accountBalances, 'ppf'), [accountBalances])
   const epfBalance = useMemo(() => findAccountBalance(accountBalances, 'epf'), [accountBalances])
   const [tab, setTab] = useState<Instrument>('ppf')
@@ -233,9 +255,9 @@ export default function InstrumentProjections() {
         </div>
       </div>
 
-      {tab === 'ppf' && <PPFTab initialBalance={ppfBalance} />}
-      {tab === 'epf' && <EPFTab initialBalance={epfBalance} />}
-      {tab === 'nps' && <NPSTab />}
+      {tab === 'ppf' && <PPFTab initialBalance={ppfBalance} rates={rates} />}
+      {tab === 'epf' && <EPFTab initialBalance={epfBalance} rates={rates} />}
+      {tab === 'nps' && <NPSTab rates={rates} />}
     </motion.div>
   )
 }

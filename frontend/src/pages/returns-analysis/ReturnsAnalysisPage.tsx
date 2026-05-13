@@ -9,6 +9,7 @@ import {
 
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
+import { isInvestmentAccount } from '@/constants/accountTypes'
 import { useAccountBalances, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import {
@@ -24,13 +25,6 @@ import { getDateKey } from '@/lib/dateUtils'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
 // ─── Helpers (unchanged business logic) ─────────────────────────────────────
-
-const INVESTMENT_KEYWORDS = ['invest', 'mutual', 'stock', 'equity', 'sip', 'portfolio', 'fund', 'demat']
-
-const isInvestmentAccount = (accountName: string): boolean => {
-  const lower = accountName.toLowerCase()
-  return INVESTMENT_KEYWORDS.some(keyword => lower.includes(keyword))
-}
 
 const calculateCAGR = (endingValue: number, beginningValue: number, years: number): number => {
   if (beginningValue <= 0 || years <= 0) return 0

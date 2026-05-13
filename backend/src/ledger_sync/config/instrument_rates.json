@@ -1,0 +1,25 @@
+{
+  "$comment": "Source of truth for EPF/PPF/NPS rates. No reliable public JSON API exists; update this file when a new rate is notified. Served by GET /api/rates/instruments.",
+  "updated_at": "2026-05-13",
+  "epf": {
+    "rate_pct": 8.25,
+    "effective_from": "2024-04-01",
+    "effective_until": null,
+    "source_url": "https://www.epfindia.gov.in/site_en/WhatsNew.php",
+    "notes": "Declared by EPFO for FY 2024-25. Credited yearly. Check EPFO WhatsNew page for the latest annual notification."
+  },
+  "ppf": {
+    "rate_pct": 7.1,
+    "effective_from": "2025-04-01",
+    "effective_until": "2026-06-30",
+    "source_url": "https://dea.gov.in/small-savings-scheme",
+    "notes": "Small savings rate, notified quarterly by Ministry of Finance (DEA). Has been unchanged at 7.1% since Q1 FY 2020-21."
+  },
+  "nps": {
+    "default_allocation_pct": { "equity": 50, "corp_bond": 30, "govt_bond": 20 },
+    "historical_return_pct": { "equity": 10.0, "corp_bond": 8.5, "govt_bond": 7.5 },
+    "effective_from": "2026-04-01",
+    "source_url": "https://npscra.nsdl.co.in/scheme-performance.php",
+    "notes": "10-year historical averages, rough. Tier-I defaults. User should tune in Settings for their actual PFM."
+  }
+}
