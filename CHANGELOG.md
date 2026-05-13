@@ -6,6 +6,48 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.10.0 - 2026-05-13
+
+Hardcoded-values audit. Fixes silently-wrong defaults, reduces classifier brittleness, and centralizes policy constants that were scattered across the codebase. Two full rescan passes; every finding either fixed, deliberately skipped with reason, or tracked for a follow-up PR that needs a schema migration.
+
+### Fixed
+
+- **Convenience spending bug: `calculate_convenience_spending()` was returning 0 for every user.** The lowercase-token list (`{shopping, dining, food, ...}`) was compared via exact equality against normalized category names (`"Food & Dining"`, `"Entertainment & Recreations"`), so it never matched. The "Significant Convenience Spending" insight has never fired in production. Switched to substring match; dropped `food` (over-matched essentials), added `recreation`, `leisure`, `travel`, `subscription`. `core/calculator.py`.
+- **Recurring detection dead zones.** Frequency bands had gaps at 19d, 46-49d, 76-79d, 111-149d, 211-339d -- any subscription with those cycles was silently invisible to the detector. Bands are now contiguous (each starts at previous_end + 1): WEEKLY 4-10, BIWEEKLY 11-19, MONTHLY 20-49, BIMONTHLY 50-79, QUARTERLY 80-129, SEMIANNUAL 130-269, YEARLY 270-400. `core/analytics/recurring.py`.
+- **Merchant regex missed most real UPI narrations.** `^Swiggy` only matched when the merchant name was the first token; `"UPI/Swiggy/ref123"` and `"Payment to Zomato"` never hit the merchant list. Switched to `\b(...)\b` with `pattern.search()`. `core/analytics/merchants.py`.
+- **Bank-name normalizer covered only 5 banks with case-sensitive exact match.** `"SBI Bank"` (correctly cased) didn't normalize because the lookup key was lowercase-only. Rewritten as case-insensitive word-boundary regex covering 20+ banks (SBI, HDFC, ICICI, Axis, Kotak, Yes, IDFC First, IndusInd, PNB, BOB, BOI, Canara, Union, Federal, RBL, IDBI, Citi, HSBC, Standard Chartered, DBS, AU Small Finance). Longest-match-first so `"IDFC First"` beats `"IDFC"`. Does not match `"axis"` inside `"taxis"`. `ingest/normalizer.py`.
+- **Default investment-account mappings leaked the maintainer's personal account names** (`"Grow Stocks"`, `"IND money"`, `"RSUs"`, `"FD/Bonds"`) into every install. Shipped empty -- users configure their own mappings via Settings > Account Classifications. `core/_analytics_helpers.py`.
+- **Frontend account-type classifier was substring-matching without case folding and collision-prone.** `"DEMAT"` (uppercase) didn't match, `"ICICI Investment"` matched both `invest` and `bank` with undefined ordering. Rewritten with priority-ordered rules (credit_card → investment → loan → deposit), word-boundary regex, case-insensitive. New `credit_card` type distinguishes `"HDFC CC"` → credit_card from `"HDFC Bank"` → deposit from `"HDFC Stocks"` → investment. `constants/accountTypes.ts` with 41 new unit tests.
+- **Fallback exchange rates were stale by >1 month.** Refreshed all 14 currency pairs to 2026-05-13 values. Response now includes `fallback_as_of` so the frontend can warn users when they're seeing fallback data. `api/exchange_rates.py`.
+- **EPF default rate was ~3 years out of date** (8.15% labelled "FY 2023-24" in a 2026 codebase). Bumped to 8.25% (FY 2024-25 notification) and sourced from the new backend config.
+
+### Added
+
+- **`/api/rates/instruments` endpoint** serving EPF/PPF/NPS rates from `backend/src/ledger_sync/config/instrument_rates.json` with `effective_from`, `effective_until`, `source_url`, and free-text `notes` per instrument. There is no reliable public JSON API for Indian EPF/PPF rates (EPFO publishes via PDF notification yearly, Ministry of Finance publishes PPF quarterly via press release), so this file is the source of truth -- updating a rate is a one-line PR. `api/rates.py` + `config/instrument_rates.json`.
+- **`useInstrumentRates()` hook** on the frontend with a compiled-in fallback so `InstrumentProjections` renders zero-network before the query resolves. `hooks/api/useInstrumentRates.ts` + `services/api/rates.ts`.
+- **Rate limiting** (`slowapi`) on `/api/upload` (10/minute) and `/api/ai/bedrock/chat` (30/minute). `auth.py` and `oauth.py` already had limiters; these were the remaining sensitive endpoints without protection.
+- **Database pool settings are now env-configurable** via `LEDGER_SYNC_DB_POOL_SIZE`, `LEDGER_SYNC_DB_MAX_OVERFLOW`, `LEDGER_SYNC_DB_POOL_RECYCLE_SECONDS`, `LEDGER_SYNC_DB_CONNECT_TIMEOUT_SECONDS`, `LEDGER_SYNC_DB_STATEMENT_TIMEOUT_SECONDS`, `LEDGER_SYNC_DB_IDLE_TRANSACTION_TIMEOUT_SECONDS`. Defaults unchanged (5/3/300/10/30/60) and sized for Neon free tier. Production tuning no longer requires a code edit.
+- **`LEDGER_SYNC_AI_MAX_TOOL_ROUNDS` setting** to reconcile the frontend `MAX_TOOL_ROUNDS=6` runaway-loop cap with the backend `UsageLogRequest.tool_rounds` max=20 reporting limit. Single documented source.
+
+### Changed
+
+- **Tax calculator refactored to a dated-config layout.** All year-specific rules (slabs, surcharge bands, 87A rebate, standard deduction, cess, professional tax) now live in `frontend/src/lib/tax-config/index.ts` as per-FY blocks (FY 2023-24, 2024-25, 2025-26) with `source` field referencing the Budget notification. `getTaxConfig(fyStartYear)` resolves the config with graceful fallback (newest known for future years, oldest known for ancient years). `taxCalculator.ts` is unchanged at the public API level -- every exported symbol (slab arrays, `calculateTax`, `getStandardDeduction`, `getTaxSlabs`) still works, but sources its constants from the config loader. Adding Budget 2026 when it lands is a single new entry in `tax-config/index.ts`.
+- **Insight thresholds given names.** 10 magic numbers in `core/insights.py` (`40` / `80` consistency cutoffs, `40%` category concentration, `30%` convenience, `1.2` / `0.8` trend ratios, `20%` / `-10%` lifestyle inflation, `1.3` / `0.7` velocity) extracted to module-level named constants with a header comment explaining they are heuristics, not policy. Zero behavior change; makes future tuning discoverable.
+- **Health-score rubric centralized.** `HEALTH_SCORE_RUBRIC` const in `healthScoreUtils.ts` holds the 8 primary targets (savings 20%, essential 50%, emergency 6mo, investment 15%, DTI ≤36%, savings consistency 90%, income CV ≤25%) and is referenced by `scoreSpendLessThanIncome`, `scoreEssentialRatio`, `scoreEmergencyFund`, `scoreInvestment`, `scoreDebtToIncome`, `scoreSavingsConsistency`, `scoreIncomeStability`. Score-curve math unchanged -- pure refactor.
+- **AI tool default limits centralized.** Replaced six scattered literals (`20` / `100` for `search_transactions`, `15` / `50` for `list_categories`, `6` / `24` for `list_recent_months`) with named module-level constants in `api/ai_tools.py`. The executor clamp and the JSON Schema shown to the LLM now read from the same source -- no more drift risk between the two.
+- **Fallback exchange-rate response shape:** now includes `fallback_as_of` for frontend staleness banner.
+
+### Tests
+
+- **Frontend test count 123 -> 170** (+47). 41 new cases in `constants/__tests__/accountTypes.test.ts` covering CC-vs-bank priority, word boundaries, ambiguous names, case insensitivity, edge cases. 6 new cases in `lib/tax-config/__tests__/taxConfig.test.ts` covering FY lookup, future-year fallback, ancient-year fallback, cess/prof-tax stability across FYs.
+- **Backend test count 93 -> 98** (+5). 4 new bank-name normalizer tests covering case insensitivity, extended bank coverage, longest-match-first, word boundaries (`"axis"` inside `"taxis"` must not match). 1 new test on the `/api/rates/instruments` endpoint.
+
+### Skipped (follow-up PRs; each needs a DB migration or changes equality semantics)
+
+- FIRE/NPS assumption persistence, per-state professional tax, user-defined category aliases, always-title-case categories, transfer amount-tolerance pairing, user-tunable insight thresholds, AI pricing-table freshness automation.
+
+---
+
 ## 2.9.0 - 2026-04-29
 
 Follow-up to 2.8.0's audit-driven cleanup: execute the remaining feature gaps that were flagged and delete the Insights page outright.

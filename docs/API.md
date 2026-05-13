@@ -1190,7 +1190,45 @@ Fetch live exchange rates from the European Central Bank (via frankfurter.dev) w
 }
 ```
 
-**Fallback behavior:** Fresh cache -> stale cache -> hardcoded fallback rates. Returns 502 only if all three tiers fail.
+**Fallback behavior:** Fresh cache -> stale cache -> hardcoded fallback rates. Returns 502 only if all three tiers fail. Fallback responses additionally include `fallback: true` and `fallback_as_of: "YYYY-MM-DD"` so the frontend can warn users.
+
+---
+
+## Instrument Rate Endpoints
+
+### Get EPF / PPF / NPS Rates
+
+**GET** `/api/rates/instruments`
+
+Return EPF/PPF/NPS rates with effective-from / source-url metadata. No reliable public JSON API exists for Indian EPF (EPFO publishes via yearly PDF notification) or PPF (Ministry of Finance publishes quarterly via press release), so these rates are served from a file config at `backend/src/ledger_sync/config/instrument_rates.json`. Updating a rate is a one-line PR.
+
+**Response (200 OK):**
+
+```json
+{
+  "updated_at": "2026-05-13",
+  "epf": {
+    "rate_pct": 8.25,
+    "effective_from": "2024-04-01",
+    "effective_until": null,
+    "source_url": "https://www.epfindia.gov.in/site_en/WhatsNew.php",
+    "notes": "..."
+  },
+  "ppf": {
+    "rate_pct": 7.1,
+    "effective_from": "2025-04-01",
+    "effective_until": "2026-06-30",
+    "source_url": "https://dea.gov.in/small-savings-scheme"
+  },
+  "nps": {
+    "default_allocation_pct": {"equity": 50, "corp_bond": 30, "govt_bond": 20},
+    "historical_return_pct": {"equity": 10.0, "corp_bond": 8.5, "govt_bond": 7.5},
+    "source_url": "https://npscra.nsdl.co.in/scheme-performance.php"
+  }
+}
+```
+
+Consumed by `useInstrumentRates()` on the frontend, which ships a compiled-in fallback so `InstrumentProjections` renders zero-network.
 
 ---
 
@@ -1237,7 +1275,14 @@ Fetch the latest regular-market price for a stock ticker via Yahoo Finance. Prox
 
 ## Rate Limiting
 
-Rate limiting is implemented using **slowapi** (based on limits). Endpoints are rate-limited per user/IP to prevent abuse.
+Rate limiting is implemented using **slowapi**, keyed by remote IP address. Limits applied:
+
+- `POST /api/auth/refresh` -- 20/minute
+- `POST /api/auth/oauth/{provider}/callback` and `/api/auth/oauth/{provider}/login-url` -- 20/minute
+- `POST /api/upload` -- 10/minute
+- `POST /api/ai/bedrock/chat` -- 30/minute (complements the per-user daily message cap in app_bedrock mode)
+
+Over-limit requests receive HTTP 429 via a globally registered exception handler. Other endpoints are unthrottled; add `@limiter.limit(...)` in the relevant router module to protect new sensitive endpoints.
 
 ---
 
