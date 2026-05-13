@@ -33,8 +33,10 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 
 from ledger_sync.api.ai_usage import (
@@ -47,6 +49,11 @@ from ledger_sync.config.settings import settings
 from ledger_sync.db.models import UserPreferences
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
+
+# Rate-limit the Bedrock proxy. App-mode usage is additionally capped per
+# user per day via ai_daily_message_limit; this IP-keyed limit catches
+# abusive clients that rotate users or bypass the in-app UI.
+limiter = Limiter(key_func=get_remote_address)
 
 
 class ContentBlock(BaseModel):
@@ -176,9 +183,11 @@ def _from_bedrock_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 @router.post("/bedrock/chat", response_model=BedrockChatResponse)
+@limiter.limit("30/minute")
 def bedrock_chat_proxy(
+    request: Request,  # slowapi requires a `request: Request` parameter  # noqa: ARG001
     current_user: CurrentUser,
-    request: BedrockChatRequest,
+    payload: BedrockChatRequest,
     session: DatabaseSession,
 ) -> BedrockChatResponse:
     """Call Bedrock Converse API and return the full assistant reply."""
@@ -191,17 +200,17 @@ def bedrock_chat_proxy(
 
     model_id, region = _get_bedrock_model_region(prefs)
 
-    bedrock_messages = [_to_bedrock_message(m) for m in request.messages]
+    bedrock_messages = [_to_bedrock_message(m) for m in payload.messages]
 
     kwargs: dict[str, Any] = {
         "modelId": model_id,
         "messages": bedrock_messages,
-        "inferenceConfig": {"maxTokens": request.max_tokens},
+        "inferenceConfig": {"maxTokens": payload.max_tokens},
     }
-    if request.system_prompt:
-        kwargs["system"] = [{"text": request.system_prompt}]
+    if payload.system_prompt:
+        kwargs["system"] = [{"text": payload.system_prompt}]
 
-    if request.tools:
+    if payload.tools:
         kwargs["toolConfig"] = {
             "tools": [
                 {
@@ -211,7 +220,7 @@ def bedrock_chat_proxy(
                         "inputSchema": {"json": t.parameters},
                     }
                 }
-                for t in request.tools
+                for t in payload.tools
             ]
         }
 

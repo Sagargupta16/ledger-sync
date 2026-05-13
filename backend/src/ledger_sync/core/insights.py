@@ -5,6 +5,23 @@ from typing import Any
 from ledger_sync.core import calculator
 from ledger_sync.db.models import Transaction, TransactionType
 
+# Heuristic thresholds used across insight generation. Named here rather
+# than inlined so their meaning is discoverable and a future tweak is a
+# one-line change. Values are informed guesses, not policy -- a rewrite
+# to user-tunable preferences is tracked as INS-1b.
+CONSISTENCY_HIGH_VOLATILITY = 40  # score < this -> "high volatility" insight
+CONSISTENCY_STEADY = 80  # score > this -> "consistent pattern" insight
+CATEGORY_CONCENTRATION_ALERT_PCT = 40  # top category share > this -> flag
+CONVENIENCE_SPENDING_ALERT_PCT = 30  # discretionary share > this -> flag
+SPENDING_TREND_UP_RATIO = 1.2  # recent_avg / overall_avg > this -> trending up
+SPENDING_TREND_DOWN_RATIO = 0.8  # recent_avg / overall_avg < this -> trending down
+LIFESTYLE_INFLATION_ALERT_PCT = 20  # spending up > this% -> lifestyle inflation
+LIFESTYLE_DEFLATION_POSITIVE_PCT = -10  # spending down < this% -> positive signal
+SPENDING_VELOCITY_UP_RATIO = 1.3  # recent/historical > this -> accelerating
+SPENDING_VELOCITY_DOWN_RATIO = 0.7  # recent/historical < this -> slowing
+RECENT_MONTHS_WINDOW = 3  # "recent" = last N months for trend compare
+DAYS_PER_MONTH_AVG = 30.44  # 365.25 / 12, for daily->monthly projection
+
 
 class InsightEngine:
     """Generate written insights from transaction data."""
@@ -50,7 +67,7 @@ class InsightEngine:
         monthly_expenses = [data["expenses"] for data in monthly_data.values()]
         consistency = calculator.calculate_consistency_score(monthly_expenses)
 
-        if consistency < 40:
+        if consistency < CONSISTENCY_HIGH_VOLATILITY:
             insights.append(
                 {
                     "title": "High Spending Volatility",
@@ -62,7 +79,7 @@ class InsightEngine:
                     "severity": "info",
                 },
             )
-        elif consistency > 80:
+        elif consistency > CONSISTENCY_STEADY:
             insights.append(
                 {
                     "title": "Consistent Spending Pattern",
@@ -77,7 +94,7 @@ class InsightEngine:
 
         # Daily spending rate
         daily_rate = calculator.calculate_daily_spending_rate(expenses)
-        monthly_rate = daily_rate * 30.44  # Average days per month (365.25/12)
+        monthly_rate = daily_rate * DAYS_PER_MONTH_AVG
 
         insights.append(
             {
@@ -104,7 +121,7 @@ class InsightEngine:
         category_totals = calculator.group_by_category(expenses)
         concentration = calculator.calculate_category_concentration(category_totals)
 
-        if concentration > 40:
+        if concentration > CATEGORY_CONCENTRATION_ALERT_PCT:
             top_category = max(category_totals.items(), key=lambda x: x[1])
             insights.append(
                 {
@@ -120,7 +137,7 @@ class InsightEngine:
 
         # Convenience spending
         convenience_data = calculator.calculate_convenience_spending(expenses)
-        if convenience_data["convenience_pct"] > 30:
+        if convenience_data["convenience_pct"] > CONVENIENCE_SPENDING_ALERT_PCT:
             insights.append(
                 {
                     "title": "Significant Convenience Spending",
@@ -145,15 +162,15 @@ class InsightEngine:
 
         # Monthly trends
         monthly_data = calculator.group_by_month(transactions)
-        if len(monthly_data) >= 3:
+        if len(monthly_data) >= RECENT_MONTHS_WINDOW:
             sorted_months = sorted(monthly_data.items())
 
-            # Recent 3 months avg vs overall avg
-            recent_3 = sorted_months[-3:]
-            recent_avg = sum(m[1]["expenses"] for m in recent_3) / 3
+            # Recent N months avg vs overall avg
+            recent = sorted_months[-RECENT_MONTHS_WINDOW:]
+            recent_avg = sum(m[1]["expenses"] for m in recent) / RECENT_MONTHS_WINDOW
             overall_avg = sum(m[1]["expenses"] for m in sorted_months) / len(sorted_months)
 
-            if recent_avg > overall_avg * 1.2:
+            if recent_avg > overall_avg * SPENDING_TREND_UP_RATIO:
                 insights.append(
                     {
                         "title": "Spending Trending Upward",
@@ -165,7 +182,7 @@ class InsightEngine:
                         "severity": "warning",
                     },
                 )
-            elif recent_avg < overall_avg * 0.8:
+            elif recent_avg < overall_avg * SPENDING_TREND_DOWN_RATIO:
                 insights.append(
                     {
                         "title": "Spending Trending Downward",
@@ -205,7 +222,7 @@ class InsightEngine:
 
         # Lifestyle inflation
         inflation = calculator.calculate_lifestyle_inflation(expenses)
-        if inflation > 20:
+        if inflation > LIFESTYLE_INFLATION_ALERT_PCT:
             insights.append(
                 {
                     "title": "Lifestyle Inflation Detected",
@@ -217,7 +234,7 @@ class InsightEngine:
                     "severity": "info",
                 },
             )
-        elif inflation < -10:
+        elif inflation < LIFESTYLE_DEFLATION_POSITIVE_PCT:
             insights.append(
                 {
                     "title": "Spending Reduction",
@@ -231,7 +248,7 @@ class InsightEngine:
 
         # Spending velocity
         velocity_data = calculator.calculate_spending_velocity(expenses)
-        if velocity_data["velocity_ratio"] > 1.3:
+        if velocity_data["velocity_ratio"] > SPENDING_VELOCITY_UP_RATIO:
             insights.append(
                 {
                     "title": "Accelerated Recent Spending",
@@ -243,7 +260,7 @@ class InsightEngine:
                     "severity": "warning",
                 },
             )
-        elif velocity_data["velocity_ratio"] < 0.7:
+        elif velocity_data["velocity_ratio"] < SPENDING_VELOCITY_DOWN_RATIO:
             insights.append(
                 {
                     "title": "Reduced Recent Spending",

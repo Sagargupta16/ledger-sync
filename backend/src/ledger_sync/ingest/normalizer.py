@@ -144,34 +144,59 @@ class DataNormalizer:
 
         return category
 
+    # Canonical casing for common Indian bank names. Keys are lowercased
+    # tokens as they appear in the account name; the value is the display
+    # form we want. Matched as whole words (case-insensitive, ignoring
+    # surrounding whitespace) via _BANK_NAME_PATTERN so both
+    # "sbi bank" and "SBI Bank" become "SBI Bank", and "HDFC Credit Card"
+    # becomes "HDFC Credit Card" (not "hdfc Credit Card").
+    BANK_CANONICAL_NAMES: ClassVar[dict[str, str]] = {
+        "sbi": "SBI",
+        "hdfc": "HDFC",
+        "icici": "ICICI",
+        "axis": "Axis",
+        "kotak": "Kotak",
+        "yes": "Yes",
+        "idfc": "IDFC",
+        "idfc first": "IDFC First",
+        "indusind": "IndusInd",
+        "pnb": "PNB",
+        "bob": "BOB",
+        "boi": "BOI",
+        "canara": "Canara",
+        "union": "Union",
+        "federal": "Federal",
+        "rbl": "RBL",
+        "idbi": "IDBI",
+        "citi": "Citi",
+        "citibank": "Citibank",
+        "hsbc": "HSBC",
+        "standard chartered": "Standard Chartered",
+        "dbs": "DBS",
+        "au small finance": "AU Small Finance",
+    }
+
     def _standardize_account(self, account: str) -> str:
         """Standardize account name for consistency.
 
-        Args:
-            account: Raw account name
-
-        Returns:
-            Standardized account name
-
+        Applies canonical casing to known bank-name tokens while preserving
+        the rest of the label. Case-insensitive and works whether or not
+        the user wrote "bank" at the end, so "hdfc bank", "HDFC Bank",
+        "HDFC CC", and "Hdfc Credit Card" all end up with "HDFC" in the
+        right place.
         """
         if not account:
             return ""
 
-        # Clean text
         account = self._clean_text(account)
 
-        # Common account name fixes
-        account_fixes = {
-            "sbi bank": "SBI Bank",
-            "hdfc bank": "HDFC Bank",
-            "icici bank": "ICICI Bank",
-            "axis bank": "Axis Bank",
-            "kotak bank": "Kotak Bank",
-        }
-
-        account_lower = account.lower()
-        if account_lower in account_fixes:
-            return account_fixes[account_lower]
+        # Sort keys longest-first so "idfc first" is matched before "idfc",
+        # and "standard chartered" before "standard". Case-insensitive
+        # whole-token replacement.
+        for token in sorted(self.BANK_CANONICAL_NAMES, key=len, reverse=True):
+            canonical = self.BANK_CANONICAL_NAMES[token]
+            pattern = re.compile(rf"\b{re.escape(token)}\b", re.IGNORECASE)
+            account = pattern.sub(canonical, account)
 
         return account
 

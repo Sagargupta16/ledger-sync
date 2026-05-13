@@ -124,3 +124,37 @@ class TestDataNormalizer:
 
         with pytest.raises(NormalizationError, match="Unknown transaction type"):
             normalizer.normalize_transaction_type("InvalidType")
+
+    def test_bank_name_canonicalization_case_insensitive(self):
+        """Bank names should be canonicalized regardless of input casing."""
+        normalizer = DataNormalizer()
+
+        assert normalizer._standardize_account("sbi bank") == "SBI bank"
+        assert normalizer._standardize_account("SBI Bank") == "SBI Bank"
+        assert normalizer._standardize_account("hdfc bank") == "HDFC bank"
+        assert normalizer._standardize_account("HDFC BANK") == "HDFC BANK"
+        assert normalizer._standardize_account("hdfc cc") == "HDFC cc"
+        assert normalizer._standardize_account("Hdfc Credit Card") == "HDFC Credit Card"
+
+    def test_bank_name_longest_match_wins(self):
+        """'IDFC First Bank' should canonicalize 'IDFC First', not just 'IDFC'."""
+        normalizer = DataNormalizer()
+
+        assert normalizer._standardize_account("idfc first bank") == "IDFC First bank"
+        assert normalizer._standardize_account("standard chartered") == "Standard Chartered"
+
+    def test_bank_name_extended_coverage(self):
+        """New banks beyond the original five should be canonicalized."""
+        normalizer = DataNormalizer()
+
+        assert "Yes" in normalizer._standardize_account("yes bank")
+        assert "IndusInd" in normalizer._standardize_account("indusind savings")
+        assert "RBL" in normalizer._standardize_account("rbl credit card")
+        assert "AU Small Finance" in normalizer._standardize_account("au small finance fd")
+
+    def test_bank_name_word_boundary(self):
+        """Canonicalization should not match inside other words."""
+        normalizer = DataNormalizer()
+
+        # 'axis' inside 'maxis' or 'taxis' must not be replaced
+        assert normalizer._standardize_account("taxis reimbursement") == "taxis reimbursement"

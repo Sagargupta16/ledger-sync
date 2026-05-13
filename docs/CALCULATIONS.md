@@ -335,14 +335,17 @@ Tracks whether you've been gradually spending more. Used in Insights page.
 
 ## Tax Calculations (India)
 
-**Code**: `frontend/src/lib/taxCalculator.ts`
+**Code**: `frontend/src/lib/taxCalculator.ts` (logic) + `frontend/src/lib/tax-config/index.ts` (rules).
 
 ### Slab Rates
 
-Ledger Sync ships with hardcoded tax slabs for:
+Tax rules (slabs, surcharge bands, Section 87A rebate, standard deduction, cess, professional tax) live in `frontend/src/lib/tax-config/index.ts` as per-FY blocks:
 
-- **Old Regime** -- FY2019-20 through FY2025-26 (with 80C, 80D, HRA, 24(b) deductions)
-- **New Regime** -- FY2020-21 onward (lower rates, no deductions except standard + NPS 80CCD(2) + Agniveer 80CCH)
+- **FY 2023-24** -- Budget 2023 new regime + pre-bump old regime (SD 50k)
+- **FY 2024-25** -- Budget 2024 new-regime slabs + old regime with bumped SD 75k
+- **FY 2025-26** -- Budget 2025 new-regime slabs (includes 25% band, 12L rebate ceiling)
+
+Each block carries a `source` field referencing the Budget notification. Adding a new Budget is a single new entry; historical calculations never change. `getTaxConfig(fyStartYear)` resolves with newest-first fallback so the app keeps working for future FYs until the file is updated.
 
 Slab lookup:
 

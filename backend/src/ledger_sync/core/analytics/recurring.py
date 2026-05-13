@@ -32,15 +32,19 @@ from ledger_sync.db.models import (
 class RecurringMixin(AnalyticsEngineBase):
     """Mixin: recurring-pattern detection and persistence."""
 
-    # Frequency bands: (min_days, max_days, frequency, confidence_penalty_per_std)
+    # Frequency bands: (min_days, max_days, frequency, confidence_penalty_per_std).
+    # Bands are contiguous (end-of-one = start-of-next - 1) so that a series
+    # with mean gap of e.g. 19 or 78 days still resolves to a frequency
+    # instead of falling into a dead zone. Penalty scales with expected
+    # cadence -- wider cycles tolerate more jitter.
     _FREQ_BANDS: list[tuple[float, float, RecurrenceFrequency, float]] = [
         (4, 10, RecurrenceFrequency.WEEKLY, 8),
-        (11, 18, RecurrenceFrequency.BIWEEKLY, 5),
-        (20, 45, RecurrenceFrequency.MONTHLY, 3),
-        (50, 75, RecurrenceFrequency.BIMONTHLY, 2.5),
-        (80, 110, RecurrenceFrequency.QUARTERLY, 2),
-        (150, 210, RecurrenceFrequency.SEMIANNUAL, 1.5),
-        (340, 395, RecurrenceFrequency.YEARLY, 1),
+        (11, 19, RecurrenceFrequency.BIWEEKLY, 5),
+        (20, 49, RecurrenceFrequency.MONTHLY, 3),
+        (50, 79, RecurrenceFrequency.BIMONTHLY, 2.5),
+        (80, 129, RecurrenceFrequency.QUARTERLY, 2),
+        (130, 269, RecurrenceFrequency.SEMIANNUAL, 1.5),
+        (270, 400, RecurrenceFrequency.YEARLY, 1),
     ]
 
     def _load_confirmed_recurring(self) -> dict[str, RecurringTransaction]:

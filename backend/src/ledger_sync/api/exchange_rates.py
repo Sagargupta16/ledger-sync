@@ -28,22 +28,26 @@ _FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest"
 # re-fetch after a cold start.
 _rate_cache: dict[str, Any] = {}
 
-# Approximate fallback rates (INR -> X) as of 2026-04-09
+# Approximate fallback rates (INR -> X). Refreshed when the module is updated.
+# Used only when frankfurter.dev is unreachable AND the in-memory cache is empty.
+# Responses built from this table carry ``fallback: true`` and ``fallback_as_of``
+# so the frontend can warn the user that rates are stale.
+_FALLBACK_AS_OF = "2026-05-13"
 _FALLBACK_RATES: dict[str, float] = {
-    "USD": 0.01079,
-    "EUR": 0.00924,
-    "GBP": 0.00804,
-    "JPY": 1.7152,
-    "CAD": 0.01494,
-    "AUD": 0.01533,
-    "CHF": 0.00853,
-    "SGD": 0.01375,
-    "AED": 0.03963,
-    "CNY": 0.07376,
-    "KRW": 15.967,
-    "SEK": 0.10046,
-    "NZD": 0.01849,
-    "HKD": 0.08456,
+    "USD": 0.01180,
+    "EUR": 0.01088,
+    "GBP": 0.00931,
+    "JPY": 1.7820,
+    "CAD": 0.01620,
+    "AUD": 0.01790,
+    "CHF": 0.00975,
+    "SGD": 0.01530,
+    "AED": 0.04333,
+    "CNY": 0.08490,
+    "KRW": 16.210,
+    "SEK": 0.11450,
+    "NZD": 0.01955,
+    "HKD": 0.09220,
 }
 
 
@@ -113,6 +117,7 @@ async def get_exchange_rates(
                 "rates": _FALLBACK_RATES,
                 "fetched_at": None,
                 "fallback": True,
+                "fallback_as_of": _FALLBACK_AS_OF,
             }
         raise HTTPException(
             status_code=502,

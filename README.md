@@ -88,9 +88,9 @@ No subscriptions. No data harvesting. Just a focused set of analytics pages buil
 
 ### Smart Defaults
 
-- **Account classification** - Automatically categorizes accounts by keyword (EPF/PPF/MF/FD/Stocks to Investments, HDFC/SBI/ICICI to Bank Accounts, etc.)
-- **Income classification** - Auto-assigns Salary/Freelance to Taxable, Dividends/Interest to Investment Returns, Cashbacks to Non-taxable
-- **Investment mapping** - Auto-maps investment accounts to types (Groww MF to Mutual Funds, PPF Account to PPF/EPF, etc.)
+- **Account classification** - Priority-ordered rules (credit-card > investment > loan > deposit) with word-boundary regex classify accounts by keyword. "HDFC CC" becomes a credit card, "HDFC Bank" a deposit, "HDFC Stocks" an investment. 20+ Indian banks normalized to canonical casing (SBI, HDFC, IDFC First, IndusInd, AU Small Finance, etc.).
+- **Income classification** - Auto-assigns Salary/Freelance to Taxable, Dividends/Interest to Investment Returns, Cashbacks to Non-taxable.
+- **Investment mapping** - User-configurable via Settings > Account Classifications. Default mappings are empty so each user sets their own -- no pre-seeded names from other installs.
 
 ## Tech Stack
 

@@ -24,12 +24,14 @@ _engine_kwargs: dict[str, object] = {
 if _is_sqlite:
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
 else:
-    # PostgreSQL pool settings — sized for Neon free tier (limited connections).
-    _engine_kwargs["pool_size"] = 5
-    _engine_kwargs["max_overflow"] = 3
+    # PostgreSQL pool settings — env-overridable via LEDGER_SYNC_DB_*
+    _engine_kwargs["pool_size"] = settings.db_pool_size
+    _engine_kwargs["max_overflow"] = settings.db_max_overflow
     _engine_kwargs["pool_pre_ping"] = True
-    _engine_kwargs["pool_recycle"] = 300  # recycle connections every 5 min (Neon idle timeout)
-    _engine_kwargs["connect_args"] = {"connect_timeout": 10}
+    _engine_kwargs["pool_recycle"] = settings.db_pool_recycle_seconds
+    _engine_kwargs["connect_args"] = {
+        "connect_timeout": settings.db_connect_timeout_seconds,
+    }
 
 engine = create_engine(_db_url, **_engine_kwargs)
 
@@ -49,13 +51,15 @@ if _is_sqlite:
         cursor.close()
 
 else:
+    _stmt_timeout_ms = settings.db_statement_timeout_seconds * 1000
+    _idle_tx_timeout_ms = settings.db_idle_transaction_timeout_seconds * 1000
 
     @event.listens_for(engine, "connect")
     def _set_pg_timeout(dbapi_connection: Any, _connection_record: Any) -> None:
         """Set timeouts per-connection (compatible with Neon pooler)."""
         cursor = dbapi_connection.cursor()
-        cursor.execute("SET statement_timeout = '30s'")
-        cursor.execute("SET idle_in_transaction_session_timeout = '60s'")
+        cursor.execute(f"SET statement_timeout = {_stmt_timeout_ms}")
+        cursor.execute(f"SET idle_in_transaction_session_timeout = {_idle_tx_timeout_ms}")
         cursor.close()
 
 

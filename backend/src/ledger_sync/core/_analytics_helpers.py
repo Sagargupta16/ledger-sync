@@ -27,15 +27,11 @@ DEFAULT_ESSENTIAL_CATEGORIES = {
     "Utilities",
 }
 
-DEFAULT_INVESTMENT_ACCOUNT_PATTERNS = {
-    "Grow Stocks": "stocks",
-    "Grow Mutual Funds": "mutual_funds",
-    "IND money": "stocks",
-    "FD/Bonds": "fixed_deposits",
-    "EPF": "ppf_epf",
-    "PPF": "ppf_epf",
-    "RSUs": "stocks",
-}
+# Empty by default -- users configure their own mappings via
+# Settings -> Account Classifications (stored in UserPreferences.
+# investment_account_mappings). Shipping a populated default would
+# leak the maintainer's personal account names into every install.
+DEFAULT_INVESTMENT_ACCOUNT_PATTERNS: dict[str, str] = {}
 
 
 def group_txns_by_pattern(

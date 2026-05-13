@@ -51,6 +51,16 @@ class Settings(BaseSettings):
     # Upload limits
     max_upload_size_bytes: int = MAX_UPLOAD_SIZE_BYTES
 
+    # Database pool settings (PostgreSQL only; SQLite uses defaults).
+    # Defaults are sized for Neon free tier (limited concurrent connections).
+    # Override via env vars to scale up on paid Postgres.
+    db_pool_size: int = 5
+    db_max_overflow: int = 3
+    db_pool_recycle_seconds: int = 300  # Neon idles connections after 5m
+    db_connect_timeout_seconds: int = 10
+    db_statement_timeout_seconds: int = 30
+    db_idle_transaction_timeout_seconds: int = 60
+
     # OAuth settings — set client ID and secret for each provider to enable.
     # Google: https://console.cloud.google.com/apis/credentials
     google_client_id: str = ""
@@ -78,6 +88,11 @@ class Settings(BaseSettings):
     # spawns). Users who want more switch to BYOK. Make it generous enough
     # for normal finance Q&A without being a blank check.
     ai_daily_message_limit: int = 10
+    # Hard stop on tool-calling rounds per user message (browser enforces
+    # this; backend UsageLogRequest validation allows a small buffer on
+    # top so a slightly-over report isn't silently dropped). Keep these
+    # two values aligned when tuning.
+    ai_max_tool_rounds: int = 6
 
     # CORS settings — override with LEDGER_SYNC_CORS_ORIGINS env var (JSON array).
     # Defaults include localhost origins for development only.
