@@ -228,25 +228,37 @@ def find_best_worst_months(monthly_data: dict[str, dict[str, float]]) -> dict[st
 
 
 def calculate_convenience_spending(transactions: list[Transaction]) -> dict[str, float]:
-    """Calculate convenience spending metrics."""
+    """Calculate convenience/discretionary spending metrics.
+
+    Matches by substring against the category name because the normalizer
+    produces multi-word labels like 'Food & Dining' and 'Entertainment &
+    Recreations' -- an exact-lowercase equality check would never match
+    and this function would silently always return 0. Token list is
+    intentionally small; a user-overridable list is tracked as CLS-4b.
+    """
     expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
 
-    convenience_categories = {
+    convenience_tokens = (
         "shopping",
         "entertainment",
-        "food",
         "dining",
         "restaurant",
         "movie",
         "games",
-    }
+        "recreation",
+        "leisure",
+        "travel",
+        "subscription",
+    )
+
+    def _is_convenience(cat: str | None) -> bool:
+        if not cat:
+            return False
+        lower = cat.lower()
+        return any(token in lower for token in convenience_tokens)
 
     convenience_spending = sum(
-        (
-            _to_decimal(t.amount)
-            for t in expenses
-            if t.category and t.category.lower() in convenience_categories
-        ),
+        (_to_decimal(t.amount) for t in expenses if _is_convenience(t.category)),
         Decimal(0),
     )
     total_spending = sum((_to_decimal(t.amount) for t in expenses), Decimal(0))

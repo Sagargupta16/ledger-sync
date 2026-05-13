@@ -3,16 +3,15 @@
  *
  * Supports both old and new tax regimes with slab-based calculation,
  * standard deduction, health & education cess, and professional tax.
+ *
+ * All year-specific rates (slabs, surcharge, 87A rebate, standard
+ * deduction, cess, professional tax) live in `tax-config/` and are
+ * looked up per FY via `getTaxConfig(fyStartYear)`. To apply a new
+ * Budget, add a new FY entry there, not here.
  */
 
 /** Default fiscal year start month (April, 1-indexed) */
 export const FY_START_MONTH = 4
-
-/** Cess rate applied on top of base tax */
-const CESS_RATE = 0.04
-
-/** Monthly professional tax amount */
-const PROFESSIONAL_TAX_PER_MONTH = 200
 
 /** Maximum months for professional tax */
 const MAX_PROFESSIONAL_TAX_MONTHS = 12
@@ -43,80 +42,48 @@ export interface TaxCalculationResult {
 }
 
 // ────────────────────────────────────────────
-// Tax Slab Definitions
+// Tax Slab Definitions — sourced from tax-config/
 // ────────────────────────────────────────────
 
-/**
- * OLD TAX REGIME (with Section 80C, HRA, LTA deductions)
- * Same slabs for all financial years.
- */
-export const TAX_SLABS_OLD_REGIME: TaxSlab[] = [
-  { lower: 0, upper: 250000, rate: 0 },
-  { lower: 250000, upper: 500000, rate: 5 },
-  { lower: 500000, upper: 1000000, rate: 20 },
-  { lower: 1000000, upper: Infinity, rate: 30 },
-]
+import { getTaxConfig } from './tax-config'
 
 /**
- * NEW TAX REGIME — FY 2024-25 (Budget 2024 revision)
- * No deductions allowed. Default regime from April 2024.
+ * OLD TAX REGIME (with Section 80C, HRA, LTA deductions).
+ * Kept as an exported alias for the *current* old-regime slabs so
+ * existing imports keep working. The slabs themselves live in
+ * tax-config/ — this re-export freezes them at the current FY.
  */
-export const TAX_SLABS_NEW_FY2024: TaxSlab[] = [
-  { lower: 0, upper: 300000, rate: 0 },
-  { lower: 300000, upper: 700000, rate: 5 },
-  { lower: 700000, upper: 1000000, rate: 10 },
-  { lower: 1000000, upper: 1200000, rate: 15 },
-  { lower: 1200000, upper: 1500000, rate: 20 },
-  { lower: 1500000, upper: Infinity, rate: 30 },
-]
+export const TAX_SLABS_OLD_REGIME: TaxSlab[] = getTaxConfig(
+  new Date().getUTCFullYear(),
+).oldRegime.slabs
 
-/**
- * NEW TAX REGIME — FY 2025-26 onwards (Budget 2025 revision)
- * Higher exemption limit, additional 25% slab.
- */
-export const TAX_SLABS_NEW_FY2025: TaxSlab[] = [
-  { lower: 0, upper: 400000, rate: 0 },
-  { lower: 400000, upper: 800000, rate: 5 },
-  { lower: 800000, upper: 1200000, rate: 10 },
-  { lower: 1200000, upper: 1600000, rate: 15 },
-  { lower: 1600000, upper: 2000000, rate: 20 },
-  { lower: 2000000, upper: 2400000, rate: 25 },
-  { lower: 2400000, upper: Infinity, rate: 30 },
-]
+/** NEW TAX REGIME — FY 2024-25 (Budget 2024 revision) */
+export const TAX_SLABS_NEW_FY2024: TaxSlab[] = getTaxConfig(2024).newRegime.slabs
+
+/** NEW TAX REGIME — FY 2025-26 onwards (Budget 2025 revision) */
+export const TAX_SLABS_NEW_FY2025: TaxSlab[] = getTaxConfig(2025).newRegime.slabs
 
 // Backward-compatible aliases
 export const TAX_SLABS_OLD = TAX_SLABS_NEW_FY2024
 export const TAX_SLABS_NEW = TAX_SLABS_NEW_FY2025
 
-/**
- * Old Regime slabs by FY — the old regime hasn't changed in years,
- * same slabs apply to all FYs.
- */
-export function getOldRegimeSlabs(): TaxSlab[] {
-  return TAX_SLABS_OLD_REGIME
+/** Old-regime slabs for the given FY. */
+export function getOldRegimeSlabs(fyStartYear: number = new Date().getUTCFullYear()): TaxSlab[] {
+  return getTaxConfig(fyStartYear).oldRegime.slabs
 }
 
-/**
- * New Regime slabs by FY — slabs changed in Budget 2024 and Budget 2025.
- * - FY 2025-26+ (start year >= 2025): Budget 2025 slabs
- * - FY 2024-25 (start year 2024): Budget 2024 slabs
- * - FY 2023-24 and earlier: Budget 2023 slabs (3-6L @5%, same as pre-2024)
- */
+/** New-regime slabs for the given FY. */
 export function getNewRegimeSlabs(fyStartYear: number): TaxSlab[] {
-  if (fyStartYear >= 2025) return TAX_SLABS_NEW_FY2025
-  return TAX_SLABS_NEW_FY2024
+  return getTaxConfig(fyStartYear).newRegime.slabs
 }
 
-/**
- * Get the correct tax slabs for a given FY and regime.
- * This is the single function pages should call.
- */
+/** Dispatch slabs by regime + FY. */
 export function getTaxSlabs(
   fyStartYear: number,
   regime: 'new' | 'old',
 ): TaxSlab[] {
   return regime === 'old'
-    ? getOldRegimeSlabs()
+    ? getOldRegimeSlabs(fyStartYear)
     : getNewRegimeSlabs(fyStartYear)
 }
 
@@ -128,30 +95,14 @@ export function getTaxSlabs(
 // Surcharge rates (applicable on base tax)
 // ────────────────────────────────────────────
 
-interface SurchargeRate {
-  above: number
-  rate: number
-}
-
-const SURCHARGE_OLD_REGIME: SurchargeRate[] = [
-  { above: 50000000, rate: 0.37 },
-  { above: 20000000, rate: 0.25 },
-  { above: 10000000, rate: 0.15 },
-  { above: 5000000, rate: 0.1 },
-]
-
-const SURCHARGE_NEW_REGIME: SurchargeRate[] = [
-  { above: 20000000, rate: 0.25 },
-  { above: 10000000, rate: 0.15 },
-  { above: 5000000, rate: 0.1 },
-]
-
 function computeSurcharge(
   taxableIncome: number,
   baseTax: number,
   isNewRegime: boolean,
+  fyStartYear: number,
 ): number {
-  const rates = isNewRegime ? SURCHARGE_NEW_REGIME : SURCHARGE_OLD_REGIME
+  const cfg = getTaxConfig(fyStartYear)
+  const rates = isNewRegime ? cfg.newRegime.surcharge : cfg.oldRegime.surcharge
   for (const { above, rate } of rates) {
     if (taxableIncome > above) return baseTax * rate
   }
@@ -171,16 +122,8 @@ function getRebateConfig(
   isNewRegime: boolean,
   fyStartYear: number,
 ): RebateConfig {
-  if (isNewRegime) {
-    if (fyStartYear >= 2025) {
-      // FY 2025-26+: rebate if taxable income <= 12L
-      return { maxIncome: 1200000, maxRebate: 60000 }
-    }
-    // FY 2024-25: rebate if taxable income <= 7L
-    return { maxIncome: 700000, maxRebate: 25000 }
-  }
-  // Old regime: rebate if taxable income <= 5L
-  return { maxIncome: 500000, maxRebate: 12500 }
+  const cfg = getTaxConfig(fyStartYear)
+  return isNewRegime ? cfg.newRegime.rebate87A : cfg.oldRegime.rebate87A
 }
 
 // ────────────────────────────────────────────
@@ -228,8 +171,10 @@ export function calculateTax(
   // today -- but the formula is written correctly so future rule changes
   // won't silently undercount.
 
+  const fyConfig = getTaxConfig(fyStartYear)
+
   // 2. Surcharge on base tax
-  const surcharge = computeSurcharge(taxableIncome, baseTax, isNewRegime)
+  const surcharge = computeSurcharge(taxableIncome, baseTax, isNewRegime, fyStartYear)
 
   // 3. Section 87A rebate on base tax
   const rebateConfig = getRebateConfig(isNewRegime, fyStartYear)
@@ -239,12 +184,12 @@ export function calculateTax(
   }
   const taxAfterRebate = Math.max(0, baseTax - rebate87A)
 
-  // 4. Health & Education Cess (4% on tax-after-rebate + surcharge)
-  const cess = (taxAfterRebate + surcharge) * CESS_RATE
+  // 4. Health & Education Cess (on tax-after-rebate + surcharge)
+  const cess = (taxAfterRebate + surcharge) * fyConfig.cessRate
 
   // 5. Professional Tax
   const professionalTax = applyProfessionalTax
-    ? PROFESSIONAL_TAX_PER_MONTH
+    ? fyConfig.professionalTaxPerMonth
       * Math.min(salaryMonthsCount, MAX_PROFESSIONAL_TAX_MONTHS)
     : 0
 
@@ -352,12 +297,11 @@ export function getTaxSlabsForFY(fyStartYear: number): TaxSlab[] {
 }
 
 /**
- * Get the standard deduction amount based on the FY start year.
- *
- * Rs 75,000 from FY 2024-25 onwards; Rs 50,000 before that.
+ * Get the standard deduction amount for a given FY (new regime).
+ * Sourced from tax-config so a Budget change is a one-line edit.
  */
 export function getStandardDeduction(fyStartYear: number): number {
-  return fyStartYear >= 2024 ? 75000 : 50000
+  return getTaxConfig(fyStartYear).newRegime.standardDeduction
 }
 
 /**

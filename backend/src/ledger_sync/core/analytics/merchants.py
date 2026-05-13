@@ -14,15 +14,19 @@ from sqlalchemy import delete
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.db.models import MerchantIntelligence, Transaction, TransactionType
 
-# Known merchant patterns -- compiled once and reused.
+# Known merchant patterns -- compiled once and reused. We search, not match,
+# so a merchant name anywhere in the narration is found. UPI/NEFT narrations
+# rarely start with the merchant ("UPI/Swiggy/ref123", "Payment to Zomato"),
+# so the old ^-anchored form silently missed most real transactions.
+# Patterns use word boundaries to avoid "Uber" matching inside "UberEats".
 _MERCHANT_PATTERNS = [
     re.compile(
-        r"^(Uber|Ola|Rapido|Swiggy|Zomato|Amazon|Flipkart|BigBasket|Zepto|Blinkit|Dunzo)",
+        r"\b(Uber|Ola|Rapido|Swiggy|Zomato|Amazon|Flipkart|BigBasket|Zepto|Blinkit|Dunzo)\b",
         re.IGNORECASE,
     ),
-    re.compile(r"^(Netflix|Spotify|YouTube|Disney|Prime|Hotstar)", re.IGNORECASE),
-    re.compile(r"^(Google|Apple|Microsoft|Adobe|AWS|Azure)", re.IGNORECASE),
-    re.compile(r"^(HDFC|SBI|ICICI|Axis|Kotak)", re.IGNORECASE),
+    re.compile(r"\b(Netflix|Spotify|YouTube|Disney|Prime|Hotstar)\b", re.IGNORECASE),
+    re.compile(r"\b(Google|Apple|Microsoft|Adobe|AWS|Azure)\b", re.IGNORECASE),
+    re.compile(r"\b(HDFC|SBI|ICICI|Axis|Kotak)\b", re.IGNORECASE),
 ]
 
 
@@ -135,9 +139,10 @@ class MerchantsMixin(AnalyticsEngineBase):
         note = note.strip()
 
         for pattern in _MERCHANT_PATTERNS:
-            match = pattern.match(note)
-            if match:
-                return match.group(1).title()
+            # search, not match -- merchant name can appear anywhere in note.
+            m = pattern.search(note)
+            if m:
+                return m.group(1).title()
 
         # Default: first word if it looks like a merchant
         words = note.split()

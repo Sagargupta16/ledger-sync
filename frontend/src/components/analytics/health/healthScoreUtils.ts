@@ -95,6 +95,28 @@ export const PILLAR_META: Record<Pillar, { label: string; icon: typeof Wallet }>
 
 export const PILLAR_ORDER: Pillar[] = ['spend', 'save', 'borrow', 'plan']
 
+// ─── Health-Score Rubric ────────────────────────────────────────────────────
+// Primary targets for each of the 8 FinHealth metrics. These are the values
+// rendered in the "Target" column of the UI and should stay in sync with
+// the break-points inside each `score*` function below. Extracted here so
+// tweaking a target is one place, not two, and so it's obvious which
+// numbers are policy vs which are curve-shaping math.
+//
+// These reflect FHN (US Financial Health Network) guidance and common
+// India-personal-finance rules of thumb. Some are US-centric (36% DTI,
+// 50/30/20 rule) -- making these user-adjustable is tracked as HEALTH-1b.
+
+export const HEALTH_SCORE_RUBRIC = {
+  savingsRatePct: 20,           // SPEND 1: save at least 20% of income
+  essentialRatioPct: 50,        // SPEND 2: essentials under 50% (50/30/20 rule)
+  emergencyFundMonths: 6,       // SAVE 3: 6 months of expenses liquid
+  investmentToIncomePct: 15,    // SAVE 4: invest 15%+ of income
+  debtToIncomeMaxPct: 36,       // BORROW 5: DTI within banking threshold
+  debtTrendGoodPct: -5,         // BORROW 6: debt declining (or stable)
+  savingsConsistencyPct: 90,    // PLAN 7: 90%+ months with positive savings
+  incomeStabilityMaxCV: 25,     // PLAN 8: income CV <= 25%
+} as const
+
 // ─── Pure Helpers ───────────────────────────────────────────────────────────
 
 export function clamp(value: number, min: number, max: number): number {
@@ -354,7 +376,10 @@ export function computeAnalysis(
 // ─── FHN Indicator Scorers ──────────────────────────────────────────────────
 
 // SPEND 1: Spend less than income
-export function scoreSpendLessThanIncome(data: AnalysisResult, savingsGoalPercent = 20): HealthMetric {
+export function scoreSpendLessThanIncome(
+  data: AnalysisResult,
+  savingsGoalPercent: number = HEALTH_SCORE_RUBRIC.savingsRatePct,
+): HealthMetric {
   const rate = data.savingsRate
   const target = savingsGoalPercent
   let score: number
@@ -379,11 +404,12 @@ export function scoreSpendLessThanIncome(data: AnalysisResult, savingsGoalPercen
   }
 }
 
-// SPEND 2: Essential expense ratio
+// SPEND 2: Essential expense ratio (50/30/20 rule -- target ≤ 50% of income)
 export function scoreEssentialRatio(data: AnalysisResult): HealthMetric {
   const ratio = data.essentialToIncomeRatio
+  const target = HEALTH_SCORE_RUBRIC.essentialRatioPct
   let score: number
-  if (ratio <= 50) score = clamp(90 + (50 - ratio), 90, 100)
+  if (ratio <= target) score = clamp(90 + (target - ratio), 90, 100)
   else if (ratio <= 60) score = 70 + ((60 - ratio) / 10) * 19
   else if (ratio <= 75) score = 40 + ((75 - ratio) / 15) * 29
   else score = clamp(40 - (ratio - 75) * 2, 0, 39)
@@ -395,10 +421,10 @@ export function scoreEssentialRatio(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'spend',
     description: `${ratio.toFixed(0)}% of income on essentials`,
-    target: '<= 50%',
+    target: `<= ${target}%`,
     details: [
       `Essentials: ${ratio.toFixed(1)}% of income`,
-      ratio <= 50 ? '50/30/20 target met' : 'Target: essentials under 50% of income',
+      ratio <= target ? '50/30/20 target met' : `Target: essentials under ${target}% of income`,
     ],
   }
 }
@@ -406,8 +432,9 @@ export function scoreEssentialRatio(data: AnalysisResult): HealthMetric {
 // SAVE 3: Emergency fund coverage
 export function scoreEmergencyFund(data: AnalysisResult): HealthMetric {
   const months = data.emergencyFundMonths
+  const target = HEALTH_SCORE_RUBRIC.emergencyFundMonths
   let score: number
-  if (months >= 6) score = clamp(90 + (months - 6) * 2, 90, 100)
+  if (months >= target) score = clamp(90 + (months - target) * 2, 90, 100)
   else if (months >= 3) score = 70 + ((months - 3) / 3) * 19
   else if (months >= 1) score = 40 + ((months - 1) / 2) * 29
   else score = clamp(months * 40, 0, 39)
@@ -419,11 +446,11 @@ export function scoreEmergencyFund(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'save',
     description: `${months.toFixed(1)} months of expenses (liquid)`,
-    target: '>= 6 months',
+    target: `>= ${target} months`,
     details: [
       `Liquid savings: ${formatCurrencyCompact(data.cumulativeNetSavings - (data.totalInvestmentInflow - data.totalInvestmentOutflow))}`,
       `Avg monthly expenses: ${formatCurrencyCompact(data.avgMonthlyExpense)}`,
-      months >= 6 ? 'Target met: 6+ months coverage' : 'Target: 6 months of expenses saved',
+      months >= target ? `Target met: ${target}+ months coverage` : `Target: ${target} months of expenses saved`,
     ],
   }
 }
@@ -434,8 +461,9 @@ export function scoreInvestment(data: AnalysisResult): HealthMetric {
   const regularity = data.investmentRegularity
 
   // Blend: 60% ratio score + 40% regularity score
+  const target = HEALTH_SCORE_RUBRIC.investmentToIncomePct
   let ratioScore: number
-  if (ratio >= 15) ratioScore = 90
+  if (ratio >= target) ratioScore = 90
   else if (ratio >= 10) ratioScore = 70 + ((ratio - 10) / 5) * 19
   else if (ratio >= 5) ratioScore = 40 + ((ratio - 5) / 5) * 29
   else if (ratio >= 0) ratioScore = (ratio / 5) * 39
@@ -453,7 +481,7 @@ export function scoreInvestment(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'save',
     description: ratio >= 0 ? `${ratio.toFixed(1)}% of income invested` : 'Net withdrawal',
-    target: '>= 15%',
+    target: `>= ${target}%`,
     details: [
       `${Math.round(regularity * 100)}% months with net investments`,
       `Net invested: ${formatCurrencyCompact(netInvestment)}`,
@@ -462,19 +490,20 @@ export function scoreInvestment(data: AnalysisResult): HealthMetric {
   }
 }
 
-// BORROW 5: Debt-to-income ratio
+// BORROW 5: Debt-to-income ratio (banking threshold 36%)
 export function scoreDebtToIncome(data: AnalysisResult): HealthMetric {
   const dti = data.debtToIncomeRatio
+  const maxDti = HEALTH_SCORE_RUBRIC.debtToIncomeMaxPct
   let score: number
   if (dti < 10) score = clamp(90 + (10 - dti), 90, 100)
   else if (dti <= 20) score = 70 + ((20 - dti) / 10) * 19
-  else if (dti <= 36) score = 40 + ((36 - dti) / 16) * 29
-  else score = clamp(40 - (dti - 36) * 1.5, 0, 39)
+  else if (dti <= maxDti) score = 40 + ((maxDti - dti) / (maxDti - 20)) * 29
+  else score = clamp(40 - (dti - maxDti) * 1.5, 0, 39)
 
   let desc: string
   if (dti < 10) desc = 'Very low debt burden'
   else if (dti <= 20) desc = 'Low debt burden'
-  else if (dti <= 36) desc = 'Moderate debt'
+  else if (dti <= maxDti) desc = 'Moderate debt'
   else desc = 'High debt burden'
 
   return {
@@ -484,11 +513,11 @@ export function scoreDebtToIncome(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'borrow',
     description: desc,
-    target: '<= 36%',
+    target: `<= ${maxDti}%`,
     details: [
       `DTI ratio: ${dti.toFixed(1)}%`,
       `Avg debt payments: ${formatCurrencyCompact(data.avgMonthlyDebt)}/mo`,
-      dti <= 36 ? 'Within banking threshold (36%)' : 'Above banking threshold (36%)',
+      dti <= maxDti ? `Within banking threshold (${maxDti}%)` : `Above banking threshold (${maxDti}%)`,
     ],
   }
 }
@@ -547,11 +576,13 @@ export function scoreSavingsConsistency(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'plan',
     description: `${Math.round(ratio * 100)}% months with positive savings`,
-    target: '>= 90% months',
+    target: `>= ${HEALTH_SCORE_RUBRIC.savingsConsistencyPct}% months`,
     details: [
       `Positive savings months: ${Math.round(ratio * 100)}%`,
       `Savings volatility: ${cvToLabel(cv)}`,
-      ratio >= 0.9 ? 'Consistent savings habit' : 'Target: save in 90%+ of months',
+      ratio >= HEALTH_SCORE_RUBRIC.savingsConsistencyPct / 100
+        ? 'Consistent savings habit'
+        : `Target: save in ${HEALTH_SCORE_RUBRIC.savingsConsistencyPct}%+ of months`,
     ],
   }
 }
@@ -559,15 +590,16 @@ export function scoreSavingsConsistency(data: AnalysisResult): HealthMetric {
 // PLAN 8: Income stability
 export function scoreIncomeStability(data: AnalysisResult): HealthMetric {
   const cv = data.incomeCV
+  const stableMax = HEALTH_SCORE_RUBRIC.incomeStabilityMaxCV
   let score: number
   if (cv < 10) score = clamp(90 + (10 - cv), 90, 100)
-  else if (cv <= 25) score = 70 + ((25 - cv) / 15) * 19
-  else if (cv <= 50) score = 40 + ((50 - cv) / 25) * 29
+  else if (cv <= stableMax) score = 70 + ((stableMax - cv) / (stableMax - 10)) * 19
+  else if (cv <= 50) score = 40 + ((50 - cv) / (50 - stableMax)) * 29
   else score = clamp(40 - (cv - 50) * 0.8, 0, 39)
 
   let desc: string
   if (cv < 10) desc = 'Very stable income'
-  else if (cv <= 25) desc = 'Stable income'
+  else if (cv <= stableMax) desc = 'Stable income'
   else if (cv <= 50) desc = 'Moderate variability'
   else desc = 'Volatile income'
 
@@ -578,7 +610,7 @@ export function scoreIncomeStability(data: AnalysisResult): HealthMetric {
     status: tierFromScore(score),
     pillar: 'plan',
     description: desc,
-    target: 'CV <= 25%',
+    target: `CV <= ${stableMax}%`,
     details: [
       `Income variability (CV): ${cv.toFixed(1)}%`,
       `Avg monthly income: ${formatCurrencyCompact(data.avgMonthlyIncome)}`,
