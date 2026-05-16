@@ -317,7 +317,6 @@ Logs are written to:
 - ✅ OAuth 2.0 authentication (Google, GitHub) with JWT tokens
 - ✅ Rate limiting (slowapi)
 - ✅ Security headers (CSP, HSTS, X-Frame-Options)
-- ✅ Token blacklist on logout
 - ✅ File type validation
 - ✅ CORS configuration (configurable origins)
 - ✅ Chunked file uploads

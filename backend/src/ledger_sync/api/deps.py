@@ -12,7 +12,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ledger_sync.core.auth.token_blacklist import token_blacklist
 from ledger_sync.core.auth.tokens import verify_token
 from ledger_sync.db.models import User
 from ledger_sync.db.session import get_session
@@ -46,10 +45,6 @@ def get_current_user(
     )
 
     token = credentials.credentials
-
-    # Check token blacklist (revoked on logout)
-    if token_blacklist.is_blacklisted(token):
-        raise credentials_exception
 
     token_data = verify_token(token, token_type="access")
     if token_data is None or token_data.user_id is None:

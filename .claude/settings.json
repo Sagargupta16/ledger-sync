@@ -53,7 +53,9 @@
       "Edit(/.claude/skills/new-migration/**)",
       "Edit(/.claude/skills/schema-drift-check/**)",
       "Edit(/.claude/skills/release-changelog/**)",
-      "Edit(/.claude/skills/debug-finance/**)"
+      "Edit(/.claude/skills/debug-finance/**)",
+      "Bash(grep -v \"^frontend/src/pages$\")",
+      "Edit(/.claude/skills/backend-atlas/**)"
     ],
     "deny": [
       "Read(.envrc)",

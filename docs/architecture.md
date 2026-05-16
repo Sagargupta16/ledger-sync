@@ -48,7 +48,7 @@ Ledger Sync is a self-hosted personal finance dashboard built as a full-stack ap
   - `query_helpers.py` - Shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`) used by both `calculations.py` and `analytics.py` to eliminate duplicated CASE/SUM patterns
   - `time_filter.py` - Time range filtering logic
   - `encryption.py` - AES-256-GCM encrypt/decrypt for AI API keys. Uses PBKDF2-HMAC-SHA256 to derive an encryption key from the JWT secret, with a per-ciphertext random 128-bit salt. Output format: base64(salt[16] || nonce[12] || ciphertext). `DecryptionError` raised on tag mismatch so callers can prompt for re-entry.
-  - `auth/` - JWT token creation, verification, and blacklisting
+  - `auth/` - JWT token creation and verification
 
 #### 3. **Data Access Layer** (`src/ledger_sync/db/`)
 
