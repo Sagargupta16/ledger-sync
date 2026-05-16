@@ -1,5 +1,3 @@
-import { rawColors } from '@/constants/colors'
-
 export interface PlacedBill {
   key: string
   name: string
@@ -13,13 +11,7 @@ export interface PlacedBill {
 
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-export const CATEGORY_COLORS: Record<string, string> = {
-  'Bills & Utilities': rawColors.app.blue,
-  'Entertainment': rawColors.app.purple,
-  'Food & Dining': rawColors.app.orange,
-  'Insurance': rawColors.app.teal,
-  'Shopping': rawColors.app.pink,
-  'Transportation': rawColors.app.yellow,
-  'Health & Fitness': rawColors.app.green,
-  'Education': rawColors.app.indigo,
-}
+// Re-exported from the canonical map so any code already importing
+// from this file keeps working. New code should import directly from
+// ``@/constants/categoryColors``.
+export { EXPENSE_CATEGORY_COLORS as CATEGORY_COLORS } from '@/constants/categoryColors'
