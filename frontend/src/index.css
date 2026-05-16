@@ -103,6 +103,14 @@
   /* ===== TYPOGRAPHY ===== */
   --text-caption: 10px;
   --text-overline: 11px;
+  /* KPI / metric-card numeric readouts. Keep these in sync with the
+     four "Card" components (MetricCard, KpiCard, StatCard, TaxSummaryCards
+     and friends) so the dashboard, comparison, year-in-review, and tax pages
+     all render the same value at the same scale. Override on a per-card
+     basis only when the design genuinely calls for a hero readout. */
+  --text-kpi-label: 0.75rem;     /* 12px - card titles ("Net Worth", "Income MTD") */
+  --text-kpi-value: 1.25rem;     /* 20px - the standard KPI number */
+  --text-kpi-hero:  1.5rem;      /* 24px - reserved for hero KPIs (Tax Summary cards) */
 }
 
 * {

@@ -98,7 +98,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
           >
             <Icon className="w-4 h-4" style={{ color: colors.text }} />
           </div>
-          <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
+          <h3 className="text-kpi-label font-medium text-muted-foreground">{title}</h3>
         </div>
 
         <output className="block" aria-live="polite">
@@ -107,14 +107,14 @@ export default function MetricCard({ title, value, change, invertChange, changeL
             initial={{ opacity: 0.6, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
-            className="text-lg sm:text-xl font-bold text-white leading-tight break-all"
+            className="text-kpi-value font-bold text-white leading-tight break-all"
           >
             <AnimatedValue value={value} />
           </motion.p>
         </output>
 
         {subtitle && (
-          <p className="text-[11px] text-text-tertiary mt-0.5">{subtitle}</p>
+          <p className="text-overline text-text-tertiary mt-0.5">{subtitle}</p>
         )}
 
         {change !== undefined && (() => {
@@ -128,7 +128,7 @@ export default function MetricCard({ title, value, change, invertChange, changeL
                 {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                 {change > 0 ? '+' : ''}{change}%
               </span>
-              <span className="text-[10px] text-text-tertiary">{changeLabel || 'vs last month'}</span>
+              <span className="text-caption text-text-tertiary">{changeLabel || 'vs last month'}</span>
             </div>
           )
         })()}
