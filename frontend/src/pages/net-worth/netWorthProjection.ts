@@ -215,6 +215,119 @@ export function projectNetWorthCompound(
   return points
 }
 
+/**
+ * Compute the geometric monthly growth rate AND the standard deviation of
+ * its log-returns over the last ``lookbackMonths`` of month-end net worth.
+ *
+ * - ``rate``: same value ``computeMonthlyGrowthRate`` returns. Decimal.
+ * - ``logSigma``: stddev of ln(1 + r_i) for the individual monthly growth
+ *   rates r_i in the window. Used by ``projectNetWorthCompoundBand`` to
+ *   model uncertainty under a geometric Brownian motion (GBM) projection.
+ *
+ * Returns ``{rate: 0, logSigma: 0}`` when fewer than 3 month-end points are
+ * available (need at least 2 monthly rates to have any variance), or when
+ * any month-end value is non-positive (compound growth undefined). Sample
+ * standard deviation (n-1 denominator) is used.
+ */
+export function computeMonthlyGrowthStats(
+  series: readonly NetWorthPoint[],
+  lookbackMonths = 12,
+): { rate: number; logSigma: number } {
+  if (series.length < 3) return { rate: 0, logSigma: 0 }
+  const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
+
+  const monthlyLast: Record<string, number> = {}
+  for (const point of sorted) {
+    monthlyLast[point.date.substring(0, 7)] = point.netWorth
+  }
+
+  const months = Object.keys(monthlyLast).sort((a, b) => a.localeCompare(b))
+  if (months.length < 3) return { rate: 0, logSigma: 0 }
+
+  const windowMonths = months.slice(-Math.max(3, lookbackMonths + 1))
+  const lastMonth = windowMonths.at(-1)
+  if (lastMonth === undefined) return { rate: 0, logSigma: 0 }
+  const start = monthlyLast[windowMonths[0]]
+  const end = monthlyLast[lastMonth]
+  const spanMonths = windowMonths.length - 1
+
+  if (start <= 0 || end <= 0 || spanMonths <= 0) return { rate: 0, logSigma: 0 }
+
+  // Geometric-mean monthly rate (matches computeMonthlyGrowthRate).
+  const rate = (end / start) ** (1 / spanMonths) - 1
+
+  // Per-month log-returns over the same window.
+  const logReturns: number[] = []
+  for (let i = 1; i < windowMonths.length; i++) {
+    const prev = monthlyLast[windowMonths[i - 1]]
+    const curr = monthlyLast[windowMonths[i]]
+    if (prev <= 0 || curr <= 0) return { rate: 0, logSigma: 0 }
+    logReturns.push(Math.log(curr / prev))
+  }
+  if (logReturns.length < 2) return { rate, logSigma: 0 }
+
+  const meanLog = logReturns.reduce((sum, x) => sum + x, 0) / logReturns.length
+  const variance =
+    logReturns.reduce((sum, x) => sum + (x - meanLog) ** 2, 0) / (logReturns.length - 1)
+  const logSigma = Math.sqrt(variance)
+
+  return { rate, logSigma }
+}
+
+/** A single projected point with a 1-stddev confidence band. */
+export interface NetWorthProjectionBandPoint {
+  date: string
+  mean: number
+  upper: number
+  lower: number
+}
+
+/**
+ * Project future monthly net worth with a 1-sigma confidence band under
+ * a geometric Brownian motion model.
+ *
+ * For month ``n`` after the anchor:
+ *   mean  = anchor * (1 + monthlyRate)^n
+ *   upper = anchor * exp(n * ln(1 + monthlyRate) + logSigma * sqrt(n))
+ *   lower = anchor * exp(n * ln(1 + monthlyRate) - logSigma * sqrt(n))
+ *
+ * The sqrt(n) scaling is the correct uncertainty-grows-with-time behaviour
+ * for compounding returns: roughly 68 % of plausible trajectories fall
+ * within the band, and the band widens further out (the projection is
+ * confident next month, less confident in 5 years).
+ *
+ * When ``logSigma <= 0`` the band collapses to the mean (visually a single
+ * line, same as ``projectNetWorthCompound``).
+ */
+export function projectNetWorthCompoundBand(
+  anchor: NetWorthPoint,
+  monthlyRate: number,
+  logSigma: number,
+  horizonMonths = 60,
+): NetWorthProjectionBandPoint[] {
+  if (horizonMonths <= 0) return []
+  const points: NetWorthProjectionBandPoint[] = []
+  const start = new Date(anchor.date)
+  start.setUTCHours(0, 0, 0, 0)
+  const lnGrowth = Math.log(1 + monthlyRate)
+  for (let i = 1; i <= horizonMonths; i++) {
+    const d = new Date(start)
+    d.setUTCMonth(d.getUTCMonth() + i)
+    const mean = anchor.netWorth * (1 + monthlyRate) ** i
+    const drift = lnGrowth * i
+    const halfBand = logSigma > 0 ? logSigma * Math.sqrt(i) : 0
+    const upper = anchor.netWorth * Math.exp(drift + halfBand)
+    const lower = anchor.netWorth * Math.exp(drift - halfBand)
+    points.push({
+      date: d.toISOString().substring(0, 10),
+      mean,
+      upper,
+      lower,
+    })
+  }
+  return points
+}
+
 /** First-crossing scan: returns value -> ISO date for every milestone reached. */
 function scanAchievements(
   series: readonly NetWorthPoint[],

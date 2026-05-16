@@ -6,10 +6,12 @@ import {
   buildMilestoneRowsCompound,
   computeAvgMonthlyGrowth,
   computeMonthlyGrowthRate,
+  computeMonthlyGrowthStats,
   downsampleToMonthly,
   type MilestoneRow,
   projectNetWorth,
   projectNetWorthCompound,
+  projectNetWorthCompoundBand,
 } from '../netWorthProjection'
 
 function requireRow(rows: readonly MilestoneRow[], label: string): MilestoneRow {
@@ -293,6 +295,95 @@ describe('projectNetWorthCompound', () => {
     // Linear says 5M + 50k*60 = 8M. Compound says 5M * 1.01^60 = ~9.08M.
     // Compound must be meaningfully larger so our milestone ETAs are sooner.
     expect(compoundPt.netWorth).toBeGreaterThan(linearPt.netWorth * 1.1)
+  })
+})
+
+describe('computeMonthlyGrowthStats', () => {
+  it('returns zeros when there is too little data', () => {
+    expect(computeMonthlyGrowthStats([])).toEqual({ rate: 0, logSigma: 0 })
+    expect(computeMonthlyGrowthStats([{ date: '2024-01-31', netWorth: 100 }])).toEqual({
+      rate: 0,
+      logSigma: 0,
+    })
+    expect(
+      computeMonthlyGrowthStats([
+        { date: '2024-01-31', netWorth: 100 },
+        { date: '2024-02-29', netWorth: 110 },
+      ]),
+    ).toEqual({ rate: 0, logSigma: 0 })
+  })
+
+  it('returns logSigma=0 when the series grows at a constant rate', () => {
+    // 1% per month exactly, no variance.
+    const series: Array<{ date: string; netWorth: number }> = []
+    let v = 100_000
+    for (let m = 0; m <= 6; m++) {
+      const month = String(m + 1).padStart(2, '0')
+      series.push({ date: `2024-${month}-28`, netWorth: v })
+      v *= 1.01
+    }
+    const stats = computeMonthlyGrowthStats(series)
+    expect(stats.rate).toBeCloseTo(0.01, 4)
+    expect(stats.logSigma).toBeCloseTo(0, 6)
+  })
+
+  it('captures variance when monthly returns vary', () => {
+    // Alternating 0% and 2% per month -> mean ~1%/mo, non-zero sigma.
+    const series = [
+      { date: '2024-01-28', netWorth: 100_000 },
+      { date: '2024-02-28', netWorth: 100_000 }, // +0%
+      { date: '2024-03-28', netWorth: 102_000 }, // +2%
+      { date: '2024-04-28', netWorth: 102_000 }, // +0%
+      { date: '2024-05-28', netWorth: 104_040 }, // +2%
+      { date: '2024-06-28', netWorth: 104_040 }, // +0%
+      { date: '2024-07-28', netWorth: 106_120.8 }, // +2%
+    ]
+    const stats = computeMonthlyGrowthStats(series)
+    // Geometric mean ~1%/mo (alternating 0% and 2%).
+    expect(stats.rate).toBeGreaterThan(0.005)
+    expect(stats.rate).toBeLessThan(0.015)
+    // Sigma should be roughly half the spread of |0% - 2%| in log space ≈ 0.0099.
+    expect(stats.logSigma).toBeGreaterThan(0.005)
+    expect(stats.logSigma).toBeLessThan(0.02)
+  })
+})
+
+describe('projectNetWorthCompoundBand', () => {
+  const anchor = { date: '2024-01-01', netWorth: 1_000_000 }
+
+  it('returns empty for non-positive horizon', () => {
+    expect(projectNetWorthCompoundBand(anchor, 0.01, 0.005, 0)).toEqual([])
+  })
+
+  it('collapses upper/lower to mean when logSigma is zero', () => {
+    const pts = projectNetWorthCompoundBand(anchor, 0.01, 0, 12)
+    expect(pts).toHaveLength(12)
+    for (const p of pts) {
+      expect(p.upper).toBeCloseTo(p.mean, 4)
+      expect(p.lower).toBeCloseTo(p.mean, 4)
+    }
+    // Final mean = anchor * 1.01^12 ≈ 1,126,825
+    expect(pts.at(-1)!.mean).toBeCloseTo(1_126_825, 0)
+  })
+
+  it('upper > mean > lower at every point when logSigma is positive', () => {
+    const pts = projectNetWorthCompoundBand(anchor, 0.01, 0.02, 24)
+    for (const p of pts) {
+      expect(p.upper).toBeGreaterThan(p.mean)
+      expect(p.lower).toBeLessThan(p.mean)
+      expect(p.lower).toBeGreaterThan(0)
+    }
+  })
+
+  it('band width grows with sqrt(time) under GBM', () => {
+    // log(upper) - log(lower) = 2 * sigma * sqrt(n) — should scale ~sqrt of time.
+    const pts = projectNetWorthCompoundBand(anchor, 0.01, 0.02, 36)
+    const widthAtMonth1 = Math.log(pts[0].upper) - Math.log(pts[0].lower)
+    const widthAtMonth36 = Math.log(pts[35].upper) - Math.log(pts[35].lower)
+    // sqrt(36) / sqrt(1) = 6 ; allow some slack for rounding.
+    const ratio = widthAtMonth36 / widthAtMonth1
+    expect(ratio).toBeGreaterThan(5.5)
+    expect(ratio).toBeLessThan(6.5)
   })
 })
 

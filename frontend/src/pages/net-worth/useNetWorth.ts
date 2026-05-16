@@ -8,8 +8,9 @@ import { accountClassificationsService } from '@/services/api/accountClassificat
 
 import {
   computeMonthlyGrowthRate,
+  computeMonthlyGrowthStats,
   downsampleToMonthly,
-  projectNetWorthCompound,
+  projectNetWorthCompoundBand,
   buildMilestoneRowsCompound,
   type NetWorthPoint,
 } from './netWorthProjection'
@@ -176,6 +177,11 @@ export function useNetWorth() {
 
   const monthlyGrowthRate = useMemo(() => computeMonthlyGrowthRate(chartSeries, 12), [chartSeries])
 
+  const monthlyGrowthLogSigma = useMemo(
+    () => computeMonthlyGrowthStats(chartSeries, 12).logSigma,
+    [chartSeries],
+  )
+
   const milestoneRows = useMemo(
     () => buildMilestoneRowsCompound(fullSeries, anchor, monthlyGrowthRate),
     [fullSeries, anchor, monthlyGrowthRate],
@@ -186,23 +192,39 @@ export function useNetWorth() {
       return filteredNetWorthData
     }
     const monthlyHistorical = downsampleToMonthly(chartSeries)
-    const projection = projectNetWorthCompound(anchor, monthlyGrowthRate, 60)
+    const band = projectNetWorthCompoundBand(
+      anchor,
+      monthlyGrowthRate,
+      monthlyGrowthLogSigma,
+      60,
+    )
 
     const historicalPoints = monthlyHistorical.map((p) => ({
       date: p.date,
       netWorth: p.netWorth,
       projected: null as number | null,
+      // Recharts <Area> can render a [low, high] tuple as a band when given
+      // an array dataKey; null on historical points so the band only paints
+      // forward of the anchor.
+      projectionBand: null as [number, number] | null,
     }))
     const projectedPoints = [
-      { date: anchor.date, netWorth: null as number | null, projected: anchor.netWorth },
-      ...projection.map((p) => ({
+      {
+        date: anchor.date,
+        netWorth: null as number | null,
+        projected: anchor.netWorth,
+        // Anchor point: band collapses to the value (zero uncertainty at t=0).
+        projectionBand: [anchor.netWorth, anchor.netWorth] as [number, number] | null,
+      },
+      ...band.map((p) => ({
         date: p.date,
         netWorth: null as number | null,
-        projected: p.netWorth,
+        projected: p.mean,
+        projectionBand: [p.lower, p.upper] as [number, number] | null,
       })),
     ]
     return [...historicalPoints, ...projectedPoints]
-  }, [showProjection, anchor, monthlyGrowthRate, chartSeries, filteredNetWorthData])
+  }, [showProjection, anchor, monthlyGrowthRate, monthlyGrowthLogSigma, chartSeries, filteredNetWorthData])
 
   const currentNetWorth = anchor?.netWorth ?? 0
 
