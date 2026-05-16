@@ -1,0 +1,249 @@
+"""Stateless helpers for the calculations API endpoints.
+
+Extracted from calculations.py to keep both modules under 500 LOC.
+"""
+
+from __future__ import annotations
+
+from collections import defaultdict
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from ledger_sync.core.query_helpers import build_transaction_query
+from ledger_sync.db.models import CategoryTrend, Transaction, TransactionType, User
+
+
+def _format_largest_transaction(largest: Transaction | None) -> dict[str, Any] | None:
+    """Format largest transaction data."""
+    if not largest:
+        return None
+    return {
+        "amount": float(largest.amount),
+        "category": largest.category or "",
+        "date": largest.date.isoformat(),
+    }
+
+
+def _resolve_transaction_type(transaction_type: str | None) -> TransactionType | None:
+    """Resolve a string transaction type filter to the enum value."""
+    if not transaction_type:
+        return None
+    if transaction_type.lower() == "income":
+        return TransactionType.INCOME
+    return TransactionType.EXPENSE
+
+
+def _build_category_data_from_trends(
+    trends: list[CategoryTrend],
+) -> dict[str, Any]:
+    """Build category breakdown response from pre-computed CategoryTrend rows."""
+    category_data: dict[str, dict[str, Any]] = {}
+    for t in trends:
+        cat = t.category or "Uncategorized"
+        subcat = t.subcategory or "Other"
+        amount = float(t.total_amount)
+
+        if cat not in category_data:
+            category_data[cat] = {"total": 0.0, "count": 0, "subcategories": {}}
+
+        category_data[cat]["total"] += amount
+        category_data[cat]["count"] += t.transaction_count
+        category_data[cat]["subcategories"][subcat] = (
+            category_data[cat]["subcategories"].get(subcat, 0.0) + amount
+        )
+
+    return _finalize_category_percentages(category_data)
+
+
+def _build_category_data_from_rows(
+    rows: list[Any],
+) -> dict[str, Any]:
+    """Build category breakdown response from raw SQL aggregation rows."""
+    category_data: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        cat = row.category
+        subcat = row.subcategory
+        amount = float(row.total)
+
+        if cat not in category_data:
+            category_data[cat] = {"total": 0.0, "count": 0, "subcategories": {}}
+
+        category_data[cat]["total"] += amount
+        category_data[cat]["count"] += row.count
+        category_data[cat]["subcategories"][subcat] = amount
+
+    return _finalize_category_percentages(category_data)
+
+
+def _finalize_category_percentages(
+    category_data: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Add percentage fields and return final response dict."""
+    total_amount = sum(c["total"] for c in category_data.values())
+    for cat_info in category_data.values():
+        cat_info["percentage"] = (cat_info["total"] / total_amount * 100) if total_amount > 0 else 0
+    return {"categories": category_data, "total": total_amount}
+
+
+def _ensure_account(balances: dict[str, dict[str, Any]], account: str) -> None:
+    """Initialize an account entry in the balances dict if it does not exist."""
+    if account not in balances:
+        balances[account] = {
+            "balance": 0,
+            "transactions": 0,
+            "last_transaction": None,
+        }
+
+
+def _update_last_transaction_date(account_info: dict[str, Any], tx_date: datetime) -> None:
+    """Update last_transaction date if the given date is more recent."""
+    if account_info["last_transaction"] is None or tx_date > account_info["last_transaction"]:
+        account_info["last_transaction"] = tx_date
+
+
+def _process_regular_transactions(
+    transactions: list[Transaction],
+    balances: dict[str, dict[str, Any]],
+) -> None:
+    """Accumulate balances for income and expense transactions.
+
+    Skips transfer transactions — those are handled by _process_transfer_transactions.
+    """
+    for tx in transactions:
+        if tx.type == TransactionType.TRANSFER:
+            continue
+
+        account = tx.account or "Unknown"
+        _ensure_account(balances, account)
+
+        amount = abs(float(tx.amount))
+        if tx.type == TransactionType.INCOME:
+            balances[account]["balance"] += amount
+        elif tx.type == TransactionType.EXPENSE:
+            balances[account]["balance"] -= amount
+
+        balances[account]["transactions"] += 1
+        _update_last_transaction_date(balances[account], tx.date)
+
+
+def _process_transfer_transactions(
+    transactions: list[Transaction],
+    balances: dict[str, dict[str, Any]],
+) -> None:
+    """Apply transfer transactions: debit source, credit destination."""
+    transfer_txs = [tx for tx in transactions if tx.type == TransactionType.TRANSFER]
+    for tx in transfer_txs:
+        amount = abs(float(tx.amount))
+        src = tx.from_account or "Unknown"
+        dst = tx.to_account or "Unknown"
+
+        for acc in (src, dst):
+            _ensure_account(balances, acc)
+
+        balances[src]["balance"] -= amount
+        balances[dst]["balance"] += amount
+
+        for acc in (src, dst):
+            balances[acc]["transactions"] += 1
+            _update_last_transaction_date(balances[acc], tx.date)
+
+
+def _compute_account_statistics(
+    balances: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Compute summary statistics and serialize account data for the response."""
+    total_balance = sum(acc["balance"] for acc in balances.values())
+    total_accounts = len(balances)
+    average_balance = total_balance / total_accounts if total_accounts > 0 else 0
+    positive_accounts = sum(1 for acc in balances.values() if acc["balance"] > 0)
+    negative_accounts = sum(1 for acc in balances.values() if acc["balance"] < 0)
+
+    serialized_accounts: dict[str, dict[str, Any]] = {}
+    for acc, info in balances.items():
+        serialized_accounts[acc] = {
+            "balance": info["balance"],
+            "transactions": info["transactions"],
+            "last_transaction": (
+                info["last_transaction"].isoformat() if info["last_transaction"] else None
+            ),
+        }
+
+    return {
+        "accounts": serialized_accounts,
+        "statistics": {
+            "total_accounts": total_accounts,
+            "total_balance": total_balance,
+            "average_balance": average_balance,
+            "positive_accounts": positive_accounts,
+            "negative_accounts": negative_accounts,
+        },
+    }
+
+
+def _build_category_analysis(
+    expenses: list[Transaction],
+) -> tuple[dict[str, float], dict[str, int]]:
+    """Accumulate expense totals and counts per category."""
+    category_totals: dict[str, float] = {}
+    category_counts: dict[str, int] = {}
+    for tx in expenses:
+        cat = tx.category or "Uncategorized"
+        category_totals[cat] = category_totals.get(cat, 0) + float(tx.amount)
+        category_counts[cat] = category_counts.get(cat, 0) + 1
+    return category_totals, category_counts
+
+
+def _find_unusual_spending(
+    expenses: list[Transaction],
+    category_totals: dict[str, float],
+    category_counts: dict[str, int],
+) -> list[dict[str, Any]]:
+    """Identify transactions exceeding 2x their category average, returning top 5."""
+    # Pre-group by category once (O(n)) instead of scanning all expenses per category (O(c*n))
+    by_category: dict[str, list[Transaction]] = defaultdict(list)
+    for tx in expenses:
+        by_category[tx.category or "Uncategorized"].append(tx)
+
+    unusual: list[dict[str, Any]] = []
+    for category, total in category_totals.items():
+        avg_amount = total / category_counts[category]
+        threshold = avg_amount * 2
+
+        for tx in by_category.get(category, []):
+            tx_amount = float(tx.amount)
+            if tx_amount > threshold:
+                unusual.append(
+                    {
+                        "category": category,
+                        "amount": tx_amount,
+                        "average_amount": avg_amount,
+                        "deviation": ((tx_amount - avg_amount) / avg_amount * 100),
+                        "date": tx.date.isoformat(),
+                    },
+                )
+    return unusual[:5]
+
+
+def _calculate_expense_averages(
+    total_expenses: float,
+    start_date: datetime | None,
+    end_date: datetime | None,
+) -> tuple[float, float]:
+    """Return (average_daily_expense, average_monthly_expense)."""
+    day_count = max((end_date - start_date).days, 1) if start_date and end_date else 30
+    month_count = max(day_count / 30.44, 1)  # 365.25/12 avg days per month
+    average_daily = total_expenses / day_count
+    average_monthly = total_expenses / month_count if month_count > 0 else 0
+    return average_daily, average_monthly
+
+
+def get_transactions(
+    db: Session,
+    user: User,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> list[Transaction]:
+    """Get non-deleted transactions for a user, optionally filtered by date range."""
+    return list(build_transaction_query(db, user, start_date, end_date).all())
