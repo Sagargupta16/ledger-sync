@@ -1,30 +1,15 @@
-import { useState, useMemo, useEffect } from 'react'
-
-import { motion } from 'framer-motion'
-import { TrendingUp, Calculator, Percent, BarChart3 } from 'lucide-react'
-import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  AreaChart,
-  Area,
-} from 'recharts'
-
-import { rawColors } from '@/constants/colors'
-import { useAccountBalances } from '@/hooks/api/useAnalytics'
-import { accountClassificationsService } from '@/services/api/accountClassifications'
-import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, LEGEND_DEFAULTS } from '@/components/ui'
-import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { InstrumentProjections } from '@/components/analytics'
-import { calculateXIRR } from '@/lib/xirr'
-import type { Transaction } from '@/types'
+import { PageHeader } from '@/components/ui'
 
-// Hide number input spinners
-const hideSpinnersStyle = `
+import { ChartStatsFooter } from './components/ChartStatsFooter'
+import { GrowthChart } from './components/GrowthChart'
+import { OverviewCards } from './components/OverviewCards'
+import { ProjectionParameters } from './components/ProjectionParameters'
+import { ProjectionResults } from './components/ProjectionResults'
+import { ReturnsAnalysisSection } from './components/ReturnsAnalysisSection'
+import { useMutualFundProjection } from './useMutualFundProjection'
+
+const HIDE_SPINNERS_STYLE = `
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -35,893 +20,88 @@ const hideSpinnersStyle = `
   }
 `
 
-interface ChartDataPoint {
-  month: string
-  invested: number
-  value: number
-  isHistorical: boolean
-}
-
-// Calculate SIP future value with monthly compounding
-const calculateSIPProjection = (
-  monthlySIP: number,
-  annualRate: number,
-  years: number,
-  sipGrowthRate: number,
-  startingCorpus: number,
-): { value: number; invested: number; returns: number } => {
-  const monthlyRate = annualRate / 12 / 100
-  let totalInvested = startingCorpus
-  let portfolioValue = startingCorpus
-  let currentMonthlySIP = monthlySIP
-
-  for (let month = 1; month <= years * 12; month++) {
-    totalInvested += currentMonthlySIP
-    portfolioValue = (portfolioValue + currentMonthlySIP) * (1 + monthlyRate)
-
-    // Increase SIP amount annually if growth rate is set
-    if (month % 12 === 0 && sipGrowthRate > 0) {
-      currentMonthlySIP = currentMonthlySIP * (1 + sipGrowthRate / 100)
-    }
-  }
-
-  return {
-    value: portfolioValue,
-    invested: totalInvested,
-    returns: portfolioValue - totalInvested,
-  }
-}
-
-// Helper: Build historical chart data from SIP transfers
-function buildHistoricalChartData(
-  sipTransfers: Array<{ date: string; amount: number }>,
-  effectiveCurrentValue: number,
-): ChartDataPoint[] {
-  const data: ChartDataPoint[] = []
-  let cumulativeInvested = 0
-  const monthlyInvested = new Map<string, number>()
-
-  for (const tx of sipTransfers) {
-    const date = new Date(tx.date)
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    cumulativeInvested += tx.amount
-    monthlyInvested.set(monthKey, cumulativeInvested)
-  }
-
-  const totalInvested = cumulativeInvested
-  const totalGains = effectiveCurrentValue - totalInvested
-
-  Array.from(monthlyInvested.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .forEach(([monthKey, invested]) => {
-      const [year, month] = monthKey.split('-')
-      const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1)
-      const monthLabel = date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
-
-      const proportionalValue = totalInvested > 0
-        ? invested + (invested / totalInvested) * totalGains
-        : invested
-
-      data.push({
-        month: monthLabel,
-        invested: Math.round(invested),
-        value: Math.round(proportionalValue),
-        isHistorical: true,
-      })
-    })
-
-  return data
-}
-
-// Helper: Build projection chart data from the last historical data point
-function buildProjectionChartData(
-  lastHistorical: ChartDataPoint,
-  lastDate: Date,
-  activeMonthlySIP: number,
-  expectedReturn: number,
-  projectionYears: number,
-  sipGrowthRate: number,
-): ChartDataPoint[] {
-  const data: ChartDataPoint[] = []
-  let projectedInvested = lastHistorical.invested
-  let projectedValue = lastHistorical.value
-  let currentSIP = activeMonthlySIP
-  const monthlyRate = expectedReturn / 12 / 100
-
-  for (let i = 1; i <= projectionYears * 12; i++) {
-    const futureDate = new Date(lastDate)
-    futureDate.setMonth(lastDate.getMonth() + i)
-    const monthLabel = futureDate.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
-
-    projectedInvested += currentSIP
-    projectedValue = (projectedValue + currentSIP) * (1 + monthlyRate)
-
-    if (i % 12 === 0 && sipGrowthRate > 0) {
-      currentSIP *= (1 + sipGrowthRate / 100)
-    }
-
-    data.push({
-      month: monthLabel,
-      invested: Math.round(projectedInvested),
-      value: Math.round(projectedValue),
-      isHistorical: false,
-    })
-  }
-
-  return data
-}
-
-// Helper: Detect the most recent monthly SIP amount from transfers
-function detectMonthlySIPAmount(sipTransfers: Array<{ note?: string | null; amount: number }>): number {
-  if (sipTransfers.length === 0) return 0
-
-  const monthlySIPs = sipTransfers.filter(tx => {
-    const note = (tx.note || '').toLowerCase()
-    return note.includes('monthly') || (!note.includes('lumpsum') && note.includes('sip'))
-  })
-
-  if (monthlySIPs.length === 0) return 0
-
-  return monthlySIPs.at(-1)?.amount ?? 0
-}
-
-// Helper: Load mutual fund accounts from balance data and account classifications
-async function loadMutualFundAccountsData(
-  balanceData: Record<string, unknown> | null | undefined,
-): Promise<{ name: string; balance: number }[]> {
-  const { accounts: investmentAccounts } = await accountClassificationsService.getAccountsByType('Investments')
-  const mfAccounts = Object.entries((balanceData as { accounts?: Record<string, { balance: number }> })?.accounts || {})
-    .filter(([name]) => investmentAccounts.includes(name))
-    .filter(([name]) => name.toLowerCase().includes('mutual') || name.toLowerCase().includes('fund'))
-    .map(([name, data]) => ({
-      name,
-      balance: Math.abs(data.balance),
-    }))
-    .sort((a, b) => b.balance - a.balance)
-
-  return mfAccounts
-}
-
-// Helper: Find primary mutual fund account (Grow Mutual Funds or first available)
-function findPrimaryAccount(
-  mutualFundAccounts: { name: string; balance: number }[],
-): { name: string; balance: number } | null {
-  if (mutualFundAccounts.length === 0) return null
-
-  const growAccount = mutualFundAccounts.find(acc =>
-    acc.name.toLowerCase().includes('grow') && acc.name.toLowerCase().includes('mutual')
-  )
-
-  return growAccount || mutualFundAccounts[0]
-}
-
-// Helper: Build combined historical + projection chart data
-function buildCombinedChartData(
-  sipTransfers: Array<{ date: string; amount: number }>,
-  effectiveCurrentValue: number,
-  activeMonthlySIP: number,
-  expectedReturn: number,
-  projectionYears: number,
-  sipGrowthRate: number,
-): ChartDataPoint[] {
-  if (sipTransfers.length === 0) return []
-
-  const historicalData = buildHistoricalChartData(sipTransfers, effectiveCurrentValue)
-
-  if (historicalData.length === 0) return historicalData
-
-  const lastHistorical = historicalData.at(-1)
-  if (!lastHistorical) return historicalData
-  const lastSipTransfer = sipTransfers.at(-1)
-  if (!lastSipTransfer) return historicalData
-  const lastDate = new Date(lastSipTransfer.date)
-  const projectionData = buildProjectionChartData(
-    lastHistorical, lastDate, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate
-  )
-
-  return [...historicalData, ...projectionData]
-}
-
-// Helper: Compute XIRR percent from SIP cashflows
-function computeXirrPercent(
-  sipTransfers: Array<{ date: string; amount: number }>,
-  effectiveCurrentValue: number,
-): number {
-  if (sipTransfers.length === 0 || effectiveCurrentValue <= 0) return 0
-
-  const cashFlows: { date: Date; amount: number }[] = sipTransfers.map((tx) => ({
-    date: new Date(tx.date),
-    amount: -tx.amount, // outflows are negative
-  }))
-
-  // Final inflow: current value today
-  cashFlows.push({ date: new Date(), amount: effectiveCurrentValue })
-
-  return calculateXIRR(cashFlows)
-}
-
-// Helper: Calculate investment duration in years
-function computeInvestmentDuration(sipTransfers: Array<{ date: string }>): number {
-  if (sipTransfers.length === 0) return 0
-  const firstDate = new Date(sipTransfers[0].date)
-  const now = new Date()
-  return (now.getTime() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-}
-
-// Helper: Filter SIP transfer transactions for a given primary account
-function filterSipTransfers(
-  transactions: Transaction[],
-  primaryAccountName: string,
-): Transaction[] {
-  const lowerName = primaryAccountName.toLowerCase()
-  return transactions
-    .filter(tx =>
-      tx.type === 'Transfer' &&
-      tx.to_account?.toLowerCase() === lowerName
-    )
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-}
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-interface OverviewCardsProps {
-  isLoading: boolean
-  currentBalance: number
-  primaryAccountName: string | null
-  detectedMonthlySIP: number
-  transactionCount: number
-  totalHistoricalInvested: number
-  realizedGains: number
-  realizedGainsPercent: number
-  gainsBgClass: string
-  gainsIconClass: string
-  gainsTextClass: string
-  gainsSignPrefix: string
-}
-
-function OverviewCards(props: Readonly<OverviewCardsProps>) {
-  const {
-    isLoading,
-    currentBalance,
-    primaryAccountName,
-    detectedMonthlySIP,
-    transactionCount,
-    totalHistoricalInvested,
-    realizedGains,
-    realizedGainsPercent,
-    gainsBgClass,
-    gainsIconClass,
-    gainsTextClass,
-    gainsSignPrefix,
-  } = props
-
-  const currentBalanceDisplay = isLoading ? '...' : formatCurrency(currentBalance)
-  const monthlySipDisplay = isLoading ? '...' : formatCurrency(detectedMonthlySIP)
-  const totalInvestedDisplay = isLoading ? '...' : formatCurrency(totalHistoricalInvested)
-  const realizedGainsDisplay = isLoading ? '...' : formatCurrency(realizedGains)
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-6"
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-purple/20 rounded-xl">
-            <TrendingUp className="w-6 h-6 text-app-purple" />
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Current Balance</p>
-            <p className="text-2xl font-bold">
-              {currentBalanceDisplay}
-            </p>
-            {primaryAccountName && (
-              <p className="text-xs text-muted-foreground mt-1">{primaryAccountName}</p>
-            )}
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="glass rounded-2xl border border-border p-6"
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-green/20 rounded-xl">
-            <Calculator className="w-6 h-6 text-app-green" />
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Monthly SIP</p>
-            <p className="text-2xl font-bold">
-              {monthlySipDisplay}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">{transactionCount} transactions</p>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="glass rounded-2xl border border-border p-6"
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-blue/20 rounded-xl">
-            <Percent className="w-6 h-6 text-app-blue" />
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Total Invested</p>
-            <p className="text-2xl font-bold">
-              {totalInvestedDisplay}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Actual contributions</p>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="glass rounded-2xl border border-border p-6"
-      >
-        <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl ${gainsBgClass}`}>
-            <TrendingUp className={`w-6 h-6 ${gainsIconClass}`} />
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Realized Gain</p>
-            <p className={`text-2xl font-bold ${gainsTextClass}`}>
-              {realizedGainsDisplay}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {gainsSignPrefix}{realizedGainsPercent.toFixed(2)}% returns
-            </p>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  )
-}
-
-interface ReturnsAnalysisSectionProps {
-  currentValueInput: number
-  currentBalance: number
-  onCurrentValueChange: (value: number) => void
-  overrideGainsPercent: number
-  overrideGains: number
-  totalHistoricalInvested: number
-  xirrPercent: number
-  investmentDurationYears: number
-  effectiveCurrentValue: number
-  currentValueLabel: string
-  effectiveValueLabel: string
-  totalReturnColorClass: string
-  totalReturnSignPrefix: string
-  xirrColorClass: string
-  xirrSignPrefix: string
-}
-
-function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionProps>) {
-  const {
-    currentValueInput,
-    currentBalance,
-    onCurrentValueChange,
-    overrideGainsPercent,
-    overrideGains,
-    totalHistoricalInvested,
-    xirrPercent,
-    investmentDurationYears,
-    effectiveCurrentValue,
-    currentValueLabel,
-    effectiveValueLabel,
-    totalReturnColorClass,
-    totalReturnSignPrefix,
-    xirrColorClass,
-    xirrSignPrefix,
-  } = props
-
-  return (
-    <div className="mt-8 pt-6 border-t border-border">
-      <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
-        <BarChart3 className="w-5 h-5 text-app-orange" />
-        Returns Analysis
-      </h4>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div>
-          <label htmlFor="current-value" className="block text-sm font-medium text-muted-foreground mb-2">
-            Current Value ({'\u20B9'})
-          </label>
-          <input
-            id="current-value"
-            type="number"
-            inputMode="decimal"
-            value={currentValueInput || ''}
-            placeholder={formatCurrency(currentBalance).replace('\u20B9', '').trim()}
-            onChange={(e) => onCurrentValueChange(Number(e.target.value))}
-            className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
-            min="0"
-            step="1000"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            {currentValueLabel}
-          </p>
-        </div>
-
-        <div className="flex flex-col justify-center">
-          <p className="text-sm text-muted-foreground">Total Return</p>
-          <p className={`text-2xl font-bold ${totalReturnColorClass}`}>
-            {totalReturnSignPrefix}{overrideGainsPercent.toFixed(2)}%
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {formatCurrency(overrideGains)} on {formatCurrency(totalHistoricalInvested)}
-          </p>
-        </div>
-
-        <div className="flex flex-col justify-center">
-          <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
-          <p className={`text-2xl font-bold ${xirrColorClass}`}>
-            {xirrSignPrefix}{xirrPercent.toFixed(2)}% p.a.
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Over {investmentDurationYears.toFixed(1)} years
-          </p>
-        </div>
-
-        <div className="flex flex-col justify-center">
-          <p className="text-sm text-muted-foreground">Effective Value</p>
-          <p className="text-2xl font-bold text-app-orange">
-            {formatCurrency(effectiveCurrentValue)}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {effectiveValueLabel}
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface ChartStatsFooterProps {
-  isLoading: boolean
-  totalHistoricalInvested: number
-  currentBalance: number
-  projectedInvested: number
-  projectedValue: number
-}
-
-function ChartStatsFooter(props: Readonly<ChartStatsFooterProps>) {
-  const {
-    isLoading,
-    totalHistoricalInvested,
-    currentBalance,
-    projectedInvested,
-    projectedValue,
-  } = props
-
-  const currentInvestedDisplay = isLoading ? '...' : formatCurrency(totalHistoricalInvested)
-  const currentValueDisplay = isLoading ? '...' : formatCurrency(currentBalance)
-  const futureInvestedDisplay = isLoading ? '...' : formatCurrency(projectedInvested)
-  const futureValueDisplay = isLoading ? '...' : formatCurrency(projectedValue)
-
-  return (
-    <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-border">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div>
-          <p className="text-xs text-muted-foreground">Current Invested</p>
-          <p className="text-xl font-bold text-app-blue">
-            {currentInvestedDisplay}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Current Value</p>
-          <p className="text-xl font-bold text-app-green">
-            {currentValueDisplay}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Future Invested</p>
-          <p className="text-xl font-bold text-app-blue">
-            {futureInvestedDisplay}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Future Value</p>
-          <p className="text-xl font-bold text-app-green">
-            {futureValueDisplay}
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/** Pre-compute gain/loss display classes and prefixes */
-function computeGainsDisplay(
-  realizedGains: number,
-  realizedGainsPercent: number,
-  overrideGainsPercent: number,
-  xirrPercent: number,
-) {
-  const positive = 'text-app-green'
-  const negative = 'text-app-red'
-  return {
-    gainsBgClass: realizedGains >= 0 ? 'bg-app-green/20 shadow-app-green/30' : 'bg-app-red/20 shadow-app-red/30',
-    gainsIconClass: realizedGains >= 0 ? positive : negative,
-    gainsTextClass: realizedGains >= 0 ? 'text-app-green' : 'text-app-red',
-    gainsSignPrefix: realizedGainsPercent >= 0 ? '+' : '',
-    totalReturnColorClass: overrideGainsPercent >= 0 ? positive : negative,
-    totalReturnSignPrefix: overrideGainsPercent >= 0 ? '+' : '',
-    xirrColorClass: xirrPercent >= 0 ? positive : negative,
-    xirrSignPrefix: xirrPercent >= 0 ? '+' : '',
-  }
-}
-
-// ─── Main Component ──────────────────────────────────────────────────────────
-
 export default function MutualFundProjectionPage() {
-  const { data: balanceData, isLoading } = useAccountBalances()
-  const { data: transactions = [] } = useTransactions()
-
-  // State
-  const [monthlySIP, setMonthlySIP] = useState(10000)
-  const [expectedReturn, setExpectedReturn] = useState(12)
-  const [projectionYears, setProjectionYears] = useState(10)
-  const [sipGrowthRate, setSipGrowthRate] = useState(0)
-  const [userModifiedSIP, setUserModifiedSIP] = useState(false)
-  const [currentValueInput, setCurrentValueInput] = useState(0)
-  const [mutualFundAccounts, setMutualFundAccounts] = useState<{ name: string; balance: number }[]>([])
-
-  // Load mutual fund accounts
-  useEffect(() => {
-    loadMutualFundAccountsData(balanceData as Record<string, unknown> | undefined)
-      .then(setMutualFundAccounts)
-      .catch(() => setMutualFundAccounts([]))
-  }, [balanceData])
-
-  // Find primary mutual fund account (Grow Mutual Funds or first available)
-  const primaryAccount = useMemo(() => findPrimaryAccount(mutualFundAccounts), [mutualFundAccounts])
-
-  // Get current portfolio balance
-  const currentBalance = primaryAccount?.balance || 0
-
-  // Get all SIP transfer transactions to this account
-  const sipTransfers = useMemo(() => {
-    if (!primaryAccount) return []
-    return filterSipTransfers(transactions, primaryAccount.name)
-      .map(tx => ({ ...tx, amount: Math.abs(tx.amount) }))
-  }, [transactions, primaryAccount])
-
-  // Detect last monthly SIP amount (exclude lumpsums)
-  const detectedMonthlySIP = useMemo(() => {
-    return detectMonthlySIPAmount(sipTransfers)
-  }, [sipTransfers])
-
-  // Use detected SIP if user hasn't modified it
-  const activeMonthlySIP = userModifiedSIP ? monthlySIP : (detectedMonthlySIP || monthlySIP)
-
-  // Calculate total invested from history
-  const totalHistoricalInvested = sipTransfers.reduce((sum, tx) => sum + tx.amount, 0)
-  // Use override value if entered, otherwise use portfolio balance
-  const effectiveCurrentValue = currentValueInput > 0 ? currentValueInput : currentBalance
-
-  // Calculate future projection
-  const projection = useMemo(() => {
-    return calculateSIPProjection(
-      activeMonthlySIP,
-      expectedReturn,
-      projectionYears,
-      sipGrowthRate,
-      effectiveCurrentValue
-    )
-  }, [activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate, effectiveCurrentValue])
-
-  // Build chart data: historical + projection
-  const chartData = useMemo<ChartDataPoint[]>(
-    () => buildCombinedChartData(sipTransfers, effectiveCurrentValue, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate),
-    [sipTransfers, effectiveCurrentValue, activeMonthlySIP, expectedReturn, projectionYears, sipGrowthRate]
-  )
-
-  // Realized gains: always based on actual portfolio balance (fixed, not affected by override)
-  const realizedGains = currentBalance - totalHistoricalInvested
-  const realizedGainsPercent = totalHistoricalInvested > 0 ? (realizedGains / totalHistoricalInvested) * 100 : 0
-
-  // Unrealized/override gains: based on user-entered current value (for Returns Analysis)
-  const overrideGains = effectiveCurrentValue - totalHistoricalInvested
-  const overrideGainsPercent = totalHistoricalInvested > 0 ? (overrideGains / totalHistoricalInvested) * 100 : 0
-
-  // Compute annualized return (XIRR) from actual SIP cashflows
-  const xirrPercent = useMemo(
-    () => computeXirrPercent(sipTransfers, effectiveCurrentValue),
-    [sipTransfers, effectiveCurrentValue]
-  )
-
-  // Investment duration in years
-  const investmentDurationYears = useMemo(
-    () => computeInvestmentDuration(sipTransfers),
-    [sipTransfers]
-  )
-
-  // Pre-compute conditional class names and labels to reduce inline ternaries
-  const {
-    gainsBgClass, gainsIconClass, gainsTextClass, gainsSignPrefix,
-    totalReturnColorClass, totalReturnSignPrefix,
-    xirrColorClass, xirrSignPrefix,
-  } = computeGainsDisplay(realizedGains, realizedGainsPercent, overrideGainsPercent, xirrPercent)
-  const currentValueLabel = currentValueInput > 0 ? 'Using your entered value' : 'Using portfolio balance'
-  const effectiveValueLabel = currentValueInput > 0 ? 'Manual override' : 'From portfolio'
-  const sipGrowthLabel = sipGrowthRate === 0 ? 'No annual increase' : `SIP increases ${sipGrowthRate}% yearly`
-  const sipInputValue = userModifiedSIP ? monthlySIP : (detectedMonthlySIP || monthlySIP)
-  const showAutoDetectedHint = detectedMonthlySIP > 0 && !userModifiedSIP
+  const m = useMutualFundProjection()
 
   return (
     <>
-      <style>{hideSpinnersStyle}</style>
+      <style>{HIDE_SPINNERS_STYLE}</style>
       <div className="min-h-screen p-4 md:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header */}
-          <PageHeader title="Projections" subtitle="SIP returns and instrument maturity projections" />
-
-          {/* Overview Cards */}
-          <OverviewCards
-            isLoading={isLoading}
-            currentBalance={currentBalance}
-            primaryAccountName={primaryAccount?.name ?? null}
-            detectedMonthlySIP={detectedMonthlySIP}
-            transactionCount={sipTransfers.length}
-            totalHistoricalInvested={totalHistoricalInvested}
-            realizedGains={realizedGains}
-            realizedGainsPercent={realizedGainsPercent}
-            gainsBgClass={gainsBgClass}
-            gainsIconClass={gainsIconClass}
-            gainsTextClass={gainsTextClass}
-            gainsSignPrefix={gainsSignPrefix}
+          <PageHeader
+            title="Projections"
+            subtitle="SIP returns and instrument maturity projections"
           />
 
-          {/* Input Parameters */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass rounded-2xl border border-border p-6"
+          <OverviewCards
+            isLoading={m.isLoading}
+            currentBalance={m.currentBalance}
+            primaryAccountName={m.primaryAccount?.name ?? null}
+            detectedMonthlySIP={m.detectedMonthlySIP}
+            transactionCount={m.sipTransfers.length}
+            totalHistoricalInvested={m.totalHistoricalInvested}
+            realizedGains={m.realizedGains}
+            realizedGainsPercent={m.realizedGainsPercent}
+            gainsBgClass={m.gainsBgClass}
+            gainsIconClass={m.gainsIconClass}
+            gainsTextClass={m.gainsTextClass}
+            gainsSignPrefix={m.gainsSignPrefix}
+          />
+
+          <ProjectionParameters
+            sipInputValue={m.sipInputValue}
+            expectedReturn={m.expectedReturn}
+            projectionYears={m.projectionYears}
+            sipGrowthRate={m.sipGrowthRate}
+            showAutoDetectedHint={m.showAutoDetectedHint}
+            sipGrowthLabel={m.sipGrowthLabel}
+            onMonthlySIPChange={m.setMonthlySIP}
+            onUserModifiedSIP={() => m.setUserModifiedSIP(true)}
+            onExpectedReturnChange={m.setExpectedReturn}
+            onProjectionYearsChange={m.setProjectionYears}
+            onSipGrowthRateChange={m.setSipGrowthRate}
           >
-            <h3 className="text-lg font-semibold mb-4">Projection Parameters</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div>
-                <label htmlFor="monthly-sip" className="block text-sm font-medium text-muted-foreground mb-2">
-                  Monthly SIP ({'\u20B9'})
-                </label>
-                <input
-                  id="monthly-sip"
-                  type="number"
-                  inputMode="decimal"
-                  value={sipInputValue}
-                  onChange={(e) => {
-                    setMonthlySIP(Number(e.target.value))
-                    setUserModifiedSIP(true)
-                  }}
-                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
-                  min="0"
-                  step="1000"
-                />
-                {showAutoDetectedHint && (
-                  <p className="text-xs text-muted-foreground mt-1">Auto-detected from last SIP</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="expected-return" className="block text-sm font-medium text-muted-foreground mb-2">
-                  Expected Return (% p.a.)
-                </label>
-                <input
-                  id="expected-return"
-                  type="number"
-                  inputMode="decimal"
-                  value={expectedReturn}
-                  onChange={(e) => setExpectedReturn(Number(e.target.value))}
-                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
-                  min="0"
-                  max="50"
-                  step="0.5"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="projection-years" className="block text-sm font-medium text-muted-foreground mb-2">
-                  Projection Period (Years)
-                </label>
-                <input
-                  id="projection-years"
-                  type="number"
-                  inputMode="decimal"
-                  value={projectionYears}
-                  onChange={(e) => setProjectionYears(Number(e.target.value))}
-                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
-                  min="1"
-                  max="40"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="sip-growth" className="block text-sm font-medium text-muted-foreground mb-2">
-                  SIP Growth (% p.a.)
-                </label>
-                <input
-                  id="sip-growth"
-                  type="number"
-                  inputMode="decimal"
-                  value={sipGrowthRate}
-                  onChange={(e) => setSipGrowthRate(Number(e.target.value))}
-                  className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
-                  min="0"
-                  max="20"
-                  step="1"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {sipGrowthLabel}
-                </p>
-              </div>
-            </div>
-
-            {/* Returns Analysis Sub-section */}
             <ReturnsAnalysisSection
-              currentValueInput={currentValueInput}
-              currentBalance={currentBalance}
-              onCurrentValueChange={setCurrentValueInput}
-              overrideGainsPercent={overrideGainsPercent}
-              overrideGains={overrideGains}
-              totalHistoricalInvested={totalHistoricalInvested}
-              xirrPercent={xirrPercent}
-              investmentDurationYears={investmentDurationYears}
-              effectiveCurrentValue={effectiveCurrentValue}
-              currentValueLabel={currentValueLabel}
-              effectiveValueLabel={effectiveValueLabel}
-              totalReturnColorClass={totalReturnColorClass}
-              totalReturnSignPrefix={totalReturnSignPrefix}
-              xirrColorClass={xirrColorClass}
-              xirrSignPrefix={xirrSignPrefix}
+              currentValueInput={m.currentValueInput}
+              currentBalance={m.currentBalance}
+              onCurrentValueChange={m.setCurrentValueInput}
+              overrideGainsPercent={m.overrideGainsPercent}
+              overrideGains={m.overrideGains}
+              totalHistoricalInvested={m.totalHistoricalInvested}
+              xirrPercent={m.xirrPercent}
+              investmentDurationYears={m.investmentDurationYears}
+              effectiveCurrentValue={m.effectiveCurrentValue}
+              currentValueLabel={m.currentValueLabel}
+              effectiveValueLabel={m.effectiveValueLabel}
+              totalReturnColorClass={m.totalReturnColorClass}
+              totalReturnSignPrefix={m.totalReturnSignPrefix}
+              xirrColorClass={m.xirrColorClass}
+              xirrSignPrefix={m.xirrSignPrefix}
             />
-          </motion.div>
+          </ProjectionParameters>
 
-          {/* Projection Results */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.5 }}
-              className="glass rounded-2xl border border-border p-6"
-            >
-              <div className="text-sm font-medium text-muted-foreground mb-1">Total Investment</div>
-              <div className="text-2xl font-bold">{formatCurrency(projection.invested)}</div>
-              <div className="text-sm text-muted-foreground mt-1">
-                {projectionYears * 12} months @ {'\u20B9'}{formatCurrencyShort(activeMonthlySIP)}/mo
-              </div>
-            </motion.div>
+          <ProjectionResults
+            invested={m.projection.invested}
+            value={m.projection.value}
+            returns={m.projection.returns}
+            projectionYears={m.projectionYears}
+            activeMonthlySIP={m.activeMonthlySIP}
+          />
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.6 }}
-              className="glass rounded-2xl border border-border p-6"
-            >
-              <div className="text-sm font-medium text-muted-foreground mb-1">Projected Value</div>
-              <div className="text-2xl font-bold text-app-green">{formatCurrency(projection.value)}</div>
-              <div className="text-sm text-muted-foreground mt-1">After {projectionYears} years</div>
-            </motion.div>
+          <GrowthChart
+            chartData={m.chartData}
+            projectionYears={m.projectionYears}
+            onProjectionYearsChange={m.setProjectionYears}
+          />
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.7 }}
-              className="glass rounded-2xl border border-border p-6"
-            >
-              <div className="text-sm font-medium text-muted-foreground mb-1">Projected Returns</div>
-              <div className="text-2xl font-bold text-app-blue">{formatCurrency(projection.returns)}</div>
-              <div className="text-sm text-muted-foreground mt-1">
-                {((projection.returns / projection.invested) * 100).toFixed(1)}% overall gain
-              </div>
-            </motion.div>
-          </div>
+          <ChartStatsFooter
+            isLoading={m.isLoading}
+            totalHistoricalInvested={m.totalHistoricalInvested}
+            currentBalance={m.currentBalance}
+            projectedInvested={m.projection.invested}
+            projectedValue={m.projection.value}
+          />
 
-          {/* Investment Growth Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="glass rounded-2xl border border-border p-6"
-          >
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-              <div>
-                <h3 className="text-lg font-semibold">Investment Growth Path</h3>
-                <p className="text-xs text-muted-foreground mt-1">Blue: Principal Invested | Green: Portfolio Value (with gains)</p>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { label: '1Y', years: 1 },
-                  { label: '3Y', years: 3 },
-                  { label: '5Y', years: 5 },
-                  { label: '10Y', years: 10 },
-                  { label: '20Y', years: 20 },
-                  { label: '30Y', years: 30 },
-                ].map((preset) => (
-                  <button
-                    key={preset.years}
-                    onClick={() => setProjectionYears(preset.years)}
-                    className={`px-3 py-1 rounded-full border-2 font-semibold text-xs transition ${
-                      projectionYears === preset.years
-                        ? 'border-primary bg-primary/20 text-primary'
-                        : 'border-border bg-transparent text-muted-foreground hover:border-primary/50'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="h-96" style={{ height: '384px' }}>
-              {chartData.length === 0 ? (
-                <ChartEmptyState height={384} message="No SIP transactions found. Transfer data to a mutual fund account to see projections." />
-              ) : (
-              <ChartContainer height={384}>
-                <AreaChart data={chartData}>
-                  <defs>
-                    {areaGradient('invested', rawColors.app.blue, 0.8, 0.1)}
-                    {areaGradient('value', rawColors.app.green, 0.8, 0.1)}
-                  </defs>
-                  <CartesianGrid {...GRID_DEFAULTS} />
-                  <XAxis
-                    {...xAxisDefaults(chartData.length)}
-                    dataKey="month"
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis {...yAxisDefaults()} />
-                  <Tooltip
-                    {...chartTooltipProps}
-                    formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
-                  />
-                  <Legend {...LEGEND_DEFAULTS} />
-                  <Area
-                    type="monotone"
-                    dataKey="invested"
-                    name="Invested Amount"
-                    stroke={rawColors.app.blue}
-                    fill={areaGradientUrl('invested')}
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={shouldAnimate(chartData.length)}
-                    animationDuration={600}
-                    animationEasing="ease-out"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    name="Portfolio Value"
-                    stroke={rawColors.app.green}
-                    fill={areaGradientUrl('value')}
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={shouldAnimate(chartData.length)}
-                    animationDuration={600}
-                    animationEasing="ease-out"
-                  />
-                </AreaChart>
-              </ChartContainer>
-              )}
-            </div>
-            <ChartStatsFooter
-              isLoading={isLoading}
-              totalHistoricalInvested={totalHistoricalInvested}
-              currentBalance={currentBalance}
-              projectedInvested={projection.invested}
-              projectedValue={projection.value}
-            />
-          </motion.div>
-
-          {/* PPF / EPF / NPS Maturity Projections */}
           <InstrumentProjections />
         </div>
       </div>

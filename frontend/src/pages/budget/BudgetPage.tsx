@@ -1,860 +1,241 @@
-import { useState, useMemo, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
-  Target,
-  Plus,
-  Trash2,
   AlertTriangle,
-  CheckCircle,
-  Edit2,
-  PiggyBank,
-  TrendingDown,
   BarChart3,
-  X,
+  CheckCircle,
+  PiggyBank,
+  Plus,
+  Target,
+  TrendingDown,
 } from 'lucide-react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Cell,
-  LabelList,
-  AreaChart,
-  Area,
-  Line,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-} from 'recharts'
 
-import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
-import StatCard from '@/pages/year-in-review/components/StatCard'
-import { useTransactions } from '@/hooks/api/useTransactions'
-import { useBudgetStore } from '@/store/budgetStore'
-import { formatCurrency, formatCurrencyShort, formatPercent, parseStringArray } from '@/lib/formatters'
+import { PageHeader } from '@/components/ui'
+import { fadeUpItem, staggerContainer } from '@/constants/animations'
 import { rawColors } from '@/constants/colors'
-import { staggerContainer, fadeUpItem } from '@/constants/animations'
-import { getCurrentFY, getFYDateRange } from '@/lib/dateUtils'
-import { usePreferences } from '@/hooks/api/usePreferences'
-import Sparkline from '@/components/shared/Sparkline'
-import { computeCategoryMomentum } from '@/lib/momentumCalculator'
-import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, BAR_RADIUS, areaGradient, areaGradientUrl } from '@/components/ui'
-import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { formatCurrency } from '@/lib/formatters'
+import StatCard from '@/pages/year-in-review/components/StatCard'
 
-// ─── Types ──────────────────────────────────────────────────────────
-type BudgetPeriod = 'monthly' | 'yearly'
-type ViewMode = 'category' | 'subcategory'
+import { AddBudgetForm } from './components/AddBudgetForm'
+import { BudgetCharts } from './components/BudgetCharts'
+import { BudgetRowItem } from './components/BudgetRowItem'
+import { useBudget } from './useBudget'
 
-interface BudgetRow {
-  category: string
-  subcategory?: string
-  limit: number
-  period: BudgetPeriod
-  spent: number
-  percentage: number
-  remaining: number
-  status: 'safe' | 'warning' | 'danger' | 'exceeded'
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────
-const statusConfig = {
-  safe: { color: rawColors.app.green, bg: 'bg-app-green/10', border: 'border-app-green/20', text: 'text-app-green' },
-  warning: { color: rawColors.app.yellow, bg: 'bg-app-yellow/10', border: 'border-app-yellow/20', text: 'text-app-yellow' },
-  danger: { color: rawColors.app.orange, bg: 'bg-app-orange/10', border: 'border-app-orange/20', text: 'text-app-orange' },
-  exceeded: { color: rawColors.app.red, bg: 'bg-app-red/10', border: 'border-app-red/20', text: 'text-app-red' },
-}
-
-// ─── Component ──────────────────────────────────────────────────────
 export default function BudgetPage() {
-  const dims = useChartDimensions()
-  const navigate = useNavigate()
-  const { data: transactions = [] } = useTransactions()
-  const { data: categoryData } = useCategoryBreakdown({ transaction_type: 'expense' })
-  const { data: preferences } = usePreferences()
-  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
-  const alertThreshold = preferences?.default_budget_alert_threshold ?? 80
+  const m = useBudget()
 
-  const categoryMomentum = useMemo(() => computeCategoryMomentum(transactions), [transactions])
-
-  const fixedExpenseCategories = useMemo<Set<string>>(
-    () => new Set(parseStringArray(preferences?.fixed_expense_categories).map((c) => c.toLowerCase())),
-    [preferences?.fixed_expense_categories],
-  )
-
-  const getStatus = useCallback((pct: number): BudgetRow['status'] => {
-    if (pct >= 100) return 'exceeded'
-    if (pct >= alertThreshold) return 'danger'
-    if (pct >= alertThreshold * 0.75) return 'warning'
-    return 'safe'
-  }, [alertThreshold])
-  const { budgets, setBudget, removeBudget } = useBudgetStore()
-
-  const [viewMode, setViewMode] = useState<ViewMode>('category')
-  const [budgetPeriod, setBudgetPeriod] = useState<BudgetPeriod>('monthly')
-  const [isAdding, setIsAdding] = useState(false)
-  const [editKey, setEditKey] = useState<string | null>(null)
-  const [formCategory, setFormCategory] = useState('')
-  const [formSubcategory, setFormSubcategory] = useState('')
-  const [formLimit, setFormLimit] = useState('')
-
-  // ─── Spending data ────────────────────────────────────────────
-  const currentMonthKey = useMemo(() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  }, [])
-
-  const fyRange = useMemo(() => {
-    const fy = getCurrentFY(fiscalYearStartMonth)
-    return getFYDateRange(fy, fiscalYearStartMonth)
-  }, [fiscalYearStartMonth])
-
-  // Monthly spending by category and subcategory
-  const spendingData = useMemo(() => {
-    const byCategory: Record<string, number> = {}
-    const bySubcategory: Record<string, number> = {}
-    const byCategoryYearly: Record<string, number> = {}
-    const bySubcategoryYearly: Record<string, number> = {}
-
-    const addToMaps = (
-      catMap: Record<string, number>,
-      subMap: Record<string, number>,
-      cat: string,
-      sub: string | null,
-      amt: number,
-    ) => {
-      catMap[cat] = (catMap[cat] || 0) + amt
-      if (sub) subMap[sub] = (subMap[sub] || 0) + amt
-    }
-
-    for (const tx of transactions) {
-      if (tx.type !== 'Expense') continue
-      const amt = Math.abs(tx.amount)
-      const cat = tx.category || 'Uncategorized'
-      const sub = tx.subcategory ? `${cat}::${tx.subcategory}` : null
-      const dateKey = tx.date.substring(0, 10)
-
-      // Monthly
-      if (tx.date.startsWith(currentMonthKey)) {
-        addToMaps(byCategory, bySubcategory, cat, sub, amt)
-      }
-
-      // Yearly (FY)
-      if (dateKey >= fyRange.start && dateKey <= fyRange.end) {
-        addToMaps(byCategoryYearly, bySubcategoryYearly, cat, sub, amt)
-      }
-    }
-
-    return { byCategory, bySubcategory, byCategoryYearly, bySubcategoryYearly }
-  }, [transactions, currentMonthKey, fyRange])
-
-  // All unique categories and subcategories
-  const allCategories = useMemo(() => {
-    const cats = new Set<string>()
-    if (categoryData?.categories) {
-      for (const c of Object.keys(categoryData.categories)) cats.add(c)
-    }
-    for (const tx of transactions) {
-      if (tx.type === 'Expense' && tx.category) cats.add(tx.category)
-    }
-    return Array.from(cats).sort((a, b) => a.localeCompare(b))
-  }, [categoryData, transactions])
-
-  const subcategoriesForCategory = useMemo(() => {
-    const map: Record<string, Set<string>> = {}
-    for (const tx of transactions) {
-      if (tx.type === 'Expense' && tx.category && tx.subcategory) {
-        if (!map[tx.category]) map[tx.category] = new Set()
-        map[tx.category].add(tx.subcategory)
-      }
-    }
-    return Object.fromEntries(
-      Object.entries(map).map(([k, v]) => [k, Array.from(v).sort((a, b) => a.localeCompare(b))])
-    )
-  }, [transactions])
-
-  // ─── Build budget rows ────────────────────────────────────────
-  const budgetRows = useMemo((): BudgetRow[] => {
-    return budgets.map((b) => {
-      const isSubcat = b.category.includes('::')
-      const monthlyMap = isSubcat ? spendingData.bySubcategory : spendingData.byCategory
-      const yearlyMap = isSubcat ? spendingData.bySubcategoryYearly : spendingData.byCategoryYearly
-      const spendMap = b.period === 'monthly' ? monthlyMap : yearlyMap
-      const spent = spendMap[b.category] || 0
-      const percentage = b.limit > 0 ? (spent / b.limit) * 100 : 0
-      const parts = b.category.split('::')
-
-      return {
-        category: parts[0],
-        subcategory: parts[1],
-        limit: b.limit,
-        period: b.period,
-        spent,
-        percentage,
-        remaining: b.limit - spent,
-        status: getStatus(percentage),
-      }
-    })
-  }, [budgets, spendingData, getStatus])
-
-  // Filter rows by view mode and period
-  const filteredRows = useMemo(() => {
-    let rows = budgetRows
-    if (viewMode === 'category') rows = rows.filter((r) => !r.subcategory)
-    else rows = rows.filter((r) => !!r.subcategory)
-    return rows.sort((a, b) => b.percentage - a.percentage)
-  }, [budgetRows, viewMode])
-
-  // Summary stats
-  const summary = useMemo(() => {
-    const totalBudget = filteredRows.reduce((s, r) => s + r.limit, 0)
-    const totalSpent = filteredRows.reduce((s, r) => s + r.spent, 0)
-    const exceeded = filteredRows.filter((r) => r.status === 'exceeded').length
-    const onTrack = filteredRows.filter((r) => r.status === 'safe').length
-    return { totalBudget, totalSpent, exceeded, onTrack, count: filteredRows.length }
-  }, [filteredRows])
-
-  // Bar chart data for top 8 budgets
-  const chartData = useMemo(() => {
-    return filteredRows.slice(0, 8).map((r) => ({
-      name: r.subcategory || r.category,
-      Budget: r.limit,
-      Spent: r.spent,
-      status: r.status,
-    }))
-  }, [filteredRows])
-
-  // ─── Burn-down chart data ──────────────────────────────────────
-  const burndownData = useMemo(() => {
-    const now = new Date()
-    const currentYear = now.getFullYear()
-    const currentMonth = now.getMonth() + 1 // 1-based
-    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
-
-    // Total monthly budget across all filtered rows
-    const totalBudget = filteredRows
-      .filter((r) => r.period === 'monthly')
-      .reduce((sum, r) => sum + r.limit, 0)
-
-    if (totalBudget === 0) return []
-
-    // Build daily cumulative expense for the current month
-    const dailyExpense: number[] = new Array(daysInMonth).fill(0)
-    for (const tx of transactions) {
-      if (tx.type !== 'Expense') continue
-      if (!tx.date.startsWith(currentMonthKey)) continue
-      const dayNum = Number.parseInt(tx.date.substring(8, 10), 10)
-      if (dayNum >= 1 && dayNum <= daysInMonth) {
-        dailyExpense[dayNum - 1] += Math.abs(tx.amount)
-      }
-    }
-
-    // Cumulative sum
-    const cumulative: number[] = []
-    let runningTotal = 0
-    for (let i = 0; i < daysInMonth; i++) {
-      runningTotal += dailyExpense[i]
-      cumulative.push(runningTotal)
-    }
-
-    const todayDay = now.getDate()
-
-    return Array.from({ length: daysInMonth }, (_, i) => ({
-      day: i + 1,
-      ideal: Math.round(totalBudget - (totalBudget / daysInMonth) * (i + 1)),
-      actual: i < todayDay ? Math.round(totalBudget - cumulative[i]) : undefined,
-    }))
-  }, [filteredRows, transactions, currentMonthKey])
-
-  // ─── Radar chart data ──────────────────────────────────────────
-  const radarData = useMemo(() => {
-    return filteredRows.map((r) => ({
-      category: (r.subcategory || r.category).length > 10
-        ? (r.subcategory || r.category).slice(0, 10) + '\u2026'
-        : (r.subcategory || r.category),
-      usage: Math.round(r.percentage),
-      fullMark: 100,
-    }))
-  }, [filteredRows])
-
-  // Categories without a budget (for add form)
-  const availableCategories = useMemo(() => {
-    const existing = new Set(budgets.map((b) => b.category))
-    if (viewMode === 'category') {
-      return allCategories.filter((c) => !existing.has(c))
-    }
-    // subcategory: show sub keys not already budgeted
-    const subs: string[] = []
-    for (const [cat, sublist] of Object.entries(subcategoriesForCategory)) {
-      for (const sub of sublist) {
-        const key = `${cat}::${sub}`
-        if (!existing.has(key)) subs.push(key)
-      }
-    }
-    return subs.sort((a, b) => a.localeCompare(b))
-  }, [budgets, allCategories, subcategoriesForCategory, viewMode])
-
-  // ─── Handlers ─────────────────────────────────────────────────
-  const handleAdd = useCallback(() => {
-    const key = viewMode === 'subcategory' && formSubcategory
-      ? `${formCategory}::${formSubcategory}`
-      : formCategory
-    if (key && formLimit) {
-      setBudget(key, Number.parseFloat(formLimit), budgetPeriod)
-      setFormCategory('')
-      setFormSubcategory('')
-      setFormLimit('')
-      setIsAdding(false)
-    }
-  }, [formCategory, formSubcategory, formLimit, viewMode, budgetPeriod, setBudget])
-
-  const handleQuickAdd = useCallback(
-    (cat: string, spent: number) => {
-      const suggested = Math.ceil(spent * 1.2 / 1000) * 1000
-      setBudget(cat, suggested, 'monthly')
-    },
-    [setBudget]
-  )
-
-  // ─── Render ───────────────────────────────────────────────────
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-      {/* Header */}
-      <PageHeader
-        title="Budget Tracker"
-        subtitle="Set limits and track spending by category"
-        action={
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">
-              {([['category', 'Category'], ['subcategory', 'Subcategory']] as const).map(([val, label]) => (
-                <motion.button
-                  key={val}
-                  role="tab"
-                  aria-selected={viewMode === val}
-                  onClick={() => setViewMode(val)}
-                  className={`relative px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    viewMode === val ? 'text-white' : 'text-muted-foreground hover:text-white hover:bg-white/10'
-                  }`}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  {viewMode === val && (
-                    <motion.div
-                      layoutId="budgetViewTab"
-                      className="absolute inset-0 rounded-lg"
-                      style={{ backgroundColor: rawColors.app.green }}
-                      initial={false}
-                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                    />
-                  )}
-                  <span className="relative z-10">{label}</span>
-                </motion.button>
-              ))}
-            </div>
-
-            <motion.button
-              onClick={() => setIsAdding(true)}
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors"
-              style={{ background: `linear-gradient(135deg, ${rawColors.app.green}, ${rawColors.app.teal})` }}
-            >
-              <Plus className="w-4 h-4" /> Add Budget
-            </motion.button>
-          </div>
-        }
-      />
-
-      {/* Summary KPIs */}
-      {summary.count > 0 && (
-        <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-5" initial="hidden" animate="visible" variants={staggerContainer}>
-          <motion.div variants={fadeUpItem}>
-            <StatCard label="Total Budget" value={formatCurrency(summary.totalBudget)} icon={Target} color={rawColors.app.blue} />
-          </motion.div>
-          <motion.div variants={fadeUpItem}>
-            <StatCard
-              label="Total Spent"
-              value={formatCurrency(summary.totalSpent)}
-              icon={TrendingDown}
-              color={summary.totalSpent > summary.totalBudget ? rawColors.app.red : rawColors.app.green}
-            />
-          </motion.div>
-          <motion.div variants={fadeUpItem}>
-            <StatCard label="On Track" value={String(summary.onTrack)} icon={CheckCircle} color={rawColors.app.green} />
-          </motion.div>
-          <motion.div variants={fadeUpItem}>
-            <StatCard label="Exceeded" value={String(summary.exceeded)} icon={AlertTriangle} color={rawColors.app.red} />
-          </motion.div>
-        </motion.div>
-      )}
-
-      {/* Add Budget Form */}
-      <AnimatePresence>
-        {isAdding && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="glass rounded-2xl border border-border p-6 overflow-hidden"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">New Budget</h3>
-              <button onClick={() => setIsAdding(false)} className="p-1.5 rounded-lg hover:bg-white/10">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-4 items-end">
-              {viewMode === 'category' ? (
-                <div className="flex-1 min-w-0 sm:min-w-48">
-                  <label htmlFor="budget-category" className="text-xs text-muted-foreground mb-1 block">Category</label>
-                  <select
-                    id="budget-category"
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
+        <PageHeader
+          title="Budget Tracker"
+          subtitle="Set limits and track spending by category"
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">
+                {(
+                  [
+                    ['category', 'Category'],
+                    ['subcategory', 'Subcategory'],
+                  ] as const
+                ).map(([val, label]) => (
+                  <motion.button
+                    key={val}
+                    role="tab"
+                    aria-selected={m.viewMode === val}
+                    onClick={() => m.setViewMode(val)}
+                    className={`relative px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      m.viewMode === val
+                        ? 'text-white'
+                        : 'text-muted-foreground hover:text-white hover:bg-white/10'
+                    }`}
+                    whileTap={{ scale: 0.97 }}
                   >
-                    <option value="">Select category</option>
-                    {availableCategories.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <>
-                  <div className="flex-1 min-w-0 sm:min-w-40">
-                    <label htmlFor="budget-cat-sub" className="text-xs text-muted-foreground mb-1 block">Category</label>
-                    <select
-                      id="budget-cat-sub"
-                      value={formCategory}
-                      onChange={(e) => { setFormCategory(e.target.value); setFormSubcategory('') }}
-                      className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
-                    >
-                      <option value="">Select category</option>
-                      {allCategories.filter((c) => subcategoriesForCategory[c]?.length).map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex-1 min-w-0 sm:min-w-40">
-                    <label htmlFor="budget-subcategory" className="text-xs text-muted-foreground mb-1 block">Subcategory</label>
-                    <select
-                      id="budget-subcategory"
-                      value={formSubcategory}
-                      onChange={(e) => setFormSubcategory(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors disabled:opacity-50"
-                      disabled={!formCategory}
-                    >
-                      <option value="">Select subcategory</option>
-                      {(subcategoriesForCategory[formCategory] || []).map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
-              <div className="w-36">
-                <label htmlFor="budget-limit" className="text-xs text-muted-foreground mb-1 block">Limit (₹)</label>
-                <input
-                  id="budget-limit"
-                  type="number"
-                  inputMode="decimal"
-                  value={formLimit}
-                  onChange={(e) => setFormLimit(e.target.value)}
-                  placeholder="Amount"
-                  className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white placeholder-gray-500"
-                />
+                    {m.viewMode === val && (
+                      <motion.div
+                        layoutId="budgetViewTab"
+                        className="absolute inset-0 rounded-lg"
+                        style={{ backgroundColor: rawColors.app.green }}
+                        initial={false}
+                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                    <span className="relative z-10">{label}</span>
+                  </motion.button>
+                ))}
               </div>
-              <div className="w-32">
-                <label htmlFor="budget-period" className="text-xs text-muted-foreground mb-1 block">Period</label>
-                <select
-                  id="budget-period"
-                  value={budgetPeriod}
-                  onChange={(e) => setBudgetPeriod(e.target.value as BudgetPeriod)}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
-                >
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-              </div>
-              <button
-                onClick={handleAdd}
-                disabled={!formCategory || !formLimit}
-                className="px-5 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-colors"
-                style={{ backgroundColor: rawColors.app.green }}
+              <motion.button
+                onClick={() => m.setIsAdding(true)}
+                whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors"
+                style={{
+                  background: `linear-gradient(135deg, ${rawColors.app.green}, ${rawColors.app.teal})`,
+                }}
               >
-                Add
-              </button>
+                <Plus className="w-4 h-4" /> Add Budget
+              </motion.button>
             </div>
+          }
+        />
+
+        {m.summary.count > 0 && (
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-4 gap-5"
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+          >
+            <motion.div variants={fadeUpItem}>
+              <StatCard
+                label="Total Budget"
+                value={formatCurrency(m.summary.totalBudget)}
+                icon={Target}
+                color={rawColors.app.blue}
+              />
+            </motion.div>
+            <motion.div variants={fadeUpItem}>
+              <StatCard
+                label="Total Spent"
+                value={formatCurrency(m.summary.totalSpent)}
+                icon={TrendingDown}
+                color={
+                  m.summary.totalSpent > m.summary.totalBudget
+                    ? rawColors.app.red
+                    : rawColors.app.green
+                }
+              />
+            </motion.div>
+            <motion.div variants={fadeUpItem}>
+              <StatCard
+                label="On Track"
+                value={String(m.summary.onTrack)}
+                icon={CheckCircle}
+                color={rawColors.app.green}
+              />
+            </motion.div>
+            <motion.div variants={fadeUpItem}>
+              <StatCard
+                label="Exceeded"
+                value={String(m.summary.exceeded)}
+                icon={AlertTriangle}
+                color={rawColors.app.red}
+              />
+            </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      {/* Chart + Budget List */}
-      {filteredRows.length > 0 ? (
-        <>
-          {/* Bar Chart */}
+        <AddBudgetForm
+          isAdding={m.isAdding}
+          setIsAdding={m.setIsAdding}
+          viewMode={m.viewMode}
+          formCategory={m.formCategory}
+          setFormCategory={m.setFormCategory}
+          formSubcategory={m.formSubcategory}
+          setFormSubcategory={m.setFormSubcategory}
+          formLimit={m.formLimit}
+          setFormLimit={m.setFormLimit}
+          budgetPeriod={m.budgetPeriod}
+          setBudgetPeriod={m.setBudgetPeriod}
+          availableCategories={m.availableCategories}
+          allCategories={m.allCategories}
+          subcategoriesForCategory={m.subcategoriesForCategory}
+          onAdd={m.handleAdd}
+        />
+
+        {m.filteredRows.length > 0 ? (
+          <>
+            <BudgetCharts
+              chartData={m.chartData}
+              burndownData={m.burndownData}
+              radarData={m.radarData}
+            />
+
+            <div className="space-y-3">
+              {m.filteredRows.map((row) => {
+                const key = row.subcategory ? `${row.category}::${row.subcategory}` : row.category
+                return (
+                  <BudgetRowItem
+                    key={key}
+                    row={row}
+                    isEditing={m.editKey === key}
+                    alertThreshold={m.alertThreshold}
+                    isFixed={m.fixedExpenseCategories.has(key.toLowerCase())}
+                    momentum={m.categoryMomentum.get(row.category)}
+                    onEdit={() => m.setEditKey(key)}
+                    onCancelEdit={() => m.setEditKey(null)}
+                    onSave={(limit, period) => {
+                      m.setBudget(key, limit, period)
+                      m.setEditKey(null)
+                    }}
+                    onDelete={() => m.removeBudget(key)}
+                  />
+                )
+              })}
+            </div>
+          </>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="glass rounded-2xl border border-border p-12 text-center"
+          >
+            <PiggyBank className="w-16 h-16 text-text-quaternary mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No budgets set yet</h3>
+            <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+              Set spending limits for your categories to start tracking. We'll suggest limits based
+              on your spending patterns.
+            </p>
+            <button
+              onClick={() => m.setIsAdding(true)}
+              className="px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-colors"
+              style={{ backgroundColor: rawColors.app.green }}
+            >
+              <Plus className="w-4 h-4 inline mr-1.5" /> Create Your First Budget
+            </button>
+          </motion.div>
+        )}
+
+        {m.availableCategories.length > 0 && m.filteredRows.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="glass rounded-2xl border border-border p-6"
           >
-            <h2 className="text-lg font-semibold mb-4">Budget vs Actual</h2>
-            <div className="h-64">
-              {chartData.length === 0 ? (
-                <ChartEmptyState height={256} />
-              ) : (
-                <ChartContainer>
-                  <BarChart data={chartData} barGap={4}>
-                    <CartesianGrid {...GRID_DEFAULTS} />
-                    <XAxis {...xAxisDefaults(chartData.length, { angle: dims.angleXLabels ? -20 : undefined, height: 50 })} dataKey="name" />
-                    <YAxis {...yAxisDefaults()} />
-                    <Tooltip
-                      {...chartTooltipProps}
-                      formatter={(value: number | undefined) => (value === undefined ? '' : formatCurrency(value))}
-                    />
-                    <Bar dataKey="Budget" fill={rawColors.app.blue} radius={BAR_RADIUS} opacity={0.5} isAnimationActive={shouldAnimate(chartData.length)} animationDuration={600} animationEasing="ease-out">
-                      {dims.showBarLabels && <LabelList dataKey="Budget" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
-                    </Bar>
-                    <Bar dataKey="Spent" radius={BAR_RADIUS} isAnimationActive={shouldAnimate(chartData.length)} animationDuration={600} animationEasing="ease-out" onClick={(data: { name?: string }) => { if (data?.name) navigate(`/transactions?category=${encodeURIComponent(data.name)}`) }} style={{ cursor: 'pointer' }}>
-                      {dims.showBarLabels && <LabelList dataKey="Spent" position="top" fill="#f5f5f7" fontSize={10} formatter={(v: unknown) => !v || v === 0 ? '' : formatCurrencyShort(v as number)} />}
-                      {chartData.map((entry) => (
-                        <Cell key={entry.name} fill={statusConfig[entry.status].color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
-              )}
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="w-5 h-5 text-muted-foreground" />
+              <h3 className="text-sm font-medium">Suggested Budgets</h3>
+              <span className="text-xs text-text-tertiary">Based on current spending</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {m.availableCategories
+                .filter((c) => {
+                  const spent =
+                    m.spendingData.byCategory[c] || m.spendingData.bySubcategory[c] || 0
+                  return spent > 500
+                })
+                .slice(0, 8)
+                .map((cat) => {
+                  const spent =
+                    m.spendingData.byCategory[cat] || m.spendingData.bySubcategory[cat] || 0
+                  const displayName = cat.includes('::') ? cat.split('::')[1] : cat
+                  return (
+                    <motion.button
+                      key={cat}
+                      onClick={() => m.handleQuickAdd(cat, spent)}
+                      whileTap={{ scale: 0.95 }}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors hover:scale-105"
+                      style={{
+                        backgroundColor: `${rawColors.app.green}15`,
+                        color: rawColors.app.green,
+                      }}
+                    >
+                      + {displayName} ({formatCurrency(spent)}/mo)
+                    </motion.button>
+                  )
+                })}
             </div>
           </motion.div>
-
-          {/* Burn-down Chart + Radar Chart */}
-          {(burndownData.length > 0 || radarData.length > 0) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Budget Burn-down Chart */}
-              {burndownData.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="glass rounded-2xl border border-border p-6"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h2 className="text-lg font-semibold">Budget Burn-down</h2>
-                      <p className="text-xs text-muted-foreground">Remaining budget pace for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1.5">{' '}
-                        <span className="w-4 h-0 border-t-2 border-dashed" style={{ borderColor: '#71717a' }} />{' '}
-                        Ideal
-                      </span>
-                      <span className="flex items-center gap-1.5">{' '}
-                        <span className="w-4 h-0.5 rounded-full" style={{ backgroundColor: rawColors.app.green }} />{' '}
-                        Actual
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-64">
-                    <ChartContainer>
-                      <AreaChart data={burndownData}>
-                        <defs>
-                          {areaGradient('burnActual', rawColors.app.green, 0.35, 0.02)}
-                        </defs>
-                        <CartesianGrid {...GRID_DEFAULTS} />
-                        <XAxis
-                          {...xAxisDefaults(burndownData.length)}
-                          dataKey="day"
-                          tickFormatter={(v: number) => `${v}`}
-                        />
-                        <YAxis {...yAxisDefaults()} />
-                        <Tooltip
-                          {...chartTooltipProps}
-                          labelFormatter={(label) => `Day ${label}`}
-                          formatter={(value: number | undefined, name: string | undefined) => [
-                            value === undefined ? '' : formatCurrency(value),
-                            name === 'ideal' ? 'Ideal Pace' : 'Actual Remaining',
-                          ]}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="actual"
-                          stroke={rawColors.app.green}
-                          fill={areaGradientUrl('burnActual')}
-                          strokeWidth={2}
-                          dot={false}
-                          connectNulls={false}
-                          isAnimationActive={shouldAnimate(burndownData.length)}
-                          animationDuration={600}
-                          animationEasing="ease-out"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="ideal"
-                          stroke="#71717a"
-                          strokeWidth={1.5}
-                          strokeDasharray="6 4"
-                          dot={false}
-                          isAnimationActive={shouldAnimate(burndownData.length)}
-                          animationDuration={600}
-                          animationEasing="ease-out"
-                        />
-                      </AreaChart>
-                    </ChartContainer>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Category Budget Radar */}
-              {radarData.length >= 3 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15 }}
-                  className="glass rounded-2xl border border-border p-6"
-                >
-                  <div className="mb-4">
-                    <h2 className="text-lg font-semibold">Category Usage Radar</h2>
-                    <p className="text-xs text-muted-foreground">Budget utilization (%) across all categories</p>
-                  </div>
-                  <div className="h-64 flex items-center justify-center">
-                    <ChartContainer>
-                      <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                        <PolarGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-                        <PolarAngleAxis
-                          dataKey="category"
-                          tick={{ fill: '#71717a', fontSize: 10 }}
-                        />
-                        <PolarRadiusAxis
-                          angle={30}
-                          domain={[0, Math.max(100, ...radarData.map((d) => d.usage))]}
-                          tick={{ fill: '#52525b', fontSize: 9 }}
-                          axisLine={false}
-                        />
-                        <Radar
-                          dataKey="usage"
-                          stroke={rawColors.app.blue}
-                          fill={rawColors.app.blue}
-                          fillOpacity={0.15}
-                          strokeWidth={2}
-                          dot={{ r: 3, fill: rawColors.app.blue }}
-                          isAnimationActive={shouldAnimate(radarData.length)}
-                          animationDuration={600}
-                          animationEasing="ease-out"
-                        />
-                        <Tooltip
-                          {...chartTooltipProps}
-                          formatter={(v: number | undefined) => (v === undefined ? '' : `${v}%`)}
-                        />
-                      </RadarChart>
-                    </ChartContainer>
-                  </div>
-                </motion.div>
-              )}
-            </div>
-          )}
-
-          {/* Budget Rows */}
-          <div className="space-y-3">
-            {filteredRows.map((row) => {
-              const key = row.subcategory ? `${row.category}::${row.subcategory}` : row.category
-              const cfg = statusConfig[row.status]
-              const isEditing = editKey === key
-
-              return (
-                <motion.div
-                  key={key}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`glass rounded-2xl border p-6 hover:bg-white/[0.04] transition-colors ${cfg.border} ${cfg.bg}`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {row.status === 'exceeded' ? (
-                        <AlertTriangle className={`w-4 h-4 ${cfg.text}`} />
-                      ) : (
-                        <CheckCircle className={`w-4 h-4 ${cfg.text}`} />
-                      )}
-                      <div>
-                        <span className="font-medium">{row.category}</span>
-                        {row.subcategory && (
-                          <span className="text-muted-foreground text-sm ml-1">/ {row.subcategory}</span>
-                        )}
-                      </div>
-                      <span className="text-xs text-text-tertiary ml-2 px-2 py-0.5 rounded-full bg-white/5">
-                        {row.period}
-                      </span>
-                      {fixedExpenseCategories.has(key.toLowerCase()) && (
-                        <span className="text-xs ml-1 px-2 py-0.5 rounded-full bg-app-purple/15 text-app-purple border border-app-purple/20">
-                          Fixed
-                        </span>
-                      )}
-                      {(() => {
-                        const momentum = categoryMomentum.get(row.category)
-                        if (!momentum || momentum.sparklineData.length < 3) return null
-                        const momentumColorMap = { accelerating: rawColors.app.red, decelerating: rawColors.app.green, stable: rawColors.app.yellow }
-                        const momentumClassMap = { accelerating: 'text-app-red', decelerating: 'text-app-green', stable: 'text-app-yellow' }
-                        return (
-                          <div className="ml-2 flex items-center gap-1">
-                            <Sparkline data={momentum.sparklineData} color={momentumColorMap[momentum.classification]} height={20} showTooltip={false} />
-                            <span className={`text-caption ${momentumClassMap[momentum.classification]}`}>
-                              {momentum.slope > 0 ? '+' : ''}{momentum.slope}%
-                            </span>
-                          </div>
-                        )
-                      })()}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isEditing ? (
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          defaultValue={row.limit}
-                          onBlur={(e) => {
-                            setBudget(key, Number.parseFloat(e.target.value), row.period)
-                            setEditKey(null)
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              setBudget(key, Number.parseFloat((e.target as HTMLInputElement).value), row.period)
-                              setEditKey(null)
-                            }
-                            if (e.key === 'Escape') setEditKey(null)
-                          }}
-                          className="w-28 px-2 py-1 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white"
-                          autoFocus
-                        />
-                      ) : (
-                        <>
-                          <span className={`text-lg font-bold ${cfg.text}`}>
-                            {formatPercent(row.percentage)}
-                          </span>
-                          <button onClick={() => setEditKey(key)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
-                            <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
-                          </button>
-                          <button onClick={() => { if (globalThis.confirm('Delete this budget? This cannot be undone.')) removeBudget(key) }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-app-red">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Bullet Chart */}
-                  <div className="relative h-5 mb-2">
-                    {/* Background ranges: good / warning / danger */}
-                    <div className="absolute inset-0 flex rounded-full overflow-hidden">
-                      <div className="h-full bg-white/5" style={{ width: `${Math.min(alertThreshold * 0.75, 100)}%` }} />
-                      <div className="h-full bg-white/10" style={{ width: `${Math.min(alertThreshold - alertThreshold * 0.75, 100 - alertThreshold * 0.75)}%` }} />
-                      <div className="h-full bg-white/10" style={{ width: `${Math.max(100 - alertThreshold, 0)}%` }} />
-                    </div>
-                    {/* Spent bar */}
-                    <motion.div
-                      className="absolute top-1 left-0 h-3 rounded-full"
-                      style={{ backgroundColor: cfg.color }}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, row.percentage)}%` }}
-                      transition={{ duration: 0.6, ease: 'easeOut' }}
-                    />
-                    {/* Target marker line */}
-                    <div
-                      className="absolute top-0 h-full w-0.5 bg-white/20"
-                      style={{ left: `${Math.min(100, row.percentage)}%`, transform: 'translateX(-1px)' }}
-                    />
-                    {/* Alert threshold marker */}
-                    <div
-                      className="absolute top-0 h-full w-0.5 bg-app-yellow/60"
-                      style={{ left: `${alertThreshold}%`, transform: 'translateX(-1px)' }}
-                    />
-                  </div>
-
-                  {/* Primary: available to spend */}
-                  <div className="mb-1">
-                    {row.remaining >= 0 ? (
-                      <p className="text-sm font-semibold text-app-green">
-                        {formatCurrency(row.remaining)} left to spend
-                      </p>
-                    ) : (
-                      <p className="text-sm font-semibold text-app-red">
-                        {formatCurrency(Math.abs(row.remaining))} over budget
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{formatCurrency(row.spent)} spent</span>
-                    <span>of {formatCurrency(row.limit)}</span>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </>
-      ) : (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="glass rounded-2xl border border-border p-12 text-center"
-        >
-          <PiggyBank className="w-16 h-16 text-text-quaternary mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No budgets set yet</h3>
-          <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-            Set spending limits for your categories to start tracking. We'll suggest limits based on your spending patterns.
-          </p>
-          <button
-            onClick={() => setIsAdding(true)}
-            className="px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-colors"
-            style={{ backgroundColor: rawColors.app.green }}
-          >
-            <Plus className="w-4 h-4 inline mr-1.5" /> Create Your First Budget
-          </button>
-        </motion.div>
-      )}
-
-      {/* Quick Suggestions */}
-      {availableCategories.length > 0 && filteredRows.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-2xl border border-border p-6"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="w-5 h-5 text-muted-foreground" />
-            <h3 className="text-sm font-medium">Suggested Budgets</h3>
-            <span className="text-xs text-text-tertiary">Based on current spending</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {availableCategories
-              .filter((c) => {
-                const spent = spendingData.byCategory[c] || spendingData.bySubcategory[c] || 0
-                return spent > 500
-              })
-              .slice(0, 8)
-              .map((cat) => {
-                const spent = spendingData.byCategory[cat] || spendingData.bySubcategory[cat] || 0
-                const displayName = cat.includes('::') ? cat.split('::')[1] : cat
-                return (
-                  <motion.button
-                    key={cat}
-                    onClick={() => handleQuickAdd(cat, spent)}
-                    whileTap={{ scale: 0.95 }}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors hover:scale-105"
-                    style={{ backgroundColor: `${rawColors.app.green}15`, color: rawColors.app.green }}
-                  >
-                    + {displayName} ({formatCurrency(spent)}/mo)
-                  </motion.button>
-                )
-              })}
-          </div>
-        </motion.div>
-      )}
+        )}
       </div>
     </div>
   )
 }
-
-// ─── Sub-components ─────────────────────────────────────────────────
