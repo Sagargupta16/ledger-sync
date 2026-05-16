@@ -15,6 +15,7 @@ import { motion } from 'framer-motion'
 
 import type { Transaction } from '@/types'
 import { formatCurrency } from '@/lib/formatters'
+import { getSemanticTextClass } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 
 interface TransactionTableProps {
@@ -25,9 +26,7 @@ interface TransactionTableProps {
 }
 
 function getAmountColor(type: string): string {
-  if (type === 'Transfer') return 'text-app-teal'
-  if (type === 'Income') return 'text-app-green'
-  return 'text-app-red'
+  return getSemanticTextClass(type)
 }
 
 function getAmountPrefix(type: string): string {
