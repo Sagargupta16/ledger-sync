@@ -11,7 +11,7 @@ import { seedDemoCache } from './seedDemoCache'
 import { generateDemoPreferences } from './generateDerivedData'
 
 export const DEMO_USER = {
-  id: 0,
+  id: -1,
   email: 'demo@ledger-sync.app',
   full_name: 'Demo User',
   is_active: true,
