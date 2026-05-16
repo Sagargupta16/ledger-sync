@@ -117,6 +117,40 @@ export function getSemanticBadgeClass(type: string): string {
   return 'bg-white/10 text-text-secondary border-white/10'
 }
 
+/**
+ * Status semantics. Use these instead of hand-rolled red/green/orange/blue
+ * Tailwind classes for "this thing succeeded / failed / is risky / is
+ * informational." Maps to the ``--color-success / -warning / -error / -info``
+ * CSS custom properties declared in ``index.css`` so a future palette swap
+ * touches one file, not dozens.
+ *
+ * Tailwind v4 auto-generates ``text-success``, ``bg-warning``, ``border-error``
+ * etc. utilities from those tokens. Prefer those classes directly when you
+ * just need a single utility; use the helpers below when you need the full
+ * "background + text + border" trio for a badge / inline alert / pill.
+ */
+export type Status = 'success' | 'warning' | 'error' | 'info'
+
+/** Tailwind text class for a status semantics. */
+export function getStatusTextClass(status: Status): string {
+  if (status === 'success') return 'text-success'
+  if (status === 'warning') return 'text-warning'
+  if (status === 'error') return 'text-error'
+  return 'text-info'
+}
+
+/**
+ * Tailwind badge classes (background + text + border) for inline status
+ * indicators. Background uses /10 alpha, border /20, matching the existing
+ * convention from ``getSemanticBadgeClass``.
+ */
+export function getStatusBadgeClass(status: Status): string {
+  if (status === 'success') return 'bg-success/10 text-success border-success/20'
+  if (status === 'warning') return 'bg-warning/10 text-warning border-warning/20'
+  if (status === 'error') return 'bg-error/10 text-error border-error/20'
+  return 'bg-info/10 text-info border-info/20'
+}
+
 // Chart axis and grid colors
 export const CHART_AXIS_COLOR = '#9ca3af'
 export const CHART_GRID_COLOR = '#2a2a2e'
