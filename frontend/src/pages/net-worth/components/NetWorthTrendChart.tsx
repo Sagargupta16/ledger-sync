@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { BarChart3 } from 'lucide-react'
-import { Area, AreaChart, CartesianGrid, Legend, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Brush, CartesianGrid, Legend, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 
 import EmptyState from '@/components/shared/EmptyState'
 import {
@@ -245,6 +245,23 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                     </>
                   )}
                 </>
+              )}
+              {/* Drag-to-zoom on the x-axis. Default window is the most-recent
+                  third of the data so the chart still reads at full fidelity
+                  on first paint; users can drag either traveller to widen or
+                  narrow the view without touching the global time filter. */}
+              {chartData.length > 6 && (
+                <Brush
+                  dataKey="date"
+                  height={26}
+                  travellerWidth={8}
+                  stroke={rawColors.app.blue}
+                  fill="rgba(255,255,255,0.04)"
+                  tickFormatter={(value: string) =>
+                    new Date(value).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+                  }
+                  startIndex={Math.max(0, chartData.length - Math.ceil(chartData.length / 3))}
+                />
               )}
             </AreaChart>
           </ChartContainer>
