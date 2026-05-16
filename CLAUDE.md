@@ -1,5 +1,15 @@
 # CLAUDE.md
 
+> This file stacks on top of the workspace root at `C:\Code\GitHub\`:
+> - Root [`CLAUDE.md`](../../CLAUDE.md) -- voice, rules, routing map, references, skills, slash commands, conventions.
+> - Root [`MEMORY.md`](../../MEMORY.md) -- live facts across repos.
+> - Root [`STATUS.md`](../../STATUS.md) -- live PR/CI/security dashboard.
+> - [`.claude/resources/`](../../.claude/resources/README.md) -- deep reference for collaboration, workflow, git, OSS, debugging, voice.
+>
+> Read those first. The guidance below only adds **repo-specific context** -- it does not override anything in the root.
+
+# CLAUDE.md
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
@@ -146,6 +156,21 @@ Runs on push/PR to main. Python 3.12, Node 22, pnpm 10, uv (latest).
 - No `any` type -- use proper TypeScript types. Use `unknown` and narrow if unsure.
 - No `console.log` in committed code. Use error boundaries or structured logging.
 - Run `pnpm run check` before considering any feature complete.
+
+## Project Skills
+
+Repo-specific skills live in [`.claude/skills/<name>/SKILL.md`](.claude/skills/) and load lazily via the `Skill` tool. Each enforces the project's exact conventions for a recurring task — invoke them instead of winging the task.
+
+| Skill | Trigger when... |
+| --- | --- |
+| `new-endpoint` | Adding/modifying a FastAPI router under `backend/src/ledger_sync/api/` |
+| `new-page` | Adding a frontend page or route |
+| `new-data-hook` | Adding a TanStack Query hook + axios service for a backend endpoint |
+| `new-ai-tool` | Adding a tool the AI chatbot can call (entry in `ai_tools.py`) |
+| `new-migration` | Touching anything in `backend/src/ledger_sync/db/_models/` |
+| `schema-drift-check` | Pydantic schema or response shape changed -- catches silent TS drift |
+| `release-changelog` | Cutting a release / version bump / CHANGELOG entry |
+| `debug-finance` | Wrong number / missing data / unexpected analytics output |
 
 ## New Feature Patterns
 

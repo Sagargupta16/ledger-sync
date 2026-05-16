@@ -213,7 +213,9 @@ connect.lock
 typings/
 .angular/
 
-.claude/
+# Claude Code: commit shared config (settings.json) + skills/, ignore per-user local state
+.claude/settings.local.json
+.claude/.last-context
 .mcp.json
 .superpowers/
 
