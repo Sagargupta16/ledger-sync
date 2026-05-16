@@ -1,40 +1,29 @@
 """Transaction reconciliation logic."""
 
-from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.reconciler_helpers import (
+    ReconciliationStats,
+    are_enum_values_equal,
+    are_string_values_equal,
+    log_batch_duplicate,
+    update_stats_for_action,
+)
+from ledger_sync.core.reconciler_transfers import TransferReconcilerMixin
 from ledger_sync.db.models import Transaction, TransactionType
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.utils.logging import logger
 
 USER_ID_REQUIRED_MSG = "user_id is required for reconciliation"
 
-
-class ReconciliationStats:
-    """Statistics from reconciliation process."""
-
-    def __init__(self) -> None:
-        """Initialize stats."""
-        self.processed = 0
-        self.inserted = 0
-        self.updated = 0
-        self.deleted = 0
-        self.skipped = 0
-
-    def __repr__(self) -> str:
-        """Return string representation."""
-        return (
-            f"ReconciliationStats(processed={self.processed}, "
-            f"inserted={self.inserted}, updated={self.updated}, "
-            f"deleted={self.deleted}, skipped={self.skipped})"
-        )
+__all__ = ["ReconciliationStats", "Reconciler"]
 
 
-class Reconciler:
+class Reconciler(TransferReconcilerMixin):
     """Reconciles Excel data with database."""
 
     def __init__(self, session: Session, user_id: int | None = None) -> None:
@@ -62,57 +51,6 @@ class Reconciler:
         if self.user_id is None:
             raise ValueError(USER_ID_REQUIRED_MSG)
         return self.user_id
-
-    @staticmethod
-    def _normalize_enum_value(value: Any) -> str | None:
-        """Extract a comparable string from an enum or raw value.
-
-        Args:
-            value: An enum instance, string, or None.
-
-        Returns:
-            Upper-cased string representation, or None if the value is falsy.
-
-        """
-        if hasattr(value, "value"):
-            return str(value.value)
-        if value:
-            return str(value)
-        return None
-
-    @staticmethod
-    def _are_enum_values_equal(new_value: Any, old_value: Any) -> bool:
-        """Compare two enum-like values case-insensitively.
-
-        Args:
-            new_value: The new value (may be an enum, string, or None).
-            old_value: The old value (may be an enum, string, or None).
-
-        Returns:
-            True if the values are considered equal.
-
-        """
-        new_str = Reconciler._normalize_enum_value(new_value)
-        old_str = Reconciler._normalize_enum_value(old_value)
-        new_upper = new_str.upper() if new_str else None
-        old_upper = old_str.upper() if old_str else None
-        return new_upper == old_upper
-
-    @staticmethod
-    def _are_string_values_equal(new_value: Any, old_value: Any) -> bool:
-        """Compare two string values, treating None and empty string as equal.
-
-        Args:
-            new_value: The new value.
-            old_value: The old value.
-
-        Returns:
-            True if the values are considered equal.
-
-        """
-        new_normalized = new_value if new_value else None
-        old_normalized = old_value if old_value else None
-        return new_normalized == old_normalized
 
     def _detect_and_apply_changes(
         self,
@@ -146,9 +84,9 @@ class Reconciler:
             old_value = getattr(existing, field)
 
             if field == "type":
-                values_equal = self._are_enum_values_equal(new_value, old_value)
+                values_equal = are_enum_values_equal(new_value, old_value)
             else:
-                values_equal = self._are_string_values_equal(new_value, old_value)
+                values_equal = are_string_values_equal(new_value, old_value)
 
             if not values_equal:
                 changes_detected.append(f"{field}: {old_value!r} -> {new_value!r}")
@@ -203,22 +141,6 @@ class Reconciler:
             log_fn = logger.debug if log_level == "debug" else logger.info
             log_fn(f"{label} {record_id[:12]}... updated: {changes_str}")
         return existing, "updated"
-
-    @staticmethod
-    def _update_stats_for_action(stats: ReconciliationStats, action: str) -> None:
-        """Increment the appropriate stat counter based on reconciliation action.
-
-        Args:
-            stats: The stats object to update.
-            action: One of "inserted", "updated", or "skipped".
-
-        """
-        if action == "inserted":
-            stats.inserted += 1
-        elif action == "updated":
-            stats.updated += 1
-        elif action == "skipped":
-            stats.skipped += 1
 
     def _find_existing_record(self, record_id: str, user_id: int) -> Transaction | None:
         """Look up an existing transaction by ID and user.
@@ -406,7 +328,7 @@ class Reconciler:
         )
 
         stats.processed += 1
-        self._update_stats_for_action(stats, action)
+        update_stats_for_action(stats, action)
 
     def _process_transfer_row(
         self,
@@ -443,7 +365,7 @@ class Reconciler:
         )
 
         if record_id in seen_in_batch:
-            self._log_batch_duplicate(row, record_id, is_transfer=True)
+            log_batch_duplicate(row, record_id, is_transfer=True)
             stats.processed += 1
             stats.skipped += 1
             return
@@ -453,31 +375,7 @@ class Reconciler:
         _, action = self.reconcile_transfer(row, source_file, import_time)
 
         stats.processed += 1
-        self._update_stats_for_action(stats, action)
-
-    @staticmethod
-    def _log_batch_duplicate(row: dict[str, Any], record_id: str, is_transfer: bool) -> None:
-        """Log a warning about a duplicate record found within a batch.
-
-        Args:
-            row: The duplicate row data.
-            record_id: The generated hash ID.
-            is_transfer: Whether this row is a transfer.
-
-        """
-        if is_transfer:
-            logger.warning(
-                f"Skipping duplicate transfer in batch: {record_id[:16]}... "
-                f"(Date: {row['date']}, Amount: {row['amount']}, "
-                f"From: {row['from_account']}, To: {row['to_account']})",
-            )
-        else:
-            logger.warning(
-                f"Skipping duplicate transaction in batch: {record_id[:16]}... "
-                f"(Date: {row['date']}, Amount: {row['amount']}, "
-                f"Account: {row['account']}, Category: {row['category']}, "
-                f"Type: {row['type']})",
-            )
+        update_stats_for_action(stats, action)
 
     def reconcile_batch(
         self,
@@ -579,274 +477,13 @@ class Reconciler:
                     updateable_fields,
                     row,
                 )
-                self._update_stats_for_action(stats, action)
+                update_stats_for_action(stats, action)
 
         # Commit all changes
         self.session.commit()
 
         # Mark soft deletes
         stats.deleted = self.mark_soft_deletes(import_time)
-        self.session.commit()
-
-        return stats
-
-    def reconcile_transfer(
-        self,
-        normalized_row: dict[str, Any],
-        source_file: str,
-        import_time: datetime,
-        *,
-        occurrence: int = 0,
-    ) -> tuple[Transaction, str]:
-        """Reconcile a single transfer (now stored as Transaction with type='Transfer').
-
-        Args:
-            normalized_row: Normalized transfer data
-            source_file: Source file name
-            import_time: Import timestamp
-            occurrence: Zero-based index for hash disambiguation when multiple
-                genuine transfers share the same (date, amount, from, to).
-
-        Returns:
-            Tuple of (Transaction, action) where action is "inserted", "updated", or "skipped"
-
-        Raises:
-            ValueError: If user_id is not set in multi-user mode
-
-        """
-        user_id = self._ensure_user_id()
-
-        # Generate transfer ID (using from_account as account for hash)
-        transfer_id = self.hasher.generate_transaction_id(
-            date=normalized_row["date"],
-            amount=normalized_row["amount"],
-            account=normalized_row["from_account"],
-            note=normalized_row["note"],
-            category=normalized_row["category"],
-            subcategory=normalized_row["subcategory"],
-            tx_type=normalized_row["type"],
-            user_id=user_id,
-            occurrence=occurrence,
-        )
-
-        existing = self._find_existing_record(transfer_id, user_id)
-
-        if existing is None:
-            # INSERT new transfer as Transaction
-            transfer = Transaction(
-                transaction_id=transfer_id,
-                user_id=user_id,
-                date=normalized_row["date"],
-                amount=normalized_row["amount"],
-                currency=normalized_row["currency"],
-                type=normalized_row["type"],
-                account=normalized_row["from_account"],
-                from_account=normalized_row["from_account"],
-                to_account=normalized_row["to_account"],
-                category=normalized_row["category"],
-                subcategory=normalized_row["subcategory"],
-                note=normalized_row["note"],
-                source_file=source_file,
-                last_seen_at=import_time,
-                is_deleted=False,
-            )
-            self.session.add(transfer)
-            return transfer, "inserted"
-
-        # UPDATE existing transfer
-        updateable_fields = [
-            "category",
-            "subcategory",
-            "note",
-            "type",
-            "from_account",
-            "to_account",
-        ]
-        return self._apply_existing_update(
-            existing,
-            transfer_id,
-            import_time,
-            updateable_fields,
-            normalized_row,
-            log_level="debug",
-        )
-
-    def mark_soft_deletes_transfers(self, import_time: datetime) -> int:
-        """Mark transfers not seen in this import as deleted.
-
-        Args:
-            import_time: Import timestamp
-
-        Returns:
-            Number of transfers marked as deleted
-
-        """
-        user_id = self._ensure_user_id()
-
-        stmt = (
-            update(Transaction)
-            .where(Transaction.user_id == user_id)
-            .where(Transaction.type == TransactionType.TRANSFER)
-            .where(Transaction.last_seen_at < import_time)
-            .where(Transaction.is_deleted.is_(False))
-            .values(is_deleted=True)
-            .execution_options(synchronize_session="fetch")
-        )
-        result = self.session.execute(stmt)
-        count = int(result.rowcount)  # type: ignore[attr-defined]
-
-        if count > 0:
-            logger.info(f"Marked {count} transfers as deleted")
-
-        return count
-
-    def reconcile_transfers_batch(
-        self,
-        normalized_rows: list[dict[str, Any]],
-        source_file: str,
-        import_time: datetime,
-    ) -> ReconciliationStats:
-        """Reconcile a batch of transfers.
-
-        Uses batch-fetch to pre-load all existing records in one query,
-        avoiding N+1 SELECT overhead on high-latency connections.
-
-        Each real transfer appears TWICE in the source export (once as
-        Transfer-In, once as Transfer-Out). Legs are counted per-direction
-        so two genuinely-identical transfers on the same day (same amount
-        between the same accounts) are NOT collapsed into one by dedup -
-        the first In + first Out pair up (occurrence 0), the second In +
-        second Out pair up (occurrence 1), and so on.
-
-        Args:
-            normalized_rows: List of normalized transfer data
-            source_file: Source file name
-            import_time: Import timestamp
-
-        Returns:
-            Reconciliation statistics
-
-        Raises:
-            ValueError: If user_id is not set in multi-user mode
-
-        """
-        user_id = self._ensure_user_id()
-
-        stats = ReconciliationStats()
-
-        # Phase 1: Pre-compute transfer IDs.
-        # Per-leg-direction occurrence counters: first leg in each direction
-        # for a given (canonical key) pairs with the first leg in the other
-        # direction to form one transfer (occurrence 0). The second in each
-        # direction form the second transfer (occurrence 1). And so on.
-        legs_seen: dict[tuple[Any, ...], dict[str, int]] = defaultdict(
-            lambda: {"in": 0, "out": 0},
-        )
-        seen_in_batch: set[str] = set()
-        row_ids: list[str] = []
-        skip_flags: list[bool] = []
-        for row in normalized_rows:
-            try:
-                # Canonical key ignores leg direction: both In and Out rows
-                # for the same real transfer produce the same key.
-                canonical_key = (
-                    row["date"],
-                    row["amount"],
-                    row["from_account"],
-                    row["to_account"],
-                    row.get("category"),
-                    row.get("subcategory"),
-                    row.get("note"),
-                )
-                leg = row.get("transfer_leg", "out")
-                occurrence = legs_seen[canonical_key][leg]
-                legs_seen[canonical_key][leg] += 1
-
-                record_id = self.hasher.generate_transaction_id(
-                    date=row["date"],
-                    amount=row["amount"],
-                    account=row["from_account"],
-                    note=row["note"],
-                    category=row["category"],
-                    subcategory=row["subcategory"],
-                    tx_type=row["type"],
-                    user_id=user_id,
-                    occurrence=occurrence,
-                )
-                if record_id in seen_in_batch:
-                    # This row is the paired leg (same occurrence) of an
-                    # earlier row we already kept. Safe to skip.
-                    self._log_batch_duplicate(row, record_id, is_transfer=True)
-                    row_ids.append(record_id)
-                    skip_flags.append(True)
-                else:
-                    seen_in_batch.add(record_id)
-                    row_ids.append(record_id)
-                    skip_flags.append(False)
-            except (ValueError, TypeError, KeyError) as e:
-                logger.error("Error computing ID for transfer: %s", e)
-                row_ids.append("")
-                skip_flags.append(True)
-
-        # Phase 2: Batch-fetch all existing records
-        valid_ids = [rid for rid, skip in zip(row_ids, skip_flags) if rid and not skip]
-        existing_map = self._batch_fetch_existing(valid_ids, user_id)
-
-        # Phase 3: Process each row using pre-fetched data
-        updateable_fields = [
-            "category",
-            "subcategory",
-            "note",
-            "type",
-            "from_account",
-            "to_account",
-        ]
-        for idx, row in enumerate(normalized_rows):
-            tx_id = row_ids[idx]
-            stats.processed += 1
-
-            if skip_flags[idx] or not tx_id:
-                stats.skipped += 1
-                continue
-
-            existing = existing_map.get(tx_id)
-
-            if existing is None:
-                transfer = Transaction(
-                    transaction_id=tx_id,
-                    user_id=user_id,
-                    date=row["date"],
-                    amount=row["amount"],
-                    currency=row["currency"],
-                    type=row["type"],
-                    account=row["from_account"],
-                    from_account=row["from_account"],
-                    to_account=row["to_account"],
-                    category=row["category"],
-                    subcategory=row["subcategory"],
-                    note=row["note"],
-                    source_file=source_file,
-                    last_seen_at=import_time,
-                    is_deleted=False,
-                )
-                self.session.add(transfer)
-                stats.inserted += 1
-            else:
-                _, action = self._apply_existing_update(
-                    existing,
-                    tx_id,
-                    import_time,
-                    updateable_fields,
-                    row,
-                    log_level="debug",
-                )
-                self._update_stats_for_action(stats, action)
-
-        # Commit all changes
-        self.session.commit()
-
-        # Mark soft deletes
-        stats.deleted = self.mark_soft_deletes_transfers(import_time)
         self.session.commit()
 
         return stats
