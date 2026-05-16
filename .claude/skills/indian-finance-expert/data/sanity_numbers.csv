@@ -1,0 +1,8 @@
+scenario,gross_inr,fy,regime,extras,total_tax_inr_low,total_tax_inr_high
+salaried_15L_no_extras,1500000,2025,new,std_deduction_only,140000,150000
+salaried_25L_no_extras,2500000,2025,new,std_deduction_only,430000,450000
+salaried_50L_no_extras,5000000,2025,new,std_deduction_only,1240000,1260000
+salaried_1Cr_no_extras,10000000,2025,new,std_deduction_only_10pct_surcharge,2850000,2900000
+PPF_15yr_at_max,2250000_total_invested,multi_year,,1.5L_per_year_at_7.1pct,4070000,4070000
+NPS_5k_per_month_30yr,1800000_total_invested,multi_year,,5k_per_month_at_10pct_blended,11300000,11300000
+EPF_50k_basic_30yr,3600000_total_invested,multi_year,,12pct_employee_+_12pct_employer_at_8.25pct,25000000,25000000

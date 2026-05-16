@@ -1,0 +1,13 @@
+asset_class,holding_max_days,gain_type,tax_pct,exemption_inr,section,notes
+listed_equity,365,STCG,20,0,111A,"Listed equity + equity MFs + equity hybrid MFs. Pre-Budget 2024 was 15%; bumped to 20% from 2024-07-23."
+listed_equity,,LTCG,12.5,125000,112A,"Held > 12 months. First 1.25L per FY exempt. Pre-Budget 2024 was 10% with 1L exemption."
+debt_mf_post_2023,,SLAB,slab,0,50AA,"Bought >= 2023-04-01: ALL gains taxed at slab regardless of holding. No LTCG benefit. Finance Act 2023."
+debt_mf_pre_2023,1095,STCG,slab,0,,Bought < 2023-04-01: STCG at slab if held <= 36 months
+debt_mf_pre_2023,,LTCG,20,0,,"Bought < 2023-04-01 + held > 36 months: 20% with indexation grandfathered."
+property,730,STCG,slab,0,,Property held <= 24 months: STCG at slab rate
+property,,LTCG,12.5,0,,"Held > 24 months: 12.5% without indexation. For property bought before 2024-07-23, taxpayer can choose 20% with indexation."
+unlisted_shares,730,STCG,slab,0,,Same as property
+unlisted_shares,,LTCG,12.5,0,,Same as property
+gold_physical,730,STCG,slab,0,,Physical/digital gold <= 24 mo
+gold_physical,,LTCG,12.5,0,,Held > 24 mo: 12.5% (no indexation)
+sgb,2920,LTCG,0,0,,"Sovereign Gold Bond held to maturity (8 years): FULLY EXEMPT. Sold on exchange before maturity: equity-style 12.5% LTCG."

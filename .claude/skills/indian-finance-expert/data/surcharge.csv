@@ -1,0 +1,8 @@
+fy_start,regime,income_above_inr,rate_pct,notes
+2025,new,5000000,10,>= 50L
+2025,new,10000000,15,>= 1Cr
+2025,new,20000000,25,>= 2Cr (capped at 25% in new regime)
+2025,old,5000000,10,>= 50L
+2025,old,10000000,15,>= 1Cr
+2025,old,20000000,25,>= 2Cr
+2025,old,50000000,37,>= 5Cr (old regime peaks at 37%)

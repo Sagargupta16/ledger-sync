@@ -1,0 +1,17 @@
+section,name,bucket,limit_inr,regime_old,regime_new,description,common_miss
+80C,Section 80C - Investment & savings,80C,150000,yes,no,"LIC, EPF, PPF, ELSS, NSC, SSY, principal of home loan, 5-yr FD, NPS Tier-I (employee). One bucket - hits the cap fast.",
+80CCC,Section 80CCC - Pension fund,80C,within_80C,yes,no,Pension fund contribution. Counts within the 80C 1.5L cap.,
+80CCD(1),Section 80CCD(1) - NPS Tier-I (self),80C,within_80C_or_10pct_salary,yes,no,NPS Tier-I self contribution. Either within 80C OR up to 10% of salary - whichever is less.,
+80CCD(1B),Section 80CCD(1B) - NPS additional,additional,50000,yes,no,Additional NPS Tier-I deduction OVER AND ABOVE 80C 1.5L cap. The most-missed deduction in the country.,Often missed; commonly assumed to be inside 80C
+80CCD(2),Section 80CCD(2) - NPS employer,additional,10pct_salary_private_14pct_govt,yes,yes,Employer NPS contribution. ALLOWED IN BOTH REGIMES. 10% of salary for private sector, 14% for government.,Only employer-side deduction allowed in new regime
+80D,Section 80D - Health insurance,health,25000_self_25000_parents,yes,no,"Health insurance premium. 25k self+family, 25k parents. 50k each if senior citizen.",
+80E,Section 80E - Education loan interest,loan,no_cap,yes,no,Education loan interest paid. No upper cap. Available for 8 years from start of repayment.,
+80EEA,Section 80EEA - Home loan first-time buyer,loan,150000,yes,no,Home loan interest for first-time home buyers. Sunset rules apply (loan must be sanctioned in eligible window).,
+80EE,Section 80EE - Home loan first-time buyer (older),loan,50000,yes,no,Older first-time home buyer loan interest scheme. Sunset.,
+80G,Section 80G - Donations,donation,varies,yes,no,Donations to approved charities. 50% or 100% of donation, with or without limit depending on charity. Need 80G receipt.,
+80TTA,Section 80TTA - Savings interest,interest,10000,yes,no,Interest on savings bank account. 10k cap.,
+80TTB,Section 80TTB - Senior FD interest,interest,50000,yes,no,Senior citizens only - interest from FDs and savings. 50k cap. Replaces 80TTA for seniors.,Only seniors qualify; not available below age 60
+24(b),Section 24(b) - Home loan interest,property,200000,yes,no,Home loan INTEREST deduction (not principal - that's in 80C). 2L cap for self-occupied. Lossable from House Property income (capped at -2L).,
+HRA,House Rent Allowance exemption,salary,formula,yes,no,"Least of: rent paid - 10% of salary, OR actual HRA received, OR 50% (metro) / 40% (non-metro) of salary.",Old regime only
+LTA,Leave Travel Allowance,salary,actuals,yes,no,Two trips per block of 4 years. Only travel within India. Bills required.,Old regime only
+Standard Deduction,Standard Deduction (salaried),standard,75000,yes,yes,Flat deduction for salaried/pensioners. Available in BOTH regimes (was 50k earlier; raised to 75k FY24-25 onwards in new regime),
