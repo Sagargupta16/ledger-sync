@@ -27,16 +27,14 @@ These are `user-invocable: false` skills — they don't show in the `/` menu. Th
 
 ## Task skills (recipes for recurring work)
 
-These are normal user-invocable skills — they show in `/` menu and Claude can also auto-trigger them based on phrasing.
+Normal user-invocable skills — they show in `/` menu and Claude can also auto-trigger them based on phrasing. Consolidated to **6 broad workflows** rather than one skill per layer (per [Anthropic skill design guidance](https://code.claude.com/docs/en/skills): create a skill when you keep pasting the same procedure, not for every conceivable task).
 
 | Skill | Trigger when... |
 |---|---|
-| [new-endpoint](.claude/skills/new-endpoint/SKILL.md) | Adding a FastAPI router |
-| [new-page](.claude/skills/new-page/SKILL.md) | Adding a frontend page or route |
-| [new-data-hook](.claude/skills/new-data-hook/SKILL.md) | Adding a TanStack Query hook + axios service |
-| [new-ai-tool](.claude/skills/new-ai-tool/SKILL.md) | Adding a tool the AI chatbot can call |
-| [new-migration](.claude/skills/new-migration/SKILL.md) | Touching `db/_models/` |
-| [schema-drift-check](.claude/skills/schema-drift-check/SKILL.md) | Pydantic schema changed — catches silent TS drift |
+| [add-feature](.claude/skills/add-feature/SKILL.md) | **Full-stack feature** — endpoint + schema + service + hook + page (the most common workflow) |
+| [new-ai-tool](.claude/skills/new-ai-tool/SKILL.md) | Adding a tool the AI chatbot can call (single-file workflow, stays standalone) |
+| [new-migration](.claude/skills/new-migration/SKILL.md) | Touching `db/_models/` (DB schema change with empty-downgrade convention) |
+| [schema-drift-check](.claude/skills/schema-drift-check/SKILL.md) | Pydantic schema changed — catches silent TS drift before PR |
 | [release-changelog](.claude/skills/release-changelog/SKILL.md) | Cutting a release / version bump |
 | [debug-finance](.claude/skills/debug-finance/SKILL.md) | Wrong number / missing data / unexpected analytics |
 

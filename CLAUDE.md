@@ -172,16 +172,14 @@ Repo-specific skills live in [`.claude/skills/<name>/SKILL.md`](.claude/skills/)
 | `deployment-atlas` | Editing workflows, vercel.json, settings |
 | `indian-finance-expert` | Editing tax/investment/savings code — domain-expert reference |
 
-**Task skills** (user-invocable, also auto-trigger on phrasing) — recipes for recurring work.
+**Task skills** (user-invocable, also auto-trigger on phrasing) — recipes for recurring work. Consolidated to broad workflows rather than one skill per layer.
 
 | Task skill | Trigger when... |
 | --- | --- |
-| `new-endpoint` | Adding/modifying a FastAPI router |
-| `new-page` | Adding a frontend page or route |
-| `new-data-hook` | Adding a TanStack Query hook + axios service |
-| `new-ai-tool` | Adding a tool the AI chatbot can call |
-| `new-migration` | Touching anything in `db/_models/` |
-| `schema-drift-check` | Pydantic schema or response shape changed |
+| `add-feature` | **Full-stack feature** — backend endpoint + Pydantic schema + frontend service + hook + page/component |
+| `new-ai-tool` | Adding a tool the AI chatbot can call (the only single-file workflow that stays standalone) |
+| `new-migration` | Touching anything in `db/_models/` (DB schema change with the empty-downgrade convention) |
+| `schema-drift-check` | Pydantic schema or response shape changed (catch silent TS drift before PR) |
 | `release-changelog` | Cutting a release / version bump |
 | `debug-finance` | Wrong number / missing data / unexpected analytics |
 
