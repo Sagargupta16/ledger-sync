@@ -105,7 +105,7 @@ Layered architecture:
 
 ### Key Patterns
 
-- **Auth flow**: OAuth-only (Google, GitHub) via authorization code flow. No email/password. Frontend redirects to provider, `OAuthCallbackPage` sends code to `POST /api/auth/oauth/{provider}/callback`, backend exchanges for user info via `httpx` and returns JWTs. `authStore` (Zustand + persist) stores tokens. `ProtectedRoute` enforces auth. `useAuthInit` verifies tokens on app startup. Token blacklist on logout. OAuth buttons only appear when provider client IDs are configured via env vars (`LEDGER_SYNC_GOOGLE_CLIENT_ID`, etc.).
+- **Auth flow**: OAuth-only (Google, GitHub) via authorization code flow. No email/password. Frontend redirects to provider, `OAuthCallbackPage` sends code to `POST /api/auth/oauth/{provider}/callback`, backend exchanges for user info via `httpx` and returns JWTs. `authStore` (Zustand + persist) stores tokens. `ProtectedRoute` enforces auth. `useAuthInit` verifies tokens on app startup. Logout is client-side (frontend clears tokens; access token remains valid server-side until its 30-min expiry). OAuth buttons only appear when provider client IDs are configured via env vars (`LEDGER_SYNC_GOOGLE_CLIENT_ID`, etc.).
 - **Path alias**: `@/*` maps to `./src/*` in frontend TypeScript config.
 - **Styling**: Tailwind CSS 4 with extensive CSS custom properties in `index.css` (design tokens for colors, typography, spacing, animations). Dark-theme-only design using an iOS-inspired color palette with financial semantic colors (income=green, expense=red, savings=purple, transfer=teal, investment=blue).
 - **API proxy**: Vite proxies `/api` requests to `http://localhost:8000` during development.
@@ -114,7 +114,7 @@ Layered architecture:
 - **Database**: SQLite for development (`./ledger_sync.db`), Neon PostgreSQL 17 in production (Singapore region, free tier, 0.5 GB). Schema managed by Alembic migrations. Database auto-initializes on app startup via `init_db()`. SQLite connections apply performance PRAGMAs (WAL mode, 64MB cache, NORMAL sync). PostgreSQL pool is env-configurable via `LEDGER_SYNC_DB_*` settings (pool_size, max_overflow, pool_recycle_seconds, connect_timeout_seconds, statement_timeout_seconds, idle_transaction_timeout_seconds; defaults sized for Neon free tier: 5/3/300/10/30/60). Compatible with Neon's PgBouncer pooler.
 - **Database-agnostic SQL**: SQLite uses `strftime()`, PostgreSQL uses `to_char()`. Always use `query_helpers.py` helpers (`fmt_year_month`, `fmt_year`, `fmt_month`, `fmt_date`) instead of `func.strftime()` directly -- raw SQLite SQL will break production.
 - **DB URL normalization**: `session.py` auto-converts `postgresql://` and `postgresql+psycopg2://` to `postgresql+psycopg://` (psycopg v3 driver).
-- **Security**: Rate limiting (slowapi) on `/api/auth/refresh`, OAuth callbacks, `/api/upload`, and `/api/ai/bedrock/chat` — IP-keyed, applied via `@limiter.limit()` with a globally registered 429 handler. Security headers (CSP, HSTS, X-Frame-Options), token blacklist, query timeouts. SheetJS installed from CDN (`cdn.sheetjs.com/xlsx-0.20.3`) to avoid npm registry vulnerabilities. OAuth secrets stored server-side only; frontend never sees provider tokens. AI API keys encrypted at rest with AES-256-GCM (PBKDF2-derived key from JWT secret, per-ciphertext random 128-bit salt).
+- **Security**: Rate limiting (slowapi) on `/api/auth/refresh`, OAuth callbacks, `/api/upload`, and `/api/ai/bedrock/chat` — IP-keyed, applied via `@limiter.limit()` with a globally registered 429 handler. Security headers (CSP, HSTS, X-Frame-Options), query timeouts. SheetJS installed from CDN (`cdn.sheetjs.com/xlsx-0.20.3`) to avoid npm registry vulnerabilities. OAuth secrets stored server-side only; frontend never sees provider tokens. AI API keys encrypted at rest with AES-256-GCM (PBKDF2-derived key from JWT secret, per-ciphertext random 128-bit salt).
 - **AI Chatbot (app_bedrock + BYOK, tool-calling)**: Two modes stored in `user_preferences.ai_mode`:
   - **`app_bedrock` (default)** -- new users get a working chatbot with zero setup. Server uses its own Bedrock bearer token (`LEDGER_SYNC_BEDROCK_API_KEY`) and a fixed cheap model (Haiku 4.5). Rate-limited to `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` messages/day (default 10) per user to keep the shared-key cost predictable. Hitting the cap returns a 429 with a "switch to BYOK" pointer.
   - **`byok`** -- user configures provider (OpenAI/Anthropic/Bedrock), model, and API key in Settings > AI Assistant. Per-user daily/monthly token limits configurable.
@@ -159,18 +159,29 @@ Runs on push/PR to main. Python 3.12, Node 22, pnpm 10, uv (latest).
 
 ## Project Skills
 
-Repo-specific skills live in [`.claude/skills/<name>/SKILL.md`](.claude/skills/) and load lazily via the `Skill` tool. Each enforces the project's exact conventions for a recurring task — invoke them instead of winging the task.
+Repo-specific skills live in [`.claude/skills/<name>/SKILL.md`](.claude/skills/). Two flavors:
 
-| Skill | Trigger when... |
+**Atlas skills** (`user-invocable: false`) — codebase mental models, auto-load by `paths:` scope. They give Claude background knowledge on demand without taking context space upfront. Index in [MEMORY.md](MEMORY.md).
+
+| Atlas | Auto-loads when... |
 | --- | --- |
-| `new-endpoint` | Adding/modifying a FastAPI router under `backend/src/ledger_sync/api/` |
-| `new-page` | Adding a frontend page or route |
-| `new-data-hook` | Adding a TanStack Query hook + axios service for a backend endpoint |
-| `new-ai-tool` | Adding a tool the AI chatbot can call (entry in `ai_tools.py`) |
-| `new-migration` | Touching anything in `backend/src/ledger_sync/db/_models/` |
-| `schema-drift-check` | Pydantic schema or response shape changed -- catches silent TS drift |
-| `release-changelog` | Cutting a release / version bump / CHANGELOG entry |
-| `debug-finance` | Wrong number / missing data / unexpected analytics output |
+| `backend-atlas` | Editing any backend Python file |
+| `frontend-atlas` | Editing any frontend TS/TSX file |
+| `data-flow-atlas` | Always available (no path scope) |
+| `domain-atlas` | Editing tax/FY/currency/instrument code |
+| `deployment-atlas` | Editing workflows, vercel.json, settings |
+| `indian-finance-expert` | Editing tax/investment/savings code — domain-expert reference |
+
+**Task skills** (user-invocable, also auto-trigger on phrasing) — recipes for recurring work. Consolidated to broad workflows rather than one skill per layer.
+
+| Task skill | Trigger when... |
+| --- | --- |
+| `add-feature` | **Full-stack feature** — backend endpoint + Pydantic schema + frontend service + hook + page/component |
+| `new-ai-tool` | Adding a tool the AI chatbot can call (the only single-file workflow that stays standalone) |
+| `new-migration` | Touching anything in `db/_models/` (DB schema change with the empty-downgrade convention) |
+| `schema-drift-check` | Pydantic schema or response shape changed (catch silent TS drift before PR) |
+| `release-changelog` | Cutting a release / version bump |
+| `debug-finance` | Wrong number / missing data / unexpected analytics |
 
 ## New Feature Patterns
 
