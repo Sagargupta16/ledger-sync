@@ -24,7 +24,7 @@ function YoyBadge({ current, previous }: Readonly<{ current: number; previous: n
   const bg = isUp ? 'bg-app-green/10' : 'bg-red-400/10'
 
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium ${color} ${bg}`}>
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-overline font-medium ${color} ${bg}`}>
       <Icon className="w-3 h-3" />
       {isUp ? '+' : ''}{pct.toFixed(1)}%
     </span>
@@ -54,9 +54,9 @@ export default function TaxSummaryCards({
             <TrendingUp className="w-6 h-6 text-app-green" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-muted-foreground">Salaried Income</p>
+            <p className="text-kpi-label text-muted-foreground">Salaried Income</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-2xl font-bold">
+              <p className="text-kpi-hero font-bold">
                 {isLoading ? '...' : formatCurrency(netTaxableIncome)}
               </p>
               {!isLoading && <YoyBadge current={netTaxableIncome} previous={prevNetTaxableIncome} />}
@@ -79,9 +79,9 @@ export default function TaxSummaryCards({
             <IndianRupee className="w-6 h-6 text-app-blue" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-muted-foreground">Taxable Income</p>
+            <p className="text-kpi-label text-muted-foreground">Taxable Income</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-2xl font-bold">
+              <p className="text-kpi-hero font-bold">
                 {isLoading ? '...' : formatCurrency(grossTaxableIncome)}
               </p>
               {!isLoading && <YoyBadge current={grossTaxableIncome} previous={prevGrossTaxableIncome} />}
@@ -102,11 +102,11 @@ export default function TaxSummaryCards({
             <Calculator className="w-6 h-6 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-kpi-label text-muted-foreground">
               {isProjecting ? 'Estimated Tax' : 'Tax Already Paid'}
             </p>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-2xl font-bold">
+              <p className="text-kpi-hero font-bold">
                 {isLoading ? '...' : formatCurrency(taxAlreadyPaid)}
               </p>
               {!isLoading && <YoyBadge current={taxAlreadyPaid} previous={prevTaxAlreadyPaid} />}
