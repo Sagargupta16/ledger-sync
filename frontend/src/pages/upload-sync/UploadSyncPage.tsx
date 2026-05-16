@@ -20,6 +20,7 @@ import { parseFile, FileParseError } from '@/lib/fileParser'
 import type { ParseResult } from '@/lib/fileParser'
 import { cn } from '@/lib/cn'
 import { getApiErrorMessage } from '@/lib/errorUtils'
+import { getSemanticBadgeClass } from '@/constants/chartColors'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 
 type UploadPhase = 'parsing' | 'uploading' | 'processing' | 'analytics' | null
@@ -55,10 +56,10 @@ const SAMPLE_EXCEL_DATA = [
 ]
 
 const TYPE_STYLES: Record<string, string> = {
-  'Income': 'bg-app-green/20 text-app-green border-app-green/30',
-  'Expense': 'bg-app-red/20 text-app-red border-app-red/30',
-  'Transfer-Out': 'bg-app-orange/20 text-app-orange border-app-orange/30',
-  'Transfer-In': 'bg-app-blue/20 text-app-blue border-app-blue/30',
+  'Income': getSemanticBadgeClass('Income'),
+  'Expense': getSemanticBadgeClass('Expense'),
+  'Transfer-Out': getSemanticBadgeClass('Transfer-Out'),
+  'Transfer-In': getSemanticBadgeClass('Transfer-In'),
 }
 
 export default function UploadSyncPage() {

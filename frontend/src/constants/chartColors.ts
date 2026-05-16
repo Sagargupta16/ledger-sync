@@ -65,6 +65,58 @@ export const SEMANTIC_COLORS = {
   muted:      '#6b7280',
 } as const
 
+/**
+ * Canonical labels for the income / expense / savings trio.
+ *
+ * Use these in chart legends, KPI titles, and any other display copy
+ * that references one of these series so the wording stays uniform.
+ */
+export const SEMANTIC_LABELS = {
+  income: 'Income',
+  expense: 'Expense',
+  savings: 'Savings',
+  savingsRate: 'Savings Rate',
+} as const
+
+/**
+ * Canonical render order when income / expense / savings appear together
+ * (legends, stacked bars, KPI rows). Iterate this so every chart agrees.
+ */
+export const SERIES_ORDER = [
+  SEMANTIC_LABELS.income,
+  SEMANTIC_LABELS.expense,
+  SEMANTIC_LABELS.savings,
+] as const
+
+/**
+ * Canonical Tailwind text-colour class for a transaction-type label.
+ *
+ * Mirrors ``SEMANTIC_COLORS`` so a future hue change only needs to update
+ * one place. Used by transaction tables, recent-transactions widgets, and
+ * anywhere else income / expense / transfer text wants the right tint.
+ */
+export function getSemanticTextClass(type: string): string {
+  if (type === 'Income') return 'text-app-green'
+  if (type === 'Expense') return 'text-app-red'
+  if (type === 'Transfer' || type === 'Transfer-In' || type === 'Transfer-Out') {
+    return 'text-app-teal'
+  }
+  return 'text-text-secondary'
+}
+
+/**
+ * Canonical Tailwind badge classes (background + text + border) for a
+ * transaction-type pill. Used by upload preview, transaction lists, etc.
+ */
+export function getSemanticBadgeClass(type: string): string {
+  if (type === 'Income') return 'bg-app-green/20 text-app-green border-app-green/30'
+  if (type === 'Expense') return 'bg-app-red/20 text-app-red border-app-red/30'
+  if (type === 'Transfer-Out') return 'bg-app-orange/20 text-app-orange border-app-orange/30'
+  if (type === 'Transfer-In') return 'bg-app-blue/20 text-app-blue border-app-blue/30'
+  if (type === 'Transfer') return 'bg-app-teal/20 text-app-teal border-app-teal/30'
+  return 'bg-white/10 text-text-secondary border-white/10'
+}
+
 // Chart axis and grid colors
 export const CHART_AXIS_COLOR = '#9ca3af'
 export const CHART_GRID_COLOR = '#2a2a2e'

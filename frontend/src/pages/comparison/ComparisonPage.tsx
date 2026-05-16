@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { TrendingUp, TrendingDown, Equal, Upload, Lightbulb } from 'lucide-react'
 import { rawColors } from '@/constants/colors'
+import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/ui'
 import { useComparisonData } from './useComparisonData'
@@ -122,9 +123,9 @@ export default function ComparisonPage() {
           exit={{ opacity: 0, y: -10 }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
         >
-          <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.green} />
-          <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.red} invertChange />
-          <KpiCard title="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.blue} />
+          <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} />
+          <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} invertChange />
+          <KpiCard title="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.savings} />
           <KpiCard title="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.purple} isPercent />
         </motion.div>
       </AnimatePresence>
@@ -133,9 +134,9 @@ export default function ComparisonPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl border border-border p-4 md:p-6">
         <h2 className="text-lg font-semibold mb-4">Financial Overview</h2>
         <div className="space-y-6">
-          <OverviewMetricRow label="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.green} maxValue={overviewMax} />
-          <OverviewMetricRow label="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.red} maxValue={overviewMax} invertChange />
-          <OverviewMetricRow label="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.blue} maxValue={overviewMax} />
+          <OverviewMetricRow label="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} maxValue={overviewMax} />
+          <OverviewMetricRow label="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} maxValue={overviewMax} invertChange />
+          <OverviewMetricRow label="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.savings} maxValue={overviewMax} />
           <OverviewMetricRow label="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.purple} maxValue={100} isPercent />
         </div>
       </motion.div>

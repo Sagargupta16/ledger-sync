@@ -24,8 +24,8 @@ import {
 import { chartTooltipProps, PageHeader, ChartContainer, shouldAnimate } from '@/components/ui'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
-// Color for Savings
-const SAVINGS_COLOR = SEMANTIC_COLORS.income
+// Color for Savings (semantic, distinct from income green)
+const SAVINGS_COLOR = SEMANTIC_COLORS.savings
 
 /** Build chart data for the 50/30/20 spending breakdown */
 function buildSpendingChartData(

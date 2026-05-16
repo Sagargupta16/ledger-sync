@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Calendar, Tag } from 'lucide-react'
 import { format } from 'date-fns'
 
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
+import { getSemanticTextClass } from '@/constants/chartColors'
 import type { Transaction } from '@/types'
 import { formatCurrency } from '@/lib/formatters'
 
@@ -56,7 +57,7 @@ const TransactionRow = memo(function TransactionRow({
 
       {/* Amount */}
       <div className="text-right">
-        <p className={`font-semibold ${transaction.type === 'Income' ? 'text-app-green' : 'text-app-red'}`}>
+        <p className={`font-semibold ${getSemanticTextClass(transaction.type)}`}>
           {transaction.type === 'Income' ? '+' : '-'}
           {formatCurrency(Math.abs(transaction.amount))}
         </p>
