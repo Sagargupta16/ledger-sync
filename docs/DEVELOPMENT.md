@@ -265,7 +265,7 @@ print(f"Elapsed: {end - start:.3f}s")
 ```
 frontend/
 ├── src/
-│   ├── pages/                  # 24 page components
+│   ├── pages/                  # 23 page components
 │   │   ├── DashboardPage.tsx   # Single-file pages (PascalCase)
 │   │   ├── BudgetPage.tsx
 │   │   ├── ...

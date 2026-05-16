@@ -1,5 +1,9 @@
 # Feature Audit — Ledger Sync vs the Gold Standard
 
+> **Status: snapshot from 2026-04-29.** This file is research + code archaeology, not a living document. Many of its findings have since been addressed — the Insights page was deleted entirely in 2.10.0 (not trimmed to 4 widgets as suggested below), the dead components in `components/analytics/` were removed, and the policy-constants centralisation called out in the audit landed in 2.10.0. For current state, see [CHANGELOG.md](../CHANGELOG.md). Re-run the audit when major pages get added or removed.
+
+---
+
 A one-shot critical review of **every page, every chart, every KPI** in the app, scored against what modern personal-finance tools (Monarch, YNAB, Copilot, Mint's successors) actually ship. Produced as research + code archaeology on 2026-04-29; update when the app changes.
 
 How to read the scores:

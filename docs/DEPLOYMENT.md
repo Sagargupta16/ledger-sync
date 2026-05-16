@@ -28,7 +28,7 @@ Browser (sagargupta.online/ledger-sync/)
 
 - **Frontend** is a static React SPA served by GitHub Pages
 - **Backend** is a Python FastAPI app wrapped with Mangum, running as a Vercel serverless function
-- **Database** is managed PostgreSQL on Neon (free tier, auto-sleep after 5 min idle), connected via Vercel's Neon integration
+- **Database** is managed PostgreSQL on Neon (free tier, auto-suspends compute on idle; first request after >24 h idle pays a 15-25 s reactivation cost due to branch archival), connected via Vercel's Neon integration
 - **CORS** is configured to allow requests from `sagargupta.online` and `sagargupta16.github.io`
 
 ---
