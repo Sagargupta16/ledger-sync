@@ -215,19 +215,34 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                     animationEasing="ease-out"
                   />
                   {showProjectionLine && (
-                    <Area
-                      type="monotone"
-                      dataKey="projected"
-                      stroke={rawColors.app.blue}
-                      strokeWidth={2}
-                      strokeDasharray="6 4"
-                      dot={false}
-                      activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
-                      fill="transparent"
-                      name="Projected"
-                      connectNulls
-                      isAnimationActive={false}
-                    />
+                    <>
+                      {/* 1-stddev confidence band, drawn before the median line so the
+                          line renders on top. The band widens as sqrt(time) under the
+                          GBM model. Empty during historical points (null tuple). */}
+                      <Area
+                        type="monotone"
+                        dataKey="projectionBand"
+                        stroke="none"
+                        fill={rawColors.app.blue}
+                        fillOpacity={0.15}
+                        name="Projection band (±1σ)"
+                        connectNulls
+                        isAnimationActive={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="projected"
+                        stroke={rawColors.app.blue}
+                        strokeWidth={2}
+                        strokeDasharray="6 4"
+                        dot={false}
+                        activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
+                        fill="transparent"
+                        name="Projected (median)"
+                        connectNulls
+                        isAnimationActive={false}
+                      />
+                    </>
                   )}
                 </>
               )}
