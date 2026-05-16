@@ -64,6 +64,14 @@ def setup_logging(log_level: str | None = None) -> logging.Logger:
         # Analytics-specific logger for detailed import/calculation tracking
         analytics_logger = logging.getLogger("ledger_sync.analytics")
         analytics_logger.setLevel(logging.DEBUG)
+        # Clear stale handlers so dev auto-reloads don't duplicate every line.
+        # Without this each module re-import attaches another RotatingFileHandler,
+        # producing N copies of every analytics log line after N reloads.
+        analytics_logger.handlers = []
+        # Don't propagate to the parent ledger_sync logger -- analytics has
+        # its own dedicated file handler and we don't want each line to
+        # also land in ledger_sync.log via the parent's file_handler.
+        analytics_logger.propagate = False
 
         analytics_handler = RotatingFileHandler(
             log_dir / "analytics.log",

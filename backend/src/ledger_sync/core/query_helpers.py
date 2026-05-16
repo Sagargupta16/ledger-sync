@@ -4,6 +4,7 @@ Centralises duplicated patterns such as income/expense conditional
 aggregation columns and the base filtered-transaction query builder.
 """
 
+import json
 from datetime import UTC, datetime
 from typing import Any
 
@@ -146,6 +147,27 @@ def expense_sum_col(subquery: Subquery, *, label: str = "total_expenses") -> Any
 # ---------------------------------------------------------------------------
 
 
+def excluded_accounts_for(user: User) -> set[str]:
+    """Return the user's ``excluded_accounts`` preference as a set.
+
+    Lazy-loads ``user.preferences``. Returns an empty set when the
+    preference is missing or the JSON is malformed -- the analytics
+    pipeline treats no-preference as "exclude nothing", and the same
+    semantics apply here.
+    """
+    prefs = user.preferences
+    raw = getattr(prefs, "excluded_accounts", None) if prefs else None
+    if not raw:
+        return set()
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        return set()
+    if not isinstance(parsed, list):
+        return set()
+    return {str(a) for a in parsed if a}
+
+
 def build_transaction_query(
     db: Session,
     user: User,
@@ -153,6 +175,7 @@ def build_transaction_query(
     end_date: datetime | None = None,
     *,
     apply_earning_start: bool = False,
+    apply_excluded_accounts: bool = True,
 ) -> Query[Transaction]:
     """Build a filtered ``Transaction`` query for *user*.
 
@@ -161,6 +184,13 @@ def build_transaction_query(
     * ``is_deleted = False`` filter
     * Earning-start-date clamping (**opt-in** via *apply_earning_start=True*)
     * Optional *start_date* / *end_date* range filters
+    * Excluded-accounts filter (**default on**) -- drops rows whose
+      ``account``, ``from_account``, or ``to_account`` matches the
+      user's ``excluded_accounts`` preference. Without this, transfers
+      landing in an excluded account silently leak through (transfers
+      store ``account = from_account``, so a check on ``account`` alone
+      misses the credit side). Pass *apply_excluded_accounts=False* to
+      get the unfiltered set (e.g. for diagnostic admin tooling).
 
     Earning-start is a *view* preference (chart x-axis lower bound),
     not a data-boundary. Most callers want factual totals/balances across
@@ -183,5 +213,16 @@ def build_transaction_query(
         query = query.filter(Transaction.date >= start_date)
     if end_date:
         query = query.filter(Transaction.date <= end_date)
+
+    if apply_excluded_accounts:
+        excluded = excluded_accounts_for(user)
+        if excluded:
+            query = query.filter(
+                Transaction.account.notin_(excluded),
+                Transaction.from_account.is_(None)
+                | Transaction.from_account.notin_(excluded),
+                Transaction.to_account.is_(None)
+                | Transaction.to_account.notin_(excluded),
+            )
 
     return query

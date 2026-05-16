@@ -121,7 +121,7 @@ export function generateDemoPreferences(): UserPreferences {
   const earningStart = new Date(now.getFullYear() - 2, now.getMonth(), 1).toISOString().slice(0, 10)
 
   return {
-    id: 0,
+    id: -1,
     fiscal_year_start_month: 4,
     essential_categories: ESSENTIAL_CATEGORIES,
     investment_account_mappings: {

@@ -131,3 +131,82 @@ def test_detect_large_transactions_scopes_by_user(analytics_db: Session) -> None
     anomalies_b: list[dict] = []
     engine_b._detect_large_transactions(anomalies_b)
     assert anomalies_b == []
+
+
+def test_excluded_accounts_filter_drops_transfer_endpoints(analytics_db: Session) -> None:
+    """A transfer landing in an excluded account must not appear in the user query.
+
+    Regression test: previously the filter only checked ``Transaction.account``.
+    For transfers, ``account = from_account``, so a transfer FROM a regular
+    account TO an excluded account passed the filter and silently inflated
+    net worth via ``compute_account_balances``.
+    """
+    from ledger_sync.db.models import UserPreferences
+
+    user = _make_user(analytics_db, "transfer-exclude@example.com")
+    analytics_db.add(
+        UserPreferences(
+            user_id=user.id,
+            excluded_accounts='["Wife Account"]',
+        ),
+    )
+    now = datetime.now(UTC) - timedelta(days=1)
+
+    # Three rows for the same user:
+    #   1. Plain expense from HDFC (kept)
+    #   2. Transfer FROM HDFC TO "Wife Account" (must be dropped)
+    #   3. Transfer FROM "Wife Account" TO HDFC (must be dropped)
+    analytics_db.add_all([
+        Transaction(
+            user_id=user.id,
+            transaction_id="t-keep",
+            date=datetime(2024, 1, 15, tzinfo=UTC),
+            amount=Decimal("100"),
+            currency="INR",
+            type=TransactionType.EXPENSE,
+            account="HDFC",
+            category="Food",
+            source_file="test.xlsx",
+            last_seen_at=now,
+            is_deleted=False,
+        ),
+        Transaction(
+            user_id=user.id,
+            transaction_id="t-out-to-wife",
+            date=datetime(2024, 2, 15, tzinfo=UTC),
+            amount=Decimal("5000"),
+            currency="INR",
+            type=TransactionType.TRANSFER,
+            account="HDFC",
+            from_account="HDFC",
+            to_account="Wife Account",
+            category="Transfer",
+            source_file="test.xlsx",
+            last_seen_at=now,
+            is_deleted=False,
+        ),
+        Transaction(
+            user_id=user.id,
+            transaction_id="t-in-from-wife",
+            date=datetime(2024, 3, 15, tzinfo=UTC),
+            amount=Decimal("3000"),
+            currency="INR",
+            type=TransactionType.TRANSFER,
+            account="Wife Account",
+            from_account="Wife Account",
+            to_account="HDFC",
+            category="Transfer",
+            source_file="test.xlsx",
+            last_seen_at=now,
+            is_deleted=False,
+        ),
+    ])
+    analytics_db.commit()
+
+    engine = AnalyticsEngine(analytics_db, user_id=user.id)
+    rows = engine._user_transaction_query().all()
+
+    assert {tx.transaction_id for tx in rows} == {"t-keep"}, (
+        "Both transfer rows touching 'Wife Account' should be filtered, "
+        f"got {[tx.transaction_id for tx in rows]}"
+    )

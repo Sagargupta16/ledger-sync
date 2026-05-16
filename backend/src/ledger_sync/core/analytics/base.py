@@ -233,14 +233,24 @@ class AnalyticsEngineBase:
     def _user_transaction_query(self) -> Query[Transaction]:
         """Base query for non-deleted transactions, user-scoped and filtered.
 
-        Respects the user's ``excluded_accounts`` preference.
+        Respects the user's ``excluded_accounts`` preference -- drops rows
+        whose ``account``, ``from_account``, or ``to_account`` matches an
+        excluded name. Transfers store ``account = from_account``, so a
+        check on ``account`` alone misses transfers landing in an
+        excluded account (the credit side ends up in net worth).
         """
         query = self.db.query(Transaction).filter(Transaction.is_deleted.is_(False))
         if self.user_id is not None:
             query = query.filter(Transaction.user_id == self.user_id)
         excluded = self.excluded_accounts
         if excluded:
-            query = query.filter(Transaction.account.notin_(excluded))
+            query = query.filter(
+                Transaction.account.notin_(excluded),
+                Transaction.from_account.is_(None)
+                | Transaction.from_account.notin_(excluded),
+                Transaction.to_account.is_(None)
+                | Transaction.to_account.notin_(excluded),
+            )
         return query
 
     # ─── fiscal year helper (shared by summaries and fy_summaries mixins) ──

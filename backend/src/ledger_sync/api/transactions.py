@@ -13,7 +13,8 @@ from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.db.models import Transaction, TransactionType
+from ledger_sync.core.query_helpers import excluded_accounts_for
+from ledger_sync.db.models import Transaction, TransactionType, User
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.schemas.transactions import (
     TransactionCreateRequest,
@@ -173,12 +174,25 @@ def _to_transaction_response(tx: Transaction) -> TransactionResponse:
     )
 
 
-def _base_transaction_query(db: Session, user_id: int) -> SAQuery[Transaction]:
-    """Create base query for non-deleted transactions filtered by user."""
-    return db.query(Transaction).filter(
-        Transaction.user_id == user_id,
+def _base_transaction_query(db: Session, user: User) -> SAQuery[Transaction]:
+    """Create base query for non-deleted, non-excluded transactions for user.
+
+    Honours the user's ``excluded_accounts`` preference via
+    ``excluded_accounts_for`` so the raw transactions endpoints stay
+    consistent with the analytics pipeline.
+    """
+    query = db.query(Transaction).filter(
+        Transaction.user_id == user.id,
         Transaction.is_deleted.is_(False),
     )
+    excluded = excluded_accounts_for(user)
+    if excluded:
+        query = query.filter(
+            Transaction.account.notin_(excluded),
+            Transaction.from_account.is_(None) | Transaction.from_account.notin_(excluded),
+            Transaction.to_account.is_(None) | Transaction.to_account.notin_(excluded),
+        )
+    return query
 
 
 def _apply_date_range(
@@ -226,7 +240,7 @@ async def get_transactions(
 
     """
     # Build query - filter by user and date range
-    query = _base_transaction_query(db, current_user.id)
+    query = _base_transaction_query(db, current_user)
     query = _apply_date_range(query, start_date, end_date)
 
     # Get total count before pagination
@@ -257,7 +271,7 @@ async def get_all_transactions(
     for client-side aggregation. No pagination overhead — one request, one
     response.
     """
-    query = _base_transaction_query(db, current_user.id)
+    query = _base_transaction_query(db, current_user)
     query = _apply_date_range(query, start_date, end_date)
 
     transactions = query.order_by(Transaction.date.desc()).all()
@@ -297,7 +311,7 @@ async def search_transactions(
 
     """
     # Start with base query - filter by user
-    tx_query = _base_transaction_query(db, current_user.id)
+    tx_query = _base_transaction_query(db, current_user)
 
     # Apply all search filters
     tx_query = _apply_search_filters(tx_query, filters)
@@ -327,7 +341,7 @@ async def export_transactions(
     end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
 ) -> Response:
     """Export all non-deleted transactions as CSV for the current user."""
-    query = _base_transaction_query(db, current_user.id)
+    query = _base_transaction_query(db, current_user)
     query = _apply_date_range(query, start_date, end_date)
     transactions = query.all()
 
