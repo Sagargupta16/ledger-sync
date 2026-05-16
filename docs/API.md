@@ -28,7 +28,7 @@ OAuth-only authentication via Google and GitHub. The API issues JWT Bearer token
 | POST | `/api/auth/refresh` | No | Refresh access token |
 | GET | `/api/auth/me` | Yes | Get current user profile |
 | PUT | `/api/auth/me` | Yes | Update profile (name) |
-| POST | `/api/auth/logout` | Yes | Logout (blacklist token) |
+| POST | `/api/auth/logout` | Yes | Logout (client-side token cleanup) |
 | DELETE | `/api/auth/account` | Yes | Delete account permanently |
 | POST | `/api/auth/account/reset` | Yes | Reset account data (supports `mode` param) |
 

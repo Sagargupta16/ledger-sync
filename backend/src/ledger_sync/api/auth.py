@@ -13,8 +13,6 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.config.settings import settings
-from ledger_sync.core.auth.token_blacklist import token_blacklist
 from ledger_sync.schemas.auth import (
     MessageResponse,
     RefreshTokenRequest,
@@ -69,16 +67,18 @@ def get_me(current_user: CurrentUser, auth_service: AuthServiceDep) -> UserRespo
 
 
 @router.post("/logout")
-def logout(request: Request, current_user: CurrentUser) -> MessageResponse:
-    """Logout current user and invalidate current access token.
+def logout(current_user: CurrentUser) -> MessageResponse:
+    """Logout current user.
 
-    Blacklists the current access token so it cannot be reused.
+    The frontend clears its stored tokens; we don't maintain a server-side
+    revocation list. The access token remains technically valid until its
+    natural expiry (30 min by default). The refresh token is single-use
+    in the sense that the frontend discards it on logout, but if it were
+    captured beforehand it would still work until expiry.
+
+    Use account/reset or account delete to invalidate sessions in a way
+    that actually clears server-side state.
     """
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        access_token = auth_header[7:]
-        # Blacklist for remaining access token lifetime (30 min max)
-        token_blacklist.add(access_token, settings.jwt_access_token_expire_minutes * 60)
     return MessageResponse(message="Successfully logged out")
 
 
