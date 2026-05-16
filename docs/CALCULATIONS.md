@@ -76,6 +76,8 @@ The clamp is applied only at the view layer in `frontend/src/hooks/useAnalyticsT
 
 If you need "data since I started earning" semantics for a specific query, call `build_transaction_query(..., apply_earning_start=True)` explicitly — it's opt-in, never implicit.
 
+`build_transaction_query` also applies the user's `excluded_accounts` preference by default (filters on `account`, `from_account`, and `to_account` so transfers landing in excluded accounts are dropped too). Pass `apply_excluded_accounts=False` only for diagnostic admin tooling that needs the unfiltered set.
+
 ---
 
 ## Upload & Reconciliation

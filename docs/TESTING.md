@@ -18,16 +18,28 @@ Ledger Sync includes comprehensive testing for both backend and frontend to ensu
 ```
 backend/tests/
 ├── __init__.py
-├── conftest.py              # Shared fixtures
-├── fixtures/                # Test data fixtures
-│   └── README.md
-├── unit/                    # Unit tests
-│   ├── test_hash_id.py
-│   ├── test_normalizer.py
-│   └── test_salary_schemas.py   # Salary, RSU, growth assumption validation
-└── integration/             # Integration tests
-    └── test_reconciler.py
+├── conftest.py                          # Shared fixtures
+├── fixtures/                            # Test data fixtures
+├── unit/
+│   ├── test_ai_chat.py                  # Bedrock SSE proxy
+│   ├── test_ai_tools.py                 # 15 read-only LLM tools, user-scoping
+│   ├── test_ai_usage.py                 # Token-cost rollup endpoints
+│   ├── test_analytics_helpers.py        # Module-level analytics helpers
+│   ├── test_auth.py                     # JWT issue/verify
+│   ├── test_encryption.py               # AES-256-GCM for AI keys
+│   ├── test_exchange_rates.py           # frankfurter.dev proxy
+│   ├── test_hash_id.py                  # SHA-256 transaction IDs
+│   ├── test_normalizer.py               # Bank-name regex normalizer
+│   ├── test_rates.py                    # /api/rates/instruments
+│   ├── test_salary_schemas.py           # Salary/RSU/growth validation
+│   └── test_upload_schema.py            # Upload payload validation
+└── integration/
+    ├── test_analytics_user_scoping.py   # User-scoped query isolation + excluded_accounts
+    ├── test_reconciler.py               # Transaction reconciliation upsert/soft-delete
+    └── test_transfer_reconciliation.py  # Transfer-pair detection
 ```
+
+Run `uv run pytest tests/` to execute the full suite (currently 113 tests, ~5 s).
 
 ### Running Tests
 

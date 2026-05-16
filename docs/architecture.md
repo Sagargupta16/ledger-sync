@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ledger Sync is a self-hosted personal finance dashboard built as a full-stack application with clear separation between backend and frontend. The system imports Excel bank statements, reconciles transactions via SHA-256 hashing, and delivers 24 pages of financial analytics -- from spending breakdowns to investment tracking and tax projections -- with multi-currency display and an AI chatbot that has full context of your financial data.
+Ledger Sync is a self-hosted personal finance dashboard built as a full-stack application with clear separation between backend and frontend. The system imports Excel bank statements, reconciles transactions via SHA-256 hashing, and delivers 23 pages of financial analytics -- from spending breakdowns to investment tracking and tax projections -- with multi-currency display and an AI chatbot that has full context of your financial data.
 
 ## High-Level Architecture
 
@@ -45,7 +45,7 @@ Ledger Sync is a self-hosted personal finance dashboard built as a full-stack ap
   - `calculator.py` - Financial calculations (income, expenses, insights)
   - `analytics_engine.py` - Heavy analytics computation (monthly summaries, category trends, net worth snapshots, anomaly detection, FY summaries). Module-level helpers (`_group_txns_by_pattern`, `_resolve_pattern_display`, `_aggregate_holdings_data`) + constants (`DEFAULT_ESSENTIAL_CATEGORIES`, `DEFAULT_INVESTMENT_ACCOUNT_PATTERNS`) extracted into `_analytics_helpers.py`
   - `insights.py` - Smart financial insight generation
-  - `query_helpers.py` - Shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`) used by both `calculations.py` and `analytics.py` to eliminate duplicated CASE/SUM patterns
+  - `query_helpers.py` - Shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`, `excluded_accounts_for`) used by both `calculations.py` and `analytics.py` to eliminate duplicated CASE/SUM patterns. `build_transaction_query` applies the user's `excluded_accounts` preference by default (override via `apply_excluded_accounts=False` for diagnostic queries) so all three transaction-query code paths (analytics engine, transactions API, on-the-fly calculations) stay consistent
   - `time_filter.py` - Time range filtering logic
   - `encryption.py` - AES-256-GCM encrypt/decrypt for AI API keys. Uses PBKDF2-HMAC-SHA256 to derive an encryption key from the JWT secret, with a per-ciphertext random 128-bit salt. Output format: base64(salt[16] || nonce[12] || ciphertext). `DecryptionError` raised on tag mismatch so callers can prompt for re-entry.
   - `auth/` - JWT token creation and verification
@@ -157,7 +157,7 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
   - **Multi-file pages** use kebab-case directories, each containing `<PageName>Page.tsx` (thin orchestrator) + `use<Page>.ts` (state/data hook) + `types.ts` + `*utils.ts` + `components/` subfolder for sub-components
   - Barrel files (`index.ts`) are **not** used at the page level; `App.tsx` lazy-imports each page's main file directly
 - **Multi-file page folders**: `bill-calendar/`, `comparison/`, `goals/`, `income-expense-flow/`, `settings/`, `subscription-tracker/`, `tax-planning/`, `trends-forecasts/`, `year-in-review/`. Settings uses `sections/` instead of `components/` because "section" is the domain term.
-- **Pages** (24 total):
+- **Pages** (23 total):
   - `HomePage` - Landing page
   - `DashboardPage` - Main dashboard with KPIs, sparklines, and quick insights
   - `UploadSyncPage` - Hero upload UI with sample format preview
@@ -175,7 +175,6 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
   - `NetWorthPage` - Net worth tracking
   - `BudgetPage` - Budget tracking and monitoring
   - `goals/` - Financial goal setting with savings allocation (multi-file)
-  - `InsightsPage` - Advanced analytics (velocity, stability, milestones)
   - `AnomalyReviewPage` - Flag and review unusual transactions
   - `year-in-review/` - Annual financial summary with heatmap (multi-file)
   - `subscription-tracker/` - Recurring expense detection and manual tracking (multi-file)
