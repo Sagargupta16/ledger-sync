@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import { MotionConfig } from 'framer-motion'
 
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
@@ -194,10 +195,11 @@ const TOASTER_OPTIONS = {
 function App() {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <AuthInitializer>
-          <PreferencesProvider>
-            <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <MotionConfig reducedMotion="user">
+        <QueryClientProvider client={queryClient}>
+          <AuthInitializer>
+            <PreferencesProvider>
+              <BrowserRouter basename={import.meta.env.BASE_URL}>
               <ChunkErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
@@ -254,6 +256,7 @@ function App() {
           </PreferencesProvider>
         </AuthInitializer>
       </QueryClientProvider>
+      </MotionConfig>
     </ErrorBoundary>
   )
 }
