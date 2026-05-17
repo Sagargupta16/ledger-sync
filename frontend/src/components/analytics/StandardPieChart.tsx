@@ -44,15 +44,15 @@ interface StandardPieChartProps {
 export default function StandardPieChart({
   data,
   height = 300,
-  innerRadius = '55%',
-  outerRadius = '80%',
+  innerRadius = '60%',
+  outerRadius = '85%',
   showLegend = true,
   showLabels = false,
   emptyMessage,
   tooltipFormatter,
   centerLabel,
   centerValue,
-  paddingAngle = 2,
+  paddingAngle = 3,
   onSliceClick,
 }: StandardPieChartProps) {
   const filteredData = data.filter((d) => d.value > 0)
@@ -62,6 +62,16 @@ export default function StandardPieChart({
   }
 
   const animate = shouldAnimate(filteredData.length)
+
+  // Auto-shrink the center value when the string is long so it doesn't
+  // overflow past the donut's inner radius. Tuned against typical donut
+  // sizes (160-300 px) and currency strings up to ~12 chars.
+  const centerValueLength = centerValue?.length ?? 0
+  const centerValueFontSize =
+    centerValueLength <= 6 ? 22
+    : centerValueLength <= 8 ? 18
+    : centerValueLength <= 10 ? 15
+    : 13
 
   return (
     <ChartContainer height={height}>
@@ -75,6 +85,7 @@ export default function StandardPieChart({
           innerRadius={innerRadius}
           outerRadius={outerRadius}
           paddingAngle={paddingAngle}
+          cornerRadius={4}
           strokeWidth={0}
           isAnimationActive={animate}
           animationDuration={600}
@@ -110,15 +121,24 @@ export default function StandardPieChart({
             verticalAlign="bottom"
           />
         )}
-        {/* Center label for donut charts */}
+        {/* Center label for donut charts.
+            Font size auto-shrinks based on centerValue length so long
+            currency strings (e.g. "₹57,27,353") don't overflow the donut
+            inner ring on smaller chart heights. */}
         {centerLabel && (
           <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
             {centerValue && (
-              <tspan x="50%" dy="-8" fill="#fafafa" fontSize="20" fontWeight="700">
+              <tspan
+                x="50%"
+                dy="-8"
+                fill="#fafafa"
+                fontSize={centerValueFontSize}
+                fontWeight="700"
+              >
                 {centerValue}
               </tspan>
             )}
-            <tspan x="50%" dy={centerValue ? '22' : '0'} fill="#71717a" fontSize="12">
+            <tspan x="50%" dy={centerValue ? '20' : '0'} fill="#71717a" fontSize="11">
               {centerLabel}
             </tspan>
           </text>

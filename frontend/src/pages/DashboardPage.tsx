@@ -10,7 +10,7 @@ import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore } from '@/components/analytics'
-import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
@@ -109,7 +109,7 @@ export default function DashboardPage() {
                 data={incomeChartData}
                 height={180}
                 showLegend={false}
-                centerValue={formatCurrencyCompact(incomeTotal)}
+                centerValue={formatCurrencyShort(incomeTotal)}
                 centerLabel="Total"
               />
               <div className="space-y-2">
@@ -155,7 +155,7 @@ export default function DashboardPage() {
                 data={expenseChartData}
                 height={180}
                 showLegend={false}
-                centerValue={formatCurrencyCompact(expenseTotal)}
+                centerValue={formatCurrencyShort(expenseTotal)}
                 centerLabel="Total"
               />
               <div className="space-y-2">
