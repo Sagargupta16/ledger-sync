@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion'
 import { LineChart } from 'lucide-react'
-import { Area, AreaChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Brush, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'recharts'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import {
+  BRUSH_DEFAULTS,
   ChartContainer,
   GRID_DEFAULTS,
   LEGEND_DEFAULTS,
@@ -103,6 +104,22 @@ export function GrowthOverTimeChart({
                   animationEasing="ease-out"
                 />
               ))}
+              {/* Drag-to-zoom across the timeline. Default window is the most
+                  recent third so the chart reads at full fidelity on first
+                  paint without forcing the user to scroll. */}
+              {filteredGrowthData.length > 6 && (
+                <Brush
+                  {...BRUSH_DEFAULTS}
+                  dataKey="date"
+                  tickFormatter={(value: string) =>
+                    new Date(value).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+                  }
+                  startIndex={Math.max(
+                    0,
+                    filteredGrowthData.length - Math.ceil(filteredGrowthData.length / 3),
+                  )}
+                />
+              )}
             </AreaChart>
           </ChartContainer>
         ))}

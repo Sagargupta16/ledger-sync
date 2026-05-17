@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useSearchParams } from 'react-router-dom'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank, Activity } from 'lucide-react' // Activity used for Monthly Avg card
 import MetricCard from '@/components/shared/MetricCard'
@@ -12,12 +13,14 @@ import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferen
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { filterTransactionsByDateRange, computeCategoryBreakdown } from '@/lib/transactionUtils'
 import EmptyState from '@/components/shared/EmptyState'
+import { FilterBanner } from '@/components/shared/FilterBanner'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import {
   ExpenseTreemap,
   EnhancedSubcategoryAnalysis,
   MultiCategoryTimeAnalysis,
+  ParetoChart,
   TopMerchants,
   CohortSpendingAnalysis,
 } from '@/components/analytics'
@@ -135,17 +138,26 @@ function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, i
 
 export default function SpendingAnalysisPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const categoryFilter = searchParams.get('category')
+  const clearCategoryFilter = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('category')
+    setSearchParams(next, { replace: true })
+  }
   const { data: transactions } = useTransactions()
   const { data: preferences } = usePreferences()
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(transactions)
   // Convert null to undefined for component compatibility
   const dateRangeCompat = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
 
-  // Filter transactions by date range
-  const filteredTransactions = useMemo(
-    () => filterTransactionsByDateRange(transactions, dateRange),
-    [transactions, dateRange]
-  )
+  // Filter transactions by date range, then by the category query param
+  // (set when the user lands here via a deep link from a donut slice).
+  const filteredTransactions = useMemo(() => {
+    const byDate = filterTransactionsByDateRange(transactions, dateRange)
+    if (!categoryFilter) return byDate
+    return byDate.filter((t) => t.category === categoryFilter)
+  }, [transactions, dateRange, categoryFilter])
 
   // Calculate totals for filtered period
   const totalSpending = useMemo(() => {
@@ -233,6 +245,8 @@ export default function SpendingAnalysisPage() {
             <AnalyticsTimeFilter {...timeFilterProps} />
           }
         />
+
+        <FilterBanner value={categoryFilter} label="Category" onClear={clearCategoryFilter} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard title="Total Spending" value={formatCurrency(totalSpending)} icon={TrendingDown} color="red" isLoading={isLoading} />
@@ -402,12 +416,19 @@ export default function SpendingAnalysisPage() {
 
         {/* Expense Treemap */}
         <motion.div {...SCROLL_FADE_UP}>
-          <ExpenseTreemap dateRange={dateRangeCompat} />
+          <ExpenseTreemap dateRange={dateRangeCompat} categoryFilter={categoryFilter} />
         </motion.div>
+
+        {/* Pareto Analysis -- which categories make up 80% of spend */}
+        {Object.keys(categoryBreakdown).length > 0 && (
+          <motion.div {...SCROLL_FADE_UP}>
+            <ParetoChart categoryBreakdown={categoryBreakdown} />
+          </motion.div>
+        )}
 
         {/* Top Merchants */}
         <motion.div {...SCROLL_FADE_UP}>
-          <TopMerchants dateRange={dateRangeCompat} />
+          <TopMerchants dateRange={dateRangeCompat} categoryFilter={categoryFilter} />
         </motion.div>
 
         {/* Multi-Category Time Analysis */}
@@ -417,7 +438,11 @@ export default function SpendingAnalysisPage() {
 
         {/* Subcategory Deep-Dive */}
         <motion.div {...SCROLL_FADE_UP}>
-          <EnhancedSubcategoryAnalysis dateRange={dateRangeCompat} />
+          <EnhancedSubcategoryAnalysis
+            key={categoryFilter ?? 'all'}
+            dateRange={dateRangeCompat}
+            categoryFilter={categoryFilter}
+          />
         </motion.div>
 
         {/* Spending Patterns (Day/Date/Seasonal) */}

@@ -129,3 +129,31 @@ export const LEGEND_DEFAULTS = {
   iconType: 'circle' as const,
   iconSize: 8,
 }
+
+// ─── Brush (drag-to-zoom) defaults ──────────────────────────────────────────
+
+import { rawColors } from '@/constants/colors'
+
+/**
+ * Visual defaults for the Recharts ``<Brush>`` component used as a
+ * drag-to-zoom slider under time-series charts. Tuned for a slightly
+ * taller hit area and a more visible traveller so the affordance
+ * doesn't disappear into the chart background.
+ *
+ * Usage (caller still owns ``dataKey``, ``startIndex``, and any
+ * ``tickFormatter``):
+ *
+ * ```tsx
+ * <Brush {...BRUSH_DEFAULTS} dataKey="date" startIndex={...} tickFormatter={...} />
+ * ```
+ */
+export const BRUSH_DEFAULTS = {
+  height: 32,
+  travellerWidth: 10,
+  stroke: rawColors.app.blue,
+  fill: 'rgba(255,255,255,0.06)',
+  strokeOpacity: 0.7,
+  // The traveller ends are styled by Recharts via stroke/fill above; we
+  // keep the wrapper slightly taller (32px vs the default 26px) so that
+  // touch users on tablets have a comfortable drag target.
+} as const

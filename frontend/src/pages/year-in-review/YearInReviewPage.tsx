@@ -12,12 +12,14 @@ import {
 } from 'lucide-react'
 import {
   Tooltip as RechartsTooltip,
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   LabelList,
+  ReferenceLine,
 } from 'recharts'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -269,12 +271,13 @@ export default function YearInReviewPage() {
           className="lg:col-span-2 glass rounded-2xl border border-border p-6"
         >
           <h2 className="text-lg font-semibold mb-4">Monthly Breakdown</h2>
-          <div className="h-64">
+          <p className="text-xs text-text-tertiary mb-4">Income, spending, and net cash flow each month</p>
+          <div className="h-72">
             {monthlyBarData.every((d) => d.Spending === 0 && d.Earning === 0) ? (
-              <ChartEmptyState height={256} />
+              <ChartEmptyState height={288} />
             ) : (
               <ChartContainer>
-                <BarChart data={monthlyBarData} barGap={4}>
+                <ComposedChart data={monthlyBarData} barGap={4}>
                   <CartesianGrid {...GRID_DEFAULTS} />
                   <XAxis {...xAxisDefaults(monthlyBarData.length)} dataKey="name" />
                   <YAxis {...yAxisDefaults()} />
@@ -284,6 +287,7 @@ export default function YearInReviewPage() {
                       value === undefined ? '' : formatCurrency(value)
                     }
                   />
+                  <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
                   <Bar
                     dataKey="Spending"
                     fill={rawColors.app.red}
@@ -326,7 +330,21 @@ export default function YearInReviewPage() {
                       />
                     )}
                   </Bar>
-                </BarChart>
+                  {/* Net cash flow line so savings months pop visually --
+                      a peak above the bars means a saving month, a trough
+                      between them means an overspending month. */}
+                  <Line
+                    type="monotone"
+                    dataKey="Net"
+                    stroke={rawColors.app.blue}
+                    strokeWidth={2}
+                    strokeDasharray="6 3"
+                    dot={{ r: 3, fill: rawColors.app.blue, stroke: 'none' }}
+                    activeDot={{ r: 5, fill: rawColors.app.blue, stroke: '#000', strokeWidth: 2 }}
+                    isAnimationActive={shouldAnimate(monthlyBarData.length)}
+                    animationDuration={700}
+                  />
+                </ComposedChart>
               </ChartContainer>
             )}
           </div>

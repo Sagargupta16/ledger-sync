@@ -26,4 +26,5 @@ export {
   shouldAnimate,
   ACTIVE_DOT,
   LEGEND_DEFAULTS,
+  BRUSH_DEFAULTS,
 } from './chartDefaults'

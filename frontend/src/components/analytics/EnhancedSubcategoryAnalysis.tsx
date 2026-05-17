@@ -3,7 +3,13 @@ import { motion } from 'framer-motion'
 import { Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
-import { calculateCumulativeData } from '@/lib/chartPeriodUtils'
+import {
+  bucketDate,
+  calculateCumulativeData,
+  formatBucketLabel,
+  pickGranularity,
+  type Granularity,
+} from '@/lib/chartPeriodUtils'
 import TimeSeriesLineChart from '@/components/analytics/TimeSeriesLineChart'
 import { exportChartAsCsv } from '@/lib/exportCsv'
 
@@ -11,11 +17,24 @@ const COLORS = CHART_COLORS_WARM
 
 interface EnhancedSubcategoryAnalysisProps {
   readonly dateRange?: { readonly start_date?: string; readonly end_date?: string }
+  /**
+   * When set, overrides the user's category dropdown selection so the
+   * subcategory analysis matches a deep-link drill-down. The dropdown
+   * stays interactive afterwards -- this is just the initial value.
+   */
+  readonly categoryFilter?: string | null
 }
 
-export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubcategoryAnalysisProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string>('Food & Dining')
+export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter }: EnhancedSubcategoryAnalysisProps) {
+  // Initial value reflects the URL filter when present. Callers re-mount
+  // this component (via key={categoryFilter ?? 'all'}) when the filter
+  // changes externally, so we don't need a useEffect sync that tripped
+  // the rules-of-hooks "setState in effect" check.
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    categoryFilter ?? 'Food & Dining',
+  )
   const [cumulative, setCumulative] = useState(true)
+  const [granularityOverride, setGranularityOverride] = useState<Granularity | 'auto'>('auto')
 
   const { data: transactions } = useTransactions()
 
@@ -36,10 +55,11 @@ export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubca
   }, [transactions, dateRange])
 
   // Process subcategory data for selected category
-  const { chartData, totalTransactions } = useMemo(() => {
-    if (!transactions || !selectedCategory) return { chartData: [], totalTransactions: 0 }
+  const { chartData, totalTransactions, granularity } = useMemo(() => {
+    if (!transactions || !selectedCategory) {
+      return { chartData: [], totalTransactions: 0, granularity: 'day' as Granularity }
+    }
 
-    // Filter transactions for selected category and dateRange
     const categoryTransactions = transactions.filter((tx) => {
       if (tx.type !== 'Expense' || tx.category !== selectedCategory) return false
       if (dateRange?.start_date) {
@@ -50,48 +70,63 @@ export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubca
       return true
     })
 
+    if (categoryTransactions.length === 0) {
+      return { chartData: [], totalTransactions: 0, granularity: 'day' as Granularity }
+    }
+
+    // Auto-pick granularity to keep the chart legible across long ranges.
+    const sortedDates = categoryTransactions
+      .map((t) => t.date.substring(0, 10))
+      .sort((a, b) => a.localeCompare(b))
+    const spanDays = Math.max(
+      1,
+      Math.round(
+        (new Date(sortedDates[sortedDates.length - 1]).valueOf() -
+          new Date(sortedDates[0]).valueOf()) /
+          86400000,
+      ),
+    )
+    const gran =
+      granularityOverride === 'auto' ? pickGranularity(spanDays) : granularityOverride
+
     const groupedData: Record<string, Record<string, number>> = {}
 
     categoryTransactions.forEach((tx) => {
-      const period = tx.date.substring(0, 10) // YYYY-MM-DD (always daily)
-
+      const period = bucketDate(tx.date.substring(0, 10), gran)
       const subcategory = tx.subcategory || 'Uncategorized'
-
       if (!groupedData[period]) groupedData[period] = {}
       if (!groupedData[period][subcategory]) groupedData[period][subcategory] = 0
-
       groupedData[period][subcategory] += Math.abs(tx.amount)
     })
 
-    // Get all unique subcategories
-    const subcategories = new Set<string>()
+    const subcategoryNames = new Set<string>()
     Object.values(groupedData).forEach((periodData) => {
-      Object.keys(periodData).forEach((subcat) => subcategories.add(subcat))
+      Object.keys(periodData).forEach((subcat) => subcategoryNames.add(subcat))
     })
 
-    // Sort all dates chronologically
     const allPeriods = Object.keys(groupedData).sort((a, b) => a.localeCompare(b))
 
     const data = allPeriods.map((period) => {
-      const entry: Record<string, number | string> = { period, displayPeriod: period }
-
-      Array.from(subcategories).forEach((subcat) => {
+      const entry: Record<string, number | string> = {
+        period,
+        displayPeriod: formatBucketLabel(period, gran),
+      }
+      Array.from(subcategoryNames).forEach((subcat) => {
         entry[subcat] = groupedData[period]?.[subcat] || 0
       })
-
       return entry
     })
 
-    // Calculate cumulative if needed
     const finalData = cumulative
-      ? calculateCumulativeData(data, Array.from(subcategories))
+      ? calculateCumulativeData(data, Array.from(subcategoryNames))
       : data
 
     return {
       chartData: finalData,
       totalTransactions: categoryTransactions.length,
+      granularity: gran,
     }
-  }, [transactions, selectedCategory, dateRange, cumulative])
+  }, [transactions, selectedCategory, dateRange, cumulative, granularityOverride])
 
   const subcategories = useMemo(() => {
     if (chartData.length === 0) return []
@@ -140,6 +175,19 @@ export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubca
               ))}
             </select>
 
+            {/* Granularity */}
+            <select
+              value={granularityOverride}
+              onChange={(e) => setGranularityOverride(e.target.value as Granularity | 'auto')}
+              className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
+              aria-label="Time granularity"
+            >
+              <option value="auto" className="bg-surface-dropdown text-foreground">Auto</option>
+              <option value="day" className="bg-surface-dropdown text-foreground">Daily</option>
+              <option value="week" className="bg-surface-dropdown text-foreground">Weekly</option>
+              <option value="month" className="bg-surface-dropdown text-foreground">Monthly</option>
+            </select>
+
             {/* Cumulative Toggle */}
             <select
               value={cumulative ? 'cumulative' : 'regular'}
@@ -151,7 +199,13 @@ export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubca
             </select>
           </div>
 
-          <span className="text-xs text-muted-foreground">{totalTransactions} transactions</span>
+          <span className="text-xs text-muted-foreground">
+            {totalTransactions} transactions
+            <span className="text-text-quaternary"> · </span>
+            <span className="text-text-tertiary">
+              bucketed {granularity === 'day' ? 'daily' : granularity === 'week' ? 'weekly' : 'monthly'}
+            </span>
+          </span>
         </div>
 
         {/* Chart */}

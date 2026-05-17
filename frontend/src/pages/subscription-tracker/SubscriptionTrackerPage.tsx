@@ -16,7 +16,7 @@ import {
   useDeleteRecurringTransaction,
 } from '@/hooks/api/useAnalyticsV2'
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
-import { SummaryCard } from './components/SummaryCard'
+import SummaryCard from '@/components/shared/SummaryCard'
 import { toMonthlyAmount, capitalize, formatDate } from './helpers'
 
 // ── Suggestions ──────────────────────────────────────────────────────────────
@@ -347,16 +347,16 @@ export default function SubscriptionTrackerPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
           <SummaryCard icon={ArrowDownCircle} label="Monthly Expense" value={p ?? formatCurrency(summary.monthlyExpense)}
-            colorClass="text-app-red" bgClass="bg-app-red/20" shadowClass="shadow-app-red/30" delay={0.1} />
+            colorClass="text-app-red" bgClass="bg-app-red/20" shadowClass="shadow-app-red/30" delay={0.1} compact />
           <SummaryCard icon={ArrowUpCircle} label="Monthly Income" value={p ?? formatCurrency(summary.monthlyIncome)}
-            colorClass="text-app-green" bgClass="bg-app-green/20" shadowClass="shadow-app-green/30" delay={0.2} />
+            colorClass="text-app-green" bgClass="bg-app-green/20" shadowClass="shadow-app-green/30" delay={0.2} compact />
           <SummaryCard icon={TrendingUp} label="Net Monthly"
             value={p ?? formatCurrency(summary.netMonthly)}
             colorClass={summary.netMonthly >= 0 ? 'text-app-green' : 'text-app-red'}
             bgClass={summary.netMonthly >= 0 ? 'bg-app-green/20' : 'bg-app-red/20'}
-            shadowClass={summary.netMonthly >= 0 ? 'shadow-app-green/30' : 'shadow-app-red/30'} delay={0.3} />
+            shadowClass={summary.netMonthly >= 0 ? 'shadow-app-green/30' : 'shadow-app-red/30'} delay={0.3} compact />
           <SummaryCard icon={Hash} label="Active Recurring" value={p ?? `${summary.count}`}
-            colorClass="text-app-blue" bgClass="bg-app-blue/20" shadowClass="shadow-app-blue/30" delay={0.4} />
+            colorClass="text-app-blue" bgClass="bg-app-blue/20" shadowClass="shadow-app-blue/30" delay={0.4} compact />
           {/* Savings-from-cancellations -- only show once the user has
               deactivated at least one expense item, otherwise it's a confusing
               "-" card. */}
@@ -369,6 +369,7 @@ export default function SubscriptionTrackerPage() {
               bgClass="bg-app-purple/20"
               shadowClass="shadow-app-purple/30"
               delay={0.5}
+              compact
             />
           )}
         </div>

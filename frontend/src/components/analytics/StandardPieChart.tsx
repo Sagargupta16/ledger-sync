@@ -10,6 +10,7 @@
  *   />
  */
 
+import { useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
@@ -44,24 +45,37 @@ interface StandardPieChartProps {
 export default function StandardPieChart({
   data,
   height = 300,
-  innerRadius = '55%',
-  outerRadius = '80%',
+  innerRadius = '60%',
+  outerRadius = '85%',
   showLegend = true,
   showLabels = false,
   emptyMessage,
   tooltipFormatter,
   centerLabel,
   centerValue,
-  paddingAngle = 2,
+  paddingAngle = 3,
   onSliceClick,
 }: StandardPieChartProps) {
   const filteredData = data.filter((d) => d.value > 0)
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   if (filteredData.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
   }
 
   const animate = shouldAnimate(filteredData.length)
+
+  /**
+   * Auto-shrink the center value when the string is long so it doesn't
+   * overflow past the donut's inner radius. Tuned against typical donut
+   * sizes (160-300 px) and currency strings up to ~12 chars.
+   */
+  const centerValueLength = centerValue?.length ?? 0
+  const centerValueFontSize =
+    centerValueLength <= 6 ? 22
+    : centerValueLength <= 8 ? 18
+    : centerValueLength <= 10 ? 15
+    : 13
 
   return (
     <ChartContainer height={height}>
@@ -75,28 +89,38 @@ export default function StandardPieChart({
           innerRadius={innerRadius}
           outerRadius={outerRadius}
           paddingAngle={paddingAngle}
+          cornerRadius={4}
           strokeWidth={0}
           isAnimationActive={animate}
           animationDuration={600}
           animationEasing="ease-out"
-          {...(onSliceClick && {
-            onClick: (data: { name?: string }) => {
-              if (data?.name) onSliceClick(data.name)
-            },
-            style: { cursor: 'pointer' },
-          })}
           label={showLabels ? (({ name, percent }: { name?: string; percent?: number }) => (
             `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
           )) as never : undefined}
           labelLine={showLabels ? { stroke: '#71717a', strokeWidth: 1 } : undefined}
         >
-          {filteredData.map((entry, i) => (
-            <Cell
-              key={entry.name}
-              fill={entry.color ?? getChartColor(i)}
-              style={{ filter: 'brightness(1.05)' }}
-            />
-          ))}
+          {filteredData.map((entry, i) => {
+            const isActive = activeIndex === i
+            const isDimmed = activeIndex !== null && !isActive
+            return (
+              <Cell
+                key={entry.name}
+                fill={entry.color ?? getChartColor(i)}
+                style={{
+                  filter: isActive ? 'brightness(1.18)' : 'brightness(1.05)',
+                  cursor: onSliceClick ? 'pointer' : 'default',
+                  transition: 'opacity 200ms ease, filter 200ms ease',
+                  opacity: isDimmed ? 0.4 : 1,
+                  transformOrigin: '50% 50%',
+                }}
+                onMouseEnter={() => setActiveIndex(i)}
+                onMouseLeave={() => setActiveIndex(null)}
+                onClick={() => {
+                  if (onSliceClick) onSliceClick(entry.name)
+                }}
+              />
+            )
+          })}
         </Pie>
         <Tooltip
           {...chartTooltipProps}
@@ -110,15 +134,24 @@ export default function StandardPieChart({
             verticalAlign="bottom"
           />
         )}
-        {/* Center label for donut charts */}
+        {/* Center label for donut charts.
+            Font size auto-shrinks based on centerValue length so long
+            currency strings (e.g. "₹57,27,353") don't overflow the donut
+            inner ring on smaller chart heights. */}
         {centerLabel && (
           <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
             {centerValue && (
-              <tspan x="50%" dy="-8" fill="#fafafa" fontSize="20" fontWeight="700">
+              <tspan
+                x="50%"
+                dy="-8"
+                fill="#fafafa"
+                fontSize={centerValueFontSize}
+                fontWeight="700"
+              >
                 {centerValue}
               </tspan>
             )}
-            <tspan x="50%" dy={centerValue ? '22' : '0'} fill="#71717a" fontSize="12">
+            <tspan x="50%" dy={centerValue ? '20' : '0'} fill="#71717a" fontSize="11">
               {centerLabel}
             </tspan>
           </text>

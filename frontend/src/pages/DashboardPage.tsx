@@ -2,15 +2,17 @@ import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { Wallet, CreditCard } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 
+import { ROUTES } from '@/constants'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import QuickInsights from '@/components/shared/QuickInsights'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore } from '@/components/analytics'
-import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
@@ -19,6 +21,7 @@ import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { toMonthlyAmount } from '@/pages/subscription-tracker/helpers'
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
   usePreferences()
 
   const {
@@ -109,8 +112,11 @@ export default function DashboardPage() {
                 data={incomeChartData}
                 height={180}
                 showLegend={false}
-                centerValue={formatCurrencyCompact(incomeTotal)}
+                centerValue={formatCurrencyShort(incomeTotal)}
                 centerLabel="Total"
+                onSliceClick={(name) =>
+                  navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                }
               />
               <div className="space-y-2">
                 {incomeChartData.map((item, i) => (
@@ -155,8 +161,11 @@ export default function DashboardPage() {
                 data={expenseChartData}
                 height={180}
                 showLegend={false}
-                centerValue={formatCurrencyCompact(expenseTotal)}
+                centerValue={formatCurrencyShort(expenseTotal)}
                 centerLabel="Total"
+                onSliceClick={(name) =>
+                  navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                }
               />
               <div className="space-y-2">
                 {expenseChartData.map((item, i) => (
