@@ -46,6 +46,8 @@ export default function ComparisonPage() {
           title="No transactions yet"
           description="Upload your Excel data to start comparing periods."
           icon={Upload}
+          actionLabel="Upload Data"
+          actionHref="/upload"
         />
       </div>
     )
