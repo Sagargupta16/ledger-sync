@@ -15,7 +15,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import { useBillCalendar } from './useBillCalendar'
 import { formatMonthYear, formatShortDate, isSameDay } from './billUtils'
 import { DAY_NAMES } from './types'
-import SummaryCard from './components/SummaryCard'
+import SummaryCard from '@/components/shared/SummaryCard'
 import BillDetailItem from './components/BillDetailItem'
 import DayCell from './components/DayCell'
 
