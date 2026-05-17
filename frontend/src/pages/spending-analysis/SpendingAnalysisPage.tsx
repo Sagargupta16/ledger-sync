@@ -151,11 +151,13 @@ export default function SpendingAnalysisPage() {
   // Convert null to undefined for component compatibility
   const dateRangeCompat = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
 
-  // Filter transactions by date range
-  const filteredTransactions = useMemo(
-    () => filterTransactionsByDateRange(transactions, dateRange),
-    [transactions, dateRange]
-  )
+  // Filter transactions by date range, then by the category query param
+  // (set when the user lands here via a deep link from a donut slice).
+  const filteredTransactions = useMemo(() => {
+    const byDate = filterTransactionsByDateRange(transactions, dateRange)
+    if (!categoryFilter) return byDate
+    return byDate.filter((t) => t.category === categoryFilter)
+  }, [transactions, dateRange, categoryFilter])
 
   // Calculate totals for filtered period
   const totalSpending = useMemo(() => {

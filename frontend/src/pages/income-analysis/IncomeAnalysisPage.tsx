@@ -57,13 +57,15 @@ export default function IncomeAnalysisPage() {
   const filteredTransactions = useMemo(() => {
     if (!transactions) return []
     const startDate = dateRange.start_date
-    if (!startDate) return transactions
-
-    return transactions.filter((t) => {
-      const txDate = getDateKey(t.date)
-      return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
-    })
-  }, [transactions, dateRange])
+    const byDate = !startDate
+      ? transactions
+      : transactions.filter((t) => {
+          const txDate = getDateKey(t.date)
+          return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
+        })
+    if (!categoryFilter) return byDate
+    return byDate.filter((t) => t.category === categoryFilter)
+  }, [transactions, dateRange, categoryFilter])
 
   // Calculate totals for filtered period
   const totalIncome = useMemo(() => {
