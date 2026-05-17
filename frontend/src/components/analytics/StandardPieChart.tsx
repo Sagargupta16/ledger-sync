@@ -10,6 +10,7 @@
  *   />
  */
 
+import { useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
@@ -56,6 +57,7 @@ export default function StandardPieChart({
   onSliceClick,
 }: StandardPieChartProps) {
   const filteredData = data.filter((d) => d.value > 0)
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   if (filteredData.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -63,9 +65,11 @@ export default function StandardPieChart({
 
   const animate = shouldAnimate(filteredData.length)
 
-  // Auto-shrink the center value when the string is long so it doesn't
-  // overflow past the donut's inner radius. Tuned against typical donut
-  // sizes (160-300 px) and currency strings up to ~12 chars.
+  /**
+   * Auto-shrink the center value when the string is long so it doesn't
+   * overflow past the donut's inner radius. Tuned against typical donut
+   * sizes (160-300 px) and currency strings up to ~12 chars.
+   */
   const centerValueLength = centerValue?.length ?? 0
   const centerValueFontSize =
     centerValueLength <= 6 ? 22
@@ -90,24 +94,33 @@ export default function StandardPieChart({
           isAnimationActive={animate}
           animationDuration={600}
           animationEasing="ease-out"
-          {...(onSliceClick && {
-            onClick: (data: { name?: string }) => {
-              if (data?.name) onSliceClick(data.name)
-            },
-            style: { cursor: 'pointer' },
-          })}
           label={showLabels ? (({ name, percent }: { name?: string; percent?: number }) => (
             `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
           )) as never : undefined}
           labelLine={showLabels ? { stroke: '#71717a', strokeWidth: 1 } : undefined}
         >
-          {filteredData.map((entry, i) => (
-            <Cell
-              key={entry.name}
-              fill={entry.color ?? getChartColor(i)}
-              style={{ filter: 'brightness(1.05)' }}
-            />
-          ))}
+          {filteredData.map((entry, i) => {
+            const isActive = activeIndex === i
+            const isDimmed = activeIndex !== null && !isActive
+            return (
+              <Cell
+                key={entry.name}
+                fill={entry.color ?? getChartColor(i)}
+                style={{
+                  filter: isActive ? 'brightness(1.18)' : 'brightness(1.05)',
+                  cursor: onSliceClick ? 'pointer' : 'default',
+                  transition: 'opacity 200ms ease, filter 200ms ease',
+                  opacity: isDimmed ? 0.4 : 1,
+                  transformOrigin: '50% 50%',
+                }}
+                onMouseEnter={() => setActiveIndex(i)}
+                onMouseLeave={() => setActiveIndex(null)}
+                onClick={() => {
+                  if (onSliceClick) onSliceClick(entry.name)
+                }}
+              />
+            )
+          })}
         </Pie>
         <Tooltip
           {...chartTooltipProps}

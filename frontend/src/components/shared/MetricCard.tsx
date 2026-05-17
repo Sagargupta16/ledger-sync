@@ -2,7 +2,8 @@ import { type ReactNode, useEffect, useRef } from 'react'
 
 import { motion, animate } from 'framer-motion'
 import type { LucideIcon } from 'lucide-react'
-import { TrendingUp, TrendingDown } from 'lucide-react'
+import { TrendingUp, TrendingDown, ArrowUpRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
 
@@ -61,9 +62,20 @@ interface MetricCardProps {
   isLoading?: boolean
   trend?: ReactNode
   subtitle?: string
+  /**
+   * When set, the entire card becomes a clickable react-router Link.
+   * Adds a subtle hover scale + a top-right arrow indicator. Mutually
+   * exclusive with onClick.
+   */
+  href?: string
+  /** When set, the entire card becomes clickable. */
+  onClick?: () => void
 }
 
-export default function MetricCard({ title, value, change, invertChange, changeLabel, icon: Icon, color = 'blue', isLoading, trend, subtitle }: Readonly<MetricCardProps>) {
+export default function MetricCard({
+  title, value, change, invertChange, changeLabel, icon: Icon,
+  color = 'blue', isLoading, trend, subtitle, href, onClick,
+}: Readonly<MetricCardProps>) {
   const colors = metricColorConfig[color]
 
   if (isLoading) {
@@ -75,18 +87,32 @@ export default function MetricCard({ title, value, change, invertChange, changeL
     )
   }
 
-  return (
+  const isInteractive = Boolean(href || onClick)
+  const interactiveClasses = isInteractive
+    ? 'cursor-pointer hover:border-white/[0.15] hover:bg-white/[0.06] transition-all duration-150 group'
+    : 'transition-colors duration-150 ease-out hover:border-white/[0.08]'
+
+  const cardContent = (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="relative p-4 glass rounded-2xl overflow-hidden transition-colors duration-150 ease-out hover:border-white/[0.08]"
+      whileHover={isInteractive ? { y: -2 } : undefined}
+      className={`relative p-4 glass rounded-2xl overflow-hidden ${interactiveClasses}`}
     >
       {/* Sparkline as background */}
       {trend && (
         <div className="absolute inset-x-0 bottom-0 opacity-40 pointer-events-none">
           {trend}
         </div>
+      )}
+
+      {/* Drill-down indicator -- only when clickable */}
+      {isInteractive && (
+        <ArrowUpRight
+          className="absolute top-3 right-3 w-3.5 h-3.5 text-text-tertiary opacity-0 group-hover:opacity-80 transition-opacity duration-150"
+          aria-hidden
+        />
       )}
 
       {/* Content */}
@@ -135,4 +161,26 @@ export default function MetricCard({ title, value, change, invertChange, changeL
       </div>
     </motion.div>
   )
+
+  if (href) {
+    return (
+      <Link to={href} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40 rounded-2xl">
+        {cardContent}
+      </Link>
+    )
+  }
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40 rounded-2xl"
+      >
+        {cardContent}
+      </button>
+    )
+  }
+
+  return cardContent
 }
