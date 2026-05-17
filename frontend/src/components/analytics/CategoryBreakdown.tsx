@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
@@ -31,6 +31,13 @@ interface CategoryBreakdownProps {
   readonly emptyDescription: string
   readonly emptyActionLabel?: string
   readonly emptyActionHref?: string
+  /**
+   * When set, only this category is rendered (others hidden) and the
+   * row is auto-expanded to show subcategories. Used by deep-link flows
+   * like ``/spending?category=Food`` where the user wants to drill into
+   * a single category's composition without seeing the full breakdown.
+   */
+  readonly categoryFilter?: string | null
 }
 
 export default function CategoryBreakdown({
@@ -46,6 +53,7 @@ export default function CategoryBreakdown({
   emptyDescription,
   emptyActionLabel,
   emptyActionHref,
+  categoryFilter,
 }: CategoryBreakdownProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
 
@@ -133,8 +141,21 @@ export default function CategoryBreakdown({
       })
       .sort((a, b) => b.total - a.total)
 
-    return { categories: cats, grandTotal: total }
-  }, [categoryData, colorMap, defaultColors, monthlyHistoryByCategory])
+    // When a category filter is active, narrow the visible set to that
+    // single category. Falls back to full list if the filter doesn't
+    // match any category (e.g. stale URL after category renamed).
+    const filtered = categoryFilter
+      ? cats.filter((c) => c.name === categoryFilter)
+      : cats
+    const visible = filtered.length > 0 ? filtered : cats
+
+    return { categories: visible, grandTotal: total }
+  }, [categoryData, colorMap, defaultColors, monthlyHistoryByCategory, categoryFilter])
+
+  // Auto-expand when a single category is rendered (deep-link drill-down).
+  useEffect(() => {
+    if (categoryFilter) setExpandedCategory(categoryFilter)
+  }, [categoryFilter])
 
   const toggleExpand = (name: string) => {
     setExpandedCategory((prev) => (prev === name ? null : name))

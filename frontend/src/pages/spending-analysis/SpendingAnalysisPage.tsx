@@ -416,7 +416,7 @@ export default function SpendingAnalysisPage() {
 
         {/* Expense Treemap */}
         <motion.div {...SCROLL_FADE_UP}>
-          <ExpenseTreemap dateRange={dateRangeCompat} />
+          <ExpenseTreemap dateRange={dateRangeCompat} categoryFilter={categoryFilter} />
         </motion.div>
 
         {/* Pareto Analysis -- which categories make up 80% of spend */}
