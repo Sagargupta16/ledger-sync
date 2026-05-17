@@ -28,6 +28,15 @@ interface ChartContainerProps {
   minHeight?: number
   aspect?: number
   children: ReactNode
+  /**
+   * Accessible label describing what the chart shows. Recharts renders
+   * SVGs that screen readers can't interpret meaningfully, so chart
+   * authors should pass a one-sentence description here -- e.g.
+   * ``ariaLabel="Net worth over the last 12 months"``. Surfaced as a
+   * ``role="img"`` wrapper so AT users get the gist without trying to
+   * walk every <path>.
+   */
+  ariaLabel?: string
 }
 
 /**
@@ -42,12 +51,13 @@ export default function ChartContainer({
   height = '100%',
   mobileHeight,
   children,
+  ariaLabel,
   ...rest
 }: Readonly<ChartContainerProps>) {
   const isMobile = useIsMobile()
   const resolvedHeight = resolveHeight(isMobile, height, mobileHeight)
 
-  return (
+  const container = (
     <ResponsiveContainer
       width={width}
       height={resolvedHeight}
@@ -57,6 +67,16 @@ export default function ChartContainer({
     >
       {children}
     </ResponsiveContainer>
+  )
+
+  if (!ariaLabel) return container
+
+  // Wrap in a role="img" with the descriptive label so screen readers
+  // announce a single meaningful summary instead of walking every SVG node.
+  return (
+    <div role="img" aria-label={ariaLabel} style={{ width: '100%', height: '100%' }}>
+      {container}
+    </div>
   )
 }
 

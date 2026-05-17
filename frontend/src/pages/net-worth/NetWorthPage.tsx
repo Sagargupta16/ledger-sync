@@ -60,6 +60,7 @@ export default function NetWorthPage() {
           setShowProjection={m.setShowProjection}
           monthlyGrowthRate={m.monthlyGrowthRate}
           anchor={m.anchor}
+          milestoneRows={m.milestoneRows}
         />
 
         {m.monthlyChanges.length > 0 && <MonthlyChangesChart monthlyChanges={m.monthlyChanges} />}

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { BarChart3 } from 'lucide-react'
-import { Area, AreaChart, CartesianGrid, Legend, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Brush, CartesianGrid, Legend, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 
 import EmptyState from '@/components/shared/EmptyState'
 import {
@@ -20,7 +20,7 @@ import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { formatCurrency } from '@/lib/formatters'
 
 import { CATEGORY_CONFIG } from '../netWorthUtils'
-import type { NetWorthPoint } from '../netWorthProjection'
+import type { MilestoneRow, NetWorthPoint } from '../netWorthProjection'
 
 interface NetWorthTrendChartProps {
   isLoading: boolean
@@ -33,6 +33,14 @@ interface NetWorthTrendChartProps {
   setShowProjection: (v: boolean) => void
   monthlyGrowthRate: number
   anchor: NetWorthPoint | null
+  /**
+   * Upcoming milestones to draw as horizontal threshold lines so users see
+   * "I'll cross 1Cr around month X". Only ``status === 'upcoming'`` rows
+   * are rendered; achieved milestones are already visible as the line
+   * crossing them. Recharts auto-clips lines outside the y-axis range,
+   * so we render all milestones blindly and let the chart filter visually.
+   */
+  milestoneRows?: readonly MilestoneRow[]
 }
 
 export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
@@ -47,6 +55,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
     setShowProjection,
     monthlyGrowthRate,
     anchor,
+    milestoneRows,
   } = props
   const dims = useChartDimensions()
 
@@ -174,6 +183,24 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                   }}
                 />
               )}
+              {/* Upcoming milestones as faint horizontal threshold lines.
+                  Recharts auto-clips lines outside the y-axis range so we
+                  render the whole DEFAULT_MILESTONES set without filtering. */}
+              {!showStacked && milestoneRows?.filter((m) => m.status === 'upcoming').map((m) => (
+                <ReferenceLine
+                  key={`milestone-${m.value}`}
+                  y={m.value}
+                  stroke={rawColors.text.tertiary}
+                  strokeDasharray="2 4"
+                  strokeOpacity={0.6}
+                  label={{
+                    value: m.label,
+                    fill: rawColors.text.tertiary,
+                    fontSize: 10,
+                    position: 'insideLeft',
+                  }}
+                />
+              ))}
               {showStacked ? (
                 <>
                   {allCategories.map((cat) => {
@@ -245,6 +272,23 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                     </>
                   )}
                 </>
+              )}
+              {/* Drag-to-zoom on the x-axis. Default window is the most-recent
+                  third of the data so the chart still reads at full fidelity
+                  on first paint; users can drag either traveller to widen or
+                  narrow the view without touching the global time filter. */}
+              {chartData.length > 6 && (
+                <Brush
+                  dataKey="date"
+                  height={26}
+                  travellerWidth={8}
+                  stroke={rawColors.app.blue}
+                  fill="rgba(255,255,255,0.04)"
+                  tickFormatter={(value: string) =>
+                    new Date(value).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+                  }
+                  startIndex={Math.max(0, chartData.length - Math.ceil(chartData.length / 3))}
+                />
               )}
             </AreaChart>
           </ChartContainer>

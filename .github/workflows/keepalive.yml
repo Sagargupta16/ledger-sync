@@ -1,0 +1,33 @@
+name: keepalive
+
+# Pings the production backend every 30 minutes to keep the Neon free-tier
+# branch unarchived. Without this, idle gaps >24 h trigger a `timeline_archive`
+# operation, and the next user request pays a 15-25 s cold-start penalty
+# while the branch is unarchived. See docs/DEPLOYMENT.md for context.
+#
+# Cost: ~0 GitHub Actions minutes (the job runs in <5 s, well under the free
+# tier monthly allowance). Bumps Neon CPU usage from ~50 min/mo to ~60 min/mo
+# (still <1 % of the 191.9 CU-hour free-tier ceiling).
+
+on:
+  schedule:
+    # Every 30 minutes. GitHub trims at-most-once-every-five-minutes anyway,
+    # so this is a polite cadence.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake backend
+        run: |
+          # The /api/health endpoint is unauthenticated and returns instantly.
+          # We don't fail the workflow on non-200 — the goal is only to keep
+          # the branch warm; a transient 5xx during deploy is fine.
+          curl --silent --max-time 30 \
+            "https://ledger-sync-api.vercel.app/health" \
+            || echo "Ping returned non-zero, ignoring (transient OK)"

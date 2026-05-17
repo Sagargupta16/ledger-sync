@@ -15,8 +15,21 @@ interface CategoryDeltaRowProps {
   index: number
 }
 
+/**
+ * One row per category in the deltas list.
+ *
+ * Renders both periods overlaid on a single horizontal bar (period A as
+ * the faded ghost layer, period B as the solid layer on top) so the
+ * delta reads in one eye-fixation. When B > A the solid bar extends past
+ * the ghost; when B < A the ghost's tail trails past the solid (the
+ * "we shrank" indicator).
+ *
+ * Uses ``colorB`` for both layers so the row stays metric-coded (income vs
+ * expense) rather than period-coded -- ``colorA`` is unused but kept in the
+ * props signature so callsites don't churn.
+ */
 export function CategoryDeltaRow({
-  delta, labelA, labelB, maxValue, colorA, colorB, invertChange, index,
+  delta, labelA, labelB, maxValue, colorB, invertChange, index,
 }: Readonly<CategoryDeltaRowProps>) {
   const { category, periodA, periodB, change } = delta
   const isPositive = change >= 0
@@ -41,34 +54,39 @@ export function CategoryDeltaRow({
         </span>
       </div>
 
-      {/* Period A bar */}
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-caption text-text-tertiary w-16 truncate">{labelA}</span>
-        <div className="flex-1 h-3 rounded bg-white/5 overflow-hidden">
+      {/* Single overlaid bar: ghost (A) + solid (B). Period totals
+          flank the bar so the eye gets values + delta from one row. */}
+      <div className="flex items-center gap-2">
+        <span
+          className="text-caption text-text-tertiary tabular-nums w-20 truncate text-right"
+          title={`${labelA}: ${formatCurrency(periodA)}`}
+        >
+          {formatCurrency(periodA)}
+        </span>
+        <div className="relative flex-1 h-3 rounded bg-white/5 overflow-hidden">
           <motion.div
-            className="h-full rounded"
-            style={{ backgroundColor: colorA, opacity: 0.65 }}
+            className="absolute inset-y-0 left-0 rounded"
+            style={{ backgroundColor: colorB, opacity: 0.35 }}
             initial={{ width: 0 }}
             animate={{ width: `${widthA}%` }}
             transition={{ duration: 0.5, ease: 'easeOut', delay: index * 0.03 }}
+            aria-hidden
           />
-        </div>
-        <span className="text-xs text-muted-foreground tabular-nums w-20 text-right">{formatCurrency(periodA)}</span>
-      </div>
-
-      {/* Period B bar */}
-      <div className="flex items-center gap-2">
-        <span className="text-caption text-text-tertiary w-16 truncate">{labelB}</span>
-        <div className="flex-1 h-3 rounded bg-white/5 overflow-hidden">
           <motion.div
-            className="h-full rounded"
+            className="absolute inset-y-0 left-0 rounded"
             style={{ backgroundColor: colorB }}
             initial={{ width: 0 }}
             animate={{ width: `${widthB}%` }}
             transition={{ duration: 0.5, ease: 'easeOut', delay: index * 0.03 + 0.08 }}
+            aria-hidden
           />
         </div>
-        <span className="text-xs font-medium text-white tabular-nums w-20 text-right">{formatCurrency(periodB)}</span>
+        <span
+          className="text-xs font-medium text-white tabular-nums w-20 truncate"
+          title={`${labelB}: ${formatCurrency(periodB)}`}
+        >
+          {formatCurrency(periodB)}
+        </span>
       </div>
     </motion.div>
   )

@@ -2,15 +2,19 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
+import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
+import { CategorySparkline } from './CategorySparkline'
 
 interface CategoryData {
   name: string
   total: number
   percent: number
   color: string
+  /** Last-12-months total spending in this category, oldest -> newest. */
+  monthlyHistory: number[]
   subcategories: { name: string; amount: number; percent: number }[]
 }
 
@@ -51,6 +55,46 @@ export default function CategoryBreakdown({
     end_date: dateRange?.end_date ?? undefined,
   })
 
+  // Pull all transactions to build the per-category 12-month sparkline.
+  // useTransactions is widely cached (staleTime: Infinity, invalidated on
+  // upload) so this is effectively free if any other page already mounted it.
+  const { data: transactions = [] } = useTransactions()
+
+  /**
+   * Build a Map<categoryName, [m1, m2, ..., m12]> covering the last 12
+   * calendar months ending in the current month, oldest first. Months
+   * with no spending get a 0 so the sparkline renders a meaningful flat
+   * segment instead of skipping the bucket.
+   */
+  const monthlyHistoryByCategory = useMemo(() => {
+    const buckets = new Map<string, number[]>()
+    if (transactions.length === 0) return buckets
+
+    // Build the list of last-12 month keys (YYYY-MM), oldest first.
+    const now = new Date()
+    const monthKeys: string[] = []
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getUTCFullYear(), now.getUTCMonth() - i, 1)
+      monthKeys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`)
+    }
+    const monthIndex = new Map(monthKeys.map((k, i) => [k, i]))
+
+    const wantedType = transactionType === 'expense' ? 'Expense' : 'Income'
+
+    for (const tx of transactions) {
+      if (tx.type !== wantedType) continue
+      const category = tx.category
+      if (!category) continue
+      const monthKey = (tx.date as string).substring(0, 7)
+      const idx = monthIndex.get(monthKey)
+      if (idx === undefined) continue
+      const series = buckets.get(category) ?? Array.from({ length: 12 }, () => 0)
+      series[idx] += Math.abs(tx.amount)
+      buckets.set(category, series)
+    }
+    return buckets
+  }, [transactions, transactionType])
+
   const { categories, grandTotal } = useMemo(() => {
     if (!categoryData?.categories) return { categories: [], grandTotal: 0 }
 
@@ -83,13 +127,14 @@ export default function CategoryBreakdown({
           total: catTotal,
           percent: total > 0 ? (catTotal / total) * 100 : 0,
           color,
+          monthlyHistory: monthlyHistoryByCategory.get(category) ?? [],
           subcategories: subs,
         }
       })
       .sort((a, b) => b.total - a.total)
 
     return { categories: cats, grandTotal: total }
-  }, [categoryData, colorMap, defaultColors])
+  }, [categoryData, colorMap, defaultColors, monthlyHistoryByCategory])
 
   const toggleExpand = (name: string) => {
     setExpandedCategory((prev) => (prev === name ? null : name))
@@ -201,15 +246,28 @@ export default function CategoryBreakdown({
                   )}
                 </div>
 
-                {/* Proportional bar */}
-                <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: cat.color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${cat.percent}%` }}
-                    transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.03 }}
-                  />
+                {/* Proportional bar + 12-month sparkline.
+                    Bar answers "how much of total?", sparkline answers
+                    "trending up or down across the last year?". They're
+                    complementary -- bar is glanceable, sparkline adds
+                    direction without taking the user to another page. */}
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: cat.color }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${cat.percent}%` }}
+                      transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.03 }}
+                    />
+                  </div>
+                  {cat.monthlyHistory.length >= 2 && (
+                    <CategorySparkline
+                      values={cat.monthlyHistory}
+                      color={cat.color}
+                      ariaLabel={`${cat.name} 12-month trend`}
+                    />
+                  )}
                 </div>
               </button>
 

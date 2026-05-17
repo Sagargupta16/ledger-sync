@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Banknote, Receipt, Activity } from 'lucide-re
 import {
   AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Line, ReferenceLine,
+  ScatterChart, Scatter, ZAxis,
 } from 'recharts'
 
 import { rawColors } from '@/constants/colors'
@@ -432,6 +433,72 @@ export default function ReturnsAnalysisPage() {
                 </span>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {/* ── Holdings Scatter ── */}
+        {investmentAccounts.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass rounded-2xl p-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Activity className="w-5 h-5 text-app-purple" />
+              <div>
+                <h3 className="text-lg font-semibold text-white">Holdings Map</h3>
+                <p className="text-xs text-text-tertiary">
+                  Activity vs. current value. Bigger dots = bigger positions; further right = more transactions logged.
+                </p>
+              </div>
+            </div>
+            <ChartContainer height={320}>
+              <ScatterChart margin={{ top: 16, right: 24, bottom: 24, left: 24 }}>
+                <CartesianGrid {...GRID_DEFAULTS} />
+                <XAxis
+                  type="number"
+                  dataKey="x"
+                  name="Transactions"
+                  {...xAxisDefaults(investmentAccounts.length)}
+                  tickFormatter={(v: number) => v.toFixed(0)}
+                  label={{ value: 'Transactions logged', position: 'insideBottom', offset: -10, fill: rawColors.text.tertiary, fontSize: 11 }}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="y"
+                  name="Current value"
+                  {...yAxisDefaults()}
+                  tickFormatter={(v: number) => formatCurrencyShort(v)}
+                  label={{ value: 'Current value', angle: -90, position: 'insideLeft', offset: 10, fill: rawColors.text.tertiary, fontSize: 11 }}
+                />
+                <ZAxis type="number" dataKey="z" range={[80, 800]} name="Value" />
+                <Tooltip
+                  cursor={{ strokeDasharray: '3 3' }}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null
+                    const p = payload[0].payload as { name: string; x: number; y: number }
+                    return (
+                      <div style={CHART_TOOLTIP_STYLE}>
+                        <p style={{ ...CHART_TOOLTIP_LABEL_STYLE, marginBottom: 6 }}>{p.name}</p>
+                        <div style={{ color: '#fafafa', fontSize: 12 }}>{formatCurrency(p.y)}</div>
+                        <div style={{ color: '#71717a', fontSize: 11, marginTop: 2 }}>{p.x} transaction{p.x === 1 ? '' : 's'}</div>
+                      </div>
+                    )
+                  }}
+                />
+                <Scatter
+                  name="Holdings"
+                  data={investmentAccounts.map((acc) => ({
+                    name: acc.name,
+                    x: acc.transactions,
+                    y: acc.balance,
+                    z: acc.balance,
+                  }))}
+                  fill={rawColors.app.purple}
+                  fillOpacity={0.7}
+                />
+              </ScatterChart>
+            </ChartContainer>
           </motion.div>
         )}
       </div>

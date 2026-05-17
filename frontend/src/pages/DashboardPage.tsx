@@ -177,7 +177,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            <EmptyState icon={CreditCard} title="No expense data available" description="Upload transactions to see your expense breakdown." variant="compact" />
+            <EmptyState icon={CreditCard} title="No expense data available" description="Upload transactions to see your expense breakdown." actionLabel="Upload Data" actionHref="/upload" variant="compact" />
           )}
         </div>
       </motion.div>

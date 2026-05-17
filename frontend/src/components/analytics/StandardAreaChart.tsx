@@ -12,7 +12,7 @@
  */
 
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Brush,
 } from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
@@ -20,6 +20,7 @@ import {
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
   areaGradient, areaGradientUrl, LEGEND_DEFAULTS, shouldAnimate, ACTIVE_DOT,
 } from '@/components/ui/chartDefaults'
+import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface AreaConfig {
@@ -56,6 +57,12 @@ interface StandardAreaChartProps {
   readonly xAngle?: number
   readonly referenceLines?: ReferenceLineConfig[]
   readonly stacked?: boolean
+  /**
+   * Show a Recharts ``<Brush>`` below the chart for drag-to-zoom on the
+   * x-axis. Useful for long time-series (>~12 points) where the user wants
+   * to inspect a sub-range without changing the global filter. Default off.
+   */
+  readonly showBrush?: boolean
 }
 
 export default function StandardAreaChart({
@@ -71,6 +78,7 @@ export default function StandardAreaChart({
   xAngle,
   referenceLines,
   stacked = false,
+  showBrush = false,
 }: StandardAreaChartProps) {
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -141,6 +149,19 @@ export default function StandardAreaChart({
             stackId={stacked ? 'stack' : area.stackId}
           />
         ))}
+        {showBrush && data.length > 4 && (
+          <Brush
+            dataKey={dataKey}
+            height={24}
+            travellerWidth={8}
+            stroke={rawColors.app.blue}
+            fill="rgba(255,255,255,0.04)"
+            tickFormatter={xTickFormatter}
+            // Default to showing the most recent ~quarter of the data so the
+            // chart still reads at full fidelity on first paint.
+            startIndex={Math.max(0, data.length - Math.ceil(data.length / 4))}
+          />
+        )}
       </AreaChart>
     </ChartContainer>
   )
