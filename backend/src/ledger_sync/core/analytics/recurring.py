@@ -32,20 +32,26 @@ from ledger_sync.db.models import (
 class RecurringMixin(AnalyticsEngineBase):
     """Mixin: recurring-pattern detection and persistence."""
 
-    # Frequency bands: (min_days, max_days, frequency, confidence_penalty_per_std).
-    # Bands are contiguous (end-of-one = start-of-next - 1) so that a series
-    # with mean gap of e.g. 19 or 78 days still resolves to a frequency
-    # instead of falling into a dead zone. Penalty scales with expected
-    # cadence -- wider cycles tolerate more jitter.
-    _FREQ_BANDS: list[tuple[float, float, RecurrenceFrequency, float]] = [
-        (4, 10, RecurrenceFrequency.WEEKLY, 8),
-        (11, 19, RecurrenceFrequency.BIWEEKLY, 5),
-        (20, 49, RecurrenceFrequency.MONTHLY, 3),
-        (50, 79, RecurrenceFrequency.BIMONTHLY, 2.5),
-        (80, 129, RecurrenceFrequency.QUARTERLY, 2),
-        (130, 269, RecurrenceFrequency.SEMIANNUAL, 1.5),
-        (270, 400, RecurrenceFrequency.YEARLY, 1),
+    # Frequency bands: (min_days, frequency, confidence_penalty_per_std).
+    # Each band starts at min_days and runs up to (but not including) the
+    # next band's min_days, so float averages between integer thresholds
+    # (e.g. avg_diff = 10.5) resolve cleanly instead of falling through
+    # the gap. The final band has an effective upper bound of 400 days
+    # enforced below. Penalty scales with expected cadence -- wider
+    # cycles tolerate more jitter.
+    _FREQ_BANDS: list[tuple[float, RecurrenceFrequency, float]] = [
+        (4, RecurrenceFrequency.WEEKLY, 8),
+        (11, RecurrenceFrequency.BIWEEKLY, 5),
+        (20, RecurrenceFrequency.MONTHLY, 3),
+        (50, RecurrenceFrequency.BIMONTHLY, 2.5),
+        (80, RecurrenceFrequency.QUARTERLY, 2),
+        (130, RecurrenceFrequency.SEMIANNUAL, 1.5),
+        (270, RecurrenceFrequency.YEARLY, 1),
     ]
+    # Cadences longer than this are out of scope for personal finance
+    # recurring detection (annual upper bound = 400 days to allow some
+    # leap-year / late-by-a-week tolerance).
+    _FREQ_MAX_DAYS: float = 400
 
     def _load_confirmed_recurring(self) -> dict[str, RecurringTransaction]:
         """Load user-confirmed recurring patterns keyed by lowercase name."""
@@ -173,11 +179,20 @@ class RecurringMixin(AnalyticsEngineBase):
         confidence: float = 0
         expected_day = None
 
-        for lo, hi, freq, penalty in self._FREQ_BANDS:
-            if lo <= avg_diff <= hi:
-                frequency = freq
-                confidence = max(0, 100 - std_diff * penalty)
-                break
+        # Walk bands in order; each band runs from its min_days up to (but
+        # not including) the next band's min_days. The final band caps at
+        # ``_FREQ_MAX_DAYS`` so absurdly long cadences don't get a label.
+        if avg_diff < self._FREQ_MAX_DAYS:
+            for i, (lo, freq, penalty) in enumerate(self._FREQ_BANDS):
+                next_lo = (
+                    self._FREQ_BANDS[i + 1][0]
+                    if i + 1 < len(self._FREQ_BANDS)
+                    else self._FREQ_MAX_DAYS
+                )
+                if lo <= avg_diff < next_lo:
+                    frequency = freq
+                    confidence = max(0, 100 - std_diff * penalty)
+                    break
 
         # Calculate expected day of month for monthly-ish frequencies
         if frequency in (
