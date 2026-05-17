@@ -18,6 +18,7 @@ import {
   ExpenseTreemap,
   EnhancedSubcategoryAnalysis,
   MultiCategoryTimeAnalysis,
+  ParetoChart,
   TopMerchants,
   CohortSpendingAnalysis,
 } from '@/components/analytics'
@@ -404,6 +405,13 @@ export default function SpendingAnalysisPage() {
         <motion.div {...SCROLL_FADE_UP}>
           <ExpenseTreemap dateRange={dateRangeCompat} />
         </motion.div>
+
+        {/* Pareto Analysis -- which categories make up 80% of spend */}
+        {Object.keys(categoryBreakdown).length > 0 && (
+          <motion.div {...SCROLL_FADE_UP}>
+            <ParetoChart categoryBreakdown={categoryBreakdown} />
+          </motion.div>
+        )}
 
         {/* Top Merchants */}
         <motion.div {...SCROLL_FADE_UP}>

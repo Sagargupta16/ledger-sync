@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { Wallet, CreditCard } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 
 import { SCROLL_FADE_UP } from '@/constants/animations'
@@ -19,6 +20,7 @@ import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { toMonthlyAmount } from '@/pages/subscription-tracker/helpers'
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
   usePreferences()
 
   const {
@@ -111,6 +113,7 @@ export default function DashboardPage() {
                 showLegend={false}
                 centerValue={formatCurrencyShort(incomeTotal)}
                 centerLabel="Total"
+                onSliceClick={() => navigate('/income-analysis')}
               />
               <div className="space-y-2">
                 {incomeChartData.map((item, i) => (
@@ -157,6 +160,7 @@ export default function DashboardPage() {
                 showLegend={false}
                 centerValue={formatCurrencyShort(expenseTotal)}
                 centerLabel="Total"
+                onSliceClick={() => navigate('/spending-analysis')}
               />
               <div className="space-y-2">
                 {expenseChartData.map((item, i) => (
