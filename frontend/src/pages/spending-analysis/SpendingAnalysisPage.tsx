@@ -438,7 +438,11 @@ export default function SpendingAnalysisPage() {
 
         {/* Subcategory Deep-Dive */}
         <motion.div {...SCROLL_FADE_UP}>
-          <EnhancedSubcategoryAnalysis dateRange={dateRangeCompat} />
+          <EnhancedSubcategoryAnalysis
+            key={categoryFilter ?? 'all'}
+            dateRange={dateRangeCompat}
+            categoryFilter={categoryFilter}
+          />
         </motion.div>
 
         {/* Spending Patterns (Day/Date/Seasonal) */}

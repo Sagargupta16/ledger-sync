@@ -11,10 +11,22 @@ const COLORS = CHART_COLORS_WARM
 
 interface EnhancedSubcategoryAnalysisProps {
   readonly dateRange?: { readonly start_date?: string; readonly end_date?: string }
+  /**
+   * When set, overrides the user's category dropdown selection so the
+   * subcategory analysis matches a deep-link drill-down. The dropdown
+   * stays interactive afterwards -- this is just the initial value.
+   */
+  readonly categoryFilter?: string | null
 }
 
-export default function EnhancedSubcategoryAnalysis({ dateRange }: EnhancedSubcategoryAnalysisProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string>('Food & Dining')
+export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter }: EnhancedSubcategoryAnalysisProps) {
+  // Initial value reflects the URL filter when present. Callers re-mount
+  // this component (via key={categoryFilter ?? 'all'}) when the filter
+  // changes externally, so we don't need a useEffect sync that tripped
+  // the rules-of-hooks "setState in effect" check.
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    categoryFilter ?? 'Food & Dining',
+  )
   const [cumulative, setCumulative] = useState(true)
 
   const { data: transactions } = useTransactions()
