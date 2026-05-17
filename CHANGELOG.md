@@ -6,6 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## Unreleased
+
+Calculation correctness audit batch -- three backend fixes uncovered while reviewing every aggregation path for inconsistencies. No frontend changes; no API contract breaks.
+
+### Fixed
+
+- **Net Worth API: cumulative series now seeded with pre-window opening balance.** ``GET /api/calculations/daily-net-worth?start_date=...`` previously reset the cumulative ``net_worth`` series to 0 on day one of the window, ignoring all transactions before ``start_date``. A user filtering "Last 6 months" saw their chart begin at zero instead of their actual cumulative cashflow at that point. When ``start_date`` is set we now compute ``opening_balance = SUM(income) - SUM(expense)`` for transactions strictly before it and seed the cumulative series with that value. Transfers excluded (matches existing model). The response also includes ``opening_balance`` so frontends can render a starting-balance annotation.
+- **Time-range filters now anchor on ``now()``, not the user's most recent transaction.** ``THIS_MONTH``, ``LAST_3_MONTHS``, etc. used to anchor on the latest transaction date so a user with stale data saw old months under "This Month" labels. Anchored on ``datetime.now(UTC)`` now: "This Month" = current calendar month, "Last 3 Months" = first day of (now - 2 months) through now (calendar-aligned, no partial-month tails). Stale data legitimately yields empty filtered results -- correct behaviour. Two parallel implementations both fixed: ``api/analytics_helpers._get_time_range_dates`` (DB query) and ``core/time_filter.TimeFilter`` (in-memory list).
+- **Recurring detection: closed gaps between frequency bands.** The 2.10.0 release made ``_FREQ_BANDS`` "contiguous" via integer endpoints ``[(4, 10), (11, 19), (20, 49), ...]`` checked with ``lo <= avg_diff <= hi``. But ``avg_diff`` is a float (mean of integer day-gaps), so half-integer values 10.5, 19.5, 49.5, 79.5, 129.5, 269.5 fell through every band -> ``frequency = None`` -> recurring patterns silently dropped. Real-world example: a salary every 7 days plus a monthly top-up landing some weeks averaged 10.5 days. Bands now redefined as half-open ``[lo, next_lo)`` so they actually tile the real number line. ``_FREQ_MAX_DAYS = 400`` keeps the upper bound on yearly cadence.
+
+### Tests
+
+- 22 new backend tests across the three fixes (3 + 8 + 11). Backend total 116 -> 135.
+
+---
+
 ## 2.10.0 - 2026-05-13
 
 Hardcoded-values audit. Fixes silently-wrong defaults, reduces classifier brittleness, and centralizes policy constants that were scattered across the codebase. Two full rescan passes; every finding either fixed, deliberately skipped with reason, or tracked for a follow-up PR that needs a schema migration.
