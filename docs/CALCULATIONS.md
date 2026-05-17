@@ -640,24 +640,24 @@ Note: this is simplified CAGR, not XIRR. For accurate XIRR-style returns with ir
    - Compute mean amount, amount variance (std dev / mean)
 3. Detect frequency via `_detect_frequency`:
    ```
-   mean_gap in [6, 8]      -> WEEKLY (interval ~7)
-   mean_gap in [13, 15]    -> FORTNIGHTLY
-   mean_gap in [28, 32]    -> MONTHLY
-   mean_gap in [88, 92]    -> QUARTERLY
-   mean_gap in [178, 186]  -> SEMIANNUAL
-   mean_gap in [360, 370]  -> YEARLY
-   else                    -> not recurring
+   # Bands are half-open [lo, next_lo) so float averages between
+   # integer thresholds (e.g. mean_gap = 10.5) resolve cleanly.
+   mean_gap in [4, 11)    -> WEEKLY      (penalty 8)
+   mean_gap in [11, 20)   -> BIWEEKLY    (penalty 5)
+   mean_gap in [20, 50)   -> MONTHLY     (penalty 3)
+   mean_gap in [50, 80)   -> BIMONTHLY   (penalty 2.5)
+   mean_gap in [80, 130)  -> QUARTERLY   (penalty 2)
+   mean_gap in [130, 270) -> SEMIANNUAL  (penalty 1.5)
+   mean_gap in [270, 400) -> YEARLY      (penalty 1)
+   else                   -> not recurring
    ```
 4. **Confidence score** (0-100):
    ```
-   gap_consistency = 1 - (stddev(gaps) / mean(gap))      # penalize irregular intervals
-   amount_consistency = 1 - min(1, amount_variance)       # penalize amount swings
-   count_score = min(1, occurrences / 6)                  # need ~6 to be sure
-   confidence = (gap_consistency * 0.4 + amount_consistency * 0.3 + count_score * 0.3) * 100
+   confidence = max(0, 100 - stddev(gaps) * penalty)
    ```
-5. Only patterns with `confidence >= recurring_min_confidence` (default 50) are saved.
-6. `expected_day = mode(txn.date.day)` for monthly patterns, else None.
-7. `next_expected = last_date + interval_days`.
+   Penalty scales with expected cadence -- wider cycles tolerate more jitter (yearly penalty 1, weekly penalty 8). Only patterns with `confidence >= recurring_min_confidence` (default 50) are saved.
+5. `expected_day = mode(txn.date.day)` for monthly+ patterns, else None.
+6. `next_expected = last_date + interval_days`.
 
 ### User Confirmation
 

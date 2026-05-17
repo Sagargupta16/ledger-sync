@@ -6,6 +6,137 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.14.0 - 2026-05-17
+
+Calculation correctness audit batch -- three backend bugs caught while reviewing every aggregation path. No frontend changes; no API contract breaks.
+
+### Fixed
+
+- **Net Worth API: cumulative series now seeded with pre-window opening balance.** ``GET /api/calculations/daily-net-worth?start_date=...`` previously reset the cumulative ``net_worth`` series to 0 on day one of the window, ignoring all transactions before ``start_date``. A user filtering "Last 6 months" saw their chart begin at zero instead of their actual cumulative cashflow at that point. When ``start_date`` is set we now compute ``opening_balance = SUM(income) - SUM(expense)`` for transactions strictly before it and seed the cumulative series with that value. Transfers excluded (matches existing model). The response also includes ``opening_balance`` so frontends can render a starting-balance annotation.
+- **Time-range filters now anchor on ``now()``, not the user's most recent transaction.** ``THIS_MONTH``, ``LAST_3_MONTHS``, etc. used to anchor on the latest transaction date so a user with stale data saw old months under "This Month" labels. Anchored on ``datetime.now(UTC)`` now: "This Month" = current calendar month, "Last 3 Months" = first day of (now - 2 months) through now (calendar-aligned, no partial-month tails). Stale data legitimately yields empty filtered results -- correct behaviour. Two parallel implementations both fixed: ``api/analytics_helpers._get_time_range_dates`` (DB query) and ``core/time_filter.TimeFilter`` (in-memory list).
+- **Recurring detection: closed gaps between frequency bands.** The 2.10.0 release made ``_FREQ_BANDS`` "contiguous" via integer endpoints ``[(4, 10), (11, 19), (20, 49), ...]`` checked with ``lo <= avg_diff <= hi``. But ``avg_diff`` is a float (mean of integer day-gaps), so half-integer values 10.5, 19.5, 49.5, 79.5, 129.5, 269.5 fell through every band -> ``frequency = None`` -> recurring patterns silently dropped. Real-world example: a salary every 7 days plus a monthly top-up landing some weeks averaged 10.5 days. Bands now redefined as half-open ``[lo, next_lo)`` so they actually tile the real number line. ``_FREQ_MAX_DAYS = 400`` keeps the upper bound on yearly cadence.
+
+### Tests
+
+- Backend 116 -> 135 (+22 across the three fixes: 3 for daily-net-worth opening balance, 8 for time-range now-anchor, 11 for recurring band gaps).
+
+### Documentation
+
+- ``docs/CALCULATIONS.md`` recurring-detection algorithm section updated to match the actual current implementation: 7 half-open frequency bands (was a stale 6-band closed-interval description from a much older version), correct confidence formula (``max(0, 100 - std*penalty)`` with per-band penalties), note on why bands are half-open.
+
+---
+
+## 2.13.0 - 2026-05-17
+
+UX consolidation pass (#160). Theme: make every "high-level component" interactive in a way that flows the user through the app -- donut click navigates with a category param, destination page filters end-to-end, treemap auto-drills, subcategory analysis preselects the right category. 14 commits.
+
+### Fixed
+
+- **Dashboard donut click routed to non-existent paths.** Click-to-navigate on income/expense donuts used hardcoded strings instead of ``ROUTES`` constants. Routes 404-ed silently when the canonical route changed. Now uses ``ROUTES.INCOME_ANALYSIS`` / ``ROUTES.SPENDING_ANALYSIS``.
+- **Donut center text was clipping behind the inner ring.** Long currency strings (``Rs 57,27,353``) overflowed past ``innerRadius``. Switched to ``formatCurrencyShort`` and added an adaptive font size that shrinks for longer strings (22px -> 13px across 6-12 chars). Visual polish: ``innerRadius 60%``, ``outerRadius 85%``, ``paddingAngle 3``, ``cornerRadius 4``.
+- **Donut whole-Pie click selected every slice at once.** ``onClick`` was attached to the ``<Pie>`` element and the cursor was ``pointer`` everywhere including the gaps between slices. Each ``<Cell>`` now owns its own ``onClick`` / ``onMouseEnter`` / ``onMouseLeave``. Hover state: active slice brightens 18%, others fade to 40% opacity. Cursor is ``default`` over gaps.
+
+### Added
+
+- **Click-through journey on the dashboard donuts.** Clicking a slice (e.g. "Food & Dining" on the Expense donut) navigates to ``/spending?category=Food%20%26%20Dining``. The destination page reads the URL parameter and applies the filter end-to-end:
+  - New ``FilterBanner`` component appears at the top with a "Clear" button
+  - MetricCards (Total Spending, Monthly Avg, Top Category, Categories) reflect only the filtered category
+  - Pareto Analysis bars + cumulative line filtered
+  - Top Merchants section narrowed to merchants in that category
+  - Expense Breakdown (treemap) auto-expands to show subcategories of the filtered category
+  - Subcategory Deep-Dive opens with the filtered category preselected
+  - Same flow on Income Analysis side (``?category=Salary`` etc.)
+- **MetricCard becomes opt-in clickable.** New ``href`` and ``onClick`` props turn the card into a ``Link`` or ``button`` with a subtle ``y:-2`` hover lift, stronger border, and a top-right ``ArrowUpRight`` indicator that fades in on hover. Default behavior unchanged when neither prop is set, so all 37 existing callsites are zero-regression.
+- **Pareto Analysis chart on Spending Analysis.** Bars sorted by category total, cumulative-percentage line overlaid, 80% reference line marking the Pareto threshold. Helps users see the typical "20% of categories cause 80% of spending" pattern at a glance.
+- **Brush slider on more charts.** Drag-to-zoom across the timeline. New shared ``BRUSH_DEFAULTS`` (height 32, traveller width 10, app-blue stroke) used by Net Worth Trend, Investment Analytics Growth Over Time, and Returns Analysis Monthly P&L combo. Default window is the most-recent third so the chart reads at full fidelity on first paint.
+- **Spending Patterns insight strip.** Below the Cohort Spending bar chart on Spending Analysis. Two pills: "Peak Day/Date/Month" (shows the bucket name + percent above average) and "Quietest". Removes the need to hover to find the takeaway.
+- **Day of Week chart on Year in Review goes radar.** Replaces the flat side-by-side bar chart. Spending and earning overlay each other on a 7-spoke polar grid so weekend-vs-weekday patterns pop visually. Two insight pills below: biggest spending day (with amount) and weekend-vs-weekday delta percent.
+- **Year in Review Monthly Breakdown gains a Net cash-flow line.** ``BarChart`` -> ``ComposedChart`` with a dashed blue line overlaying the Spending and Earning bars. Saving months show as peaks; overspending months as troughs. Subtitle clarifies what the chart shows.
+- **Auto-granularity on time-series category charts.** ``MultiCategoryTimeAnalysis`` and ``EnhancedSubcategoryAnalysis`` were always daily granularity, which is unreadable past ~3 months. Now auto-buckets day -> week -> month based on the actual data span (90-day, 2-year thresholds). New Auto/Daily/Weekly/Monthly selector lets users override. Header shows the active bucket. Shared helpers (``bucketDate``, ``formatBucketLabel``, ``pickGranularity``) live in ``lib/chartPeriodUtils.ts``.
+
+### Changed
+
+- **Comparison Spending Distribution butterfly chart polish.** Capacity 10 -> 15 categories. Inline value labels on both ends (left for periodA, right for periodB) so users see amounts without hovering. Winner-side opacity boost: the bigger-spend side of each row gets full opacity (0.95), the loser dims to 45% so the eye lands on the larger spender.
+- **Holdings Map (Returns Analysis) replaced with horizontal bar chart.** The 2D scatter (transactions vs current value) had weak insight; ranked horizontal bars make winners obvious. Top 12 with overflow footer; top-holding callout in the subtitle.
+- **Asset Allocation chart (Investment Analytics) migrated to ``StandardPieChart``.** Gains the same per-slice hover dimming and centre-value polish as the dashboard donuts. Centre shows total invested; header shows asset-class count.
+
+### Removed
+
+- **Monthly Net Worth Change waterfall chart on /net-worth.** Added clutter without unique insight -- the Net Worth Trend chart immediately above already shows month-over-month direction. The chart, the unused ``monthlyChanges`` memo, and ``MonthlyChangesChart.tsx`` are gone.
+
+### Refactored
+
+- **Two ``SummaryCard`` duplicates merged into ``shared/SummaryCard``.** ``bill-calendar/components/SummaryCard.tsx`` and ``subscription-tracker/components/SummaryCard.tsx`` were 95% identical. Single shared component now consumed by both pages.
+- **``CategorySparkline`` merged into ``Sparkline`` as a compact variant.** ``CategorySparkline.tsx`` was a thin wrapper that dropped axes and added compact dimensions. Now a ``compact`` prop on the canonical ``Sparkline`` component.
+
+### Tests
+
+- Frontend: 177 vitest tests pass throughout (no regressions).
+
+---
+
+## 2.12.0 - 2026-05-17
+
+Audit batch 2 (#159). Ten small UX/a11y/perf fixes consolidated into one PR.
+
+### Added
+
+- **Dashed reference lines for upcoming Net Worth milestones.** 1L, 5L, 10L, 25L, 50L, 1Cr etc. drawn below the Net Worth trend so users see "I'll cross 1Cr around month X" at a glance. Recharts auto-clips outside the y-axis range so all milestones can be rendered without filtering.
+- **Upload CTA on empty states.** Comparison page and Dashboard page empty states now have a clear "Upload Data" action (``EmptyState`` already supported ``actionLabel``/``actionHref``; two visible callsites just hadn't wired them).
+- **12-month trend sparkline per row in CategoryBreakdown.** Pure SVG, no chart-lib overhead. Each category row shows its 12-month trajectory inline.
+- **Drag-to-zoom Brush below Net Worth chart.** Pre-zoomed to the most-recent third of data on first render. ``StandardAreaChart`` gains an opt-in ``showBrush`` prop for future migrations.
+- **Holdings scatter on Returns Analysis.** Activity vs value plot. Pragmatic scope; rigorous CAGR scatter deferred. (Note: subsequently replaced by horizontal bar chart in 2.13.0 -- the scatter axis was confusing in practice.)
+- **``LazySection`` wrapper using IntersectionObserver.** Forward-looking helper for below-the-fold lazy mounting. Deferred consumers will land in future PRs.
+- **``ChartContainer`` ``ariaLabel`` prop.** Wraps in ``role='img'`` so screen readers get a single descriptive summary instead of walking every SVG path. Improves a11y for analytics pages dramatically.
+- **``StaleDataBadge`` component + first consumer in ``InstrumentProjections``.** Tiny amber pill that lights up when a hook lands on compiled-in fallback data (e.g. ``/api/rates/instruments`` is unreachable and the EPF rate comes from the bundled JSON). Users now know when they're seeing fallback values.
+
+### Changed
+
+- **Comparison page: stacked bars collapsed into overlaid bars.** Two-bars-per-metric -> one overlaid bar (faded ghost layer for period A, solid layer for B on top). Reads at a glance instead of forcing the eye to compare two adjacent rectangles.
+
+### Infrastructure
+
+- **GitHub Actions cron** pinging ``/health`` every 30 minutes to keep the Neon free-tier branch unarchived. Eliminates the 20s cold-start the first user of the day was hitting.
+
+---
+
+## 2.11.0 - 2026-05-16
+
+Cleanup + refactor sweep across the codebase. Twelve focused PRs landed in one day.
+
+### Fixed
+
+- **``excluded_accounts`` preference now applied consistently.** Three transaction-query code paths (analytics, calculations, ai_tools) were missing the ``excluded_accounts`` filter so a hidden account could leak into Sankey flows, monthly aggregates, and AI tool responses. Centralized via a shared ``apply_excluded_accounts`` helper on ``build_transaction_query``.
+
+### Added
+
+- **Net Worth projection: 1-stddev confidence band** (#149). Replaced the single dashed projection line (which gave a false impression of certainty) with a band that widens as ``sqrt(time)`` under a geometric Brownian motion model. New ``computeMonthlyGrowthStats`` returns ``{rate, logSigma}`` based on log-return variance over a configurable lookback. New ``projectNetWorthCompoundBand`` paints the band as a Recharts ``<Area>`` with ``[lower, upper]`` tuple values (Recharts paints range areas natively when given a tuple). Median dashed line still renders on top. 7 new unit tests for the math.
+
+### Changed
+
+- **Frontend file-size discipline: every file under 500 LOC** (#141). Big ones split into focused modules. No behaviour change; just easier code review and faster IDE navigation.
+- **``SEMANTIC_COLORS`` is canonical for income/expense/savings** (#146). All previously-hardcoded green/red/blue references in analytics components route through the design tokens.
+- **Status semantic palette wired as Tailwind tokens** (#147). ``bg-app-green``, ``text-app-red``, etc. resolved via the design tokens instead of arbitrary hex strings.
+- **Expense category colors centralized** (#145). ``EXPENSE_CATEGORY_COLORS`` is the single source; consumed by treemaps, donuts, and bar charts.
+- **KPI typography standardized** (#148). MetricCard, KpiCard, StatCard, and SummaryCard all use the same type-scale tokens for value, label, and subtitle.
+
+### Removed
+
+- **In-memory token blacklist** (#139). Was a no-op on Vercel multi-worker deploys (each worker has its own dict, so a "logged-out" token is still valid on every other worker). Logout now just relies on the frontend dropping the token. Real token revocation needs a shared store (Redis) and is a future-PR if SSO ever requires it.
+
+### Documentation
+
+- **README overhaul + version sync** (#142). README badges, examples, and architecture sections reorganized; versions synced to the prevailing 2.10.0 across CHANGELOG, package.json, and pyproject.toml.
+- **Post-2.10.0 cleanup pass** (#144). Doc drift fixes uncovered while reading the 2.10.0 audit notes.
+
+### Internal / tooling (no user impact)
+
+- ``indian-finance-expert`` skill converted to CSV-backed lookups (#143).
+- 8 project-level Claude skills + ``.claude`` config committed (#137).
+- Codebase-atlas skills + task-skills consolidation (#139, mixed with the token-blacklist removal).
+
+---
+
 ## 2.10.0 - 2026-05-13
 
 Hardcoded-values audit. Fixes silently-wrong defaults, reduces classifier brittleness, and centralizes policy constants that were scattered across the codebase. Two full rescan passes; every finding either fixed, deliberately skipped with reason, or tracked for a follow-up PR that needs a schema migration.

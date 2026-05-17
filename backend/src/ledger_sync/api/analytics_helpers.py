@@ -38,46 +38,69 @@ def _get_time_range_dates(
     user: User,
     time_range: TimeRange,
 ) -> tuple[datetime | None, datetime | None]:
-    """Calculate start/end dates from a TimeRange enum using the DB-level max date.
+    """Calculate start/end dates from a TimeRange enum, anchored on ``now()``.
 
-    Returns (start_date, end_date) or (None, None) for ALL_TIME.
+    "This month", "Last 3 months", etc. are computed relative to the current
+    UTC time, not the user's most recent transaction. This keeps labels
+    honest -- "This Month" always means the current calendar month, even if
+    the user hasn't uploaded data in a while (in which case the chart will
+    legitimately be empty for that range).
+
+    Sliding windows like "Last 3 months" use calendar-aligned month math
+    (subtract N calendar months, snap to the first of the resulting month)
+    rather than fixed 90-day windows, so partial-month overlaps don't show
+    up in monthly breakdowns.
+
+    Returns (start_date, end_date) or (None, None) for ALL_TIME and for the
+    case when the user has no transactions at all (the latter signals "fall
+    through to no filter" so callers don't crash on empty data).
     """
     if time_range == TimeRange.ALL_TIME:
         return None, None
 
-    latest = (
-        db.query(Transaction.date)
+    # We still bail out early when the user has no data so the empty-state
+    # paths upstream (which check ``if not transactions``) don't try to
+    # query a range against an empty table.
+    has_any = (
+        db.query(Transaction.transaction_id)
         .filter(Transaction.user_id == user.id, Transaction.is_deleted.is_(False))
-        .order_by(Transaction.date.desc())
         .first()
     )
-    if not latest:
+    if not has_any:
         return None, None
 
-    latest_date = latest[0]
-    end_date = None
+    now = datetime.now(UTC)
+    end_date: datetime | None = None
 
     if time_range == TimeRange.THIS_MONTH:
-        start_date = latest_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     elif time_range == TimeRange.LAST_MONTH:
-        first_of_month = latest_date.replace(day=1)
-        last_month_end = first_of_month - timedelta(days=1)
+        first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month_end = first_of_month - timedelta(microseconds=1)
         start_date = last_month_end.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         end_date = last_month_end
     elif time_range == TimeRange.LAST_3_MONTHS:
-        start_date = _subtract_months(latest_date, 3)
+        start_date = _subtract_months(
+            now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), 2
+        )
     elif time_range == TimeRange.LAST_6_MONTHS:
-        start_date = _subtract_months(latest_date, 6)
+        start_date = _subtract_months(
+            now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), 5
+        )
     elif time_range == TimeRange.LAST_12_MONTHS:
-        start_date = _subtract_months(latest_date, 12)
+        start_date = _subtract_months(
+            now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), 11
+        )
     elif time_range == TimeRange.THIS_YEAR:
-        start_date = latest_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     elif time_range == TimeRange.LAST_YEAR:
-        year = latest_date.year - 1
+        year = now.year - 1
         start_date = datetime(year, 1, 1, tzinfo=UTC)
         end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=UTC)
     elif time_range == TimeRange.LAST_DECADE:
-        start_date = _subtract_months(latest_date, 120)
+        start_date = _subtract_months(
+            now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), 119
+        )
     else:
         return None, None
 
