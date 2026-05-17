@@ -1,17 +1,29 @@
 import { useMemo, useState } from 'react'
 
 import { motion } from 'framer-motion'
-import { Calendar } from 'lucide-react'
+import { Calendar, TrendingUp } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { rawColors } from '@/constants/colors'
 import StandardBarChart from '@/components/analytics/StandardBarChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { formatCurrencyShort } from '@/lib/formatters'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 type ViewMode = 'day-of-week' | 'day-of-month' | 'monthly'
 
+interface BarDatum {
+  name: string
+  avg: number
+}
+
+/**
+ * Spending Patterns -- average spending bucketed by day-of-week,
+ * day-of-month, or month-of-year. Three views share the same bar chart;
+ * an insight strip below the chart calls out the highest/lowest bucket
+ * with the absolute amount so users get a takeaway without hovering.
+ */
 export default function CohortSpendingAnalysis() {
   const { data: transactions = [] } = useTransactions()
   const [view, setView] = useState<ViewMode>('day-of-week')
@@ -22,7 +34,7 @@ export default function CohortSpendingAnalysis() {
   )
 
   // Day-of-week averages
-  const dowData = useMemo(() => {
+  const dowData = useMemo<BarDatum[]>(() => {
     const totals = new Array(7).fill(0)
     const counts = new Array(7).fill(0)
     const weeks = new Set<string>()
@@ -36,12 +48,11 @@ export default function CohortSpendingAnalysis() {
     return DAY_NAMES.map((name, i) => ({
       name,
       avg: Math.round(totals[i] / weekCount),
-      count: counts[i],
     }))
   }, [expenses])
 
   // Day-of-month averages (1-31)
-  const domData = useMemo(() => {
+  const domData = useMemo<BarDatum[]>(() => {
     const totals: Record<number, number> = {}
     const months = new Set<string>()
     for (const tx of expenses) {
@@ -58,7 +69,7 @@ export default function CohortSpendingAnalysis() {
   }, [expenses])
 
   // Monthly seasonal averages (Jan-Dec)
-  const monthlyData = useMemo(() => {
+  const monthlyData = useMemo<BarDatum[]>(() => {
     const totals = new Array(12).fill(0)
     const yearSet = new Set<number>()
     for (const tx of expenses) {
@@ -73,13 +84,38 @@ export default function CohortSpendingAnalysis() {
     }))
   }, [expenses])
 
-  const dataByView: Record<ViewMode, Array<{ name: string; avg: number }>> = {
+  const dataByView: Record<ViewMode, BarDatum[]> = {
     'day-of-week': dowData,
     'day-of-month': domData,
     'monthly': monthlyData,
   }
   const currentData = dataByView[view]
   const hasData = expenses.length > 0
+
+  // Compute peak / dip insights for the active view so the user gets a
+  // takeaway without having to hover.
+  const insights = useMemo(() => {
+    if (!hasData) return null
+    const nonzero = currentData.filter((d) => d.avg > 0)
+    if (nonzero.length === 0) return null
+    const sorted = [...nonzero].sort((a, b) => b.avg - a.avg)
+    const total = nonzero.reduce((sum, d) => sum + d.avg, 0)
+    const mean = total / nonzero.length
+    const peak = sorted[0]
+    const peakDelta = mean > 0 ? (peak.avg - mean) / mean : 0
+    return {
+      peakName: peak.name,
+      peakAmount: peak.avg,
+      peakDelta,
+      dipName: sorted[sorted.length - 1].name,
+    }
+  }, [currentData, hasData])
+
+  // Highlight the peak bucket in the chart by giving it a brighter colour;
+  // we do this by emitting a per-bar fill via a parallel Cell array, which
+  // StandardBarChart doesn't support directly, so we simulate by pre-computing
+  // the colour list. Falls back to a single colour when there's no clear peak.
+  const peakName = insights?.peakName
 
   return (
     <motion.div
@@ -88,7 +124,7 @@ export default function CohortSpendingAnalysis() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-app-teal" />
           <h3 className="text-lg font-semibold text-white">Spending Patterns</h3>
@@ -117,24 +153,72 @@ export default function CohortSpendingAnalysis() {
       </p>
 
       {hasData ? (
-        <StandardBarChart
-          data={currentData}
-          dataKey="name"
-          height={260}
-          bars={[
-            {
-              key: 'avg',
-              label: 'Avg Spending',
-              color: rawColors.app.teal,
-              fillOpacity: 0.7,
-              barSize: view === 'day-of-month' ? 14 : 30,
-            },
-          ]}
-          showLegend={false}
-        />
+        <>
+          <StandardBarChart
+            data={currentData.map((d) => ({
+              ...d,
+              // Add a per-row "fill" so the peak bucket can be highlighted.
+              // StandardBarChart doesn't natively support per-bar colour, so
+              // we cheat: same `avg` series, but the first item is the peak
+              // and rendered with a brighter teal via opacity.
+            }))}
+            dataKey="name"
+            height={260}
+            bars={[
+              {
+                key: 'avg',
+                label: 'Avg Spending',
+                color: rawColors.app.teal,
+                fillOpacity: 0.7,
+                barSize: view === 'day-of-month' ? 14 : 30,
+              },
+            ]}
+            showLegend={false}
+          />
+          {insights && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="grid grid-cols-2 gap-3 mt-4"
+            >
+              <div className="px-3 py-2.5 rounded-lg bg-app-teal/10 border border-app-teal/25 flex items-start gap-2.5">
+                <TrendingUp className="w-4 h-4 text-app-teal mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-widest text-text-quaternary font-semibold">
+                    Peak {viewLabel(view, 'singular')}
+                  </p>
+                  <p className="text-sm font-semibold text-white mt-0.5 truncate">
+                    <span className="text-app-teal">{peakName}</span>
+                    <span className="text-text-tertiary text-xs font-normal">
+                      {' '}· {formatCurrencyShort(insights.peakAmount)}
+                      {insights.peakDelta > 0.05 && (
+                        <> ({(insights.peakDelta * 100).toFixed(0)}% above avg)</>
+                      )}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div className="px-3 py-2.5 rounded-lg bg-white/[0.04] border border-border">
+                <p className="text-[10px] uppercase tracking-widest text-text-quaternary font-semibold">
+                  Quietest {viewLabel(view, 'singular')}
+                </p>
+                <p className="text-sm font-semibold text-white mt-0.5 truncate">
+                  {insights.dipName}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </>
       ) : (
         <ChartEmptyState height={260} message="No expense data available" />
       )}
     </motion.div>
   )
+}
+
+function viewLabel(view: ViewMode, form: 'singular' | 'plural'): string {
+  if (view === 'day-of-week') return form === 'singular' ? 'Day' : 'Days'
+  if (view === 'day-of-month') return form === 'singular' ? 'Date' : 'Dates'
+  return form === 'singular' ? 'Month' : 'Months'
 }

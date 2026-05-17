@@ -73,3 +73,63 @@ export function calculateCumulativeData(
     return newEntry
   })
 }
+
+/** Bucketing granularity for chronological time-series charts. */
+export type Granularity = 'day' | 'week' | 'month'
+
+/**
+ * Pick a sensible granularity based on how much chronological data is in
+ * the chart. Daily granularity is too noisy past ~3 months and unreadable
+ * past ~1 year, so we step up to weekly/monthly automatically.
+ */
+export function pickGranularity(spanDays: number): Granularity {
+  if (spanDays <= 90) return 'day'
+  if (spanDays <= 730) return 'week'
+  return 'month'
+}
+
+/**
+ * Bucket an ISO date (``YYYY-MM-DD``) into the period key for a given
+ * granularity. Week granularity uses ISO weeks anchored to Monday so the
+ * keys sort lexicographically (``YYYY-Www``).
+ */
+export function bucketDate(isoDate: string, granularity: Granularity): string {
+  if (granularity === 'day') return isoDate.substring(0, 10)
+  if (granularity === 'month') return isoDate.substring(0, 7)
+
+  // ISO week
+  const d = new Date(isoDate)
+  const target = new Date(d.valueOf())
+  // ISO week starts on Monday; getDay() returns 0=Sun..6=Sat, shift to Mon=0
+  const dayNum = (d.getDay() + 6) % 7
+  target.setDate(target.getDate() - dayNum + 3)
+  const firstThursday = target.valueOf()
+  target.setMonth(0, 1)
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7)
+  }
+  const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000)
+  const year = new Date(firstThursday).getFullYear()
+  return `${year}-W${String(weekNum).padStart(2, '0')}`
+}
+
+/**
+ * Render a bucket key into a short, axis-friendly label.
+ */
+export function formatBucketLabel(periodKey: string, granularity: Granularity): string {
+  if (granularity === 'month') {
+    const [year, month] = periodKey.split('-')
+    return new Date(Number(year), Number(month) - 1).toLocaleDateString('en-US', {
+      month: 'short',
+      year: '2-digit',
+    })
+  }
+  if (granularity === 'week') {
+    // "2024-W12" -> "Wk 12 '24"
+    const [year, weekStr] = periodKey.split('-W')
+    return `Wk ${weekStr} '${year.slice(2)}`
+  }
+  // day -> "Mar 15"
+  const d = new Date(periodKey)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}

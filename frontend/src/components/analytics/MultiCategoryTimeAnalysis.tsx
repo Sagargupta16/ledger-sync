@@ -3,11 +3,17 @@ import { motion } from 'framer-motion'
 import { Download } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
-import { calculateCumulativeData } from '@/lib/chartPeriodUtils'
+import {
+  bucketDate,
+  calculateCumulativeData,
+  formatBucketLabel,
+  pickGranularity,
+  type Granularity,
+} from '@/lib/chartPeriodUtils'
 import TimeSeriesLineChart from '@/components/analytics/TimeSeriesLineChart'
 import { exportChartAsCsv } from '@/lib/exportCsv'
 
-const COLORS = CHART_COLORS_WARM.slice(0, 8) // Use first 8 colors
+const COLORS = CHART_COLORS_WARM.slice(0, 6)
 
 interface MultiCategoryTimeAnalysisProps {
   readonly dateRange?: { readonly start_date?: string; readonly end_date?: string }
@@ -15,12 +21,13 @@ interface MultiCategoryTimeAnalysisProps {
 
 export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTimeAnalysisProps) {
   const [cumulative, setCumulative] = useState(true)
+  const [granularityOverride, setGranularityOverride] = useState<Granularity | 'auto'>('auto')
 
   const { data: transactions } = useTransactions()
 
   // Process data for multi-category time analysis
-  const { chartData, totalTransactions } = useMemo(() => {
-    if (!transactions) return { chartData: [], totalTransactions: 0 }
+  const { chartData, totalTransactions, granularity } = useMemo(() => {
+    if (!transactions) return { chartData: [], totalTransactions: 0, granularity: 'day' as Granularity }
 
     const expenseTransactions = transactions.filter((t) => {
       if (t.type !== 'Expense') return false
@@ -32,14 +39,32 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
       return true
     })
 
+    if (expenseTransactions.length === 0) {
+      return { chartData: [], totalTransactions: 0, granularity: 'day' as Granularity }
+    }
+
+    // Auto-pick granularity based on the actual data span so daily noise
+    // doesn't drown the trend over multi-year ranges.
+    const sortedDates = expenseTransactions
+      .map((t) => t.date.substring(0, 10))
+      .sort((a, b) => a.localeCompare(b))
+    const spanDays = Math.max(
+      1,
+      Math.round(
+        (new Date(sortedDates[sortedDates.length - 1]).valueOf() -
+          new Date(sortedDates[0]).valueOf()) /
+          86400000,
+      ),
+    )
+    const gran =
+      granularityOverride === 'auto' ? pickGranularity(spanDays) : granularityOverride
+
     const groupedData: Record<string, Record<string, number>> = {}
 
     expenseTransactions.forEach((tx) => {
-      const period = tx.date.substring(0, 10) // YYYY-MM-DD (always daily)
-
+      const period = bucketDate(tx.date.substring(0, 10), gran)
       if (!groupedData[period]) groupedData[period] = {}
       if (!groupedData[period][tx.category]) groupedData[period][tx.category] = 0
-
       groupedData[period][tx.category] += Math.abs(tx.amount)
     })
 
@@ -56,25 +81,27 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
       .slice(0, 6)
       .map(([category]) => category)
 
-    // Sort all dates chronologically
     const allPeriods = Object.keys(groupedData).sort((a, b) => a.localeCompare(b))
 
     const data = allPeriods.map((period) => {
-      const entry: Record<string, number | string> = { period, displayPeriod: period }
+      const entry: Record<string, number | string> = {
+        period,
+        displayPeriod: formatBucketLabel(period, gran),
+      }
       topCategories.forEach((category) => {
         entry[category] = groupedData[period]?.[category] || 0
       })
       return entry
     })
 
-    // Calculate cumulative if needed
     const finalData = cumulative ? calculateCumulativeData(data, topCategories) : data
 
     return {
       chartData: finalData,
       totalTransactions: expenseTransactions.length,
+      granularity: gran,
     }
-  }, [transactions, dateRange, cumulative])
+  }, [transactions, dateRange, cumulative, granularityOverride])
 
   const topCategories = useMemo(() => {
     if (chartData.length === 0) return []
@@ -95,12 +122,31 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
     >
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h3 className="text-xl font-semibold text-white">Multi-Category Time Analysis</h3>
-            <p className="text-xs text-muted-foreground mt-1">{totalTransactions} expense transactions</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {totalTransactions} expense transactions
+              <span className="text-text-quaternary"> · </span>
+              <span className="text-text-tertiary">
+                bucketed {granularity === 'day' ? 'daily' : granularity === 'week' ? 'weekly' : 'monthly'}
+              </span>
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Granularity */}
+            <select
+              value={granularityOverride}
+              onChange={(e) => setGranularityOverride(e.target.value as Granularity | 'auto')}
+              className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
+              aria-label="Time granularity"
+            >
+              <option value="auto" className="bg-surface-dropdown text-foreground">Auto</option>
+              <option value="day" className="bg-surface-dropdown text-foreground">Daily</option>
+              <option value="week" className="bg-surface-dropdown text-foreground">Weekly</option>
+              <option value="month" className="bg-surface-dropdown text-foreground">Monthly</option>
+            </select>
+
             {/* Cumulative Toggle */}
             <select
               value={cumulative ? 'cumulative' : 'regular'}

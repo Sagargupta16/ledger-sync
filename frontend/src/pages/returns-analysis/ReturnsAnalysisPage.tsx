@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown, Banknote, Receipt, Activity } from 'lucide-re
 import {
   AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Line, ReferenceLine,
-  ScatterChart, Scatter, ZAxis,
+  BarChart, Bar, Cell,
 } from 'recharts'
 
 import { rawColors } from '@/constants/colors'
@@ -436,7 +436,7 @@ export default function ReturnsAnalysisPage() {
           </motion.div>
         )}
 
-        {/* ── Holdings Scatter ── */}
+        {/* ── Holdings Bar Chart ── */}
         {investmentAccounts.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -446,59 +446,76 @@ export default function ReturnsAnalysisPage() {
             <div className="flex items-center gap-3 mb-4">
               <Activity className="w-5 h-5 text-app-purple" />
               <div>
-                <h3 className="text-lg font-semibold text-white">Holdings Map</h3>
+                <h3 className="text-lg font-semibold text-white">Holdings by Value</h3>
                 <p className="text-xs text-text-tertiary">
-                  Activity vs. current value. Bigger dots = bigger positions; further right = more transactions logged.
+                  Investment accounts ranked by current balance.
+                  {investmentAccounts.length > 0 && (
+                    <> Top holding: <span className="text-white font-medium">{investmentAccounts[0].name}</span> ({formatCurrencyShort(investmentAccounts[0].balance)}).</>
+                  )}
                 </p>
               </div>
             </div>
-            <ChartContainer height={320}>
-              <ScatterChart margin={{ top: 16, right: 24, bottom: 24, left: 24 }}>
-                <CartesianGrid {...GRID_DEFAULTS} />
+            <ChartContainer height={Math.max(280, investmentAccounts.length * 36)}>
+              <BarChart
+                data={investmentAccounts.slice(0, 12).map((acc) => ({
+                  name: acc.name,
+                  value: acc.balance,
+                  transactions: acc.transactions,
+                }))}
+                layout="vertical"
+                margin={{ top: 8, right: 24, bottom: 8, left: 12 }}
+              >
+                <CartesianGrid {...GRID_DEFAULTS} horizontal={false} vertical={true} />
                 <XAxis
                   type="number"
-                  dataKey="x"
-                  name="Transactions"
                   {...xAxisDefaults(investmentAccounts.length)}
-                  tickFormatter={(v: number) => v.toFixed(0)}
-                  label={{ value: 'Transactions logged', position: 'insideBottom', offset: -10, fill: rawColors.text.tertiary, fontSize: 11 }}
+                  tickFormatter={(v: number) => formatCurrencyShort(v)}
                 />
                 <YAxis
-                  type="number"
-                  dataKey="y"
-                  name="Current value"
-                  {...yAxisDefaults()}
-                  tickFormatter={(v: number) => formatCurrencyShort(v)}
-                  label={{ value: 'Current value', angle: -90, position: 'insideLeft', offset: 10, fill: rawColors.text.tertiary, fontSize: 11 }}
+                  type="category"
+                  dataKey="name"
+                  width={140}
+                  tick={{ fill: rawColors.text.tertiary, fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
                 />
-                <ZAxis type="number" dataKey="z" range={[80, 800]} name="Value" />
                 <Tooltip
-                  cursor={{ strokeDasharray: '3 3' }}
+                  cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null
-                    const p = payload[0].payload as { name: string; x: number; y: number }
+                    const p = payload[0].payload as { name: string; value: number; transactions: number }
                     return (
                       <div style={CHART_TOOLTIP_STYLE}>
                         <p style={{ ...CHART_TOOLTIP_LABEL_STYLE, marginBottom: 6 }}>{p.name}</p>
-                        <div style={{ color: '#fafafa', fontSize: 12 }}>{formatCurrency(p.y)}</div>
-                        <div style={{ color: '#71717a', fontSize: 11, marginTop: 2 }}>{p.x} transaction{p.x === 1 ? '' : 's'}</div>
+                        <div style={{ color: '#fafafa', fontSize: 14, fontWeight: 600 }}>{formatCurrency(p.value)}</div>
+                        <div style={{ color: '#71717a', fontSize: 11, marginTop: 2 }}>{p.transactions} transaction{p.transactions === 1 ? '' : 's'}</div>
                       </div>
                     )
                   }}
                 />
-                <Scatter
-                  name="Holdings"
-                  data={investmentAccounts.map((acc) => ({
-                    name: acc.name,
-                    x: acc.transactions,
-                    y: acc.balance,
-                    z: acc.balance,
-                  }))}
+                <Bar
+                  dataKey="value"
                   fill={rawColors.app.purple}
-                  fillOpacity={0.7}
-                />
-              </ScatterChart>
+                  radius={[0, 4, 4, 0]}
+                  isAnimationActive={shouldAnimate(investmentAccounts.length)}
+                  animationDuration={600}
+                  animationEasing="ease-out"
+                >
+                  {investmentAccounts.slice(0, 12).map((acc, idx) => (
+                    <Cell
+                      key={acc.name}
+                      fill={rawColors.app.purple}
+                      fillOpacity={1 - idx * 0.05}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
             </ChartContainer>
+            {investmentAccounts.length > 12 && (
+              <p className="text-xs text-text-tertiary mt-3 text-center">
+                Showing top 12 of {investmentAccounts.length} accounts
+              </p>
+            )}
           </motion.div>
         )}
       </div>
