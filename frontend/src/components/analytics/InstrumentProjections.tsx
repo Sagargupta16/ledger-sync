@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Landmark, IndianRupee, PiggyBank, TrendingUp, Percent } from 'lucide-react'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
+import { StaleDataBadge } from '@/components/shared/StaleDataBadge'
 import StandardAreaChart from '@/components/analytics/StandardAreaChart'
 import MetricCard from '@/components/shared/MetricCard'
 import { projectPPF, projectEPF, projectNPS } from '@/lib/instrumentCalculators'
@@ -225,7 +226,7 @@ function findAccountBalance(data: AccountBalances | undefined, pattern: string):
 
 export default function InstrumentProjections() {
   const { data: accountBalances } = useAccountBalances()
-  const { data: rates } = useInstrumentRates()
+  const { data: rates, isFallback } = useInstrumentRates()
   const ppfBalance = useMemo(() => findAccountBalance(accountBalances, 'ppf'), [accountBalances])
   const epfBalance = useMemo(() => findAccountBalance(accountBalances, 'epf'), [accountBalances])
   const [tab, setTab] = useState<Instrument>('ppf')
@@ -241,6 +242,10 @@ export default function InstrumentProjections() {
         <div className="flex items-center gap-2">
           <Landmark className="w-5 h-5 text-app-blue" />
           <h3 className="text-lg font-semibold text-white">Instrument Maturity Projections</h3>
+          <StaleDataBadge
+            isFallback={isFallback}
+            reason="Couldn't fetch the latest instrument rates -- using compiled-in defaults until the next refresh."
+          />
         </div>
         <div className="flex gap-1 p-0.5 rounded-lg bg-muted/20">
           {TABS.map(({ key, label }) => (
