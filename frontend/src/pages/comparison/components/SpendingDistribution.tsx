@@ -7,6 +7,7 @@ import {
   YAxis,
   Cell,
   CartesianGrid,
+  LabelList,
 } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
@@ -31,13 +32,22 @@ export function SpendingDistribution({
   const aMap = Object.fromEntries(distributionA.map((d) => [d.name, d.value]))
   const bMap = Object.fromEntries(distributionB.map((d) => [d.name, d.value]))
   const butterflyData = Array.from(categorySet)
-    .map((name) => ({
-      name,
-      periodA: -(aMap[name] || 0), // negative = extends left
-      periodB: bMap[name] || 0,     // positive = extends right
-    }))
+    .map((name) => {
+      const a = aMap[name] || 0
+      const b = bMap[name] || 0
+      return {
+        name,
+        // Negative on the left bar so the chart extends in opposite directions.
+        periodA: -a,
+        periodB: b,
+        // Highlight the winner of each row by colour intensity. The loser
+        // gets a muted opacity so the eye lands on whichever side spent
+        // more in that category.
+        aWins: a >= b,
+      }
+    })
     .sort((a, b) => Math.max(Math.abs(b.periodA), b.periodB) - Math.max(Math.abs(a.periodA), a.periodB))
-    .slice(0, 10) // top 10 categories
+    .slice(0, 15) // top 15 categories
   const maxVal = Math.max(
     ...butterflyData.map((d) => Math.abs(d.periodA)),
     ...butterflyData.map((d) => d.periodB),
@@ -52,7 +62,9 @@ export function SpendingDistribution({
       className="glass rounded-2xl border border-border p-4 md:p-6"
     >
       <h2 className="text-lg font-semibold mb-1">Spending Distribution</h2>
-      <p className="text-xs text-text-tertiary mb-2">Category-by-category comparison — bars extend left and right from center</p>
+      <p className="text-xs text-text-tertiary mb-2">
+        Category-by-category comparison &mdash; longer side = higher spend that period
+      </p>
       <div className="flex items-center justify-center gap-6 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: rawColors.app.blue }} />
@@ -63,9 +75,9 @@ export function SpendingDistribution({
           <span className="text-xs text-muted-foreground">{periodB.label} (right)</span>
         </div>
       </div>
-      <div style={{ height: Math.max(300, butterflyData.length * 36) }}>
+      <div style={{ height: Math.max(300, butterflyData.length * 32) }}>
         <ChartContainer>
-          <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ top: 8, right: 12, bottom: 8, left: 10 }}>
+          <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ top: 8, right: 50, bottom: 8, left: 50 }}>
             <CartesianGrid {...GRID_DEFAULTS} horizontal={false} vertical={true} />
             <XAxis
               type="number"
@@ -78,7 +90,7 @@ export function SpendingDistribution({
             <YAxis
               type="category"
               dataKey="name"
-              width={100}
+              width={110}
               tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
               tickLine={false}
               axisLine={{ stroke: 'rgba(255, 255, 255, 0.06)' }}
@@ -88,15 +100,59 @@ export function SpendingDistribution({
               formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(Math.abs(value))}
               labelFormatter={(label) => label}
             />
-            <Bar dataKey="periodA" name={periodA.label} stackId="stack" radius={[4, 0, 0, 4]} isAnimationActive={shouldAnimate(butterflyData.length)} animationDuration={600} animationEasing="ease-out">
+            <Bar
+              dataKey="periodA"
+              name={periodA.label}
+              stackId="stack"
+              radius={[4, 0, 0, 4]}
+              isAnimationActive={shouldAnimate(butterflyData.length)}
+              animationDuration={600}
+              animationEasing="ease-out"
+            >
               {butterflyData.map((entry) => (
-                <Cell key={`a-${entry.name}`} fill={rawColors.app.blue} />
+                <Cell
+                  key={`a-${entry.name}`}
+                  fill={rawColors.app.blue}
+                  fillOpacity={entry.aWins ? 0.95 : 0.45}
+                />
               ))}
+              <LabelList
+                dataKey="periodA"
+                position="left"
+                fill="#a1a1aa"
+                fontSize={10}
+                formatter={(v: unknown) => {
+                  const n = Math.abs(v as number)
+                  return n === 0 ? '' : formatCurrencyShort(n)
+                }}
+              />
             </Bar>
-            <Bar dataKey="periodB" name={periodB.label} stackId="stack" radius={[0, 4, 4, 0]} isAnimationActive={shouldAnimate(butterflyData.length)} animationDuration={600} animationEasing="ease-out">
+            <Bar
+              dataKey="periodB"
+              name={periodB.label}
+              stackId="stack"
+              radius={[0, 4, 4, 0]}
+              isAnimationActive={shouldAnimate(butterflyData.length)}
+              animationDuration={600}
+              animationEasing="ease-out"
+            >
               {butterflyData.map((entry) => (
-                <Cell key={`b-${entry.name}`} fill={rawColors.app.indigo} />
+                <Cell
+                  key={`b-${entry.name}`}
+                  fill={rawColors.app.indigo}
+                  fillOpacity={!entry.aWins ? 0.95 : 0.45}
+                />
               ))}
+              <LabelList
+                dataKey="periodB"
+                position="right"
+                fill="#a1a1aa"
+                fontSize={10}
+                formatter={(v: unknown) => {
+                  const n = v as number
+                  return n === 0 ? '' : formatCurrencyShort(n)
+                }}
+              />
             </Bar>
           </BarChart>
         </ChartContainer>

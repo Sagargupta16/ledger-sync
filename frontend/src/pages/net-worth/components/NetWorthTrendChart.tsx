@@ -5,6 +5,7 @@ import { Area, AreaChart, Brush, CartesianGrid, Legend, ReferenceLine, Tooltip, 
 import EmptyState from '@/components/shared/EmptyState'
 import {
   ACTIVE_DOT,
+  BRUSH_DEFAULTS,
   ChartContainer,
   GRID_DEFAULTS,
   LEGEND_DEFAULTS,
@@ -279,11 +280,8 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                   narrow the view without touching the global time filter. */}
               {chartData.length > 6 && (
                 <Brush
+                  {...BRUSH_DEFAULTS}
                   dataKey="date"
-                  height={26}
-                  travellerWidth={8}
-                  stroke={rawColors.app.blue}
-                  fill="rgba(255,255,255,0.04)"
                   tickFormatter={(value: string) =>
                     new Date(value).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
                   }

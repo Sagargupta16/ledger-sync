@@ -99,11 +99,19 @@ export function useYearInReview() {
 
   const monthlyBarData = useMemo(
     () =>
-      MONTHS_SHORT.map((m, i) => ({
-        name: m,
-        Spending: stats.monthlyExpense[i],
-        Earning: stats.monthlyIncome[i],
-      })),
+      MONTHS_SHORT.map((m, i) => {
+        const spending = stats.monthlyExpense[i]
+        const earning = stats.monthlyIncome[i]
+        return {
+          name: m,
+          Spending: spending,
+          Earning: earning,
+          // Net cash flow per month (positive = saved, negative = overspent).
+          // Used to drive the overlay line on the Monthly Breakdown chart so
+          // savings months stand out without the user doing the math.
+          Net: earning - spending,
+        }
+      }),
     [stats],
   )
 

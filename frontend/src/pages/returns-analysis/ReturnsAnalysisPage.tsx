@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown, Banknote, Receipt, Activity } from 'lucide-re
 import {
   AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Line, ReferenceLine,
-  BarChart, Bar, Cell,
+  BarChart, Bar, Cell, Brush,
 } from 'recharts'
 
 import { rawColors } from '@/constants/colors'
@@ -15,6 +15,7 @@ import { useAccountBalances, useMonthlyAggregation } from '@/hooks/api/useAnalyt
 import { useTransactions } from '@/hooks/api/useTransactions'
 import {
   PageHeader, ChartContainer,
+  BRUSH_DEFAULTS,
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl,
   shouldAnimate, ACTIVE_DOT, chartTooltipProps,
 } from '@/components/ui'
@@ -311,6 +312,18 @@ export default function ReturnsAnalysisPage() {
                   isAnimationActive={shouldAnimate(monthlyComboData.length)}
                   animationDuration={600}
                 />
+                {/* Drag-to-zoom across the timeline; default window is the
+                    most-recent third so the chart reads at full fidelity. */}
+                {monthlyComboData.length > 6 && (
+                  <Brush
+                    {...BRUSH_DEFAULTS}
+                    dataKey="month"
+                    startIndex={Math.max(
+                      0,
+                      monthlyComboData.length - Math.ceil(monthlyComboData.length / 3),
+                    )}
+                  />
+                )}
               </AreaChart>
             </ChartContainer>
           )}
