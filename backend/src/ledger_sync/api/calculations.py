@@ -401,7 +401,35 @@ def get_daily_net_worth(
     start_date: OptionalStartDate = None,
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
-    """Calculate daily income and expense data for net worth trends."""
+    """Calculate daily income and expense data for net worth trends.
+
+    The cumulative ``net_worth`` series is seeded with the user's
+    pre-window opening balance (``SUM(income) - SUM(expense)`` for
+    transactions strictly before ``start_date``) so a date-filtered
+    chart doesn't reset to zero on day one of the window. With no
+    ``start_date`` the opening balance is zero and the series starts
+    from the first transaction as before.
+
+    Transfers are deliberately excluded from the cashflow model here so
+    movements between user-owned accounts (e.g. SIPs, EMI prepayments)
+    don't double-count or vanish.
+    """
+    # Opening balance = cashflow before the window start. Computed only
+    # when a start_date is supplied; otherwise it's zero and the series
+    # behaves identically to the pre-fix implementation.
+    opening_balance = 0.0
+    if start_date is not None:
+        opening_base = (
+            build_transaction_query(db, current_user, start_date=None, end_date=None)
+            .filter(Transaction.date < start_date)
+            .subquery()
+        )
+        opening_row = db.query(
+            income_sum_col(opening_base, label="income"),
+            expense_sum_col(opening_base, label="expense"),
+        ).one()
+        opening_balance = float(opening_row.income) - float(opening_row.expense)
+
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
     date_col = fmt_date(base.c.date).label("date_key")
 
@@ -417,7 +445,7 @@ def get_daily_net_worth(
     )
 
     daily_data: dict[str, dict[str, float]] = {}
-    cumulative_net_worth = 0.0
+    cumulative_net_worth = opening_balance
     cumulative_data = []
 
     for row in rows:
@@ -441,6 +469,9 @@ def get_daily_net_worth(
     return {
         "daily_data": daily_data,
         "cumulative_data": cumulative_data,
+        # Surfaced so frontends can render a "starting balance" annotation
+        # or use it to align the chart's y-axis.
+        "opening_balance": opening_balance,
     }
 
 
