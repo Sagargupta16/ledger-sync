@@ -9,7 +9,6 @@ import { formatCurrency } from '@/lib/formatters'
 
 import MilestonesTable from './components/MilestonesTable'
 import { AccountCategoryTable } from './components/AccountCategoryTable'
-import { MonthlyChangesChart } from './components/MonthlyChangesChart'
 import { NetWorthTrendChart } from './components/NetWorthTrendChart'
 import { useNetWorth } from './useNetWorth'
 
@@ -63,8 +62,9 @@ export default function NetWorthPage() {
           milestoneRows={m.milestoneRows}
         />
 
-        {m.monthlyChanges.length > 0 && <MonthlyChangesChart monthlyChanges={m.monthlyChanges} />}
-
+        {/* (Monthly Net Worth Change waterfall chart removed -- the Net
+            Worth Trend already shows month-over-month direction; the
+            waterfall added clutter without unique insight.) */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}

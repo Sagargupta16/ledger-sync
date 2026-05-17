@@ -120,38 +120,6 @@ export function useNetWorth() {
     })
   }, [netWorthData, dateRange])
 
-  const monthlyChanges = useMemo(() => {
-    if (!filteredNetWorthData || filteredNetWorthData.length < 2) return []
-
-    const monthlyValues: Record<string, number> = {}
-    for (const point of filteredNetWorthData) {
-      const month = (point.date as string).substring(0, 7)
-      monthlyValues[month] = point.netWorth as number
-    }
-
-    const months = Object.keys(monthlyValues).sort((a, b) => a.localeCompare(b))
-    if (months.length < 2) return []
-
-    let runningTotal = monthlyValues[months[0]]
-    return months.slice(1).map((month, i) => {
-      const prevMonth = months[i]
-      const change = monthlyValues[month] - monthlyValues[prevMonth]
-      const base = change >= 0 ? runningTotal : runningTotal + change
-      runningTotal += change
-      return {
-        month: new Date(month + '-01').toLocaleDateString('en-US', {
-          month: 'short',
-          year: '2-digit',
-        }),
-        change,
-        base,
-        increase: Math.max(change, 0),
-        decrease: Math.max(-change, 0),
-        endValue: runningTotal,
-      }
-    })
-  }, [filteredNetWorthData])
-
   const chartSeries: NetWorthPoint[] = useMemo(
     () =>
       filteredNetWorthData.map((p) => ({
@@ -252,7 +220,6 @@ export function useNetWorth() {
     allCategories,
     chartData,
     filteredNetWorthData,
-    monthlyChanges,
     showStacked,
     setShowStacked,
     showProjection,
