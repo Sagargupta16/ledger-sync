@@ -10,17 +10,141 @@ interface SparklineProps {
   color?: string
   height?: number
   showTooltip?: boolean
+  /**
+   * Compact variant: no animation, no hover, soft area fill, dot on the
+   * latest point. Used for inline trend indicators in dense lists like
+   * the category breakdown rows. Default variant retains the rich,
+   * animated, hoverable form for cards/dashboards.
+   */
+  variant?: 'default' | 'compact'
+  /** Width override -- only respected by the compact variant. */
+  width?: number
+  /** Optional aria-label. Compact callsites should always provide one. */
+  ariaLabel?: string
+}
+
+const COMPACT_VIEWBOX_W = 100
+const COMPACT_VIEWBOX_H = 30
+
+/**
+ * Compact-variant sparkline: pure SVG, no chart-lib overhead, no
+ * animation/hover. Mirrors the inline-list use case (category breakdown
+ * rows, table cells). Falls back to the rich animated form when
+ * variant is omitted or 'default'.
+ */
+function CompactSparkline({
+  data,
+  color,
+  width,
+  height,
+  ariaLabel,
+}: Readonly<{
+  data: number[]
+  color: string
+  width: number
+  height: number
+  ariaLabel?: string
+}>) {
+  if (data.length < 2) return null
+
+  const max = Math.max(...data)
+  const min = Math.min(...data)
+  // Flat series: avoid divide-by-zero, render a horizontal mid-line.
+  const span = max - min === 0 ? 1 : max - min
+  const stepX = COMPACT_VIEWBOX_W / (data.length - 1)
+
+  const points = data.map((v, i) => {
+    const x = i * stepX
+    // Y inverted (SVG top-left origin); 2 px top + bottom padding.
+    const y =
+      COMPACT_VIEWBOX_H - 2 - ((v - min) / span) * (COMPACT_VIEWBOX_H - 4)
+    return { x, y }
+  })
+
+  const linePath = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+    .join(' ')
+  const areaPath = `${linePath} L ${COMPACT_VIEWBOX_W} ${COMPACT_VIEWBOX_H} L 0 ${COMPACT_VIEWBOX_H} Z`
+
+  const last = points[points.length - 1]
+
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${COMPACT_VIEWBOX_W} ${COMPACT_VIEWBOX_H}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={ariaLabel ?? 'Trend'}
+      className="shrink-0 overflow-visible"
+    >
+      <path d={areaPath} fill={color} fillOpacity={0.15} />
+      <path
+        d={linePath}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx={last.x} cy={last.y} r={1.6} fill={color} />
+    </svg>
+  )
 }
 
 /**
  * Sparkline with animated SVG path, hover tooltip, and end-dot indicator.
+ *
+ * Pass ``variant="compact"`` for inline-list use cases (category rows,
+ * table cells) -- a stripped-down static form with no animation/hover.
  */
 export default function Sparkline({
   data,
   color = rawColors.app.purple,
   height = 48,
   showTooltip = true,
+  variant = 'default',
+  width: compactWidth = 80,
+  ariaLabel,
 }: Readonly<SparklineProps>) {
+  if (variant === 'compact') {
+    return (
+      <CompactSparkline
+        data={data}
+        color={color}
+        width={compactWidth}
+        height={height === 48 ? 24 : height}
+        ariaLabel={ariaLabel}
+      />
+    )
+  }
+  return (
+    <DefaultSparkline
+      data={data}
+      color={color}
+      height={height}
+      showTooltip={showTooltip}
+    />
+  )
+}
+
+/**
+ * Default rich sparkline -- animated path, hover tooltip, gradient fill,
+ * average reference line, glow on the active dot. Used in cards and
+ * dashboards. Hooks live in this dedicated component so the exported
+ * dispatcher above doesn't violate rules-of-hooks.
+ */
+function DefaultSparkline({
+  data,
+  color,
+  height,
+  showTooltip,
+}: Readonly<{
+  data: number[]
+  color: string
+  height: number
+  showTooltip: boolean
+}>) {
   const width = 200
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 

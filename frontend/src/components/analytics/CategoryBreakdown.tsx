@@ -6,7 +6,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
-import { CategorySparkline } from './CategorySparkline'
+import Sparkline from '@/components/shared/Sparkline'
 
 interface CategoryData {
   name: string
@@ -262,8 +262,9 @@ export default function CategoryBreakdown({
                     />
                   </div>
                   {cat.monthlyHistory.length >= 2 && (
-                    <CategorySparkline
-                      values={cat.monthlyHistory}
+                    <Sparkline
+                      variant="compact"
+                      data={cat.monthlyHistory}
                       color={cat.color}
                       ariaLabel={`${cat.name} 12-month trend`}
                     />
