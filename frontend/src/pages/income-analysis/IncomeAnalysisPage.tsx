@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
@@ -18,6 +18,7 @@ import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefa
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { getDateKey } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
+import { FilterBanner } from '@/components/shared/FilterBanner'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import CategoryBreakdown from '@/components/analytics/CategoryBreakdown'
 import {
@@ -40,6 +41,13 @@ const INCOME_CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: st
 export default function IncomeAnalysisPage() {
   const dims = useChartDimensions()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const categoryFilter = searchParams.get('category')
+  const clearCategoryFilter = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('category')
+    setSearchParams(next, { replace: true })
+  }
   const { data: preferences } = usePreferences()
 
   const { data: transactions } = useTransactions()
@@ -163,6 +171,8 @@ export default function IncomeAnalysisPage() {
             <AnalyticsTimeFilter {...timeFilterProps} />
           }
         />
+
+        <FilterBanner value={categoryFilter} label="Source" onClear={clearCategoryFilter} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard title="Total Income" value={formatCurrency(totalIncome)} icon={DollarSign} color="green" isLoading={isLoading} />

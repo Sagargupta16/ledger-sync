@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useSearchParams } from 'react-router-dom'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank, Activity } from 'lucide-react' // Activity used for Monthly Avg card
 import MetricCard from '@/components/shared/MetricCard'
@@ -12,6 +13,7 @@ import { calculateSpendingBreakdown, SPENDING_TYPE_COLORS } from '@/lib/preferen
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { filterTransactionsByDateRange, computeCategoryBreakdown } from '@/lib/transactionUtils'
 import EmptyState from '@/components/shared/EmptyState'
+import { FilterBanner } from '@/components/shared/FilterBanner'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import {
@@ -136,6 +138,13 @@ function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, i
 
 export default function SpendingAnalysisPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const categoryFilter = searchParams.get('category')
+  const clearCategoryFilter = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('category')
+    setSearchParams(next, { replace: true })
+  }
   const { data: transactions } = useTransactions()
   const { data: preferences } = usePreferences()
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(transactions)
@@ -234,6 +243,8 @@ export default function SpendingAnalysisPage() {
             <AnalyticsTimeFilter {...timeFilterProps} />
           }
         />
+
+        <FilterBanner value={categoryFilter} label="Category" onClear={clearCategoryFilter} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard title="Total Spending" value={formatCurrency(totalSpending)} icon={TrendingDown} color="red" isLoading={isLoading} />

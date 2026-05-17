@@ -114,7 +114,9 @@ export default function DashboardPage() {
                 showLegend={false}
                 centerValue={formatCurrencyShort(incomeTotal)}
                 centerLabel="Total"
-                onSliceClick={() => navigate(ROUTES.INCOME_ANALYSIS)}
+                onSliceClick={(name) =>
+                  navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                }
               />
               <div className="space-y-2">
                 {incomeChartData.map((item, i) => (
@@ -161,7 +163,9 @@ export default function DashboardPage() {
                 showLegend={false}
                 centerValue={formatCurrencyShort(expenseTotal)}
                 centerLabel="Total"
-                onSliceClick={() => navigate(ROUTES.SPENDING_ANALYSIS)}
+                onSliceClick={(name) =>
+                  navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                }
               />
               <div className="space-y-2">
                 {expenseChartData.map((item, i) => (
