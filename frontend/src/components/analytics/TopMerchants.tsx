@@ -20,12 +20,14 @@ interface MerchantData {
 
 interface TopMerchantsProps {
   readonly dateRange?: { start_date?: string; end_date?: string }
+  /** When set, only merchants whose transactions are in this category are shown. */
+  readonly categoryFilter?: string | null
 }
 
 const COLORS = CHART_COLORS
 const COLOR_STYLES = COLORS.map(c => ({ backgroundColor: c }))
 
-export default function TopMerchants({ dateRange }: TopMerchantsProps) {
+export default function TopMerchants({ dateRange, categoryFilter }: TopMerchantsProps) {
   const { data: transactions = [], isLoading } = useTransactions()
   const [viewMode, setViewMode] = useState<'amount' | 'frequency'>('amount')
 
@@ -35,6 +37,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
     transactions
       .filter((tx) => {
         if (tx.type !== 'Expense' || !tx.note) return false
+        if (categoryFilter && tx.category !== categoryFilter) return false
         if (dateRange?.start_date) {
           const txDate = tx.date.substring(0, 10)
           if (txDate < dateRange.start_date) return false
@@ -98,7 +101,7 @@ export default function TopMerchants({ dateRange }: TopMerchantsProps) {
       })
 
     return sorted.slice(0, 10)
-  }, [transactions, viewMode, dateRange])
+  }, [transactions, viewMode, dateRange, categoryFilter])
 
   const totalSpentAtTopMerchants = merchantData.reduce((sum, m) => sum + m.totalSpent, 0)
 

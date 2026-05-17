@@ -428,7 +428,7 @@ export default function SpendingAnalysisPage() {
 
         {/* Top Merchants */}
         <motion.div {...SCROLL_FADE_UP}>
-          <TopMerchants dateRange={dateRangeCompat} />
+          <TopMerchants dateRange={dateRangeCompat} categoryFilter={categoryFilter} />
         </motion.div>
 
         {/* Multi-Category Time Analysis */}
