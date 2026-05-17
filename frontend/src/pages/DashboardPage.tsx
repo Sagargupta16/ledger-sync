@@ -5,6 +5,7 @@ import { Wallet, CreditCard } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 
+import { ROUTES } from '@/constants'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import QuickInsights from '@/components/shared/QuickInsights'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -113,7 +114,7 @@ export default function DashboardPage() {
                 showLegend={false}
                 centerValue={formatCurrencyShort(incomeTotal)}
                 centerLabel="Total"
-                onSliceClick={() => navigate('/income-analysis')}
+                onSliceClick={() => navigate(ROUTES.INCOME_ANALYSIS)}
               />
               <div className="space-y-2">
                 {incomeChartData.map((item, i) => (
@@ -160,7 +161,7 @@ export default function DashboardPage() {
                 showLegend={false}
                 centerValue={formatCurrencyShort(expenseTotal)}
                 centerLabel="Total"
-                onSliceClick={() => navigate('/spending-analysis')}
+                onSliceClick={() => navigate(ROUTES.SPENDING_ANALYSIS)}
               />
               <div className="space-y-2">
                 {expenseChartData.map((item, i) => (
