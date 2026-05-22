@@ -1,20 +1,13 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  node:
+  build:
     uses: Sagargupta16/shared-workflows/.github/workflows/node-ci.yml@main
-    with:
-      working-directory: frontend
-
   security:
     uses: Sagargupta16/shared-workflows/.github/workflows/security-scan.yml@main
+    permissions:
+      contents: read
+      security-events: write
