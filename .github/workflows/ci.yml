@@ -11,84 +11,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+  node:
+    uses: Sagargupta16/shared-workflows/.github/workflows/node-ci.yml@main
+    with:
+      working-directory: frontend
 
-      # ── Setup Python + uv ──────────────────────────────────────────
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
-        with:
-          python-version: '3.12'
-      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8
-        with:
-          enable-cache: true
-          cache-dependency-glob: backend/uv.lock
-
-      # ── Setup Node + pnpm ──────────────────────────────────────────
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
-        with:
-          version: 10
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      # ── Install all dependencies ────────────────────────────────────
-      - name: Install backend dependencies
-        working-directory: backend
-        run: uv sync --group dev
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-
-      - name: Install root dependencies
-        run: pnpm install
-
-      # ── Dependency audit ────────────────────────────────────────────
-      - name: Backend dependency audit
-        working-directory: backend
-        # CVE-2026-3219 is against pip itself and has no fix version yet; pip
-        # isn't part of our runtime either (uv manages deps). Ignore until a
-        # fixed pip is released, then drop the flag.
-        run: uv run pip-audit --ignore-vuln CVE-2026-3219
-
-      - name: Frontend dependency audit
-        working-directory: frontend
-        run: pnpm audit --prod
-
-      # ── Lint ────────────────────────────────────────────────────────
-      - name: Backend lint
-        working-directory: backend
-        run: uv run ruff check .
-
-      - name: Frontend lint
-        working-directory: frontend
-        run: pnpm run lint
-
-      # ── Type check ─────────────────────────────────────────────────
-      - name: Backend type check
-        working-directory: backend
-        run: uv run mypy src/
-
-      - name: Frontend type check
-        working-directory: frontend
-        run: pnpm run type-check
-
-      # ── Test ────────────────────────────────────────────────────────
-      - name: Backend tests
-        working-directory: backend
-        run: uv run pytest tests/ -v
-
-      - name: Frontend tests
-        working-directory: frontend
-        run: pnpm test
-
-      # ── Build frontend ─────────────────────────────────────────────
-      - name: Build frontend
-        working-directory: frontend
-        env:
-          VITE_API_BASE_URL: https://placeholder.example.com
-        run: pnpm run build
+  security:
+    uses: Sagargupta16/shared-workflows/.github/workflows/security-scan.yml@main

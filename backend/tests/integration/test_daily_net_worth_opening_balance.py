@@ -1,3 +1,4 @@
+import pytest
 """Integration tests for /api/calculations/daily-net-worth opening balance.
 
 When the caller supplies a ``start_date``, the cumulative ``net_worth``
@@ -118,9 +119,9 @@ def test_no_start_date_opens_at_zero(
     resp = client.get("/api/calculations/daily-net-worth")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["opening_balance"] == 0.0
+    assert body["opening_balance"] == pytest.approx(0.0)
     # First cumulative point is just the 1000 income, no opening offset.
-    assert body["cumulative_data"][0]["net_worth"] == 1000.0
+    assert body["cumulative_data"][0]["net_worth"] == pytest.approx(1000.0)
 
 
 def test_start_date_seeds_opening_balance(
