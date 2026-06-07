@@ -28,6 +28,7 @@ import TaxTip from './components/TaxTip'
 import RegimeComparison from './components/RegimeComparison'
 import MultiYearProjectionTable from './components/MultiYearProjectionTable'
 import AdvanceTaxSchedule from './components/AdvanceTaxSchedule'
+import TdsScheduleChart from './components/TdsScheduleChart'
 
 export default function TaxPlanningPage() {
   const {
@@ -46,6 +47,7 @@ export default function TaxPlanningPage() {
     useSalaryProjection,
     transactionsByFY,
     multiYearProjections,
+    tdsSchedule,
     netTaxableIncome,
     salaryMonthsCount,
     expense,
@@ -151,6 +153,12 @@ export default function TaxPlanningPage() {
                   isCurrentFY={isCurrentFY}
                 />
               </motion.div>
+
+              {tdsSchedule.length > 0 && (
+                <motion.div variants={fadeUpItem}>
+                  <TdsScheduleChart schedule={tdsSchedule} />
+                </motion.div>
+              )}
 
               <EffectiveTaxRateChart
                 taxSlabs={taxSlabs}

@@ -7,6 +7,8 @@ import {
   getFYFromDate,
 } from '@/lib/taxCalculator'
 import { projectFiscalYear, projectMultipleYears } from '@/lib/projectionCalculator'
+import { buildTdsSchedule, rsuExtrasByFyMonth, type TdsMonthRow } from '@/lib/tdsScheduleCalculator'
+import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
 import type { ProjectedFYBreakdown } from '@/types/salary'
 import {
   usePreferencesStore,
@@ -152,6 +154,31 @@ export function useTaxPlanning() {
     )
   }, [salaryProjection, taxSlabs, standardDeduction, isNewRegime, fyYear])
 
+  // Forward TDS schedule -- flat baseline on regular salary, with a one-month
+  // spike whenever an RSU vesting lands. Only meaningful when we have a salary
+  // projection to drive the regular monthly figure.
+  const tdsSchedule = useMemo<TdsMonthRow[]>(() => {
+    if (!salaryProjection) return []
+    const regularAnnual = Math.max(0, salaryProjection.grossTaxable - salaryProjection.rsuIncome)
+    return buildTdsSchedule({
+      regularMonthlyIncome: regularAnnual / MONTHS_PER_YEAR,
+      extraByMonth: rsuExtrasByFyMonth(rsuGrants, fyYear, fiscalYearStartMonth),
+      fyStartMonth: fiscalYearStartMonth,
+      slabs: taxSlabs,
+      standardDeduction,
+      isNewRegime,
+      fyStartYear: fyYear,
+    })
+  }, [
+    salaryProjection,
+    rsuGrants,
+    fyYear,
+    fiscalYearStartMonth,
+    taxSlabs,
+    standardDeduction,
+    isNewRegime,
+  ])
+
   const multiYearProjections = useMemo<ProjectedFYBreakdown[]>(() => {
     if (!hasSalaryData) return []
     return projectMultipleYears(salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth)
@@ -256,6 +283,7 @@ export function useTaxPlanning() {
     useSalaryProjection,
     transactionsByFY,
     multiYearProjections,
+    tdsSchedule,
     netTaxableIncome,
     salaryMonthsCount,
     expense,
