@@ -11,6 +11,9 @@ export const MS_PER_DAY = 24 * 60 * 60 * 1000
  */
 export const MS_PER_YEAR = 365.25 * MS_PER_DAY
 
+/** Months in a year. Use when annualizing a monthly figure or vice versa. */
+export const MONTHS_PER_YEAR = 12
+
 export type ViewMode = 'monthly' | 'yearly' | 'all_time'
 
 export const getCurrentYear = (): number => new Date().getFullYear()
@@ -108,13 +111,21 @@ export interface AnalyticsDateRange {
   end_date: string | null
 }
 
-export const getAnalyticsDateRange = (
-  viewMode: AnalyticsViewMode,
-  currentYear: number,
-  currentMonth: string,
-  currentFY: string,
-  fiscalYearStartMonth: number = 4
-): AnalyticsDateRange => {
+export interface AnalyticsDateRangeParams {
+  viewMode: AnalyticsViewMode
+  currentYear: number
+  currentMonth: string
+  currentFY: string
+  fiscalYearStartMonth?: number
+}
+
+export const getAnalyticsDateRange = ({
+  viewMode,
+  currentYear,
+  currentMonth,
+  currentFY,
+  fiscalYearStartMonth = 4,
+}: AnalyticsDateRangeParams): AnalyticsDateRange => {
   switch (viewMode) {
     case 'all_time':
       return { start_date: null, end_date: null }

@@ -6,7 +6,13 @@ import { formatCurrency } from '@/lib/formatters'
 import { StaleDataBadge } from '@/components/shared/StaleDataBadge'
 import StandardAreaChart from '@/components/analytics/StandardAreaChart'
 import MetricCard from '@/components/shared/MetricCard'
-import { projectPPF, projectEPF, projectNPS } from '@/lib/instrumentCalculators'
+import {
+  projectPPF,
+  projectEPF,
+  projectNPS,
+  EPF_MIN_MONTHLY_CONTRIBUTION,
+  EPF_STATUTORY_RATE_PCT,
+} from '@/lib/instrumentCalculators'
 import type { ProjectionResult } from '@/lib/instrumentCalculators'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useInstrumentRates } from '@/hooks/api/useInstrumentRates'
@@ -130,8 +136,8 @@ function EPFTab({
   // Employee + employer both contribute the same %, total = 2x
   const yourShare = salary * contribPct / 100
   const totalMonthly = yourShare * 2
-  // Min contribution: 12% of Rs 15,000 (PF wage ceiling) = Rs 1,800
-  const minContrib = Math.max(1800, salary * 12 / 100)
+  // Floor is the statutory minimum; above the wage ceiling you contribute on full salary.
+  const minContrib = Math.max(EPF_MIN_MONTHLY_CONTRIBUTION, (salary * EPF_STATUTORY_RATE_PCT) / 100)
 
   const result = useMemo(
     () => projectEPF(salary, contribPct, contribPct, rate, years, balance),
