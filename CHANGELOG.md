@@ -6,6 +6,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.15.0 - 2026-06-07
+
+Dependency and pipeline maintenance. Took every held-back major version to latest behind a restored CI gate, unblocked the frontend deploy, and cleared two security advisories. No feature changes; no API contract breaks.
+
+### Changed
+
+- **All held major dependencies bumped to latest, one verified bump per commit.** Frontend: TypeScript 5.9 -> 6.0 (removed deprecated ``baseUrl`` from ``tsconfig.app.json``; ``@/*`` resolves via ``moduleResolution: bundler``), Vite 7 -> 8 (Rolldown + Oxc engine; ``manualChunks`` object form converted to function form; build ~17s -> ~0.6s), ``@vitejs/plugin-react`` 5 -> 6, ``lucide-react`` 0.577 -> 1.17, ``jsdom`` 28 -> 29. Backend: ``cryptography`` 46 -> 48 (AES-256-GCM key-encryption round-trip re-verified), ``mypy`` 1.19 -> 2.1 (``--strict-bytes`` / ``--local-partial-types`` now default-on; zero new errors across 123 files), ``rich`` 14 -> 15, ``typer`` 0.24 -> 0.26. ``vite-plugin-pwa`` confirmed generating the service worker under Rolldown.
+- **CI re-enabled as a real gate.** ``ci.yml`` was reduced to security-scan only; broken TypeScript or failing tests could pass. Restored a frontend job (lint -> ``tsc`` build -> vitest via the shared workflow) and an inline backend job (ruff + mypy + pytest, no error-swallowing), both on ``pull_request``. Pinned pnpm via ``packageManager`` and third-party actions to commit SHAs.
+
+### Fixed
+
+- **GitHub Pages deploy unblocked.** ``pnpm install --frozen-lockfile`` failed with ``ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`` because a vite security bump changed ``pnpm.overrides`` without regenerating the lockfile. Regenerated; pinned pnpm so local, deploy, and CI resolve identically.
+- **Recharts 3 + react-hooks 7 fallout.** 23 ``Tooltip`` formatter type errors (``value`` is now ``ValueType``) and 4 ``set-state-in-effect`` lint errors from the earlier major bump, which the security-only CI never caught but the deploy build did.
+- **Bedrock client timeouts bounded** (Release It!). ``boto3.client('bedrock-runtime')`` inherited botocore's 60s/60s defaults; on Vercel's 10s ceiling a slow call hung the function. Set ``connect_timeout=3, read_timeout=8, max_attempts=1``.
+- **Misplaced ``import pytest``** below the module docstring (F404 + E402).
+
+### Security
+
+- **``serialize-javascript`` pinned to >=7.0.5** via ``pnpm.overrides`` -- cleared two Dependabot alerts (1 high RCE, 1 medium DoS) on a transitive build-time dependency.
+
+### Refactored
+
+- Extracted ``MS_PER_DAY`` / ``MS_PER_YEAR`` / ``MONTHS_PER_YEAR`` and EPF statutory constants, replacing inlined literals (Clean Code G25/G5). ``getAnalyticsDateRange`` takes a params object (F1). Backend ``apply_excluded_accounts_filter`` helper removes a filter clause triplicated across three files (G5). Split ``ReturnsAnalysisPage`` (537 -> 391) and ``SpendingAnalysisPage`` (456 -> 260) into hook + utils per the repo convention (APOSD). Named ``NotificationCenter`` thresholds; deduped ``analyticsV2`` response-unwrap via ``getWrapped<T>``.
+
+### Tests
+
+- Backend 135 pass (ruff + mypy clean under the new majors); frontend 177 pass (lint + ``tsc`` + build clean under Vite 8 / TS 6).
+
+---
+
 ## 2.14.0 - 2026-05-17
 
 Calculation correctness audit batch -- three backend bugs caught while reviewing every aggregation path. No frontend changes; no API contract breaks.
