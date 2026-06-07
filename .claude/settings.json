@@ -43,6 +43,7 @@
       "Bash(node *)",
       "Glob",
       "Bash(node *)",
+      "Bash(cd *)",
       "Grep",
       "Read",
       "WebFetch",

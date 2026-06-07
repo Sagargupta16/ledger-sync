@@ -85,9 +85,7 @@ class TimeFilter:
             return [t for t in transactions if t.date >= start_date]
 
         if time_range == TimeRange.THIS_YEAR:
-            start_date = now.replace(
-                month=1, day=1, hour=0, minute=0, second=0, microsecond=0
-            )
+            start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
             return [t for t in transactions if t.date >= start_date]
 
         if time_range == TimeRange.LAST_YEAR:

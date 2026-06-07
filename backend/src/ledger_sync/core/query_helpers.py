@@ -219,10 +219,8 @@ def build_transaction_query(
         if excluded:
             query = query.filter(
                 Transaction.account.notin_(excluded),
-                Transaction.from_account.is_(None)
-                | Transaction.from_account.notin_(excluded),
-                Transaction.to_account.is_(None)
-                | Transaction.to_account.notin_(excluded),
+                Transaction.from_account.is_(None) | Transaction.from_account.notin_(excluded),
+                Transaction.to_account.is_(None) | Transaction.to_account.notin_(excluded),
             )
 
     return query

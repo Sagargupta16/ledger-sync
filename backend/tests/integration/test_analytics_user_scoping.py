@@ -156,51 +156,53 @@ def test_excluded_accounts_filter_drops_transfer_endpoints(analytics_db: Session
     #   1. Plain expense from HDFC (kept)
     #   2. Transfer FROM HDFC TO "Wife Account" (must be dropped)
     #   3. Transfer FROM "Wife Account" TO HDFC (must be dropped)
-    analytics_db.add_all([
-        Transaction(
-            user_id=user.id,
-            transaction_id="t-keep",
-            date=datetime(2024, 1, 15, tzinfo=UTC),
-            amount=Decimal("100"),
-            currency="INR",
-            type=TransactionType.EXPENSE,
-            account="HDFC",
-            category="Food",
-            source_file="test.xlsx",
-            last_seen_at=now,
-            is_deleted=False,
-        ),
-        Transaction(
-            user_id=user.id,
-            transaction_id="t-out-to-wife",
-            date=datetime(2024, 2, 15, tzinfo=UTC),
-            amount=Decimal("5000"),
-            currency="INR",
-            type=TransactionType.TRANSFER,
-            account="HDFC",
-            from_account="HDFC",
-            to_account="Wife Account",
-            category="Transfer",
-            source_file="test.xlsx",
-            last_seen_at=now,
-            is_deleted=False,
-        ),
-        Transaction(
-            user_id=user.id,
-            transaction_id="t-in-from-wife",
-            date=datetime(2024, 3, 15, tzinfo=UTC),
-            amount=Decimal("3000"),
-            currency="INR",
-            type=TransactionType.TRANSFER,
-            account="Wife Account",
-            from_account="Wife Account",
-            to_account="HDFC",
-            category="Transfer",
-            source_file="test.xlsx",
-            last_seen_at=now,
-            is_deleted=False,
-        ),
-    ])
+    analytics_db.add_all(
+        [
+            Transaction(
+                user_id=user.id,
+                transaction_id="t-keep",
+                date=datetime(2024, 1, 15, tzinfo=UTC),
+                amount=Decimal("100"),
+                currency="INR",
+                type=TransactionType.EXPENSE,
+                account="HDFC",
+                category="Food",
+                source_file="test.xlsx",
+                last_seen_at=now,
+                is_deleted=False,
+            ),
+            Transaction(
+                user_id=user.id,
+                transaction_id="t-out-to-wife",
+                date=datetime(2024, 2, 15, tzinfo=UTC),
+                amount=Decimal("5000"),
+                currency="INR",
+                type=TransactionType.TRANSFER,
+                account="HDFC",
+                from_account="HDFC",
+                to_account="Wife Account",
+                category="Transfer",
+                source_file="test.xlsx",
+                last_seen_at=now,
+                is_deleted=False,
+            ),
+            Transaction(
+                user_id=user.id,
+                transaction_id="t-in-from-wife",
+                date=datetime(2024, 3, 15, tzinfo=UTC),
+                amount=Decimal("3000"),
+                currency="INR",
+                type=TransactionType.TRANSFER,
+                account="Wife Account",
+                from_account="Wife Account",
+                to_account="HDFC",
+                category="Transfer",
+                source_file="test.xlsx",
+                last_seen_at=now,
+                is_deleted=False,
+            ),
+        ]
+    )
     analytics_db.commit()
 
     engine = AnalyticsEngine(analytics_db, user_id=user.id)
