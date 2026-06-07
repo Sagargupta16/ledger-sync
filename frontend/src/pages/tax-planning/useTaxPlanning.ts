@@ -201,6 +201,20 @@ export function useTaxPlanning() {
     isNewRegime,
   ])
 
+  // "Till date" view (toggle ON): instead of taxing only the income received
+  // so far -- which reads as 0 early in the year before crossing a slab -- show
+  // tax the way TDS actually works: the cumulative TDS the schedule has
+  // deducted through the months of salary received, plus the income those
+  // months represent (base accrued + any bonus/RSU that already landed).
+  const tdsTillDate = useMemo(() => {
+    if (tdsSchedule.length === 0 || salaryMonthsCount <= 0) return null
+    const monthsReceived = Math.min(salaryMonthsCount, tdsSchedule.length)
+    const slice = tdsSchedule.slice(0, monthsReceived)
+    const incomeReceived = slice.reduce((sum, r) => sum + r.monthIncome, 0)
+    const taxPaid = slice.at(-1)?.cumulativeTds ?? 0
+    return { monthsReceived, incomeReceived, taxPaid }
+  }, [tdsSchedule, salaryMonthsCount])
+
   const multiYearProjections = useMemo<ProjectedFYBreakdown[]>(() => {
     if (!hasSalaryData) return []
     return projectMultipleYears(salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth)
@@ -247,6 +261,19 @@ export function useTaxPlanning() {
     surcharge,
     income,
   ])
+
+  // When the TDS toggle is on and we have a till-date figure, the two summary
+  // cards show the TDS-style "paid till date" numbers instead of the raw
+  // tax-on-income-received (which reads 0 before crossing a slab). Only applied
+  // for the live current-FY view, not historical or projection mode.
+  const cardOverride = useMemo(() => {
+    if (!showTdsSchedule || !tdsTillDate || !isCurrentFY || useSalaryProjection) return null
+    return {
+      taxableIncome: tdsTillDate.incomeReceived,
+      taxAlreadyPaid: tdsTillDate.taxPaid,
+      monthsReceived: tdsTillDate.monthsReceived,
+    }
+  }, [showTdsSchedule, tdsTillDate, isCurrentFY, useSalaryProjection])
 
   const prevFYDisplay = useMemo(
     () =>
@@ -307,6 +334,7 @@ export function useTaxPlanning() {
     multiYearProjections,
     tdsSchedule,
     showTdsSchedule,
+    cardOverride,
     netTaxableIncome,
     salaryMonthsCount,
     expense,
