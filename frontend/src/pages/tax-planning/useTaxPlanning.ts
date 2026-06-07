@@ -156,11 +156,32 @@ export function useTaxPlanning() {
   }, [salaryProjection, taxSlabs, standardDeduction, isNewRegime, fyYear])
 
   // Forward TDS schedule -- flat baseline on regular salary, with a one-month
-  // spike whenever an RSU vesting lands. Only meaningful when we have a salary
-  // projection to drive the regular monthly figure.
+  // spike whenever an RSU vesting lands. Driven purely by the salary structure
+  // (base/bonus = certain, RSU = dated), so it is computed whenever salary data
+  // exists for this FY -- independent of the projection toggle. (The page-level
+  // `salaryProjection` is null outside projection mode, so we project here on
+  // its own to keep the TDS chart available on the normal current-FY view.)
+  const tdsProjection = useMemo<ProjectedFYBreakdown | null>(() => {
+    if (!hasSalaryData) return null
+    return projectFiscalYear(
+      effectiveFYForProjector,
+      salaryStructure,
+      rsuGrants,
+      growthAssumptions,
+      fiscalYearStartMonth,
+    )
+  }, [
+    hasSalaryData,
+    effectiveFYForProjector,
+    salaryStructure,
+    rsuGrants,
+    growthAssumptions,
+    fiscalYearStartMonth,
+  ])
+
   const tdsSchedule = useMemo<TdsMonthRow[]>(() => {
-    if (!salaryProjection) return []
-    const regularAnnual = Math.max(0, salaryProjection.grossTaxable - salaryProjection.rsuIncome)
+    if (!tdsProjection) return []
+    const regularAnnual = Math.max(0, tdsProjection.grossTaxable - tdsProjection.rsuIncome)
     return buildTdsSchedule({
       regularMonthlyIncome: regularAnnual / MONTHS_PER_YEAR,
       extraByMonth: rsuExtrasByFyMonth(rsuGrants, fyYear, fiscalYearStartMonth),
@@ -171,7 +192,7 @@ export function useTaxPlanning() {
       fyStartYear: fyYear,
     })
   }, [
-    salaryProjection,
+    tdsProjection,
     rsuGrants,
     fyYear,
     fiscalYearStartMonth,
