@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/cn'
 import { rawColors } from '@/constants/colors'
 import { formatCurrencyCompact } from '@/lib/formatters'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 import { useBudgets, useAnomalies, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import type { Budget, Anomaly, RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 
@@ -56,7 +57,7 @@ function daysUntil(dateStr: string | null): number | null {
   const target = new Date(dateStr)
   const now = new Date()
   const diff = target.getTime() - now.getTime()
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+  return Math.ceil(diff / MS_PER_DAY)
 }
 
 function getSeverityFromPct(pct: number): Notification['severity'] {

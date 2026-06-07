@@ -2,6 +2,15 @@
  * Date utilities for consistent date handling across the application
  */
 
+/** Milliseconds in one day. Use instead of inlining `1000 * 60 * 60 * 24`. */
+export const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+/**
+ * Milliseconds in one Julian year (365.25 days). Used for annualized-return
+ * math (XIRR, investment duration) where the quarter-day matters.
+ */
+export const MS_PER_YEAR = 365.25 * MS_PER_DAY
+
 export type ViewMode = 'monthly' | 'yearly' | 'all_time'
 
 export const getCurrentYear = (): number => new Date().getFullYear()

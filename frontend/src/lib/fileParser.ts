@@ -6,6 +6,7 @@
  */
 
 import { COLUMN_MAPPINGS, REQUIRED_COLUMNS, VALID_TYPES } from '@/constants/columns'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 
 export interface ParsedTransaction {
   date: string
@@ -77,7 +78,7 @@ function parseDate(value: unknown, rowIndex: number): string {
   if (typeof value === 'number') {
     // SheetJS Excel serial date number
     const epoch = new Date(Date.UTC(1899, 11, 30))
-    const date = new Date(epoch.getTime() + value * 86400000)
+    const date = new Date(epoch.getTime() + value * MS_PER_DAY)
     return date.toISOString().split('T')[0]
   }
 

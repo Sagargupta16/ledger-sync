@@ -1,5 +1,6 @@
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 import { rawColors } from '@/constants/colors'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 import { CATEGORY_COLORS, type PlacedBill } from './types'
 
 /** Get the number of days in a given month (0-indexed month) */
@@ -70,7 +71,7 @@ export function getRecurringDaysInMonth(
   const days: number[] = []
   const monthStart = new Date(year, month, 1)
   const monthEnd = new Date(year, month, daysInMonth)
-  const intervalMs = intervalDays * 24 * 60 * 60 * 1000
+  const intervalMs = intervalDays * MS_PER_DAY
 
   let current = new Date(nextDate)
   while (current > monthStart) {

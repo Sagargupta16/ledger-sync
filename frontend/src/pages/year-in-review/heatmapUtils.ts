@@ -1,4 +1,5 @@
 import { rawColors } from '@/constants/colors'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 import type { DayCell } from './components/DayOfWeekChart'
 import { MONTHS_SHORT, type HeatmapMode } from './types'
 
@@ -104,7 +105,7 @@ export function buildDayCells(
   const current = new Date(startDate)
   while (current <= endDate) {
     const dateStr = current.toISOString().substring(0, 10)
-    const dayOffset = Math.floor((current.getTime() - startDate.getTime()) / 86400000)
+    const dayOffset = Math.floor((current.getTime() - startDate.getTime()) / MS_PER_DAY)
     const weekIndex = Math.floor((dayOffset + startDow) / 7)
     const exp = dayExpenses[dateStr] || 0
     const inc = dayIncomes[dateStr] || 0

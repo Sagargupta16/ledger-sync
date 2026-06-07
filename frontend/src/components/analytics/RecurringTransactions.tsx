@@ -5,6 +5,7 @@ import { RefreshCw, AlertCircle, CheckCircle, Calendar, DollarSign } from 'lucid
 
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 
 interface RecurringTransaction {
   pattern: string
@@ -26,7 +27,7 @@ function computeIntervals(sortedDates: string[]): number[] {
   for (let i = 1; i < sortedDates.length; i++) {
     const prev = new Date(sortedDates[i - 1])
     const curr = new Date(sortedDates[i])
-    const daysDiff = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24))
+    const daysDiff = Math.round((curr.getTime() - prev.getTime()) / MS_PER_DAY)
     intervals.push(daysDiff)
   }
   return intervals
@@ -68,7 +69,7 @@ function computeExpectedNextDate(lastDate: Date, frequency: Frequency): Date {
 
 function checkIsActive(lastDate: Date, frequency: Frequency): boolean {
   const today = new Date()
-  const daysSinceLast = Math.round((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+  const daysSinceLast = Math.round((today.getTime() - lastDate.getTime()) / MS_PER_DAY)
   const maxDaysMap: Record<Frequency, number> = { monthly: 45, quarterly: 120, yearly: 400 }
   return daysSinceLast < maxDaysMap[frequency]
 }
