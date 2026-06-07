@@ -20,6 +20,7 @@ from ledger_sync.core._analytics_helpers import (
     DEFAULT_ESSENTIAL_CATEGORIES,
     DEFAULT_INVESTMENT_ACCOUNT_PATTERNS,
 )
+from ledger_sync.core.query_helpers import apply_excluded_accounts_filter
 from ledger_sync.db.models import Transaction, UserPreferences
 from ledger_sync.utils.logging import get_analytics_logger
 
@@ -242,13 +243,7 @@ class AnalyticsEngineBase:
         query = self.db.query(Transaction).filter(Transaction.is_deleted.is_(False))
         if self.user_id is not None:
             query = query.filter(Transaction.user_id == self.user_id)
-        excluded = self.excluded_accounts
-        if excluded:
-            query = query.filter(
-                Transaction.account.notin_(excluded),
-                Transaction.from_account.is_(None) | Transaction.from_account.notin_(excluded),
-                Transaction.to_account.is_(None) | Transaction.to_account.notin_(excluded),
-            )
+        query = apply_excluded_accounts_filter(query, self.excluded_accounts)
         return query
 
     # ─── fiscal year helper (shared by summaries and fy_summaries mixins) ──

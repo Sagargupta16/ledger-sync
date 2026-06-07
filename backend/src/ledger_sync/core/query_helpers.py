@@ -168,6 +168,26 @@ def excluded_accounts_for(user: User) -> set[str]:
     return {str(a) for a in parsed if a}
 
 
+def apply_excluded_accounts_filter(
+    query: Query[Transaction], excluded: set[str]
+) -> Query[Transaction]:
+    """Drop rows whose ``account``, ``from_account``, or ``to_account`` is excluded.
+
+    Transfers store ``account = from_account``, so a check on ``account``
+    alone misses the credit side -- a transfer landing in an excluded
+    account would silently leak through. The from/to clauses close that
+    gap. ``is_(None)`` keeps plain income/expense rows (which have null
+    transfer endpoints) from being dropped. No-op when *excluded* is empty.
+    """
+    if not excluded:
+        return query
+    return query.filter(
+        Transaction.account.notin_(excluded),
+        Transaction.from_account.is_(None) | Transaction.from_account.notin_(excluded),
+        Transaction.to_account.is_(None) | Transaction.to_account.notin_(excluded),
+    )
+
+
 def build_transaction_query(
     db: Session,
     user: User,
@@ -215,12 +235,6 @@ def build_transaction_query(
         query = query.filter(Transaction.date <= end_date)
 
     if apply_excluded_accounts:
-        excluded = excluded_accounts_for(user)
-        if excluded:
-            query = query.filter(
-                Transaction.account.notin_(excluded),
-                Transaction.from_account.is_(None) | Transaction.from_account.notin_(excluded),
-                Transaction.to_account.is_(None) | Transaction.to_account.notin_(excluded),
-            )
+        query = apply_excluded_accounts_filter(query, excluded_accounts_for(user))
 
     return query
