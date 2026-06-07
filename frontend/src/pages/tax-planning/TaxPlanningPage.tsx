@@ -49,7 +49,6 @@ export default function TaxPlanningPage() {
     multiYearProjections,
     tdsSchedule,
     showTdsSchedule,
-    cardOverride,
     netTaxableIncome,
     salaryMonthsCount,
     expense,
@@ -108,9 +107,9 @@ export default function TaxPlanningPage() {
               <motion.div variants={fadeUpItem}>
                 <TaxSummaryCards
                   isLoading={isLoading}
-                  netTaxableIncome={cardOverride?.netIncome ?? display.net}
-                  grossTaxableIncome={cardOverride?.taxableIncome ?? display.gross}
-                  taxAlreadyPaid={cardOverride?.taxAlreadyPaid ?? display.totalTax}
+                  netTaxableIncome={display.net}
+                  grossTaxableIncome={display.gross}
+                  taxAlreadyPaid={display.totalTax}
                   isProjecting={useSalaryProjection}
                   prevNetTaxableIncome={prevFYDisplay?.net}
                   prevGrossTaxableIncome={prevFYDisplay?.gross}
