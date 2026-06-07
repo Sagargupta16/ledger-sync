@@ -88,8 +88,8 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
               <YAxis {...yAxisDefaults()} />
               <Tooltip
                 {...chartTooltipProps}
-                formatter={(value: number | undefined) =>
-                  value === undefined ? '' : formatCurrency(value)
+                formatter={(value) =>
+                  typeof value === 'number' ? formatCurrency(value) : ''
                 }
               />
               <Legend {...LEGEND_DEFAULTS} />

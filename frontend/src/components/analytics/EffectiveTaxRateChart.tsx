@@ -144,8 +144,8 @@ export default function EffectiveTaxRateChart({
             />
             <Tooltip
               {...chartTooltipProps}
-              formatter={(value: number | undefined, name: string | undefined) => [
-                value === undefined ? '' : `${value.toFixed(2)}%`,
+              formatter={(value, name) => [
+                typeof value === 'number' ? `${value.toFixed(2)}%` : '',
                 name === 'newRegimeRate' ? 'New Regime' : 'Old Regime',
               ]}
               labelFormatter={(label: unknown) => `Income: ${formatCurrencyShort(Number(label))}`}

@@ -111,9 +111,9 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
           />
           <Tooltip
             {...chartTooltipProps}
-            formatter={(value: number | undefined, name: string | undefined) =>
+            formatter={(value, name) =>
               [
-                value === undefined ? '' : formatCurrency(value),
+                typeof value === 'number' ? formatCurrency(value) : '',
                 name === 'spending' ? 'Avg Spending' : 'Avg Earning',
               ] as never
             }

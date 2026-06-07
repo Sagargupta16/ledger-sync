@@ -320,8 +320,8 @@ export default function TaxPlanningPage() {
                           <YAxis {...yAxisDefaults()} />
                           <Tooltip
                             {...chartTooltipProps}
-                            formatter={(value: number | undefined, name: string | undefined) => {
-                              if (value === undefined || value === 0) return ['', '']
+                            formatter={(value, name) => {
+                              if (typeof value !== 'number' || value === 0) return ['', '']
                               const labels: Record<string, string> = {
                                 paidTax: 'Tax Paid',
                                 projected: 'Projected Tax',

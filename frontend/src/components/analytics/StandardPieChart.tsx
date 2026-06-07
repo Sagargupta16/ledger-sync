@@ -124,7 +124,7 @@ export default function StandardPieChart({
         </Pie>
         <Tooltip
           {...chartTooltipProps}
-          formatter={(value: number | undefined) => (tooltipFormatter ?? formatCurrency)(value ?? 0)}
+          formatter={(value) => (tooltipFormatter ?? formatCurrency)(typeof value === 'number' ? value : 0)}
         />
         {showLegend && (
           <Legend

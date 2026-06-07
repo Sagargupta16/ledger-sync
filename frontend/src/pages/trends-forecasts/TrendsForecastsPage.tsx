@@ -184,9 +184,9 @@ export default function TrendsForecastsPage() {
                               })
                             : ''
                         }}
-                        formatter={(value: number | undefined, name: string | undefined) => [
-                          value === undefined ? '' : formatCurrency(value),
-                          formatTooltipName(name),
+                        formatter={(value, name) => [
+                          typeof value === 'number' ? formatCurrency(value) : '',
+                          formatTooltipName(name === undefined ? undefined : String(name)),
                         ]}
                       />
                       <ReferenceLine
@@ -294,12 +294,8 @@ export default function TrendsForecastsPage() {
                       year: 'numeric',
                     })
                   }
-                  formatter={(
-                    _value: number | undefined,
-                    _name: string | undefined,
-                    props: { payload?: { rawSavingsRate?: number } },
-                  ) => {
-                    const actual = props.payload?.rawSavingsRate ?? 0
+                  formatter={(_value, _name, props) => {
+                    const actual = (props.payload as { rawSavingsRate?: number } | undefined)?.rawSavingsRate ?? 0
                     const label =
                       actual < 0 ? `${actual.toFixed(1)}% (deficit)` : `${actual.toFixed(1)}%`
                     return [label, 'Cumulative Savings Rate']

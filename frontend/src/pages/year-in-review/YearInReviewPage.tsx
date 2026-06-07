@@ -283,8 +283,8 @@ export default function YearInReviewPage() {
                   <YAxis {...yAxisDefaults()} />
                   <RechartsTooltip
                     {...chartTooltipProps}
-                    formatter={(value: number | undefined) =>
-                      value === undefined ? '' : formatCurrency(value)
+                    formatter={(value) =>
+                      typeof value === 'number' ? formatCurrency(value) : ''
                     }
                   />
                   <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />

@@ -74,8 +74,8 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                 <YAxis {...yAxisDefaults()} />
                 <Tooltip
                   {...chartTooltipProps}
-                  formatter={(value: number | undefined) =>
-                    value === undefined ? '' : formatCurrency(value)
+                  formatter={(value) =>
+                    typeof value === 'number' ? formatCurrency(value) : ''
                   }
                 />
                 <Bar
@@ -180,8 +180,8 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                     <Tooltip
                       {...chartTooltipProps}
                       labelFormatter={(label) => `Day ${label}`}
-                      formatter={(value: number | undefined, name: string | undefined) => [
-                        value === undefined ? '' : formatCurrency(value),
+                      formatter={(value, name) => [
+                        typeof value === 'number' ? formatCurrency(value) : '',
                         name === 'ideal' ? 'Ideal Pace' : 'Actual Remaining',
                       ]}
                     />
@@ -254,7 +254,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                     />
                     <Tooltip
                       {...chartTooltipProps}
-                      formatter={(v: number | undefined) => (v === undefined ? '' : `${v}%`)}
+                      formatter={(v) => (typeof v === 'number' ? `${v}%` : '')}
                     />
                   </RadarChart>
                 </ChartContainer>

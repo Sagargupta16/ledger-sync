@@ -121,8 +121,8 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
             />
           )
         }
-        const formattedValue = (value: number | undefined) =>
-          value === undefined ? '' : formatCurrency(value)
+        const formattedValue = (value: number | string | readonly (number | string)[] | undefined) =>
+          typeof value === 'number' ? formatCurrency(value) : ''
         const anchorDateIso = anchor?.date ?? new Date().toISOString().substring(0, 10)
         const showProjectionLine = showProjection && monthlyGrowthRate > 0
         return (

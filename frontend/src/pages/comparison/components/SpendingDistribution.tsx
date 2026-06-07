@@ -97,7 +97,7 @@ export function SpendingDistribution({
             />
             <Tooltip
               {...chartTooltipProps}
-              formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(Math.abs(value))}
+              formatter={(value) => typeof value === 'number' ? formatCurrency(Math.abs(value)) : ''}
               labelFormatter={(label) => label}
             />
             <Bar

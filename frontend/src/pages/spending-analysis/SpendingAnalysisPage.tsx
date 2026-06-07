@@ -319,7 +319,7 @@ export default function SpendingAnalysisPage() {
 
                       <Tooltip
                         {...chartTooltipProps}
-                        formatter={(value: number | undefined) => value === undefined ? '' : formatCurrency(value)}
+                        formatter={(value) => typeof value === 'number' ? formatCurrency(value) : ''}
                       />
 
                       {/* Center label */}
