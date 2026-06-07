@@ -249,9 +249,21 @@ def bedrock_chat_proxy(
         check_token_limits(session, current_user.id)
 
     import boto3
+    from botocore.config import Config  # type: ignore[import-untyped]
+
+    # Explicit, finite timeouts + bounded retries. Without this boto3 inherits
+    # botocore's 60s connect / 60s read defaults, which on Vercel's 10s
+    # serverless ceiling means a slow Bedrock dependency hangs the function
+    # until the platform kills it (see the module docstring). Cap below the
+    # platform limit so we fail fast with a clean 502 instead.
+    bedrock_config = Config(
+        connect_timeout=3,
+        read_timeout=8,
+        retries={"max_attempts": 1, "mode": "standard"},
+    )
 
     try:
-        client = boto3.client("bedrock-runtime", region_name=region)
+        client = boto3.client("bedrock-runtime", region_name=region, config=bedrock_config)
         response = client.converse(**kwargs)
     except Exception as exc:
         # Surface the real boto/AWS error to the client so the UI can display
