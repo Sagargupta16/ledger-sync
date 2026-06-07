@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react'
+import { useCallback } from 'react'
 
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Banknote, Receipt, Activity } from 'lucide-react'
@@ -10,9 +10,6 @@ import {
 
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
-import { isInvestmentAccount } from '@/constants/accountTypes'
-import { useAccountBalances, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
 import {
   PageHeader, ChartContainer,
   BRUSH_DEFAULTS,
@@ -23,164 +20,21 @@ import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE } from '@/components/ui/
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-import { getDateKey } from '@/lib/dateUtils'
-import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
-// ─── Helpers (unchanged business logic) ─────────────────────────────────────
-
-const calculateCAGR = (endingValue: number, beginningValue: number, years: number): number => {
-  if (beginningValue <= 0 || years <= 0) return 0
-  return (Math.pow(endingValue / beginningValue, 1 / years) - 1) * 100
-}
-
-function isInvestmentIncome(lower: string): boolean {
-  return lower.includes('dividend') || lower.includes('divid') ||
-    lower.includes('interest') || lower.includes('int.') ||
-    lower.includes('int cr') || lower.includes('int credit') ||
-    lower.includes('profit') || lower.includes('gain') ||
-    lower.includes('realized')
-}
-
-function isBrokerFee(lower: string): boolean {
-  return (lower.includes('broker') && (lower.includes('charge') || lower.includes('fee'))) ||
-    lower.includes('brokerage') ||
-    (lower.includes('demat') && lower.includes('charge')) ||
-    (lower.includes('trading') && (lower.includes('charge') || lower.includes('fee'))) ||
-    (lower.includes('transaction') && lower.includes('charge'))
-}
-
-function isInvestmentLoss(lower: string): boolean {
-  return !lower.includes('broker') && !lower.includes('brokerage') &&
-    (lower.includes('loss') || lower.includes('write'))
-}
-
-type TxLike = { type: string; amount: number; category: string; note?: string; subcategory?: string }
-
-function txText(tx: TxLike) { return `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase() }
-
-function filterByKeyword(transactions: TxLike[], type: string, test: (lower: string) => boolean, investOnly = false): number {
-  return transactions
-    .filter((tx) => {
-      if (tx.type !== type) return false
-      const lower = txText(tx)
-      if (investOnly) {
-        const cat = tx.category.toLowerCase()
-        if (!cat.includes('investment') && !cat.includes('stock') && !cat.includes('trading')) return false
-      }
-      return test(lower)
-    })
-    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-}
-
-function computeInvestmentMetrics(transactions: TxLike[]) {
-  const dividendIncome = filterByKeyword(transactions, 'Income', l => l.includes('dividend') || l.includes('divid'))
-  const interestIncome = filterByKeyword(transactions, 'Income', l => l.includes('interest') || l.includes('int.') || l.includes('int cr'))
-  const investmentProfit = filterByKeyword(transactions, 'Income', l => l.includes('profit') || l.includes('gain') || l.includes('realized'))
-  const brokerFees = filterByKeyword(transactions, 'Expense', isBrokerFee, true)
-  const investmentLoss = filterByKeyword(transactions, 'Expense', isInvestmentLoss, true)
-  const totalIncome = investmentProfit + dividendIncome + interestIncome
-  const totalExpenses = investmentLoss + brokerFees
-  return { dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss: totalIncome - totalExpenses }
-}
-
-// Group transactions by month for the combo chart
-function groupTransactionsByMonth(
-  transactions: Array<{ date: string } & TxLike>,
-): Array<{ month: string; income: number; expenses: number; net: number; cumulative: number }> {
-  const monthly: Record<string, { income: number; expenses: number }> = {}
-  for (const tx of transactions) {
-    const monthKey = tx.date.substring(0, 7)
-    if (!monthly[monthKey]) monthly[monthKey] = { income: 0, expenses: 0 }
-    const lower = txText(tx)
-    const cat = tx.category.toLowerCase()
-    const amount = Math.abs(tx.amount)
-    if (tx.type === 'Income' && isInvestmentIncome(lower)) monthly[monthKey].income += amount
-    const isInvCat = cat.includes('investment') || cat.includes('stock') || cat.includes('trading')
-    if (tx.type === 'Expense' && isInvCat && (isBrokerFee(lower) || isInvestmentLoss(lower))) monthly[monthKey].expenses += amount
-  }
-  const sorted = Object.keys(monthly).sort((a, b) => a.localeCompare(b))
-  let cumulative = 0
-  return sorted.map(m => {
-    const net = monthly[m].income - monthly[m].expenses
-    cumulative += net
-    return {
-      month: new Date(m + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-      income: Math.round(monthly[m].income),
-      expenses: Math.round(monthly[m].expenses),
-      net: Math.round(net),
-      cumulative: Math.round(cumulative),
-    }
-  })
-}
+import { useReturnsAnalysis } from './useReturnsAnalysis'
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ReturnsAnalysisPage() {
-  const { data: allTransactions = [] } = useTransactions()
-  const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
-  const dateParams = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
-  const { data: balanceData, isLoading: balancesLoading } = useAccountBalances(dateParams)
-  const { data: aggregationData, isLoading: aggregationLoading } = useMonthlyAggregation(dateParams)
-  const isLoading = balancesLoading || aggregationLoading
-
-  const transactions = useMemo(() => {
-    const startDate = dateRange.start_date
-    if (!startDate) return allTransactions
-    return allTransactions.filter(tx => {
-      const txDate = getDateKey(tx.date)
-      return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
-    })
-  }, [allTransactions, dateRange])
-
-  const investmentAccounts = useMemo(() => {
-    const accounts = balanceData?.accounts || {}
-    return Object.entries(accounts)
-      .filter(([name]) => isInvestmentAccount(name))
-      .map(([name, data]) => ({
-        name,
-        balance: Math.abs((data as { balance: number; transactions: number }).balance),
-        transactions: (data as { balance: number; transactions: number }).transactions,
-      }))
-      .sort((a, b) => b.balance - a.balance)
-  }, [balanceData])
-
-  const { dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss } =
-    useMemo(() => computeInvestmentMetrics(transactions), [transactions])
-
-  const totalIncome = investmentProfit + dividendIncome + interestIncome
-  const totalExpenses = investmentLoss + brokerFees
-
-  const monthlyDataArray = useMemo(() => {
-    const data = Object.entries(aggregationData || {})
-      .map(([month, value]) => ({ month, ...(value as { income?: number; expense?: number }) }))
-      .sort((a, b) => a.month.localeCompare(b.month))
-    return data
-  }, [aggregationData])
-
-  const estimatedCAGR = useMemo(() => {
-    if (monthlyDataArray.length < 2) return 0
-    const first = monthlyDataArray[0]
-    const last = monthlyDataArray[monthlyDataArray.length - 1]
-    const years = monthlyDataArray.length / 12
-    return calculateCAGR(last.income || 1, first.income || 1, Math.max(years, 0.1))
-  }, [monthlyDataArray])
-
-  // ── Chart data ──────────────────────────────────────────────────────────
-
-  // 1. Monthly combo chart: bars for monthly P&L + cumulative line
-  const monthlyComboData = useMemo(() => groupTransactionsByMonth(transactions), [transactions])
-
-  // 2. Monthly returns heatmap
-  const monthlyReturns = useMemo(() => {
-    return monthlyComboData.map(d => ({
-      month: d.month,
-      net: d.net,
-    }))
-  }, [monthlyComboData])
-
-  const roi = monthlyDataArray.length > 0 ? estimatedCAGR / 12 : 0
-
-  // ── Tooltip ─────────────────────────────────────────────────────────────
+  const {
+    isLoading,
+    timeFilterProps,
+    investmentAccounts,
+    dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss,
+    totalIncome, totalExpenses,
+    estimatedCAGR, roi,
+    monthlyComboData, monthlyReturns,
+  } = useReturnsAnalysis()
 
   const renderComboTooltip = useCallback(({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey?: string; value?: number; color?: string }>; label?: string }) => {
     if (!active || !payload?.length) return null
@@ -203,7 +57,7 @@ export default function ReturnsAnalysisPage() {
   }, [])
 
   return (
-    <div className="min-h-screen p-4 md:p-6 lg:p-8">
+    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Returns Analysis"
