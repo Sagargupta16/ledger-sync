@@ -186,10 +186,28 @@ export function useTaxPlanning() {
 
   const tdsSchedule = useMemo<TdsMonthRow[]>(() => {
     if (!tdsProjection) return []
-    const regularAnnual = Math.max(0, tdsProjection.grossTaxable - tdsProjection.rsuIncome)
+    // Base = certain recurring comp ONLY (exclude bonus AND RSU), so the flat
+    // monthly baseline = tax(base)/12 -- the exact same per-month figure the
+    // summary cards use. Bonus + RSU are the "extra" that spikes in its month.
+    const baseAnnual = Math.max(
+      0,
+      tdsProjection.grossTaxable - tdsProjection.bonus - tdsProjection.rsuIncome,
+    )
+    // Bonus is an annual amount in the salary structure -- spread it evenly
+    // across the 12 months (recurring monthly bonus), so each month's spike is
+    // the tax on one month's slice (e.g. base ~29.8k + bonus tax ~14.6k = ~45k),
+    // NOT one giant April lump. RSU stays a dated one-month spike (Aug/Feb).
+    const rsuExtras = rsuExtrasByFyMonth(rsuGrants, fyYear, fiscalYearStartMonth)
+    const extraByMonth: Record<number, number> = { ...rsuExtras }
+    if (tdsProjection.bonus > 0) {
+      const bonusPerMonth = tdsProjection.bonus / MONTHS_PER_YEAR
+      for (let m = 0; m < MONTHS_PER_YEAR; m++) {
+        extraByMonth[m] = (extraByMonth[m] ?? 0) + bonusPerMonth
+      }
+    }
     return buildTdsSchedule({
-      regularMonthlyIncome: regularAnnual / MONTHS_PER_YEAR,
-      extraByMonth: rsuExtrasByFyMonth(rsuGrants, fyYear, fiscalYearStartMonth),
+      regularMonthlyIncome: baseAnnual / MONTHS_PER_YEAR,
+      extraByMonth,
       fyStartMonth: fiscalYearStartMonth,
       slabs: taxSlabs,
       standardDeduction,
