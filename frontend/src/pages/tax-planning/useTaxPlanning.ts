@@ -268,9 +268,12 @@ export function useTaxPlanning() {
   // for the live current-FY view, not historical or projection mode.
   const cardOverride = useMemo(() => {
     if (!showTdsSchedule || !tdsTillDate || !isCurrentFY || useSalaryProjection) return null
+    // All three cards derive from the SAME till-date figures so they
+    // reconcile: net (take-home) = gross received - tax paid, by construction.
     return {
       taxableIncome: tdsTillDate.incomeReceived,
       taxAlreadyPaid: tdsTillDate.taxPaid,
+      netIncome: tdsTillDate.incomeReceived - tdsTillDate.taxPaid,
       monthsReceived: tdsTillDate.monthsReceived,
     }
   }, [showTdsSchedule, tdsTillDate, isCurrentFY, useSalaryProjection])

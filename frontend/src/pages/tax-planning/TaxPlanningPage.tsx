@@ -108,7 +108,7 @@ export default function TaxPlanningPage() {
               <motion.div variants={fadeUpItem}>
                 <TaxSummaryCards
                   isLoading={isLoading}
-                  netTaxableIncome={display.net}
+                  netTaxableIncome={cardOverride?.netIncome ?? display.net}
                   grossTaxableIncome={cardOverride?.taxableIncome ?? display.gross}
                   taxAlreadyPaid={cardOverride?.taxAlreadyPaid ?? display.totalTax}
                   isProjecting={useSalaryProjection}
