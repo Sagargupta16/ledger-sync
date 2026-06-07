@@ -241,6 +241,9 @@ class UserPreferencesResponse(BaseModel):
     notify_upcoming_bills: bool = True
     notify_days_ahead: int = 7
 
+    # 18. Tax display
+    show_tds_schedule: bool = False
+
     # Salary & Tax Projections
     salary_structure: dict[str, Any] = {}
     rsu_grants: list[dict[str, Any]] = []
@@ -326,6 +329,9 @@ class UserPreferencesUpdate(BaseModel):
     notify_upcoming_bills: bool | None = None
     notify_days_ahead: int | None = None
 
+    # 18. Tax display
+    show_tds_schedule: bool | None = None
+
     # Salary & Tax Projections
     salary_structure: dict[str, Any] | None = None
     rsu_grants: list[dict[str, Any]] | None = None
@@ -387,6 +393,7 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
         notify_anomalies=prefs.notify_anomalies,
         notify_upcoming_bills=prefs.notify_upcoming_bills,
         notify_days_ahead=prefs.notify_days_ahead,
+        show_tds_schedule=prefs.show_tds_schedule,
         salary_structure=_parse_json_field(prefs.salary_structure, {}),
         rsu_grants=_parse_json_field(prefs.rsu_grants, []),
         growth_assumptions=_parse_json_field(prefs.growth_assumptions, {}),

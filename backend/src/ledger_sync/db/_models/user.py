@@ -293,6 +293,12 @@ class UserPreferences(Base):
     notify_upcoming_bills: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notify_days_ahead: Mapped[int] = mapped_column(Integer, nullable=False, default=7)
 
+    # ===== 18. Tax display =====
+    # Show the forward per-month TDS deduction schedule on the Tax Planning
+    # page. Off by default; opt-in since it only helps salaried users who have
+    # a salary structure configured.
+    show_tds_schedule: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     # ── Salary & Tax Projections ──────────────────────────────────────────
     salary_structure: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     rsu_grants: Mapped[str] = mapped_column(Text, nullable=False, default="[]")

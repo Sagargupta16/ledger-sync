@@ -89,6 +89,9 @@ export interface UserPreferences {
   notify_upcoming_bills: boolean
   notify_days_ahead: number
 
+  // 18. Tax display
+  show_tds_schedule: boolean
+
   // Salary & Tax Projections
   salary_structure: Record<string, SalaryComponents>
   rsu_grants: RsuGrant[]

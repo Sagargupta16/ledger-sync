@@ -154,6 +154,7 @@ export function generateDemoPreferences(): UserPreferences {
     notify_anomalies: true,
     notify_upcoming_bills: true,
     notify_days_ahead: 7,
+    show_tds_schedule: true,
     salary_structure: buildDemoSalaryStructure(),
     rsu_grants: buildDemoRsuGrants(),
     growth_assumptions: {

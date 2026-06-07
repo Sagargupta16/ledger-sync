@@ -27,7 +27,7 @@ import TaxPageActions from './components/TaxPageActions'
 import TaxTip from './components/TaxTip'
 import RegimeComparison from './components/RegimeComparison'
 import MultiYearProjectionTable from './components/MultiYearProjectionTable'
-import AdvanceTaxSchedule from './components/AdvanceTaxSchedule'
+import TdsScheduleChart from './components/TdsScheduleChart'
 
 export default function TaxPlanningPage() {
   const {
@@ -46,6 +46,9 @@ export default function TaxPlanningPage() {
     useSalaryProjection,
     transactionsByFY,
     multiYearProjections,
+    tdsSchedule,
+    showTdsSchedule,
+    cardOverride,
     netTaxableIncome,
     salaryMonthsCount,
     expense,
@@ -105,8 +108,8 @@ export default function TaxPlanningPage() {
                 <TaxSummaryCards
                   isLoading={isLoading}
                   netTaxableIncome={display.net}
-                  grossTaxableIncome={display.gross}
-                  taxAlreadyPaid={display.totalTax}
+                  grossTaxableIncome={cardOverride?.taxableIncome ?? display.gross}
+                  taxAlreadyPaid={cardOverride?.taxAlreadyPaid ?? display.totalTax}
                   isProjecting={useSalaryProjection}
                   prevNetTaxableIncome={prevFYDisplay?.net}
                   prevGrossTaxableIncome={prevFYDisplay?.gross}
@@ -135,8 +138,8 @@ export default function TaxPlanningPage() {
               <motion.div variants={fadeUpItem}>
                 <TaxSummaryGrid
                   selectedFY={effectiveFY}
-                  grossTaxableIncome={display.gross}
-                  taxAlreadyPaid={display.totalTax}
+                  grossTaxableIncome={cardOverride?.taxableIncome ?? display.gross}
+                  taxAlreadyPaid={cardOverride?.taxAlreadyPaid ?? display.totalTax}
                   netTaxableIncome={display.net}
                   totalIncome={display.income}
                   totalExpense={expense}
@@ -144,13 +147,11 @@ export default function TaxPlanningPage() {
                 />
               </motion.div>
 
-              <motion.div variants={fadeUpItem}>
-                <AdvanceTaxSchedule
-                  annualTax={display.totalTax}
-                  fyStartYear={fyYear}
-                  isCurrentFY={isCurrentFY}
-                />
-              </motion.div>
+              {showTdsSchedule && tdsSchedule.length > 0 && (
+                <motion.div variants={fadeUpItem}>
+                  <TdsScheduleChart schedule={tdsSchedule} monthsPaid={salaryMonthsCount} />
+                </motion.div>
+              )}
 
               <EffectiveTaxRateChart
                 taxSlabs={taxSlabs}

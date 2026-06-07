@@ -7,6 +7,13 @@ import {
   getFYFromDate,
 } from '@/lib/taxCalculator'
 import { projectFiscalYear, projectMultipleYears } from '@/lib/projectionCalculator'
+import {
+  buildTdsSchedule,
+  rsuExtrasByFyMonth,
+  computeTaxPaidTillDate,
+  type TdsMonthRow,
+} from '@/lib/tdsScheduleCalculator'
+import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
 import type { ProjectedFYBreakdown } from '@/types/salary'
 import {
   usePreferencesStore,
@@ -33,6 +40,7 @@ export function useTaxPlanning() {
   const hasSalaryData = Object.keys(salaryStructure).length > 0
 
   const preferredRegime = preferences?.preferred_tax_regime || 'new'
+  const showTdsSchedule = preferences?.show_tds_schedule ?? false
   const [regimeOverride, setRegimeOverride] = useState<TaxRegimeOverride>(null)
 
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || FY_START_MONTH
@@ -152,10 +160,147 @@ export function useTaxPlanning() {
     )
   }, [salaryProjection, taxSlabs, standardDeduction, isNewRegime, fyYear])
 
+  // Forward TDS schedule -- flat baseline on regular salary, with a one-month
+  // spike whenever an RSU vesting lands. Driven purely by the salary structure
+  // (base/bonus = certain, RSU = dated), so it is computed whenever salary data
+  // exists for this FY -- independent of the projection toggle. (The page-level
+  // `salaryProjection` is null outside projection mode, so we project here on
+  // its own to keep the TDS chart available on the normal current-FY view.)
+  const tdsProjection = useMemo<ProjectedFYBreakdown | null>(() => {
+    if (!hasSalaryData) return null
+    return projectFiscalYear(
+      effectiveFYForProjector,
+      salaryStructure,
+      rsuGrants,
+      growthAssumptions,
+      fiscalYearStartMonth,
+    )
+  }, [
+    hasSalaryData,
+    effectiveFYForProjector,
+    salaryStructure,
+    rsuGrants,
+    growthAssumptions,
+    fiscalYearStartMonth,
+  ])
+
+  const tdsSchedule = useMemo<TdsMonthRow[]>(() => {
+    if (!tdsProjection) return []
+    // Base = certain recurring comp ONLY (exclude bonus AND RSU), so the flat
+    // monthly baseline = tax(base)/12 -- the exact same per-month figure the
+    // summary cards use. Bonus + RSU are the "extra" that spikes in its month.
+    const baseAnnual = Math.max(
+      0,
+      tdsProjection.grossTaxable - tdsProjection.bonus - tdsProjection.rsuIncome,
+    )
+    // Bonus is an annual amount in the salary structure -- spread it evenly
+    // across the 12 months (recurring monthly bonus), so each month's spike is
+    // the tax on one month's slice (e.g. base ~29.8k + bonus tax ~14.6k = ~45k),
+    // NOT one giant April lump. RSU stays a dated one-month spike (Aug/Feb).
+    const rsuExtras = rsuExtrasByFyMonth(rsuGrants, fyYear, fiscalYearStartMonth)
+    const extraByMonth: Record<number, number> = { ...rsuExtras }
+    if (tdsProjection.bonus > 0) {
+      const bonusPerMonth = tdsProjection.bonus / MONTHS_PER_YEAR
+      for (let m = 0; m < MONTHS_PER_YEAR; m++) {
+        extraByMonth[m] = (extraByMonth[m] ?? 0) + bonusPerMonth
+      }
+    }
+    const projected = buildTdsSchedule({
+      regularMonthlyIncome: baseAnnual / MONTHS_PER_YEAR,
+      extraByMonth,
+      fyStartMonth: fiscalYearStartMonth,
+      slabs: taxSlabs,
+      standardDeduction,
+      isNewRegime,
+      fyStartYear: fyYear,
+    })
+
+    // Reconcile the PAID (past) months with the cards: replace their projected
+    // TDS with the actual per-month figure derived from salary actually
+    // received (total tax paid / months), so "Deducted" bars match the cards.
+    // Future months keep the projection ("Expected").
+    if (isCurrentFY && !useSalaryProjection && salaryMonthsCount > 0) {
+      const actual = computeTaxPaidTillDate({
+        baseAnnual,
+        monthsPaid: salaryMonthsCount,
+        receivedNet: netTaxableIncome,
+        slabs: taxSlabs,
+        standardDeduction,
+        isNewRegime,
+        fyStartYear: fyYear,
+      })
+      const actualPerMonth = actual.taxPaid / salaryMonthsCount
+      return projected.map((row) =>
+        row.monthIndex < salaryMonthsCount
+          ? { ...row, monthlyTds: actualPerMonth }
+          : row,
+      )
+    }
+    return projected
+  }, [
+    tdsProjection,
+    rsuGrants,
+    fyYear,
+    fiscalYearStartMonth,
+    taxSlabs,
+    standardDeduction,
+    isNewRegime,
+    isCurrentFY,
+    useSalaryProjection,
+    salaryMonthsCount,
+    netTaxableIncome,
+  ])
+
   const multiYearProjections = useMemo<ProjectedFYBreakdown[]>(() => {
     if (!hasSalaryData) return []
     return projectMultipleYears(salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth)
   }, [hasSalaryData, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth])
+
+  // "Tax paid till date" (toggle ON, live current-FY view). Models real TDS:
+  // base salary TDS is cut every month paid (so it is non-zero even early in
+  // the year), plus the marginal tax on any bonus/RSU actually received.
+  //   base = certain recurring comp = grossTaxable - bonus - RSU
+  //   bonus received = actual bonus + RSU credits from transactions
+  // Only the "Tax Already Paid" and "Taxable Income" cards consume this; the
+  // "Salaried Income" card always shows what was actually received, untouched.
+  const cardOverride = useMemo(() => {
+    if (!showTdsSchedule || !tdsProjection || !isCurrentFY || useSalaryProjection) return null
+    if (salaryMonthsCount <= 0) return null
+
+    // Base = certain recurring comp from Settings (everything except bonus/RSU).
+    const baseAnnual = Math.max(
+      0,
+      tdsProjection.grossTaxable - tdsProjection.bonus - tdsProjection.rsuIncome,
+    )
+
+    const tillDate = computeTaxPaidTillDate({
+      baseAnnual,
+      monthsPaid: salaryMonthsCount,
+      // Actual salary credited to the bank so far (net of TDS); bonus is
+      // backed out from whatever was received above the expected base.
+      receivedNet: netTaxableIncome,
+      slabs: taxSlabs,
+      standardDeduction,
+      isNewRegime,
+      fyStartYear: fyYear,
+    })
+
+    return {
+      taxableIncome: tillDate.incomeReceived,
+      taxAlreadyPaid: tillDate.taxPaid,
+    }
+  }, [
+    showTdsSchedule,
+    tdsProjection,
+    isCurrentFY,
+    useSalaryProjection,
+    salaryMonthsCount,
+    netTaxableIncome,
+    taxSlabs,
+    standardDeduction,
+    isNewRegime,
+    fyYear,
+  ])
 
   const display = useMemo(() => {
     if (salaryTaxResult && salaryProjection) {
@@ -256,6 +401,9 @@ export function useTaxPlanning() {
     useSalaryProjection,
     transactionsByFY,
     multiYearProjections,
+    tdsSchedule,
+    showTdsSchedule,
+    cardOverride,
     netTaxableIncome,
     salaryMonthsCount,
     expense,

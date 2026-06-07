@@ -308,5 +308,6 @@ export function buildInitialLocalPrefs(p: Record<string, unknown>): Record<strin
     notify_anomalies: p.notify_anomalies ?? true,
     notify_upcoming_bills: p.notify_upcoming_bills ?? true,
     notify_days_ahead: p.notify_days_ahead ?? 7,
+    show_tds_schedule: p.show_tds_schedule ?? false,
   }
 }
