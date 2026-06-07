@@ -3,7 +3,52 @@ on:
   push:
     branches: [main]
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Frontend: lint -> build (tsc -b) -> test, via the shared reusable workflow.
+  frontend:
+    uses: Sagargupta16/shared-workflows/.github/workflows/node-ci.yml@main
+    with:
+      working-directory: frontend
+
+  # Backend: real gating (ruff + mypy + pytest). The shared python-ci workflow
+  # swallows failures with `|| true`, so we run an inline job that actually
+  # fails the build on lint/type/test errors.
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        # --group dev pulls ruff/mypy/pytest (declared in [dependency-groups],
+        # PEP 735) -- they are not extras, so --all-extras alone misses them.
+        run: uv sync --all-extras --group dev
+
+      - name: Ruff lint
+        run: uv run ruff check src/ tests/
+
+      - name: Ruff format check
+        run: uv run ruff format --check src/ tests/
+
+      - name: Mypy
+        run: uv run mypy src/
+
+      - name: Pytest
+        run: uv run pytest tests/ -q
+
   security:
     uses: Sagargupta16/shared-workflows/.github/workflows/security-scan.yml@main
     permissions:

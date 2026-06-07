@@ -8,6 +8,8 @@
  * at your average daily spending rate.
  */
 
+import { MS_PER_DAY } from '@/lib/dateUtils'
+
 interface IncomeBucket {
   date: string
   remaining: number
@@ -46,7 +48,7 @@ export function computeAgeOfMoney(
       const bucket = queue[0]
       const matched = Math.min(remaining, bucket.remaining)
       const incomeDate = new Date(bucket.date)
-      const ageDays = Math.max(0, (expenseDate.getTime() - incomeDate.getTime()) / (1000 * 60 * 60 * 24))
+      const ageDays = Math.max(0, (expenseDate.getTime() - incomeDate.getTime()) / MS_PER_DAY)
 
       ageSum += matched * ageDays
       totalMatched += matched

@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/cn'
 import { rawColors } from '@/constants/colors'
 import { formatCurrencyCompact } from '@/lib/formatters'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 import { useBudgets, useAnomalies, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import type { Budget, Anomaly, RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 
@@ -35,6 +36,17 @@ interface Notification {
 
 const DISMISSED_KEY = 'ledger-sync-dismissed-notifications'
 
+/**
+ * Severity thresholds for notifications. Kept here as named constants so the
+ * cutoffs are visible in one place rather than scattered as magic numbers
+ * across the generators and severity helpers below.
+ */
+const BUDGET_EXCEEDED_PCT = 100 // at/over limit -> high severity, "exceeded" copy
+const BUDGET_WARNING_PCT = 90 // approaching limit -> medium severity
+const DUE_SOON_DAYS = 7 // only surface upcoming bills within this window
+const DUE_HIGH_DAYS = 1 // due today/tomorrow -> high severity
+const DUE_MEDIUM_DAYS = 3 // due within 3 days -> medium severity
+
 function loadDismissed(): Set<string> {
   try {
     const raw = localStorage.getItem(DISMISSED_KEY)
@@ -56,12 +68,12 @@ function daysUntil(dateStr: string | null): number | null {
   const target = new Date(dateStr)
   const now = new Date()
   const diff = target.getTime() - now.getTime()
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+  return Math.ceil(diff / MS_PER_DAY)
 }
 
 function getSeverityFromPct(pct: number): Notification['severity'] {
-  if (pct >= 100) return 'high'
-  if (pct >= 90) return 'medium'
+  if (pct >= BUDGET_EXCEEDED_PCT) return 'high'
+  if (pct >= BUDGET_WARNING_PCT) return 'medium'
   return 'low'
 }
 
@@ -79,8 +91,8 @@ function getDueMessage(name: string, amount: string, days: number): string {
 }
 
 function getSeverityFromDays(days: number): Notification['severity'] {
-  if (days <= 1) return 'high'
-  if (days <= 3) return 'medium'
+  if (days <= DUE_HIGH_DAYS) return 'high'
+  if (days <= DUE_MEDIUM_DAYS) return 'medium'
   return 'low'
 }
 
@@ -119,7 +131,7 @@ function budgetNotifications(budgets: Budget[]): Notification[] {
         type: 'budget' as NotificationType,
         title: 'Budget Alert',
         message:
-          pct >= 100
+          pct >= BUDGET_EXCEEDED_PCT
             ? `${b.category} budget exceeded (${pct}% used)`
             : `${b.category} budget ${pct}% used`,
         timestamp: new Date().toISOString(),
@@ -157,7 +169,7 @@ function upcomingNotifications(recurring: RecurringTransaction[]): Notification[
   const results: Notification[] = []
   for (const r of recurring) {
     const days = daysUntil(r.next_expected)
-    if (days === null || days < 0 || days > 7) continue
+    if (days === null || days < 0 || days > DUE_SOON_DAYS) continue
     const amount = formatCurrencyCompact(r.expected_amount)
     results.push({
       id: `upcoming-${r.id}`,

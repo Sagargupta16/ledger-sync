@@ -4,9 +4,9 @@ import { preferencesService } from '@/services/api/preferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { useAuthStore } from '@/store/authStore'
 import { BASE_CURRENCY } from '@/constants/currencies'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 
 const EXCHANGE_RATE_KEY = ['exchange-rates']
-const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
 
 export function useExchangeRate() {
   const displayCurrency = usePreferencesStore((s) => s.displayCurrency)
@@ -19,8 +19,8 @@ export function useExchangeRate() {
     queryKey: [...EXCHANGE_RATE_KEY, displayCurrency],
     queryFn: () => preferencesService.getExchangeRates(BASE_CURRENCY),
     enabled: !!accessToken && needsConversion,
-    staleTime: TWENTY_FOUR_HOURS,
-    gcTime: TWENTY_FOUR_HOURS,
+    staleTime: MS_PER_DAY,
+    gcTime: MS_PER_DAY,
   })
 
   // Push fetched rate into Zustand for synchronous access by formatters.

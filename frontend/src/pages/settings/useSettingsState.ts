@@ -127,6 +127,7 @@ export function useSettingsState() {
   // Initialize local prefs from server data
   useEffect(() => {
     if (!preferences || localPrefs) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seeding editable local copy from server preferences once
     setLocalPrefs(buildInitialLocalPrefs(preferences as unknown as Record<string, unknown>) as unknown as LocalPrefs)
     if (preferences.salary_structure) setLocalSalaryStructure(preferences.salary_structure)
     if (preferences.rsu_grants) setLocalRsuGrants(preferences.rsu_grants)
@@ -150,6 +151,7 @@ export function useSettingsState() {
     )
     if (defaults.taxable.length + defaults.investment.length + defaults.non_taxable.length + defaults.other.length === 0) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- auto-classifying income categories from server data when none set
     setLocalPrefs((prev) => prev ? {
       ...prev,
       taxable_income_categories: defaults.taxable,
@@ -167,6 +169,7 @@ export function useSettingsState() {
     if (unmapped.length === 0) return
 
     const defaults = getDefaultInvestmentMappings(unmapped)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- auto-mapping investment accounts from server data when none set
     setLocalPrefs((prev) => prev ? {
       ...prev,
       investment_account_mappings: { ...prev.investment_account_mappings, ...defaults },

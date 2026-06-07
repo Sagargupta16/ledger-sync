@@ -63,13 +63,13 @@ export function useAnalyticsTimeFilter(
   const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
 
   const dateRange = useMemo(() => {
-    const raw = getAnalyticsDateRange(
+    const raw = getAnalyticsDateRange({
       viewMode,
       currentYear,
       currentMonth,
       currentFY,
       fiscalYearStartMonth,
-    )
+    })
     return {
       ...raw,
       start_date: clampStartToEarningStart(

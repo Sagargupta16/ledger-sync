@@ -16,6 +16,8 @@
  * outflow on the end date). This matches Excel's XIRR.
  */
 
+import { MS_PER_YEAR } from '@/lib/dateUtils'
+
 export interface CashFlow {
   date: Date
   /** Positive = money in, negative = money out. */
@@ -31,7 +33,7 @@ export function calculateXIRR(
   if (cashFlows.length < 2) return 0
 
   const daysBetween = (d1: Date, d2: Date) =>
-    (d2.getTime() - d1.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+    (d2.getTime() - d1.getTime()) / MS_PER_YEAR
 
   const firstDate = cashFlows[0].date
   let rate = guess

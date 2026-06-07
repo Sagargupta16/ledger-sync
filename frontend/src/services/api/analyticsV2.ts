@@ -237,67 +237,61 @@ export interface InvestmentHolding {
 
 // API functions
 
-// All V2 endpoints wrap list data in { data: T[], count: number, ... }
+// All V2 list endpoints wrap data in { data: T[], count: number, ... }
 interface WrappedResponse<T> {
   data: T[]
   count: number
 }
 
+/**
+ * GET a V2 list endpoint and unwrap the `{ data, count }` envelope down to
+ * the bare `T[]`. Every list endpoint shares this shape, so this keeps the
+ * unwrap in one place instead of repeating `response.data.data` per method.
+ */
+async function getWrapped<T>(url: string, params?: Record<string, unknown>): Promise<T[]> {
+  const response = await apiClient.get<WrappedResponse<T>>(url, { params })
+  return response.data.data
+}
+
 export const analyticsV2Service = {
   // Daily Summaries
-  async getDailySummaries(params?: { start_date?: string; end_date?: string; limit?: number }) {
-    const response = await apiClient.get<WrappedResponse<DailySummary>>('/api/analytics/v2/daily-summaries', { params })
-    return response.data.data
+  getDailySummaries(params?: { start_date?: string; end_date?: string; limit?: number }) {
+    return getWrapped<DailySummary>('/api/analytics/v2/daily-summaries', params)
   },
 
   // Investment Holdings
-  async getInvestmentHoldings(params?: { active_only?: boolean }) {
-    const response = await apiClient.get<WrappedResponse<InvestmentHolding>>(
-      '/api/analytics/v2/investment-holdings',
-      { params },
-    )
-    return response.data.data
+  getInvestmentHoldings(params?: { active_only?: boolean }) {
+    return getWrapped<InvestmentHolding>('/api/analytics/v2/investment-holdings', params)
   },
 
   // Monthly Summaries
-  async getMonthlySummaries(params?: { limit?: number; offset?: number }) {
-    const response = await apiClient.get<WrappedResponse<MonthlySummary>>('/api/analytics/v2/monthly-summaries', {
-      params,
-    })
-    return response.data.data
+  getMonthlySummaries(params?: { limit?: number; offset?: number }) {
+    return getWrapped<MonthlySummary>('/api/analytics/v2/monthly-summaries', params)
   },
 
   // Category Trends
-  async getCategoryTrends(params?: {
+  getCategoryTrends(params?: {
     category?: string
     subcategory?: string
     limit?: number
     offset?: number
   }) {
-    const response = await apiClient.get<WrappedResponse<CategoryTrend>>('/api/analytics/v2/category-trends', {
-      params,
-    })
-    return response.data.data
+    return getWrapped<CategoryTrend>('/api/analytics/v2/category-trends', params)
   },
 
   // Transfer Flows
-  async getTransferFlows(params?: { limit?: number; offset?: number }) {
-    const response = await apiClient.get<WrappedResponse<TransferFlow>>('/api/analytics/v2/transfer-flows', { params })
-    return response.data.data
+  getTransferFlows(params?: { limit?: number; offset?: number }) {
+    return getWrapped<TransferFlow>('/api/analytics/v2/transfer-flows', params)
   },
 
   // Recurring Transactions
-  async getRecurringTransactions(params?: {
+  getRecurringTransactions(params?: {
     active_only?: boolean
     min_confidence?: number
     limit?: number
     offset?: number
   }) {
-    const response = await apiClient.get<WrappedResponse<RecurringTransaction>>(
-      '/api/analytics/v2/recurring-transactions',
-      { params },
-    )
-    return response.data.data
+    return getWrapped<RecurringTransaction>('/api/analytics/v2/recurring-transactions', params)
   },
 
   async updateRecurringTransaction(
@@ -340,41 +334,34 @@ export const analyticsV2Service = {
   },
 
   // Merchant Intelligence
-  async getMerchantIntelligence(params?: {
+  getMerchantIntelligence(params?: {
     min_transactions?: number
     recurring_only?: boolean
     limit?: number
     offset?: number
   }) {
-    const response = await apiClient.get<WrappedResponse<MerchantIntelligence>>(
-      '/api/analytics/v2/merchant-intelligence',
-      { params },
-    )
-    return response.data.data
+    return getWrapped<MerchantIntelligence>('/api/analytics/v2/merchant-intelligence', params)
   },
 
   // Net Worth
-  async getNetWorthSnapshots(params?: { limit?: number; offset?: number }) {
-    const response = await apiClient.get<WrappedResponse<NetWorthSnapshot>>('/api/analytics/v2/net-worth', { params })
-    return response.data.data
+  getNetWorthSnapshots(params?: { limit?: number; offset?: number }) {
+    return getWrapped<NetWorthSnapshot>('/api/analytics/v2/net-worth', params)
   },
 
   // Fiscal Year Summaries
-  async getFYSummaries(params?: { limit?: number; offset?: number }) {
-    const response = await apiClient.get<WrappedResponse<FYSummary>>('/api/analytics/v2/fy-summaries', { params })
-    return response.data.data
+  getFYSummaries(params?: { limit?: number; offset?: number }) {
+    return getWrapped<FYSummary>('/api/analytics/v2/fy-summaries', params)
   },
 
   // Anomalies
-  async getAnomalies(params?: {
+  getAnomalies(params?: {
     type?: string
     severity?: string
     include_reviewed?: boolean
     limit?: number
     offset?: number
   }) {
-    const response = await apiClient.get<WrappedResponse<Anomaly>>('/api/analytics/v2/anomalies', { params })
-    return response.data.data
+    return getWrapped<Anomaly>('/api/analytics/v2/anomalies', params)
   },
 
   async reviewAnomaly(anomalyId: number, data: { dismiss: boolean; notes?: string }) {
@@ -385,9 +372,8 @@ export const analyticsV2Service = {
   },
 
   // Budgets
-  async getBudgets(params?: { active_only?: boolean }) {
-    const response = await apiClient.get<WrappedResponse<Budget>>('/api/analytics/v2/budgets', { params })
-    return response.data.data
+  getBudgets(params?: { active_only?: boolean }) {
+    return getWrapped<Budget>('/api/analytics/v2/budgets', params)
   },
 
   async createBudget(data: {
@@ -401,9 +387,8 @@ export const analyticsV2Service = {
   },
 
   // Goals
-  async getGoals(params?: { goal_type?: string; include_achieved?: boolean }) {
-    const response = await apiClient.get<WrappedResponse<FinancialGoal>>('/api/analytics/v2/goals', { params })
-    return response.data.data
+  getGoals(params?: { goal_type?: string; include_achieved?: boolean }) {
+    return getWrapped<FinancialGoal>('/api/analytics/v2/goals', params)
   },
 
   async createGoal(data: {

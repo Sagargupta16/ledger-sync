@@ -1,5 +1,6 @@
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { calculateXIRR } from '@/lib/xirr'
+import { MS_PER_YEAR } from '@/lib/dateUtils'
 import type { Transaction } from '@/types'
 
 import type { ChartDataPoint, MutualFundAccount } from './types'
@@ -215,7 +216,7 @@ export function computeInvestmentDuration(sipTransfers: Array<{ date: string }>)
   if (sipTransfers.length === 0) return 0
   const firstDate = new Date(sipTransfers[0].date)
   const now = new Date()
-  return (now.getTime() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+  return (now.getTime() - firstDate.getTime()) / MS_PER_YEAR
 }
 
 /** Filter SIP transfer transactions for a given primary account. */

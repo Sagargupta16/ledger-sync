@@ -7,6 +7,8 @@
  * - Indian context: 6-7% inflation, 10-12% equity returns, 7-8% debt returns
  */
 
+import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
+
 export interface FIREResult {
   fireNumber: number
   coastFIRE: number
@@ -193,7 +195,7 @@ export function computeRetirementCorpus(params: {
 
   // Monthly expenses at retirement (adjusted for inflation)
   const monthlyExpenseAtRetirement = monthlyExpenses * Math.pow(1 + inflationRate, yearsToRetirement)
-  const annualExpenseAtRetirement = monthlyExpenseAtRetirement * 12
+  const annualExpenseAtRetirement = monthlyExpenseAtRetirement * MONTHS_PER_YEAR
 
   // Corpus needed = annual expense at retirement / SWR
   const requiredCorpus = Math.round(annualExpenseAtRetirement / swr)
@@ -208,7 +210,7 @@ export function computeRetirementCorpus(params: {
   //
   // with n = total months, annuity-due (beginning-of-month contributions).
   const monthlyReturn = Math.pow(1 + expectedReturn, 1 / 12) - 1
-  const totalMonths = yearsToRetirement * 12
+  const totalMonths = yearsToRetirement * MONTHS_PER_YEAR
   const fvFactor = monthlyReturn > 0
     ? ((Math.pow(1 + monthlyReturn, totalMonths) - 1) / monthlyReturn) * (1 + monthlyReturn)
     : totalMonths
@@ -223,7 +225,7 @@ export function computeRetirementCorpus(params: {
   let accumulated = 0
   let totalContributed = 0
   for (let year = 1; year <= yearsToRetirement; year++) {
-    for (let m = 0; m < 12; m++) {
+    for (let m = 0; m < MONTHS_PER_YEAR; m++) {
       accumulated = (accumulated + monthlySIP) * (1 + monthlyReturn)
       totalContributed += monthlySIP
     }

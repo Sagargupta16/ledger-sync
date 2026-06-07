@@ -75,8 +75,8 @@ export function GrowthOverTimeChart({
               <YAxis {...yAxisDefaults()} />
               <Tooltip
                 {...chartTooltipProps}
-                formatter={(value: number | undefined, name: string | undefined) => [
-                  value === undefined ? '' : formatCurrency(value),
+                formatter={(value, name) => [
+                  typeof value === 'number' ? formatCurrency(value) : '',
                   name || '',
                 ]}
                 labelFormatter={(label) =>

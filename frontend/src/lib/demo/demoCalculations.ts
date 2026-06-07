@@ -8,6 +8,8 @@ import type {
 import type { BehaviorData, KPIData, OverviewData, TrendsData } from '@/services/api/analytics'
 import type { Transaction } from '@/types'
 
+import { MS_PER_DAY } from '@/lib/dateUtils'
+
 import { filterByDateRange, isExpense, isIncome, isTransfer, monthKey, sum } from './demoHelpers'
 
 export function generateDemoTotals(
@@ -214,7 +216,7 @@ export function generateDemoKPIs(txs: Transaction[]): KPIData {
   const dates = txs.map((t) => t.date).sort((a, b) => a.localeCompare(b))
   const daySpan =
     dates.length > 1
-      ? (new Date(dates.at(-1)!).getTime() - new Date(dates[0]).getTime()) / 86400000
+      ? (new Date(dates.at(-1)!).getTime() - new Date(dates[0]).getTime()) / MS_PER_DAY
       : 1
 
   return {
@@ -267,7 +269,7 @@ export function generateDemoBehavior(txs: Transaction[]): BehaviorData {
   const dates = txs.map((t) => t.date).sort((a, b) => a.localeCompare(b))
   const daySpan =
     dates.length > 1
-      ? (new Date(dates.at(-1)!).getTime() - new Date(dates[0]).getTime()) / 86400000
+      ? (new Date(dates.at(-1)!).getTime() - new Date(dates[0]).getTime()) / MS_PER_DAY
       : 1
 
   const catTotals: Record<string, number> = {}

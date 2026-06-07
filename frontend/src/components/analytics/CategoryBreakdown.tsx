@@ -154,6 +154,7 @@ export default function CategoryBreakdown({
 
   // Auto-expand when a single category is rendered (deep-link drill-down).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing local UI state to a URL-derived prop
     if (categoryFilter) setExpandedCategory(categoryFilter)
   }, [categoryFilter])
 

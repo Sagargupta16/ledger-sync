@@ -13,7 +13,10 @@ from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.core.query_helpers import excluded_accounts_for
+from ledger_sync.core.query_helpers import (
+    apply_excluded_accounts_filter,
+    excluded_accounts_for,
+)
 from ledger_sync.db.models import Transaction, TransactionType, User
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.schemas.transactions import (
@@ -185,14 +188,7 @@ def _base_transaction_query(db: Session, user: User) -> SAQuery[Transaction]:
         Transaction.user_id == user.id,
         Transaction.is_deleted.is_(False),
     )
-    excluded = excluded_accounts_for(user)
-    if excluded:
-        query = query.filter(
-            Transaction.account.notin_(excluded),
-            Transaction.from_account.is_(None) | Transaction.from_account.notin_(excluded),
-            Transaction.to_account.is_(None) | Transaction.to_account.notin_(excluded),
-        )
-    return query
+    return apply_excluded_accounts_filter(query, excluded_accounts_for(user))
 
 
 def _apply_date_range(

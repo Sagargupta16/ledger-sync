@@ -10,6 +10,7 @@ import {
   getStandardDeduction,
   getTaxSlabs,
 } from '@/lib/taxCalculator'
+import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
 import type {
   GrowthAssumptions,
   ProjectedFYBreakdown,
@@ -149,16 +150,16 @@ export function projectFiscalYear(
   })()
 
   const epfAnnual = (() => {
-    if (isExplicit) return N(salaryStructure[targetFY].epf_monthly) * 12
+    if (isExplicit) return N(salaryStructure[targetFY].epf_monthly) * MONTHS_PER_YEAR
     if (growth.epf_scales_with_base)
-      return N(base.epf_monthly) * baseGrowthFactor * 12
-    return N(base.epf_monthly) * 12
+      return N(base.epf_monthly) * baseGrowthFactor * MONTHS_PER_YEAR
+    return N(base.epf_monthly) * MONTHS_PER_YEAR
   })()
 
   const npsAnnual = (() => {
-    if (isExplicit) return N(salaryStructure[targetFY].nps_monthly) * 12
+    if (isExplicit) return N(salaryStructure[targetFY].nps_monthly) * MONTHS_PER_YEAR
     const npsFactor = Math.pow(1 + growth.nps_growth_pct / 100, yearsOffset)
-    return N(base.nps_monthly) * npsFactor * 12
+    return N(base.nps_monthly) * npsFactor * MONTHS_PER_YEAR
   })()
 
   const specialAllowanceAnnual = isExplicit

@@ -6,6 +6,15 @@
  * NPS: Weighted return across equity/corporate bond/govt bond allocation.
  */
 
+/**
+ * Statutory EPF minimum: 12% of the ₹15,000 PF wage ceiling = ₹1,800/month.
+ * Employees earning above the ceiling can still contribute on full salary,
+ * but the legal floor is always computed on the capped wage.
+ */
+export const EPF_STATUTORY_RATE_PCT = 12
+export const EPF_WAGE_CEILING = 15000
+export const EPF_MIN_MONTHLY_CONTRIBUTION = (EPF_WAGE_CEILING * EPF_STATUTORY_RATE_PCT) / 100
+
 export interface YearProjection {
   year: number
   contributed: number

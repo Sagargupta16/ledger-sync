@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ratesService, type InstrumentRates } from '@/services/api/rates'
 import { useAuthStore } from '@/store/authStore'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 
 /**
  * Compiled-in fallback mirrors the backend JSON. The backend is always
@@ -31,8 +32,6 @@ const FALLBACK_RATES: InstrumentRates = {
   },
 }
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000
-
 export function useInstrumentRates(): {
   data: InstrumentRates
   isFallback: boolean
@@ -44,8 +43,8 @@ export function useInstrumentRates(): {
     queryKey: ['instrument-rates'],
     queryFn: ratesService.getInstrumentRates,
     enabled: !!accessToken,
-    staleTime: ONE_DAY_MS,
-    gcTime: ONE_DAY_MS,
+    staleTime: MS_PER_DAY,
+    gcTime: MS_PER_DAY,
     retry: 1,
   })
 

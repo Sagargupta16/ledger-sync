@@ -114,7 +114,7 @@ export function useDashboardMetrics(): DashboardMetrics {
 
   // Analytics date range derived from the time-filter state
   const analyticsDateRange = useMemo(
-    () => getAnalyticsDateRange(viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth),
+    () => getAnalyticsDateRange({ viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth }),
     [viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth],
   )
 

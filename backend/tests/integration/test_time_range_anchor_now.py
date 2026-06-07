@@ -52,9 +52,7 @@ def user(db_session: Session) -> User:
     return user
 
 
-def _make_tx(
-    user_id: int, date: datetime, amount: float, tid: str
-) -> Transaction:
+def _make_tx(user_id: int, date: datetime, amount: float, tid: str) -> Transaction:
     return Transaction(
         user_id=user_id,
         transaction_id=tid,

@@ -289,8 +289,8 @@ export default function IncomeAnalysisPage() {
                       const month = payload?.[0]?.payload?.month
                       return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
                     }}
-                    formatter={(value: number | undefined, name: string | undefined) => [
-                      value === undefined ? '' : formatCurrency(value),
+                    formatter={(value, name) => [
+                      typeof value === 'number' ? formatCurrency(value) : '',
                       name === 'incomeAvg' ? 'Income (3m avg)' : 'Income',
                     ]}
                     itemSorter={(item) => -(item.value as number)}

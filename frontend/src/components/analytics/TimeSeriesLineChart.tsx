@@ -42,7 +42,7 @@ export default function TimeSeriesLineChart({
         <Tooltip
           {...chartTooltipProps}
           labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+          formatter={(value) => formatCurrency(typeof value === 'number' ? value : 0)}
           itemSorter={(item) => -(item.value as number)}
         />
         <Legend {...LEGEND_DEFAULTS} formatter={legendFormatter} />

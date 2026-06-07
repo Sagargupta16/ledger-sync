@@ -185,7 +185,7 @@ export default function GSTAnalysisPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+                      formatter={(value) => formatCurrency(typeof value === 'number' ? value : 0)}
                       labelFormatter={(slab) => `${slab}% slab`}
                       {...chartTooltipProps}
                     />
@@ -220,7 +220,7 @@ export default function GSTAnalysisPage() {
                     tickFormatter={(v: number) => formatCurrencyShort(v)}
                   />
                   <Tooltip
-                    formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+                    formatter={(value) => formatCurrency(typeof value === 'number' ? value : 0)}
                     {...chartTooltipProps}
                   />
                   <Bar

@@ -108,7 +108,7 @@ export default function StandardAreaChart({
         <YAxis {...yDefaults} />
         <Tooltip
           {...chartTooltipProps}
-          formatter={(value: number | undefined) => (tooltipFormatter ?? formatCurrency)(value ?? 0)}
+          formatter={(value) => (tooltipFormatter ?? formatCurrency)(typeof value === 'number' ? value : 0)}
           {...(tooltipLabelFormatter && { labelFormatter: tooltipLabelFormatter as never })}
         />
         {showLegend && areas.length > 1 && (

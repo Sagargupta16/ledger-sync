@@ -217,8 +217,8 @@ export default function CashFlowForecast() {
             <YAxis {...yAxisDefaults()} />
             <Tooltip
               {...chartTooltipProps}
-              formatter={(value: number | undefined, name: string | undefined) => {
-                if (value === undefined) return ['', '']
+              formatter={(value, name) => {
+                if (typeof value !== 'number') return ['', '']
                 const labels: Record<string, string> = {
                   income: 'Income', expense: 'Expenses', net: 'Net Savings',
                   forecastIncome: 'Income (Forecast)', forecastExpense: 'Expenses (Forecast)',

@@ -117,8 +117,8 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
                 </defs>
                 <Tooltip
                   {...chartTooltipProps}
-                  formatter={(value: number | undefined) =>
-                    value === undefined ? '' : [formatCurrency(value), 'Amount']
+                  formatter={(value) =>
+                    typeof value === 'number' ? [formatCurrency(value), 'Amount'] : ''
                   }
                 />
               </Sankey>

@@ -11,6 +11,7 @@ import {
 import { useCategoryBreakdown, useTotals } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 
 import LoadingSkeleton from './LoadingSkeleton'
@@ -149,13 +150,13 @@ function computeDaysInRange(dateRange: DateRange, transactions: Transaction[]): 
       const dates = transactions.map(t => new Date(t.date).getTime())
       const earliest = Math.min(...dates)
       const latest = Math.max(...dates)
-      return Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) || 1
+      return Math.ceil((latest - earliest) / MS_PER_DAY) || 1
     }
     return 30
   }
   const start = new Date(dateRange.start_date)
   const end = new Date(dateRange.end_date)
-  return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) || 1
+  return Math.ceil((end.getTime() - start.getTime()) / MS_PER_DAY) || 1
 }
 
 function computeMonthsInRange(dateRange: DateRange, transactions: Transaction[]): number {
@@ -164,14 +165,14 @@ function computeMonthsInRange(dateRange: DateRange, transactions: Transaction[])
       const dates = transactions.map(t => new Date(t.date).getTime())
       const earliest = Math.min(...dates)
       const latest = Math.max(...dates)
-      const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24))
+      const days = Math.ceil((latest - earliest) / MS_PER_DAY)
       return Math.max(days / 30.44, 1)
     }
     return 1
   }
   const start = new Date(dateRange.start_date)
   const end = new Date(dateRange.end_date)
-  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+  const days = Math.ceil((end.getTime() - start.getTime()) / MS_PER_DAY)
   return Math.max(days / 30.44, 1)
 }
 

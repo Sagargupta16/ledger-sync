@@ -10,6 +10,7 @@ import {
   pickGranularity,
   type Granularity,
 } from '@/lib/chartPeriodUtils'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 import TimeSeriesLineChart from '@/components/analytics/TimeSeriesLineChart'
 import { exportChartAsCsv } from '@/lib/exportCsv'
 
@@ -53,7 +54,7 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
       Math.round(
         (new Date(sortedDates[sortedDates.length - 1]).valueOf() -
           new Date(sortedDates[0]).valueOf()) /
-          86400000,
+          MS_PER_DAY,
       ),
     )
     const gran =
