@@ -94,6 +94,96 @@ export function rsuExtrasByFyMonth(
   return out
 }
 
+export interface TaxPaidTillDate {
+  /** Tax deducted at source through the months paid so far. */
+  taxPaid: number
+  /** Gross taxable income accrued so far (base accrued + gross bonus). */
+  incomeReceived: number
+  /** Base salary gross accrued = baseAnnual / 12 * monthsPaid. */
+  baseAccrued: number
+  /** Gross bonus (incl. RSU) backed out from the salary surplus. */
+  bonusGross: number
+  /** Bonus actually received in-hand (after-tax surplus). */
+  bonusNet: number
+}
+
+export interface TaxPaidTillDateParams {
+  /** Fixed base salary for the full year (from Settings -- the certain thing). */
+  baseAnnual: number
+  /** Number of months you have actually been paid this FY. */
+  monthsPaid: number
+  /** Total salary actually credited to the bank so far (net, after TDS). */
+  receivedNet: number
+  slabs: TaxSlab[]
+  standardDeduction: number
+  isNewRegime: boolean
+  fyStartYear: number
+}
+
+/**
+ * Tax deducted at source "till date", derived from the salary actually
+ * credited to the bank. Confirmed model with the user:
+ *
+ *   base TDS is cut every month on the projected full-year base:
+ *     baseTdsPerMonth   = tax(baseAnnual) / 12
+ *     expectedNetBase/mo = baseAnnual/12 - baseTdsPerMonth   (in-hand base)
+ *
+ *   Anything credited ABOVE the expected in-hand base is bonus, received
+ *   AFTER tax. Because base already sits in the top slab, bonus is taxed at
+ *   the marginal top-slab rate, so we gross it back up:
+ *     bonusNet   = receivedNet - expectedNetBase * monthsPaid
+ *     bonusGross = bonusNet / (1 - marginalRate)
+ *     bonusTax   = bonusGross - bonusNet
+ *
+ *   taxPaid       = baseTdsPerMonth * monthsPaid + bonusTax
+ *   incomeReceived (gross taxable) = baseAnnual/12 * monthsPaid + bonusGross
+ *
+ * The marginal rate is read from the tax function (a probe just above base),
+ * not hard-coded, so it tracks slab/cess/surcharge changes automatically.
+ */
+export function computeTaxPaidTillDate(params: TaxPaidTillDateParams): TaxPaidTillDate {
+  const {
+    baseAnnual,
+    monthsPaid,
+    receivedNet,
+    slabs,
+    standardDeduction,
+    isNewRegime,
+    fyStartYear,
+  } = params
+
+  const taxOn = (income: number): number =>
+    calculateTax(income, slabs, standardDeduction, true, MONTHS_PER_YEAR, isNewRegime, fyStartYear)
+      .totalTax
+
+  const months = Math.max(0, Math.min(monthsPaid, MONTHS_PER_YEAR))
+  const baseAnnualTax = taxOn(baseAnnual)
+  const baseTdsPerMonth = baseAnnualTax / MONTHS_PER_YEAR
+  const baseGrossPerMonth = baseAnnual / MONTHS_PER_YEAR
+  const expectedNetBasePerMonth = baseGrossPerMonth - baseTdsPerMonth
+
+  const baseTaxPaid = baseTdsPerMonth * months
+  const baseAccrued = baseGrossPerMonth * months
+
+  // Marginal rate just above the annual base -- read from the tax engine on a
+  // small probe so cess/surcharge are included (e.g. 31.2% in the 30% slab).
+  const PROBE = 100_000
+  const marginalRate = (taxOn(baseAnnual + PROBE) - baseAnnualTax) / PROBE
+
+  // Surplus over the expected in-hand base is bonus received after tax.
+  const bonusNet = Math.max(0, receivedNet - expectedNetBasePerMonth * months)
+  const bonusGross = marginalRate < 1 ? bonusNet / (1 - marginalRate) : bonusNet
+  const bonusTax = bonusGross - bonusNet
+
+  return {
+    taxPaid: baseTaxPaid + bonusTax,
+    incomeReceived: baseAccrued + bonusGross,
+    baseAccrued,
+    bonusGross,
+    bonusNet,
+  }
+}
+
 /** Month label for a given 0-based offset from the FY start month. */
 function monthLabel(fyStartMonth: number, offset: number): string {
   // fyStartMonth is 1-12; ALL_MONTHS is 0-indexed by calendar month.

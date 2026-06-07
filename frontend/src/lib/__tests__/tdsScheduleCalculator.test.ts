@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildTdsSchedule, type TdsScheduleParams } from '../tdsScheduleCalculator'
+import {
+  buildTdsSchedule,
+  computeTaxPaidTillDate,
+  type TdsScheduleParams,
+} from '../tdsScheduleCalculator'
 import { getTaxSlabs, getStandardDeduction, calculateTax } from '../taxCalculator'
 
 const FY = 2025
@@ -82,5 +86,70 @@ describe('buildTdsSchedule', () => {
     for (const r of rows) {
       expect(r.monthlyTds).toBeGreaterThanOrEqual(0)
     }
+  })
+})
+
+describe('computeTaxPaidTillDate', () => {
+  const baseAnnual = 2_587_000
+  const baseAnnualTax = calculateTax(baseAnnual, slabs, standardDeduction, true, 12, true, FY).totalTax
+  const baseTdsPerMonth = baseAnnualTax / 12
+  const baseGrossPerMonth = baseAnnual / 12
+  const expectedNetBasePerMonth = baseGrossPerMonth - baseTdsPerMonth
+
+  function tillDate(monthsPaid: number, receivedNet: number) {
+    return computeTaxPaidTillDate({
+      baseAnnual, monthsPaid, receivedNet, slabs, standardDeduction, isNewRegime: true, fyStartYear: FY,
+    })
+  }
+
+  it('charges base TDS every month paid even with no surplus (received == expected base)', () => {
+    const months = 3
+    const r = tillDate(months, expectedNetBasePerMonth * months)
+    expect(r.bonusNet).toBeCloseTo(0, 0)
+    expect(r.bonusGross).toBeCloseTo(0, 0)
+    expect(r.taxPaid).toBeCloseTo(baseTdsPerMonth * months, 0)
+    expect(r.taxPaid).toBeGreaterThan(0)
+  })
+
+  it('backs out bonus from salary surplus and taxes it at the top marginal rate', () => {
+    // 1 month, received more than the expected in-hand base -> the surplus is
+    // after-tax bonus, grossed up at ~31.2% (30% slab + 4% cess).
+    const months = 1
+    const received = expectedNetBasePerMonth + 32_874 // 32,874 surplus
+    const r = tillDate(months, received)
+    expect(r.bonusNet).toBeCloseTo(32_874, 0)
+    // gross bonus = 32,874 / (1 - 0.312) ~= 47,782
+    expect(r.bonusGross).toBeCloseTo(32_874 / (1 - 0.312), -1)
+    const bonusTax = r.taxPaid - baseTdsPerMonth * months
+    expect(bonusTax / r.bonusGross).toBeCloseTo(0.312, 2)
+  })
+
+  it('income received (gross taxable) = base gross accrued + gross bonus', () => {
+    const months = 2
+    const r = tillDate(months, 446_078)
+    expect(r.baseAccrued).toBeCloseTo(baseGrossPerMonth * months, 0)
+    expect(r.incomeReceived).toBeCloseTo(r.baseAccrued + r.bonusGross, 0)
+  })
+
+  it("matches the user's worked example: base 25.87L, 2 months, 4,46,078 received", () => {
+    const r = tillDate(2, 446_078)
+    // base TDS 2 months ~= 59,608; bonus tax on the surplus ~= 33,8xx
+    // -> total ~= 93k, which is the expected "~90k".
+    expect(r.taxPaid).toBeGreaterThan(88_000)
+    expect(r.taxPaid).toBeLessThan(98_000)
+  })
+
+  it('zero months paid -> zero tax and income', () => {
+    const r = tillDate(0, 0)
+    expect(r.taxPaid).toBe(0)
+    expect(r.incomeReceived).toBe(0)
+  })
+
+  it('received at or below expected base -> no bonus, no negative', () => {
+    const months = 2
+    const r = tillDate(months, expectedNetBasePerMonth * months - 5_000)
+    expect(r.bonusNet).toBe(0)
+    expect(r.bonusGross).toBe(0)
+    expect(r.taxPaid).toBeCloseTo(baseTdsPerMonth * months, 0)
   })
 })

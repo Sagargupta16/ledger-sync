@@ -13,24 +13,28 @@ import {
 import { rawColors } from '@/constants/colors'
 import type { TdsMonthRow } from '@/lib/tdsScheduleCalculator'
 
+/** Faded variant of the deducted-bar colour (app blue #4a9eff), for future months. */
+const EXPECTED_FILL = 'rgba(74, 158, 255, 0.35)'
+
 interface Props {
   readonly schedule: readonly TdsMonthRow[]
+  /** Months of salary already received -- these bars are "deducted", the rest "expected". */
+  readonly monthsPaid: number
 }
 
 /**
- * Per-month TDS deducted across the fiscal year. Regular salary produces a
- * flat baseline; the month an RSU vesting lands shows a one-off spike (the
- * marginal tax on that income), so the user can see exactly when and why more
- * tax was cut from a given month's pay.
+ * Tax deducted (and expected) per month across the fiscal year. Months already
+ * paid show TDS actually deducted (solid); remaining months show the expected
+ * deduction (faded). A bonus/RSU month spikes with the extra tax on that income.
  */
-export default function TdsScheduleChart({ schedule }: Props) {
+export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
   if (schedule.length === 0) return null
 
   const totalTds = schedule.at(-1)?.cumulativeTds ?? 0
-  const baseline = schedule[0]?.monthlyTds ?? 0
-  // A month is a "spike" if its TDS is meaningfully above the flat baseline.
-  const peak = Math.max(...schedule.map((r) => r.monthlyTds))
-  const hasSpike = peak > baseline * 1.05
+  const paidSoFar = schedule
+    .slice(0, Math.max(0, monthsPaid))
+    .reduce((sum, r) => sum + r.monthlyTds, 0)
+  const expectedRest = totalTds - paidSoFar
 
   return (
     <div className="rounded-2xl border border-border bg-white/[0.02] p-4 sm:p-6">
@@ -39,10 +43,10 @@ export default function TdsScheduleChart({ schedule }: Props) {
           <Receipt className="w-4 h-4 text-app-blue" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-white">TDS Deducted Per Month</h3>
+          <h3 className="text-base font-semibold text-white">Tax Deducted</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Forward-looking estimate: a flat baseline on regular salary, with a spike
-            the month any RSU vesting lands (the extra tax on that income).
+            Deducted so far (solid) and expected for the rest of the year (faded),
+            month by month. Bonus / RSU months spike with the extra tax on that income.
           </p>
         </div>
       </div>
@@ -54,9 +58,12 @@ export default function TdsScheduleChart({ schedule }: Props) {
           <YAxis {...yAxisDefaults()} tickFormatter={(v: number) => formatCurrencyShort(v)} />
           <Tooltip
             {...chartTooltipProps}
-            formatter={(value) => [
+            formatter={(value, _name, item) => [
               typeof value === 'number' ? formatCurrency(value) : '',
-              'TDS',
+              (item?.payload as TdsMonthRow | undefined)?.monthIndex !== undefined
+                && (item.payload as TdsMonthRow).monthIndex < monthsPaid
+                ? 'Deducted'
+                : 'Expected',
             ]}
             labelFormatter={(label) => `${label}`}
           />
@@ -67,12 +74,16 @@ export default function TdsScheduleChart({ schedule }: Props) {
             animationDuration={600}
             animationEasing="ease-out"
           >
-            {schedule.map((r) => (
-              <Cell
-                key={r.month}
-                fill={r.monthlyTds > baseline * 1.05 ? rawColors.app.orange : rawColors.app.blue}
-              />
-            ))}
+            {schedule.map((r) => {
+              // Past months = solid blue (deducted); future = faded blue (expected).
+              const isPaid = r.monthIndex < monthsPaid
+              return (
+                <Cell
+                  key={r.month}
+                  fill={isPaid ? rawColors.app.blue : EXPECTED_FILL}
+                />
+              )
+            })}
           </Bar>
         </BarChart>
       </ChartContainer>
@@ -81,17 +92,15 @@ export default function TdsScheduleChart({ schedule }: Props) {
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: rawColors.app.blue }} />
-            <span className="text-muted-foreground">Regular salary TDS</span>
+            <span className="text-muted-foreground">Deducted ({formatCurrency(paidSoFar)})</span>
           </span>
-          {hasSpike && (
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: rawColors.app.orange }} />
-              <span className="text-muted-foreground">RSU / bonus month</span>
-            </span>
-          )}
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: EXPECTED_FILL }} />
+            <span className="text-muted-foreground">Expected ({formatCurrency(expectedRest)})</span>
+          </span>
         </div>
         <span className="text-muted-foreground">
-          Total annual TDS:{' '}
+          Full-year tax:{' '}
           <span className="font-semibold text-foreground">{formatCurrency(totalTds)}</span>
         </span>
       </div>
