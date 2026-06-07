@@ -156,7 +156,7 @@ For a tour without signing up, visit `/demo`.
 
 | Layer            | Technology                                                                     |
 | ---------------- | ------------------------------------------------------------------------------ |
-| **Frontend**     | React 19, TypeScript 5.9, Vite 7, Tailwind CSS 4, Recharts 3, Framer Motion 12 |
+| **Frontend**     | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, Recharts 3, Framer Motion 12   |
 | **Backend**      | Python 3.11+, FastAPI, SQLAlchemy 2, Alembic                                   |
 | **Database**     | SQLite (dev), Neon PostgreSQL 17 (prod)                                        |
 | **State**        | TanStack Query 5, Zustand 5                                                    |

@@ -64,12 +64,13 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Split heavy vendor libs into their own cached chunks
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-recharts': ['recharts'],
-          'vendor-motion': ['framer-motion'],
-          'vendor-tanstack': ['@tanstack/react-query'],
+        // Vite 8 (Rolldown) removed the object form of manualChunks; the
+        // function form splits heavy vendor libs into their own cached chunks.
+        manualChunks(id) {
+          if (/node_modules\/(react|react-dom|react-router-dom)\//.test(id)) return 'vendor-react'
+          if (/node_modules\/recharts\//.test(id)) return 'vendor-recharts'
+          if (/node_modules\/framer-motion\//.test(id)) return 'vendor-motion'
+          if (/node_modules\/@tanstack\/react-query\//.test(id)) return 'vendor-tanstack'
         },
       },
     },
