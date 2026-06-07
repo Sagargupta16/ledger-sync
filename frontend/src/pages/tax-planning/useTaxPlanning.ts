@@ -205,7 +205,7 @@ export function useTaxPlanning() {
         extraByMonth[m] = (extraByMonth[m] ?? 0) + bonusPerMonth
       }
     }
-    return buildTdsSchedule({
+    const projected = buildTdsSchedule({
       regularMonthlyIncome: baseAnnual / MONTHS_PER_YEAR,
       extraByMonth,
       fyStartMonth: fiscalYearStartMonth,
@@ -214,6 +214,29 @@ export function useTaxPlanning() {
       isNewRegime,
       fyStartYear: fyYear,
     })
+
+    // Reconcile the PAID (past) months with the cards: replace their projected
+    // TDS with the actual per-month figure derived from salary actually
+    // received (total tax paid / months), so "Deducted" bars match the cards.
+    // Future months keep the projection ("Expected").
+    if (isCurrentFY && !useSalaryProjection && salaryMonthsCount > 0) {
+      const actual = computeTaxPaidTillDate({
+        baseAnnual,
+        monthsPaid: salaryMonthsCount,
+        receivedNet: netTaxableIncome,
+        slabs: taxSlabs,
+        standardDeduction,
+        isNewRegime,
+        fyStartYear: fyYear,
+      })
+      const actualPerMonth = actual.taxPaid / salaryMonthsCount
+      return projected.map((row) =>
+        row.monthIndex < salaryMonthsCount
+          ? { ...row, monthlyTds: actualPerMonth }
+          : row,
+      )
+    }
+    return projected
   }, [
     tdsProjection,
     rsuGrants,
@@ -222,6 +245,10 @@ export function useTaxPlanning() {
     taxSlabs,
     standardDeduction,
     isNewRegime,
+    isCurrentFY,
+    useSalaryProjection,
+    salaryMonthsCount,
+    netTaxableIncome,
   ])
 
   const multiYearProjections = useMemo<ProjectedFYBreakdown[]>(() => {
