@@ -35,6 +35,7 @@ export function useTaxPlanning() {
   const hasSalaryData = Object.keys(salaryStructure).length > 0
 
   const preferredRegime = preferences?.preferred_tax_regime || 'new'
+  const showTdsSchedule = preferences?.show_tds_schedule ?? false
   const [regimeOverride, setRegimeOverride] = useState<TaxRegimeOverride>(null)
 
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || FY_START_MONTH
@@ -284,6 +285,7 @@ export function useTaxPlanning() {
     transactionsByFY,
     multiYearProjections,
     tdsSchedule,
+    showTdsSchedule,
     netTaxableIncome,
     salaryMonthsCount,
     expense,

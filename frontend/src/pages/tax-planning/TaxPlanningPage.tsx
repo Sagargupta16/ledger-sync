@@ -48,6 +48,7 @@ export default function TaxPlanningPage() {
     transactionsByFY,
     multiYearProjections,
     tdsSchedule,
+    showTdsSchedule,
     netTaxableIncome,
     salaryMonthsCount,
     expense,
@@ -154,7 +155,7 @@ export default function TaxPlanningPage() {
                 />
               </motion.div>
 
-              {tdsSchedule.length > 0 && (
+              {showTdsSchedule && tdsSchedule.length > 0 && (
                 <motion.div variants={fadeUpItem}>
                   <TdsScheduleChart schedule={tdsSchedule} />
                 </motion.div>

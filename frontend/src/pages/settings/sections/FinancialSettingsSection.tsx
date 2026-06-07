@@ -6,7 +6,7 @@ import { Target } from 'lucide-react'
 import { formatCurrency, getOrdinalSuffix } from '@/lib/formatters'
 import { MONTHS } from '../types'
 import type { LocalPrefs, LocalPrefKey } from '../types'
-import { Section, FieldLabel, FieldHint } from '../sectionPrimitives'
+import { Section, FieldLabel, FieldHint, Toggle } from '../sectionPrimitives'
 import { inputClass, selectClass } from '../styles'
 import { PAYDAY_OPTIONS } from '../helpers'
 import SpendingRuleFields from './SpendingRuleFields'
@@ -149,6 +149,21 @@ export default function FinancialSettingsSection({
               ? 'Lower rates, fewer deductions'
               : 'Higher rates, allows HRA/80C/80D deductions'}
           </FieldHint>
+        </div>
+
+        {/* TDS Schedule toggle */}
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <FieldLabel>Show TDS schedule</FieldLabel>
+            <FieldHint>
+              Adds a per-month tax-deducted chart to the Tax Planning page
+              (needs a salary structure configured).
+            </FieldHint>
+          </div>
+          <Toggle
+            checked={localPrefs.show_tds_schedule ?? false}
+            onChange={(val) => updateLocalPref('show_tds_schedule', val)}
+          />
         </div>
 
         {/* Spending Rule 50/30/20 */}
