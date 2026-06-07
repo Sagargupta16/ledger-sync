@@ -1,4 +1,3 @@
-import pytest
 """Integration tests for /api/calculations/daily-net-worth opening balance.
 
 When the caller supplies a ``start_date``, the cumulative ``net_worth``
@@ -102,9 +101,7 @@ def _add_tx(
     )
 
 
-def test_no_start_date_opens_at_zero(
-    client: TestClient, session: Session, user: User
-) -> None:
+def test_no_start_date_opens_at_zero(client: TestClient, session: Session, user: User) -> None:
     """Without a start_date the cumulative series starts from zero."""
     _add_tx(
         session,
@@ -124,9 +121,7 @@ def test_no_start_date_opens_at_zero(
     assert body["cumulative_data"][0]["net_worth"] == pytest.approx(1000.0)
 
 
-def test_start_date_seeds_opening_balance(
-    client: TestClient, session: Session, user: User
-) -> None:
+def test_start_date_seeds_opening_balance(client: TestClient, session: Session, user: User) -> None:
     """Transactions before start_date contribute to the opening balance."""
     # Pre-window: 5000 income, 1500 expense -> opening balance 3500
     _add_tx(
