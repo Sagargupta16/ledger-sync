@@ -49,6 +49,77 @@ class SyncEngine:
         )
         return self.session.execute(stmt).scalar_one_or_none()
 
+    def _raise_if_already_imported(self, file_hash: str, *, force: bool) -> ImportLog | None:
+        """Return any existing import log, raising if it blocks a non-forced re-import."""
+        existing_import = self.check_already_imported(file_hash)
+        if existing_import and not force:
+            logger.info("File already imported at %s", existing_import.imported_at)
+            msg = (
+                f"File already imported at {existing_import.imported_at}. Use --force to re-import."
+            )
+            raise ValueError(msg)
+        return existing_import
+
+    def _reconcile_and_log(
+        self,
+        normalized_rows: list[dict[str, Any]],
+        *,
+        source_file: str,
+        file_hash: str,
+        import_time: datetime,
+        existing_import: ImportLog | None,
+    ) -> ReconciliationStats:
+        """Reconcile normalized rows (transactions + transfers) and record the import log.
+
+        Shared tail of both import paths: splits rows by transfer flag,
+        reconciles each batch, accumulates stats, and writes the ImportLog.
+        """
+        transactions = [r for r in normalized_rows if not r.get("is_transfer", False)]
+        transfers = [r for r in normalized_rows if r.get("is_transfer", False)]
+        logger.info("Found %d transactions and %d transfers", len(transactions), len(transfers))
+
+        stats = ReconciliationStats()
+
+        if transactions:
+            stats.merge(
+                self.reconciler.reconcile_batch(
+                    normalized_rows=transactions,
+                    source_file=source_file,
+                    import_time=import_time,
+                )
+            )
+
+        if transfers:
+            stats.merge(
+                self.reconciler.reconcile_transfers_batch(
+                    normalized_rows=transfers,
+                    source_file=source_file,
+                    import_time=import_time,
+                )
+            )
+
+        # On a forced re-import, drop the prior log before writing the new one.
+        if existing_import:
+            self.session.delete(existing_import)
+            self.session.commit()
+
+        import_log = ImportLog(
+            user_id=self.user_id,
+            file_hash=file_hash,
+            file_name=source_file,
+            imported_at=import_time,
+            rows_processed=stats.processed,
+            rows_inserted=stats.inserted,
+            rows_updated=stats.updated,
+            rows_deleted=stats.deleted,
+            rows_skipped=stats.skipped,
+        )
+        self.session.add(import_log)
+        self.session.commit()
+
+        logger.info("Import completed: %s", stats)
+        return stats
+
     def import_rows(
         self,
         rows: list[dict[str, Any]],
@@ -79,14 +150,7 @@ class SyncEngine:
         logger.info("Starting JSON import of %s (%d rows)", file_name, len(rows))
         import_time = datetime.now(UTC)
 
-        # Check if already imported
-        existing_import = self.check_already_imported(file_hash)
-        if existing_import and not force:
-            logger.info("File already imported at %s", existing_import.imported_at)
-            msg = (
-                f"File already imported at {existing_import.imported_at}. Use --force to re-import."
-            )
-            raise ValueError(msg)
+        existing_import = self._raise_if_already_imported(file_hash, force=force)
 
         # Normalize each row (category corrections, transfer resolution, etc.)
         normalized_rows: list[dict[str, Any]] = []
@@ -101,60 +165,13 @@ class SyncEngine:
             logger.warning("No valid rows to import")
             return ReconciliationStats()
 
-        # Separate transactions and transfers
-        transactions = [r for r in normalized_rows if not r.get("is_transfer", False)]
-        transfers = [r for r in normalized_rows if r.get("is_transfer", False)]
-
-        logger.info("Found %d transactions and %d transfers", len(transactions), len(transfers))
-
-        # Reconcile
-        stats = ReconciliationStats()
-
-        if transactions:
-            tx_stats = self.reconciler.reconcile_batch(
-                normalized_rows=transactions,
-                source_file=file_name,
-                import_time=import_time,
-            )
-            stats.processed += tx_stats.processed
-            stats.inserted += tx_stats.inserted
-            stats.updated += tx_stats.updated
-            stats.deleted += tx_stats.deleted
-            stats.skipped += tx_stats.skipped
-
-        if transfers:
-            tf_stats = self.reconciler.reconcile_transfers_batch(
-                normalized_rows=transfers,
-                source_file=file_name,
-                import_time=import_time,
-            )
-            stats.processed += tf_stats.processed
-            stats.inserted += tf_stats.inserted
-            stats.updated += tf_stats.updated
-            stats.deleted += tf_stats.deleted
-            stats.skipped += tf_stats.skipped
-
-        # Log import
-        if existing_import and force:
-            self.session.delete(existing_import)
-            self.session.commit()
-
-        import_log = ImportLog(
-            user_id=self.user_id,
+        return self._reconcile_and_log(
+            normalized_rows,
+            source_file=file_name,
             file_hash=file_hash,
-            file_name=file_name,
-            imported_at=import_time,
-            rows_processed=stats.processed,
-            rows_inserted=stats.inserted,
-            rows_updated=stats.updated,
-            rows_deleted=stats.deleted,
-            rows_skipped=stats.skipped,
+            import_time=import_time,
+            existing_import=existing_import,
         )
-        self.session.add(import_log)
-        self.session.commit()
-
-        logger.info("Import completed: %s", stats)
-        return stats
 
     def run_post_import_analytics(self, source_file: str) -> None:
         """Run analytics after import. Safe to call separately or in background.
@@ -194,14 +211,7 @@ class SyncEngine:
         else:
             df, column_mapping, file_hash = self.excel_loader.load(file_path)
 
-        # Check if already imported
-        existing_import = self.check_already_imported(file_hash)
-        if existing_import and not force:
-            logger.info(f"File already imported at {existing_import.imported_at}")
-            msg = (
-                f"File already imported at {existing_import.imported_at}. Use --force to re-import."
-            )
-            raise ValueError(msg)
+        existing_import = self._raise_if_already_imported(file_hash, force=force)
 
         # Step 2: Normalize data
         logger.info("Normalizing data...")
@@ -211,64 +221,14 @@ class SyncEngine:
             logger.warning("No valid rows to import")
             return ReconciliationStats()
 
-        # Separate transactions and transfers
-        transactions = [row for row in normalized_rows if not row.get("is_transfer", False)]
-        transfers = [row for row in normalized_rows if row.get("is_transfer", False)]
-
-        logger.info(f"Found {len(transactions)} transactions and {len(transfers)} transfers")
-
-        # Step 3: Reconcile transactions with database
-        stats = ReconciliationStats()
-
-        if transactions:
-            logger.info("Reconciling transactions...")
-            tx_stats = self.reconciler.reconcile_batch(
-                normalized_rows=transactions,
-                source_file=file_path.name,
-                import_time=import_time,
-            )
-            stats.processed += tx_stats.processed
-            stats.inserted += tx_stats.inserted
-            stats.updated += tx_stats.updated
-            stats.deleted += tx_stats.deleted
-            stats.skipped += tx_stats.skipped
-
-        # Step 4: Reconcile transfers with database
-        if transfers:
-            logger.info("Reconciling transfers...")
-            tf_stats = self.reconciler.reconcile_transfers_batch(
-                normalized_rows=transfers,
-                source_file=file_path.name,
-                import_time=import_time,
-            )
-            stats.processed += tf_stats.processed
-            stats.inserted += tf_stats.inserted
-            stats.updated += tf_stats.updated
-            stats.deleted += tf_stats.deleted
-            stats.skipped += tf_stats.skipped
-
-        # Step 5: Log import
-        # If this is a re-import, update existing log
-        if existing_import and force:
-            self.session.delete(existing_import)
-            self.session.commit()
-
-        import_log = ImportLog(
-            user_id=self.user_id,
+        # Steps 3-5: Reconcile transactions + transfers and write the import log.
+        stats = self._reconcile_and_log(
+            normalized_rows,
+            source_file=file_path.name,
             file_hash=file_hash,
-            file_name=file_path.name,
-            imported_at=import_time,
-            rows_processed=stats.processed,
-            rows_inserted=stats.inserted,
-            rows_updated=stats.updated,
-            rows_deleted=stats.deleted,
-            rows_skipped=stats.skipped,
+            import_time=import_time,
+            existing_import=existing_import,
         )
-
-        self.session.add(import_log)
-        self.session.commit()
-
-        logger.info(f"Import completed: {stats}")
 
         # Step 6: Run analytics calculations (inline for CLI)
         self.run_post_import_analytics(file_path.name)
