@@ -18,13 +18,12 @@ interface StaleDataBadgeProps {
 export function StaleDataBadge({ isFallback, reason }: StaleDataBadgeProps) {
   if (!isFallback) return null
   return (
-    <span
+    <output
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-overline font-medium bg-warning/10 text-warning border border-warning/20"
       title={reason ?? 'Showing fallback data — couldn\'t reach the live source.'}
-      role="status"
     >
       <Info className="w-3 h-3" aria-hidden />
       Fallback
-    </span>
+    </output>
   )
 }

@@ -10,6 +10,9 @@ interface UploadPayload {
   force?: boolean
 }
 
+// Uploads and the synchronous analytics rebuild can take a while on large files.
+const UPLOAD_TIMEOUT_MS = 120_000
+
 export const uploadService = {
   uploadTransactions: async ({
     fileName,
@@ -23,7 +26,7 @@ export const uploadService = {
       rows,
       force,
     }, {
-      timeout: 120_000,
+      timeout: UPLOAD_TIMEOUT_MS,
     })
 
     return response.data
@@ -31,7 +34,7 @@ export const uploadService = {
 
   refreshAnalytics: async (): Promise<void> => {
     await apiClient.post('/api/analytics/v2/refresh', null, {
-      timeout: 120_000,
+      timeout: UPLOAD_TIMEOUT_MS,
     })
   },
 }

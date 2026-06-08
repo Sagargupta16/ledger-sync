@@ -30,6 +30,9 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
     isLoading,
   } = props
 
+  const xirrSign = portfolioXIRR >= 0 ? '+' : ''
+  const xirrValue = portfolioXIRR === 0 ? '-' : `${xirrSign}${portfolioXIRR.toFixed(1)}%`
+
   return (
     <div
       className={`grid grid-cols-1 sm:grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 sm:gap-4 lg:gap-6`}
@@ -58,7 +61,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
       />
       <MetricCard
         title="Portfolio XIRR"
-        value={portfolioXIRR === 0 ? '-' : `${portfolioXIRR >= 0 ? '+' : ''}${portfolioXIRR.toFixed(1)}%`}
+        value={xirrValue}
         subtitle={portfolioXIRR === 0 ? 'Needs dated flows' : 'Annualized, all flows'}
         icon={LineChart}
         color={portfolioXIRR >= 0 ? 'green' : 'red'}

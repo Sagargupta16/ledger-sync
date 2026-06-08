@@ -1,4 +1,3 @@
-import { ClipboardList, CreditCard, PiggyBank, Wallet } from 'lucide-react'
 import type { Transaction } from '@/types'
 
 export type FinHealthTier = 'healthy' | 'coping' | 'vulnerable'
@@ -105,15 +104,6 @@ export const INVESTMENT_NOTE_KEYWORDS = [
   'elss',
   'epf',
 ]
-
-export const PILLAR_META: Record<Pillar, { label: string; icon: typeof Wallet }> = {
-  spend: { label: 'Spend', icon: Wallet },
-  save: { label: 'Save', icon: PiggyBank },
-  borrow: { label: 'Borrow', icon: CreditCard },
-  plan: { label: 'Plan', icon: ClipboardList },
-}
-
-export const PILLAR_ORDER: Pillar[] = ['spend', 'save', 'borrow', 'plan']
 
 /**
  * Primary targets for the 8 FinHealth metrics. Tweak in one place;

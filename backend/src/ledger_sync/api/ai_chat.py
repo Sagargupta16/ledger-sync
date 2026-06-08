@@ -182,7 +182,14 @@ def _from_bedrock_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-@router.post("/bedrock/chat", response_model=BedrockChatResponse)
+@router.post(
+    "/bedrock/chat",
+    responses={
+        400: {"description": "Bedrock not configured or no preferences found"},
+        502: {"description": "Bedrock returned an error or unexpected response shape"},
+        503: {"description": "Bedrock is not configured on the server"},
+    },
+)
 @limiter.limit("30/minute")
 def bedrock_chat_proxy(
     request: Request,  # slowapi requires a `request: Request` parameter  # noqa: ARG001

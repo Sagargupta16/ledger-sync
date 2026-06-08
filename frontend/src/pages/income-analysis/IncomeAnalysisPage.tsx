@@ -57,12 +57,12 @@ export default function IncomeAnalysisPage() {
   const filteredTransactions = useMemo(() => {
     if (!transactions) return []
     const startDate = dateRange.start_date
-    const byDate = !startDate
-      ? transactions
-      : transactions.filter((t) => {
+    const byDate = startDate
+      ? transactions.filter((t) => {
           const txDate = getDateKey(t.date)
           return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
         })
+      : transactions
     if (!categoryFilter) return byDate
     return byDate.filter((t) => t.category === categoryFilter)
   }, [transactions, dateRange, categoryFilter])

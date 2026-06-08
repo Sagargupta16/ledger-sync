@@ -32,6 +32,9 @@ export class FileParseError extends Error {
   }
 }
 
+// Excel's day-0 epoch (1899-12-30 UTC); serial date numbers count days from here.
+const EXCEL_EPOCH = Date.UTC(1899, 11, 30)
+
 function stringify(value: unknown): string {
   if (value == null) return ''
   if (typeof value === 'string') return value
@@ -77,8 +80,7 @@ function parseDate(value: unknown, rowIndex: number): string {
 
   if (typeof value === 'number') {
     // SheetJS Excel serial date number
-    const epoch = new Date(Date.UTC(1899, 11, 30))
-    const date = new Date(epoch.getTime() + value * MS_PER_DAY)
+    const date = new Date(EXCEL_EPOCH + value * MS_PER_DAY)
     return date.toISOString().split('T')[0]
   }
 

@@ -26,7 +26,7 @@ const FALLBACK_RATES: InstrumentRates = {
   },
   nps: {
     default_allocation_pct: { equity: 50, corp_bond: 30, govt_bond: 20 },
-    historical_return_pct: { equity: 10.0, corp_bond: 8.5, govt_bond: 7.5 },
+    historical_return_pct: { equity: 10, corp_bond: 8.5, govt_bond: 7.5 },
     effective_from: '2026-04-01',
     source_url: 'https://npscra.nsdl.co.in/scheme-performance.php',
   },

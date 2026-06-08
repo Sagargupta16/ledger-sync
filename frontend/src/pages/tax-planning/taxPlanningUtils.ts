@@ -230,20 +230,37 @@ export function buildYearlyTaxData(
   return data
 }
 
+export interface PrevFYDisplayParams {
+  effectiveFY: string
+  currentFYLabel: string
+  transactionsByFY: Record<string, FYData>
+  regimeOverride: TaxRegimeOverride
+  preferredRegime: string
+  hasSalaryData: boolean
+  salaryStructure: Record<string, SalaryComponents>
+  rsuGrants: RsuGrant[]
+  growthAssumptions: GrowthAssumptions
+  fiscalYearStartMonth: number
+  isNewRegime: boolean
+}
+
 /** Compute the previous FY's display values for YoY comparison badges */
 export function computePrevFYDisplay(
-  effectiveFY: string,
-  currentFYLabel: string,
-  transactionsByFY: Record<string, FYData>,
-  regimeOverride: TaxRegimeOverride,
-  preferredRegime: string,
-  hasSalaryData: boolean,
-  salaryStructure: Record<string, SalaryComponents>,
-  rsuGrants: RsuGrant[],
-  growthAssumptions: GrowthAssumptions,
-  fiscalYearStartMonth: number,
-  isNewRegime: boolean,
+  params: PrevFYDisplayParams,
 ): { net: number; gross: number; totalTax: number } | null {
+  const {
+    effectiveFY,
+    currentFYLabel,
+    transactionsByFY,
+    regimeOverride,
+    preferredRegime,
+    hasSalaryData,
+    salaryStructure,
+    rsuGrants,
+    growthAssumptions,
+    fiscalYearStartMonth,
+    isNewRegime,
+  } = params
   if (!effectiveFY) return null
   const startYear = parseFYStartYear(effectiveFY)
   if (!startYear) return null

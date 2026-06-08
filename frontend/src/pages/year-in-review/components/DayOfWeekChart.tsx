@@ -67,7 +67,7 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
     // Insights -- compute once for the strip below the chart.
     const sortedBySpend = [...series].sort((a, b) => b.spending - a.spending)
     const top = sortedBySpend[0]
-    const bottom = sortedBySpend[sortedBySpend.length - 1]
+    const bottom = sortedBySpend.at(-1)
     const weekendSpend = (series[0].spending + series[6].spending) / 2 // Sun + Sat
     const weekdaySpend =
       series.slice(1, 6).reduce((sum, d) => sum + d.spending, 0) / 5 // Mon-Fri
@@ -79,7 +79,7 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
           ? {
               topDay: top.day,
               topAmount: top.spending,
-              bottomDay: bottom.day,
+              bottomDay: bottom?.day,
               weekendDelta:
                 weekdaySpend > 0
                   ? (weekendSpend - weekdaySpend) / weekdaySpend

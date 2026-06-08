@@ -16,10 +16,10 @@ import {
 import type { Transaction } from '@/types'
 
 function resolveDemoData(url: string, params: Record<string, unknown>, txs: Transaction[]): unknown {
-  if (url.includes('/calculations/totals')) return generateDemoTotals(txs, params as { start_date?: string; end_date?: string })
-  if (url.includes('/calculations/monthly-aggregation')) return generateDemoMonthlyAggregation(txs, params as { start_date?: string; end_date?: string })
+  if (url.includes('/calculations/totals')) return generateDemoTotals(txs, params)
+  if (url.includes('/calculations/monthly-aggregation')) return generateDemoMonthlyAggregation(txs, params)
   if (url.includes('/calculations/account-balances')) return generateDemoAccountBalances(txs)
-  if (url.includes('/calculations/category-breakdown')) return generateDemoCategoryBreakdown(txs, params as { start_date?: string; end_date?: string; transaction_type?: 'income' | 'expense' })
+  if (url.includes('/calculations/category-breakdown')) return generateDemoCategoryBreakdown(txs, params)
   if (url.includes('/analytics/kpis')) return generateDemoKPIs(txs)
   if (url.includes('/analytics/v2/')) return { data: [], count: 0 }
   if (url.includes('/analytics/overview')) return generateDemoOverview(txs)

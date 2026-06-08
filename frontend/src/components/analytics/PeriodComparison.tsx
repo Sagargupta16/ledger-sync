@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
@@ -10,16 +10,18 @@ import { rawColors } from '@/constants/colors'
 import { ChangeDisplay, SummaryCard } from './period-comparison/PeriodChangeDisplay'
 import { PeriodSelectors } from './period-comparison/PeriodSelectors'
 import {
-  buildMonthlyMetrics,
-  buildYearlyMetrics,
   formatMonthLabel,
   formatValue,
   type CompareMode,
-  type MetricRow,
-  type MonthData,
-  type TransactionType,
-  type YearData,
 } from './period-comparison/periodMetrics'
+import {
+  buildComparisonMetrics,
+  deriveAvailableMonths,
+  deriveAvailableYears,
+  deriveTransactionCounts,
+  deriveYearlyData,
+  makeGetTransactionCount,
+} from './periodComparisonUtils'
 
 export default function PeriodComparison() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
@@ -30,107 +32,49 @@ export default function PeriodComparison() {
   const [selectedYear1, setSelectedYear1] = useState<number | null>(null)
   const [selectedYear2, setSelectedYear2] = useState<number | null>(null)
 
-  const availableMonths = useMemo<MonthData[]>(() => {
-    if (!monthlyData) return []
-    return Object.entries(monthlyData)
-      .map(([month, data]) => ({
-        month,
-        ...(data as { income: number; expense: number; net_savings: number }),
-      }))
-      .sort((a, b) => b.month.localeCompare(a.month))
-  }, [monthlyData])
+  const availableMonths = useMemo(() => deriveAvailableMonths(monthlyData), [monthlyData])
 
-  const availableYears = useMemo(() => {
-    if (!monthlyData) return []
-    const years = new Set<number>()
-    Object.keys(monthlyData).forEach((month) => {
-      years.add(Number.parseInt(month.slice(0, 4)))
-    })
-    return Array.from(years).sort((a, b) => b - a)
-  }, [monthlyData])
+  const availableYears = useMemo(() => deriveAvailableYears(monthlyData), [monthlyData])
 
   const effectiveMonth1 = selectedMonth1 ?? availableMonths[0]?.month ?? null
   const effectiveMonth2 = selectedMonth2 ?? availableMonths[1]?.month ?? null
   const effectiveYear1 = selectedYear1 ?? availableYears[0] ?? null
   const effectiveYear2 = selectedYear2 ?? availableYears[1] ?? null
 
-  const yearlyData = useMemo(() => {
-    if (!monthlyData) return {}
-    const yearly: Record<number, YearData> = {}
+  const yearlyData = useMemo(() => deriveYearlyData(monthlyData), [monthlyData])
 
-    Object.entries(monthlyData).forEach(([month, data]) => {
-      const year = Number.parseInt(month.slice(0, 4))
-      const d = data as { income: number; expense: number; net_savings: number }
-      if (!yearly[year]) {
-        yearly[year] = { income: 0, expense: 0, net_savings: 0, months: 0 }
-      }
-      yearly[year].income += d.income
-      yearly[year].expense += d.expense
-      yearly[year].net_savings += d.net_savings
-      yearly[year].months += 1
-    })
+  const transactionCounts = useMemo(() => deriveTransactionCounts(transactions), [transactions])
 
-    return yearly
-  }, [monthlyData])
-
-  const transactionCounts = useMemo(() => {
-    const counts: Record<string, { total: number; income: number; expense: number }> = {}
-    transactions.forEach((tx) => {
-      const month = tx.date.slice(0, 7)
-      if (!counts[month]) {
-        counts[month] = { total: 0, income: 0, expense: 0 }
-      }
-      counts[month].total += 1
-      if (tx.type === 'Income') counts[month].income += 1
-      else if (tx.type === 'Expense') counts[month].expense += 1
-    })
-    return counts
-  }, [transactions])
-
-  const getTransactionCount = useCallback(
-    (period: string | number, type: TransactionType = 'total') => {
-      if (typeof period === 'number') {
-        return Object.entries(transactionCounts)
-          .filter(([month]) => month.startsWith(String(period)))
-          .reduce((sum, [, counts]) => sum + counts[type], 0)
-      }
-      return transactionCounts[period]?.[type] ?? 0
-    },
+  const getTransactionCount = useMemo(
+    () => makeGetTransactionCount(transactionCounts),
     [transactionCounts],
   )
 
-  const comparisonMetrics = useMemo((): MetricRow[] | null => {
-    if (compareMode === 'months') {
-      if (!effectiveMonth1 || !effectiveMonth2 || !monthlyData) return null
-      const m1 = availableMonths.find((m) => m.month === effectiveMonth1)
-      const m2 = availableMonths.find((m) => m.month === effectiveMonth2)
-      if (!m1 || !m2) return null
-      return buildMonthlyMetrics(
-        m1,
-        m2,
+  const comparisonMetrics = useMemo(
+    () =>
+      buildComparisonMetrics({
+        compareMode,
+        monthlyData,
+        availableMonths,
+        yearlyData,
         effectiveMonth1,
         effectiveMonth2,
-        availableMonths,
+        effectiveYear1,
+        effectiveYear2,
         getTransactionCount,
-      )
-    }
-
-    if (!effectiveYear1 || !effectiveYear2) return null
-    const y1 = yearlyData[effectiveYear1]
-    const y2 = yearlyData[effectiveYear2]
-    if (!y1 || !y2) return null
-    return buildYearlyMetrics(y1, y2, effectiveYear1, effectiveYear2, getTransactionCount)
-  }, [
-    compareMode,
-    effectiveMonth1,
-    effectiveMonth2,
-    effectiveYear1,
-    effectiveYear2,
-    monthlyData,
-    availableMonths,
-    yearlyData,
-    getTransactionCount,
-  ])
+      }),
+    [
+      compareMode,
+      effectiveMonth1,
+      effectiveMonth2,
+      effectiveYear1,
+      effectiveYear2,
+      monthlyData,
+      availableMonths,
+      yearlyData,
+      getTransactionCount,
+    ],
+  )
 
   const getPeriod1Label = () => {
     if (compareMode === 'months' && effectiveMonth1) return formatMonthLabel(effectiveMonth1)

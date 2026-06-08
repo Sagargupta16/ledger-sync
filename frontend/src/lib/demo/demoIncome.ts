@@ -6,29 +6,30 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
 
   const baseSalary = 145000 + Math.floor(m / 6) * 8000
   const salary = baseSalary + rng.int(-3000, 3000)
-  txs.push({
-    id: txId(ctx.idx++),
-    date: formatDate(new Date(year, month, 1)),
-    amount: salary,
-    type: 'Income',
-    category: 'Employment Income',
-    subcategory: 'Salary',
-    account: ACCOUNTS.hdfc,
-    note: 'Monthly Salary Credit',
-    currency: 'INR',
-  })
-
-  txs.push({
-    id: txId(ctx.idx++),
-    date: formatDate(new Date(year, month, 1)),
-    amount: Math.round(salary * 0.024),
-    type: 'Income',
-    category: 'Employment Income',
-    subcategory: 'EPF Contribution',
-    account: ACCOUNTS.epf,
-    note: 'Employer EPF Contribution',
-    currency: 'INR',
-  })
+  txs.push(
+    {
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, 1)),
+      amount: salary,
+      type: 'Income',
+      category: 'Employment Income',
+      subcategory: 'Salary',
+      account: ACCOUNTS.hdfc,
+      note: 'Monthly Salary Credit',
+      currency: 'INR',
+    },
+    {
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, 1)),
+      amount: Math.round(salary * 0.024),
+      type: 'Income',
+      category: 'Employment Income',
+      subcategory: 'EPF Contribution',
+      account: ACCOUNTS.epf,
+      note: 'Employer EPF Contribution',
+      currency: 'INR',
+    },
+  )
 
   if (m % 6 === 5 || (m % 3 === 0 && rng.next() < 0.3)) {
     txs.push({

@@ -195,32 +195,11 @@ class AuthService:
     def _delete_all_user_data(self, user_id: int) -> None:
         """Delete all user-scoped data across every table.
 
-        Deletes in FK-safe order: child tables first (anomalies reference
-        transactions), then transactions, then remaining tables.
+        Deletes in FK-safe order: transaction-derived data first (anomalies
+        reference transactions), then the remaining preference/goal tables
+        which have no FK to transactions.
         """
-        # Tables with FK to transactions — must be deleted first
-        self.session.query(Anomaly).filter(Anomaly.user_id == user_id).delete()
-
-        # Core data tables (no FK dependencies on each other)
-        self.session.query(Transaction).filter(Transaction.user_id == user_id).delete()
-        self.session.query(ImportLog).filter(ImportLog.user_id == user_id).delete()
-        self.session.query(RecurringTransaction).filter(
-            RecurringTransaction.user_id == user_id
-        ).delete()
-        self.session.query(ScheduledTransaction).filter(
-            ScheduledTransaction.user_id == user_id
-        ).delete()
-
-        # Analytics / aggregation tables
-        self.session.query(MonthlySummary).filter(MonthlySummary.user_id == user_id).delete()
-        self.session.query(CategoryTrend).filter(CategoryTrend.user_id == user_id).delete()
-        self.session.query(TransferFlow).filter(TransferFlow.user_id == user_id).delete()
-        self.session.query(NetWorthSnapshot).filter(NetWorthSnapshot.user_id == user_id).delete()
-        self.session.query(MerchantIntelligence).filter(
-            MerchantIntelligence.user_id == user_id
-        ).delete()
-        self.session.query(FYSummary).filter(FYSummary.user_id == user_id).delete()
-        self.session.query(TaxRecord).filter(TaxRecord.user_id == user_id).delete()
+        self._delete_transaction_data(user_id)
 
         # Budgets & goals
         self.session.query(Budget).filter(Budget.user_id == user_id).delete()

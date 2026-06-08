@@ -85,8 +85,6 @@ class TestTransferReconciliation:
         """
         reconciler = Reconciler(test_db_session, user_id=test_user.id)
         d = datetime(2024, 11, 23, tzinfo=UTC)
-        # Transfer #1 (both legs)
-        # Transfer #2 (both legs) -- identical to #1 except it's a DIFFERENT real movement
         rows = [
             _transfer_row(
                 leg="in", from_acct="Friends", to_acct="Cashback", amount=Decimal("39.00"), date=d
