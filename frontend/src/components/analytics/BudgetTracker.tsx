@@ -8,6 +8,9 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { useBudgetStore } from '@/store/budgetStore'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
+import { computeBudgetStatus, getStatusColor, getProgressColor } from './budgetUtils'
+import AddBudgetForm from './components/AddBudgetForm'
+
 export default function BudgetTracker() {
   const { data: categoryData } = useCategoryBreakdown({
     transaction_type: 'expense',
@@ -51,26 +54,10 @@ export default function BudgetTracker() {
   }, [categoryData, transactions])
 
   // Budget status
-  const budgetStatus = useMemo(() => {
-    return budgets.map((budget) => {
-      const spent = currentMonthSpending[budget.category] || 0
-      const percentage = budget.limit > 0 ? (spent / budget.limit) * 100 : 0
-      const remaining = budget.limit - spent
-
-      let status: 'safe' | 'warning' | 'danger' | 'exceeded' = 'safe'
-      if (percentage >= 100) status = 'exceeded'
-      else if (percentage >= 80) status = 'danger'
-      else if (percentage >= 60) status = 'warning'
-
-      return {
-        ...budget,
-        spent,
-        percentage,
-        remaining,
-        status,
-      }
-    })
-  }, [budgets, currentMonthSpending])
+  const budgetStatus = useMemo(
+    () => computeBudgetStatus(budgets, currentMonthSpending),
+    [budgets, currentMonthSpending]
+  )
 
   // Categories without budgets
   const categoriesWithoutBudget = allCategories.filter(
@@ -89,36 +76,6 @@ export default function BudgetTracker() {
   const handleEditBudget = (category: string, limit: number) => {
     setBudget(category, limit)
     setEditingCategory(null)
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'safe':
-        return 'text-app-green bg-app-green/20 border-app-green/30'
-      case 'warning':
-        return 'text-app-yellow bg-app-yellow/20 border-app-yellow/30'
-      case 'danger':
-        return 'text-app-orange bg-app-orange/20 border-app-orange/30'
-      case 'exceeded':
-        return 'text-app-red bg-app-red/20 border-app-red/30'
-      default:
-        return ''
-    }
-  }
-
-  const getProgressColor = (status: string) => {
-    switch (status) {
-      case 'safe':
-        return 'bg-app-green'
-      case 'warning':
-        return 'bg-app-yellow'
-      case 'danger':
-        return 'bg-app-orange'
-      case 'exceeded':
-        return 'bg-app-red'
-      default:
-        return 'bg-primary'
-    }
   }
 
   // Summary stats
@@ -177,42 +134,15 @@ export default function BudgetTracker() {
 
       {/* Add Budget Form */}
       {isAdding && (
-        <div className="mb-4 p-4 rounded-xl bg-background/50 border border-border">
-          <h4 className="text-sm font-medium mb-3">Add New Budget</h4>
-          <div className="flex gap-3">
-            <select
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-lg bg-background/50 border border-border text-sm"
-            >
-              <option value="">Select category</option>
-              {categoriesWithoutBudget.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              inputMode="decimal"
-              value={newLimit}
-              onChange={(e) => setNewLimit(e.target.value)}
-              placeholder="Budget limit"
-              className="w-32 px-3 py-2 rounded-lg bg-background/50 border border-border text-sm"
-            />
-            <button
-              onClick={handleAddBudget}
-              disabled={!newCategory || !newLimit}
-              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
-            >
-              Add
-            </button>
-            <button
-              onClick={() => setIsAdding(false)}
-              className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <AddBudgetForm
+          categoriesWithoutBudget={categoriesWithoutBudget}
+          newCategory={newCategory}
+          newLimit={newLimit}
+          onCategoryChange={setNewCategory}
+          onLimitChange={setNewLimit}
+          onAdd={handleAddBudget}
+          onCancel={() => setIsAdding(false)}
+        />
       )}
 
       {/* Budget List */}

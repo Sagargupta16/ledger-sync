@@ -30,6 +30,14 @@ class ReconciliationStats:
             f"deleted={self.deleted}, skipped={self.skipped})"
         )
 
+    def merge(self, other: ReconciliationStats) -> None:
+        """Accumulate another batch's counters into this one."""
+        self.processed += other.processed
+        self.inserted += other.inserted
+        self.updated += other.updated
+        self.deleted += other.deleted
+        self.skipped += other.skipped
+
 
 def normalize_enum_value(value: Any) -> str | None:
     """Extract a comparable string from an enum or raw value."""
