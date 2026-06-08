@@ -1,3 +1,5 @@
+import type React from 'react'
+
 import { MS_PER_DAY } from '@/lib/dateUtils'
 
 /** Maps insight titles to widget keys used in Settings → Dashboard Widgets */
@@ -207,4 +209,140 @@ export function fmtChange(v: number | undefined, label: string) {
   if (v == null) return ''
   const sign = v > 0 ? '+' : ''
   return `${sign}${v}% ${label}`
+}
+
+export interface InsightDescriptor {
+  icon: React.ComponentType<{ className?: string }>
+  color: string
+  bg: string
+  title: string
+  value: string
+  subtitle?: string
+}
+
+export interface QuickInsightsParams {
+  totalIncome: number
+  totalExpenses: number
+  netSavings: number
+  savingsRate: number
+  incomeChange: string
+  expenseChange: string
+  savingsChange: string
+  ageOfMoney?: number | null
+  daysOfBuffering?: number | null
+  fixedCommitmentsMonthly: number
+  fixedCount: number
+  recurringCoverage: number
+}
+
+export interface FunFactsParams {
+  topCategory?: [string, CategoryData] | [string, unknown]
+  topIncomeSource: [string, number] | null
+  netCashback: number
+  cashbackCount: number
+  biggestTransaction: { amount: number; category?: string }
+  medianTransaction: number
+  avgTransactionAmount: number
+  avgDailySpending: number
+  daysInRange: number
+  weekendPercent: number
+  weekendSpending: number
+  weekdaySpending: number
+  peakDay: { name: string; total: number }
+  monthlyBurnRate: number
+  monthsInRange: number
+  uniqueCategories: number
+  uniqueSubcategories: number
+  totalTransfers: number
+  transferCount: number
+  incomeExpenseRatio: number
+  mostExpensiveMonth: { label: string; amount: number } | null
+}
+
+type Icon = React.ComponentType<{ className?: string }>
+
+export function buildQuickInsights(
+  p: QuickInsightsParams,
+  icons: {
+    TrendingUp: Icon
+    TrendingDown: Icon
+    DollarSign: Icon
+    Percent: Icon
+    Hourglass: Icon
+    ShieldCheck: Icon
+    Lock: Icon
+    Repeat: Icon
+  },
+  formatCurrency: (n: number) => string,
+): InsightDescriptor[] {
+  const savingsRateSubtitle =
+    p.totalIncome > 0
+      ? `${formatCurrency(p.netSavings)} saved of ${formatCurrency(p.totalIncome)}`
+      : 'No income recorded'
+
+  const items: InsightDescriptor[] = [
+    { icon: icons.TrendingUp, color: 'text-app-green', bg: 'bg-app-green/10', title: 'Total Income', value: formatCurrency(p.totalIncome), subtitle: p.incomeChange },
+    { icon: icons.TrendingDown, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Total Expenses', value: formatCurrency(Math.abs(p.totalExpenses)), subtitle: p.expenseChange },
+    { icon: icons.DollarSign, color: 'text-app-blue', bg: 'bg-app-blue/10', title: 'Net Savings', value: formatCurrency(p.netSavings), subtitle: p.savingsChange },
+    { icon: icons.Percent, color: 'text-app-purple', bg: 'bg-app-purple/10', title: 'Savings Rate', value: `${p.savingsRate.toFixed(1)}%`, subtitle: savingsRateSubtitle },
+  ]
+
+  if (p.ageOfMoney != null) {
+    items.push({ icon: icons.Hourglass, color: 'text-app-indigo', bg: 'bg-app-indigo/10', title: 'Age of Money', value: `${p.ageOfMoney} days`, subtitle: ageOfMoneyLabel(p.ageOfMoney) })
+  }
+  if (p.daysOfBuffering != null) {
+    items.push({ icon: icons.ShieldCheck, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Days of Buffering', value: `${p.daysOfBuffering} days`, subtitle: 'At current spending rate' })
+  }
+  if (p.fixedCommitmentsMonthly > 0) {
+    items.push({ icon: icons.Lock, color: 'text-app-orange', bg: 'bg-app-orange/10', title: 'Fixed Commitments', value: formatCurrency(p.fixedCommitmentsMonthly), subtitle: `${p.fixedCount} active recurring` })
+    items.push({ icon: icons.Repeat, color: 'text-app-yellow', bg: 'bg-app-yellow/10', title: 'Recurring Coverage', value: `${p.recurringCoverage.toFixed(1)}%`, subtitle: recurringCoverageLabel(p.recurringCoverage) })
+  }
+  return items
+}
+
+export function buildFunFacts(
+  p: FunFactsParams,
+  icons: {
+    ShoppingBag: Icon
+    Landmark: Icon
+    Gift: Icon
+    TrendingUp: Icon
+    BarChart3: Icon
+    Zap: Icon
+    Calendar: Icon
+    Clock: Icon
+    Flame: Icon
+    Layers: Icon
+    Receipt: Icon
+    ArrowLeftRight: Icon
+    Scale: Icon
+    CalendarRange: Icon
+  },
+  formatCurrency: (n: number) => string,
+): InsightDescriptor[] {
+  const medianSubtitle =
+    p.avgTransactionAmount > p.medianTransaction
+      ? 'Few large purchases skew average up'
+      : 'Spending is fairly even'
+
+  const items: InsightDescriptor[] = [
+    { icon: icons.ShoppingBag, color: 'text-app-purple', bg: 'bg-app-purple/10', title: 'Top Spending Category', value: p.topCategory ? p.topCategory[0] : 'N/A', subtitle: p.topCategory ? formatCurrency(Math.abs((p.topCategory[1] as CategoryData).total)) : '' },
+    { icon: icons.Landmark, color: 'text-sky-400', bg: 'bg-sky-500/10', title: 'Top Income Source', value: p.topIncomeSource ? p.topIncomeSource[0] : 'N/A', subtitle: p.topIncomeSource ? formatCurrency(p.topIncomeSource[1]) : '' },
+    { icon: icons.Gift, color: 'text-app-green', bg: 'bg-app-green/10', title: 'Net Cashback Earned', value: formatCurrency(p.netCashback), subtitle: `From ${p.cashbackCount} cashback transactions` },
+    { icon: icons.TrendingUp, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Biggest Transaction', value: formatCurrency(Math.abs(p.biggestTransaction?.amount || 0)), subtitle: p.biggestTransaction?.category || '' },
+    { icon: icons.BarChart3, color: 'text-app-purple', bg: 'bg-app-purple/10', title: 'Median Transaction', value: formatCurrency(p.medianTransaction), subtitle: medianSubtitle },
+    { icon: icons.Zap, color: 'text-app-yellow', bg: 'bg-app-yellow/10', title: 'Average Daily Spending', value: formatCurrency(p.avgDailySpending), subtitle: `Over ${p.daysInRange} days` },
+    { icon: icons.Calendar, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Weekend Spending', value: `${p.weekendPercent.toFixed(0)}%`, subtitle: `${formatCurrency(p.weekendSpending)} weekends vs ${formatCurrency(p.weekdaySpending)} weekdays` },
+    { icon: icons.Clock, color: 'text-app-orange', bg: 'bg-app-orange/10', title: 'Peak Spending Day', value: p.peakDay.name, subtitle: `${formatCurrency(p.peakDay.total)} total on ${p.peakDay.name}s` },
+    { icon: icons.Flame, color: 'text-app-orange', bg: 'bg-app-orange/10', title: 'Monthly Burn Rate', value: formatCurrency(p.monthlyBurnRate), subtitle: `Avg over ${p.monthsInRange.toFixed(1)} months` },
+    { icon: icons.Layers, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Spending Diversity', value: `${p.uniqueCategories} categories`, subtitle: `Across ${p.uniqueSubcategories} subcategories` },
+    { icon: icons.Receipt, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Avg Transaction', value: formatCurrency(p.avgTransactionAmount), subtitle: 'Per transaction' },
+    { icon: icons.ArrowLeftRight, color: 'text-app-indigo', bg: 'bg-app-indigo/10', title: 'Internal Transfers', value: formatCurrency(p.totalTransfers), subtitle: `${p.transferCount} transfers` },
+    { icon: icons.Scale, color: 'text-app-blue', bg: 'bg-app-blue/10', title: 'Income vs Expense', value: `${p.incomeExpenseRatio.toFixed(2)}x`, subtitle: incomeExpenseRatioLabel(p.incomeExpenseRatio) },
+  ]
+
+  if (p.mostExpensiveMonth) {
+    items.push({ icon: icons.CalendarRange, color: 'text-app-red', bg: 'bg-app-red/10', title: 'Most Expensive Month', value: p.mostExpensiveMonth.label, subtitle: formatCurrency(p.mostExpensiveMonth.amount) })
+  }
+  return items
 }

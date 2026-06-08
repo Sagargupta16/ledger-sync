@@ -23,7 +23,7 @@ function getClassification(
 ): IncomeClassificationType | 'unclassified' {
   for (const classType of INCOME_CLASSIFICATION_TYPES) {
     const key = INCOME_CLASSIFICATION_KEY_MAP[classType.value]
-    if ((localPrefs[key] as string[]).includes(item)) {
+    if (localPrefs[key].includes(item)) {
       return classType.value
     }
   }
@@ -42,11 +42,11 @@ export default function IncomeClassificationSection({
     const updated = { ...localPrefs }
     for (const classType of INCOME_CLASSIFICATION_TYPES) {
       const key = INCOME_CLASSIFICATION_KEY_MAP[classType.value]
-      updated[key] = (updated[key] as string[]).filter((c: string) => c !== item)
+      updated[key] = updated[key].filter((c: string) => c !== item)
     }
     if (newType !== 'unclassified') {
       const targetKey = INCOME_CLASSIFICATION_KEY_MAP[newType]
-      updated[targetKey] = [...(updated[targetKey] as string[]), item]
+      updated[targetKey] = [...updated[targetKey], item]
     }
     setLocalPrefs(updated)
     setHasChanges(true)
@@ -111,7 +111,7 @@ export default function IncomeClassificationSection({
           <div className="flex flex-wrap gap-3 pt-1 text-xs text-muted-foreground">
             {INCOME_CLASSIFICATION_TYPES.map((t) => {
               const key = INCOME_CLASSIFICATION_KEY_MAP[t.value]
-              const count = (localPrefs[key] as string[]).length
+              const count = localPrefs[key].length
               return (
                 <span key={t.value}>
                   {count} {t.label.replace(/^[^\s]+\s/, '').toLowerCase()}

@@ -178,7 +178,13 @@ def update_ai_limits(
     )
 
 
-@router.get("/ai-config/key")
+@router.get(
+    "/ai-config/key",
+    responses={
+        404: {"description": "No AI key configured"},
+        400: {"description": "Failed to decrypt the stored API key"},
+    },
+)
 def get_ai_key(
     current_user: CurrentUser,
     session: DatabaseSession,

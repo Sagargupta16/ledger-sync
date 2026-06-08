@@ -43,8 +43,8 @@ export default function ChatWidget() {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) setIsOpen(false)
     }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
+    globalThis.addEventListener('keydown', handleKey)
+    return () => globalThis.removeEventListener('keydown', handleKey)
   }, [isOpen])
 
   if (!accessToken || isDemoMode) return null

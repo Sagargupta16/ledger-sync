@@ -12,6 +12,12 @@ interface ModeToggleProps {
   pending: boolean
 }
 
+function usageTone(ratio: number): string {
+  if (ratio >= 1) return 'text-app-red'
+  if (ratio >= 0.8) return 'text-app-yellow'
+  return 'text-muted-foreground'
+}
+
 export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeToggleProps>) {
   return (
     <div className="space-y-2">
@@ -78,8 +84,7 @@ export function AppMessageBadge({
   const cap = usage.limits.app_daily_messages
   const remaining = Math.max(cap - used, 0)
   const ratio = cap > 0 ? used / cap : 0
-  const tone =
-    ratio >= 1 ? 'text-app-red' : ratio >= 0.8 ? 'text-app-yellow' : 'text-muted-foreground'
+  const tone = usageTone(ratio)
   return (
     <span className={`text-xs font-mono ${tone}`}>
       {remaining} / {cap} left

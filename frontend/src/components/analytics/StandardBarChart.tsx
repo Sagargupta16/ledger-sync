@@ -96,8 +96,54 @@ function resolveCellColor(
   index: number,
 ): string | undefined {
   if (bar.getCellColor) return bar.getCellColor(row, index)
-  if (bar.cellColors && bar.cellColors[index] !== undefined) return bar.cellColors[index]
+  if (bar.cellColors?.[index] !== undefined) return bar.cellColors[index]
   return undefined
+}
+
+function buildChartMargin(
+  margin: StandardBarChartProps['margin'],
+  xAngle: number | undefined,
+) {
+  return {
+    top: margin?.top ?? 8,
+    right: margin?.right ?? 12,
+    bottom: margin?.bottom ?? (xAngle ? 20 : 8),
+    left: margin?.left ?? 4,
+  }
+}
+
+function buildGridProps(
+  hideVerticalGrid: boolean | undefined,
+  hideHorizontalGrid: boolean | undefined,
+) {
+  return {
+    ...GRID_DEFAULTS,
+    ...(hideVerticalGrid !== undefined && { vertical: !hideVerticalGrid }),
+    ...(hideHorizontalGrid !== undefined && { horizontal: !hideHorizontalGrid }),
+  }
+}
+
+function buildTooltipFormatter(
+  tooltipValueWithPayload: StandardBarChartProps['tooltipValueWithPayload'],
+  tooltipFormatter: StandardBarChartProps['tooltipFormatter'],
+) {
+  if (tooltipValueWithPayload) {
+    return (
+      value: number | undefined,
+      _name: string | undefined,
+      entry: TooltipPayloadEntry,
+    ): [string, string] | string =>
+      tooltipValueWithPayload(value ?? 0, entry.payload ?? {})
+  }
+  return (value: number | undefined): string => (tooltipFormatter ?? formatCurrency)(value ?? 0)
+}
+
+function renderBarCells(bar: BarConfig, data: ReadonlyArray<object>) {
+  if (!bar.cellColors && !bar.getCellColor) return null
+  return data.map((row, i) => {
+    const color = resolveCellColor(bar, row as Record<string, unknown>, i)
+    return color ? <Cell key={`${bar.key}-${i}`} fill={color} /> : null
+  })
 }
 
 export default function StandardBarChart({
@@ -140,27 +186,9 @@ export default function StandardBarChart({
     ...(layout === 'vertical' && yCategoryKey !== undefined && { currency: false }),
   })
 
-  const chartMargin = {
-    top: margin?.top ?? 8,
-    right: margin?.right ?? 12,
-    bottom: margin?.bottom ?? (xAngle ? 20 : 8),
-    left: margin?.left ?? 4,
-  }
-
-  const gridProps = {
-    ...GRID_DEFAULTS,
-    ...(hideVerticalGrid !== undefined && { vertical: !hideVerticalGrid }),
-    ...(hideHorizontalGrid !== undefined && { horizontal: !hideHorizontalGrid }),
-  }
-
-  const tooltipFormatterProp = tooltipValueWithPayload
-    ? (
-        value: number | undefined,
-        _name: string | undefined,
-        entry: TooltipPayloadEntry,
-      ): [string, string] | string =>
-        tooltipValueWithPayload(value ?? 0, entry.payload ?? {})
-    : (value: number | undefined): string => (tooltipFormatter ?? formatCurrency)(value ?? 0)
+  const chartMargin = buildChartMargin(margin, xAngle)
+  const gridProps = buildGridProps(hideVerticalGrid, hideHorizontalGrid)
+  const tooltipFormatterProp = buildTooltipFormatter(tooltipValueWithPayload, tooltipFormatter)
 
   const referenceLineLabel = (label: string) => ({
     value: label,
@@ -222,10 +250,7 @@ export default function StandardBarChart({
             barSize={bar.barSize}
             stackId={stacked ? 'stack' : bar.stackId}
           >
-            {(bar.cellColors || bar.getCellColor) && data.map((row, i) => {
-              const color = resolveCellColor(bar, row as Record<string, unknown>, i)
-              return color ? <Cell key={`${bar.key}-${i}`} fill={color} /> : null
-            })}
+            {renderBarCells(bar, data)}
             {showLabels && (
               <LabelList
                 dataKey={bar.key}

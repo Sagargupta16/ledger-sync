@@ -46,7 +46,13 @@ def list_tools(_current_user: CurrentUser) -> dict[str, Any]:
     return {"tools": tool_specs()}
 
 
-@router.post("/execute")
+@router.post(
+    "/execute",
+    responses={
+        404: {"description": "Unknown tool"},
+        400: {"description": "Tool execution failed"},
+    },
+)
 def execute_tool(
     current_user: CurrentUser,
     request: ToolExecuteRequest,

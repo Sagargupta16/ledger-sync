@@ -24,4 +24,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Per project convention: rollback via DB backup, not down-migration.
     pass

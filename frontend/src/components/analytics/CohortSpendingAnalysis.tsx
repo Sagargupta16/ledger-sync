@@ -107,7 +107,7 @@ export default function CohortSpendingAnalysis() {
       peakName: peak.name,
       peakAmount: peak.avg,
       peakDelta,
-      dipName: sorted[sorted.length - 1].name,
+      dipName: sorted.at(-1)?.name,
     }
   }, [currentData, hasData])
 

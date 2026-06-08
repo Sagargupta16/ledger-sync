@@ -111,7 +111,7 @@ def delete_account(
 def reset_account(
     current_user: CurrentUser,
     auth_service: AuthServiceDep,
-    mode: Literal["full", "transactions"] = Query("full"),
+    mode: Annotated[Literal["full", "transactions"], Query()] = "full",
 ) -> MessageResponse:
     """Reset account data, keeping OAuth login.
 

@@ -92,7 +92,7 @@ describe('computeYearsToFIRE', () => {
     // then fvFactor = (46.5L * 0.07 / 10L) + 1 = 1.3255
     // n = log(1.3255)/log(1.07) ≈ 4.17
     // So the new (correct) answer must be noticeably lower than 4.17
-    expect(years).toBeLessThan(4.0)
+    expect(years).toBeLessThan(4)
   })
 
   it('handles zero return: linear savings', () => {

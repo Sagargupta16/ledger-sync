@@ -77,6 +77,13 @@ export function calculateCumulativeData(
 /** Bucketing granularity for chronological time-series charts. */
 export type Granularity = 'day' | 'week' | 'month'
 
+/** Adverb describing how data is bucketed (e.g. "daily", "weekly", "monthly"). */
+export function granularityAdverb(granularity: Granularity): string {
+  if (granularity === 'day') return 'daily'
+  if (granularity === 'week') return 'weekly'
+  return 'monthly'
+}
+
 /**
  * Pick a sensible granularity based on how much chronological data is in
  * the chart. Daily granularity is too noisy past ~3 months and unreadable
