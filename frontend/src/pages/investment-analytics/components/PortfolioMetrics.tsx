@@ -30,8 +30,8 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
     isLoading,
   } = props
 
-  const xirrValue =
-    portfolioXIRR === 0 ? '-' : `${portfolioXIRR >= 0 ? '+' : ''}${portfolioXIRR.toFixed(1)}%`
+  const xirrSign = portfolioXIRR >= 0 ? '+' : ''
+  const xirrValue = portfolioXIRR === 0 ? '-' : `${xirrSign}${portfolioXIRR.toFixed(1)}%`
 
   return (
     <div

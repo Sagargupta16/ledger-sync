@@ -294,8 +294,10 @@ export function buildQuickInsights(
     items.push({ icon: icons.ShieldCheck, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Days of Buffering', value: `${p.daysOfBuffering} days`, subtitle: 'At current spending rate' })
   }
   if (p.fixedCommitmentsMonthly > 0) {
-    items.push({ icon: icons.Lock, color: 'text-app-orange', bg: 'bg-app-orange/10', title: 'Fixed Commitments', value: formatCurrency(p.fixedCommitmentsMonthly), subtitle: `${p.fixedCount} active recurring` })
-    items.push({ icon: icons.Repeat, color: 'text-app-yellow', bg: 'bg-app-yellow/10', title: 'Recurring Coverage', value: `${p.recurringCoverage.toFixed(1)}%`, subtitle: recurringCoverageLabel(p.recurringCoverage) })
+    items.push(
+      { icon: icons.Lock, color: 'text-app-orange', bg: 'bg-app-orange/10', title: 'Fixed Commitments', value: formatCurrency(p.fixedCommitmentsMonthly), subtitle: `${p.fixedCount} active recurring` },
+      { icon: icons.Repeat, color: 'text-app-yellow', bg: 'bg-app-yellow/10', title: 'Recurring Coverage', value: `${p.recurringCoverage.toFixed(1)}%`, subtitle: recurringCoverageLabel(p.recurringCoverage) },
+    )
   }
   return items
 }

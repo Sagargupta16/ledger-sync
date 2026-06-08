@@ -28,10 +28,10 @@ import { useReturnsAnalysis } from './useReturnsAnalysis'
 function AccountTooltip({
   active,
   payload,
-}: {
+}: Readonly<{
   active?: boolean
   payload?: Array<{ payload: { name: string; value: number; transactions: number } }>
-}) {
+}>) {
   if (!active || !payload?.length) return null
   const p = payload[0].payload
   return (
