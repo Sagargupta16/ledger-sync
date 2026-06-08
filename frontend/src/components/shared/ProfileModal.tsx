@@ -1,13 +1,11 @@
-/**
- * ProfileModal -- full-screen modal showing user profile + account actions
- * (edit name, reset transactions, full reset, delete account, sign out).
- */
+// ProfileModal -- full-screen modal showing user profile + account actions
+// (edit name, reset transactions, full reset, delete account, sign out).
 
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { LogOut, RotateCcw, Trash2 } from 'lucide-react'
+import { RotateCcw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -20,7 +18,9 @@ import { useAuthStore } from '@/store/authStore'
 
 import { DangerActionRow } from './profile-modal/DangerActionRow'
 import { EditNameRow } from './profile-modal/EditNameRow'
+import { LogoutButton } from './profile-modal/LogoutButton'
 import { ProfileHeader } from './profile-modal/ProfileHeader'
+import { deriveProfileDisplay, makeExclusiveResetToggle } from './profileModalUtils'
 
 interface ProfileModalProps {
   readonly open: boolean
@@ -122,18 +122,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
     })
   }
 
-  const initials = user ? (user.full_name || user.email)[0].toUpperCase() : '?'
-  const displayName = user?.full_name || user?.email.split('@')[0] || 'User'
-  const memberSince = user?.created_at
-    ? new Date(user.created_at).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-    : null
-  const providerLabel = user?.auth_provider
-    ? user.auth_provider.charAt(0).toUpperCase() + user.auth_provider.slice(1)
-    : 'Email'
+  const { initials, displayName, memberSince, providerLabel } = deriveProfileDisplay(user)
 
   return (
     <motion.div
@@ -177,13 +166,11 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
 
           <DangerActionRow
             expanded={showTxResetConfirm}
-            setExpanded={(v) => {
-              setShowTxResetConfirm(v)
-              if (v) {
-                setShowFullResetConfirm(false)
-                setResetConfirmText('')
-              }
-            }}
+            setExpanded={makeExclusiveResetToggle(
+              setShowTxResetConfirm,
+              setShowFullResetConfirm,
+              setResetConfirmText,
+            )}
             Icon={RotateCcw}
             title="Reset Transactions"
             toneText="text-orange-400"
@@ -206,13 +193,11 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
 
           <DangerActionRow
             expanded={showFullResetConfirm}
-            setExpanded={(v) => {
-              setShowFullResetConfirm(v)
-              if (v) {
-                setShowTxResetConfirm(false)
-                setResetConfirmText('')
-              }
-            }}
+            setExpanded={makeExclusiveResetToggle(
+              setShowFullResetConfirm,
+              setShowTxResetConfirm,
+              setResetConfirmText,
+            )}
             Icon={RotateCcw}
             title="Complete Reset"
             toneText="text-amber-500"
@@ -257,17 +242,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
           />
         </div>
 
-        <div className="px-6 py-4 border-t border-border">
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={logout.isPending}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/15 transition-colors duration-150 ease-out text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <LogOut size={16} />
-            <span>{logout.isPending ? 'Signing out...' : 'Sign Out'}</span>
-          </button>
-        </div>
+        <LogoutButton isPending={logout.isPending} onLogout={handleLogout} />
       </motion.div>
     </motion.div>
   )
