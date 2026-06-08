@@ -4,12 +4,17 @@ These functions operate on in-memory ``Transaction`` ORM objects -- no
 database is needed. The focus is boundary behaviour: empty inputs, zero
 denominators, year-boundary spans, substring category matching, transfer
 netting, and Decimal precision (no float drift in the summation path).
+
+Scalar float results are asserted with ``pytest.approx`` rather than ``==``
+to avoid fragile binary-float equality comparisons.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+
+import pytest
 
 from ledger_sync.core.calculator import (
     calculate_category_concentration,
@@ -68,7 +73,9 @@ def test_totals_income_and_expense() -> None:
         tx(200, type=TransactionType.EXPENSE),
     ]
     result = calculate_totals(txns)
-    assert result == {"total_income": 1000.0, "total_expenses": 500.0, "net_change": 500.0}
+    assert result["total_income"] == pytest.approx(1000.0)
+    assert result["total_expenses"] == pytest.approx(500.0)
+    assert result["net_change"] == pytest.approx(500.0)
 
 
 def test_totals_ignores_transfers() -> None:
@@ -77,8 +84,8 @@ def test_totals_ignores_transfers() -> None:
         tx(500, type=TransactionType.TRANSFER, from_account="A", to_account="B"),
     ]
     result = calculate_totals(txns)
-    assert result["total_income"] == 1000.0
-    assert result["total_expenses"] == 0.0
+    assert result["total_income"] == pytest.approx(1000.0)
+    assert result["total_expenses"] == pytest.approx(0.0)
 
 
 def test_totals_decimal_precision_no_float_drift() -> None:
@@ -88,43 +95,45 @@ def test_totals_decimal_precision_no_float_drift() -> None:
         tx(0.25, type=TransactionType.EXPENSE),
     ]
     result = calculate_totals(txns)
-    assert result["total_expenses"] == 100.75
+    assert result["total_expenses"] == pytest.approx(100.75)
 
 
 # ─── calculate_savings_rate ─────────────────────────────────────────────
 
 
 def test_savings_rate_zero_income() -> None:
-    assert calculate_savings_rate(0.0, 500.0) == 0.0
+    assert calculate_savings_rate(0.0, 500.0) == pytest.approx(0.0)
 
 
 def test_savings_rate_normal() -> None:
-    assert calculate_savings_rate(1000.0, 600.0) == 40.0
+    assert calculate_savings_rate(1000.0, 600.0) == pytest.approx(40.0)
 
 
 def test_savings_rate_negative_when_expenses_exceed_income() -> None:
-    assert calculate_savings_rate(1000.0, 1500.0) == -50.0
+    assert calculate_savings_rate(1000.0, 1500.0) == pytest.approx(-50.0)
 
 
 def test_savings_rate_zero_expenses() -> None:
-    assert calculate_savings_rate(1000.0, 0.0) == 100.0
+    assert calculate_savings_rate(1000.0, 0.0) == pytest.approx(100.0)
 
 
 # ─── calculate_daily_spending_rate ──────────────────────────────────────
 
 
 def test_daily_rate_empty() -> None:
-    assert calculate_daily_spending_rate([]) == 0.0
+    assert calculate_daily_spending_rate([]) == pytest.approx(0.0)
 
 
 def test_daily_rate_no_expenses_only_income() -> None:
-    assert calculate_daily_spending_rate([tx(1000, type=TransactionType.INCOME)]) == 0.0
+    assert calculate_daily_spending_rate([tx(1000, type=TransactionType.INCOME)]) == pytest.approx(
+        0.0
+    )
 
 
 def test_daily_rate_single_day_span_is_one() -> None:
     """A single expense -> span of 1 day -> rate equals the amount."""
     rate = calculate_daily_spending_rate([tx(100, date=datetime(2024, 1, 1, tzinfo=UTC))])
-    assert rate == 100.0
+    assert rate == pytest.approx(100.0)
 
 
 def test_daily_rate_multi_day_span() -> None:
@@ -133,14 +142,14 @@ def test_daily_rate_multi_day_span() -> None:
         tx(100, date=datetime(2024, 1, 1, tzinfo=UTC)),
         tx(100, date=datetime(2024, 1, 10, tzinfo=UTC)),
     ]
-    assert calculate_daily_spending_rate(txns) == 20.0
+    assert calculate_daily_spending_rate(txns) == pytest.approx(20.0)
 
 
 # ─── calculate_monthly_burn_rate ────────────────────────────────────────
 
 
 def test_monthly_burn_empty() -> None:
-    assert calculate_monthly_burn_rate([]) == 0.0
+    assert calculate_monthly_burn_rate([]) == pytest.approx(0.0)
 
 
 def test_monthly_burn_single_month_span_one() -> None:
@@ -149,7 +158,7 @@ def test_monthly_burn_single_month_span_one() -> None:
         tx(300, date=datetime(2024, 3, 5, tzinfo=UTC)),
         tx(200, date=datetime(2024, 3, 20, tzinfo=UTC)),
     ]
-    assert calculate_monthly_burn_rate(txns) == 500.0
+    assert calculate_monthly_burn_rate(txns) == pytest.approx(500.0)
 
 
 def test_monthly_burn_spans_year_boundary() -> None:
@@ -158,7 +167,7 @@ def test_monthly_burn_spans_year_boundary() -> None:
         tx(200, date=datetime(2023, 12, 15, tzinfo=UTC)),
         tx(200, date=datetime(2024, 1, 15, tzinfo=UTC)),
     ]
-    assert calculate_monthly_burn_rate(txns) == 200.0
+    assert calculate_monthly_burn_rate(txns) == pytest.approx(200.0)
 
 
 def test_monthly_burn_full_year_span() -> None:
@@ -167,7 +176,7 @@ def test_monthly_burn_full_year_span() -> None:
         tx(600, date=datetime(2024, 1, 1, tzinfo=UTC)),
         tx(600, date=datetime(2024, 12, 31, tzinfo=UTC)),
     ]
-    assert calculate_monthly_burn_rate(txns) == 100.0
+    assert calculate_monthly_burn_rate(txns) == pytest.approx(100.0)
 
 
 # ─── group_by_month ─────────────────────────────────────────────────────
@@ -243,20 +252,20 @@ def test_group_by_account_transfer_missing_to_account() -> None:
 
 
 def test_consistency_empty_returns_100() -> None:
-    assert calculate_consistency_score([]) == 100.0
+    assert calculate_consistency_score([]) == pytest.approx(100.0)
 
 
 def test_consistency_single_value_returns_100() -> None:
-    assert calculate_consistency_score([500.0]) == 100.0
+    assert calculate_consistency_score([500.0]) == pytest.approx(100.0)
 
 
 def test_consistency_all_zero_returns_100() -> None:
-    assert calculate_consistency_score([0.0, 0.0, 0.0]) == 100.0
+    assert calculate_consistency_score([0.0, 0.0, 0.0]) == pytest.approx(100.0)
 
 
 def test_consistency_identical_values_is_perfect() -> None:
     """Zero variance -> CV 0 -> score 100."""
-    assert calculate_consistency_score([500.0, 500.0, 500.0]) == 100.0
+    assert calculate_consistency_score([500.0, 500.0, 500.0]) == pytest.approx(100.0)
 
 
 def test_consistency_high_variance_lowers_score() -> None:
@@ -269,7 +278,7 @@ def test_consistency_high_variance_lowers_score() -> None:
 
 def test_lifestyle_inflation_fewer_than_six_expenses() -> None:
     txns = [tx(100, date=datetime(2024, 1, i + 1, tzinfo=UTC)) for i in range(5)]
-    assert calculate_lifestyle_inflation(txns) == 0.0
+    assert calculate_lifestyle_inflation(txns) == pytest.approx(0.0)
 
 
 def test_lifestyle_inflation_genuine_increase() -> None:
@@ -280,7 +289,7 @@ def test_lifestyle_inflation_genuine_increase() -> None:
     """
     early = [tx(100, date=datetime(2024, 1, d, tzinfo=UTC)) for d in (1, 2, 3)]
     late = [tx(200, date=datetime(2024, 12, d, tzinfo=UTC)) for d in (1, 2, 3)]
-    assert calculate_lifestyle_inflation(early + late) == 100.0
+    assert calculate_lifestyle_inflation(early + late) == pytest.approx(100.0)
 
 
 def test_lifestyle_inflation_avg_first_zero_returns_0() -> None:
@@ -290,27 +299,27 @@ def test_lifestyle_inflation_avg_first_zero_returns_0() -> None:
     """
     early = [tx(0, date=datetime(2024, 1, d, tzinfo=UTC)) for d in (1, 2, 3)]
     late = [tx(200, date=datetime(2024, 12, d, tzinfo=UTC)) for d in (1, 2, 3)]
-    assert calculate_lifestyle_inflation(early + late) == 0.0
+    assert calculate_lifestyle_inflation(early + late) == pytest.approx(0.0)
 
 
 # ─── calculate_category_concentration ───────────────────────────────────
 
 
 def test_concentration_empty_dict() -> None:
-    assert calculate_category_concentration({}) == 0.0
+    assert calculate_category_concentration({}) == pytest.approx(0.0)
 
 
 def test_concentration_total_zero() -> None:
-    assert calculate_category_concentration({"Food": 0.0, "Rent": 0.0}) == 0.0
+    assert calculate_category_concentration({"Food": 0.0, "Rent": 0.0}) == pytest.approx(0.0)
 
 
 def test_concentration_single_category_is_100() -> None:
-    assert calculate_category_concentration({"Food": 500.0}) == 100.0
+    assert calculate_category_concentration({"Food": 500.0}) == pytest.approx(100.0)
 
 
 def test_concentration_top_share() -> None:
     """Top category 750 of 1000 total -> 75%."""
-    assert calculate_category_concentration({"Food": 750.0, "Rent": 250.0}) == 75.0
+    assert calculate_category_concentration({"Food": 750.0, "Rent": 250.0}) == pytest.approx(75.0)
 
 
 # ─── calculate_spending_velocity ────────────────────────────────────────
@@ -328,9 +337,9 @@ def test_velocity_no_historical_ratio_zero() -> None:
         tx(300, date=datetime(2024, 6, 20, tzinfo=UTC)),
     ]
     result = calculate_spending_velocity(txns, recent_days=30)
-    assert result["historical_daily"] == 0.0
-    assert result["velocity_ratio"] == 0.0
-    assert result["recent_daily"] == 20.0  # (300+300)/30
+    assert result["historical_daily"] == pytest.approx(0.0)
+    assert result["velocity_ratio"] == pytest.approx(0.0)
+    assert result["recent_daily"] == pytest.approx(20.0)  # (300+300)/30
 
 
 def test_velocity_recent_and_historical_split() -> None:
@@ -346,9 +355,9 @@ def test_velocity_recent_and_historical_split() -> None:
         tx(600, date=datetime(2024, 6, 30, tzinfo=UTC)),
     ]
     result = calculate_spending_velocity(txns, recent_days=30)
-    assert result["recent_daily"] == 20.0
-    assert result["historical_daily"] == 600.0
-    assert result["velocity_ratio"] == 20.0 / 600.0
+    assert result["recent_daily"] == pytest.approx(20.0)
+    assert result["historical_daily"] == pytest.approx(600.0)
+    assert result["velocity_ratio"] == pytest.approx(20.0 / 600.0)
 
 
 # ─── find_best_worst_months ─────────────────────────────────────────────
@@ -363,7 +372,7 @@ def test_best_worst_single_month_is_both() -> None:
     result = find_best_worst_months(data)
     assert result["best_month"]["month"] == "2024-01"
     assert result["worst_month"]["month"] == "2024-01"
-    assert result["best_month"]["surplus"] == 600.0
+    assert result["best_month"]["surplus"] == pytest.approx(600.0)
 
 
 def test_best_worst_distinct_months() -> None:
@@ -383,8 +392,8 @@ def test_best_worst_ties_do_not_crash() -> None:
         "2024-02": {"income": 800.0, "expenses": 300.0},
     }
     result = find_best_worst_months(data)
-    assert result["best_month"]["surplus"] == 500.0
-    assert result["worst_month"]["surplus"] == 500.0
+    assert result["best_month"]["surplus"] == pytest.approx(500.0)
+    assert result["worst_month"]["surplus"] == pytest.approx(500.0)
 
 
 # ─── calculate_convenience_spending ─────────────────────────────────────
@@ -402,22 +411,22 @@ def test_convenience_substring_match() -> None:
         tx(700, category="Rent"),
     ]
     result = calculate_convenience_spending(txns)
-    assert result["convenience_amount"] == 300.0
-    assert result["total_amount"] == 1000.0
-    assert result["convenience_pct"] == 30.0
+    assert result["convenience_amount"] == pytest.approx(300.0)
+    assert result["total_amount"] == pytest.approx(1000.0)
+    assert result["convenience_pct"] == pytest.approx(30.0)
 
 
 def test_convenience_total_zero_pct_is_zero() -> None:
     """Zero-amount expenses -> total 0 -> guard returns pct 0.0."""
     txns = [tx(0, category="Shopping"), tx(0, category="Rent")]
     result = calculate_convenience_spending(txns)
-    assert result["total_amount"] == 0.0
-    assert result["convenience_pct"] == 0.0
+    assert result["total_amount"] == pytest.approx(0.0)
+    assert result["convenience_pct"] == pytest.approx(0.0)
 
 
 def test_convenience_no_matching_category() -> None:
     txns = [tx(500, category="Rent"), tx(500, category="Utilities")]
     result = calculate_convenience_spending(txns)
-    assert result["convenience_amount"] == 0.0
-    assert result["total_amount"] == 1000.0
-    assert result["convenience_pct"] == 0.0
+    assert result["convenience_amount"] == pytest.approx(0.0)
+    assert result["total_amount"] == pytest.approx(1000.0)
+    assert result["convenience_pct"] == pytest.approx(0.0)
