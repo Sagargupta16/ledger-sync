@@ -6,6 +6,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.16.0](https://github.com/Sagargupta16/ledger-sync/compare/v2.15.0...v2.16.0) (2026-06-08)
+
+
+### Features
+
+* **tax:** forward TDS schedule + tax-deducted chart, toggle-gated ([#174](https://github.com/Sagargupta16/ledger-sync/issues/174)) ([9c01d24](https://github.com/Sagargupta16/ledger-sync/commit/9c01d24f0be08a2b45cf1bfe6cbcdf172cbde7b5))
+* **tax:** gate TDS schedule behind a Settings toggle (default off) ([93dbd8b](https://github.com/Sagargupta16/ledger-sync/commit/93dbd8b51087e7c84a20e65be8a0f2cb342e6ccb))
+* **tax:** per-month TDS deduction schedule + chart ([f4ce0a7](https://github.com/Sagargupta16/ledger-sync/commit/f4ce0a7f284710c30caab2e6d3a9e220337f1c83))
+* **tax:** surplus-derived TDS, gross-income override, Tax Deducted chart ([cc43319](https://github.com/Sagargupta16/ledger-sync/commit/cc43319afbd9437e1807ed9d101f70b3e79719db))
+* **tax:** TDS schedule + clean-code & SonarCloud refactor passes ([422c91f](https://github.com/Sagargupta16/ledger-sync/commit/422c91f217301293df01077f12c0e711c9a53574))
+* **tax:** TDS toggle drives 'tax paid till date' on summary cards ([7fbfa3b](https://github.com/Sagargupta16/ledger-sync/commit/7fbfa3b483e55b00307b3083c39784d6aa204f2a))
+
+
+### Bug Fixes
+
+* **ci:** bootstrap release-please from 2.15.0 baseline ([#172](https://github.com/Sagargupta16/ledger-sync/issues/172)) ([32543bf](https://github.com/Sagargupta16/ledger-sync/commit/32543bf5d47e2459d53748474d96a9ef8eeb7d56))
+* **settings:** persist show_tds_schedule toggle ([5c97ccd](https://github.com/Sagargupta16/ledger-sync/commit/5c97ccdedd9d78d67960a54a8536de0dccc841f7))
+* **tax:** align chart baseline with cards, spread bonus monthly ([2a22362](https://github.com/Sagargupta16/ledger-sync/commit/2a2236253b622e92ea47b0592d8d31908b2bcd99))
+* **tax:** paid months in chart use actual deducted, reconcile with cards ([601996b](https://github.com/Sagargupta16/ledger-sync/commit/601996bc75872a254c4bb0cb216b2f2328ac3b7e))
+* **tax:** reconcile the three TDS cards (net + tax = gross) ([d163152](https://github.com/Sagargupta16/ledger-sync/commit/d163152aad381135273e56407717b99575ba0d0c))
+* **tax:** show TDS schedule on normal FY view, not only projection mode ([5b30100](https://github.com/Sagargupta16/ledger-sync/commit/5b301003d8f6ca8cf5220f999f97675276d11767))
+
+
+### Reverts
+
+* **tax:** restore original summary cards, drop card overrides ([a43ee63](https://github.com/Sagargupta16/ledger-sync/commit/a43ee630b188968234a6fa565d119fa10f1e0630))
+
 ## 2.15.0 - 2026-06-07
 
 Dependency and pipeline maintenance. Took every held-back major version to latest behind a restored CI gate, unblocked the frontend deploy, and cleared two security advisories. No feature changes; no API contract breaks.
