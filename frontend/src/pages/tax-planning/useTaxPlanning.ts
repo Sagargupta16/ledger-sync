@@ -346,7 +346,7 @@ export function useTaxPlanning() {
 
   const prevFYDisplay = useMemo(
     () =>
-      computePrevFYDisplay(
+      computePrevFYDisplay({
         effectiveFY,
         currentFYLabel,
         transactionsByFY,
@@ -358,7 +358,7 @@ export function useTaxPlanning() {
         growthAssumptions,
         fiscalYearStartMonth,
         isNewRegime,
-      ),
+      }),
     [
       effectiveFY,
       currentFYLabel,

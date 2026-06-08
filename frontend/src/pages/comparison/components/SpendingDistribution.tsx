@@ -140,7 +140,7 @@ export function SpendingDistribution({
                 <Cell
                   key={`b-${entry.name}`}
                   fill={rawColors.app.indigo}
-                  fillOpacity={!entry.aWins ? 0.95 : 0.45}
+                  fillOpacity={entry.aWins ? 0.45 : 0.95}
                 />
               ))}
               <LabelList

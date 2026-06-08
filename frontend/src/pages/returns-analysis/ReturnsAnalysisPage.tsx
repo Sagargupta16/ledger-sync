@@ -25,6 +25,24 @@ import { useReturnsAnalysis } from './useReturnsAnalysis'
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
+function AccountTooltip({
+  active,
+  payload,
+}: Readonly<{
+  active?: boolean
+  payload?: Array<{ payload: { name: string; value: number; transactions: number } }>
+}>) {
+  if (!active || !payload?.length) return null
+  const p = payload[0].payload
+  return (
+    <div style={CHART_TOOLTIP_STYLE}>
+      <p style={{ ...CHART_TOOLTIP_LABEL_STYLE, marginBottom: 6 }}>{p.name}</p>
+      <div style={{ color: '#fafafa', fontSize: 14, fontWeight: 600 }}>{formatCurrency(p.value)}</div>
+      <div style={{ color: '#71717a', fontSize: 11, marginTop: 2 }}>{p.transactions} transaction{p.transactions === 1 ? '' : 's'}</div>
+    </div>
+  )
+}
+
 export default function ReturnsAnalysisPage() {
   const {
     isLoading,
@@ -348,17 +366,7 @@ export default function ReturnsAnalysisPage() {
                 />
                 <Tooltip
                   cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null
-                    const p = payload[0].payload as { name: string; value: number; transactions: number }
-                    return (
-                      <div style={CHART_TOOLTIP_STYLE}>
-                        <p style={{ ...CHART_TOOLTIP_LABEL_STYLE, marginBottom: 6 }}>{p.name}</p>
-                        <div style={{ color: '#fafafa', fontSize: 14, fontWeight: 600 }}>{formatCurrency(p.value)}</div>
-                        <div style={{ color: '#71717a', fontSize: 11, marginTop: 2 }}>{p.transactions} transaction{p.transactions === 1 ? '' : 's'}</div>
-                      </div>
-                    )
-                  }}
+                  content={AccountTooltip as never}
                 />
                 <Bar
                   dataKey="value"

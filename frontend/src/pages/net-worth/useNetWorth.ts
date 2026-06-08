@@ -139,7 +139,7 @@ export function useNetWorth() {
   )
 
   const anchor: NetWorthPoint | null = useMemo(
-    () => (chartSeries.length > 0 ? chartSeries[chartSeries.length - 1] : null),
+    () => chartSeries.at(-1) ?? null,
     [chartSeries],
   )
 

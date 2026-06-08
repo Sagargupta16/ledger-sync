@@ -30,7 +30,10 @@ router.include_router(recurring_router)
 router.include_router(networth_misc_router)
 
 
-@router.post("/refresh")
+@router.post(
+    "/refresh",
+    responses={500: {"description": "Analytics refresh failed"}},
+)
 def refresh_analytics(
     current_user: CurrentUser,
 ) -> dict[str, Any]:

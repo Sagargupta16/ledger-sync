@@ -39,7 +39,8 @@ export function buildCompactGeometry(data: number[]): CompactGeometry | null {
     .join(' ')
   const areaPath = `${linePath} L ${COMPACT_VIEWBOX_W} ${COMPACT_VIEWBOX_H} L 0 ${COMPACT_VIEWBOX_H} Z`
 
-  const last = points[points.length - 1]
+  const last = points.at(-1)
+  if (!last) return null
 
   return { linePath, areaPath, last }
 }

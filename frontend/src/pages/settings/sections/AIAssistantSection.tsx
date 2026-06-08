@@ -38,10 +38,10 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   const [testError, setTestError] = useState('')
 
   const [dailyLimit, setDailyLimit] = useState<string>(() =>
-    config?.daily_token_limit != null ? String(config.daily_token_limit) : '',
+    config?.daily_token_limit == null ? '' : String(config.daily_token_limit),
   )
   const [monthlyLimit, setMonthlyLimit] = useState<string>(() =>
-    config?.monthly_token_limit != null ? String(config.monthly_token_limit) : '',
+    config?.monthly_token_limit == null ? '' : String(config.monthly_token_limit),
   )
   const [lastSyncedDaily, setLastSyncedDaily] = useState(config?.daily_token_limit ?? null)
   const [lastSyncedMonthly, setLastSyncedMonthly] = useState(config?.monthly_token_limit ?? null)
@@ -49,11 +49,11 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   const persistedMonthly = config?.monthly_token_limit ?? null
   if (persistedDaily !== lastSyncedDaily) {
     setLastSyncedDaily(persistedDaily)
-    setDailyLimit(persistedDaily != null ? String(persistedDaily) : '')
+    setDailyLimit(persistedDaily == null ? '' : String(persistedDaily))
   }
   if (persistedMonthly !== lastSyncedMonthly) {
     setLastSyncedMonthly(persistedMonthly)
-    setMonthlyLimit(persistedMonthly != null ? String(persistedMonthly) : '')
+    setMonthlyLimit(persistedMonthly == null ? '' : String(persistedMonthly))
   }
 
   const { data: usage } = useQuery<UsageResponse>({

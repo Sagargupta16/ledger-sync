@@ -31,7 +31,10 @@ def _load_rates() -> dict[str, Any]:
     return data
 
 
-@router.get("/instruments")
+@router.get(
+    "/instruments",
+    responses={503: {"description": "Instrument rates config unavailable"}},
+)
 def get_instrument_rates(_current_user: CurrentUser) -> dict[str, Any]:
     """Return EPF/PPF/NPS rates with effective_from and source_url metadata."""
     try:

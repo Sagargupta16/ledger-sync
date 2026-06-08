@@ -24,6 +24,18 @@ interface PieDataItem {
   color?: string
 }
 
+/**
+ * Shrink the donut center value font as the string grows so it doesn't
+ * overflow past the inner radius. Tuned against typical donut sizes
+ * (160-300 px) and currency strings up to ~12 chars.
+ */
+function pickCenterValueFontSize(length: number): number {
+  if (length <= 6) return 22
+  if (length <= 8) return 18
+  if (length <= 10) return 15
+  return 13
+}
+
 interface StandardPieChartProps {
   readonly data: PieDataItem[]
   readonly height?: number
@@ -65,17 +77,8 @@ export default function StandardPieChart({
 
   const animate = shouldAnimate(filteredData.length)
 
-  /**
-   * Auto-shrink the center value when the string is long so it doesn't
-   * overflow past the donut's inner radius. Tuned against typical donut
-   * sizes (160-300 px) and currency strings up to ~12 chars.
-   */
   const centerValueLength = centerValue?.length ?? 0
-  const centerValueFontSize =
-    centerValueLength <= 6 ? 22
-    : centerValueLength <= 8 ? 18
-    : centerValueLength <= 10 ? 15
-    : 13
+  const centerValueFontSize = pickCenterValueFontSize(centerValueLength)
 
   return (
     <ChartContainer height={height}>

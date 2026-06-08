@@ -60,6 +60,11 @@ function ariaSort(
   return dir === 'asc' ? 'ascending' : 'descending'
 }
 
+function sortArrow(active: boolean, dir: SortDir): string {
+  if (!active) return ''
+  return dir === 'asc' ? ' ↑' : ' ↓'
+}
+
 export default function DataTable<T>({
   columns,
   rows,
@@ -120,7 +125,7 @@ export default function DataTable<T>({
               }
 
               const isActive = sortKey === col.key
-              const arrow = isActive ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
+              const arrow = sortArrow(isActive, sortDir)
 
               return (
                 <th

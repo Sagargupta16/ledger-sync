@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Upload,
@@ -26,7 +26,6 @@ import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { PageHeader } from '@/components/ui'
 import { useLogout } from '@/hooks/api/useAuth'
-import { useNavigate } from 'react-router-dom'
 
 interface MoreItem {
   to: string

@@ -7,6 +7,7 @@ import {
   bucketDate,
   calculateCumulativeData,
   formatBucketLabel,
+  granularityAdverb,
   pickGranularity,
   type Granularity,
 } from '@/lib/chartPeriodUtils'
@@ -130,7 +131,7 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
               {totalTransactions} expense transactions
               <span className="text-text-quaternary"> · </span>
               <span className="text-text-tertiary">
-                bucketed {granularity === 'day' ? 'daily' : granularity === 'week' ? 'weekly' : 'monthly'}
+                bucketed {granularityAdverb(granularity)}
               </span>
             </p>
           </div>

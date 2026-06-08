@@ -74,7 +74,7 @@ export function getExpenseCategoryColor(category: string): string {
   // djb2-style hash over the category name; lightweight and deterministic.
   let hash = 5381
   for (let i = 0; i < category.length; i++) {
-    hash = (hash * 33) ^ category.charCodeAt(i)
+    hash = (hash * 33) ^ (category.codePointAt(i) ?? 0)
   }
   const idx = Math.abs(hash) % CHART_COLORS.length
   return CHART_COLORS[idx]
