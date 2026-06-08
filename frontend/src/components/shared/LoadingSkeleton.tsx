@@ -41,22 +41,6 @@ export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>
   )
 }
 
-export function SectionSkeleton({ title = true, children }: Readonly<{ title?: boolean; children?: React.ReactNode }>) {
-  return (
-    <div className="glass rounded-2xl border border-border p-6 space-y-4">
-      {title && <LoadingSkeleton className="h-5 w-40" />}
-      {children ?? (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {Array.from({ length: 4 }, (_, i) => <LoadingSkeleton key={i} className="h-16 w-full rounded-xl" />)}
-          </div>
-          <LoadingSkeleton className="h-48 w-full rounded-xl" />
-        </>
-      )}
-    </div>
-  )
-}
-
 export function CardGridSkeleton({ count = 4, cols = 'grid-cols-2 lg:grid-cols-4' }: Readonly<{ count?: number; cols?: string }>) {
   return (
     <div className={`grid ${cols} gap-4`}>
