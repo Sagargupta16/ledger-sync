@@ -3,12 +3,12 @@
 **See where every rupee goes — and ask why.**
 Import bank statements, get instant analytics, then chat with your finances using GPT-4 / Claude. Self-hosted, multi-currency, zero subscriptions.
 
-[![Version](https://img.shields.io/github/package-json/v/Sagargupta16/ledger-sync?filename=frontend%2Fpackage.json&label=version&color=brightgreen)](https://github.com/Sagargupta16/ledger-sync/releases)
+[![Version](https://img.shields.io/github/package-json/v/Sagargupta16/ledger-sync?filename=frontend%2Fpackage.json&label=version&color=brightgreen&cacheSeconds=86400)](CHANGELOG.md)
 [![CI](https://github.com/Sagargupta16/ledger-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/Sagargupta16/ledger-sync/actions/workflows/ci.yml)
 [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=Sagargupta16_ledger-sync&metric=alert_status)](https://sonarcloud.io/dashboard?id=Sagargupta16_ledger-sync)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Last commit](https://img.shields.io/github/last-commit/Sagargupta16/ledger-sync)
-[![Stars](https://img.shields.io/github/stars/Sagargupta16/ledger-sync?style=social)](https://github.com/Sagargupta16/ledger-sync)
+![Last commit](https://img.shields.io/github/last-commit/Sagargupta16/ledger-sync?cacheSeconds=86400)
+[![Stars](https://img.shields.io/github/stars/Sagargupta16/ledger-sync?style=social&cacheSeconds=86400)](https://github.com/Sagargupta16/ledger-sync)
 
 ---
 
@@ -16,7 +16,7 @@ Import bank statements, get instant analytics, then chat with your finances usin
 
 Mint shut down. YNAB costs $14.99/mo and doesn't understand Indian bank statements. This is what I built for myself: bring your own data, run it on your own server, no subscription, no ads, no data harvesting. Indian fiscal year, multi-currency, 50/30/20 + tax + FIRE analytics out of the box.
 
-**Just want to try it?** → [Live demo](https://sagargupta.online/ledger-sync/demo) (no signup, sample data)
+**Just want to try it?** → [Live demo](https://sagargupta.online/ledger-sync/) — click "Try Demo" (no signup, sample data)
 
 **Want to use it for real?** → [Sign in to the hosted version](https://sagargupta.online/ledger-sync/) (free, your data stays yours)
 
