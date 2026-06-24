@@ -202,7 +202,7 @@ export interface FinancialGoal {
   current_amount: number
   progress_pct: number
   start_date: string
-  target_date: string
+  target_date: string | null
   is_achieved: boolean
   achieved_date: string | null
   notes: string | null

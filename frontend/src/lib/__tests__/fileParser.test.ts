@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { COLUMN_MAPPINGS, REQUIRED_COLUMNS, VALID_TYPES } from '@/constants/columns'
+import { parseDate } from '@/lib/fileParser'
 
 /**
  * Tests for the fileParser module's helper logic.
@@ -58,6 +59,37 @@ describe('Valid transaction types', () => {
   it('should reject unknown types', () => {
     expect(VALID_TYPES.has('refund')).toBe(false)
     expect(VALID_TYPES.has('credit')).toBe(false)
+  })
+})
+
+describe('parseDate (timezone-stable)', () => {
+  it('returns an ISO date verbatim (no timezone shift)', () => {
+    expect(parseDate('2024-04-01', 1)).toBe('2024-04-01')
+  })
+
+  it('takes the date part of an ISO datetime', () => {
+    expect(parseDate('2024-01-15 00:00:00', 1)).toBe('2024-01-15')
+  })
+
+  it('reads numeric slash dates as DD/MM/YYYY (India convention)', () => {
+    expect(parseDate('05/06/2024', 1)).toBe('2024-06-05')
+  })
+
+  it('reads numeric dash dates as DD-MM-YYYY', () => {
+    expect(parseDate('01-04-2024', 1)).toBe('2024-04-01')
+  })
+
+  it('parses text-month dates without shifting the day', () => {
+    expect(parseDate('15-Mar-2024', 1)).toBe('2024-03-15')
+  })
+
+  it('parses an Excel serial number via the UTC epoch', () => {
+    // Serial 45383 = 2024-04-01.
+    expect(parseDate(45383, 1)).toBe('2024-04-01')
+  })
+
+  it('throws on an unparseable date', () => {
+    expect(() => parseDate('not-a-date', 7)).toThrow(/Row 7/)
   })
 })
 

@@ -15,7 +15,7 @@ export default function GoalProjections({
   projection,
   avgMonthlySavings,
 }: Readonly<{
-  goal: { target_date: string }
+  goal: { target_date: string | null }
   projection: GoalProjection
   avgMonthlySavings: number | null
 }>) {
@@ -42,7 +42,7 @@ export default function GoalProjections({
       <div className="flex items-center gap-2 text-xs text-text-secondary">
         <Calendar className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.teal }} />
         <span>
-          Target: {new Date(goal.target_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+          Target: {goal.target_date ? new Date(goal.target_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'No deadline'}
           {projection.monthsRemaining > 0 && (
             <span className="text-text-tertiary"> ({Math.ceil(projection.monthsRemaining)} months left)</span>
           )}

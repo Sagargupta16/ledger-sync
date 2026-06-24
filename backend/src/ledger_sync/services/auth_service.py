@@ -98,11 +98,15 @@ class AuthService:
     ) -> Token:
         """Login or register a user via OAuth provider.
 
-        If a user with this email already exists, log them in and update
-        OAuth fields. If no user exists, create a new account.
+        Identity is keyed on (auth_provider, auth_provider_id), NOT on email.
+        Email is only used to link a provider to a pre-existing account that
+        has no provider yet (e.g. a legacy account). Silent cross-provider
+        linking is refused: if an account already exists for this email under
+        a different provider, the login is rejected to prevent account
+        takeover via a recycled/shared email address.
 
         Args:
-            email: Email from the OAuth provider.
+            email: Email from the OAuth provider (already provider-verified).
             full_name: Full name from the OAuth profile.
             provider: OAuth provider name ("google" or "github").
             provider_id: Unique user ID from the provider.
@@ -110,15 +114,39 @@ class AuthService:
         Returns:
             JWT tokens.
 
+        Raises:
+            HTTPException: If the email belongs to a different provider.
+
         """
-        user = self._get_user_by_email(email)
+        user = self._get_user_by_provider(provider, provider_id)
+
+        if user is None:
+            # No account for this provider identity — fall back to email to
+            # link a provider-less legacy account, or create a new one.
+            existing = self._get_user_by_email(email)
+            if existing is not None:
+                if existing.auth_provider and existing.auth_provider != provider:
+                    # Account exists under a different provider. Refuse to
+                    # silently merge — this is the cross-provider takeover path.
+                    logger.warning(
+                        "OAuth login refused: email already linked to provider %s, not %s",
+                        existing.auth_provider,
+                        provider,
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            "This email is already registered with a different "
+                            f"sign-in provider ({existing.auth_provider}). "
+                            "Please sign in with that provider."
+                        ),
+                    )
+                user = existing
 
         if user:
-            # Existing user — update OAuth fields if not already set
-            if not user.auth_provider:
-                user.auth_provider = provider
-                user.auth_provider_id = provider_id
-            # Update name if it was empty
+            # Existing account — log in and bind/refresh the provider identity.
+            user.auth_provider = provider
+            user.auth_provider_id = provider_id
             if not user.full_name and full_name:
                 user.full_name = full_name
             user.is_verified = True
@@ -187,6 +215,17 @@ class AuthService:
     def _get_user_by_email(self, email: str) -> User | None:
         """Get user by email address."""
         return self.session.execute(select(User).where(User.email == email)).scalar_one_or_none()
+
+    def _get_user_by_provider(self, provider: str, provider_id: str) -> User | None:
+        """Get user by OAuth provider identity (the authoritative login key)."""
+        if not provider_id:
+            return None
+        return self.session.execute(
+            select(User).where(
+                User.auth_provider == provider,
+                User.auth_provider_id == provider_id,
+            )
+        ).scalar_one_or_none()
 
     def _get_user_by_id(self, user_id: int) -> User | None:
         """Get user by ID."""

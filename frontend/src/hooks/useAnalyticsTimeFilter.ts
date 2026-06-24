@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import {
@@ -62,6 +62,29 @@ export function useAnalyticsTimeFilter(
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
 
+  // The state above is seeded ONCE from defaults (fiscalYearStartMonth falls
+  // back to 4) before /api/preferences resolves. useState initializers never
+  // re-run, so a user with a non-April fiscal year would be stuck on the wrong
+  // FY window until they touched the selector. When preferences arrive, adjust
+  // the FY during render (React's "adjust state while rendering" pattern -- no
+  // effect, no cascading render) -- but only until the user interacts, so we
+  // never clobber a deliberate selection. All gates are state (not refs), so
+  // the adjustment is a pure function of the current render.
+  const [userInteracted, setUserInteracted] = useState(false)
+  const [syncedFsm, setSyncedFsm] = useState<number | null>(null)
+  if (preferences && !userInteracted && syncedFsm !== fiscalYearStartMonth) {
+    setSyncedFsm(fiscalYearStartMonth)
+    setCurrentFY(getCurrentFY(fiscalYearStartMonth))
+    if (!options?.defaultViewMode && displayPreferences.defaultTimeRange) {
+      setViewMode(displayPreferences.defaultTimeRange as AnalyticsViewMode)
+    }
+  }
+
+  const markInteracted = <T,>(setter: (v: T) => void) => (v: T) => {
+    setUserInteracted(true)
+    setter(v)
+  }
+
   const dateRange = useMemo(() => {
     const raw = getAnalyticsDateRange({
       viewMode,
@@ -100,13 +123,13 @@ export function useAnalyticsTimeFilter(
 
   const timeFilterProps = {
     viewMode,
-    onViewModeChange: setViewMode,
+    onViewModeChange: markInteracted(setViewMode),
     currentYear,
     currentMonth,
     currentFY,
-    onYearChange: setCurrentYear,
-    onMonthChange: setCurrentMonth,
-    onFYChange: setCurrentFY,
+    onYearChange: markInteracted(setCurrentYear),
+    onMonthChange: markInteracted(setCurrentMonth),
+    onFYChange: markInteracted(setCurrentFY),
     minDate: dataDateRange.minDate,
     maxDate: dataDateRange.maxDate,
     fiscalYearStartMonth,

@@ -73,23 +73,59 @@ function resolveColumnMapping(headers: string[]): Record<string, string> {
   return mapping
 }
 
-function parseDate(value: unknown, rowIndex: number): string {
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+/**
+ * Parse a date cell into a timezone-stable `YYYY-MM-DD` string.
+ *
+ * Every branch builds the result from explicit calendar components (or a UTC
+ * epoch) so the stored day never shifts with the user's timezone. Using
+ * `new Date(str).toISOString()` is unsafe: most non-ISO formats parse as LOCAL
+ * midnight, and toISOString() then reprojects to UTC, shifting the day for any
+ * non-UTC user (e.g. all of India, UTC+5:30). It also avoids `new Date()`'s
+ * MM/DD assumption for ambiguous numeric dates -- this app is India-first, so
+ * slash/dash numeric dates are read as DD/MM/YYYY.
+ */
+export function parseDate(value: unknown, rowIndex: number): string {
   if (value == null || value === '') {
     throw new FileParseError(`Row ${rowIndex}: Date is missing`)
   }
 
   if (typeof value === 'number') {
-    // SheetJS Excel serial date number
+    // SheetJS Excel serial date number (UTC epoch -> UTC components).
     const date = new Date(EXCEL_EPOCH + value * MS_PER_DAY)
-    return date.toISOString().split('T')[0]
+    return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`
   }
 
   const str = stringify(value).trim()
+
+  // 1. ISO date (optionally with a time component) -> take the date part verbatim.
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(str)
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
+  }
+
+  // 2. Numeric day/month/year separated by / or - (India convention: DD/MM/YYYY).
+  const dmyMatch = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(str)
+  if (dmyMatch) {
+    const day = Number(dmyMatch[1])
+    const month = Number(dmyMatch[2])
+    const year = Number(dmyMatch[3])
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${year}-${pad2(month)}-${pad2(day)}`
+    }
+  }
+
+  // 3. Fallback (text months like "15-Mar-2024" / "Mar 15 2024"): these parse
+  // as LOCAL midnight, so read LOCAL components to recover the intended day
+  // (reading UTC here would shift the day back for positive-offset users).
   const parsed = new Date(str)
   if (Number.isNaN(parsed.getTime())) {
     throw new FileParseError(`Row ${rowIndex}: Could not parse date '${str}'`)
   }
-  return parsed.toISOString().split('T')[0]
+  return `${parsed.getFullYear()}-${pad2(parsed.getMonth() + 1)}-${pad2(parsed.getDate())}`
 }
 
 function parseAmount(value: unknown, rowIndex: number): number {

@@ -3,6 +3,21 @@ export function formatMonth(v: string) {
   return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }
 
+/**
+ * Add `n` months to a `YYYY-MM` key using integer arithmetic.
+ *
+ * Date-based month math (new Date(key+'-01') is UTC, setMonth() is local,
+ * toISOString() is UTC again) skips or duplicates months for non-UTC users.
+ * Integer math on the year/month is timezone-independent.
+ */
+export function addMonths(yyyymm: string, n: number): string {
+  const [year, month] = yyyymm.split('-').map(Number)
+  const zeroBased = year * 12 + (month - 1) + n
+  const newYear = Math.floor(zeroBased / 12)
+  const newMonth = (zeroBased % 12) + 1
+  return `${newYear}-${String(newMonth).padStart(2, '0')}`
+}
+
 export function computeGrowthRate(series: Array<{ income: number; expense: number }>) {
   if (series.length <= 1) return { incomeGrowth: 0, expenseGrowth: 0 }
   const first = series[0]
@@ -82,16 +97,13 @@ export function buildForecast(monthlyData: MonthlyData): ForecastResult | null {
   const stdDev = Math.sqrt(variance)
 
   // Generate 6-month forecast
-  const lastDate = new Date(lastComplete.month + '-01')
   const offset = (last.month === currentMonth && isIncomplete) ? 0 : 1
   const forecast = []
   let projIncome = lastComplete.income
   let projExpense = lastComplete.expense
 
   for (let i = offset; i <= offset + 11; i++) {
-    const fd = new Date(lastDate)
-    fd.setMonth(fd.getMonth() + i)
-    const ms = fd.toISOString().slice(0, 7)
+    const ms = addMonths(lastComplete.month, i)
     projIncome = projIncome * (1 + incomeGrowth * 0.5)
     projExpense = projExpense * (1 + expenseGrowth * 0.5)
     const net = projIncome - projExpense

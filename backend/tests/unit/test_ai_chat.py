@@ -278,17 +278,19 @@ def test_app_bedrock_mode_enforces_daily_message_limit(
     assert mock_boto.converse.call_count == 2
 
 
-def test_byok_mode_is_not_subject_to_app_message_cap(
+def test_byok_bedrock_is_subject_to_app_message_cap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """BYOK users pay their own key; the app cap shouldn't gate them."""
+    """BYOK+bedrock still spends the SERVER's Bedrock token (the proxy has no
+    per-user AWS key path), so the app-wide daily cap must apply to it too --
+    otherwise flipping to byok bypasses all cost control."""
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
     from ledger_sync.config.settings import settings
 
-    monkeypatch.setattr(settings, "ai_daily_message_limit", 1)
+    monkeypatch.setattr(settings, "ai_daily_message_limit", 2)
 
     app, session, user = _make_app()
-    _make_prefs(session, user, mode="byok")  # uses the prefs model
+    _make_prefs(session, user, mode="byok")  # byok + bedrock provider
     client = TestClient(app)
 
     fake = {"output": {"message": {"content": [{"text": "OK"}]}}}
@@ -296,13 +298,21 @@ def test_byok_mode_is_not_subject_to_app_message_cap(
     mock_boto.converse.return_value = fake
 
     with patch("boto3.client", return_value=mock_boto):
-        # Would hit the 1-message cap if it applied -- it doesn't.
-        for _ in range(3):
+        for _ in range(2):
             r = client.post(
                 "/api/ai/bedrock/chat",
                 json={"messages": [{"role": "user", "content": "hi"}]},
             )
             assert r.status_code == 200
+        # Third call exceeds the 2/day app cap and is blocked.
+        r = client.post(
+            "/api/ai/bedrock/chat",
+            json={"messages": [{"role": "user", "content": "hi"}]},
+        )
+        assert r.status_code == 429
+
+    # The cap blocked the third call before hitting AWS.
+    assert mock_boto.converse.call_count == 2
 
 
 def test_tool_use_and_tool_result_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:

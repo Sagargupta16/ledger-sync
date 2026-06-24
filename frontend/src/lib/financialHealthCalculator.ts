@@ -212,12 +212,15 @@ export function computeCFPScore(params: {
     avgMonthlyDebt,
     cumulativeNetSavings,
     netInvestments,
+    totalDebtOutstanding,
   } = params
 
   // Liquid assets = net savings minus money locked in investments
   const liquidAssets = Math.max(0, cumulativeNetSavings - Math.max(0, netInvestments))
   const totalAssets = liquidAssets + Math.max(0, netInvestments)
-  const netWorth = liquidAssets + Math.max(0, netInvestments)
+  // Net worth must subtract outstanding debt; otherwise solvency is always
+  // 100% (netWorth === totalAssets) and debt has no effect on the score.
+  const netWorth = totalAssets - Math.max(0, totalDebtOutstanding)
 
   const ratios: CFPRatio[] = [
     computeSavingsRate(totalIncome, totalExpenses),

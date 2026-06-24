@@ -184,7 +184,10 @@ def calculate_spending_velocity(
         return {"recent_daily": 0.0, "historical_daily": 0.0, "velocity_ratio": 0.0}
 
     today = max(t.date for t in expenses)
-    recent_cutoff = today - timedelta(days=recent_days)
+    # -1 so the inclusive window (t.date >= cutoff) spans exactly recent_days
+    # calendar days, matching the divisor below and the historical branch's
+    # inclusive +1 span convention.
+    recent_cutoff = today - timedelta(days=recent_days - 1)
 
     recent_expenses = [t for t in expenses if t.date >= recent_cutoff]
     historical_expenses = [t for t in expenses if t.date < recent_cutoff]

@@ -92,7 +92,10 @@ class NetWorthMixin(AnalyticsEngineBase):
         if prev_snapshot:
             net_worth_change = net_worth - prev_snapshot.net_worth
             if prev_snapshot.net_worth is not None and prev_snapshot.net_worth != 0:
-                net_worth_change_pct = float(net_worth_change / prev_snapshot.net_worth * 100)
+                # Divide by abs() so the sign reflects the direction of change,
+                # not the sign of the (possibly negative) base. Matches the
+                # yoy_savings convention in fy_summaries.py.
+                net_worth_change_pct = float(net_worth_change / abs(prev_snapshot.net_worth) * 100)
         return net_worth_change, net_worth_change_pct
 
     def _upsert_net_worth_snapshot(

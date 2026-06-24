@@ -81,9 +81,19 @@ export function rsuExtrasByFyMonth(
   const out: Record<number, number> = {}
   for (const grant of grants) {
     for (const v of grant.vestings) {
-      const d = new Date(v.date)
-      const m = d.getMonth() + 1 // 1-12
-      const y = d.getFullYear()
+      // Parse YYYY-MM directly: new Date(iso) reads local components and can
+      // shift a 1st-of-month vesting into the prior month/FY off-UTC.
+      const isoMatch = /^(\d{4})-(\d{2})/.exec(v.date)
+      let m: number
+      let y: number
+      if (isoMatch) {
+        y = Number(isoMatch[1])
+        m = Number(isoMatch[2]) // 1-12
+      } else {
+        const d = new Date(v.date)
+        y = d.getUTCFullYear()
+        m = d.getUTCMonth() + 1
+      }
       // Which FY does this vesting belong to?
       const vestingFyStart = m >= fyStartMonth ? y : y - 1
       if (vestingFyStart !== fyStartYear) continue

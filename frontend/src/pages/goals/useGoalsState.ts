@@ -88,7 +88,10 @@ export default function useGoalsState() {
       const bAchieved = b.is_achieved || (effectiveAmounts[b.id] ?? 0) >= b.target_amount
       if (aAchieved && !bAchieved) return 1
       if (!aAchieved && bAchieved) return -1
-      return new Date(a.target_date).getTime() - new Date(b.target_date).getTime()
+      // Dateless goals (null target_date) sort last instead of becoming NaN.
+      const aTime = a.target_date ? new Date(a.target_date).getTime() : Infinity
+      const bTime = b.target_date ? new Date(b.target_date).getTime() : Infinity
+      return aTime - bTime
     })
   }, [goals, effectiveAmounts])
 

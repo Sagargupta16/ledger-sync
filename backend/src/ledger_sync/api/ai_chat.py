@@ -35,8 +35,6 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 
 from ledger_sync.api.ai_usage import (
@@ -45,6 +43,7 @@ from ledger_sync.api.ai_usage import (
     record_usage,
 )
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.api.rate_limit import limiter
 from ledger_sync.config.settings import settings
 from ledger_sync.db.models import UserPreferences
 
@@ -53,7 +52,6 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 # Rate-limit the Bedrock proxy. App-mode usage is additionally capped per
 # user per day via ai_daily_message_limit; this IP-keyed limit catches
 # abusive clients that rotate users or bypass the in-app UI.
-limiter = Limiter(key_func=get_remote_address)
 
 
 class ContentBlock(BaseModel):
@@ -246,13 +244,13 @@ def bedrock_chat_proxy(
             ),
         )
 
-    # Gate by mode:
-    #   app_bedrock -> count messages, enforce app-wide daily cap
-    #   byok        -> the user owns the bill; only their optional per-user
-    #                  token caps apply.
-    if prefs.ai_mode == "app_bedrock":
-        check_app_message_limit(session, current_user.id)
-    else:
+    # This proxy ALWAYS signs with the server's Bedrock credential (there is
+    # no per-user AWS key path), so every call through it — app_bedrock OR
+    # byok+bedrock — spends the shared server token. Enforce the app-wide daily
+    # message cap regardless of mode so a user cannot bypass cost control by
+    # flipping to byok. BYOK's optional per-user token caps still apply on top.
+    check_app_message_limit(session, current_user.id)
+    if prefs.ai_mode != "app_bedrock":
         check_token_limits(session, current_user.id)
 
     import boto3

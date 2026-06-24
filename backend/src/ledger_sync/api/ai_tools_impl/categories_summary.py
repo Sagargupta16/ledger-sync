@@ -21,6 +21,7 @@ from ledger_sync.db.models import (
 from .registry import (
     LIST_CATEGORIES_DEFAULT_LIMIT,
     LIST_CATEGORIES_MAX_LIMIT,
+    LIST_ENTITIES_MAX_LIMIT,
     LIST_RECENT_MONTHS_DEFAULT_LIMIT,
     LIST_RECENT_MONTHS_MAX_LIMIT,
     ToolSpec,
@@ -226,7 +227,7 @@ def _exec_list_recurring(user: User, db: Session, args: dict[str, Any]) -> Any:
     stmt = select(RecurringTransaction).where(RecurringTransaction.user_id == user.id)
     if active_only:
         stmt = stmt.where(RecurringTransaction.is_active.is_(True))
-    stmt = stmt.order_by(RecurringTransaction.expected_amount.desc())
+    stmt = stmt.order_by(RecurringTransaction.expected_amount.desc()).limit(LIST_ENTITIES_MAX_LIMIT)
     rows = db.execute(stmt).scalars().all()
     return {
         "recurring": [
@@ -244,6 +245,7 @@ def _exec_list_recurring(user: User, db: Session, args: dict[str, Any]) -> Any:
             for r in rows
         ],
         "count": len(rows),
+        "truncated": len(rows) >= LIST_ENTITIES_MAX_LIMIT,
     }
 
 
@@ -263,7 +265,15 @@ register(
 
 
 def _exec_list_goals(user: User, db: Session, _args: dict[str, Any]) -> Any:
-    rows = db.execute(select(FinancialGoal).where(FinancialGoal.user_id == user.id)).scalars().all()
+    rows = (
+        db.execute(
+            select(FinancialGoal)
+            .where(FinancialGoal.user_id == user.id)
+            .limit(LIST_ENTITIES_MAX_LIMIT)
+        )
+        .scalars()
+        .all()
+    )
     return {
         "goals": [
             {
@@ -278,6 +288,7 @@ def _exec_list_goals(user: User, db: Session, _args: dict[str, Any]) -> Any:
             for g in rows
         ],
         "count": len(rows),
+        "truncated": len(rows) >= LIST_ENTITIES_MAX_LIMIT,
     }
 
 

@@ -10,10 +10,10 @@ stay in sync with the raw transactions. The explicit POST
 
 import anyio
 from fastapi import APIRouter, HTTPException, Request
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from sqlalchemy.exc import OperationalError
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.api.rate_limit import limiter
 from ledger_sync.core.analytics import AnalyticsEngine
 from ledger_sync.core.sync_engine import SyncEngine
 from ledger_sync.ingest.normalizer import NormalizationError
@@ -27,7 +27,6 @@ router = APIRouter(prefix="", tags=["upload"])
 # come close to this; it exists to cap an abusive client that might try to
 # replay / brute force uploads. Keyed by remote address, not user, so an
 # unauthenticated flood is also throttled.
-limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post(
@@ -95,14 +94,18 @@ async def upload_transactions(
             await anyio.to_thread.run_sync(
                 lambda: analytics.run_full_analytics(source_file=payload.file_name),
             )
-        except (OSError, RuntimeError, ValueError) as exc:
+        except (OSError, RuntimeError, ValueError, OperationalError) as exc:
             # Don't fail the upload if the post-upload refresh blows up -- the
             # raw data is safely persisted; the user can re-run /refresh.
+            # OperationalError covers a Postgres statement timeout on a large
+            # recompute (Neon free tier), which must NOT fail an upload whose
+            # transactions are already committed.
             logger.warning(
                 "Post-upload analytics refresh failed for user_id=%s: %s",
                 current_user.id,
                 exc,
             )
+            db.rollback()
 
         return UploadResponse(
             success=True,

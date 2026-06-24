@@ -18,6 +18,7 @@ from ledger_sync.db.models import (
 )
 
 from .registry import (
+    LIST_ENTITIES_MAX_LIMIT,
     ToolSpec,
     register,
     to_decimal,
@@ -279,6 +280,7 @@ def _exec_list_budgets(user: User, db: Session, _args: dict[str, Any]) -> Any:
             select(Budget)
             .where(Budget.user_id == user.id, Budget.is_active.is_(True))
             .order_by(Budget.current_month_pct.desc())
+            .limit(LIST_ENTITIES_MAX_LIMIT)
         )
         .scalars()
         .all()
@@ -298,6 +300,7 @@ def _exec_list_budgets(user: User, db: Session, _args: dict[str, Any]) -> Any:
             for b in rows
         ],
         "count": len(rows),
+        "truncated": len(rows) >= LIST_ENTITIES_MAX_LIMIT,
     }
 
 

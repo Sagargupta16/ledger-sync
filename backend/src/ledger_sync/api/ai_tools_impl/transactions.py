@@ -188,23 +188,16 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
     if max_amount is not None:
         stmt = stmt.where(Transaction.amount <= Decimal(str(max_amount)))
 
+    # `stmt` now carries every filter (query/category/account/type/amount).
     stmt = apply_date_range(stmt, start, end)
-    stmt = stmt.order_by(Transaction.date.desc()).limit(limit)
 
-    rows = db.execute(stmt).scalars().all()
-
+    # Count from the SAME filtered statement so the total reflects the actual
+    # query, not just user+date-range. Strip ordering before counting.
     total = db.execute(
-        select(func.count()).select_from(
-            apply_date_range(
-                select(Transaction).where(
-                    Transaction.user_id == user.id,
-                    Transaction.is_deleted.is_(False),
-                ),
-                start,
-                end,
-            ).subquery()
-        )
+        select(func.count()).select_from(stmt.order_by(None).subquery())
     ).scalar_one()
+
+    rows = db.execute(stmt.order_by(Transaction.date.desc()).limit(limit)).scalars().all()
 
     return {
         "transactions": [
@@ -220,7 +213,7 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
             for t in rows
         ],
         "returned": len(rows),
-        "total_matching_date_range": int(total),
+        "total_matching_filters": total,
         "truncated": len(rows) >= limit,
     }
 

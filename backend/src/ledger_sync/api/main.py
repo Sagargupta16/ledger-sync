@@ -29,6 +29,7 @@ from ledger_sync.api.exchange_rates import router as exchange_rates_router
 from ledger_sync.api.meta import router as meta_router
 from ledger_sync.api.oauth import router as oauth_router
 from ledger_sync.api.preferences import router as preferences_router
+from ledger_sync.api.rate_limit import limiter
 from ledger_sync.api.rates import router as rates_router
 from ledger_sync.api.reports import router as reports_router
 from ledger_sync.api.stock_price import router as stock_price_router
@@ -95,6 +96,11 @@ app = FastAPI(
 )
 
 # ─── Rate Limiting ───────────────────────────────────────────────────────────
+
+# Attach the shared limiter to app state so _rate_limit_exceeded_handler can
+# inject Retry-After / rate-limit headers. Without this, a tripped limit raises
+# AttributeError inside the handler and surfaces as a generic 500 instead of 429.
+app.state.limiter = limiter
 
 # Register slowapi rate-limit exceeded handler (returns 429 Too Many Requests)
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]

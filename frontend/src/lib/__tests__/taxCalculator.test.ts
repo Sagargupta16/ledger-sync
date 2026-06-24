@@ -48,6 +48,33 @@ describe('calculateTax - Section 87A rebate', () => {
     const result = calculateTax(1_500_000, TAX_SLABS_NEW_FY2025, 75_000, false, 0, true, 2025)
     expect(result.rebate87A).toBe(0)
   })
+
+  it('applies 87A marginal relief just above the new-regime ceiling', () => {
+    // Taxable 12,10,000 (no SD). Ceiling 12L; income above = 10,000.
+    // Base tax at 12.1L is far more than 10k, so total tax must be capped at
+    // the 10k earned above the ceiling (+ cess), NOT the full slab tax.
+    const result = calculateTax(1_210_000, TAX_SLABS_NEW_FY2025, 0, false, 0, true, 2025)
+    const taxAfterRebate = result.tax - result.rebate87A
+    expect(taxAfterRebate).toBeCloseTo(10_000, 0)
+    expect(result.totalTax).toBeCloseTo(10_400, 0) // 10k + 4% cess
+  })
+})
+
+describe('calculateTax - surcharge marginal relief', () => {
+  it('caps tax just above the 50L surcharge threshold', () => {
+    // Taxable just over 50L: the surcharge cliff (~10% of base tax, ~115k) must
+    // be capped by marginal relief so the base+surcharge increase cannot exceed
+    // the 10,000 of extra income. 4% cess still applies on top, so total tax
+    // rises by ~10,400 -- NOT the ~115k cliff without relief.
+    const just = calculateTax(5_010_000, TAX_SLABS_NEW_FY2025, 0, false, 0, true, 2025)
+    const at = calculateTax(5_000_000, TAX_SLABS_NEW_FY2025, 0, false, 0, true, 2025)
+    // base + surcharge increase is capped at the extra income (10,000).
+    const baseSurchargeDelta =
+      just.tax - just.rebate87A + just.surcharge - (at.tax - at.rebate87A + at.surcharge)
+    expect(baseSurchargeDelta).toBeCloseTo(10_000, 0)
+    // total delta is that plus 4% cess on the increment.
+    expect(just.totalTax - at.totalTax).toBeLessThanOrEqual(10_500)
+  })
 })
 
 describe('calculateTax - surcharge (computed on base tax, not post-rebate)', () => {
