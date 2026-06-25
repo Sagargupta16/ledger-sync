@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -11,6 +12,10 @@ from sqlalchemy import delete
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.db.models import FYSummary, Transaction, TransactionType
+
+# Match "tax"/"taxes" as a whole word so notes like "Taxi" or "Syntax" don't
+# get counted as tax paid.
+_TAX_NOTE_RE = re.compile(r"\btax(es)?\b", re.IGNORECASE)
 
 
 class FYSummariesMixin(AnalyticsEngineBase):
@@ -176,7 +181,7 @@ class FYSummariesMixin(AnalyticsEngineBase):
 
         elif txn.type == TransactionType.EXPENSE:
             data["total_expenses"] += amount
-            if "tax" in (txn.note or "").lower() or txn.category == "Taxes":
+            if txn.category == "Taxes" or _TAX_NOTE_RE.search(txn.note or ""):
                 data["tax_paid"] += amount
 
         elif txn.type == TransactionType.TRANSFER:

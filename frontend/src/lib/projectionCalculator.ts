@@ -38,11 +38,24 @@ function offsetFY(fy: string, offset: number): string {
   return `${startYear}-${twoDigitYear(startYear + 1)}`
 }
 
-/** Get the FY string a date falls into given a fiscal year start month. */
+/** Get the FY string a date falls into given a fiscal year start month.
+ *
+ * Parses YYYY-MM components directly: `new Date('2025-04-01')` is UTC midnight
+ * but getMonth()/getFullYear() return local components, shifting a 1st-of-month
+ * date into the prior month (wrong FY) for negative-offset users.
+ */
 function dateToFY(dateStr: string, fyStartMonth: number): string {
-  const d = new Date(dateStr)
-  const month = d.getMonth() + 1
-  const year = d.getFullYear()
+  const isoMatch = /^(\d{4})-(\d{2})/.exec(dateStr)
+  let year: number
+  let month: number
+  if (isoMatch) {
+    year = Number(isoMatch[1])
+    month = Number(isoMatch[2])
+  } else {
+    const d = new Date(dateStr)
+    year = d.getUTCFullYear()
+    month = d.getUTCMonth() + 1
+  }
   const fyStartYear = month >= fyStartMonth ? year : year - 1
   return `${fyStartYear}-${twoDigitYear(fyStartYear + 1)}`
 }

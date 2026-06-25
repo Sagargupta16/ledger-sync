@@ -95,18 +95,46 @@ export function getTaxSlabs(
 // Surcharge rates (applicable on base tax)
 // ────────────────────────────────────────────
 
+/** Sum slab tax for a given taxable income (no surcharge/cess/rebate). */
+function computeBaseTax(taxableIncome: number, slabs: TaxSlab[]): number {
+  let tax = 0
+  for (const slab of slabs) {
+    if (taxableIncome > slab.lower) {
+      tax += (Math.min(taxableIncome, slab.upper) - slab.lower) * (slab.rate / 100)
+    }
+  }
+  return tax
+}
+
 function computeSurcharge(
   taxableIncome: number,
   baseTax: number,
   isNewRegime: boolean,
   fyStartYear: number,
+  slabs: TaxSlab[],
 ): number {
   const cfg = getTaxConfig(fyStartYear)
   const rates = isNewRegime ? cfg.newRegime.surcharge : cfg.oldRegime.surcharge
-  for (const { above, rate } of rates) {
-    if (taxableIncome > above) return baseTax * rate
-  }
-  return 0
+  // rates are ordered high->low threshold; the first crossed is the highest
+  // applicable tier. The NEXT entry (lower threshold) is the previous tier.
+  const tierIdx = rates.findIndex((t) => taxableIncome > t.above)
+  if (tierIdx < 0) return 0
+
+  const tier = rates[tierIdx]
+  const surcharge = baseTax * tier.rate
+
+  // Marginal relief: total tax (base + surcharge) on income just above a
+  // threshold cannot exceed [tax payable AT the threshold] + [income above it].
+  // The tax at the threshold already includes the surcharge of the PREVIOUS
+  // (lower) tier (e.g. at exactly 1Cr the 50L-1Cr rate still applies), so use
+  // that rate, not zero. Without this cap a few rupees over a threshold trigger
+  // lakhs of extra tax.
+  const prevRate = tierIdx + 1 < rates.length ? rates[tierIdx + 1].rate : 0
+  const taxAtThreshold = computeBaseTax(tier.above, slabs)
+  const totalAtThreshold = taxAtThreshold * (1 + prevRate)
+  const incomeAboveThreshold = taxableIncome - tier.above
+  const reliefCappedSurcharge = totalAtThreshold + incomeAboveThreshold - baseTax
+  return Math.max(0, Math.min(surcharge, reliefCappedSurcharge))
 }
 
 // ────────────────────────────────────────────
@@ -173,14 +201,23 @@ export function calculateTax(
 
   const fyConfig = getTaxConfig(fyStartYear)
 
-  // 2. Surcharge on base tax
-  const surcharge = computeSurcharge(taxableIncome, baseTax, isNewRegime, fyStartYear)
+  // 2. Surcharge on base tax (with marginal relief at the thresholds)
+  const surcharge = computeSurcharge(taxableIncome, baseTax, isNewRegime, fyStartYear, slabs)
 
   // 3. Section 87A rebate on base tax
   const rebateConfig = getRebateConfig(isNewRegime, fyStartYear)
   let rebate87A = 0
   if (taxableIncome <= rebateConfig.maxIncome) {
     rebate87A = Math.min(baseTax, rebateConfig.maxRebate)
+  } else {
+    // Marginal relief on 87A (Budget 2025, new regime): just above the rebate
+    // ceiling, total tax cannot exceed the income earned above the ceiling.
+    // Without this the rebate drops to 0 at the cliff, over-taxing by tens of
+    // thousands for incomes a few rupees over the ceiling.
+    const incomeAboveCeiling = taxableIncome - rebateConfig.maxIncome
+    if (baseTax > incomeAboveCeiling) {
+      rebate87A = baseTax - incomeAboveCeiling
+    }
   }
   const taxAfterRebate = Math.max(0, baseTax - rebate87A)
 
@@ -219,8 +256,10 @@ export interface GrossFromNetOptions {
 /**
  * Reverse-calculate gross income from net income (after tax).
  *
- * Uses an iterative approach converging within `maxIterations` rounds,
- * stopping when the error is less than Rs 1.
+ * `net(gross) = gross - totalTax(gross)` is monotonically increasing in gross,
+ * so we bisect on gross. Bisection converges reliably even across the surcharge
+ * thresholds where the marginal slope is steep (the old fixed-point iteration
+ * could stall there and silently return a non-converged value).
  */
 export function calculateGrossFromNet(
   netIncome: number,
@@ -233,16 +272,14 @@ export function calculateGrossFromNet(
     standardDeduction = 0,
     applyProfessionalTax = true,
     salaryMonthsCount = 12,
-    maxIterations = 10,
+    maxIterations = 60,
     isNewRegime = true,
     fyStartYear = 2025,
   } = options
 
-  let grossIncome = netIncome
-
-  for (let i = 0; i < maxIterations; i++) {
+  const netFor = (gross: number): number => {
     const { totalTax } = calculateTax(
-      grossIncome,
+      gross,
       slabs,
       standardDeduction,
       applyProfessionalTax,
@@ -250,17 +287,31 @@ export function calculateGrossFromNet(
       isNewRegime,
       fyStartYear,
     )
-    const calculatedNet = grossIncome - totalTax
-
-    if (Math.abs(calculatedNet - netIncome) < 1) {
-      return grossIncome
-    }
-
-    const diff = netIncome - calculatedNet
-    grossIncome += diff
+    return gross - totalTax
   }
 
-  return grossIncome
+  // Bracket: net <= gross always, so gross is at least netIncome. Grow the
+  // upper bound until its net exceeds the target.
+  let lo = netIncome
+  let hi = netIncome * 2 + 1
+  while (netFor(hi) < netIncome) {
+    hi *= 2
+  }
+
+  for (let i = 0; i < maxIterations; i++) {
+    const mid = (lo + hi) / 2
+    const calculatedNet = netFor(mid)
+    if (Math.abs(calculatedNet - netIncome) < 1) {
+      return mid
+    }
+    if (calculatedNet < netIncome) {
+      lo = mid
+    } else {
+      hi = mid
+    }
+  }
+
+  return (lo + hi) / 2
 }
 
 // ────────────────────────────────────────────
@@ -277,9 +328,21 @@ export function getFYFromDate(
   date: string,
   fiscalYearStartMonth: number = FY_START_MONTH,
 ): string {
-  const d = new Date(date)
-  const year = d.getFullYear()
-  const month = d.getMonth() + 1 // 1-indexed
+  // Parse the YYYY-MM-DD components directly. `new Date('2025-04-01')` parses
+  // as UTC midnight but getFullYear()/getMonth() return LOCAL components, so a
+  // 1st-of-month date can read as the previous month (wrong FY) for negative-
+  // offset users. Reading the string avoids any timezone dependence.
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(date)
+  let year: number
+  let month: number
+  if (isoMatch) {
+    year = Number(isoMatch[1])
+    month = Number(isoMatch[2]) // 1-indexed
+  } else {
+    const d = new Date(date)
+    year = d.getUTCFullYear()
+    month = d.getUTCMonth() + 1
+  }
 
   if (month >= fiscalYearStartMonth) {
     return `FY ${year}-${(year + 1).toString().slice(-2)}`

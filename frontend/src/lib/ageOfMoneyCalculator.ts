@@ -77,25 +77,35 @@ export function computeDaysOfBuffering(
   transactions: Array<{ type: string; amount: number; date: string }>,
   lookbackDays = 90,
 ): number | null {
+  const now = new Date()
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - lookbackDays)
   const cutoffStr = cutoff.toISOString().substring(0, 10)
 
   let totalSpending = 0
   const expenseDays = new Set<string>()
+  let earliest = ''
 
   for (const tx of transactions) {
     if (tx.type !== 'Expense') continue
     if (tx.date < cutoffStr) continue
     totalSpending += Math.abs(tx.amount)
     expenseDays.add(tx.date)
+    if (earliest === '' || tx.date < earliest) earliest = tx.date
   }
 
   const daysWithExpenses = expenseDays.size
   if (daysWithExpenses === 0 || totalSpending === 0) return null
 
-  // Average daily spending across the lookback period
-  const avgDailySpending = totalSpending / lookbackDays
+  // Divide by the span actually covered by data, not the full lookback window.
+  // For users with < lookbackDays of history, using the fixed window dilutes
+  // the burn rate across empty days and massively overstates runway.
+  const MS_PER_DAY = 86_400_000
+  const earliestDate = new Date(`${earliest}T00:00:00Z`)
+  const observedSpanDays = Math.floor((now.getTime() - earliestDate.getTime()) / MS_PER_DAY) + 1
+  const spanDays = Math.max(1, Math.min(lookbackDays, observedSpanDays))
+
+  const avgDailySpending = totalSpending / spanDays
   if (avgDailySpending <= 0) return null
 
   return Math.round(liquidBalance / avgDailySpending)

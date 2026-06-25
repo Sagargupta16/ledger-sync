@@ -1,5 +1,16 @@
+// Characters that make a spreadsheet treat a cell as a formula. A cell that
+// starts with one of these (from imported, user-controlled data) could execute
+// on open -- CSV/formula injection. Neutralize by prefixing a single quote.
+const FORMULA_TRIGGERS = ['=', '+', '-', '@', '\t', '\r']
+
 function escapeCsvValue(val: string | number): string {
-  const str = String(val)
+  let str = String(val)
+  if (str.length > 0 && FORMULA_TRIGGERS.includes(str[0])) {
+    // Prefix with a single quote so Excel/Sheets treat it as text, and force
+    // quoting so the leading apostrophe survives the CSV round-trip.
+    str = `'${str}`
+    return '"' + str.replaceAll('"', '""') + '"'
+  }
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
     return '"' + str.replaceAll('"', '""') + '"'
   }

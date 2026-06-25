@@ -9,10 +9,9 @@ Rate-limited refresh to prevent abuse (CWE-307).
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.api.rate_limit import limiter
 from ledger_sync.schemas.auth import (
     MessageResponse,
     RefreshTokenRequest,
@@ -23,9 +22,6 @@ from ledger_sync.schemas.auth import (
 from ledger_sync.services.auth_service import AuthService
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
-
-# Rate limiter — keyed by client IP address
-limiter = Limiter(key_func=get_remote_address)
 
 
 # =============================================================================

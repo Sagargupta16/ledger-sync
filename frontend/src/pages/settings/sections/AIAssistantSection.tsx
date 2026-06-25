@@ -136,10 +136,13 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         }
+        // o-series reasoning models reject max_tokens; they need
+        // max_completion_tokens (and reasoning eats tokens, so allow more).
+        const isReasoning = /^o\d/i.test(model)
         body = JSON.stringify({
           model,
           messages: [{ role: 'user', content: testPrompt }],
-          max_tokens: 5,
+          ...(isReasoning ? { max_completion_tokens: 16 } : { max_tokens: 5 }),
         })
       } else if (provider === 'anthropic') {
         url = 'https://api.anthropic.com/v1/messages'

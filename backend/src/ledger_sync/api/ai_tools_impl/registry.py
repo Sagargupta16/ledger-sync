@@ -30,6 +30,11 @@ LIST_CATEGORIES_MAX_LIMIT = 50
 LIST_RECENT_MONTHS_DEFAULT_LIMIT = 6
 LIST_RECENT_MONTHS_MAX_LIMIT = 24
 
+# Cap for curated/grouped lists (recurring, goals, budgets). These tables are
+# small by nature, but the cap enforces the tool invariant that no tool can
+# dump an unbounded row count into the LLM prompt.
+LIST_ENTITIES_MAX_LIMIT = 100
+
 # --- Tool registry -----------------------------------------------------------
 
 ToolExecutor = Callable[[User, Session, dict[str, Any]], Any]

@@ -143,10 +143,16 @@ function toOpenAIMessages(system: string, messages: ChatMessage[]): OpenAIMessag
   return out
 }
 
+// OpenAI reasoning models (o1/o3/o4...) reject `max_tokens` and require
+// `max_completion_tokens`. Match the leading "o<digit>" family.
+const OPENAI_REASONING_MODEL = /^o\d/i
+
 async function callOpenAI(params: SendParams): Promise<ChatResponse> {
+  const tokenLimit = 1024
+  const isReasoning = OPENAI_REASONING_MODEL.test(params.model)
   const body = {
     model: params.model,
-    max_tokens: 1024,
+    ...(isReasoning ? { max_completion_tokens: tokenLimit } : { max_tokens: tokenLimit }),
     messages: toOpenAIMessages(params.systemPrompt, params.messages),
     tools: params.tools?.map((t) => ({
       type: 'function' as const,

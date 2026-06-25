@@ -5,10 +5,16 @@ Extracted from report_generator.py to keep both modules under 500 LOC.
 
 from __future__ import annotations
 
+import html
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ledger_sync.core.report_generator import MonthlyReportData
+
+
+def _esc(value: object) -> str:
+    """HTML-escape a dynamic (user-derived) value before interpolation."""
+    return html.escape(str(value))
 
 
 def _format_currency(amount: float) -> str:
@@ -40,10 +46,11 @@ def generate_html_report(data: MonthlyReportData) -> str:
     # --- Build expense categories rows ---
     expense_rows = ""
     for i, cat in enumerate(data.top_expense_categories, 1):
+        cat_name = _esc(cat["category"])
         expense_rows += f"""
             <tr>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">{i}</td>
-                <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">{cat["category"]}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">{cat_name}</td>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">
                     {_format_currency(cat["amount"])}
                 </td>
@@ -63,10 +70,11 @@ def generate_html_report(data: MonthlyReportData) -> str:
     # --- Build income sources rows ---
     income_rows = ""
     for i, src in enumerate(data.top_income_sources, 1):
+        src_name = _esc(src["category"])
         income_rows += f"""
             <tr>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">{i}</td>
-                <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">{src["category"]}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">{src_name}</td>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">
                     {_format_currency(src["amount"])}
                 </td>

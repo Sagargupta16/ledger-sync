@@ -3,7 +3,17 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ledger_sync.db._models._constants import CASCADE_ALL_DELETE_ORPHAN, USER_FK
@@ -28,6 +38,15 @@ class User(Base):
     """
 
     __tablename__ = "users"
+
+    # A provider identity (provider, provider_id) must map to at most one user.
+    # NULLs (legacy/email accounts with no provider) are distinct, so they
+    # never collide under this constraint.
+    __table_args__ = (
+        UniqueConstraint(
+            "auth_provider", "auth_provider_id", name="uq_users_auth_provider_identity"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)

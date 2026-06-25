@@ -41,13 +41,14 @@ export function formatMonthYear(date: Date): string {
 /** Determine the tracking status for a projected date vs. target date. */
 function resolveTrackingStatus(
   projected: Date,
-  target: Date,
+  target: Date | null,
   monthsRemaining: number,
 ): Pick<GoalProjection, 'status' | 'statusLabel' | 'statusColor' | 'monthsDelta'> {
   const projectedMonths = differenceInMonths(projected, new Date())
   const monthsDelta = monthsRemaining - projectedMonths // positive = ahead
 
-  if (projected <= target) {
+  // No deadline -> nothing to be behind on.
+  if (!target || projected <= target) {
     return { status: 'on_track', statusLabel: 'On Track', statusColor: rawColors.app.green, monthsDelta }
   }
   const monthsBehind = differenceInMonths(projected, target)
@@ -64,8 +65,11 @@ export function computeGoalProjection(
   avgMonthlySavings: number | null,
   now: Date,
 ): GoalProjection {
-  const targetDate = new Date(goal.target_date)
-  const monthsRemaining = Math.max(0, differenceInMonths(targetDate, now))
+  // target_date is nullable (goals can be open-ended). With no deadline there
+  // is no time pressure, so treat months-remaining as 0 (the required-savings
+  // branch below guards against divide-by-zero).
+  const targetDate = goal.target_date ? new Date(goal.target_date) : null
+  const monthsRemaining = targetDate ? Math.max(0, differenceInMonths(targetDate, now)) : 0
 
   if (currentAmount >= goal.target_amount) {
     return {

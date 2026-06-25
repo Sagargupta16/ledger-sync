@@ -8,18 +8,19 @@ Handles the server-side of the OAuth authorization code flow:
    then creates/links a local user and returns JWT tokens.
 """
 
+import base64
+import hashlib
+import hmac
 import logging
 import secrets
-import threading
 import time
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from ledger_sync.api.deps import DatabaseSession, HttpClient
+from ledger_sync.api.rate_limit import limiter
 from ledger_sync.config.settings import settings
 from ledger_sync.schemas.auth import OAuthCallbackRequest, OAuthProviderConfig, Token
 from ledger_sync.services.auth_service import AuthService
@@ -27,8 +28,6 @@ from ledger_sync.services.auth_service import AuthService
 logger = logging.getLogger("ledger_sync.oauth")
 
 router = APIRouter(prefix="/api/auth/oauth", tags=["oauth"])
-
-limiter = Limiter(key_func=get_remote_address)
 
 # ─── Provider Configurations ──────────────────────────────────────────────────
 
@@ -44,41 +43,62 @@ _GITHUB_SCOPES = "read:user user:email"
 
 _GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 
-# ─── CSRF State Token Store ──────────────────────────────────────────────────
-# Short-lived in-memory store for OAuth state tokens (10 min TTL).
+# ─── CSRF State Token (stateless, HMAC-signed) ───────────────────────────────
+# State tokens are self-contained and HMAC-signed with the server secret, so
+# they survive across serverless instances (no shared in-memory store to lose
+# on cold start) while remaining unforgeable. Format: "<nonce>.<expiry>.<sig>".
 
 _STATE_TTL = 600  # 10 minutes
-_state_store: dict[str, float] = {}  # state_token -> expiry_timestamp
-_state_lock = threading.Lock()
+
+
+def _state_secret() -> bytes:
+    """Key used to sign state tokens (the server's JWT secret)."""
+    return settings.jwt_secret_key.encode()
+
+
+def _sign_state(payload: str) -> str:
+    """Return the base64url HMAC-SHA256 of a state payload."""
+    digest = hmac.new(_state_secret(), payload.encode(), hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(digest).decode().rstrip("=")
 
 
 def _generate_state() -> str:
-    """Generate a random state token and store it with a TTL."""
-    token = secrets.token_urlsafe(32)
-    now = time.monotonic()
-    with _state_lock:
-        # Clean up expired tokens while we're here
-        expired = [k for k, exp in _state_store.items() if now > exp]
-        for k in expired:
-            del _state_store[k]
-        _state_store[token] = now + _STATE_TTL
-    return token
+    """Generate a signed, self-expiring state token."""
+    nonce = secrets.token_urlsafe(16)
+    expiry = str(int(time.time()) + _STATE_TTL)
+    payload = f"{nonce}.{expiry}"
+    return f"{payload}.{_sign_state(payload)}"
 
 
 def _validate_state(state: str | None) -> None:
-    """Validate and consume a state token. Raises 400 if invalid or expired."""
+    """Validate a signed state token. Raises 400 if invalid or expired."""
     if not state:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing OAuth state parameter",
         )
-    now = time.monotonic()
-    with _state_lock:
-        expiry = _state_store.pop(state, None)
-    if expiry is None or now > expiry:
+    try:
+        nonce, expiry_str, sig = state.split(".")
+    except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired OAuth state parameter",
+            detail="Invalid OAuth state parameter",
+        ) from None
+
+    payload = f"{nonce}.{expiry_str}"
+    if not hmac.compare_digest(sig, _sign_state(payload)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OAuth state parameter",
+        )
+    try:
+        expired = int(time.time()) > int(expiry_str)
+    except ValueError:
+        expired = True
+    if expired:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Expired OAuth state parameter",
         )
 
 
@@ -213,6 +233,13 @@ async def google_callback(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Could not retrieve email from Google",
+        )
+    # Only trust the email as an identity claim if Google verified it.
+    # An unverified email must not be allowed to match/link an account.
+    if not user_info.get("verified_email", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google email is not verified",
         )
 
     auth_service = AuthService(session)

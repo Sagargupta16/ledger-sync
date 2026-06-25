@@ -18,7 +18,7 @@ export default function EditGoalForm({
 }>) {
   const [name, setName] = useState(goal.name)
   const [targetAmount, setTargetAmount] = useState(String(goal.target_amount))
-  const [targetDate, setTargetDate] = useState(goal.target_date.slice(0, 10))
+  const [targetDate, setTargetDate] = useState(goal.target_date?.slice(0, 10) ?? '')
 
   const handleSave = () => {
     if (!name.trim()) {
