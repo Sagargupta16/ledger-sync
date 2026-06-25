@@ -85,6 +85,20 @@ export default function TransactionsPage() {
     ? allFilteredTransactions.length
     : allTransactions.length
 
+  // Type breakdown for the summary row, so the metric card isn't a single
+  // lonely figure stranded on a full-width row.
+  const typeCounts = useMemo(() => {
+    let income = 0
+    let expense = 0
+    let transfer = 0
+    for (const t of allTransactions) {
+      if (t.type === 'Income') income++
+      else if (t.type === 'Expense') expense++
+      else transfer++
+    }
+    return { income, expense, transfer }
+  }, [allTransactions])
+
   const handleFilterChange = (newFilters: FilterValues) => {
     setFilters(newFilters)
     setCurrentPage(1) // Reset to first page when filters change
@@ -161,13 +175,29 @@ export default function TransactionsPage() {
           transition={{ delay: 0.1 }}
           className="glass rounded-2xl border border-border p-6"
         >
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary/20 rounded-xl">
-              <Receipt className="w-6 h-6 text-primary" />
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-primary/20 rounded-xl">
+                <Receipt className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Transactions</p>
+                <p className="text-2xl font-bold tabular-nums">{allTransactions.length.toLocaleString('en-IN')}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Transactions</p>
-              <p className="text-2xl font-bold">{allTransactions.length.toLocaleString('en-IN')}</p>
+            <div className="flex items-center gap-8 sm:gap-10">
+              <div>
+                <p className="text-sm text-muted-foreground">Income</p>
+                <p className="text-xl font-semibold tabular-nums text-app-green">{typeCounts.income.toLocaleString('en-IN')}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Expense</p>
+                <p className="text-xl font-semibold tabular-nums text-app-red">{typeCounts.expense.toLocaleString('en-IN')}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Transfer</p>
+                <p className="text-xl font-semibold tabular-nums text-app-teal">{typeCounts.transfer.toLocaleString('en-IN')}</p>
+              </div>
             </div>
           </div>
         </motion.div>

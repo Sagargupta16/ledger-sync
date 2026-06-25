@@ -48,9 +48,25 @@ export function useInstrumentRates(): {
     retry: 1,
   })
 
+  // Deep-merge over FALLBACK so the epf/ppf/nps sub-objects ALWAYS exist, even
+  // if the endpoint returns a partial/malformed shape (e.g. a 404 body like
+  // {detail: ...}, or demo mode where the query errors). Consumers read
+  // rates.ppf.rate_pct directly, so a missing sub-object would crash the page.
+  const d = query.data
+  const valid = !!d && !!d.epf && !!d.ppf && !!d.nps
+  const data: InstrumentRates = valid
+    ? d
+    : {
+        ...FALLBACK_RATES,
+        ...(d ?? {}),
+        epf: { ...FALLBACK_RATES.epf, ...(d?.epf ?? {}) },
+        ppf: { ...FALLBACK_RATES.ppf, ...(d?.ppf ?? {}) },
+        nps: { ...FALLBACK_RATES.nps, ...(d?.nps ?? {}) },
+      }
+
   return {
-    data: query.data ?? FALLBACK_RATES,
-    isFallback: !query.data,
+    data,
+    isFallback: !valid,
     isLoading: query.isLoading,
   }
 }
