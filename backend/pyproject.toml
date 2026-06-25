@@ -6,25 +6,25 @@ authors = [{ name = "Sagar Gupta" }]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "sqlalchemy>=2.0.0",
-    "alembic>=1.18.0",
+    "sqlalchemy>=2.0.51",
+    "alembic>=1.18.4",
     "pandas>=2.2.0",
     "openpyxl>=3.1.0",
     "typer>=0.21.0",
-    "pydantic[email]>=2.7.0",
+    "pydantic[email]>=2.13.0",
     "pydantic-settings>=2.2.0",
     "rich>=14.0.0",
-    "fastapi>=0.128.0",
-    "uvicorn[standard]>=0.40.0",
+    "fastapi>=0.138.0",
+    "uvicorn[standard]>=0.49.0",
     "python-multipart>=0.0.22",
     "PyJWT>=2.12.0",
     "bcrypt>=4.0.1",
-    "psycopg[binary]>=3.2.0",
-    "slowapi>=0.1.9",
+    "psycopg[binary]>=3.3.4",
+    "slowapi>=0.1.10",
     "httpx>=0.28.0",
-    "mangum>=0.19.0",
+    "mangum>=0.21.0",
     "cryptography>=48.0.0",
-    "boto3>=1.35.0",
+    "boto3>=1.43.0",
 ]
 
 [project.scripts]
@@ -32,10 +32,10 @@ ledger-sync = "ledger_sync.cli.main:app"
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0.0",
+    "pytest>=9.1.0",
     "pytest-cov>=6.0.0",
     "ruff>=0.15.0",
-    "mypy>=1.10.0",
+    "mypy>=2.1.0",
     "pandas-stubs>=2.2.0",
     "types-openpyxl>=3.1.0",
     "pip-audit>=2.7.0",
@@ -51,6 +51,8 @@ package = true
 #   pyasn1 >=0.6.3         -- CVE-2026-30922
 #   mako >=1.3.12          -- CVE-2026-44307
 #   urllib3 >=2.7.0        -- CVE-2026-44431, CVE-2026-44432
+#   starlette >=1.3.1      -- CVE-2026-48710/48817/48818/54282/54283 (FastAPI allows >=0.46)
+#   idna >=3.18            -- CVE-2026-45409
 constraint-dependencies = [
     "pygments>=2.20.0",
     "python-dotenv>=1.2.2",
@@ -58,6 +60,8 @@ constraint-dependencies = [
     "pyasn1>=0.6.3",
     "mako>=1.3.12",
     "urllib3>=2.7.0",
+    "starlette>=1.3.1",
+    "idna>=3.18",
 ]
 
 [tool.ruff]

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useEffectEvent, useRef } from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePreferencesStore } from '@/store/preferencesStore'
@@ -39,29 +39,32 @@ export default function TransactionFilters({ onFilterChange, categories, account
   const [searchQuery, setSearchQuery] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const isFirstRender = useRef(true)
-  const onFilterChangeRef = useRef(onFilterChange)
   const currencySymbol = usePreferencesStore((state) => state.displayPreferences.currencySymbol)
-
-  // Keep callback ref in sync
-  useEffect(() => {
-    onFilterChangeRef.current = onFilterChange
-  }, [onFilterChange])
 
   // Debounce search query
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
 
-  // Handle debounced search - notify parent of filter changes
+  // Apply the debounced query to the filter set. This is an Effect Event
+  // (React 19.2): it always reads the LATEST filters/onFilterChange without
+  // making them effect dependencies, so the effect re-runs only when the
+  // debounced query changes -- and never sees a stale filters snapshot. This
+  // replaces the old onFilterChangeRef shim + exhaustive-deps suppression.
+  const applyDebouncedQuery = useEffectEvent((query: string) => {
+    const newFilters = { ...filters, query: query || undefined }
+    setFilters(newFilters)
+    // Notify the parent after the state update (not inside a setter) to avoid
+    // "Cannot update a component while rendering a different component".
+    onFilterChange(newFilters)
+  })
+
+  // React only to debounced query changes; skip the initial mount so we don't
+  // emit an empty-query filter before the user has typed.
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
       return
     }
-    const newFilters = { ...filters, query: debouncedSearchQuery || undefined }
-    setFilters(newFilters)
-    // Notify parent after state update (not inside a setter) to avoid
-    // "Cannot update a component while rendering a different component"
-    onFilterChangeRef.current(newFilters)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to debounced query changes
+    applyDebouncedQuery(debouncedSearchQuery)
   }, [debouncedSearchQuery])
 
   const handleFilterChange = useCallback((key: keyof FilterValues, value: string | number | undefined) => {
