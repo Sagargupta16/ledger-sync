@@ -52,7 +52,8 @@ export default function AccountClassifier() {
       </div>
 
       <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-border overflow-hidden">
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
           <thead>
             <tr className="bg-white/5 border-b border-border">
               <th className="p-4 font-medium">Account Name</th>
@@ -83,7 +84,8 @@ export default function AccountClassifier() {
               )
             })}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground flex items-center gap-2">
         <Info className="w-4 h-4" />

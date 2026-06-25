@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import CommandPalette from '@/components/shared/CommandPalette'
 import ChatWidget from '@/components/chat/ChatWidget'
 import { DemoBanner } from '@/components/shared/DemoBanner'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { useDemoStore } from '@/store/demoStore'
 import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 
@@ -70,16 +71,18 @@ export default function AppLayout() {
         Skip to main content
       </a>
 
-      {/* Static gradient orbs */}
+      {/* Static gradient orbs — kept subtle so they read as ambient depth, not
+          a glowing "AI dark theme" wash. Roughly half the previous intensity,
+          and the green corner orb is dialed back furthest since it bled most. */}
       <div
         className="fixed inset-0 pointer-events-none"
         aria-hidden="true"
         style={{
           background: [
-            'radial-gradient(600px circle at -10% -20%, rgba(94,92,230,0.20), transparent 70%)',
-            'radial-gradient(500px circle at 110% 60%, rgba(10,132,255,0.15), transparent 70%)',
-            'radial-gradient(400px circle at 50% 30%, rgba(191,90,242,0.10), transparent 70%)',
-            'radial-gradient(450px circle at 20% 110%, rgba(48,209,88,0.10), transparent 70%)',
+            'radial-gradient(600px circle at -10% -20%, rgba(94,92,230,0.10), transparent 70%)',
+            'radial-gradient(500px circle at 110% 60%, rgba(10,132,255,0.08), transparent 70%)',
+            'radial-gradient(400px circle at 50% 30%, rgba(191,90,242,0.05), transparent 70%)',
+            'radial-gradient(450px circle at 20% 110%, rgba(48,209,88,0.05), transparent 70%)',
           ].join(', '),
         }}
       />
@@ -94,13 +97,29 @@ export default function AppLayout() {
           we fall back to pb-safe so the last row clears the home indicator
           if someone opens the site on a phone-sized desktop browser window.
       */}
+      {/*
+        In demo mode the fixed DemoBanner sits centered at the top. On desktop
+        it's narrow and the left-aligned page title clears it, but on phone the
+        page title is centered and collides with the banner. Reserve banner
+        height at the top of <main> on phone-only when demo mode is active.
+      */}
       <main
         id="main-content"
-        className="flex-1 overflow-auto overscroll-contain relative z-10 pb-[calc(68px+env(safe-area-inset-bottom,0px))] lg:pb-safe"
+        className={`flex-1 overflow-auto overscroll-contain relative z-10 pb-[calc(68px+env(safe-area-inset-bottom,0px))] lg:pb-safe ${
+          isDemoMode ? 'pt-14 sm:pt-0' : ''
+        }`}
       >
         <AnimatePresence mode="popLayout">
           <motion.div key={location.pathname} {...pageTransition}>
-            <Outlet />
+            {/*
+              Page-scoped error boundary: a crash in one route renders the
+              fallback INSIDE the layout (sidebar + nav stay alive) instead of
+              taking down the whole app. Keyed on pathname so navigating to
+              another route auto-resets the boundary.
+            */}
+            <ErrorBoundary key={location.pathname}>
+              <Outlet />
+            </ErrorBoundary>
           </motion.div>
         </AnimatePresence>
       </main>

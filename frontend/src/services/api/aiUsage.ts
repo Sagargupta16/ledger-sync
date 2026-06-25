@@ -47,11 +47,17 @@ export interface LimitsUpdateRequest {
   clear_monthly?: boolean
 }
 
+/** Default limits shape so consumers can always read `usage.limits.*`. */
+const DEFAULT_LIMITS = { daily: null, monthly: null, app_daily_messages: 10 } as const
+
 export const aiUsageService = {
   /** Fetch today / month / all-time rollups + current limits. */
   async get(): Promise<UsageResponse> {
     const res = await apiClient.get<UsageResponse>('/api/ai/usage')
-    return res.data
+    // Guarantee `limits` exists so a partial/malformed payload (e.g. a 401
+    // error body, or demo mode) can't crash components that read
+    // usage.limits.app_daily_messages directly.
+    return { ...res.data, limits: { ...DEFAULT_LIMITS, ...(res.data?.limits ?? {}) } }
   },
 
   /** Record usage from a browser-direct OpenAI/Anthropic response. */

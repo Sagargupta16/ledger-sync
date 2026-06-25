@@ -191,7 +191,7 @@ export default function AnalyticsTimeFilter({
           <motion.button
             onClick={handlePrevious}
             disabled={!canGoPrev}
-            className="p-2 text-text-tertiary hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
+            className="p-2.5 sm:p-2 text-text-tertiary hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
             whileTap={canGoPrev ? { scale: 0.95 } : undefined}
             aria-label="Previous period"
           >
@@ -205,7 +205,7 @@ export default function AnalyticsTimeFilter({
           <motion.button
             onClick={handleNext}
             disabled={!canGoNext}
-            className="p-2 text-text-tertiary hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
+            className="p-2.5 sm:p-2 text-text-tertiary hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
             whileTap={canGoNext ? { scale: 0.95 } : undefined}
             aria-label="Next period"
           >
@@ -222,7 +222,7 @@ export default function AnalyticsTimeFilter({
             role="tab"
             aria-selected={viewMode === mode.value}
             onClick={() => onViewModeChange(mode.value)}
-            className={`relative px-3 py-1.5 rounded-md text-sm transition-colors duration-150 ease-out ${
+            className={`relative px-3 py-2.5 sm:py-1.5 rounded-md text-sm transition-colors duration-150 ease-out ${
               viewMode === mode.value
                 ? 'text-white font-medium'
                 : 'text-muted-foreground hover:text-white hover:bg-white/[0.04]'
