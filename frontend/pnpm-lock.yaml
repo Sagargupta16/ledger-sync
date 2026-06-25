@@ -9,6 +9,7 @@ overrides:
   follow-redirects: '>=1.15.12'
   serialize-javascript: '>=7.0.5'
   esbuild: '>=0.28.1'
+  form-data: '>=4.0.6'
 
 importers:
 
