@@ -25,6 +25,18 @@ These are `user-invocable: false` skills — they don't show in the `/` menu. Th
 | [deployment-atlas](.claude/skills/deployment-atlas/SKILL.md) | Editing workflows, vercel.json, settings | Topology, env vars, CI/CD, migration deploy, OAuth caveats, when-something-breaks |
 | [indian-finance-expert](.claude/skills/indian-finance-expert/SKILL.md) | Editing tax/investment/savings code | Tax regimes, sections, capital gains, savings instruments, ITR forms, advance tax, real-world rules of thumb |
 
+## Frontend craft skills (best practices)
+
+Also `user-invocable: false`, auto-load by `paths:`. Unlike the atlases (which map the codebase), these hold frontend *practice* — distilled from current library docs (TanStack Query v5, React 19.2, Recharts 3, Tailwind 4, WAI-ARIA APG, WCAG 2.2) and grounded in this repo's own fixed bugs.
+
+| Skill | Loads when... | Holds |
+|---|---|---|
+| [query-states](.claude/skills/query-states/SKILL.md) | Editing pages/hooks/components/services | loading→error→empty→success order, undefined-data guards, EmptyState usage, mutation invalidation |
+| [accessible-ui](.claude/skills/accessible-ui/SKILL.md) | Editing components/pages | ARIA names for icon controls, modal dialog semantics + focus, label association, WCAG contrast, color-as-only-signal |
+| [recharts-viz](.claude/skills/recharts-viz/SKILL.md) | Editing analytics/chart components | ResponsiveContainer + ChartContainer, token colors, NaN/empty guards, tooltip formatting, a11y layer |
+| [react-patterns](.claude/skills/react-patterns/SKILL.md) | Editing any frontend TS/TSX | useEffectEvent, stable list keys, stale-state/date, no-setState-in-effect, lazy/Suspense, hooks-lint v7 |
+| [design-system-ui](.claude/skills/design-system-ui/SKILL.md) | Editing components/pages/CSS | design tokens (no raw hex), mobile-first + 44px touch, h-dvh, banned AI-slop patterns (side-stripes, gradient text, dark:) |
+
 ## Task skills (recipes for recurring work)
 
 Normal user-invocable skills — they show in `/` menu and Claude can also auto-trigger them based on phrasing. Consolidated to **6 broad workflows** rather than one skill per layer (per [Anthropic skill design guidance](https://code.claude.com/docs/en/skills): create a skill when you keep pasting the same procedure, not for every conceivable task).
