@@ -39,10 +39,10 @@ export default function CashFlowForecast() {
       <div className="glass rounded-2xl p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-xl ${insights.trend === 'positive' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+            <div className={`p-3 rounded-xl ${insights.trend === 'positive' ? 'bg-app-green/10' : 'bg-app-red/10'}`}>
               {insights.trend === 'positive'
-                ? <TrendingUp className="w-6 h-6 text-green-400" />
-                : <TrendingDown className="w-6 h-6 text-red-400" />}
+                ? <TrendingUp className="w-6 h-6 text-app-green" />
+                : <TrendingDown className="w-6 h-6 text-app-red" />}
             </div>
             <div>
               <h3 className="text-lg font-semibold text-white">Future Cash Flow Forecast</h3>
@@ -135,21 +135,21 @@ export default function CashFlowForecast() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         <div className="bg-white/[0.04] border border-border rounded-xl p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">Avg Monthly Income</p>
-          <p className="text-xl font-bold text-green-400">{formatCurrencyShort(insights.avgIncome)}</p>
+          <p className="text-xl font-bold text-app-green">{formatCurrencyShort(insights.avgIncome)}</p>
           <p className="text-xs text-text-tertiary mt-1">
             {insights.incomeGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.incomeGrowth).toFixed(1)}% monthly trend
           </p>
         </div>
         <div className="bg-white/[0.04] border border-border rounded-xl p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">Avg Monthly Expenses</p>
-          <p className="text-xl font-bold text-red-400">{formatCurrencyShort(insights.avgExpense)}</p>
+          <p className="text-xl font-bold text-app-red">{formatCurrencyShort(insights.avgExpense)}</p>
           <p className="text-xs text-text-tertiary mt-1">
             {insights.expenseGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.expenseGrowth).toFixed(1)}% monthly trend
           </p>
         </div>
         <div className="bg-white/[0.04] border border-border rounded-xl p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">1-Year Projected Savings</p>
-          <p className={`text-xl font-bold ${insights.projectedSavings >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+          <p className={`text-xl font-bold ${insights.projectedSavings >= 0 ? 'text-app-blue' : 'text-app-red'}`}>
             {insights.projectedSavings >= 0 ? '+' : ''}{formatCurrencyShort(insights.projectedSavings)}
           </p>
           <p className="text-xs text-text-tertiary mt-1">Based on current trends</p>

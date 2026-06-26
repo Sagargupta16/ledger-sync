@@ -35,12 +35,14 @@ export default function CreateGoalForm({
           <input
             type="text"
             placeholder="Goal name *"
+            aria-label="Goal name"
             value={formData.name}
             onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
             className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"
           />
           <select
             value={formData.goal_type}
+            aria-label="Goal type"
             onChange={(e) => onFormDataChange({ ...formData, goal_type: e.target.value })}
             className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"
           >
@@ -54,13 +56,16 @@ export default function CreateGoalForm({
           <input
             type="number"
             inputMode="decimal"
+            min="0"
             placeholder="Target amount *"
+            aria-label="Target amount"
             value={formData.target_amount}
             onChange={(e) => onFormDataChange({ ...formData, target_amount: e.target.value })}
             className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"
           />
           <input
             type="date"
+            aria-label="Target date"
             value={formData.target_date}
             onChange={(e) => onFormDataChange({ ...formData, target_date: e.target.value })}
             className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"
@@ -69,6 +74,7 @@ export default function CreateGoalForm({
         <input
           type="text"
           placeholder="Notes (optional)"
+          aria-label="Notes"
           value={formData.notes}
           onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })}
           className="w-full px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"

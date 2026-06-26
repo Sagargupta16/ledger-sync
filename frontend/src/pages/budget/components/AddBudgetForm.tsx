@@ -143,6 +143,8 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
                 id="budget-limit"
                 type="number"
                 inputMode="decimal"
+                min="0"
+                step="any"
                 value={formLimit}
                 onChange={(e) => setFormLimit(e.target.value)}
                 placeholder="Amount"

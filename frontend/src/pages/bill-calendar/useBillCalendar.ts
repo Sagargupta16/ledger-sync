@@ -39,9 +39,12 @@ export function useBillCalendar() {
   }
 
   const goToToday = () => {
+    // Read a fresh date at click time — `now` is captured at mount and would
+    // be stale if the tab has been open across a day boundary.
+    const today = new Date()
     setSelectedDay(null)
-    setViewYear(now.getFullYear())
-    setViewMonth(now.getMonth())
+    setViewYear(today.getFullYear())
+    setViewMonth(today.getMonth())
   }
 
   const billMap = useMemo(

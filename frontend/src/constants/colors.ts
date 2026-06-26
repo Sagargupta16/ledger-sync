@@ -126,7 +126,7 @@ function buildRawColors() {
     text: {
       primary:    r('--color-text-primary',    '#f5f5f7'),
       secondary:  r('--color-text-secondary',  '#8e8e93'),
-      tertiary:   r('--color-text-tertiary',   '#636366'),
+      tertiary:   r('--color-text-tertiary',   '#7c7c80'),
       quaternary: r('--color-text-quaternary', '#48484a'),
     },
   }

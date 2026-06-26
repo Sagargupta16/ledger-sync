@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 
+import { toast } from 'sonner'
+
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -227,13 +229,17 @@ export function useBudget() {
       viewMode === 'subcategory' && formSubcategory
         ? `${formCategory}::${formSubcategory}`
         : formCategory
-    if (key && formLimit) {
-      setBudget(key, Number.parseFloat(formLimit), budgetPeriod)
-      setFormCategory('')
-      setFormSubcategory('')
-      setFormLimit('')
-      setIsAdding(false)
+    if (!key || !formLimit) return
+    const limit = Number.parseFloat(formLimit)
+    if (!Number.isFinite(limit) || limit <= 0) {
+      toast.error('Enter a budget limit greater than 0')
+      return
     }
+    setBudget(key, limit, budgetPeriod)
+    setFormCategory('')
+    setFormSubcategory('')
+    setFormLimit('')
+    setIsAdding(false)
   }, [formCategory, formSubcategory, formLimit, viewMode, budgetPeriod, setBudget])
 
   const handleQuickAdd = useCallback(

@@ -15,7 +15,7 @@ import {
 import { MONTHS_SHORT, type HeatmapMode } from './types'
 
 export function useYearInReview() {
-  const { data: transactions = [] } = useTransactions()
+  const { data: transactions = [], isLoading } = useTransactions()
   const { data: dailySummaries = [] } = useDailySummaries()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
@@ -117,6 +117,7 @@ export function useYearInReview() {
 
   return {
     transactions,
+    isLoading,
     mode,
     setMode,
     hoveredDay,

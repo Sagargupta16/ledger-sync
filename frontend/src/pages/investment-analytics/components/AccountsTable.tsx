@@ -67,7 +67,7 @@ export function AccountsTable({
           <tbody>
             {sortedPortfolioData.map((item, index) => (
               <motion.tr
-                key={`${item.name}-${index}`}
+                key={item.name}
                 className="border-b border-border hover:bg-white/10 transition-colors"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

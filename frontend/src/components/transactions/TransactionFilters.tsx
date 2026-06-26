@@ -202,11 +202,12 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Start Date */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <label htmlFor="filter-start-date" className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   Start Date
                 </label>
                 <input
+                  id="filter-start-date"
                   type="date"
                   value={filters.start_date || ''}
                   onChange={(e) => handleFilterChange('start_date', e.target.value)}
@@ -216,11 +217,12 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* End Date */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <label htmlFor="filter-end-date" className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   End Date
                 </label>
                 <input
+                  id="filter-end-date"
                   type="date"
                   value={filters.end_date || ''}
                   onChange={(e) => handleFilterChange('end_date', e.target.value)}
@@ -230,8 +232,9 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Min Amount */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Min Amount ({currencySymbol})</label>
+                <label htmlFor="filter-min-amount" className="text-sm font-medium text-muted-foreground">Min Amount ({currencySymbol})</label>
                 <input
+                  id="filter-min-amount"
                   type="number"
                   inputMode="decimal"
                   placeholder="0"
@@ -243,8 +246,9 @@ export default function TransactionFilters({ onFilterChange, categories, account
 
               {/* Max Amount */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Max Amount ({currencySymbol})</label>
+                <label htmlFor="filter-max-amount" className="text-sm font-medium text-muted-foreground">Max Amount ({currencySymbol})</label>
                 <input
+                  id="filter-max-amount"
                   type="number"
                   inputMode="decimal"
                   placeholder="∞"

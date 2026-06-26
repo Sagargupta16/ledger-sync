@@ -58,6 +58,10 @@ export default function ConfirmDialog({
           onClick={handleClose}
         >
           <motion.div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-dialog-title"
+            aria-describedby="confirm-dialog-desc"
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -65,8 +69,8 @@ export default function ConfirmDialog({
             className="bg-[#1a1a1c] rounded-2xl border border-white/[0.08] p-6 max-w-md w-full shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
-            <p className="text-sm text-muted-foreground mb-6">{description}</p>
+            <h3 id="confirm-dialog-title" className="text-lg font-semibold text-white mb-2">{title}</h3>
+            <p id="confirm-dialog-desc" className="text-sm text-muted-foreground mb-6">{description}</p>
             <div className="flex justify-end gap-3">
               <button
                 type="button"

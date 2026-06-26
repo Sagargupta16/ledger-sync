@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Pencil, Trash2, Edit3 } from 'lucide-react'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { GOAL_TYPE_COLORS, GOAL_TYPE_LABELS } from '../constants'
 import type { GoalProjection } from '../types'
 import CircularProgress from './CircularProgress'
@@ -36,6 +38,7 @@ export default function GoalCard({
   onCancelEdit: () => void
   onDelete: (goalId: number) => void
 }>) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const color = GOAL_TYPE_COLORS[goal.goal_type]
   const progressPct = goal.target_amount > 0 ? (effectiveAmount / goal.target_amount) * 100 : 0
   const remaining = Math.max(0, goal.target_amount - effectiveAmount)
@@ -60,8 +63,9 @@ export default function GoalCard({
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={() => onDelete(goal.id)}
+                onClick={() => setConfirmDelete(true)}
                 title="Delete goal"
+                aria-label={`Delete goal: ${goal.name}`}
                 className="p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-red-500/10 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -149,6 +153,16 @@ export default function GoalCard({
           />
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete this goal?"
+        description={`"${goal.name}" will be permanently removed. This can't be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => onDelete(goal.id)}
+      />
     </motion.div>
   )
 }

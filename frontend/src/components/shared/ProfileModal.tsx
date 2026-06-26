@@ -133,6 +133,9 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
       onClick={handleClose}
     >
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Profile and account settings"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}

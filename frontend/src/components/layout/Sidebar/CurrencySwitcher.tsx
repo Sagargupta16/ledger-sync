@@ -71,6 +71,9 @@ export default function CurrencySwitcher() {
             : 'text-text-tertiary hover:text-white hover:bg-white/[0.06]',
         )}
         title={`Display currency: ${displayCurrency}`}
+        aria-label={`Change display currency (currently ${displayCurrency})`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
       >
         <span>{displayCurrency}</span>
         <ChevronDown size={12} />
