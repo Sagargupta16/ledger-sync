@@ -320,6 +320,7 @@ export default function Sidebar() {
                   onClick={closeMobile}
                   className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] transition-colors duration-150"
                   title={item.label}
+                  aria-label={item.label}
                 >
                   <item.icon size={18} />
                 </Link>
@@ -330,6 +331,7 @@ export default function Sidebar() {
                   onClick={() => exitDemoMode(queryClient, navigate)}
                   className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150"
                   title="Exit Demo"
+                  aria-label="Exit Demo"
                 >
                   <LogOut size={18} />
                 </button>
@@ -340,6 +342,7 @@ export default function Sidebar() {
                   disabled={logout.isPending}
                   className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 disabled:opacity-50"
                   title="Sign out"
+                  aria-label="Sign out"
                 >
                   <LogOut size={18} />
                 </button>

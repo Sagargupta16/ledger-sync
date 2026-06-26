@@ -36,6 +36,7 @@ import {
   BAR_RADIUS,
 } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import StatCard from '@/pages/year-in-review/components/StatCard'
 import InsightRow from '@/pages/year-in-review/components/InsightRow'
@@ -51,6 +52,7 @@ export default function YearInReviewPage() {
   const dims = useChartDimensions()
   const {
     transactions,
+    isLoading,
     mode,
     setMode,
     hoveredDay,
@@ -74,7 +76,21 @@ export default function YearInReviewPage() {
     monthlyBarData,
   } = useYearInReview()
 
-  if (transactions.length === 0) return <PageSkeleton />
+  if (isLoading) return <PageSkeleton />
+  if (transactions.length === 0) {
+    return (
+      <div className="p-4 md:p-6 lg:p-8">
+        <EmptyState
+          icon={Flame}
+          title="No transaction data yet"
+          description="Upload your bank statements to see your annual financial review — spending heatmaps, streaks, and year-over-year highlights."
+          actionLabel="Upload Data"
+          actionHref="/upload"
+          variant="card"
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">

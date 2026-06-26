@@ -20,8 +20,8 @@ function YoyBadge({ current, previous }: Readonly<{ current: number; previous: n
 
   const isUp = pct >= 0
   const Icon = isUp ? TrendingUp : TrendingDown
-  const color = isUp ? 'text-app-green' : 'text-red-400'
-  const bg = isUp ? 'bg-app-green/10' : 'bg-red-400/10'
+  const color = isUp ? 'text-app-green' : 'text-app-red'
+  const bg = isUp ? 'bg-app-green/10' : 'bg-app-red/10'
 
   return (
     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-overline font-medium ${color} ${bg}`}>

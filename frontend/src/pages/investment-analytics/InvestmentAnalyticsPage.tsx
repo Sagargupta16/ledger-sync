@@ -1,6 +1,7 @@
-import { motion } from 'framer-motion'
+import { TrendingUp } from 'lucide-react'
 
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+import EmptyState from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageHeader } from '@/components/ui'
 
@@ -13,6 +14,8 @@ import { useInvestmentAnalytics } from './useInvestmentAnalytics'
 export default function InvestmentAnalyticsPage() {
   const m = useInvestmentAnalytics()
 
+  if (m.isLoading) return <PageSkeleton />
+
   if (m.totalInvestmentValue === 0) {
     return (
       <div className="min-h-screen p-4 md:p-6 lg:p-8">
@@ -21,27 +24,18 @@ export default function InvestmentAnalyticsPage() {
             title="Investment Analytics"
             subtitle="Monitor your investment portfolio performance"
           />
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl border border-border p-4 md:p-6 lg:p-8 text-center"
-          >
-            <p className="text-muted-foreground mb-4">No investment accounts classified yet.</p>
-            <p className="text-sm text-muted-foreground">
-              Go to{' '}
-              <a href="/settings" className="text-primary hover:underline">
-                Settings
-              </a>{' '}
-              to classify your accounts as Investments.
-            </p>
-          </motion.div>
+          <EmptyState
+            icon={TrendingUp}
+            title="No investment accounts classified"
+            description="Classify your accounts as Investments in Settings to track portfolio value, allocation, and growth over time."
+            actionLabel="Go to Settings"
+            actionHref="/settings"
+            variant="card"
+          />
         </div>
       </div>
     )
   }
-
-  if (m.isLoading) return <PageSkeleton />
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8">

@@ -82,11 +82,15 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
+            aria-hidden="true"
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
           />
 
           {/* Modal */}
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-modal-title"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -97,6 +101,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
               {/* Close Button */}
               <button
                 onClick={onClose}
+                aria-label="Close sign-in dialog"
                 className="absolute top-4 right-4 p-2 rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] transition-colors duration-150 ease-out"
               >
                 <X className="w-5 h-5" />
@@ -107,7 +112,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                 <div className="p-3 rounded-xl bg-blue-500/10 mb-3">
                   <PiggyBank className="w-8 h-8 text-blue-400" />
                 </div>
-                <h2 className="text-xl font-semibold text-white">
+                <h2 id="auth-modal-title" className="text-xl font-semibold text-white">
                   Welcome to Ledger Sync
                 </h2>
                 <p className="text-muted-foreground text-sm mt-1">
