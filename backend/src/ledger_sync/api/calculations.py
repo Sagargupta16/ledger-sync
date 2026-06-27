@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
-from sqlalchemy import func
+from sqlalchemy import case, func
 
 from ledger_sync.api.calculations_helpers import (
     _build_category_analysis,
@@ -199,6 +199,8 @@ def get_monthly_aggregation(
                     "expense": float(s.total_expenses),
                     "net_savings": float(s.net_savings),
                     "transactions": s.total_transactions,
+                    "income_count": s.income_count,
+                    "expense_count": s.expense_count,
                 }
                 for s in summaries
             }
@@ -206,6 +208,12 @@ def get_monthly_aggregation(
     # Fallback: compute from raw transactions with date filters
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
     month_col = fmt_year_month(base.c.date).label("month")
+    income_count_col = func.sum(case((base.c.type == TransactionType.INCOME, 1), else_=0)).label(
+        "income_count"
+    )
+    expense_count_col = func.sum(case((base.c.type == TransactionType.EXPENSE, 1), else_=0)).label(
+        "expense_count"
+    )
 
     rows = (
         db.query(
@@ -213,6 +221,8 @@ def get_monthly_aggregation(
             income_sum_col(base, label="income"),
             expense_sum_col(base, label="expense"),
             func.count().label("transactions"),
+            income_count_col,
+            expense_count_col,
         )
         .group_by(month_col)
         .all()
@@ -227,6 +237,8 @@ def get_monthly_aggregation(
             "expense": expense,
             "net_savings": income - expense,
             "transactions": row.transactions,
+            "income_count": int(row.income_count or 0),
+            "expense_count": int(row.expense_count or 0),
         }
 
     return monthly_data

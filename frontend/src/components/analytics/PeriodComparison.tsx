@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
 
 import { useMonthlyAggregation } from '@/hooks/api/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
 import { rawColors } from '@/constants/colors'
 
 import { ChangeDisplay, SummaryCard } from './period-comparison/PeriodChangeDisplay'
@@ -25,7 +24,6 @@ import {
 
 export default function PeriodComparison() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
-  const { data: transactions = [] } = useTransactions()
   const [compareMode, setCompareMode] = useState<CompareMode>('months')
   const [selectedMonth1, setSelectedMonth1] = useState<string | null>(null)
   const [selectedMonth2, setSelectedMonth2] = useState<string | null>(null)
@@ -43,7 +41,7 @@ export default function PeriodComparison() {
 
   const yearlyData = useMemo(() => deriveYearlyData(monthlyData), [monthlyData])
 
-  const transactionCounts = useMemo(() => deriveTransactionCounts(transactions), [transactions])
+  const transactionCounts = useMemo(() => deriveTransactionCounts(monthlyData), [monthlyData])
 
   const getTransactionCount = useMemo(
     () => makeGetTransactionCount(transactionCounts),

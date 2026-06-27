@@ -19,6 +19,8 @@ export interface MonthlyAggregation {
     expense: number
     net_savings: number
     transactions: number
+    income_count: number
+    expense_count: number
   }
 }
 
