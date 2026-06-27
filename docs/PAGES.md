@@ -1,6 +1,8 @@
 # Pages Reference — Data Catalog
 
-A functional tour of every page in Ledger Sync focused on **what data each one shows, where that data comes from, and what decisions it helps you make**. This is the document to read when you want to answer _"what can I actually learn from this app?"_ rather than _"how is it built?"_ For architecture, see [architecture.md](architecture.md); for API shapes, see [API.md](API.md).
+> **Looking for the full, card-by-card walkthrough?** See the [Complete Handbook](HANDBOOK.md) — it documents every card, chart, metric, and setting on every page, with the exact formula and data source for each. This file is the shorter data-catalog summary.
+
+A functional tour of every page in Ledger Sync focused on **what data each one shows, where that data comes from, and what decisions it helps you make**. This is the document to read when you want to answer _"what can I actually learn from this app?"_ rather than _"how is it built?"_ For architecture, see [architecture.md](architecture.md); for API shapes, see [API.md](API.md); for the full walkthrough, see [HANDBOOK.md](HANDBOOK.md).
 
 Every value shown on every page is derived from:
 

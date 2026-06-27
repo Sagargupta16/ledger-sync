@@ -203,7 +203,7 @@ npx -y @mermaid-js/mermaid-cli -i docs/images/<name>.mmd -o docs/images/<name>.s
 
 ## Pages
 
-Every page focuses on a specific question you'd ask about your money. For the **detailed data catalog** — what each page shows, where the numbers come from, and what decisions it helps you make — see **[docs/PAGES.md](docs/PAGES.md)**.
+Every page focuses on a specific question you'd ask about your money. The **[Complete Handbook](docs/HANDBOOK.md)** walks through every page card-by-card — what each metric, chart, and setting shows, with the exact formula and data source for each. For the shorter **data catalog** version, see **[docs/PAGES.md](docs/PAGES.md)**.
 
 | Page | Answers |
 | --- | --- |
