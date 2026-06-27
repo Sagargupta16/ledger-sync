@@ -79,9 +79,24 @@ class NetWorthMixin(AnalyticsEngineBase):
         }
 
     def _get_net_worth_change(self, net_worth: Decimal) -> tuple[Decimal, float]:
-        """Compare *net_worth* against the most recent persisted snapshot."""
-        prev_query = self.db.query(NetWorthSnapshot).order_by(
-            NetWorthSnapshot.snapshot_date.desc(),
+        """Compare *net_worth* against the most recent persisted snapshot.
+
+        Excludes TODAY's snapshot from the "previous" lookup: this runs before
+        the upsert, but on a same-day re-upload today's row already exists, and
+        comparing against it yields a spurious change=0 (the bug that left 7/12
+        stored snapshots showing 0 change despite net worth moving). Compare
+        against the genuine prior day instead.
+        """
+        now = datetime.now(UTC)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        prev_query = (
+            self.db.query(NetWorthSnapshot)
+            .filter(
+                NetWorthSnapshot.snapshot_date < today_start,
+            )
+            .order_by(
+                NetWorthSnapshot.snapshot_date.desc(),
+            )
         )
         if self.user_id is not None:
             prev_query = prev_query.filter(NetWorthSnapshot.user_id == self.user_id)

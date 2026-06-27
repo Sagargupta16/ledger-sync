@@ -86,25 +86,39 @@ def resolve_pattern_display(
 def infer_expected_day_of_month(days: list[int]) -> int | None:
     """Infer the intended billing day from observed day-of-month values.
 
-    For a subscription set to the 31st, short months clamp it to 28/30, producing
-    values like [31, 28, 31, 30, 31]. A plain mode can pick the wrong "canonical"
-    day. Heuristic:
+    Mode-first: the most frequently observed day is the intended one. This is
+    correct for the common cases a blanket "max>=25 -> max" rule got wrong --
+    e.g. a day-1 bill with a few late-month outliers ([1 x many, 30, 31]) should
+    be 1, not 31; a salary clustered on the 27th should be 27, not a stray 31.
 
-    - If any observation is >= 25, assume a late-month bill and return the max
-      (the "intended" day before short-month clamping).
-    - Otherwise return the median (robust to occasional 1-day drifts like
-      weekend settlement lag).
+    The late-month-clamp case is preserved: when the MODE itself is a late-month
+    day (>= 28), short months clamp the true day downward (a 31st bill posts as
+    28/30), so we return the max of the late cluster to recover the real intent.
+    Ties in frequency break toward the day nearest the median (robust to drift).
     """
     if not days:
         return None
-    if max(days) >= 25:
-        return max(days)
+
+    from collections import Counter
+
+    counts = Counter(days)
+    top_freq = max(counts.values())
+    modes = [d for d, c in counts.items() if c == top_freq]
+
     sorted_days = sorted(days)
     mid = len(sorted_days) // 2
-    if len(sorted_days) % 2 == 1:
-        return sorted_days[mid]
-    # For even count, pick the lower median (integers, no averaging)
-    return sorted_days[mid - 1]
+    median = sorted_days[mid] if len(sorted_days) % 2 == 1 else sorted_days[mid - 1]
+
+    # Break frequency ties toward the day closest to the median.
+    mode = min(modes, key=lambda d: (abs(d - median), d))
+
+    # Late-month bill: the dominant day clamps in short months, so recover the
+    # intended (latest) day from the late cluster rather than reporting a clamped
+    # value. Only triggers when the mode itself is late (>= 28), so a day-1 bill
+    # with sparse end-of-month noise is unaffected.
+    if mode >= 28:
+        return max(days)
+    return mode
 
 
 def aggregate_holdings_data(

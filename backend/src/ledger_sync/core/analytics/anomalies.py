@@ -40,6 +40,11 @@ class AnomaliesMixin(AnalyticsEngineBase):
             del_stmt = del_stmt.where(Anomaly.user_id == self.user_id)
         self.db.execute(del_stmt)
 
+        # Sort by deviation BEFORE the 50-row cap so the most severe anomalies
+        # survive -- the unsorted cap was silently dropping the biggest outliers
+        # (e.g. a 638%-over-average transaction) while keeping smaller ones.
+        anomalies_detected.sort(key=lambda a: a.get("deviation_pct") or 0, reverse=True)
+
         for anomaly_data in anomalies_detected[:50]:  # Limit to 50 anomalies
             anomaly = Anomaly(
                 user_id=self.user_id,
@@ -128,10 +133,14 @@ class AnomaliesMixin(AnalyticsEngineBase):
         for txn in large_txns:
             cat_avg = category_avg_map.get(txn.category, 0)
             if cat_avg > 0 and float(txn.amount) > cat_avg * 3:
+                # Grade severity by how far above the category average it is,
+                # instead of a flat "medium" -- a 5x+ outlier reads as high.
+                ratio = float(txn.amount) / cat_avg
+                severity = "high" if ratio >= 5 else "medium"
                 anomalies.append(
                     {
                         "type": AnomalyType.HIGH_EXPENSE,
-                        "severity": "medium",
+                        "severity": severity,
                         "description": (
                             f"Large {txn.category} expense: "
                             f"{sym}{float(txn.amount):,.0f} vs avg {sym}{cat_avg:,.0f}"
