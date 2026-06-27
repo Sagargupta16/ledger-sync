@@ -36,6 +36,7 @@ Also `user-invocable: false`, auto-load by `paths:`. Unlike the atlases (which m
 | [recharts-viz](.claude/skills/recharts-viz/SKILL.md) | Editing analytics/chart components | ResponsiveContainer + ChartContainer, token colors, NaN/empty guards, tooltip formatting, a11y layer |
 | [react-patterns](.claude/skills/react-patterns/SKILL.md) | Editing any frontend TS/TSX | useEffectEvent, stable list keys, stale-state/date, no-setState-in-effect, lazy/Suspense, hooks-lint v7 |
 | [design-system-ui](.claude/skills/design-system-ui/SKILL.md) | Editing components/pages/CSS | design tokens (no raw hex), mobile-first + 44px touch, h-dvh, banned AI-slop patterns (side-stripes, gradient text, dark:) |
+| [ui-patterns-reference](.claude/skills/ui-patterns-reference/SKILL.md) | Editing components/pages/CSS | cross-system principles from shadcn/Radix/Material/Primer/Nielsen/Refactoring UI — hierarchy, semantic-token architecture, tables, forms, 10 heuristics; the "why" behind the tactical skills |
 
 ## Task skills (recipes for recurring work)
 
