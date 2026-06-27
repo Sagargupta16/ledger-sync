@@ -8,7 +8,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
-from sqlalchemy import literal, or_
+from sqlalchemy import func, literal, or_
 from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,7 @@ from ledger_sync.db.models import Transaction, TransactionType, User
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.schemas.transactions import (
     TransactionCreateRequest,
+    TransactionFacetsResponse,
     TransactionResponse,
     TransactionsListResponse,
 )
@@ -288,6 +289,48 @@ async def get_all_transactions(
     transactions = query.order_by(Transaction.date.desc()).all()
 
     return [_to_transaction_response(tx) for tx in transactions]
+
+
+@router.get("/api/transactions/facets")
+async def get_transaction_facets(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> TransactionFacetsResponse:
+    """Return dropdown options and per-type counts for the Transactions page.
+
+    The page used to fetch every transaction three times over just to derive
+    the category/account dropdowns and the Income/Expense/Transfer counts.
+    This computes all of that with ``DISTINCT`` / ``GROUP BY`` so the browser
+    receives a few hundred bytes instead of the whole ledger.
+    """
+    base = _base_transaction_query(db, current_user)
+
+    categories = [
+        row[0] for row in base.with_entities(Transaction.category).distinct().all() if row[0]
+    ]
+    accounts = [
+        row[0] for row in base.with_entities(Transaction.account).distinct().all() if row[0]
+    ]
+
+    counts: dict[TransactionType, int] = {
+        tx_type: count
+        for tx_type, count in base.with_entities(Transaction.type, func.count())
+        .group_by(Transaction.type)
+        .all()
+    }
+
+    income = counts.get(TransactionType.INCOME, 0)
+    expense = counts.get(TransactionType.EXPENSE, 0)
+    transfer = counts.get(TransactionType.TRANSFER, 0)
+
+    return TransactionFacetsResponse(
+        categories=sorted(categories, key=lambda s: s.lower()),
+        accounts=sorted(accounts, key=lambda s: s.lower()),
+        income_count=income,
+        expense_count=expense,
+        transfer_count=transfer,
+        total_count=income + expense + transfer,
+    )
 
 
 @router.get("/api/transactions/search")

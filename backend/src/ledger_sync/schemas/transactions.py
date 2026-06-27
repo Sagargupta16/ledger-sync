@@ -50,6 +50,23 @@ class TransactionsListResponse(BaseModel):
     has_more: bool
 
 
+class TransactionFacetsResponse(BaseModel):
+    """Lightweight facets for the Transactions page UI.
+
+    Replaces three full-table fetches (the page previously pulled every
+    transaction just to derive dropdown options and type counts). Computed
+    server-side via ``GROUP BY`` / ``DISTINCT`` so the browser never sees the
+    raw ledger.
+    """
+
+    categories: list[str]
+    accounts: list[str]
+    income_count: int
+    expense_count: int
+    transfer_count: int
+    total_count: int
+
+
 class TransactionCreateRequest(BaseModel):
     """Request schema for manually creating a single transaction.
 

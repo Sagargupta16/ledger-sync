@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Download, Receipt } from 'lucide-react'
 import type { SortingState } from '@tanstack/react-table'
@@ -9,7 +10,7 @@ import { PageHeader } from '@/components/ui'
 import TransactionTable from '@/components/transactions/TransactionTable'
 import TransactionFilters, { type FilterValues } from '@/components/transactions/TransactionFilters'
 import Pagination from '@/components/transactions/Pagination'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { useTransactionFacets } from '@/hooks/api/useTransactions'
 import { transactionsService, type TransactionFilters as ServiceFilters } from '@/services/api/transactions'
 
 /** Map component filter + sorting state to API query params */
@@ -51,53 +52,27 @@ export default function TransactionsPage() {
     [filters, sorting, currentPage, itemsPerPage],
   )
 
-  // Fetch all transactions (unfiltered) for dropdown options and total count
-  const { data: allTransactions = [] } = useTransactions()
+  // Dropdown options + per-type counts, aggregated server-side (no full-ledger
+  // fetch). categories/accounts feed the filter dropdowns; the counts feed the
+  // summary card.
+  const { data: facets } = useTransactionFacets()
+  const categories = facets?.categories ?? []
+  const accounts = facets?.accounts ?? []
+  const typeCounts = {
+    income: facets?.income_count ?? 0,
+    expense: facets?.expense_count ?? 0,
+    transfer: facets?.transfer_count ?? 0,
+  }
 
-  // Fetch filtered + sorted + paginated transactions from the server
-  const { data: filteredTransactions = [], isLoading } = useTransactions(serverFilters)
-
-  // For server-side paginated results the API returns all matching rows when
-  // using the /all endpoint with a limit param. The total count needs to come
-  // from an unfiltered or filtered count. Since the current API returns an
-  // array, we derive the total from a separate query without limit/offset.
-  const totalFilters = useMemo<ServiceFilters>(
-    () => ({
-      query: filters.query || undefined,
-      category: filters.category || undefined,
-      account: filters.account || undefined,
-      type: filters.type || undefined,
-      min_amount: filters.min_amount,
-      max_amount: filters.max_amount,
-      start_date: filters.start_date || undefined,
-      end_date: filters.end_date || undefined,
-    }),
-    [filters],
-  )
-
-  // Use a query with server-side filters but no pagination to get the total count
-  const { data: allFilteredTransactions = [] } = useTransactions(
-    // Only run a separate count query when filters are active
-    Object.values(totalFilters).some((v) => v !== undefined) ? totalFilters : undefined,
-  )
-
-  const total = Object.values(totalFilters).some((v) => v !== undefined)
-    ? allFilteredTransactions.length
-    : allTransactions.length
-
-  // Type breakdown for the summary row, so the metric card isn't a single
-  // lonely figure stranded on a full-width row.
-  const typeCounts = useMemo(() => {
-    let income = 0
-    let expense = 0
-    let transfer = 0
-    for (const t of allTransactions) {
-      if (t.type === 'Income') income++
-      else if (t.type === 'Expense') expense++
-      else transfer++
-    }
-    return { income, expense, transfer }
-  }, [allTransactions])
+  // Fetch filtered + sorted + paginated rows from the server. The response
+  // carries the filtered total, so no separate count query is needed.
+  const { data: page, isLoading } = useQuery({
+    queryKey: ['transactions-page', serverFilters],
+    queryFn: () => transactionsService.getTransactionsPaginated(serverFilters),
+    staleTime: Infinity,
+  })
+  const filteredTransactions = page?.data ?? []
+  const total = page?.total ?? facets?.total_count ?? 0
 
   const handleFilterChange = (newFilters: FilterValues) => {
     setFilters(newFilters)
@@ -139,15 +114,6 @@ export default function TransactionsPage() {
     }
   }
 
-  // Extract unique categories and accounts for filter dropdowns
-  const categories = useMemo(() => {
-    return Array.from(new Set(allTransactions.map((t) => t.category))).sort((a, b) => a.localeCompare(b))
-  }, [allTransactions])
-
-  const accounts = useMemo(() => {
-    return Array.from(new Set(allTransactions.map((t) => t.account))).sort((a, b) => a.localeCompare(b))
-  }, [allTransactions])
-
   return (
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -182,7 +148,7 @@ export default function TransactionsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Transactions</p>
-                <p className="text-2xl font-bold tabular-nums">{allTransactions.length.toLocaleString('en-IN')}</p>
+                <p className="text-2xl font-bold tabular-nums">{(facets?.total_count ?? 0).toLocaleString('en-IN')}</p>
               </div>
             </div>
             <div className="flex items-center gap-8 sm:gap-10">

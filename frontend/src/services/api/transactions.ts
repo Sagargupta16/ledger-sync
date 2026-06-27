@@ -26,6 +26,15 @@ export interface PaginatedResponse<T> {
   has_more: boolean
 }
 
+export interface TransactionFacets {
+  categories: string[]
+  accounts: string[]
+  income_count: number
+  expense_count: number
+  transfer_count: number
+  total_count: number
+}
+
 export const transactionsService = {
   /**
    * Get ALL transactions (for charts and analytics that need complete data).
@@ -55,6 +64,16 @@ export const transactionsService = {
       },
     })
     return response.data || []
+  },
+
+  /**
+   * Get dropdown facets + per-type counts for the Transactions page.
+   * Computed server-side (DISTINCT / GROUP BY) so the browser never pulls
+   * the full ledger just to populate filters and a summary card.
+   */
+  getFacets: async (): Promise<TransactionFacets> => {
+    const response = await apiClient.get<TransactionFacets>('/api/transactions/facets')
+    return response.data
   },
 
   getTransactionsPaginated: async (filters?: TransactionFilters): Promise<PaginatedResponse<Transaction>> => {
