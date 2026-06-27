@@ -67,6 +67,27 @@ export interface DateRangeParams {
   end_date?: string
 }
 
+export interface QuickInsightsData {
+  min_date: string | null
+  max_date: string | null
+  net_cashback: number
+  cashback_count: number
+  median_expense: number
+  biggest_expense: { amount: number; category: string }
+  avg_expense: number
+  total_spending: number
+  expense_count: number
+  weekend_spending: number
+  weekday_spending: number
+  /** JS getDay convention: 0=Sun..6=Sat */
+  peak_day: number
+  peak_day_total: number
+  total_transfers: number
+  transfer_count: number
+  top_income_source: { category: string; amount: number } | null
+  most_expensive_month: { period: string; amount: number } | null
+}
+
 export const calculationsApi = {
   getMasterCategories: () =>
     apiClient.get<MasterCategories>('/api/calculations/categories/master'),
@@ -85,4 +106,7 @@ export const calculationsApi = {
 
   getAccountBalances: (params?: DateRangeParams) =>
     apiClient.get<AccountBalances>('/api/calculations/account-balances', { params }),
+
+  getQuickInsights: (params?: DateRangeParams) =>
+    apiClient.get<QuickInsightsData>('/api/calculations/quick-insights', { params }),
 }

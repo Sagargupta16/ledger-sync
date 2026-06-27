@@ -70,7 +70,16 @@ export interface CategoryData {
   subcategories: Record<string, number>
 }
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/** Format a "YYYY-MM" period key as e.g. "Dec 2024". */
+export function monthLabel(period: string): string {
+  const [y, m] = period.split('-')
+  return new Date(Number(y), Number(m) - 1).toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+  })
+}
 
 export interface DateRange {
   start_date?: string

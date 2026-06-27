@@ -63,6 +63,13 @@ export const totalsOptions = (params?: { start_date?: string; end_date?: string 
     ...STABLE,
   })
 
+export const quickInsightsOptions = (params?: { start_date?: string; end_date?: string }) =>
+  queryOptions({
+    queryKey: ['calculations', 'quick-insights', params] as const,
+    queryFn: async () => (await calculationsApi.getQuickInsights(params)).data,
+    ...STABLE,
+  })
+
 export const masterCategoriesOptions = () =>
   queryOptions({
     queryKey: ['calculations', 'master-categories'] as const,
@@ -84,4 +91,5 @@ export const useCategoryBreakdown = (params?: { start_date?: string; end_date?: 
 export const useAccountBalances = (params?: { start_date?: string; end_date?: string }) => useQuery(accountBalancesOptions(params))
 export const useMonthlyAggregation = (params?: { start_date?: string; end_date?: string }) => useQuery(monthlyAggregationOptions(params))
 export const useTotals = (params?: { start_date?: string; end_date?: string }) => useQuery(totalsOptions(params))
+export const useQuickInsights = (params?: { start_date?: string; end_date?: string }) => useQuery(quickInsightsOptions(params))
 export const useMasterCategories = () => useQuery(masterCategoriesOptions())

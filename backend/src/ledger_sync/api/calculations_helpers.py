@@ -15,6 +15,102 @@ from ledger_sync.core.query_helpers import build_transaction_query
 from ledger_sync.db.models import CategoryTrend, Transaction, TransactionType, User
 
 
+def _median(sorted_values: list[float]) -> float:
+    """Median of a pre-sorted list (matches the client's computeMedian)."""
+    n = len(sorted_values)
+    if n == 0:
+        return 0.0
+    mid = n // 2
+    if n % 2 == 0:
+        return (sorted_values[mid - 1] + sorted_values[mid]) / 2
+    return sorted_values[mid]
+
+
+def _compute_quick_insights(transactions: list[Transaction]) -> dict[str, Any]:
+    """Compute the raw-transaction-derived Quick Insights stats.
+
+    Mirrors the client-side math in ``quickInsightsData.ts`` exactly so the
+    Dashboard band renders identical numbers without shipping the full ledger:
+
+    - net cashback: Income rows whose subcategory contains "cashback" minus
+      Transfers whose to_account contains "cashback shared" (substring, not an
+      exact hardcoded category -- the source of the prior ``₹0`` bug).
+    - median / biggest / avg expense, weekend split, peak weekday, total
+      transfers, top income source, most expensive month.
+
+    Weekday uses the stored naive date (Python ``weekday()``: Mon=0..Sun=6),
+    remapped to JS ``getDay()`` (Sun=0) so the client labels line up -- and the
+    bucketing is timezone-stable because it never round-trips through a TZ.
+    """
+    expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
+    income = [t for t in transactions if t.type == TransactionType.INCOME]
+    transfers = [t for t in transactions if t.type == TransactionType.TRANSFER]
+
+    expense_amounts = sorted(abs(float(t.amount)) for t in expenses)
+    total_spending = sum(expense_amounts)
+
+    # Net cashback (substring match, parity with computeNetCashback).
+    cashback_txs = [t for t in income if "cashback" in (t.subcategory or "").lower()]
+    total_cashback = sum(abs(float(t.amount)) for t in cashback_txs)
+    total_shared = sum(
+        abs(float(t.amount)) for t in transfers if "cashback shared" in (t.to_account or "").lower()
+    )
+
+    # Weekend vs weekday + peak weekday (JS getDay convention: Sun=0..Sat=6).
+    py_to_js = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 0}
+    by_weekday: dict[int, float] = dict.fromkeys(range(7), 0.0)
+    for t in expenses:
+        by_weekday[py_to_js[t.date.weekday()]] += abs(float(t.amount))
+    weekend_spending = by_weekday[0] + by_weekday[6]
+    peak_js_day = max(by_weekday, key=lambda d: by_weekday[d]) if expenses else 0
+
+    # Top income source (by category) + most expensive month (by expense).
+    income_by_cat: dict[str, float] = defaultdict(float)
+    for t in income:
+        income_by_cat[t.category or "Other"] += abs(float(t.amount))
+    top_income = max(income_by_cat.items(), key=lambda kv: kv[1]) if income_by_cat else None
+
+    expense_by_month: dict[str, float] = defaultdict(float)
+    for t in expenses:
+        expense_by_month[t.date.strftime("%Y-%m")] += abs(float(t.amount))
+    top_month = max(expense_by_month.items(), key=lambda kv: kv[1]) if expense_by_month else None
+
+    biggest = max(expenses, key=lambda t: abs(float(t.amount))) if expenses else None
+
+    # Actual data span (min/max date) so the client can compute days/months in
+    # range without holding the raw rows. ISO date strings; null when empty.
+    all_dates = [t.date for t in transactions]
+    min_date = min(all_dates).date().isoformat() if all_dates else None
+    max_date = max(all_dates).date().isoformat() if all_dates else None
+
+    return {
+        "min_date": min_date,
+        "max_date": max_date,
+        "net_cashback": total_cashback - total_shared,
+        "cashback_count": len(cashback_txs),
+        "median_expense": _median(expense_amounts),
+        "biggest_expense": {
+            "amount": abs(float(biggest.amount)) if biggest else 0.0,
+            "category": (biggest.category or "") if biggest else "",
+        },
+        "avg_expense": (total_spending / len(expenses)) if expenses else 0.0,
+        "total_spending": total_spending,
+        "expense_count": len(expenses),
+        "weekend_spending": weekend_spending,
+        "weekday_spending": total_spending - weekend_spending,
+        "peak_day": peak_js_day,
+        "peak_day_total": by_weekday[peak_js_day],
+        "total_transfers": sum(abs(float(t.amount)) for t in transfers),
+        "transfer_count": len(transfers),
+        "top_income_source": (
+            {"category": top_income[0], "amount": top_income[1]} if top_income else None
+        ),
+        "most_expensive_month": (
+            {"period": top_month[0], "amount": top_month[1]} if top_month else None
+        ),
+    }
+
+
 def _format_largest_transaction(largest: Transaction | None) -> dict[str, Any] | None:
     """Format largest transaction data."""
     if not largest:

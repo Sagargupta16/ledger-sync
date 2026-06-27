@@ -8,8 +8,7 @@ import {
   Repeat, Scale, CalendarRange,
 } from 'lucide-react'
 
-import { useCategoryBreakdown, useTotals } from '@/hooks/api/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { useCategoryBreakdown, useTotals, useQuickInsights } from '@/hooks/api/useAnalytics'
 import { formatCurrency } from '@/lib/formatters'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 
@@ -21,15 +20,11 @@ import {
   filterByVisibility,
   computeDaysInRange,
   computeMonthsInRange,
-  computeMedian,
-  computeWeekendSplit,
-  computePeakDay,
-  computeTopByCategory,
-  computeMostExpensiveMonth,
-  computeNetCashback,
   fmtChange,
   buildQuickInsights,
   buildFunFacts,
+  DAY_NAMES,
+  monthLabel,
 } from './quickInsightsData'
 
 interface QuickInsightsProps {
@@ -79,59 +74,64 @@ export default function QuickInsights({
     transaction_type: 'expense',
     ...dateRange,
   })
-  const { data: allTransactions = [], isLoading: transactionsLoading } = useTransactions({
-    start_date: dateRange.start_date,
-    end_date: dateRange.end_date,
-  })
+  const { data: insights, isLoading: insightsLoading } = useQuickInsights(dateRange)
   const { data: totalsData, isLoading: totalsLoading } = useTotals(dateRange)
 
-  const transactions = allTransactions.filter((t) => t.type === 'Expense')
-  const isLoading = categoryLoading || transactionsLoading || totalsLoading
+  const isLoading = categoryLoading || insightsLoading || totalsLoading
 
   const categories = categoryData?.categories || {}
 
   const topCategory = Object.entries(categories)
     .sort(([, a], [, b]) => (b as CategoryData).total - (a as CategoryData).total)[0]
 
-  const daysInRange = computeDaysInRange(dateRange, transactions)
-  const monthsInRange = computeMonthsInRange(dateRange, transactions)
+  // Days/months in range: prefer the explicit filter, else the data's actual
+  // span (returned by the endpoint as min/max date) -- no raw rows needed.
+  const spanRange = {
+    start_date: dateRange.start_date ?? insights?.min_date ?? undefined,
+    end_date: dateRange.end_date ?? insights?.max_date ?? undefined,
+  }
+  const daysInRange = computeDaysInRange(spanRange, [])
+  const monthsInRange = computeMonthsInRange(spanRange, [])
 
-  const totalSpending = Object.values(categories).reduce(
-    (sum, cat) => sum + (cat as CategoryData).total, 0,
-  )
+  const totalSpending = insights?.total_spending ?? 0
   const avgDailySpending = totalSpending / daysInRange
   const monthlyBurnRate = totalSpending / monthsInRange
 
-  // Cashback
-  const { netCashback, cashbackCount } = computeNetCashback(allTransactions)
+  const netCashback = insights?.net_cashback ?? 0
+  const cashbackCount = insights?.cashback_count ?? 0
 
-  const avgTransactionAmount = transactions.length > 0 ? totalSpending / transactions.length : 0
-
-  const transferTransactions = allTransactions.filter((t) => t.type === 'Transfer')
-  const totalTransfers = transferTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  const avgTransactionAmount = insights?.avg_expense ?? 0
+  const totalTransfers = insights?.total_transfers ?? 0
 
   // New insights data
   const savingsRate = totalsData?.savings_rate ?? 0
   const totalIncome = totalsData?.total_income ?? 0
   const netSavings = totalsData?.net_savings ?? 0
 
-  const topIncomeSource = computeTopByCategory(allTransactions.filter((t) => t.type === 'Income'))
-  const { weekend: weekendSpending, weekday: weekdaySpending } = computeWeekendSplit(transactions)
+  const topIncomeSource: [string, number] | null = insights?.top_income_source
+    ? [insights.top_income_source.category, insights.top_income_source.amount]
+    : null
+  const weekendSpending = insights?.weekend_spending ?? 0
+  const weekdaySpending = insights?.weekday_spending ?? 0
   const weekendPercent = totalSpending > 0 ? (weekendSpending / totalSpending) * 100 : 0
-  const peakDay = computePeakDay(transactions)
+  const peakDay = {
+    name: DAY_NAMES[insights?.peak_day ?? 0],
+    total: insights?.peak_day_total ?? 0,
+  }
 
   const uniqueCategories = Object.keys(categories).length
   const uniqueSubcategories = Object.values(categories).reduce(
     (sum, cat) => sum + Object.keys((cat as CategoryData).subcategories || {}).length, 0,
   )
 
-  const medianTransaction = computeMedian(transactions.map((t) => Math.abs(t.amount)))
+  const medianTransaction = insights?.median_expense ?? 0
 
   // ─── Build two arrays: Quick Insights (key metrics) + Fun Facts (behavioral) ─
 
-  const biggestTransaction = transactions.length > 0
-    ? transactions.reduce((max, t) => (Math.abs(t.amount) > Math.abs(max.amount) ? t : max), transactions[0])
-    : { amount: 0, category: 'N/A', date: '' }
+  const biggestTransaction = {
+    amount: insights?.biggest_expense.amount ?? 0,
+    category: insights?.biggest_expense.category || 'N/A',
+  }
 
   // Recurring coverage: what % of monthly income goes to fixed recurring
   const monthlyIncome = totalIncome / Math.max(monthsInRange, 1)
@@ -142,7 +142,12 @@ export default function QuickInsights({
   const incomeExpenseRatio = totalIncome > 0 ? totalExpenseAbs / totalIncome : 0
 
   // Most expensive month
-  const mostExpensiveMonth = computeMostExpensiveMonth(transactions)
+  const mostExpensiveMonth = insights?.most_expensive_month
+    ? {
+        label: monthLabel(insights.most_expensive_month.period),
+        amount: insights.most_expensive_month.amount,
+      }
+    : null
 
   const incomeChange = fmtChange(momChanges?.income, momChanges?.label ?? '')
   const expenseChange = fmtChange(momChanges?.expense, momChanges?.label ?? '')
@@ -187,7 +192,7 @@ export default function QuickInsights({
       uniqueCategories,
       uniqueSubcategories,
       totalTransfers,
-      transferCount: transferTransactions.length,
+      transferCount: insights?.transfer_count ?? 0,
       incomeExpenseRatio,
       mostExpensiveMonth,
     },

@@ -12,6 +12,7 @@ from ledger_sync.api.calculations_helpers import (
     _build_category_data_from_trends,
     _calculate_expense_averages,
     _compute_account_statistics,
+    _compute_quick_insights,
     _find_unusual_spending,
     _format_largest_transaction,
     _process_regular_transactions,
@@ -404,6 +405,25 @@ def get_financial_insights(
         "total_income": total_income,
         "total_expenses": total_expenses,
     }
+
+
+@router.get("/quick-insights")
+def get_quick_insights(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
+) -> dict[str, Any]:
+    """Raw-transaction-derived Quick Insights stats, date-range aware.
+
+    Net cashback, median/biggest/avg expense, weekend split, peak weekday,
+    transfers, top income source, and most-expensive month -- the values the
+    Dashboard band previously computed client-side over the full ledger.
+    Income/expense totals and category breakdown stay on their existing
+    rollup-backed endpoints (``/totals``, ``/category-breakdown``).
+    """
+    transactions = get_transactions(db, current_user, start_date, end_date)
+    return _compute_quick_insights(transactions)
 
 
 @router.get("/daily-net-worth")
