@@ -10,6 +10,7 @@ from sqlalchemy import desc
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import (
     CategoryTrend,
+    CohortSpending,
     DailySummary,
     InvestmentHolding,
     MonthlySummary,
@@ -138,6 +139,52 @@ def get_daily_summaries(
         ],
         "count": len(days),
     }
+
+
+# Python weekday() is Mon=0..Sun=6; the frontend chart orders Sun..Sat (JS
+# getDay). Map at the API boundary so the client renders rows directly.
+_PY_WEEKDAY_TO_JS = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 0}
+
+
+@router.get("/cohort-spending")
+def get_cohort_spending(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> dict[str, Any]:
+    """Get pre-calculated average-spend cohorts.
+
+    Three dimensions, each with an occurrence-correct divisor baked into
+    ``avg`` (see ``CohortSpending``):
+    - ``day_of_week``: bucket 0=Sun..6=Sat (mapped from Python's Mon=0)
+    - ``day_of_month``: bucket 1..31
+    - ``month_of_year``: bucket 1..12
+
+    Replaces the client-side bucketing that pulled every transaction; also
+    removes the timezone bug class (dates are extracted server-side from the
+    stored naive local date).
+    """
+    rows = db.query(CohortSpending).filter(CohortSpending.user_id == current_user.id).all()
+
+    result: dict[str, list[dict[str, Any]]] = {
+        "day_of_week": [],
+        "day_of_month": [],
+        "month_of_year": [],
+    }
+    for r in rows:
+        bucket = _PY_WEEKDAY_TO_JS[r.bucket] if r.dimension == "day_of_week" else r.bucket
+        result.setdefault(r.dimension, []).append(
+            {
+                "bucket": bucket,
+                "total": float(r.total_amount),
+                "occurrences": r.occurrences,
+                "avg": float(r.avg_amount),
+            }
+        )
+
+    for buckets in result.values():
+        buckets.sort(key=lambda b: b["bucket"])
+
+    return {"data": result}
 
 
 @router.get("/investment-holdings")

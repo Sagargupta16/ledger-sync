@@ -14,6 +14,7 @@ import type {
   Anomaly,
   Budget,
   CategoryTrend,
+  CohortSpendingData,
   DailySummary,
   FinancialGoal,
   FYSummary,
@@ -30,6 +31,7 @@ export const analyticsV2Keys = {
   all: ['analyticsV2'] as const,
   dailySummaries: (filters?: { start_date?: string; end_date?: string; limit?: number }) =>
     [...analyticsV2Keys.all, 'daily-summaries', filters?.start_date, filters?.end_date, filters?.limit] as const,
+  cohortSpending: () => [...analyticsV2Keys.all, 'cohort-spending'] as const,
   investmentHoldings: (filters?: { active_only?: boolean }) =>
     [...analyticsV2Keys.all, 'investment-holdings', filters?.active_only] as const,
   monthlySummaries: () => [...analyticsV2Keys.all, 'monthly-summaries'] as const,
@@ -55,6 +57,15 @@ export function useDailySummaries(params?: { start_date?: string; end_date?: str
   return useQuery<DailySummary[], Error>({
     queryKey: analyticsV2Keys.dailySummaries(params),
     queryFn: () => analyticsV2Service.getDailySummaries(params),
+    staleTime: STABLE_STALE_TIME,
+  })
+}
+
+// Cohort Spending (day-of-week / day-of-month / month-of-year averages)
+export function useCohortSpending() {
+  return useQuery<CohortSpendingData, Error>({
+    queryKey: analyticsV2Keys.cohortSpending(),
+    queryFn: () => analyticsV2Service.getCohortSpending(),
     staleTime: STABLE_STALE_TIME,
   })
 }
