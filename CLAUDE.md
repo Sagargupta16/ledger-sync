@@ -181,6 +181,7 @@ Repo-specific skills live in [`.claude/skills/<name>/SKILL.md`](.claude/skills/)
 | `recharts-viz` | Editing analytics/chart components — ResponsiveContainer, token colors, NaN/empty guards |
 | `react-patterns` | Editing any frontend TS/TSX — useEffectEvent, stable keys, stale-state, lazy/Suspense, hooks lint |
 | `design-system-ui` | Editing components/pages/CSS — design tokens, mobile-first + 44px touch, h-dvh, banned AI-slop patterns |
+| `ui-patterns-reference` | Editing components/pages/CSS — cross-system principles (shadcn/Radix/Material/Primer/Nielsen/Refactoring UI): hierarchy, semantic tokens, tables, forms, heuristics |
 
 **Task skills** (user-invocable, also auto-trigger on phrasing) — recipes for recurring work. Consolidated to broad workflows rather than one skill per layer.
 
