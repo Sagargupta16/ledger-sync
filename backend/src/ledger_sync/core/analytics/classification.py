@@ -22,23 +22,33 @@ class ClassificationMixin(AnalyticsEngineBase):
         item = f"{txn.category}::{txn.subcategory}"
         return item in self.taxable_income_categories
 
+    # Keyword hints (lower-cased) used to split the user's own taxable-income
+    # categories into salary vs bonus, instead of hardcoding one schema's exact
+    # strings. A salary/bonus item must ALSO be in taxable_income_categories, so
+    # these only refine an already-taxable item -- they never tax something new.
+    _SALARY_KEYWORDS = ("salary", "stipend", "wage", "pension")
+    _BONUS_KEYWORDS = ("bonus", "rsu", "esop", "incentive", "commission")
+
     def _is_salary_income(self, txn: Transaction) -> bool:
-        """Check if transaction is salary income (subset of taxable)."""
+        """Salary income: a taxable item whose subcategory reads like salary.
+
+        Preference-driven (subset of ``taxable_income_categories``) so users
+        whose category names differ from the default schema still classify --
+        the old hardcoded literals silently returned False for them.
+        """
         item = f"{txn.category}::{txn.subcategory}"
-        salary_items = [
-            "Employment Income::Salary",
-            "Employment Income::Stipend",
-        ]
-        return item in salary_items
+        if item not in self.taxable_income_categories:
+            return False
+        sub = (txn.subcategory or "").lower()
+        return any(kw in sub for kw in self._SALARY_KEYWORDS)
 
     def _is_bonus_income(self, txn: Transaction) -> bool:
-        """Check if transaction is bonus income (subset of taxable)."""
+        """Bonus income: a taxable item whose subcategory reads like a bonus/RSU."""
         item = f"{txn.category}::{txn.subcategory}"
-        bonus_items = [
-            "Employment Income::Bonuses",
-            "Employment Income::RSUs",
-        ]
-        return item in bonus_items
+        if item not in self.taxable_income_categories:
+            return False
+        sub = (txn.subcategory or "").lower()
+        return any(kw in sub for kw in self._BONUS_KEYWORDS)
 
     def _is_investment_income(self, txn: Transaction) -> bool:
         """Check if transaction is investment income based on preferences."""

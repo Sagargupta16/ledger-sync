@@ -1,4 +1,5 @@
 import { apiClient } from '@/services/api/client'
+import { toLocalDateKey } from '@/lib/dateUtils'
 
 interface PreferencesResponse {
   readonly currency_symbol?: string
@@ -32,7 +33,10 @@ export async function buildFinancialContext(): Promise<string> {
   const currency = prefs?.currency_symbol ?? '₹'
   const displayCurrency = prefs?.display_currency ?? 'INR'
   const fyStart = prefs?.fiscal_year_start_month ?? 4
-  const today = new Date().toISOString().slice(0, 10)
+  // Local calendar day, not UTC: toISOString() can be a day off for users east
+  // of UTC late in the evening, which would skew "this month"/"last month" tool
+  // queries the model makes.
+  const today = toLocalDateKey(new Date())
 
   return [
     `You are the finance assistant for a user of Ledger Sync. All amounts are in ${currency} (${displayCurrency}).`,

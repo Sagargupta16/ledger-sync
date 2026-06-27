@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { RefreshCw, AlertCircle, CheckCircle, Calendar, DollarSign } from 'lucide-react'
 
 import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatDate } from '@/lib/formatters'
 
 import { detectPattern, type RecurringTransaction } from './recurringUtils'
 
@@ -214,10 +214,10 @@ export default function RecurringTransactions() {
               {item.isActive && (
                 <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">
-                    Last: {new Date(item.lastDate).toLocaleDateString()}
+                    Last: {formatDate(item.lastDate, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                   </span>
                   <span className="text-app-teal">
-                    Next expected: {new Date(item.expectedNextDate).toLocaleDateString()}
+                    Next expected: {formatDate(item.expectedNextDate, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                   </span>
                 </div>
               )}

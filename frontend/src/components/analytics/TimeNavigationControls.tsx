@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { ViewMode } from '@/lib/dateUtils'
+import { formatMonthKey, type ViewMode } from '@/lib/dateUtils'
 
 interface TimeNavigationControlsProps {
   viewMode: ViewMode
@@ -36,10 +36,7 @@ export default function TimeNavigationControls({
           <ChevronLeft className="w-5 h-5" />
         </button>
         <span className="text-white font-medium min-w-30 text-center">
-          {new Date(currentMonth + '-01').toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric',
-          })}
+          {formatMonthKey(currentMonth, { month: 'long', year: 'numeric' })}
         </span>
         <button
           onClick={handleNextMonth}

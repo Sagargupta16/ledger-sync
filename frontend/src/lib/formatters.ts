@@ -36,6 +36,13 @@ const convertAmount = (value: number): number => {
 const getActiveCurrencyMeta = () => getCurrencyMeta(getDisplayCurrency())
 
 /**
+ * Active display locale (e.g. 'en-IN', 'en-US', 'de-DE') derived from the user's
+ * display currency. Use this for ad-hoc `toLocaleString` grouping so it matches
+ * the currency the rest of the UI shows, instead of hardcoding 'en-IN'.
+ */
+export const getActiveLocale = (): string => getActiveCurrencyMeta().locale
+
+/**
  * Format a number with the appropriate locale
  */
 const formatWithLocale = (
