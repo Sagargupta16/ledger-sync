@@ -27,6 +27,7 @@ import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/li
 import { rawColors } from '@/constants/colors'
 import {
   chartTooltipProps,
+  PageContainer,
   PageHeader,
   ChartContainer,
   GRID_DEFAULTS,
@@ -79,7 +80,7 @@ export default function YearInReviewPage() {
   if (isLoading) return <PageSkeleton />
   if (transactions.length === 0) {
     return (
-      <div className="p-4 md:p-6 lg:p-8">
+      <PageContainer>
         <EmptyState
           icon={Flame}
           title="No transaction data yet"
@@ -88,14 +89,14 @@ export default function YearInReviewPage() {
           actionHref="/upload"
           variant="card"
         />
-      </div>
+      </PageContainer>
     )
   }
 
   const modeLabel = { expense: 'Spending', income: 'Earning', net: 'Net cash flow' }[mode]
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
+    <PageContainer>
       <PageHeader
         title="Year in Review"
         subtitle="Your annual financial highlights and insights"
@@ -487,6 +488,6 @@ export default function YearInReviewPage() {
         <h2 className="text-lg font-semibold mb-4">Spending by Day of Week</h2>
         <DayOfWeekChart grid={grid} />
       </motion.div>
-    </div>
+    </PageContainer>
   )
 }

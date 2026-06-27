@@ -220,7 +220,7 @@ export default function UploadSyncPage() {
                   <Sparkles className="w-4 h-4" />
                   <span>Smart Sync</span>
                 </div>
-                <h1 className="text-4xl md:text-3xl sm:text-4xl md:text-5xl font-bold text-white">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white">
                   Upload & Sync
                 </h1>
                 <p className="text-lg text-muted-foreground max-w-md">

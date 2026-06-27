@@ -48,7 +48,7 @@ export function FeaturesSection() {
               Features
             </span>
           </div>
-          <h2 className="text-3xl md:text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
             Everything You Need
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">

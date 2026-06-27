@@ -92,7 +92,7 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-3xl md:text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
                 Ready to Take Control?
               </h2>
               <p className="text-muted-foreground mb-8 max-w-xl mx-auto">

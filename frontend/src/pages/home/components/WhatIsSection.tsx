@@ -14,7 +14,7 @@ export function WhatIsSection() {
           className="grid md:grid-cols-2 gap-12 items-center"
         >
           <div>
-            <h2 className="text-3xl md:text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-6">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-6">
               What is Ledger Sync?
             </h2>
             <p className="text-muted-foreground mb-6 leading-relaxed">

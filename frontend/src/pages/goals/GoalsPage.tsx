@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Target, Plus, Trophy, Clock } from 'lucide-react'
-import { PageHeader, StatCard } from '@/components/ui'
+import { PageContainer, PageHeader, StatCard } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
@@ -26,7 +26,7 @@ export default function GoalsPage() {
   const state = useGoalsState()
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
+    <PageContainer>
       <PageHeader
         title="Financial Goals"
         subtitle="Track progress toward your financial targets"
@@ -110,6 +110,6 @@ export default function GoalsPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   )
 }
