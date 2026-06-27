@@ -20,14 +20,13 @@ function usageTone(ratio: number): string {
 
 export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeToggleProps>) {
   return (
-    <div className="space-y-2">
-      {/* Group caption for two card-buttons, not a single input — a <label>
-          with empty htmlFor associates with nothing, so use a plain caption
-          and label the choice group via role="group" + aria-label. */}
-      <p id="ai-mode-label" className="block text-sm font-medium text-foreground mb-1.5">
+    <fieldset className="space-y-2 border-0 p-0 m-0">
+      {/* Native <fieldset>/<legend> is the semantic grouping element for a set
+          of choice cards (no role="group" needed). */}
+      <legend className="block text-sm font-medium text-foreground mb-1.5 p-0">
         How to power the chat
-      </p>
-      <div className="grid grid-cols-1 gap-2" role="group" aria-labelledby="ai-mode-label">
+      </legend>
+      <div className="grid grid-cols-1 gap-2">
         <ModeCard
           selected={mode === 'app_bedrock'}
           disabled={pending}
@@ -45,7 +44,7 @@ export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeT
           subtitle="Unlimited usage with your own OpenAI, Anthropic, or Bedrock key. You pay your provider."
         />
       </div>
-    </div>
+    </fieldset>
   )
 }
 

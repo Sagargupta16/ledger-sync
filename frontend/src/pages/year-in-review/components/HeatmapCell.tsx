@@ -25,13 +25,15 @@ export default function HeatmapCell({ cell, mode, modeMax }: Readonly<Props>) {
   // parent's onFocus delegation fires at all). Empty days read as "no activity".
   const label = val > 0 ? `${cell.date}: ${formatCurrency(val)} ${MODE_NOUN[mode]}` : `${cell.date}: no activity`
 
+  // A real <button> (not a div with role/tabIndex): natively focusable +
+  // interactive, so keyboard/SR users get the per-day figure and the parent's
+  // onFocus delegation fires. type=button avoids implicit form submission.
   return (
-    <div
+    <button
+      type="button"
       data-cell-date={cell.date}
-      role="img"
-      tabIndex={0}
       aria-label={label}
-      className="w-[13px] h-[13px] rounded-sm transition-[outline-color] duration-150 hover:ring-1 hover:ring-white/50 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/70"
+      className="w-[13px] h-[13px] rounded-sm p-0 border-0 cursor-default transition-[outline-color] duration-150 hover:ring-1 hover:ring-white/50 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/70"
       style={{
         backgroundColor: bgColor,
         outline: cell.isToday ? `2px solid ${modeAccent[mode]}` : undefined,

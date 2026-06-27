@@ -171,9 +171,15 @@ export const formatDateTick = (dateStr: string, totalPoints: number): string => 
  * @param dateStr  ISO date string (only the first 10 chars are used)
  * @param opts     Intl options (default: medium date, e.g. "Mar 15, 2026")
  */
+const DEFAULT_DATE_OPTS: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'short',
+  day: '2-digit',
+}
+
 export const formatDate = (
   dateStr: string,
-  opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: '2-digit' },
+  opts: Intl.DateTimeFormatOptions = DEFAULT_DATE_OPTS,
 ): string => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr)
   if (!m) return dateStr

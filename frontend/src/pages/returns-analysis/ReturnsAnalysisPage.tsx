@@ -1,5 +1,3 @@
-import { useCallback } from 'react'
-
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Banknote, Receipt, Activity } from 'lucide-react'
 import {
@@ -43,6 +41,37 @@ function AccountTooltip({
   )
 }
 
+const COMBO_SERIES_LABELS: Record<string, string> = {
+  income: 'Income',
+  expenses: 'Expenses',
+  net: 'Net',
+  cumulative: 'Cumulative',
+}
+
+function ComboTooltip({
+  active,
+  payload,
+  label,
+}: Readonly<{
+  active?: boolean
+  payload?: Array<{ dataKey?: string; value?: number; color?: string }>
+  label?: string
+}>) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={CHART_TOOLTIP_STYLE}>
+      <p style={{ ...CHART_TOOLTIP_LABEL_STYLE, fontSize: 12, marginBottom: 6 }}>{label}</p>
+      {payload.map((p) => (
+        <div key={p.dataKey ?? p.color} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+          <span style={{ color: '#71717a', fontSize: 11 }}>{COMBO_SERIES_LABELS[p.dataKey ?? ''] ?? p.dataKey}</span>
+          <span style={{ color: '#fafafa', fontSize: 12, fontWeight: 600, marginLeft: 'auto' }}>{formatCurrency(p.value ?? 0)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function ReturnsAnalysisPage() {
   const {
     isLoading,
@@ -53,26 +82,6 @@ export default function ReturnsAnalysisPage() {
     estimatedCAGR, roi,
     monthlyComboData, monthlyReturns,
   } = useReturnsAnalysis()
-
-  const renderComboTooltip = useCallback(({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey?: string; value?: number; color?: string }>; label?: string }) => {
-    if (!active || !payload?.length) return null
-    return (
-      <div style={CHART_TOOLTIP_STYLE}>
-        <p style={{ ...CHART_TOOLTIP_LABEL_STYLE, fontSize: 12, marginBottom: 6 }}>{label}</p>
-        {payload.map((p) => {
-          const val = p.value ?? 0
-          const labels: Record<string, string> = { income: 'Income', expenses: 'Expenses', net: 'Net', cumulative: 'Cumulative' }
-          return (
-            <div key={p.dataKey ?? p.color} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-              <span style={{ color: '#71717a', fontSize: 11 }}>{labels[p.dataKey ?? ''] ?? p.dataKey}</span>
-              <span style={{ color: '#fafafa', fontSize: 12, fontWeight: 600, marginLeft: 'auto' }}>{formatCurrency(val)}</span>
-            </div>
-          )
-        })}
-      </div>
-    )
-  }, [])
 
   return (
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
@@ -154,7 +163,7 @@ export default function ReturnsAnalysisPage() {
                 <CartesianGrid {...GRID_DEFAULTS} />
                 <XAxis {...xAxisDefaults(monthlyComboData.length)} dataKey="month" />
                 <YAxis {...yAxisDefaults()} />
-                <Tooltip content={renderComboTooltip as never} cursor={chartTooltipProps.cursor} />
+                <Tooltip content={ComboTooltip as never} cursor={chartTooltipProps.cursor} />
                 <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
                 {/* Green area above zero */}
                 <Area

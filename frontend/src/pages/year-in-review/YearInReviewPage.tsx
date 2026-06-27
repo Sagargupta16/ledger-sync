@@ -92,6 +92,8 @@ export default function YearInReviewPage() {
     )
   }
 
+  const modeLabel = { expense: 'Spending', income: 'Earning', net: 'Net cash flow' }[mode]
+
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
       <PageHeader
@@ -237,7 +239,7 @@ export default function YearInReviewPage() {
 
                 <section
                   className="flex gap-0.5"
-                  aria-label={`${mode === 'expense' ? 'Spending' : mode === 'income' ? 'Earning' : 'Net cash flow'} heatmap grid`}
+                  aria-label={`${modeLabel} heatmap grid`}
                   onMouseOver={(e) => {
                     const target = (e.target as HTMLElement).closest<HTMLElement>(
                       '[data-cell-date]',

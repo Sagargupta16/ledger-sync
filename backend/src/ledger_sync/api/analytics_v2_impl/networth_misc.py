@@ -370,7 +370,7 @@ def get_financial_goals(
     }
 
 
-@router.post("/goals")
+@router.post("/goals", responses={400: {"description": "Invalid target_date (not ISO 8601)"}})
 def create_goal(
     current_user: CurrentUser,
     db: DatabaseSession,

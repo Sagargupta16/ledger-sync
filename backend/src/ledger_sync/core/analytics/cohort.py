@@ -85,7 +85,7 @@ class CohortMixin(AnalyticsEngineBase):
         totals: dict[int, Decimal] = defaultdict(lambda: Decimal(0))
         min_date = max_date = None
         for tx in expenses:
-            wd = tx.date.weekday()  # Mon=0..Sun=6
+            wd = tx.date.weekday()  # Python weekday: Monday is zero, Sunday is six
             totals[wd] += abs(Decimal(str(tx.amount)))
             d = tx.date.date()
             if min_date is None or d < min_date:

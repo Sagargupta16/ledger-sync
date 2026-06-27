@@ -10,6 +10,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
+
 from ledger_sync.api.calculations_helpers import _compute_income_analysis
 from ledger_sync.db.models import Transaction, TransactionType
 
@@ -43,9 +45,9 @@ def test_totals_and_category_breakdown() -> None:
         _inc("500", date=datetime(2024, 1, 6, tzinfo=UTC), category="Investment Income"),
     ]
     r = _compute_income_analysis(txns, [])
-    assert r["total_income"] == 1500.0
-    assert r["category_breakdown"]["Employment Income"] == 1000.0
-    assert r["category_breakdown"]["Investment Income"] == 500.0
+    assert r["total_income"] == pytest.approx(1500.0)
+    assert r["category_breakdown"]["Employment Income"] == pytest.approx(1000.0)
+    assert r["category_breakdown"]["Investment Income"] == pytest.approx(500.0)
 
 
 def test_cashback_matches_classification_case_insensitive() -> None:
@@ -60,7 +62,7 @@ def test_cashback_matches_classification_case_insensitive() -> None:
     ]
     # List uses different case -> still matches.
     r = _compute_income_analysis(txns, ["refund & cashbacks::credit card cashbacks"])
-    assert r["cashbacks_total"] == 100.0
+    assert r["cashbacks_total"] == pytest.approx(100.0)
 
 
 def test_monthly_rolling_average() -> None:
@@ -71,17 +73,17 @@ def test_monthly_rolling_average() -> None:
     ]
     r = _compute_income_analysis(txns, [])
     md = r["monthly_data"]
-    assert [m["income"] for m in md] == [100.0, 200.0, 300.0]
+    assert [m["income"] for m in md] == pytest.approx([100.0, 200.0, 300.0])
     # 3-month trailing average: Jan=100, Feb=(100+200)/2=150, Mar=(100+200+300)/3=200
     assert [round(m["income_avg_3m"]) for m in md] == [100, 150, 200]
     # growth: (300-100)/100*100 = 200%
     assert round(r["growth_rate"]) == 200
-    assert r["peak_income"] == 300.0
+    assert r["peak_income"] == pytest.approx(300.0)
 
 
 def test_empty_is_safe() -> None:
     r = _compute_income_analysis([], [])
-    assert r["total_income"] == 0
-    assert r["cashbacks_total"] == 0
+    assert r["total_income"] == pytest.approx(0.0)
+    assert r["cashbacks_total"] == pytest.approx(0.0)
     assert r["monthly_data"] == []
-    assert r["growth_rate"] == 0.0
+    assert r["growth_rate"] == pytest.approx(0.0)

@@ -70,9 +70,11 @@ export const toLocalDateKey = (date: Date): string => {
  * @param monthKey  `YYYY-MM` or any string whose first 7 chars are `YYYY-MM`
  * @param opts      Intl month/year options (default: short month + numeric year)
  */
+const DEFAULT_MONTH_KEY_OPTS: Intl.DateTimeFormatOptions = { month: 'short', year: 'numeric' }
+
 export const formatMonthKey = (
   monthKey: string,
-  opts: Intl.DateTimeFormatOptions = { month: 'short', year: 'numeric' },
+  opts: Intl.DateTimeFormatOptions = DEFAULT_MONTH_KEY_OPTS,
 ): string => {
   const year = Number(monthKey.slice(0, 4))
   const month = Number(monthKey.slice(5, 7))

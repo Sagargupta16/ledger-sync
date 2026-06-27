@@ -12,6 +12,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
+
 from ledger_sync.api.calculations_helpers import _compute_quick_insights
 from ledger_sync.db.models import Transaction, TransactionType
 
@@ -55,7 +57,7 @@ def test_net_cashback_substring_match_minus_shared() -> None:
     ]
     r = _compute_quick_insights(txns)
     assert r["cashback_count"] == 2
-    assert r["net_cashback"] == 120.0  # (100 + 50) - 30
+    assert r["net_cashback"] == pytest.approx(120.0)  # (100 + 50) - 30
 
 
 def test_median_and_avg_over_expenses() -> None:
@@ -65,9 +67,9 @@ def test_median_and_avg_over_expenses() -> None:
         _tx(TransactionType.EXPENSE, "60"),
     ]
     r = _compute_quick_insights(txns)
-    assert r["median_expense"] == 20.0
-    assert r["avg_expense"] == 30.0
-    assert r["biggest_expense"]["amount"] == 60.0
+    assert r["median_expense"] == pytest.approx(20.0)
+    assert r["avg_expense"] == pytest.approx(30.0)
+    assert r["biggest_expense"]["amount"] == pytest.approx(60.0)
 
 
 def test_peak_day_uses_js_getday_convention() -> None:
@@ -78,7 +80,7 @@ def test_peak_day_uses_js_getday_convention() -> None:
     ]
     r = _compute_quick_insights(txns)
     assert r["peak_day"] == 0  # Sunday in JS convention
-    assert r["peak_day_total"] == 500.0
+    assert r["peak_day_total"] == pytest.approx(500.0)
 
 
 def test_weekend_split_and_span() -> None:
@@ -87,15 +89,15 @@ def test_weekend_split_and_span() -> None:
         _tx(TransactionType.EXPENSE, "300", date=datetime(2024, 1, 10, tzinfo=UTC)),  # Wed
     ]
     r = _compute_quick_insights(txns)
-    assert r["weekend_spending"] == 200.0
-    assert r["weekday_spending"] == 300.0
+    assert r["weekend_spending"] == pytest.approx(200.0)
+    assert r["weekday_spending"] == pytest.approx(300.0)
     assert r["min_date"] == "2024-01-06"
     assert r["max_date"] == "2024-01-10"
 
 
 def test_empty_is_safe() -> None:
     r = _compute_quick_insights([])
-    assert r["net_cashback"] == 0
-    assert r["median_expense"] == 0.0
+    assert r["net_cashback"] == pytest.approx(0.0)
+    assert r["median_expense"] == pytest.approx(0.0)
     assert r["min_date"] is None
     assert r["top_income_source"] is None

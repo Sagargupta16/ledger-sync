@@ -6,6 +6,7 @@ Extracted from calculations.py to keep both modules under 500 LOC.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -113,21 +114,41 @@ def _median(sorted_values: list[float]) -> float:
     return sorted_values[mid]
 
 
+def _weekday_spend(expenses: list[Transaction]) -> dict[int, float]:
+    """Expense totals bucketed by JS getDay weekday (Sun=0..Sat=6).
+
+    Python ``weekday()`` is Monday-zero; remap to the JS convention so the
+    client labels line up. Timezone-stable -- never round-trips through a TZ.
+    """
+    py_to_js = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 0}
+    by_weekday: dict[int, float] = dict.fromkeys(range(7), 0.0)
+    for t in expenses:
+        by_weekday[py_to_js[t.date.weekday()]] += abs(float(t.amount))
+    return by_weekday
+
+
+def _top_entry(totals: dict[str, float]) -> tuple[str, float] | None:
+    """The ``(key, value)`` with the largest value, or ``None`` if empty."""
+    return max(totals.items(), key=lambda kv: kv[1]) if totals else None
+
+
+def _sum_by(items: list[Transaction], key: Callable[[Transaction], str]) -> dict[str, float]:
+    """Sum absolute amounts grouped by ``key(transaction)``."""
+    out: dict[str, float] = defaultdict(float)
+    for t in items:
+        out[key(t)] += abs(float(t.amount))
+    return out
+
+
 def _compute_quick_insights(transactions: list[Transaction]) -> dict[str, Any]:
     """Compute the raw-transaction-derived Quick Insights stats.
 
     Mirrors the client-side math in ``quickInsightsData.ts`` exactly so the
     Dashboard band renders identical numbers without shipping the full ledger:
-
-    - net cashback: Income rows whose subcategory contains "cashback" minus
-      Transfers whose to_account contains "cashback shared" (substring, not an
-      exact hardcoded category -- the source of the prior ``₹0`` bug).
-    - median / biggest / avg expense, weekend split, peak weekday, total
-      transfers, top income source, most expensive month.
-
-    Weekday uses the stored naive date (Python ``weekday()``: Mon=0..Sun=6),
-    remapped to JS ``getDay()`` (Sun=0) so the client labels line up -- and the
-    bucketing is timezone-stable because it never round-trips through a TZ.
+    net cashback (Income subcategory contains "cashback" minus Transfers whose
+    to_account contains "cashback shared"), median / biggest / avg expense,
+    weekend split, peak weekday, transfers, top income source, most expensive
+    month.
     """
     expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
     income = [t for t in transactions if t.type == TransactionType.INCOME]
@@ -143,25 +164,12 @@ def _compute_quick_insights(transactions: list[Transaction]) -> dict[str, Any]:
         abs(float(t.amount)) for t in transfers if "cashback shared" in (t.to_account or "").lower()
     )
 
-    # Weekend vs weekday + peak weekday (JS getDay convention: Sun=0..Sat=6).
-    py_to_js = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 0}
-    by_weekday: dict[int, float] = dict.fromkeys(range(7), 0.0)
-    for t in expenses:
-        by_weekday[py_to_js[t.date.weekday()]] += abs(float(t.amount))
+    by_weekday = _weekday_spend(expenses)
     weekend_spending = by_weekday[0] + by_weekday[6]
     peak_js_day = max(by_weekday, key=lambda d: by_weekday[d]) if expenses else 0
 
-    # Top income source (by category) + most expensive month (by expense).
-    income_by_cat: dict[str, float] = defaultdict(float)
-    for t in income:
-        income_by_cat[t.category or "Other"] += abs(float(t.amount))
-    top_income = max(income_by_cat.items(), key=lambda kv: kv[1]) if income_by_cat else None
-
-    expense_by_month: dict[str, float] = defaultdict(float)
-    for t in expenses:
-        expense_by_month[t.date.strftime("%Y-%m")] += abs(float(t.amount))
-    top_month = max(expense_by_month.items(), key=lambda kv: kv[1]) if expense_by_month else None
-
+    top_income = _top_entry(_sum_by(income, lambda t: t.category or "Other"))
+    top_month = _top_entry(_sum_by(expenses, lambda t: t.date.strftime("%Y-%m")))
     biggest = max(expenses, key=lambda t: abs(float(t.amount))) if expenses else None
 
     # Actual data span (min/max date) so the client can compute days/months in
