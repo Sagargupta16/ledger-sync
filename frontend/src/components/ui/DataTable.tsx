@@ -14,6 +14,12 @@ export interface DataTableColumn<T> {
   /** Tailwind width class, e.g. `w-24`. Applied to both `<th>` and cells. */
   readonly widthClass?: string
   readonly sortable?: boolean
+  /**
+   * Value type, used to pick the first-click sort direction: numeric/date
+   * columns default to descending (largest first — the usual intent for
+   * amounts), text columns to ascending (A→Z). Defaults to `'number'`.
+   */
+  readonly sortType?: 'number' | 'text'
   /** Override the value used for comparison. Default: `row[key]` when row is a string-keyed object. */
   readonly sortValue?: (row: T) => number | string
   readonly cell: (row: T, index: number) => ReactNode
@@ -31,6 +37,10 @@ export interface DataTableProps<T> {
   readonly rowClassName?: (row: T, index: number) => string
   readonly emptyState?: ReactNode
   readonly ariaLabel?: string
+  /** Keep the header row pinned while the body scrolls. Pair with `maxHeight`. */
+  readonly stickyHeader?: boolean
+  /** Max height (e.g. `max-h-96`) for a scrollable body. */
+  readonly maxHeightClass?: string
 }
 
 const ALIGN_CLASS: Record<Align, string> = {
@@ -61,8 +71,8 @@ function ariaSort(
 }
 
 function sortArrow(active: boolean, dir: SortDir): string {
-  if (!active) return ''
-  return dir === 'asc' ? ' ↑' : ' ↓'
+  if (!active) return '↕'
+  return dir === 'asc' ? '↑' : '↓'
 }
 
 export default function DataTable<T>({
@@ -74,6 +84,8 @@ export default function DataTable<T>({
   rowClassName,
   emptyState,
   ariaLabel,
+  stickyHeader = false,
+  maxHeightClass,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(initialSort?.key ?? null)
   const [sortDir, setSortDir] = useState<SortDir>(initialSort?.dir ?? 'desc')
@@ -97,7 +109,10 @@ export default function DataTable<T>({
       return
     }
     setSortKey(key)
-    setSortDir('desc')
+    // First click: text columns read most naturally A→Z (asc); numeric/date
+    // columns default to largest-first (desc).
+    const col = columns.find((c) => c.key === key)
+    setSortDir(col?.sortType === 'text' ? 'asc' : 'desc')
   }
 
   if (rows.length === 0 && emptyState !== undefined) {
@@ -106,10 +121,21 @@ export default function DataTable<T>({
 
   const shouldAnimate = animateRows && sortedRows.length <= 200
 
+  const scrollClass = [
+    'overflow-x-auto data-table-scroll',
+    maxHeightClass ? `${maxHeightClass} overflow-y-auto` : '',
+  ].join(' ').trim()
+  const theadClass = stickyHeader ? 'sticky top-0 z-10 bg-surface-dropdown/95 backdrop-blur-md' : ''
+  const justifyForAlign: Record<Align, string> = {
+    left: 'justify-start',
+    right: 'justify-end',
+    center: 'justify-center',
+  }
+
   return (
-    <div className="overflow-x-auto data-table-scroll">
+    <div className={scrollClass}>
       <table className="w-full" aria-label={ariaLabel}>
-        <thead>
+        <thead className={theadClass}>
           <tr className="border-b border-border">
             {columns.map((col) => {
               const alignClass = ALIGN_CLASS[col.align ?? 'left']
@@ -130,19 +156,22 @@ export default function DataTable<T>({
               return (
                 <th
                   key={col.key}
-                  className={`${baseClass} cursor-pointer hover:text-white select-none`.trim()}
-                  onClick={() => toggleSort(col.key)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      toggleSort(col.key)
-                    }
-                  }}
-                  tabIndex={0}
+                  className={baseClass.trim()}
                   aria-sort={ariaSort(isActive, sortDir)}
                 >
-                  {col.header}
-                  {arrow}
+                  <button
+                    type="button"
+                    onClick={() => toggleSort(col.key)}
+                    className={`inline-flex items-center gap-1 ${justifyForAlign[col.align ?? 'left']} w-full hover:text-white select-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40 rounded`}
+                  >
+                    {col.header}
+                    <span
+                      aria-hidden
+                      className={isActive ? 'text-white' : 'text-text-quaternary'}
+                    >
+                      {arrow}
+                    </span>
+                  </button>
                 </th>
               )
             })}

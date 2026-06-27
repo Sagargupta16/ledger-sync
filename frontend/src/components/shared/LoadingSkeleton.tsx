@@ -1,12 +1,28 @@
+import type { ReactNode } from 'react'
+
+/**
+ * Single shimmer bar. Decorative — the surrounding skeleton container owns the
+ * `role="status"` announcement, so individual bars are `aria-hidden` to avoid a
+ * screen reader reading "Loading" once per bar.
+ */
 export default function LoadingSkeleton({ className = '' }: Readonly<{ className?: string }>) {
   return (
-    <div className={`animate-pulse bg-white/[0.04] rounded-lg ${className}`} />
+    <div aria-hidden className={`animate-pulse bg-white/[0.04] rounded-lg ${className}`} />
+  )
+}
+
+/** Wraps a composite skeleton so AT announces a single "Loading" status. */
+function SkeletonStatus({ children, className = '' }: Readonly<{ children: ReactNode; className?: string }>) {
+  return (
+    <div role="status" aria-busy="true" aria-label="Loading" className={className}>
+      {children}
+    </div>
   )
 }
 
 export function MetricCardSkeleton() {
   return (
-    <div className="glass rounded-2xl p-6">
+    <SkeletonStatus className="glass rounded-2xl p-6">
       <div className="flex items-center gap-3">
         <LoadingSkeleton className="w-12 h-12 rounded-xl" />
         <div className="flex-1 space-y-2">
@@ -14,13 +30,13 @@ export function MetricCardSkeleton() {
           <LoadingSkeleton className="h-8 w-32" />
         </div>
       </div>
-    </div>
+    </SkeletonStatus>
   )
 }
 
 export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>) {
   return (
-    <div className={`glass rounded-2xl p-6 ${height}`}>
+    <SkeletonStatus className={`glass rounded-2xl p-6 ${height}`}>
       <div className="space-y-4 h-full">
         <div className="flex items-center gap-3">
           <LoadingSkeleton className="w-5 h-5 rounded" />
@@ -37,13 +53,13 @@ export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>
           ))}
         </div>
       </div>
-    </div>
+    </SkeletonStatus>
   )
 }
 
 export function CardGridSkeleton({ count = 4, cols = 'grid-cols-2 lg:grid-cols-4' }: Readonly<{ count?: number; cols?: string }>) {
   return (
-    <div className={`grid ${cols} gap-4`}>
+    <SkeletonStatus className={`grid ${cols} gap-4`}>
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="glass rounded-2xl p-4 space-y-3">
           <div className="flex items-center gap-2">
@@ -54,7 +70,7 @@ export function CardGridSkeleton({ count = 4, cols = 'grid-cols-2 lg:grid-cols-4
           <LoadingSkeleton className="h-2 w-16" />
         </div>
       ))}
-    </div>
+    </SkeletonStatus>
   )
 }
 
@@ -77,7 +93,7 @@ export function PageSkeleton() {
 
 export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
   return (
-    <div className="glass rounded-2xl overflow-hidden">
+    <SkeletonStatus className="glass rounded-2xl overflow-hidden">
       <div className="bg-white/[0.04] p-4 border-b border-border">
         <div className="flex gap-4">
           <LoadingSkeleton className="h-4 w-24" />
@@ -96,6 +112,6 @@ export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
           </div>
         ))}
       </div>
-    </div>
+    </SkeletonStatus>
   )
 }
