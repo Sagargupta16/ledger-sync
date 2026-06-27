@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 
 import { QueryClientProvider } from '@tanstack/react-query'
+import { MotionConfig } from 'framer-motion'
 import { Toaster } from 'sonner'
 
 import { queryClient } from '@/lib/queryClient'
@@ -194,6 +195,10 @@ const TOASTER_OPTIONS = {
 function App() {
   return (
     <ErrorBoundary>
+      {/* reducedMotion="user" keeps motion full for everyone EXCEPT users whose
+          OS requests reduced motion (WCAG 2.3.3) — library-level, so individual
+          components don't each need a prefers-reduced-motion gate. */}
+      <MotionConfig reducedMotion="user">
       <QueryClientProvider client={queryClient}>
         <AuthInitializer>
           <PreferencesProvider>
@@ -254,6 +259,7 @@ function App() {
           </PreferencesProvider>
         </AuthInitializer>
       </QueryClientProvider>
+      </MotionConfig>
     </ErrorBoundary>
   )
 }

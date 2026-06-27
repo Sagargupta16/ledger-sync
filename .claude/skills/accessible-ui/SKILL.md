@@ -65,9 +65,22 @@ This app is dark-only. The dim grays bite: `--color-text-tertiary` was lifted to
 
 Income-green vs expense-red is fine as *reinforcement*, but never the *only* signal (1.4.1) — a red/green colorblind user can't tell them apart. Pair color with a sign (`+`/`-`), an icon (arrow up/down), or a label. Most amounts in this app already carry a sign; keep it that way.
 
+## Prefer native elements over ARIA roles
+
+(Proven in the sibling kalchar repo — they cleared 8 Sonar findings doing this.) A real `<button>`/`<a>`/`<nav>`/`<ul><li>` comes with keyboard operability, focus, and semantics for free; `<div role="button">` makes you re-implement all of it (and usually you miss `onKeyDown`). Reach for ARIA only when there's no native equivalent:
+- Use `<button>` not `<div role="button" onClick>`. (ledger-sync is already clean here — keep it.)
+- Use `<nav>`/`<ul>`/`<li>` for nav lists, not `role="list"`.
+- **Tabs are the legit exception** — HTML has no native tab widget, so `role="tablist"`/`role="tab"` is correct (the time-filter/comparison selectors use it rightly). ARIA tabs additionally need arrow-key navigation + `aria-selected`.
+- Mark purely decorative elements (icons next to text, gradient orbs) `aria-hidden="true"` so they don't pollute the AT tree.
+
+## Touch targets
+
+Interactive controls need ≥ **44px** hit area on phone (most users). Compact desktop pills (`py-1.5` ≈ 32px) must bump up on mobile — `py-2.5 sm:py-1.5` — same fix the time-filter pills got.
+
 ## Quick checklist
 - [ ] Icon-only control has `aria-label`.
 - [ ] Modal: `role` + `aria-modal` + labelled + Escape + focus return.
 - [ ] Input has `htmlFor`/`id` or `aria-label`; placeholder is not the label.
-- [ ] Readable text clears 4.5:1 (3:1 for large/UI).
+- [ ] Native element used where one exists; ARIA only for true gaps (tabs); decorative = `aria-hidden`.
+- [ ] Readable text clears 4.5:1 (3:1 for large/UI); ≥44px tap targets on phone.
 - [ ] Meaning isn't carried by color alone.
