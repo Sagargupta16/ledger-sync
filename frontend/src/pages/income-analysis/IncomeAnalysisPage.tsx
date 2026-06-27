@@ -10,22 +10,21 @@ import StandardPieChart from '@/components/analytics/StandardPieChart'
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import { useQuery } from '@tanstack/react-query'
+
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
+import { useDataDateRange } from '@/hooks/api/useAnalytics'
+import { calculationsApi } from '@/services/api/calculations'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl } from '@/components/ui'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
-import { getDateKey, formatMonthKey } from '@/lib/dateUtils'
+import { formatMonthKey } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
 import { FilterBanner } from '@/components/shared/FilterBanner'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import CategoryBreakdown from '@/components/analytics/CategoryBreakdown'
-import {
-  calculateIncomeByCategoryBreakdown,
-  calculateCashbacksTotal,
-  INCOME_CATEGORY_COLORS,
-} from '@/lib/preferencesUtils'
+import { INCOME_CATEGORY_COLORS } from '@/lib/preferencesUtils'
 import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 
 // Icons for income categories (based on actual data categories)
@@ -50,54 +49,45 @@ export default function IncomeAnalysisPage() {
   }
   const { data: preferences } = usePreferences()
 
-  const { data: transactions } = useTransactions()
-  const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(transactions)
+  // Time-filter nav bounds come from the lightweight date-range endpoint, not a
+  // full-ledger fetch.
+  const dateBounds = useDataDateRange()
+  const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(dateBounds)
 
-  // Filter transactions by date range
-  const filteredTransactions = useMemo(() => {
-    if (!transactions) return []
-    const startDate = dateRange.start_date
-    const byDate = startDate
-      ? transactions.filter((t) => {
-          const txDate = getDateKey(t.date)
-          return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
+  // All income stats computed server-side (date range + optional category +
+  // the user's non-taxable list for cashback matching).
+  const cashbackCategories = preferences?.non_taxable_income_categories ?? []
+  const { data: income, isLoading } = useQuery({
+    queryKey: [
+      'income-analysis',
+      dateRange.start_date,
+      dateRange.end_date,
+      categoryFilter,
+      cashbackCategories,
+    ],
+    queryFn: async () =>
+      (
+        await calculationsApi.getIncomeAnalysis({
+          start_date: dateRange.start_date ?? undefined,
+          end_date: dateRange.end_date ?? undefined,
+          category: categoryFilter ?? undefined,
+          cashback_categories: cashbackCategories,
         })
-      : transactions
-    if (!categoryFilter) return byDate
-    return byDate.filter((t) => t.category === categoryFilter)
-  }, [transactions, dateRange, categoryFilter])
+      ).data,
+    enabled: preferences !== undefined,
+    staleTime: Infinity,
+  })
 
-  // Calculate totals for filtered period
-  const totalIncome = useMemo(() => {
-    return filteredTransactions
-      .filter((t) => t.type === 'Income')
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
-  }, [filteredTransactions])
+  const totalIncome = income?.total_income ?? 0
+  const cashbacksTotal = income?.cashbacks_total ?? 0
+  const peakIncome = income?.peak_income ?? 0
+  const growthRate = income?.growth_rate ?? 0
+  const incomeBreakdown: Record<string, number> = income?.category_breakdown ?? {}
 
-  // Calculate income breakdown by actual data category (for display)
-  const incomeBreakdown = useMemo(() => {
-    return calculateIncomeByCategoryBreakdown(filteredTransactions)
-  }, [filteredTransactions])
-
-  // Calculate total cashbacks using preferences classification
-  const cashbacksTotal = useMemo(() => {
-    if (!preferences) return 0
-
-    const incomeClassification = {
-      taxable: preferences.taxable_income_categories || [],
-      investmentReturns: preferences.investment_returns_categories || [],
-      nonTaxable: preferences.non_taxable_income_categories || [],
-      other: preferences.other_income_categories || [],
-    }
-
-    return calculateCashbacksTotal(filteredTransactions, incomeClassification)
-  }, [filteredTransactions, preferences])
-
-  // Prepare income category chart data (using actual data categories)
+  // Income category chart data (actual data categories, colored + sorted).
   const incomeTypeChartData = useMemo(() => {
-    if (!incomeBreakdown) return []
     const defaultColor = rawColors.text.tertiary
-    return Object.entries(incomeBreakdown)
+    return Object.entries(income?.category_breakdown ?? {})
       .filter(([, value]) => value > 0)
       .map(([category, value]) => ({
         name: category,
@@ -106,56 +96,21 @@ export default function IncomeAnalysisPage() {
         color: INCOME_CATEGORY_COLORS[category] || defaultColor,
       }))
       .sort((a, b) => b.value - a.value)
-  }, [incomeBreakdown])
+  }, [income])
 
-  // Get primary income type
   const primaryIncomeType = incomeTypeChartData[0]?.name || 'N/A'
 
-  // Process monthly income trend data with 3-month rolling average
-  const monthlyTrendData = useMemo(() => {
-    const incomeTransactions = filteredTransactions.filter((t) => t.type === 'Income')
-
-    const monthlyMap: Record<string, number> = {}
-    for (const tx of incomeTransactions) {
-      const month = tx.date.substring(0, 7) // YYYY-MM
-      monthlyMap[month] = (monthlyMap[month] || 0) + Math.abs(tx.amount)
-    }
-
-    const sorted = Object.entries(monthlyMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, income]) => ({
-        month,
-        label: formatMonthKey(month, { month: 'short', year: '2-digit' }),
-        income,
-      }))
-
-    // Add 3-month rolling average
-    return sorted.map((d, i) => {
-      const start = Math.max(0, i - 2)
-      const window = sorted.slice(start, i + 1)
-      return {
-        ...d,
-        incomeAvg: window.reduce((s, w) => s + w.income, 0) / window.length,
-      }
-    })
-  }, [filteredTransactions])
-
-  // Peak income for reference line
-  const peakIncome = useMemo(
-    () => Math.max(...monthlyTrendData.map(d => d.income), 0),
-    [monthlyTrendData]
+  // Monthly trend with rolling 3-month average + display labels.
+  const monthlyTrendData = useMemo(
+    () =>
+      (income?.monthly_data ?? []).map((d) => ({
+        month: d.month,
+        label: formatMonthKey(d.month, { month: 'short', year: '2-digit' }),
+        income: d.income,
+        incomeAvg: d.income_avg_3m,
+      })),
+    [income],
   )
-
-  const growthRate = useMemo(() => {
-    if (monthlyTrendData.length < 2) return 0
-    const nonZeroData = monthlyTrendData.filter(d => d.income > 0)
-    if (nonZeroData.length < 2) return 0
-    const lastValue = nonZeroData.at(-1)?.income || 0
-    const firstValue = nonZeroData[0]?.income || 1
-    return ((lastValue - firstValue) / firstValue * 100)
-  }, [monthlyTrendData])
-
-  const isLoading = !transactions
 
   if (isLoading) return <PageSkeleton />
 

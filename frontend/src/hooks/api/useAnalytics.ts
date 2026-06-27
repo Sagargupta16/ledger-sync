@@ -70,6 +70,13 @@ export const quickInsightsOptions = (params?: { start_date?: string; end_date?: 
     ...STABLE,
   })
 
+export const dataDateRangeOptions = () =>
+  queryOptions({
+    queryKey: ['calculations', 'data-date-range'] as const,
+    queryFn: async () => (await calculationsApi.getDataDateRange()).data,
+    ...STABLE,
+  })
+
 export const masterCategoriesOptions = () =>
   queryOptions({
     queryKey: ['calculations', 'master-categories'] as const,
@@ -92,4 +99,9 @@ export const useAccountBalances = (params?: { start_date?: string; end_date?: st
 export const useMonthlyAggregation = (params?: { start_date?: string; end_date?: string }) => useQuery(monthlyAggregationOptions(params))
 export const useTotals = (params?: { start_date?: string; end_date?: string }) => useQuery(totalsOptions(params))
 export const useQuickInsights = (params?: { start_date?: string; end_date?: string }) => useQuery(quickInsightsOptions(params))
+/** Returns `{ minDate, maxDate }` for the analytics time-filter without fetching the ledger. */
+export const useDataDateRange = () => {
+  const { data } = useQuery(dataDateRangeOptions())
+  return { minDate: data?.min_date ?? undefined, maxDate: data?.max_date ?? undefined }
+}
 export const useMasterCategories = () => useQuery(masterCategoriesOptions())

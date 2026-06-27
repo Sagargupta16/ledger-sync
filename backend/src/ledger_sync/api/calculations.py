@@ -13,6 +13,7 @@ from ledger_sync.api.calculations_helpers import (
     _calculate_expense_averages,
     _compute_account_statistics,
     _compute_category_monthly_history,
+    _compute_income_analysis,
     _compute_quick_insights,
     _find_unusual_spending,
     _format_largest_transaction,
@@ -431,6 +432,56 @@ def get_category_monthly_history(
         build_transaction_query(db, current_user).filter(Transaction.type == tx_type).all()
     )
     return _compute_category_monthly_history(list(transactions), tx_type, month_keys)
+
+
+@router.get("/data-date-range")
+def get_data_date_range(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> dict[str, str | None]:
+    """Min/max transaction date (YYYY-MM-DD) for the user's active rows.
+
+    Powers the analytics time-filter's navigation bounds without shipping the
+    full ledger just to find the first/last date. Excluded-accounts and
+    soft-delete filters are applied (same base query as analytics).
+    """
+    base = build_transaction_query(db, current_user).subquery()
+    row = db.query(
+        func.min(base.c.date).label("min_date"),
+        func.max(base.c.date).label("max_date"),
+    ).one()
+    return {
+        "min_date": row.min_date.strftime("%Y-%m-%d") if row.min_date else None,
+        "max_date": row.max_date.strftime("%Y-%m-%d") if row.max_date else None,
+    }
+
+
+@router.get("/income-analysis")
+def get_income_analysis(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
+    cashback_categories: Annotated[
+        list[str] | None,
+        Query(description="Non-taxable 'Category::Subcategory' keys for cashback matching"),
+    ] = None,
+    category: Annotated[
+        str | None, Query(description="Deep-link: restrict to one category")
+    ] = None,
+) -> dict[str, Any]:
+    """Income page stats: total, by-category, monthly trend (+3mo avg), cashback.
+
+    The cashback classification list is the user's
+    ``non_taxable_income_categories`` preference, forwarded by the client so the
+    backend reproduces the same matching without owning a second preference
+    source. ``category`` mirrors the page's ``?category=`` deep-link filter.
+    Replaces the full-ledger fetch on the Income Analysis page.
+    """
+    query = build_transaction_query(db, current_user, start_date, end_date)
+    if category:
+        query = query.filter(Transaction.category == category)
+    return _compute_income_analysis(list(query.all()), cashback_categories or [])
 
 
 @router.get("/category-daily-series")

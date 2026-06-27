@@ -15,6 +15,65 @@ from ledger_sync.core.query_helpers import build_transaction_query
 from ledger_sync.db.models import CategoryTrend, Transaction, TransactionType, User
 
 
+def _compute_income_analysis(
+    transactions: list[Transaction],
+    cashback_classification: list[str],
+) -> dict[str, Any]:
+    """Income page stats: total, by-category, monthly trend (+3mo avg), cashback.
+
+    Mirrors IncomeAnalysisPage's client math. ``cashback_classification`` is the
+    user's ``non_taxable_income_categories`` list (``"Category::Subcategory"``
+    entries), passed from the client so the backend doesn't duplicate the
+    preference source -- matched case-insensitively, exactly like
+    ``matchesClassification``.
+    """
+    income = [t for t in transactions if t.type == TransactionType.INCOME]
+
+    total_income = sum(abs(float(t.amount)) for t in income)
+
+    by_category: dict[str, float] = defaultdict(float)
+    for t in income:
+        by_category[t.category or "Other Income"] += abs(float(t.amount))
+
+    # Monthly trend with a trailing 3-month rolling average.
+    by_month: dict[str, float] = defaultdict(float)
+    for t in income:
+        by_month[t.date.strftime("%Y-%m")] += abs(float(t.amount))
+    sorted_months = sorted(by_month.items())
+    monthly_data: list[dict[str, Any]] = []
+    for i, (month, amount) in enumerate(sorted_months):
+        window = sorted_months[max(0, i - 2) : i + 1]
+        avg = sum(a for _, a in window) / len(window)
+        monthly_data.append({"month": month, "income": amount, "income_avg_3m": avg})
+
+    # Cashback = income rows whose Category::Subcategory is in the user's
+    # non-taxable list (case-insensitive exact match).
+    wanted = {c.lower() for c in cashback_classification}
+    cashbacks_total = sum(
+        abs(float(t.amount))
+        for t in income
+        if f"{t.category or ''}::{t.subcategory or ''}".lower() in wanted
+    )
+
+    incomes = [m["income"] for m in monthly_data]
+    peak_income = max(incomes) if incomes else 0.0
+    non_zero = [m["income"] for m in monthly_data if m["income"] > 0]
+    growth_rate = (
+        ((non_zero[-1] - non_zero[0]) / non_zero[0] * 100)
+        if len(non_zero) >= 2 and non_zero[0]
+        else 0.0
+    )
+
+    return {
+        "total_income": total_income,
+        "category_breakdown": dict(by_category),
+        "monthly_data": monthly_data,
+        "cashbacks_total": cashbacks_total,
+        "peak_income": peak_income,
+        "growth_rate": growth_rate,
+    }
+
+
 def _compute_category_monthly_history(
     transactions: list[Transaction],
     tx_type: TransactionType,

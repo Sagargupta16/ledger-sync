@@ -67,6 +67,15 @@ export interface DateRangeParams {
   end_date?: string
 }
 
+export interface IncomeAnalysisData {
+  total_income: number
+  category_breakdown: Record<string, number>
+  monthly_data: { month: string; income: number; income_avg_3m: number }[]
+  cashbacks_total: number
+  peak_income: number
+  growth_rate: number
+}
+
 export interface QuickInsightsData {
   min_date: string | null
   max_date: string | null
@@ -114,6 +123,22 @@ export const calculationsApi = {
   getCategoryMonthlyHistory: (months: string[], transactionType: 'income' | 'expense') =>
     apiClient.get<Record<string, number[]>>('/api/calculations/category-monthly-history', {
       params: { months: months.join(','), transaction_type: transactionType },
+    }),
+
+  /** Min/max transaction date (YYYY-MM-DD) for time-filter nav bounds. */
+  getDataDateRange: () =>
+    apiClient.get<{ min_date: string | null; max_date: string | null }>(
+      '/api/calculations/data-date-range',
+    ),
+
+  /** Income page stats: total, by-category, monthly trend (+3mo avg), cashback. */
+  getIncomeAnalysis: (
+    params: DateRangeParams & { cashback_categories?: string[]; category?: string },
+  ) =>
+    apiClient.get<IncomeAnalysisData>('/api/calculations/income-analysis', {
+      params: { ...params, cashback_categories: params.cashback_categories },
+      // Repeat the param per array item (FastAPI list[str] convention).
+      paramsSerializer: { indexes: null },
     }),
 
   /** Daily per-(category, subcategory) sums for client-side time-series bucketing. */
