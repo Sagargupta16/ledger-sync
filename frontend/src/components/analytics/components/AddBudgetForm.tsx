@@ -34,9 +34,12 @@ export default function AddBudgetForm({
         <input
           type="number"
           inputMode="decimal"
+          min="0"
+          step="any"
           value={newLimit}
           onChange={(e) => onLimitChange(e.target.value)}
           placeholder="Budget limit"
+          aria-label="Budget limit"
           className="w-32 px-3 py-2 rounded-lg bg-background/50 border border-border text-sm"
         />
         <button

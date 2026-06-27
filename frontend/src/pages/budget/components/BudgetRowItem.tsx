@@ -87,13 +87,20 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
             <input
               type="number"
               inputMode="decimal"
+              min="0"
+              step="any"
+              aria-label={`Budget limit for ${row.category}`}
               defaultValue={row.limit}
               onBlur={(e) => {
-                onSave(Number.parseFloat(e.target.value), row.period)
+                const v = Number.parseFloat(e.target.value)
+                if (Number.isFinite(v) && v >= 0) onSave(v, row.period)
+                else onCancelEdit()
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  onSave(Number.parseFloat((e.target as HTMLInputElement).value), row.period)
+                  const v = Number.parseFloat((e.target as HTMLInputElement).value)
+                  if (Number.isFinite(v) && v >= 0) onSave(v, row.period)
+                  else onCancelEdit()
                 }
                 if (e.key === 'Escape') onCancelEdit()
               }}
