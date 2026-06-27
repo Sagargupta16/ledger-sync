@@ -286,6 +286,27 @@ Export all non-deleted transactions as a CSV file download.
 
 ---
 
+### Get Transaction Facets
+
+**GET** `/api/transactions/facets`
+
+Dropdown options + per-type counts for the Transactions page, computed via SQL `DISTINCT`/`GROUP BY` (replaces three full-ledger fetches the page used for dropdowns + the summary card). Honors the user's `excluded_accounts` preference and soft-delete filter.
+
+**Response (200 OK):**
+
+```json
+{
+  "categories": ["Charity", "Education", "..."],
+  "accounts": ["Bank: DCB", "Bank: HDFC", "..."],
+  "income_count": 715,
+  "expense_count": 4868,
+  "transfer_count": 1185,
+  "total_count": 6768
+}
+```
+
+---
+
 ## Meta Endpoints
 
 Metadata endpoints for populating dropdowns and filter options. All require authentication.
@@ -694,6 +715,64 @@ Get top spending categories.
   }
 ]
 ```
+
+---
+
+### Get Quick Insights
+
+**GET** `/api/calculations/quick-insights`
+
+Raw-transaction-derived Dashboard "band" stats, computed server-side (the page no longer ships the full ledger). Date-range aware.
+
+**Query Parameters:** `start_date`, `end_date` (ISO date, optional)
+
+**Response (200 OK):** `min_date`, `max_date`, `net_cashback`, `cashback_count`, `median_expense`, `biggest_expense` `{amount, category}`, `avg_expense`, `total_spending`, `expense_count`, `weekend_spending`, `weekday_spending`, `peak_day` (JS getDay: 0=Sun..6=Sat), `peak_day_total`, `total_transfers`, `transfer_count`, `top_income_source` `{category, amount}|null`, `most_expensive_month` `{period, amount}|null`. Net cashback matches Income rows whose subcategory contains "cashback" minus Transfers whose `to_account` contains "cashback shared".
+
+---
+
+### Get Data Date Range
+
+**GET** `/api/calculations/data-date-range`
+
+Min/max active-transaction date for the analytics time-filter nav bounds (avoids a full-ledger fetch).
+
+**Response (200 OK):** `{ "min_date": "2019-01-01", "max_date": "2026-06-30" }` (either may be `null` when no data).
+
+---
+
+### Get Income Analysis
+
+**GET** `/api/calculations/income-analysis`
+
+Income page stats. The cashback classification is the user's `non_taxable_income_categories` preference, forwarded by the client so the backend reproduces `matchesClassification` (case-insensitive `Category::Subcategory`) without a second preference source.
+
+**Query Parameters:** `start_date`, `end_date` (ISO, optional); `cashback_categories` (repeated string, optional); `category` (string, optional -- mirrors the `?category=` deep-link).
+
+**Response (200 OK):** `total_income`, `category_breakdown` `{category: amount}`, `monthly_data` `[{month, income, income_avg_3m}]`, `cashbacks_total`, `peak_income`, `growth_rate`.
+
+---
+
+### Get Category Monthly History
+
+**GET** `/api/calculations/category-monthly-history`
+
+Per-category spend aligned to a caller-supplied list of month keys (powers the CategoryBreakdown trailing-12-month sparkline). The client passes its local month keys; the backend buckets into exactly those (timezone-stable).
+
+**Query Parameters:** `months` (comma-separated `YYYY-MM`, oldest first, required); `transaction_type` ("income"/"expense", default expense).
+
+**Response (200 OK):** `{ "Groceries": [m0, m1, ..., mN], ... }` (absolute sums; 0 for empty months).
+
+---
+
+### Get Category Daily Series
+
+**GET** `/api/calculations/category-daily-series`
+
+Daily per-`(category, subcategory)` sums for client-side time-series bucketing (MultiCategoryTimeAnalysis, EnhancedSubcategoryAnalysis). The client keeps its own day/week/month bucketing.
+
+**Query Parameters:** `start_date`, `end_date` (ISO, optional); `transaction_type` (default expense); `category` (optional -- restrict to one category for subcategory drill-down).
+
+**Response (200 OK):** `{ "data": [{date, category, subcategory, amount}], "transaction_count": N }`.
 
 ---
 

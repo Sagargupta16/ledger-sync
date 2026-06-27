@@ -66,17 +66,21 @@ class Transaction(Base):
 | last_seen_at     | TIMESTAMP       | NOT NULL    | YES   | Last import time                 |
 | is_deleted       | BOOLEAN         | DEFAULT 0   | YES   | Soft delete flag                 |
 
-**Composite Indexes:**
+**Composite Indexes** (canonical user-scoped set, migration `optimize_tx_indexes_2026`):
+
+Every query against `transactions` is user-scoped (`WHERE user_id = ? AND is_deleted = false`, then a date / type / category / account filter), so all indexes lead with `user_id` and are equality-first. Non-user-scoped indexes (`date`, `type`, `category`, `date_type`, `category_subcategory`) were removed -- the planner can never use them for these queries, so they only taxed writes.
 
 ```sql
-ix_transactions_date_type (date, type)
-ix_transactions_category_subcategory (category, subcategory)
-ix_transactions_user_date (user_id, date)
-ix_transactions_user_deleted (user_id, is_deleted)
-ix_transactions_user_type_deleted (user_id, type, is_deleted)
-ix_transactions_user_category (user_id, category)
-ix_transactions_user_date_type (user_id, date, type)
+ix_transactions_user_date (user_id, date)              -- primary analytics range scan
+ix_transactions_user_type_date (user_id, type, date)   -- type-filtered rollups + search
+ix_transactions_user_category (user_id, category)      -- category breakdown
+ix_transactions_user_account (user_id, account)        -- account facets + balances
+ix_transactions_user_from_account (user_id, from_account)  -- transfer-flow legs
+ix_transactions_user_to_account (user_id, to_account)
+-- plus the kept user_id FK index and ix_transactions_last_seen_at (reconciliation)
 ```
+
+A standalone `user_id` index is unnecessary -- `ix_transactions_user_date` (leading column `user_id`) covers user_id-only lookups. Partial indexes (`WHERE is_deleted = false`) would shrink these further (~63% of rows are soft-deleted) but the `.is_(False)`-vs-`= false` predicate match differs between SQLite and Postgres, so that is a Postgres-verified follow-up rather than shipped blind.
 
 ### Other Models
 
@@ -97,6 +101,7 @@ The database also includes these models (see `backend/src/ledger_sync/db/models.
 - **TransferFlow** — Aggregated transfer flows between accounts
 - **RecurringTransaction** — Detected recurring patterns (SIPs, subscriptions, salaries)
 - **MerchantIntelligence** — Extracted merchant data from transaction notes
+- **CohortSpending** — Average expense per temporal cohort (day-of-week / day-of-month / month-of-year) with occurrence-correct divisors baked into `avg_amount`. One row per `(user_id, dimension, bucket)`; unique index on those three. Powers the "Spending Patterns" widget server-side (replaces client-side bucketing). Migration `cohort_spending_2026`.
 - **NetWorthSnapshot** — Point-in-time net worth with asset/liability breakdown
 - **FYSummary** — Fiscal year summaries with YoY changes
 - **Anomaly** — Detected anomalies (high expenses, budget exceeded)
@@ -276,13 +281,15 @@ User-linked child tables reference `users.id` via foreign keys. Cascade behavior
 
 ### Current Indexes
 
-- `transaction_id` - O(1) lookup for duplicates
-- `date` - Fast range queries
-- `category` - Fast filtering by category
-- `account` - Fast filtering by account
-- `is_deleted` - Fast filtering of active records
-- `(user_id, category)` - Fast per-user category aggregation
-- `(user_id, date, type)` - Fast per-user time-range + type filtering
+All `transactions` indexes are user-scoped composites (see "Composite Indexes" above) -- the app never queries without a `user_id` filter, so non-user-scoped indexes were removed in `optimize_tx_indexes_2026`.
+
+- `transaction_id` - O(1) lookup for duplicates (PK)
+- `(user_id, date)` - per-user time-range scan (also covers user_id-only lookups)
+- `(user_id, type, date)` - per-user type-filtered rollups + search
+- `(user_id, category)` - per-user category aggregation
+- `(user_id, account)` - per-user account facets / balances
+- `(user_id, from_account)` / `(user_id, to_account)` - transfer-flow legs
+- `last_seen_at` - reconciliation lookup during re-import
 
 ### Query Optimization Strategies
 

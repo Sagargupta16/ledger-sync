@@ -14,8 +14,34 @@ small *dimension* tables (account, category, import) + a complete set of
 so every page reads a summary, never scans raw transactions. The current schema
 is ~80% there; this documents the optimal end-state and the gaps.
 
-This is a DESIGN study. Migrating the live DB is incremental + needs Neon
-`idx_scan` data — see "Rollout". No schema changed yet.
+This started as a DESIGN study; part of it is now SHIPPED (see status below).
+
+## Implementation status (updated 2026-06-27, PR #196)
+
+**Done:**
+
+- **Index prune** — migration `optimize_tx_indexes_2026` replaced the drifted
+  index set with six canonical user-scoped composites `(user_id, date)`,
+  `(user_id, type, date)`, `(user_id, category)`, `(user_id, account)`,
+  `(user_id, from_account)`, `(user_id, to_account)`. Idempotent (inspects live
+  indexes). Verified with `EXPLAIN QUERY PLAN`.
+- **`cohort_spending` rollup** — migration `cohort_spending_2026`; computed on
+  every upload by `core/analytics/cohort.py`; served at
+  `/api/analytics/v2/cohort-spending`. Divisors verified vs SQL oracle.
+- **Computed read endpoints** (not cache tables, but they end the full-ledger
+  fetch): `transactions/facets`, `quick-insights`, `data-date-range`,
+  `income-analysis`, `category-monthly-history`, `category-daily-series`.
+- **~12 frontend pages** migrated off `useTransactions()` onto these.
+
+**Deferred (by design — would duplicate preference/projection logic):**
+
+- `health_score_snapshot`, `gst_summary`, `returns_summary` cache tables — the
+  client math is preference-coupled (CFP ratios, GST slab config table, XIRR /
+  net-worth projections). Server-ifying risks the calc correctness, so these
+  pages stay client-side for now.
+- The full star-schema migration below (surrogate int PK, dimension tables,
+  `txn_date` DATE, `deleted_at`) — still incremental + needs Neon `idx_scan`
+  data before pruning further. Not started.
 
 ## Why this matters (the real cost today)
 

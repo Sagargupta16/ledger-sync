@@ -6,6 +6,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.17.0 - 2026-06-27
+
+A performance + data-architecture pass: analytics pages that pulled the entire transaction ledger into the browser now read server-side aggregations, and the `transactions` index set was rationalised. No breaking API changes; all numbers verified against the real database with independent SQL oracles.
+
+### Added
+
+- **`cohort_spending` rollup table** (migration `cohort_spending_2026`) -- average expense per temporal cohort (day-of-week / day-of-month / month-of-year) with occurrence-correct divisors, populated on every upload refresh. Powers the "Spending Patterns" widget server-side.
+- **New read endpoints** under `/api/calculations` and `/api/transactions` that move client-side computation to the backend: `transactions/facets` (dropdowns + type counts), `quick-insights` (Dashboard band: cashback, median/avg/biggest expense, weekend split, peak weekday, transfers), `data-date-range` (time-filter nav bounds), `income-analysis` (income totals/trend/cashback), `category-monthly-history` (sparkline), `category-daily-series` (time-series charts), plus `/api/analytics/v2/cohort-spending`. See [docs/API.md](docs/API.md).
+
+### Changed
+
+- **Analytics pages no longer ship the full ledger to the browser.** Migrated TransactionsPage, PeriodComparison, CohortSpendingAnalysis, QuickInsights, FIRECalculator, CategoryBreakdown, MultiCategoryTimeAnalysis, EnhancedSubcategoryAnalysis, IncomeAnalysis, RecurringTransactions, BudgetTracker, and CommandPalette onto server-side aggregations / existing rollups. Computations that bundle user preferences or heavy projection math (tax, GST config table, net-worth/XIRR projections, financial-health CFP score) intentionally stay client-side to avoid duplicating preference logic.
+- **`transactions` index set rationalised** (migration `optimize_tx_indexes_2026`). Replaced the drifted historical indexes with six canonical user-scoped, equality-first composites `(user_id, date)`, `(user_id, type, date)`, `(user_id, category)`, `(user_id, account)`, `(user_id, from_account)`, `(user_id, to_account)`. Non-user-scoped indexes (`date`, `type`, `category`, ...) were dropped -- the planner never used them for this app's user-scoped queries, so they only taxed writes. Verified with `EXPLAIN QUERY PLAN`. The migration is idempotent (inspects live indexes) so it converges despite prior drift.
+- **`/api/calculations/monthly-aggregation`** now also returns `income_count` / `expense_count` per month (used by PeriodComparison instead of a separate full-ledger fetch).
+
+### Fixed
+
+- **Dashboard / analytics cards showed ₹0 or "NaN days"** when the running dev backend was stale (started before the new routes existed). The code and migrations were correct; restarting the backend with `--reload` loads the new endpoints. Net Cashback (₹41,980), Median Transaction, Weekend split, Peak Spending Day, and Days of Buffering now populate from verified server-side values.
+
+---
+
 ## 2.16.0 - 2026-06-27
 
 A correctness + reliability pass driven by a multi-agent audit (bug-finder matrix with adversarial verification, an assumption-research sweep cross-checked against official sources, and a 100-category scorecard). One new user-facing setting; the rest are fixes. No breaking API changes.
