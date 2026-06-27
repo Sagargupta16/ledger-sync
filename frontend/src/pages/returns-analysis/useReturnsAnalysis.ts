@@ -15,12 +15,14 @@ import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { calculateCAGR, computeInvestmentMetrics, groupTransactionsByMonth } from './returnsAnalysisUtils'
 
 export function useReturnsAnalysis() {
-  const { data: allTransactions = [] } = useTransactions()
+  const { data: allTransactions = [], isLoading: transactionsLoading } = useTransactions()
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
   const dateParams = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
   const { data: balanceData, isLoading: balancesLoading } = useAccountBalances(dateParams)
   const { data: aggregationData, isLoading: aggregationLoading } = useMonthlyAggregation(dateParams)
-  const isLoading = balancesLoading || aggregationLoading
+  // Include the transactions query: the P&L metrics derive from `transactions`,
+  // so omitting it flashed zeros as if loaded before transactions arrived.
+  const isLoading = transactionsLoading || balancesLoading || aggregationLoading
 
   const transactions = useMemo(() => {
     const startDate = dateRange.start_date
@@ -71,7 +73,11 @@ export function useReturnsAnalysis() {
     return monthlyComboData.map(d => ({ month: d.month, net: d.net }))
   }, [monthlyComboData])
 
-  const roi = monthlyDataArray.length > 0 ? estimatedCAGR / 12 : 0
+  // Monthly equivalent of an ANNUAL compound rate is (1+r)^(1/12)-1, NOT r/12.
+  // Dividing by 12 treats compounding as linear and overstates the monthly rate.
+  const roi = monthlyDataArray.length > 0
+    ? (Math.pow(1 + estimatedCAGR / 100, 1 / 12) - 1) * 100
+    : 0
 
   return {
     isLoading,

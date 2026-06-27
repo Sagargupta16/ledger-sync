@@ -51,6 +51,7 @@ export function EditNameRow(props: Readonly<EditNameRowProps>) {
             type="button"
             onClick={onSave}
             disabled={isPending}
+            aria-label="Save name"
             className="p-1.5 rounded-lg bg-app-blue/15 text-app-blue hover:bg-app-blue/25 transition-colors duration-150 ease-out disabled:opacity-50"
           >
             <Check size={14} />
@@ -58,6 +59,7 @@ export function EditNameRow(props: Readonly<EditNameRowProps>) {
           <button
             type="button"
             onClick={onCancelEdit}
+            aria-label="Cancel"
             className="p-1.5 rounded-lg bg-white/[0.06] text-muted-foreground hover:bg-white/[0.10] transition-colors duration-150 ease-out"
           >
             <X size={14} />

@@ -78,6 +78,8 @@ export interface PreferencesState {
   setEssentialCategories: (categories: string[]) => void
   setIncomeClassification: (classification: IncomeClassification) => void
   setInvestmentAccountMappings: (mappings: Record<string, string>) => void
+  /** Reset all user-scoped preferences to defaults (called on logout). */
+  reset: () => void
   hydrateFromApi: (apiPrefs: {
     number_format: 'indian' | 'international'
     currency_symbol: string
@@ -158,83 +160,96 @@ function parseApiPreferences(apiPrefs: Record<string, unknown>): Partial<Prefere
   }
 }
 
+/**
+ * Default user-scoped preference values. Shared by the store initializer and
+ * `reset()` (called on logout) so a fresh build and a post-logout reset stay in
+ * sync. Excludes the live exchange rate (transient, cleared separately).
+ */
+const DEFAULT_USER_PREFS = {
+  displayPreferences: {
+    numberFormat: 'indian' as const,
+    currencySymbol: '₹',
+    currencySymbolPosition: 'before' as const,
+    defaultTimeRange: 'all_time',
+  },
+  displayCurrency: BASE_CURRENCY,
+  exchangeRate: null,
+  exchangeRateUpdatedAt: null,
+  fiscalYearStartMonth: 4,
+  essentialCategories: [
+    'Housing',
+    'Healthcare',
+    'Transportation',
+    'Food & Dining',
+    'Education',
+    'Family',
+    'Utilities',
+  ],
+  // Income classification (by tax treatment), "Category::Subcategory" format
+  incomeClassification: {
+    taxable: [
+      'Employment Income::Salary',
+      'Employment Income::Stipend',
+      'Employment Income::Bonuses',
+      'Employment Income::RSUs',
+      'Business/Self Employment Income::Gig Work Income',
+    ],
+    investmentReturns: [
+      'Investment Income::Dividends',
+      'Investment Income::Interest',
+      'Investment Income::F&O Income',
+      'Investment Income::Stock Market Profits',
+    ],
+    nonTaxable: [
+      'Refund & Cashbacks::Credit Card Cashbacks',
+      'Refund & Cashbacks::Other Cashbacks',
+      'Refund & Cashbacks::Product/Service Refunds',
+      'Refund & Cashbacks::Deposits Return',
+      'Employment Income::Expense Reimbursement',
+    ],
+    other: [
+      'One-time Income::Gifts',
+      'One-time Income::Pocket Money',
+      'One-time Income::Competition/Contest Prizes',
+      'Employment Income::EPF Contribution',
+      'Other::Other',
+    ],
+  },
+  investmentAccountMappings: {},
+  needsTargetPercent: 50,
+  wantsTargetPercent: 30,
+  savingsTargetPercent: 20,
+  creditCardLimits: {},
+  earningStartDate: null,
+  useEarningStartDate: false,
+  salaryStructure: {},
+  rsuGrants: [],
+}
+
+/** Build a fresh copy of the defaults (deep-ish; arrays/objects re-created). */
+function freshDefaults() {
+  return {
+    ...DEFAULT_USER_PREFS,
+    displayPreferences: { ...DEFAULT_USER_PREFS.displayPreferences },
+    essentialCategories: [...DEFAULT_USER_PREFS.essentialCategories],
+    incomeClassification: {
+      taxable: [...DEFAULT_USER_PREFS.incomeClassification.taxable],
+      investmentReturns: [...DEFAULT_USER_PREFS.incomeClassification.investmentReturns],
+      nonTaxable: [...DEFAULT_USER_PREFS.incomeClassification.nonTaxable],
+      other: [...DEFAULT_USER_PREFS.incomeClassification.other],
+    },
+    investmentAccountMappings: {},
+    creditCardLimits: {},
+    salaryStructure: {},
+    rsuGrants: [],
+    growthAssumptions: { ...DEFAULT_GROWTH_ASSUMPTIONS },
+  }
+}
+
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set) => ({
-      // Default display preferences
-      displayPreferences: {
-        numberFormat: 'indian',
-        currencySymbol: '₹',
-        currencySymbolPosition: 'before',
-        defaultTimeRange: 'all_time',
-      },
-
-      displayCurrency: BASE_CURRENCY,
-      exchangeRate: null,
-      exchangeRateUpdatedAt: null,
-
-      fiscalYearStartMonth: 4,
-      essentialCategories: [
-        'Housing',
-        'Healthcare',
-        'Transportation',
-        'Food & Dining',
-        'Education',
-        'Family',
-        'Utilities',
-      ],
-
-      // Default income classification (by tax treatment)
-      // Stored as "Category::Subcategory" format
-      incomeClassification: {
-        taxable: [
-          'Employment Income::Salary',
-          'Employment Income::Stipend',
-          'Employment Income::Bonuses',
-          'Employment Income::RSUs',
-          'Business/Self Employment Income::Gig Work Income',
-        ],
-        investmentReturns: [
-          'Investment Income::Dividends',
-          'Investment Income::Interest',
-          'Investment Income::F&O Income',
-          'Investment Income::Stock Market Profits',
-        ],
-        nonTaxable: [
-          'Refund & Cashbacks::Credit Card Cashbacks',
-          'Refund & Cashbacks::Other Cashbacks',
-          'Refund & Cashbacks::Product/Service Refunds',
-          'Refund & Cashbacks::Deposits Return',
-          'Employment Income::Expense Reimbursement',
-        ],
-        other: [
-          'One-time Income::Gifts',
-          'One-time Income::Pocket Money',
-          'One-time Income::Competition/Contest Prizes',
-          'Employment Income::EPF Contribution',
-          'Other::Other',
-        ],
-      },
-
-      // Default investment mappings
-      investmentAccountMappings: {},
-
-      // Default spending rule targets (50/30/20)
-      needsTargetPercent: 50,
-      wantsTargetPercent: 30,
-      savingsTargetPercent: 20,
-
-      // Default credit card limits
-      creditCardLimits: {},
-
-      // Default earning start date
-      earningStartDate: null,
-      useEarningStartDate: false,
-
-      // Default salary & tax projections
-      salaryStructure: {},
-      rsuGrants: [],
-      growthAssumptions: { ...DEFAULT_GROWTH_ASSUMPTIONS },
+      ...freshDefaults(),
 
       // Actions
       setDisplayPreferences: (prefs) =>
@@ -270,6 +285,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       setInvestmentAccountMappings: (mappings) =>
         set({ investmentAccountMappings: mappings }),
+
+      reset: () => set(freshDefaults()),
 
       setSalaryStructure: (structure) => set({ salaryStructure: structure }),
       setRsuGrants: (grants) => set({ rsuGrants: grants }),

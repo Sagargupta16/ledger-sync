@@ -7,6 +7,8 @@ interface AccountState {
   setAccountType: (accountName: string, types: AccountType[]) => void
   getAccountTypes: (accountName: string) => AccountType[]
   isAccountType: (accountName: string, type: AccountType) => boolean | undefined
+  /** Clear all classifications (called on logout to avoid cross-user leak). */
+  reset: () => void
 }
 
 export const useAccountStore = create<AccountState>()(
@@ -23,6 +25,7 @@ export const useAccountStore = create<AccountState>()(
         if (!types || types.length === 0) return undefined
         return types.includes(type)
       },
+      reset: () => set({ accountTypes: {} }),
     }),
     {
       name: 'account-classification-storage',

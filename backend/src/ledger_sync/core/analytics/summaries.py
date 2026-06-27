@@ -214,9 +214,13 @@ class SummariesMixin(AnalyticsEngineBase):
             data["transfer_count"] += 1
             data["total_transfers_out"] += amount
             data["total_transfers_in"] += amount
+            # Treat each leg independently (not elif): a transfer BETWEEN two
+            # investment accounts is internal rebalancing and must net to zero,
+            # not register as a fresh inflow. -amount for money INTO investments,
+            # +amount for money OUT, so investment->investment cancels.
             if self._is_investment_account(txn.to_account):  # type: ignore[attr-defined]
                 data["net_investment_flow"] -= amount
-            elif self._is_investment_account(txn.from_account):  # type: ignore[attr-defined]
+            if self._is_investment_account(txn.from_account):  # type: ignore[attr-defined]
                 data["net_investment_flow"] += amount
 
     def _calculate_daily_summaries(

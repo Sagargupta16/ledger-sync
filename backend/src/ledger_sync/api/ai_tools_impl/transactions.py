@@ -17,6 +17,7 @@ from ledger_sync.db.models import (
 )
 
 from .registry import (
+    LIST_ENTITIES_MAX_LIMIT,
     SEARCH_TRANSACTIONS_DEFAULT_LIMIT,
     SEARCH_TRANSACTIONS_MAX_LIMIT,
     ToolSpec,
@@ -33,21 +34,59 @@ def _exec_list_accounts(user: User, db: Session, _args: dict[str, Any]) -> Any:
     Balance = sum(Income into account) - sum(Expense from account)
     + sum(Transfers in) - sum(Transfers out). Treats amount as positive
     magnitude.
+
+    Uses a fixed set of GROUP BY aggregates merged in Python rather than 5
+    queries per account, so a user with N accounts costs O(1) round-trips (was
+    5N+1 -- painful on Neon free-tier connection latency for the chat tool path).
     """
-    # Gather distinct account names from transactions (+ from/to for transfers)
-    names: set[str] = set()
-    q = (
-        select(Transaction.account, Transaction.from_account, Transaction.to_account)
-        .where(Transaction.user_id == user.id, Transaction.is_deleted.is_(False))
-        .distinct()
-    )
-    for acc, fr, to in db.execute(q).all():
-        if acc:
-            names.add(acc)
-        if fr:
-            names.add(fr)
-        if to:
-            names.add(to)
+    base = (Transaction.user_id == user.id, Transaction.is_deleted.is_(False))
+
+    # income & expense by primary account, in one grouped query.
+    # to_decimal() returns a float (JSON-friendly magnitude), matching the
+    # previous per-account computation.
+    income: dict[str, float] = {}
+    expense: dict[str, float] = {}
+    for acc, ttype, total in db.execute(
+        select(
+            Transaction.account,
+            Transaction.type,
+            func.coalesce(func.sum(Transaction.amount), 0),
+        )
+        .where(*base, Transaction.type.in_((TransactionType.INCOME, TransactionType.EXPENSE)))
+        .group_by(Transaction.account, Transaction.type)
+    ).all():
+        if not acc:
+            continue
+        (income if ttype == TransactionType.INCOME else expense)[acc] = to_decimal(total)
+
+    # transfers in (by to_account) and out (by from_account)
+    transfer_in: dict[str, float] = {
+        to: to_decimal(total)
+        for to, total in db.execute(
+            select(Transaction.to_account, func.coalesce(func.sum(Transaction.amount), 0))
+            .where(*base, Transaction.type == TransactionType.TRANSFER)
+            .group_by(Transaction.to_account)
+        ).all()
+        if to
+    }
+    transfer_out: dict[str, float] = {
+        fr: to_decimal(total)
+        for fr, total in db.execute(
+            select(Transaction.from_account, func.coalesce(func.sum(Transaction.amount), 0))
+            .where(*base, Transaction.type == TransactionType.TRANSFER)
+            .group_by(Transaction.from_account)
+        ).all()
+        if fr
+    }
+
+    # transaction count per account (account OR from_account OR to_account).
+    # Counted per role then summed; a transfer touches both endpoints, matching
+    # the previous OR-based count semantics.
+    counts: dict[str, int] = {}
+    for col in (Transaction.account, Transaction.from_account, Transaction.to_account):
+        for name, n in db.execute(select(col, func.count()).where(*base).group_by(col)).all():
+            if name:
+                counts[name] = counts.get(name, 0) + int(n)
 
     classifications = {
         c.account_name: c.account_type.value
@@ -56,68 +95,36 @@ def _exec_list_accounts(user: User, db: Session, _args: dict[str, Any]) -> Any:
         ).scalars()
     }
 
+    names = set(income) | set(expense) | set(transfer_in) | set(transfer_out) | set(counts)
     accounts: list[dict[str, Any]] = []
     for name in sorted(names):
-        income = db.execute(
-            select(func.coalesce(func.sum(Transaction.amount), 0)).where(
-                Transaction.user_id == user.id,
-                Transaction.is_deleted.is_(False),
-                Transaction.account == name,
-                Transaction.type == TransactionType.INCOME,
-            )
-        ).scalar_one()
-        expense = db.execute(
-            select(func.coalesce(func.sum(Transaction.amount), 0)).where(
-                Transaction.user_id == user.id,
-                Transaction.is_deleted.is_(False),
-                Transaction.account == name,
-                Transaction.type == TransactionType.EXPENSE,
-            )
-        ).scalar_one()
-        transfer_in = db.execute(
-            select(func.coalesce(func.sum(Transaction.amount), 0)).where(
-                Transaction.user_id == user.id,
-                Transaction.is_deleted.is_(False),
-                Transaction.to_account == name,
-                Transaction.type == TransactionType.TRANSFER,
-            )
-        ).scalar_one()
-        transfer_out = db.execute(
-            select(func.coalesce(func.sum(Transaction.amount), 0)).where(
-                Transaction.user_id == user.id,
-                Transaction.is_deleted.is_(False),
-                Transaction.from_account == name,
-                Transaction.type == TransactionType.TRANSFER,
-            )
-        ).scalar_one()
-        count = db.execute(
-            select(func.count())
-            .select_from(Transaction)
-            .where(
-                Transaction.user_id == user.id,
-                Transaction.is_deleted.is_(False),
-                or_(
-                    Transaction.account == name,
-                    Transaction.from_account == name,
-                    Transaction.to_account == name,
-                ),
-            )
-        ).scalar_one()
         balance = (
-            to_decimal(income)
-            - to_decimal(expense)
-            + to_decimal(transfer_in)
-            - to_decimal(transfer_out)
+            income.get(name, 0.0)
+            - expense.get(name, 0.0)
+            + transfer_in.get(name, 0.0)
+            - transfer_out.get(name, 0.0)
         )
         accounts.append(
             {
                 "name": name,
                 "type": classifications.get(name, "unclassified"),
                 "balance": balance,
-                "transaction_count": int(count),
+                "transaction_count": counts.get(name, 0),
             }
         )
-    return {"accounts": accounts, "count": len(accounts)}
+
+    # Cap results like every other list tool so the LLM can't pull an unbounded
+    # row count into the prompt. Keep the largest accounts by |balance|.
+    total = len(accounts)
+    if total > LIST_ENTITIES_MAX_LIMIT:
+        accounts.sort(key=lambda a: abs(a["balance"]), reverse=True)
+        accounts = accounts[:LIST_ENTITIES_MAX_LIMIT]
+    return {
+        "accounts": accounts,
+        "count": len(accounts),
+        "total": total,
+        "truncated": total > len(accounts),
+    }
 
 
 register(

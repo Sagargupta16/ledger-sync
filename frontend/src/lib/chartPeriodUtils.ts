@@ -104,19 +104,23 @@ export function bucketDate(isoDate: string, granularity: Granularity): string {
   if (granularity === 'day') return isoDate.substring(0, 10)
   if (granularity === 'month') return isoDate.substring(0, 7)
 
-  // ISO week
-  const d = new Date(isoDate)
+  // ISO week. Build a UTC date from the Y/M/D parts and use UTC accessors
+  // throughout: new Date('YYYY-MM-DD') parses as UTC midnight, so reading local
+  // getDay()/getFullYear() shifted the weekday (and thus the week/year bucket)
+  // for negative-offset users near a week boundary.
+  const [y, mo, da] = isoDate.slice(0, 10).split('-').map(Number)
+  const d = new Date(Date.UTC(y, mo - 1, da))
   const target = new Date(d.valueOf())
-  // ISO week starts on Monday; getDay() returns 0=Sun..6=Sat, shift to Mon=0
-  const dayNum = (d.getDay() + 6) % 7
-  target.setDate(target.getDate() - dayNum + 3)
+  // ISO week starts on Monday; getUTCDay() returns 0=Sun..6=Sat, shift to Mon=0
+  const dayNum = (d.getUTCDay() + 6) % 7
+  target.setUTCDate(target.getUTCDate() - dayNum + 3)
   const firstThursday = target.valueOf()
-  target.setMonth(0, 1)
-  if (target.getDay() !== 4) {
-    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7)
+  target.setUTCMonth(0, 1)
+  if (target.getUTCDay() !== 4) {
+    target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7)
   }
   const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000)
-  const year = new Date(firstThursday).getFullYear()
+  const year = new Date(firstThursday).getUTCFullYear()
   return `${year}-W${String(weekNum).padStart(2, '0')}`
 }
 
@@ -136,7 +140,9 @@ export function formatBucketLabel(periodKey: string, granularity: Granularity): 
     const [year, weekStr] = periodKey.split('-W')
     return `Wk ${weekStr} '${year.slice(2)}`
   }
-  // day -> "Mar 15"
-  const d = new Date(periodKey)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  // day -> "Mar 15". Build from local Y/M/D parts so the label matches the
+  // bucket's calendar day (new Date('YYYY-MM-DD') is UTC midnight and would
+  // render the previous day for negative-offset users).
+  const [dy, dm, dd] = periodKey.slice(0, 10).split('-').map(Number)
+  return new Date(dy, dm - 1, dd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }

@@ -1,9 +1,8 @@
 import { type ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react'
-import { format } from 'date-fns'
 
 import type { Transaction } from '@/types'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatDate } from '@/lib/formatters'
 
 export const transactionColumns: ColumnDef<Transaction>[] = [
   {
@@ -18,7 +17,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
       </button>
     ),
     cell: ({ row }) => (
-      <span className="text-sm text-text-tertiary">{format(new Date(row.original.date), 'MMM dd, yyyy')}</span>
+      <span className="text-sm text-text-tertiary">{formatDate(row.original.date, { month: 'short', day: '2-digit', year: 'numeric' })}</span>
     ),
   },
   {

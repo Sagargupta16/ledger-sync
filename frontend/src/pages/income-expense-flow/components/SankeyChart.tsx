@@ -76,7 +76,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
         </div>
       )}
 
-      {!isLoading && isMobile && sankeyData.nodes.length > 0 && (
+      {!isLoading && isMobile && sankeyData.links.length > 0 && (
         <MobileFlowView
           incomeByCategory={topIncome}
           expenseByCategory={topExpense}
@@ -86,7 +86,11 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
         />
       )}
 
-      {!isLoading && !isMobile && sankeyData.nodes.length > 0 && (
+      {/* Gate on LINKS, not nodes: the hook always emits the 3 fixed
+          Income/Savings/Expenses nodes, so nodes.length is never 0. With no
+          data there are 0 links and Recharts <Sankey> would render orphan nodes
+          / a NaN layout. Links is the real "has data" signal. */}
+      {!isLoading && !isMobile && sankeyData.links.length > 0 && (
         <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6">
           <div style={{ width: '100%', height: 700, position: 'relative' }}>
             <ChartContainer height={700}>
@@ -157,7 +161,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
         </div>
       )}
 
-      {!isLoading && sankeyData.nodes.length === 0 && (
+      {!isLoading && sankeyData.links.length === 0 && (
         <div className="h-[400px] md:h-[550px] lg:h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
           <div className="text-center">
             <ArrowRightLeft className="w-16 h-16 text-text-quaternary mx-auto mb-4" />

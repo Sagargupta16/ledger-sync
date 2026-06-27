@@ -9,11 +9,10 @@ import {
   type Updater,
 } from '@tanstack/react-table'
 import { TrendingUp, TrendingDown, Search } from 'lucide-react'
-import { format } from 'date-fns'
 import { motion } from 'framer-motion'
 
 import type { Transaction } from '@/types'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatDate } from '@/lib/formatters'
 import { getSemanticTextClass } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 
@@ -189,7 +188,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                 {/* Day header */}
                 <div className="sticky top-0 z-10 px-4 py-2 bg-background/90 backdrop-blur-sm flex items-center justify-between border-b border-white/[0.04]">
                   <span className="text-xs font-semibold text-text-tertiary">
-                    {format(new Date(dateKey), 'EEE, MMM dd yyyy')}
+                    {formatDate(dateKey, { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })}
                   </span>
                   <span className={`text-xs font-semibold ${dayTotal >= 0 ? 'text-app-green' : 'text-app-red'}`}>
                     {dayTotal >= 0 ? '+' : ''}{formatCurrency(dayTotal)}

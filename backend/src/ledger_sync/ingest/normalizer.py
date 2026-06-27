@@ -11,17 +11,21 @@ This module provides comprehensive data cleaning and normalization:
 import re
 import unicodedata
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any, ClassVar
 
 import pandas as pd
 
 from ledger_sync.db.models import TransactionType
-from ledger_sync.ingest.normalizer_rows import NormalizeRowsMixin
 
+# NormalizationError is defined in normalizer_rows (the lower-level module) and
+# re-exported here so the canonical `ledger_sync.ingest.normalizer.NormalizationError`
+# import path keeps working. Previously BOTH modules declared their own class, so
+# errors raised by the row mixin were a DIFFERENT type than the one upload.py and
+# sync_engine.py catch -- they escaped every handler as a raw 500.
+from ledger_sync.ingest.normalizer_rows import NormalizationError, NormalizeRowsMixin
 
-class NormalizationError(Exception):
-    """Raised when normalization fails."""
+__all__ = ["DataNormalizer", "NormalizationError"]
 
 
 FOOD_AND_DINING = "Food & Dining"
@@ -247,10 +251,12 @@ class DataNormalizer(NormalizeRowsMixin):
             raise NormalizationError(msg)
 
         try:
-            # Convert to float first (handles pandas numeric types)
-            float_value = float(value)
-            # Round to 2 decimal places for consistency
-            return Decimal(str(round(float_value, 2)))
+            # Convert via str() straight to Decimal -- never through float --
+            # so binary-float representation error and float's round-half-even
+            # don't corrupt the amount (e.g. 2.675 must round to 2.68, not 2.67).
+            # str() of a pandas/numpy numeric yields a decimal-string Decimal
+            # can parse exactly. quantize applies ROUND_HALF_UP to 2 places.
+            return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         except (ValueError, InvalidOperation) as e:
             msg = f"Cannot convert amount '{value}': {e}"
             raise NormalizationError(msg) from e

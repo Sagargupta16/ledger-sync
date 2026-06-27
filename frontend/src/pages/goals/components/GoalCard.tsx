@@ -58,6 +58,7 @@ export default function GoalCard({
               <button
                 onClick={onStartEditDetails}
                 title="Edit goal"
+                aria-label="Edit goal"
                 className="p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors"
               >
                 <Edit3 className="w-3.5 h-3.5" />

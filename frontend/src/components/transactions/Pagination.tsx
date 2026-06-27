@@ -50,6 +50,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
+            aria-label="Previous page"
             className="p-2 rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -86,6 +87,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
+            aria-label="Next page"
             className="p-2 rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
           >
             <ChevronRight className="w-4 h-4" />

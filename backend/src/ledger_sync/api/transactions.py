@@ -2,7 +2,7 @@
 
 import csv
 import io
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
 
@@ -30,6 +30,21 @@ _TxQuery = SAQuery[Transaction]
 # Query description constants
 START_DATE_DESC = "Start date (inclusive)"
 END_DATE_DESC = "End date (inclusive)"
+
+
+def _inclusive_end(end: datetime) -> datetime:
+    """Make an end-date bound inclusive of the whole day.
+
+    Transaction.date is a DateTime, so filtering `date <= end` against a
+    date-only value (parsed to midnight) silently drops same-day transactions
+    that carry a time component. When `end` is at midnight, extend it to the end
+    of that day so the day is fully included; a caller who passes an explicit
+    time is respected as-is.
+    """
+    if (end.hour, end.minute, end.second, end.microsecond) == (0, 0, 0, 0):
+        return end + timedelta(days=1) - timedelta(microseconds=1)
+    return end
+
 
 # Map of transaction type strings to TransactionType enum values
 _TRANSACTION_TYPE_MAP: dict[str, TransactionType] = {
@@ -87,7 +102,7 @@ def _apply_date_and_amount_filters(
     if filters.start_date:
         tx_query = tx_query.filter(Transaction.date >= filters.start_date)
     if filters.end_date:
-        tx_query = tx_query.filter(Transaction.date <= filters.end_date)
+        tx_query = tx_query.filter(Transaction.date <= _inclusive_end(filters.end_date))
     if filters.min_amount is not None:
         tx_query = tx_query.filter(Transaction.amount >= filters.min_amount)
     if filters.max_amount is not None:
@@ -203,9 +218,9 @@ def _apply_date_range(
     window it wants. View-layer clamping belongs on the client.
     """
     if start_date:
-        query = query.filter(Transaction.date >= start_date.date())
+        query = query.filter(Transaction.date >= start_date)
     if end_date:
-        query = query.filter(Transaction.date <= end_date.date())
+        query = query.filter(Transaction.date <= _inclusive_end(end_date))
     return query
 
 

@@ -72,6 +72,8 @@ export default function AccountClassifier() {
                     <td key={type} className="p-4 text-center">
                       <button
                         onClick={() => handleToggle(account, type)}
+                        aria-label={`${account} ${type}`}
+                        aria-pressed={types.includes(type)}
                         className={`w-5 h-5 rounded border transition-colors flex items-center justify-center mx-auto ${
                           types.includes(type) ? activeColor : hoverColor
                         }`}

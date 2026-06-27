@@ -29,6 +29,7 @@ export default function TimeNavigationControls({
       <div className="flex items-center gap-3">
         <button
           onClick={handlePrevMonth}
+          aria-label="Previous month"
           className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
           type="button"
         >
@@ -42,6 +43,7 @@ export default function TimeNavigationControls({
         </span>
         <button
           onClick={handleNextMonth}
+          aria-label="Next month"
           className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
           type="button"
         >
@@ -59,6 +61,7 @@ export default function TimeNavigationControls({
       <div className="flex items-center gap-3">
         <button
           onClick={handlePrevYear}
+          aria-label="Previous year"
           className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
           type="button"
         >
@@ -67,6 +70,7 @@ export default function TimeNavigationControls({
         <span className="text-white font-medium min-w-25 text-center">Year {currentYear}</span>
         <button
           onClick={handleNextYear}
+          aria-label="Next year"
           className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
           type="button"
         >

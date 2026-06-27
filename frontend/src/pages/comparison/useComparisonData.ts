@@ -7,6 +7,7 @@ import {
   getFYDateRange,
   getDateKey,
   getAvailableFYs,
+  MS_PER_DAY,
 } from '@/lib/dateUtils'
 import type { CompareMode, PeriodSummary, CategoryDelta } from './types'
 import { pctChange, getMonthOptions, getYearOptions, formatMonthLabel } from './utils'
@@ -79,6 +80,15 @@ export function useComparisonData() {
       }
 
       const savings = income - expense
+      // Inclusive day span of the period, computed from the explicit date parts
+      // (local midnight) so daily averages divide by the real length -- not a
+      // hardcoded 30 that is ~12x wrong for year/FY comparisons.
+      const [sy, sm, sd] = startDate.slice(0, 10).split('-').map(Number)
+      const [ey, em, ed] = endDate.slice(0, 10).split('-').map(Number)
+      const days = Math.max(
+        1,
+        Math.round((new Date(ey, em - 1, ed).getTime() - new Date(sy, sm - 1, sd).getTime()) / MS_PER_DAY) + 1,
+      )
       return {
         label,
         income,
@@ -86,6 +96,7 @@ export function useComparisonData() {
         savings,
         savingsRate: income > 0 ? (savings / income) * 100 : 0,
         transactions: count,
+        days,
         categories: cats,
       }
     }
@@ -95,7 +106,7 @@ export function useComparisonData() {
     if (transactions.length === 0) {
       const empty: PeriodSummary = {
         label: '-', income: 0, expense: 0, savings: 0,
-        savingsRate: 0, transactions: 0, categories: {},
+        savingsRate: 0, transactions: 0, days: 1, categories: {},
       }
       return [empty, empty]
     }

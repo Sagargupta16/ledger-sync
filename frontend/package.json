@@ -21,7 +21,6 @@
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.18.1",
     "clsx": "^2.1.1",
-    "date-fns": "^4.4.0",
     "framer-motion": "^12.41.0",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",

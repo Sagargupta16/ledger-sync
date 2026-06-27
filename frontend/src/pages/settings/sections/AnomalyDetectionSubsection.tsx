@@ -60,6 +60,8 @@ export default function AnomalyDetectionSubsection({
                   <button
                     type="button"
                     onClick={() => toggleAnomalyType(type.value)}
+                    aria-label={type.label}
+                    aria-pressed={isEnabled}
                     className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${
                       isEnabled
                         ? 'bg-primary text-white'

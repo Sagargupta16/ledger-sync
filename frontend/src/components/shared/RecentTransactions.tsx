@@ -2,13 +2,11 @@ import { memo } from 'react'
 
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Calendar, Tag } from 'lucide-react'
-import { format } from 'date-fns'
 
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { getSemanticTextClass } from '@/constants/chartColors'
 import type { Transaction } from '@/types'
-import { formatCurrency } from '@/lib/formatters'
-import { parseLocalDate } from '@/lib/dateUtils'
+import { formatCurrency, formatDate } from '@/lib/formatters'
 
 interface RecentTransactionsProps {
   transactions: Transaction[]
@@ -44,7 +42,7 @@ const TransactionRow = memo(function TransactionRow({
           <div className="flex items-center gap-3 mt-1 text-sm text-text-tertiary">
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
-              {format(parseLocalDate(transaction.date), 'MMM dd, yyyy')}
+              {formatDate(transaction.date, { month: 'short', day: '2-digit', year: 'numeric' })}
             </span>
             {transaction.category && (
               <span className="flex items-center gap-1">

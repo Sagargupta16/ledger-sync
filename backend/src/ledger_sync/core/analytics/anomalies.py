@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy import delete, func
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
-from ledger_sync.core.query_helpers import fmt_year_month
+from ledger_sync.core.query_helpers import apply_excluded_accounts_filter, fmt_year_month
 from ledger_sync.db.models import (
     Anomaly,
     AnomalyType,
@@ -75,6 +75,7 @@ class AnomaliesMixin(AnalyticsEngineBase):
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
         )
+        monthly_query = apply_excluded_accounts_filter(monthly_query, self.excluded_accounts)
         monthly_expenses = monthly_query.group_by(period_col).all()
 
         if len(monthly_expenses) <= 3:
@@ -116,6 +117,7 @@ class AnomaliesMixin(AnalyticsEngineBase):
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
         )
+        cat_avg_query = apply_excluded_accounts_filter(cat_avg_query, self.excluded_accounts)
         category_avgs = cat_avg_query.group_by(Transaction.category).all()
         category_avg_map = {c.category: float(c.avg_amount) for c in category_avgs}
 
@@ -165,9 +167,9 @@ class AnomaliesMixin(AnalyticsEngineBase):
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
             .filter(fmt_year_month(Transaction.date) == current_period)
-            .group_by(Transaction.category)
         )
-        current_spending = spending_query.all()
+        spending_query = apply_excluded_accounts_filter(spending_query, self.excluded_accounts)
+        current_spending = spending_query.group_by(Transaction.category).all()
         spending_map = {c.category: float(c.total) for c in current_spending}
 
         count = 0

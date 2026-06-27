@@ -78,8 +78,11 @@ export function computeMonthlyData(
 
   const months = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
 
+  // Use LOCAL month + day consistently. Mixing toISOString() (UTC month) with
+  // getDate() (local day) disagreed on the boundary day for offset users, so
+  // the partial-current-month exclusion could drop the wrong month.
   const today = new Date()
-  const currentMonth = today.toISOString().slice(0, 7)
+  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   if (today.getDate() < 15 && months.includes(currentMonth)) {
     months.pop()
     delete monthlyData[currentMonth]

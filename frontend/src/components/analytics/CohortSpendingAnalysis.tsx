@@ -7,7 +7,7 @@ import { rawColors } from '@/constants/colors'
 import StandardBarChart from '@/components/analytics/StandardBarChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { formatCurrencyShort } from '@/lib/formatters'
-import { parseLocalDate } from '@/lib/dateUtils'
+import { parseLocalDate, MS_PER_DAY } from '@/lib/dateUtils'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -34,21 +34,39 @@ export default function CohortSpendingAnalysis() {
     [transactions],
   )
 
-  // Day-of-week averages
+  // Day-of-week averages = total spent on each weekday / how many times that
+  // weekday actually occurred across the data's date span (zero-spend days
+  // included, so the frequency of spending is reflected, not just the size).
+  //
+  // The previous divisor used a per-month-resetting week key
+  // (Math.ceil((getDate()+getDay())/7)) that collapsed to ~5 keys/year instead
+  // of ~52, inflating every average several-fold. Counting real weekday
+  // occurrences over [min, max] is exact and needs no week-numbering scheme.
   const dowData = useMemo<BarDatum[]>(() => {
     const totals = new Array(7).fill(0)
-    const counts = new Array(7).fill(0)
-    const weeks = new Set<string>()
+    let minDate: Date | null = null
+    let maxDate: Date | null = null
     for (const tx of expenses) {
       const d = parseLocalDate(tx.date)
       totals[d.getDay()] += Math.abs(tx.amount)
-      counts[d.getDay()]++
-      weeks.add(`${d.getFullYear()}-W${Math.ceil((d.getDate() + d.getDay()) / 7)}`)
+      if (!minDate || d < minDate) minDate = d
+      if (!maxDate || d > maxDate) maxDate = d
     }
-    const weekCount = Math.max(1, weeks.size)
+
+    // Exact count of each weekday in the inclusive [minDate, maxDate] span.
+    const occurrences = new Array(7).fill(0)
+    if (minDate && maxDate) {
+      const totalDays = Math.round((maxDate.getTime() - minDate.getTime()) / MS_PER_DAY) + 1
+      const base = Math.floor(totalDays / 7)
+      const remainder = totalDays % 7
+      const startDow = minDate.getDay()
+      for (let w = 0; w < 7; w++) occurrences[w] = base
+      for (let r = 0; r < remainder; r++) occurrences[(startDow + r) % 7] += 1
+    }
+
     return DAY_NAMES.map((name, i) => ({
       name,
-      avg: Math.round(totals[i] / weekCount),
+      avg: Math.round(totals[i] / Math.max(1, occurrences[i])),
     }))
   }, [expenses])
 

@@ -59,6 +59,7 @@ function FYNavigator({
         type="button"
         onClick={() => idx < fys.length - 1 && onSelect(fys[idx + 1])}
         disabled={idx >= fys.length - 1}
+        aria-label="Previous fiscal year"
         className="p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
@@ -68,6 +69,7 @@ function FYNavigator({
         type="button"
         onClick={() => idx > 0 && onSelect(fys[idx - 1])}
         disabled={idx <= 0}
+        aria-label="Next fiscal year"
         className="p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
       >
         <ChevronRight className="w-4 h-4" />

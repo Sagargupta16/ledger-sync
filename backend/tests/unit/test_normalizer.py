@@ -70,6 +70,20 @@ class TestDataNormalizer:
 
         assert result == Decimal("100.56")
 
+    def test_normalize_amount_half_up_not_float_banker_rounding(self):
+        """Regression: amounts must round HALF_UP via Decimal, not through float.
+
+        The old path did ``Decimal(str(round(float(value), 2)))``: round() uses
+        banker's rounding on a binary-float, so 2.675 came out 2.67. Converting
+        the string straight to Decimal and quantizing HALF_UP yields 2.68.
+        """
+        normalizer = DataNormalizer()
+
+        assert normalizer.normalize_amount(2.675) == Decimal("2.68")
+        assert normalizer.normalize_amount("2.675") == Decimal("2.68")
+        # A clean decimal string is preserved exactly.
+        assert normalizer.normalize_amount("19.99") == Decimal("19.99")
+
     def test_normalize_string(self):
         """Test string normalization."""
         normalizer = DataNormalizer()

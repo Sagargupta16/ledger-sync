@@ -168,9 +168,7 @@ def excluded_accounts_for(user: User) -> set[str]:
     return {str(a) for a in parsed if a}
 
 
-def apply_excluded_accounts_filter(
-    query: Query[Transaction], excluded: set[str]
-) -> Query[Transaction]:
+def apply_excluded_accounts_filter[QueryT: Query[Any]](query: QueryT, excluded: set[str]) -> QueryT:
     """Drop rows whose ``account``, ``from_account``, or ``to_account`` is excluded.
 
     Transfers store ``account = from_account``, so a check on ``account``

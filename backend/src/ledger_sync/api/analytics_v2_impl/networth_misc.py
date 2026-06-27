@@ -379,10 +379,17 @@ def create_goal(
     """Create a new financial goal."""
     from ledger_sync.db.models import GoalStatus
 
-    # Parse target_date string to datetime if provided
+    # Parse target_date string to datetime if provided. A malformed string would
+    # otherwise raise ValueError and escape as a raw 500 -- map it to a 400.
     parsed_target_date = None
     if body.target_date:
-        parsed_target_date = datetime.fromisoformat(body.target_date)
+        try:
+            parsed_target_date = datetime.fromisoformat(body.target_date)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid target_date '{body.target_date}'; expected ISO 8601 (YYYY-MM-DD).",
+            ) from exc
 
     # Calculate monthly target if target date provided
     monthly_target: float = 0

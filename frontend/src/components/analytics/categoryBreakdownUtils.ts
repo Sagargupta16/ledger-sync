@@ -24,11 +24,15 @@ export function buildMonthlyHistoryByCategory(
   if (transactions.length === 0) return buckets
 
   // Build the list of last-12 month keys (YYYY-MM), oldest first.
+  // Use LOCAL accessors consistently: the Date is built from local components
+  // (new Date(year, month, 1)), so reading it back with getUTC* shifted the key
+  // a day -- and thus a month -- earlier for positive-offset (IST) users, so the
+  // current month's spending was dropped/mislabelled vs tx.date.substring(0,7).
   const now = new Date()
   const monthKeys: string[] = []
   for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getUTCFullYear(), now.getUTCMonth() - i, 1)
-    monthKeys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`)
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
   }
   const monthIndex = new Map(monthKeys.map((k, i) => [k, i]))
 
