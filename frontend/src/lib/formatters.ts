@@ -174,11 +174,10 @@ export const formatDateTick = (dateStr: string, totalPoints: number): string => 
 export const formatDate = (
   dateStr: string,
   opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: '2-digit' },
-  locale = 'en-US',
 ): string => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr)
   if (!m) return dateStr
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString(locale, opts)
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('en-US', opts)
 }
 
 /** Return the English ordinal suffix for a day number (1→'st', 2→'nd', 3→'rd', etc.) */

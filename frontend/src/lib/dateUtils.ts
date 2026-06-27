@@ -73,12 +73,11 @@ export const toLocalDateKey = (date: Date): string => {
 export const formatMonthKey = (
   monthKey: string,
   opts: Intl.DateTimeFormatOptions = { month: 'short', year: 'numeric' },
-  locale = 'en-US',
 ): string => {
   const year = Number(monthKey.slice(0, 4))
   const month = Number(monthKey.slice(5, 7))
   if (!year || !month) return monthKey
-  return new Date(year, month - 1, 1).toLocaleDateString(locale, opts)
+  return new Date(year, month - 1, 1).toLocaleDateString('en-US', opts)
 }
 
 /**
