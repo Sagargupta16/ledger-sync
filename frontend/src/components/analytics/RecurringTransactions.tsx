@@ -3,126 +3,18 @@ import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { RefreshCw, AlertCircle, CheckCircle, Calendar, DollarSign } from 'lucide-react'
 
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 
-import { detectPattern, type RecurringTransaction } from './recurringUtils'
+import { adaptApiRecurring } from './recurringUtils'
 
 export default function RecurringTransactions() {
-  const { data: transactions = [], isLoading } = useTransactions()
+  // Source of truth is the backend recurring_transactions rollup (confidence-
+  // scored detection on upload); we adapt expense patterns to the display
+  // shape instead of re-detecting over the full ledger client-side.
+  const { data: apiRecurring = [], isLoading } = useRecurringTransactions()
 
-  const recurringTransactions = useMemo(() => {
-    if (!transactions.length) return []
-
-    // Group transactions by note (merchant/description) for better matching
-    const byNote: Record<
-      string,
-      {
-        amounts: number[]
-        dates: string[]
-        category: string
-        subcategory?: string
-        note: string
-      }
-    > = {}
-
-    // Also track by category+subcategory with similar amounts
-    const byCategory: Record<
-      string,
-      {
-        amounts: number[]
-        dates: string[]
-        category: string
-        subcategory?: string
-      }
-    > = {}
-
-    transactions
-      .filter((tx) => tx.type === 'Expense')
-      .forEach((tx) => {
-        const amount = Math.abs(tx.amount)
-
-        // Group by note if present and meaningful (more than 3 chars)
-        if (tx.note && tx.note.trim().length > 3) {
-          const noteKey = tx.note.toLowerCase().trim()
-          if (!byNote[noteKey]) {
-            byNote[noteKey] = {
-              amounts: [],
-              dates: [],
-              category: tx.category,
-              subcategory: tx.subcategory,
-              note: tx.note,
-            }
-          }
-          byNote[noteKey].amounts.push(amount)
-          byNote[noteKey].dates.push(tx.date)
-        }
-
-        // Group by category+subcategory for amount-based matching
-        const catKey = `${tx.category}_${tx.subcategory || ''}`
-        if (!byCategory[catKey]) {
-          byCategory[catKey] = {
-            amounts: [],
-            dates: [],
-            category: tx.category,
-            subcategory: tx.subcategory,
-          }
-        }
-        byCategory[catKey].amounts.push(amount)
-        byCategory[catKey].dates.push(tx.date)
-      })
-
-    const recurring: RecurringTransaction[] = []
-    const processedKeys = new Set<string>()
-
-    // First process by note (more specific)
-    Object.entries(byNote).forEach(([key, data]) => {
-      if (processedKeys.has(key)) return
-      const result = detectPattern({ ...data, note: data.note })
-      if (result) {
-        recurring.push(result)
-        processedKeys.add(key)
-      }
-    })
-
-    // Then process by category (for expenses without specific notes)
-    Object.entries(byCategory).forEach(([key, data]) => {
-      if (processedKeys.has(key)) return
-
-      // Group amounts into buckets for similar values
-      const amountBuckets: Record<string, { amounts: number[]; dates: string[] }> = {}
-
-      data.amounts.forEach((amount, idx) => {
-        // Round to nearest 100 for bucketing
-        const bucket = Math.round(amount / 100) * 100
-        const bucketKey = `${key}_${bucket}`
-        if (!amountBuckets[bucketKey]) {
-          amountBuckets[bucketKey] = { amounts: [], dates: [] }
-        }
-        amountBuckets[bucketKey].amounts.push(amount)
-        amountBuckets[bucketKey].dates.push(data.dates[idx])
-      })
-
-      // Process each amount bucket
-      Object.entries(amountBuckets).forEach(([bucketKey, bucketData]) => {
-        if (processedKeys.has(bucketKey)) return
-        if (bucketData.amounts.length < 2) return
-
-        const result = detectPattern({
-          ...bucketData,
-          category: data.category,
-          subcategory: data.subcategory,
-        })
-        if (result) {
-          recurring.push(result)
-          processedKeys.add(bucketKey)
-        }
-      })
-    })
-
-    // Sort by average amount (highest first)
-    return recurring.sort((a, b) => b.avgAmount - a.avgAmount)
-  }, [transactions])
+  const recurringTransactions = useMemo(() => adaptApiRecurring(apiRecurring), [apiRecurring])
 
   // Calculate totals
   const monthlyCommitment = useMemo(() => {
