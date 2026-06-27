@@ -69,7 +69,7 @@ def _cleanup_stale_temp_files() -> None:
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Application lifespan: initialize database, HTTP client, and clean temp files."""
     try:
         settings.warn_if_development_secrets()
