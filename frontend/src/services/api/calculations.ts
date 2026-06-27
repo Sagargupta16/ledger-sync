@@ -109,4 +109,19 @@ export const calculationsApi = {
 
   getQuickInsights: (params?: DateRangeParams) =>
     apiClient.get<QuickInsightsData>('/api/calculations/quick-insights', { params }),
+
+  /** Per-category absolute spend aligned to the supplied trailing month keys. */
+  getCategoryMonthlyHistory: (months: string[], transactionType: 'income' | 'expense') =>
+    apiClient.get<Record<string, number[]>>('/api/calculations/category-monthly-history', {
+      params: { months: months.join(','), transaction_type: transactionType },
+    }),
+
+  /** Daily per-(category, subcategory) sums for client-side time-series bucketing. */
+  getCategoryDailySeries: (
+    params: DateRangeParams & { transaction_type?: 'income' | 'expense'; category?: string },
+  ) =>
+    apiClient.get<{
+      data: { date: string; category: string; subcategory: string; amount: number }[]
+      transaction_count: number
+    }>('/api/calculations/category-daily-series', { params }),
 }

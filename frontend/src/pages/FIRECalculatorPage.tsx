@@ -3,9 +3,8 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Flame, Calculator } from 'lucide-react'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
-import { useTransactions } from '@/hooks/api/useTransactions'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
-import { useTotals } from '@/hooks/api/useAnalytics'
+import { useTotals, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
 import { formatCurrency } from '@/lib/formatters'
 import { computeFIRE, computeRetirementCorpus } from '@/lib/fireCalculator'
 import { rawColors } from '@/constants/colors'
@@ -44,22 +43,23 @@ function savingsRateSubtitle(rate: number): string {
 }
 
 export default function FIRECalculatorPage() {
-  const { data: transactions = [], isLoading } = useTransactions()
+  const { data: monthlyData, isLoading } = useMonthlyAggregation()
   const { data: totals } = useTotals()
   const [activeTab, setActiveTab] = useState<'fire' | 'retirement'>('fire')
 
-  // FIRE inputs with defaults from transaction data
+  // FIRE inputs with defaults from transaction data. The distinct-month count
+  // is the number of keys in the monthly rollup (one per YYYY-MM) -- no need to
+  // pull the full ledger just to count months.
   const autoValues = useMemo(() => {
     const totalIncome = totals?.total_income ?? 0
     const totalExpenses = Math.abs(totals?.total_expenses ?? 0)
-    // Estimate annual values (assume data spans ~12 months)
-    const months = new Set(transactions.map((t) => t.date.substring(0, 7))).size || 1
+    const months = Object.keys(monthlyData ?? {}).length || 1
     const annualIncome = (totalIncome / months) * 12
     const annualExpenses = (totalExpenses / months) * 12
     const annualSavings = annualIncome - annualExpenses
     const monthlyExpenses = annualExpenses / 12
     return { annualIncome, annualExpenses, annualSavings, monthlyExpenses }
-  }, [transactions, totals])
+  }, [monthlyData, totals])
 
   // FIRE adjustable params
   const [swr, setSwr] = useState(3)

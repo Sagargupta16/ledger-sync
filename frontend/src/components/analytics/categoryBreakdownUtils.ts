@@ -11,6 +11,22 @@ export interface CategoryData {
 }
 
 /**
+ * The last 12 calendar-month keys (YYYY-MM), oldest first, ending in the
+ * current month. Built from LOCAL date components so the keys match
+ * ``tx.date.substring(0, 7)`` for the viewer's timezone -- the same window the
+ * backend ``/category-monthly-history`` endpoint buckets into.
+ */
+export function trailingMonthKeys(count = 12): string[] {
+  const now = new Date()
+  const keys: string[] = []
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+  return keys
+}
+
+/**
  * Build a Map<categoryName, [m1, m2, ..., m12]> covering the last 12
  * calendar months ending in the current month, oldest first. Months
  * with no spending get a 0 so the sparkline renders a meaningful flat

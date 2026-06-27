@@ -12,6 +12,7 @@ from ledger_sync.api.calculations_helpers import (
     _build_category_data_from_trends,
     _calculate_expense_averages,
     _compute_account_statistics,
+    _compute_category_monthly_history,
     _compute_quick_insights,
     _find_unusual_spending,
     _format_largest_transaction,
@@ -404,6 +405,87 @@ def get_financial_insights(
         "unusual_spending": unusual_spending,
         "total_income": total_income,
         "total_expenses": total_expenses,
+    }
+
+
+@router.get("/category-monthly-history")
+def get_category_monthly_history(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    months: Annotated[str, Query(description="Comma-separated YYYY-MM keys, oldest first")],
+    transaction_type: OptionalTransactionType = None,
+) -> dict[str, list[float]]:
+    """Per-category spend aligned to a caller-supplied list of month keys.
+
+    Powers the CategoryBreakdown sparkline (trailing 12 calendar months). The
+    client passes the exact month keys it wants (computed with its local
+    calendar), so buckets line up regardless of server timezone. Returns
+    ``{ category_name: [m0, m1, ...] }`` (absolute sums, 0 for empty months).
+    """
+    month_keys = [m.strip() for m in months.split(",") if m.strip()]
+    tx_type = _resolve_transaction_type(transaction_type) or TransactionType.EXPENSE
+
+    # Only need rows within the window's span; fetch all user rows of this type
+    # (the per-month bucketing drops anything outside the supplied keys).
+    transactions = (
+        build_transaction_query(db, current_user).filter(Transaction.type == tx_type).all()
+    )
+    return _compute_category_monthly_history(list(transactions), tx_type, month_keys)
+
+
+@router.get("/category-daily-series")
+def get_category_daily_series(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
+    transaction_type: OptionalTransactionType = None,
+    category: Annotated[str | None, Query(description="Restrict to one category")] = None,
+) -> dict[str, Any]:
+    """Daily per-(category, subcategory) sums for time-series charts.
+
+    Powers MultiCategoryTimeAnalysis (all categories -> client picks top N) and
+    EnhancedSubcategoryAnalysis (single ``category`` -> subcategory breakdown).
+    The client keeps its own day/week/month bucketing + cumulative logic; this
+    just ships daily aggregates (date, category, subcategory, amount) instead of
+    the full ledger. Absolute amounts; expense by default.
+    """
+    tx_type = _resolve_transaction_type(transaction_type) or TransactionType.EXPENSE
+
+    query = build_transaction_query(db, current_user, start_date, end_date).filter(
+        Transaction.type == tx_type
+    )
+    if category:
+        query = query.filter(Transaction.category == category)
+
+    base = query.subquery()
+    day_col = fmt_date(base.c.date).label("day")
+    cat_col = func.coalesce(base.c.category, "Uncategorized").label("category")
+    sub_col = func.coalesce(base.c.subcategory, "Other").label("subcategory")
+
+    rows = (
+        db.query(
+            day_col,
+            cat_col,
+            sub_col,
+            func.coalesce(func.sum(func.abs(base.c.amount)), 0).label("amount"),
+            func.count().label("count"),
+        )
+        .group_by(day_col, cat_col, sub_col)
+        .all()
+    )
+
+    return {
+        "data": [
+            {
+                "date": r.day,
+                "category": r.category,
+                "subcategory": r.subcategory,
+                "amount": float(r.amount),
+            }
+            for r in rows
+        ],
+        "transaction_count": sum(r.count for r in rows),
     }
 
 

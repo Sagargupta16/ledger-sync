@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Download } from 'lucide-react'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { calculationsApi } from '@/services/api/calculations'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
 import {
   bucketDate,
@@ -25,31 +26,32 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
   const [cumulative, setCumulative] = useState(true)
   const [granularityOverride, setGranularityOverride] = useState<Granularity | 'auto'>('auto')
 
-  const { data: transactions } = useTransactions()
+  // Daily per-category sums, aggregated server-side (date-range applied in SQL).
+  // The client keeps its own day/week/month bucketing so the ISO-week + label
+  // logic is unchanged -- we just feed it daily rows instead of the full ledger.
+  const { data: series } = useQuery({
+    queryKey: ['category-daily-series', 'expense', dateRange?.start_date, dateRange?.end_date],
+    queryFn: async () =>
+      (
+        await calculationsApi.getCategoryDailySeries({
+          transaction_type: 'expense',
+          start_date: dateRange?.start_date,
+          end_date: dateRange?.end_date,
+        })
+      ).data,
+    staleTime: Infinity,
+  })
 
   // Process data for multi-category time analysis
   const { chartData, totalTransactions, granularity } = useMemo(() => {
-    if (!transactions) return { chartData: [], totalTransactions: 0, granularity: 'day' as Granularity }
-
-    const expenseTransactions = transactions.filter((t) => {
-      if (t.type !== 'Expense') return false
-      if (dateRange?.start_date) {
-        const txDate = t.date.substring(0, 10)
-        if (txDate < dateRange.start_date) return false
-        if (dateRange.end_date && txDate > dateRange.end_date) return false
-      }
-      return true
-    })
-
-    if (expenseTransactions.length === 0) {
+    const rows = series?.data ?? []
+    if (rows.length === 0) {
       return { chartData: [], totalTransactions: 0, granularity: 'day' as Granularity }
     }
 
     // Auto-pick granularity based on the actual data span so daily noise
     // doesn't drown the trend over multi-year ranges.
-    const sortedDates = expenseTransactions
-      .map((t) => t.date.substring(0, 10))
-      .sort((a, b) => a.localeCompare(b))
+    const sortedDates = rows.map((r) => r.date).sort((a, b) => a.localeCompare(b))
     const spanDays = Math.max(
       1,
       Math.round(
@@ -63,11 +65,11 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
 
     const groupedData: Record<string, Record<string, number>> = {}
 
-    expenseTransactions.forEach((tx) => {
-      const period = bucketDate(tx.date.substring(0, 10), gran)
+    rows.forEach((row) => {
+      const period = bucketDate(row.date, gran)
       if (!groupedData[period]) groupedData[period] = {}
-      if (!groupedData[period][tx.category]) groupedData[period][tx.category] = 0
-      groupedData[period][tx.category] += Math.abs(tx.amount)
+      if (!groupedData[period][row.category]) groupedData[period][row.category] = 0
+      groupedData[period][row.category] += row.amount
     })
 
     // Get top 6 categories by total spending
@@ -100,10 +102,10 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
 
     return {
       chartData: finalData,
-      totalTransactions: expenseTransactions.length,
+      totalTransactions: series?.transaction_count ?? 0,
       granularity: gran,
     }
-  }, [transactions, dateRange, cumulative, granularityOverride])
+  }, [series, cumulative, granularityOverride])
 
   const topCategories = useMemo(() => {
     if (chartData.length === 0) return []

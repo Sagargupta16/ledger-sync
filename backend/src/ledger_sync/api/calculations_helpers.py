@@ -15,6 +15,34 @@ from ledger_sync.core.query_helpers import build_transaction_query
 from ledger_sync.db.models import CategoryTrend, Transaction, TransactionType, User
 
 
+def _compute_category_monthly_history(
+    transactions: list[Transaction],
+    tx_type: TransactionType,
+    month_keys: list[str],
+) -> dict[str, list[float]]:
+    """Per-category spend over the given trailing month keys (oldest first).
+
+    Mirrors the client's ``buildMonthlyHistoryByCategory``: for each category,
+    a list aligned to ``month_keys`` where each slot is the absolute sum of
+    that category's transactions of ``tx_type`` in that YYYY-MM (0 if none).
+    The month keys are supplied by the caller (the client's "trailing 12
+    calendar months from today" window) so the buckets line up exactly.
+    """
+    month_index = {k: i for i, k in enumerate(month_keys)}
+    n = len(month_keys)
+    buckets: dict[str, list[float]] = {}
+    for txn in transactions:
+        if txn.type != tx_type or not txn.category:
+            continue
+        key = txn.date.strftime("%Y-%m")
+        idx = month_index.get(key)
+        if idx is None:
+            continue
+        series = buckets.setdefault(txn.category, [0.0] * n)
+        series[idx] += abs(float(txn.amount))
+    return buckets
+
+
 def _median(sorted_values: list[float]) -> float:
     """Median of a pre-sorted list (matches the client's computeMedian)."""
     n = len(sorted_values)

@@ -1,14 +1,15 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { calculationsApi } from '@/services/api/calculations'
 import { formatCurrency } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 import Sparkline from '@/components/shared/Sparkline'
 
-import { buildCategories, buildMonthlyHistoryByCategory } from './categoryBreakdownUtils'
+import { buildCategories, trailingMonthKeys } from './categoryBreakdownUtils'
 
 interface CategoryBreakdownProps {
   readonly transactionType: 'income' | 'expense'
@@ -55,14 +56,21 @@ export default function CategoryBreakdown({
     end_date: dateRange?.end_date ?? undefined,
   })
 
-  // Pull all transactions to build the per-category 12-month sparkline.
-  // useTransactions is widely cached (staleTime: Infinity, invalidated on
-  // upload) so this is effectively free if any other page already mounted it.
-  const { data: transactions = [] } = useTransactions()
+  // Per-category 12-month sparkline series, aggregated server-side over a
+  // trailing-12-month window. The client computes the month keys (local
+  // calendar) and the backend buckets into exactly those, so the window lines
+  // up with tx.date regardless of timezone -- no full-ledger fetch.
+  const monthKeys = useMemo(() => trailingMonthKeys(12), [])
+  const { data: historyByCategory } = useQuery({
+    queryKey: ['category-monthly-history', transactionType, monthKeys],
+    queryFn: async () =>
+      (await calculationsApi.getCategoryMonthlyHistory(monthKeys, transactionType)).data,
+    staleTime: Infinity,
+  })
 
   const monthlyHistoryByCategory = useMemo(
-    () => buildMonthlyHistoryByCategory(transactions, transactionType),
-    [transactions, transactionType],
+    () => new Map(Object.entries(historyByCategory ?? {})),
+    [historyByCategory],
   )
 
   const { categories, grandTotal } = useMemo(
