@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Transaction } from '@/types'
-import { groupTransactionsByFY } from '../taxPlanningUtils'
+import { computeTaxForFY, groupTransactionsByFY } from '../taxPlanningUtils'
 import type { IncomeClassification } from '../types'
 
 const classification: IncomeClassification = {
@@ -46,5 +46,29 @@ describe('groupTransactionsByFY EPF taxable fraction', () => {
   it('taxes a partial fraction (e.g. 0.5 reproduces the old 50% behaviour)', () => {
     const grouped = groupTransactionsByFY([epfTx(100_000)], 4, classification, 0.5)
     expect(grouped['FY 2025-26'].taxableIncome).toBe(50_000)
+  })
+})
+
+describe('computeTaxForFY salary TDS treatment toggle', () => {
+  const recorded = 1_500_000
+
+  it('net-of-TDS (default) backs out a gross ABOVE the recorded amount', () => {
+    const r = computeTaxForFY('FY 2025-26', recorded, 12, null, 'new', true)
+    // recorded is treated as post-tax, so the implied gross is higher and the
+    // tax (= TDS already deducted) is positive.
+    expect(r.grossTaxableIncome).toBeGreaterThan(recorded)
+    expect(r.taxAlreadyPaid).toBeGreaterThan(0)
+  })
+
+  it('gross mode taxes the recorded amount directly (no gross-up)', () => {
+    const r = computeTaxForFY('FY 2025-26', recorded, 12, null, 'new', false)
+    expect(r.grossTaxableIncome).toBe(recorded)
+  })
+
+  it('net mode yields a higher tax than gross mode for the same recorded amount', () => {
+    const net = computeTaxForFY('FY 2025-26', recorded, 12, null, 'new', true)
+    const gross = computeTaxForFY('FY 2025-26', recorded, 12, null, 'new', false)
+    // Grossing up a net figure produces a larger taxable base -> more tax.
+    expect(net.taxAlreadyPaid).toBeGreaterThan(gross.taxAlreadyPaid)
   })
 })

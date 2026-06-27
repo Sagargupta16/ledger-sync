@@ -1,6 +1,6 @@
 """add epf withdrawal taxability preference
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: epf_taxability_2026
 Revises: f7a8b9c0d1e2
 Create Date: 2026-06-27 12:00:00.000000
 
@@ -18,7 +18,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a1b2c3d4e5f6"
+revision: str = "epf_taxability_2026"
 down_revision: str | None = "f7a8b9c0d1e2"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

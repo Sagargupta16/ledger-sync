@@ -41,6 +41,9 @@ export function useTaxPlanning() {
 
   const preferredRegime = preferences?.preferred_tax_regime || 'new'
   const showTdsSchedule = preferences?.show_tds_schedule ?? false
+  // Recorded salary is net of TDS by default (bank-statement amounts); when off,
+  // the recorded amount is the taxable gross and tax is computed on it directly.
+  const salaryIsNetOfTds = preferences?.salary_is_net_of_tds ?? true
   const [regimeOverride, setRegimeOverride] = useState<TaxRegimeOverride>(null)
 
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || FY_START_MONTH
@@ -115,6 +118,7 @@ export function useTaxPlanning() {
     salaryMonthsCount,
     regimeOverride,
     preferredRegime,
+    salaryIsNetOfTds,
   )
   const {
     fyYear,
@@ -364,6 +368,7 @@ export function useTaxPlanning() {
         growthAssumptions,
         fiscalYearStartMonth,
         isNewRegime,
+        salaryIsNetOfTds,
       }),
     [
       effectiveFY,
@@ -377,6 +382,7 @@ export function useTaxPlanning() {
       growthAssumptions,
       fiscalYearStartMonth,
       isNewRegime,
+      salaryIsNetOfTds,
     ],
   )
 
@@ -394,6 +400,7 @@ export function useTaxPlanning() {
   return {
     isLoading,
     preferredRegime,
+    salaryIsNetOfTds,
     regimeOverride,
     setRegimeOverride,
     showProjection,

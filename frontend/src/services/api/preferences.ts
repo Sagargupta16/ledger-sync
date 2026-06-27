@@ -96,6 +96,10 @@ export interface UserPreferences {
   epf_withdrawal_taxable: boolean
   epf_taxable_percent: number
 
+  // 20. Salary TDS treatment: are recorded salary amounts net of TDS (default)
+  // or gross (pre-tax)?
+  salary_is_net_of_tds: boolean
+
   // Salary & Tax Projections
   salary_structure: Record<string, SalaryComponents>
   rsu_grants: RsuGrant[]

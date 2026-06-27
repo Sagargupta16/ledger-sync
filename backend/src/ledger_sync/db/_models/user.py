@@ -329,6 +329,15 @@ class UserPreferences(Base):
     epf_withdrawal_taxable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     epf_taxable_percent: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
 
+    # ===== 20. Salary TDS treatment =====
+    # Whether the salary amounts recorded in the ledger are NET of TDS (what hit
+    # the bank) or GROSS (pre-tax CTC). True (default) = net: the tax engine backs
+    # out the implied gross from the received amount and reports the TDS that was
+    # already deducted. False = the recorded amount IS the taxable gross, so tax is
+    # computed directly on it (no gross-up). This is a per-user reporting choice;
+    # bank-statement imports are typically net, so True preserves prior behaviour.
+    salary_is_net_of_tds: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
     # ── Salary & Tax Projections ──────────────────────────────────────────
     salary_structure: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     rsu_grants: Mapped[str] = mapped_column(Text, nullable=False, default="[]")

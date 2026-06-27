@@ -124,13 +124,23 @@ export function resolveSelectedRegime(
   return preferredRegime === 'old' ? 'old' : 'new'
 }
 
-/** Compute gross income and tax breakdown for the selected FY and regime */
+/**
+ * Compute gross income and tax breakdown for the selected FY and regime.
+ *
+ * @param recordedTaxableIncome  The taxable income as recorded in the ledger.
+ * @param salaryIsNetOfTds  When true (default), the recorded amount is NET of
+ *   TDS, so the implied GROSS is backed out and the tax on it is the TDS already
+ *   deducted. When false, the recorded amount IS the taxable gross and tax is
+ *   computed on it directly (no gross-up). User setting -- bank-statement
+ *   imports are typically net, so true preserves prior behaviour.
+ */
 export function computeTaxForFY(
   selectedFY: string,
-  netTaxableIncome: number,
+  recordedTaxableIncome: number,
   salaryMonthsCount: number,
   regimeOverride: TaxRegimeOverride,
   preferredRegime: string,
+  salaryIsNetOfTds = true,
 ) {
   const fyYear = selectedFY ? parseFYStartYear(selectedFY) : 0
   const newRegimeAvailable = fyYear >= 2020
@@ -140,20 +150,21 @@ export function computeTaxForFY(
   const regimeLabel = isNewRegime ? 'New Tax Regime' : 'Old Tax Regime (with 80C)'
   const standardDeduction = getStandardDeduction(fyYear)
 
-  const hasEmploymentIncome = netTaxableIncome > 0
+  const hasEmploymentIncome = recordedTaxableIncome > 0
 
-  // Back out gross using the SAME regime the tax is computed with below.
-  // Using new-regime slabs here while taxing with the old regime produced a
-  // gross inconsistent with the displayed tax (the page's net = gross - tax
-  // no longer matched the net the user actually entered).
-  const grossTaxableIncome = calculateGrossFromNet(netTaxableIncome, {
-    slabs: taxSlabs,
-    standardDeduction,
-    applyProfessionalTax: hasEmploymentIncome,
-    salaryMonthsCount,
-    isNewRegime,
-    fyStartYear: fyYear,
-  })
+  // Net of TDS: back out the implied gross (so tax on it = the TDS already
+  // deducted), using the SAME regime slabs the tax is computed with. Gross
+  // recorded: the amount IS the taxable gross, use it directly.
+  const grossTaxableIncome = salaryIsNetOfTds
+    ? calculateGrossFromNet(recordedTaxableIncome, {
+        slabs: taxSlabs,
+        standardDeduction,
+        applyProfessionalTax: hasEmploymentIncome,
+        salaryMonthsCount,
+        isNewRegime,
+        fyStartYear: fyYear,
+      })
+    : recordedTaxableIncome
 
   const taxResult = calculateTax(
     grossTaxableIncome,
@@ -189,6 +200,7 @@ export function computePaidTax(
   fyData: FYData,
   regimeOverride: TaxRegimeOverride,
   preferredRegime: string,
+  salaryIsNetOfTds = true,
 ): number {
   // Use the classified taxable income, never a fallback to gross inflow.
   // fyData.income is ALL credits (incl. transfers, refunds, cashbacks,
@@ -197,7 +209,9 @@ export function computePaidTax(
   // user to classify income rather than fabricating tax on raw inflow.
   const taxableAmt = fyData.taxableIncome
   const salaryMonths = fyData.salaryMonths?.size || 0
-  const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
+  const computed = computeTaxForFY(
+    fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime, salaryIsNetOfTds,
+  )
   return Math.round(computed.taxAlreadyPaid)
 }
 
@@ -221,6 +235,7 @@ export function buildYearlyTaxData(
   currentFYLabel: string,
   regimeOverride: TaxRegimeOverride,
   preferredRegime: string,
+  salaryIsNetOfTds = true,
 ): YearlyTaxDatum[] {
   const projectedTaxByFY: Record<string, number> = {}
   for (const p of multiYearProjections) projectedTaxByFY[p.fy] = p.totalTax
@@ -234,7 +249,9 @@ export function buildYearlyTaxData(
       const hasTxData = !!fyData
       const projTotal = Math.round(projectedTaxByFY[bareFY] ?? 0)
 
-      const paidTax = hasTxData ? computePaidTax(fy, fyData, regimeOverride, preferredRegime) : 0
+      const paidTax = hasTxData
+        ? computePaidTax(fy, fyData, regimeOverride, preferredRegime, salaryIsNetOfTds)
+        : 0
       const projected = computeProjectedTax(hasTxData, projTotal, paidTax, fy, currentFYLabel)
 
       return { fy, paidTax, projected, cumulative: 0 }
@@ -260,6 +277,7 @@ export interface PrevFYDisplayParams {
   growthAssumptions: GrowthAssumptions
   fiscalYearStartMonth: number
   isNewRegime: boolean
+  salaryIsNetOfTds?: boolean
 }
 
 /** Compute the previous FY's display values for YoY comparison badges */
@@ -278,6 +296,7 @@ export function computePrevFYDisplay(
     growthAssumptions,
     fiscalYearStartMonth,
     isNewRegime,
+    salaryIsNetOfTds = true,
   } = params
   if (!effectiveFY) return null
   const startYear = parseFYStartYear(effectiveFY)
@@ -298,6 +317,7 @@ export function computePrevFYDisplay(
         prevFYData.salaryMonths?.size || 0,
         regimeOverride,
         preferredRegime,
+        salaryIsNetOfTds,
       )
       return {
         net: prevFYData.taxableIncome || 0,

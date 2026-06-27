@@ -12,6 +12,7 @@ A correctness + reliability pass driven by a multi-agent audit (bug-finder matri
 
 ### Added
 
+- **"Salary recorded net of TDS" toggle** (Settings -> Financial). Controls how Tax Planning interprets recorded salary: on (default) treats it as net of TDS and backs out the implied gross to show tax already deducted; off treats the recorded amount as the taxable gross and computes tax on it directly. New ``salary_is_net_of_tds`` column on ``user_preferences`` (migration ``salary_tds_2026``).
 - **Expense Trend chart on the Spending Analysis page** -- monthly spending with a 3-month rolling average and a peak reference line, mirroring the Income Trend chart on Income Analysis (red/expense semantics, timezone-safe month labels).
 - **EPF withdrawal taxability is now a user setting** (Settings -> Financial). EPF inflows are treated as exempt by default (Section 10(12) -- withdrawals after 5 years of continuous service are tax-free); a toggle plus a 0-100% field lets you count a chosen fraction as taxable. Replaces a hardcoded 50% taxable assumption that had no basis in EPF rules. New ``epf_withdrawal_taxable`` / ``epf_taxable_percent`` columns on ``user_preferences`` (migration ``a1b2c3d4e5f6``).
 

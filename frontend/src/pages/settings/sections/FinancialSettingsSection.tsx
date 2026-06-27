@@ -166,6 +166,23 @@ export default function FinancialSettingsSection({
           />
         </div>
 
+        {/* Salary TDS treatment */}
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <FieldLabel>Salary recorded net of TDS</FieldLabel>
+            <FieldHint>
+              On (default): your recorded salary is what hit your bank (after TDS),
+              so Tax Planning backs out the gross and shows the TDS already
+              deducted. Off: the recorded amount is your pre-tax gross and tax is
+              computed on it directly.
+            </FieldHint>
+          </div>
+          <Toggle
+            checked={localPrefs.salary_is_net_of_tds ?? true}
+            onChange={(val) => updateLocalPref('salary_is_net_of_tds', val)}
+          />
+        </div>
+
         {/* EPF withdrawal taxability */}
         <div className="flex items-center justify-between gap-4">
           <div>

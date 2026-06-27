@@ -248,6 +248,9 @@ class UserPreferencesResponse(BaseModel):
     epf_withdrawal_taxable: bool = False
     epf_taxable_percent: int = 100
 
+    # 20. Salary TDS treatment
+    salary_is_net_of_tds: bool = True
+
     # Salary & Tax Projections
     salary_structure: dict[str, Any] = {}
     rsu_grants: list[dict[str, Any]] = []
@@ -340,6 +343,9 @@ class UserPreferencesUpdate(BaseModel):
     epf_withdrawal_taxable: bool | None = None
     epf_taxable_percent: int | None = Field(default=None, ge=0, le=100)
 
+    # 20. Salary TDS treatment
+    salary_is_net_of_tds: bool | None = None
+
     # Salary & Tax Projections
     salary_structure: dict[str, Any] | None = None
     rsu_grants: list[dict[str, Any]] | None = None
@@ -404,6 +410,7 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
         show_tds_schedule=prefs.show_tds_schedule,
         epf_withdrawal_taxable=prefs.epf_withdrawal_taxable,
         epf_taxable_percent=prefs.epf_taxable_percent,
+        salary_is_net_of_tds=prefs.salary_is_net_of_tds,
         salary_structure=_parse_json_field(prefs.salary_structure, {}),
         rsu_grants=_parse_json_field(prefs.rsu_grants, []),
         growth_assumptions=_parse_json_field(prefs.growth_assumptions, {}),

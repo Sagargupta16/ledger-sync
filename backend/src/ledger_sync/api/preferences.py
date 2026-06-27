@@ -129,6 +129,7 @@ def reset_preferences(
     prefs.show_tds_schedule = False
     prefs.epf_withdrawal_taxable = False
     prefs.epf_taxable_percent = 100
+    prefs.salary_is_net_of_tds = True
     prefs.updated_at = datetime.now(UTC)
 
     session.commit()

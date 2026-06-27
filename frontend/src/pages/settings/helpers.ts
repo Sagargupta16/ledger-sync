@@ -312,5 +312,6 @@ export function buildInitialLocalPrefs(p: Record<string, unknown>): Record<strin
     show_tds_schedule: p.show_tds_schedule ?? false,
     epf_withdrawal_taxable: p.epf_withdrawal_taxable ?? false,
     epf_taxable_percent: p.epf_taxable_percent ?? 100,
+    salary_is_net_of_tds: p.salary_is_net_of_tds ?? true,
   }
 }

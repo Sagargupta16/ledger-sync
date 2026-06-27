@@ -33,6 +33,7 @@ export default function TaxPlanningPage() {
   const {
     isLoading,
     preferredRegime,
+    salaryIsNetOfTds,
     regimeOverride,
     setRegimeOverride,
     showProjection,
@@ -300,6 +301,7 @@ export default function TaxPlanningPage() {
                       currentFYLabel,
                       regimeOverride,
                       preferredRegime,
+                      salaryIsNetOfTds,
                     )
                     if (yearlyTaxData.every((d) => d.paidTax === 0 && d.projected === 0)) {
                       return (
