@@ -26,7 +26,7 @@ export function EditNameRow(props: Readonly<EditNameRowProps>) {
           <button
             type="button"
             onClick={onStartEdit}
-            className="text-xs text-blue-400 hover:text-blue-300 transition-colors duration-150 ease-out"
+            className="text-xs text-app-blue hover:text-app-blue transition-colors duration-150 ease-out"
           >
             Edit
           </button>
@@ -44,14 +44,14 @@ export function EditNameRow(props: Readonly<EditNameRowProps>) {
               if (e.key === 'Escape') onCancelEdit()
             }}
             autoFocus
-            className="flex-1 px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-white text-sm focus:border-blue-500/50 focus:outline-none transition-colors duration-150 ease-out"
+            className="flex-1 px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-white text-sm focus:border-app-blue/50 focus:outline-none transition-colors duration-150 ease-out"
             placeholder="Your name"
           />
           <button
             type="button"
             onClick={onSave}
             disabled={isPending}
-            className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors duration-150 ease-out disabled:opacity-50"
+            className="p-1.5 rounded-lg bg-app-blue/15 text-app-blue hover:bg-app-blue/25 transition-colors duration-150 ease-out disabled:opacity-50"
           >
             <Check size={14} />
           </button>

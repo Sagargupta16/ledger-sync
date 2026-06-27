@@ -282,8 +282,8 @@ export default function TaxPlanningPage() {
                   className="glass rounded-2xl border border-border p-4 md:p-6"
                 >
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2.5 bg-blue-500/10 rounded-xl">
-                      <TrendingUp className="w-5 h-5 text-blue-400" />
+                    <div className="p-2.5 bg-app-blue/10 rounded-xl">
+                      <TrendingUp className="w-5 h-5 text-app-blue" />
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold">Tax Per Year</h3>

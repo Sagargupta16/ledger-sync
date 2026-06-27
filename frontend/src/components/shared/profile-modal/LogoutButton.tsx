@@ -12,7 +12,7 @@ export function LogoutButton({ isPending, onLogout }: Readonly<LogoutButtonProps
         type="button"
         onClick={onLogout}
         disabled={isPending}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/15 transition-colors duration-150 ease-out text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-app-red/10 text-app-red hover:bg-app-red/15 transition-colors duration-150 ease-out text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <LogOut size={16} />
         <span>{isPending ? 'Signing out...' : 'Sign Out'}</span>

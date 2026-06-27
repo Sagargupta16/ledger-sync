@@ -109,8 +109,8 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
 
               {/* Header */}
               <div className="flex flex-col items-center mb-8">
-                <div className="p-3 rounded-xl bg-blue-500/10 mb-3">
-                  <PiggyBank className="w-8 h-8 text-blue-400" />
+                <div className="p-3 rounded-xl bg-app-blue/10 mb-3">
+                  <PiggyBank className="w-8 h-8 text-app-blue" />
                 </div>
                 <h2 id="auth-modal-title" className="text-xl font-semibold text-white">
                   Welcome to Ledger Sync

@@ -37,10 +37,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
             'w-full bg-white/[0.04] px-4 py-3 rounded-lg',
             'border border-white/[0.08] text-white placeholder:text-text-quaternary',
             'transition-all duration-150 ease-out',
-            'focus:border-blue-400/50 focus:outline-none focus:ring-1 focus:ring-blue-400/20',
+            'focus:border-app-blue/50 focus:outline-none focus:ring-1 focus:ring-app-blue/20',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             icon && 'pl-10',
-            error && 'border-red-400/50 focus:border-red-400/50 focus:ring-red-400/20',
+            error && 'border-app-red/50 focus:border-app-red/50 focus:ring-app-red/20',
             className
           )}
           aria-invalid={error ? 'true' : undefined}
@@ -49,7 +49,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         />
       </div>
       {error && (
-        <p id={inputId ? `${inputId}-error` : undefined} className="text-xs text-red-400" role="alert">
+        <p id={inputId ? `${inputId}-error` : undefined} className="text-xs text-app-red" role="alert">
           {error}
         </p>
       )}
@@ -89,9 +89,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           'w-full bg-white/[0.04] px-4 py-3 rounded-lg',
           'border border-white/[0.08] text-white',
           'transition-all duration-150 ease-out',
-          'focus:border-blue-400/50 focus:outline-none focus:ring-1 focus:ring-blue-400/20',
+          'focus:border-app-blue/50 focus:outline-none focus:ring-1 focus:ring-app-blue/20',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          error && 'border-red-400/50 focus:border-red-400/50 focus:ring-red-400/20',
+          error && 'border-app-red/50 focus:border-app-red/50 focus:ring-app-red/20',
           className
         )}
         aria-invalid={error ? 'true' : undefined}
@@ -105,7 +105,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         ))}
       </select>
       {error && (
-        <p id={selectId ? `${selectId}-error` : undefined} className="text-xs text-red-400" role="alert">
+        <p id={selectId ? `${selectId}-error` : undefined} className="text-xs text-app-red" role="alert">
           {error}
         </p>
       )}

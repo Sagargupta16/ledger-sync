@@ -42,7 +42,7 @@ function ActionButton({ actionLabel, actionHref, onAction, isCompact }: Readonly
   isCompact: boolean
 }>) {
   const sizeClass = getSizeClass(isCompact, 'text-xs', 'text-sm')
-  const baseClass = `inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-400 active:scale-[0.98] transition-colors duration-150 ${sizeClass}`
+  const baseClass = `inline-flex items-center gap-2 px-4 py-2 bg-app-blue text-white rounded-lg font-medium hover:bg-app-blue active:scale-[0.98] transition-colors duration-150 ${sizeClass}`
 
   if (actionHref) {
     return (
@@ -92,7 +92,7 @@ export default function EmptyState({
           <h3 className="text-base font-medium text-white">{title}</h3>
           {description && <p className="text-sm text-text-tertiary max-w-sm">{description}</p>}
           {actionLabel && actionHref && (
-            <a href={actionHref} className="mt-2 text-sm text-blue-400 hover:text-blue-300 transition-colors duration-150">{actionLabel}</a>
+            <a href={actionHref} className="mt-2 text-sm text-app-blue hover:text-app-blue transition-colors duration-150">{actionLabel}</a>
           )}
         </div>
       </div>

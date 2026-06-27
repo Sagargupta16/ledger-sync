@@ -73,7 +73,7 @@ export default function Pagination({
                   key={pageNum}
                   onClick={() => onPageChange(pageNum)}
                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-150 ${currentPage === pageNum
-                      ? 'bg-blue-500/20 text-blue-400'
+                      ? 'bg-app-blue/20 text-app-blue'
                       : 'text-muted-foreground hover:bg-white/[0.06] hover:text-white'
                     }`}
                 >

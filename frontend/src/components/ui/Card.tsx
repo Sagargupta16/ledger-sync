@@ -65,7 +65,7 @@ export const CardHeader = memo(function CardHeader({
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-3">
         {icon && (
-          <div className="p-2.5 bg-blue-500/10 rounded-xl">
+          <div className="p-2.5 bg-app-blue/10 rounded-xl">
             {icon}
           </div>
         )}
@@ -129,7 +129,7 @@ export const StatCard = memo(function StatCard({
           {trend && (
             <p className={cn(
               'text-xs mt-1 font-medium',
-              trend.isPositive ? 'text-green-400' : 'text-red-400'
+              trend.isPositive ? 'text-app-green' : 'text-app-red'
             )}>
               {trend.isPositive ? '\u2191' : '\u2193'} {Math.abs(trend.value)}%
             </p>
