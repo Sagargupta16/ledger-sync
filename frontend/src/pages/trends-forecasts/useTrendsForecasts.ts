@@ -189,7 +189,10 @@ export function useTrendsForecasts() {
     [monthlyTrendChartData],
   )
   const peakSavings = useMemo(
-    () => Math.max(...monthlyTrendChartData.map((d) => d.savings), 0),
+    // Don't floor at 0: an all-deficit user's true peak is the least-negative
+    // month, and a `Peak: ₹0` line at a value no month hit is misleading. Guard
+    // the empty-array spread separately.
+    () => (monthlyTrendChartData.length ? Math.max(...monthlyTrendChartData.map((d) => d.savings)) : 0),
     [monthlyTrendChartData],
   )
 

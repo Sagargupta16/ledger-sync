@@ -16,7 +16,7 @@ import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { LEGEND_DEFAULTS, shouldAnimate } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { getChartColor } from '@/constants/chartColors'
+import { getChartColor, SEMANTIC_COLORS } from '@/constants/chartColors'
 
 interface PieDataItem {
   name: string
@@ -52,6 +52,13 @@ interface StandardPieChartProps {
   readonly paddingAngle?: number
   /** Click handler for pie slices. Receives the clicked item's name. Adds pointer cursor. */
   readonly onSliceClick?: (name: string) => void
+  /**
+   * Cap the number of slices. The smallest slices beyond this count are merged
+   * into a single muted "Other" slice. Defaults to 8 so a many-category pie
+   * stays readable and the 12-color palette never repeats a color on adjacent
+   * wedges. Pass 0 to disable capping.
+   */
+  readonly maxSlices?: number
 }
 
 export default function StandardPieChart({
@@ -67,8 +74,21 @@ export default function StandardPieChart({
   centerValue,
   paddingAngle = 3,
   onSliceClick,
+  maxSlices = 8,
 }: StandardPieChartProps) {
-  const filteredData = data.filter((d) => d.value > 0)
+  const positive = data.filter((d) => d.value > 0)
+  // Cap slice count: keep the largest (maxSlices - 1) and fold the rest into a
+  // single muted "Other" slice, so a 15-30 category pie stays legible and the
+  // 12-color palette never collides on adjacent wedges.
+  const filteredData = (() => {
+    if (maxSlices <= 0 || positive.length <= maxSlices) return positive
+    const sorted = [...positive].sort((a, b) => b.value - a.value)
+    const head = sorted.slice(0, maxSlices - 1)
+    const otherValue = sorted.slice(maxSlices - 1).reduce((s, d) => s + d.value, 0)
+    return otherValue > 0
+      ? [...head, { name: 'Other', value: otherValue, color: SEMANTIC_COLORS.muted }]
+      : head
+  })()
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   if (filteredData.length === 0) {

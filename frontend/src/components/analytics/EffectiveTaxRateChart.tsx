@@ -135,6 +135,13 @@ export default function EffectiveTaxRateChart({
             <XAxis
               {...xAxisDefaults(chartData.length)}
               dataKey="income"
+              // Continuous (numeric) scale so the "You" ReferenceLine/Dot at an
+              // arbitrary income (currentIncome) interpolates between the 101
+              // evenly-spaced points instead of vanishing -- a category scale
+              // only positions reference marks at exact data values.
+              type="number"
+              domain={[0, maxIncome]}
+              interval="preserveStartEnd"
               tickFormatter={(v: number) => formatCurrencyShort(v)}
             />
             <YAxis

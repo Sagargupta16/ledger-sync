@@ -187,10 +187,12 @@ export default function CategoryBreakdown({
                 </div>
 
                 {/* Proportional bar + 12-month sparkline.
-                    Bar answers "how much of total?", sparkline answers
-                    "trending up or down across the last year?". They're
-                    complementary -- bar is glanceable, sparkline adds
-                    direction without taking the user to another page. */}
+                    Bar answers "how much of total?" (and respects the active
+                    date filter), sparkline answers "trending up or down across
+                    the last year?". The sparkline is ALWAYS the trailing 12
+                    months from today regardless of the selected range -- the
+                    title says so, so a filtered amount + full-year trend don't
+                    read as contradicting each other. */}
                 <div className="mt-2 flex items-center gap-3">
                   <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
                     <motion.div
@@ -206,7 +208,8 @@ export default function CategoryBreakdown({
                       variant="compact"
                       data={cat.monthlyHistory}
                       color={cat.color}
-                      ariaLabel={`${cat.name} 12-month trend`}
+                      ariaLabel={`${cat.name} trend over the last 12 months`}
+                      title={`${cat.name} — last 12 months (independent of the selected date range)`}
                     />
                   )}
                 </div>

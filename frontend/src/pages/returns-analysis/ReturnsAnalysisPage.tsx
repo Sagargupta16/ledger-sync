@@ -161,7 +161,7 @@ export default function ReturnsAnalysisPage() {
                   type="monotone" dataKey="pos" name="net"
                   stroke={rawColors.app.green} strokeWidth={2}
                   fill={areaGradientUrl('gain')} fillOpacity={1}
-                  dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.green }}
+                  dot={monthlyComboData.length === 1 ? { r: 3, fill: rawColors.app.green } : false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.green }}
                   isAnimationActive={shouldAnimate(monthlyComboData.length)}
                   animationDuration={600} animationEasing="ease-out"
                   connectNulls
@@ -171,7 +171,7 @@ export default function ReturnsAnalysisPage() {
                   type="monotone" dataKey="neg" name="net"
                   stroke={rawColors.app.red} strokeWidth={2}
                   fill={areaGradientUrl('loss')} fillOpacity={1}
-                  dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.red }}
+                  dot={monthlyComboData.length === 1 ? { r: 3, fill: rawColors.app.red } : false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.red }}
                   isAnimationActive={shouldAnimate(monthlyComboData.length)}
                   animationDuration={600} animationEasing="ease-out"
                   connectNulls
@@ -180,7 +180,7 @@ export default function ReturnsAnalysisPage() {
                 <Line
                   type="monotone" dataKey="cumulative" name="Cumulative"
                   stroke={rawColors.app.blue} strokeWidth={2} strokeDasharray="6 3"
-                  dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
+                  dot={monthlyComboData.length === 1 ? { r: 3, fill: rawColors.app.blue } : false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
                   isAnimationActive={shouldAnimate(monthlyComboData.length)}
                   animationDuration={600}
                 />

@@ -307,7 +307,7 @@ export default function IncomeAnalysisPage() {
                     stroke={rawColors.app.green}
                     fill={areaGradientUrl('incomeTrend')}
                     strokeWidth={2}
-                    dot={false}
+                    dot={monthlyTrendData.length === 1 ? { r: 3, fill: rawColors.app.green } : false}
                     isAnimationActive={shouldAnimate(monthlyTrendData.length)}
                     animationDuration={600}
                     animationEasing="ease-out"
@@ -318,7 +318,7 @@ export default function IncomeAnalysisPage() {
                     stroke={rawColors.app.green}
                     strokeWidth={2}
                     strokeDasharray="6 3"
-                    dot={false}
+                    dot={monthlyTrendData.length === 1 ? { r: 3, fill: rawColors.app.green } : false}
                     name="Income (3m avg)"
                     isAnimationActive={shouldAnimate(monthlyTrendData.length)}
                     animationDuration={600}

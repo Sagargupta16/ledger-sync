@@ -70,36 +70,49 @@ export default function CohortSpendingAnalysis() {
     }))
   }, [expenses])
 
-  // Day-of-month averages (1-31)
+  // Day-of-month averages (1-31). Each day-of-month divides by how many months
+  // in the data ACTUALLY contained that day -- days 29/30/31 don't exist in
+  // every month, so dividing all of them by the same total-month count
+  // understated the late-month bars. We count, per day-of-month, the distinct
+  // YYYY-MM periods whose month length reaches that day.
   const domData = useMemo<BarDatum[]>(() => {
     const totals: Record<number, number> = {}
-    const months = new Set<string>()
+    const monthsByDay: Array<Set<string>> = Array.from({ length: 32 }, () => new Set<string>())
+    const seenMonths = new Set<string>() // YYYY-MM present in the data
     for (const tx of expenses) {
       const d = parseLocalDate(tx.date)
       const day = d.getDate()
       totals[day] = (totals[day] || 0) + Math.abs(tx.amount)
-      months.add(tx.date.substring(0, 7))
+      seenMonths.add(tx.date.substring(0, 7))
     }
-    const monthCount = Math.max(1, months.size)
-    return Array.from({ length: 31 }, (_, i) => ({
-      name: String(i + 1),
-      avg: Math.round((totals[i + 1] || 0) / monthCount),
-    }))
+    // For each seen month, mark which days-of-month it can contain.
+    for (const ym of seenMonths) {
+      const [y, m] = ym.split('-').map(Number)
+      const daysInMonth = new Date(y, m, 0).getDate() // m is 1-indexed here
+      for (let day = 1; day <= daysInMonth; day++) monthsByDay[day].add(ym)
+    }
+    return Array.from({ length: 31 }, (_, i) => {
+      const day = i + 1
+      const occ = Math.max(1, monthsByDay[day].size)
+      return { name: String(day), avg: Math.round((totals[day] || 0) / occ) }
+    })
   }, [expenses])
 
-  // Monthly seasonal averages (Jan-Dec)
+  // Monthly seasonal averages (Jan-Dec). Each month divides by how many times
+  // THAT month occurred (distinct years it appears in), not the global
+  // distinct-year count -- otherwise a month present in fewer years than the
+  // data spans was understated (e.g. Dec-only + Jan-only data halved both).
   const monthlyData = useMemo<BarDatum[]>(() => {
     const totals = new Array(12).fill(0)
-    const yearSet = new Set<number>()
+    const yearsByMonth: Array<Set<number>> = Array.from({ length: 12 }, () => new Set<number>())
     for (const tx of expenses) {
       const d = parseLocalDate(tx.date)
       totals[d.getMonth()] += Math.abs(tx.amount)
-      yearSet.add(d.getFullYear())
+      yearsByMonth[d.getMonth()].add(d.getFullYear())
     }
-    const yearCount = Math.max(1, yearSet.size)
     return MONTH_NAMES.map((name, i) => ({
       name,
-      avg: Math.round(totals[i] / yearCount),
+      avg: Math.round(totals[i] / Math.max(1, yearsByMonth[i].size)),
     }))
   }, [expenses])
 

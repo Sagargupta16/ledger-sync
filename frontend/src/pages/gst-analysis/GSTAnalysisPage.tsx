@@ -99,6 +99,10 @@ export default function GSTAnalysisPage() {
   )
 
   const hasData = gstData && gstData.totalSpending > 0
+  // The GST-by-slab pie keys on gstAmount, so exempt spend (0% slab: rent, fuel,
+  // insurance, transfers) would add an empty, dead-legend slice. Keep 0% rows in
+  // the table (their spending is meaningful) but drop them from the pie/legend.
+  const gstSlabsWithTax = (gstData?.slabBreakdown ?? []).filter((s) => s.gstAmount > 0)
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -176,7 +180,7 @@ export default function GSTAnalysisPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={gstData.slabBreakdown}
+                      data={gstSlabsWithTax}
                       dataKey="gstAmount"
                       nameKey="slab"
                       cx="50%"
@@ -184,9 +188,9 @@ export default function GSTAnalysisPage() {
                       outerRadius={90}
                       innerRadius={50}
                       paddingAngle={2}
-                      isAnimationActive={shouldAnimate(gstData.slabBreakdown.length)}
+                      isAnimationActive={shouldAnimate(gstSlabsWithTax.length)}
                     >
-                      {gstData.slabBreakdown.map((entry) => (
+                      {gstSlabsWithTax.map((entry) => (
                         <Cell key={entry.slab} fill={SLAB_COLORS[entry.slab] ?? rawColors.app.blue} />
                       ))}
                     </Pie>
@@ -199,7 +203,7 @@ export default function GSTAnalysisPage() {
                 </ResponsiveContainer>
               </div>
               <div className="flex flex-wrap gap-3 mt-2 justify-center">
-                {gstData.slabBreakdown.map((s) => (
+                {gstSlabsWithTax.map((s) => (
                   <div key={s.slab} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <div
                       className="w-2.5 h-2.5 rounded-full"

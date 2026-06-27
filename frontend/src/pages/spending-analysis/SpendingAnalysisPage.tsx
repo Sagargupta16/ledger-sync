@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank, Activity } from 'lucide-react' // Activity used for Monthly Avg card
 import MetricCard from '@/components/shared/MetricCard'
@@ -35,7 +34,6 @@ import { BudgetRuleCard } from './components/BudgetRuleCard'
 import { useSpendingAnalysis } from './useSpendingAnalysis'
 
 export default function SpendingAnalysisPage() {
-  const navigate = useNavigate()
   const dims = useChartDimensions()
   const {
     categoryFilter, clearCategoryFilter,
@@ -121,12 +119,6 @@ export default function SpendingAnalysisPage() {
                         isAnimationActive={shouldAnimate(spendingChartData.length)}
                         animationDuration={600}
                         animationEasing="ease-out"
-                        onClick={(data: { name?: string }) => {
-                          if (data?.name && data.name !== 'Savings') {
-                            navigate(`/transactions?type=Expense&spending_type=${encodeURIComponent(data.name)}`)
-                          }
-                        }}
-                        style={{ cursor: 'pointer' }}
                       >
                         {spendingChartData.map((entry) => (
                           <Cell key={`cell-${entry.name}`} fill={entry.color} />

@@ -17,7 +17,7 @@ import {
 } from 'recharts'
 import { rawColors } from '@/constants/colors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatDate } from '@/lib/formatters'
 import { formatMonthKey } from '@/lib/dateUtils'
 import {
   chartTooltipProps,
@@ -209,7 +209,7 @@ export default function TrendsForecastsPage() {
                         stroke={color}
                         fill={areaGradientUrl(id)}
                         strokeWidth={2}
-                        dot={false}
+                        dot={monthlyTrendWithAvg.length === 1 ? { r: 3, fill: color } : false}
                         activeDot={{ ...ACTIVE_DOT, fill: color }}
                         isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)}
                         animationDuration={600}
@@ -221,7 +221,7 @@ export default function TrendsForecastsPage() {
                         stroke={color}
                         strokeWidth={2}
                         strokeDasharray="6 3"
-                        dot={false}
+                        dot={monthlyTrendWithAvg.length === 1 ? { r: 3, fill: color } : false}
                         activeDot={{ ...ACTIVE_DOT, fill: color }}
                         name={`${label} (3m avg)`}
                         isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)}
@@ -284,7 +284,7 @@ export default function TrendsForecastsPage() {
                 <Tooltip
                   {...chartTooltipProps}
                   labelFormatter={(label) =>
-                    new Date(label).toLocaleDateString('en-US', {
+                    formatDate(label, {
                       month: 'long',
                       day: 'numeric',
                       year: 'numeric',
@@ -315,7 +315,7 @@ export default function TrendsForecastsPage() {
                   stroke={rawColors.app.purple}
                   fill={areaGradientUrl('savingsRate')}
                   strokeWidth={2}
-                  dot={false}
+                  dot={dailySavingsData.length === 1 ? { r: 3, fill: rawColors.app.purple } : false}
                   isAnimationActive={shouldAnimate(dailySavingsData.length)}
                   animationDuration={600}
                   animationEasing="ease-out"
