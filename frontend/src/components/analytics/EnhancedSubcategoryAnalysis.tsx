@@ -157,9 +157,10 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
           <h3 className="text-xl font-semibold text-white">Enhanced Subcategory Analysis</h3>
           <button
             onClick={handleExport}
-            className="p-2 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-foreground transition-colors"
+            className="p-2.5 min-h-11 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-foreground transition-colors"
             type="button"
             title="Export chart"
+            aria-label="Export chart as CSV"
           >
             <Download className="w-4 h-4" />
           </button>
@@ -173,6 +174,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="px-4 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-app-purple/50 min-w-50"
+              aria-label="Category to analyze"
             >
               {categories.map((category) => (
                 <option key={category} value={category} className="bg-surface-dropdown text-foreground">
@@ -199,6 +201,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
               value={cumulative ? 'cumulative' : 'regular'}
               onChange={(e) => setCumulative(e.target.value === 'cumulative')}
               className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
+              aria-label="Cumulative or regular totals"
             >
               <option value="cumulative" className="bg-surface-dropdown text-foreground">Cumulative</option>
               <option value="regular" className="bg-surface-dropdown text-foreground">Regular</option>
@@ -215,13 +218,15 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
         </div>
 
         {/* Chart */}
-        <TimeSeriesLineChart
-          chartData={chartData}
-          seriesKeys={subcategories}
-          colors={[...COLORS]}
-          legendFormatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
-          emptyMessage={`No data available for ${selectedCategory}`}
-        />
+        <div role="img" aria-label={`Line chart of subcategory spending over time within ${selectedCategory}`}>
+          <TimeSeriesLineChart
+            chartData={chartData}
+            seriesKeys={subcategories}
+            colors={[...COLORS]}
+            legendFormatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
+            emptyMessage={`No data available for ${selectedCategory}`}
+          />
+        </div>
       </div>
     </motion.div>
   )

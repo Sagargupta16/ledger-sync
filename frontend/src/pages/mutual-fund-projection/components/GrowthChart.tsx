@@ -9,12 +9,12 @@ import {
   areaGradient,
   areaGradientUrl,
   chartTooltipProps,
+  currencyTooltipFormatter,
   shouldAnimate,
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
-import { formatCurrency } from '@/lib/formatters'
 
 import type { ChartDataPoint } from '../types'
 
@@ -50,12 +50,17 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
             Blue: Principal Invested | Green: Portfolio Value (with gains)
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div
+          className="flex gap-2 flex-wrap"
+          role="group"
+          aria-label="Projection period presets"
+        >
           {PRESETS.map((preset) => (
             <button
               key={preset.years}
               onClick={() => onProjectionYearsChange(preset.years)}
-              className={`px-3 py-1 rounded-full border-2 font-semibold text-xs transition ${
+              aria-pressed={projectionYears === preset.years}
+              className={`px-3 py-2.5 rounded-full border-2 font-semibold text-xs transition ${
                 projectionYears === preset.years
                   ? 'border-primary bg-primary/20 text-primary'
                   : 'border-border bg-transparent text-muted-foreground hover:border-primary/50'
@@ -73,7 +78,10 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
             message="No SIP transactions found. Transfer data to a mutual fund account to see projections."
           />
         ) : (
-          <ChartContainer height={384}>
+          <ChartContainer
+            height={384}
+            ariaLabel="Area chart projecting principal invested versus portfolio value over the selected number of years."
+          >
             <AreaChart data={chartData}>
               <defs>
                 {areaGradient('invested', rawColors.app.blue, 0.8, 0.1)}
@@ -86,12 +94,7 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
                 interval="preserveStartEnd"
               />
               <YAxis {...yAxisDefaults()} />
-              <Tooltip
-                {...chartTooltipProps}
-                formatter={(value) =>
-                  typeof value === 'number' ? formatCurrency(value) : ''
-                }
-              />
+              <Tooltip {...chartTooltipProps} formatter={currencyTooltipFormatter} />
               <Legend {...LEGEND_DEFAULTS} />
               <Area
                 type="monotone"

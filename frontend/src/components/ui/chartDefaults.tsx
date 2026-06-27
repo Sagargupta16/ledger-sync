@@ -133,18 +133,21 @@ export const ACTIVE_DOT = {
  *
  * - `peak`  — highest value marker (subtle dashed)
  * - `avg`   — average / mean line (subtle dashed)
- * - `target`— a goal/budget threshold (slightly stronger so it reads as a line to clear)
+ * - `target`— a neutral budget/threshold line (stronger so it reads as a line to clear)
+ * - `goal`  — a positive savings/goal line; rendered green so it carries the
+ *             same "this is good to be above" semantic as the income palette
  * - `zero`  — break-even baseline at y=0 (solid-ish, strong)
  */
-type ReferenceLineVariant = 'peak' | 'avg' | 'target' | 'zero'
+type ReferenceLineVariant = 'peak' | 'avg' | 'target' | 'goal' | 'zero'
 
 const REFERENCE_LINE_VARIANTS: Record<
   ReferenceLineVariant,
-  { stroke: string; strokeDasharray?: string }
+  { stroke: string; strokeDasharray?: string; labelFill?: string }
 > = {
   peak: { stroke: CHART_SURFACE.referenceLine, strokeDasharray: '4 4' },
   avg: { stroke: CHART_SURFACE.referenceLine, strokeDasharray: '5 5' },
   target: { stroke: CHART_SURFACE.referenceLineStrong, strokeDasharray: '6 3' },
+  goal: { stroke: rawColors.app.green, strokeDasharray: '6 3', labelFill: rawColors.app.green },
   zero: { stroke: CHART_SURFACE.referenceLineStrong },
 }
 
@@ -178,7 +181,7 @@ export function referenceLine({ y, x, label, variant = 'peak' }: ReferenceLineOp
       strokeDasharray={style.strokeDasharray}
       label={
         label
-          ? { value: label, position: 'insideTopRight', fill: CHART_TEXT.subtle, fontSize: 10 }
+          ? { value: label, position: 'insideTopRight', fill: style.labelFill ?? CHART_TEXT.subtle, fontSize: 10 }
           : undefined
       }
     />

@@ -4,6 +4,7 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 import { DollarSign } from 'lucide-react'
+import EmptyState from '@/components/shared/EmptyState'
 import type { LocalPrefs, IncomeClassificationType } from '../types'
 import { INCOME_CLASSIFICATION_TYPES, INCOME_CLASSIFICATION_KEY_MAP } from '../types'
 import { Section } from '../sectionPrimitives'
@@ -60,9 +61,14 @@ export default function IncomeClassificationSection({
       description="Classify income subcategories by type for tax and analytics"
     >
       {Object.keys(allIncomeCategories).length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No income categories found. Import some transactions first.
-        </p>
+        <EmptyState
+          variant="compact"
+          icon={EmptyState.icons.upload}
+          title="No income categories yet"
+          description="Upload your bank statements to classify income for tax and analytics."
+          actionLabel="Upload transactions"
+          actionHref="/upload"
+        />
       ) : (
         <div className="space-y-4">
           {Object.entries(allIncomeCategories).map(([parentCat, subs]) => (
@@ -82,6 +88,7 @@ export default function IncomeClassificationSection({
                     >
                       <span className="text-sm text-white flex-1 min-w-0 truncate">{sub}</span>
                       <select
+                        aria-label={`Income classification for ${sub}`}
                         value={currentType}
                         onChange={(e) =>
                           handleClassify(

@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 
+import { Spinner } from '@/components/ui'
 import { useUpload } from '@/hooks/api/useUpload'
 import { uploadService } from '@/services/api/upload'
 import { parseFile, FileParseError } from '@/lib/fileParser'
@@ -245,7 +246,10 @@ export default function UploadSyncPage() {
               {/* Right: Upload Zone */}
               <div className="w-full lg:w-96 shrink-0">
                 <div
-                  {...getRootProps()}
+                  {...getRootProps({
+                    'aria-label': 'Upload Excel or CSV file. Drop a file here or activate to browse.',
+                    'aria-busy': isBusy,
+                  })}
                   className={cn(
                     'relative border-2 border-dashed rounded-2xl p-4 md:p-8 text-center cursor-pointer transition-colors duration-300',
                     'bg-black/20 backdrop-blur-sm',
@@ -259,17 +263,8 @@ export default function UploadSyncPage() {
 
                   {isBusy ? (
                     <div className="flex flex-col items-center gap-4">
-                      <div className="relative">
-                        <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
-                          <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">
-                          {PHASE_LABELS[phase]}
-                        </p>
-                        <p className="font-mono text-sm text-muted-foreground">{selectedFile?.name}</p>
-                      </div>
+                      <Spinner size="lg" label={PHASE_LABELS[phase]} />
+                      <p className="font-mono text-sm text-muted-foreground">{selectedFile?.name}</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-4">
@@ -307,12 +302,13 @@ export default function UploadSyncPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="p-5 rounded-xl bg-app-yellow/10 border border-app-yellow/30 flex items-center gap-4 glow-error"
+            role="alert"
+            className="p-5 rounded-xl bg-app-yellow/10 border border-app-yellow/30 flex flex-wrap items-center gap-4"
           >
             <div className="p-3 rounded-full bg-app-yellow/20">
-              <AlertTriangle className="w-6 h-6 text-app-yellow" />
+              <AlertTriangle className="w-6 h-6 text-app-yellow" aria-hidden="true" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-[12rem]">
               <h3 className="font-semibold text-app-yellow">File Already Uploaded</h3>
               <p className="text-sm text-muted-foreground">
                 <span className="font-mono text-sm text-white">{conflictError.parsed.fileName}</span> was imported before. Re-upload to sync changes.
@@ -321,9 +317,9 @@ export default function UploadSyncPage() {
             <button
               onClick={handleForceReupload}
               disabled={isBusy}
-              className="flex items-center gap-2 px-4 py-2 bg-app-yellow text-black rounded-lg hover:bg-app-yellow transition-colors font-medium disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] bg-app-yellow text-black rounded-lg hover:bg-app-yellow/90 transition-colors font-medium disabled:opacity-50"
             >
-              <RefreshCw className={cn('w-4 h-4', isBusy && 'animate-spin')} />
+              <RefreshCw className={cn('w-4 h-4', isBusy && 'animate-spin')} aria-hidden="true" />
               Force Reupload
             </button>
           </motion.div>

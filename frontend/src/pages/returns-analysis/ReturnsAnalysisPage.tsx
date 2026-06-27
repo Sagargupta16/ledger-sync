@@ -6,7 +6,7 @@ import {
   BarChart, Bar, Cell, Brush,
 } from 'recharts'
 
-import { rawColors } from '@/constants/colors'
+import { rawColors, hexToRgba } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import {
   PageHeader, ChartContainer,
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui'
 import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE } from '@/components/ui/ChartTooltip'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 
@@ -83,6 +84,15 @@ export default function ReturnsAnalysisPage() {
     monthlyComboData, monthlyReturns,
   } = useReturnsAnalysis()
 
+  // Account names on the Holdings y-axis need room to read, but a fixed 140px
+  // width eats the plot area on phones -- shrink it on mobile.
+  const { breakpoint } = useChartDimensions()
+  const holdingsAxisWidth = breakpoint === 'mobile' ? 84 : 140
+
+  // Hoisted out of the heatmap render loop -- the divisor is constant across
+  // tiles, so recomputing the max per tile was wasted work.
+  const heatmapMaxAbs = Math.max(...monthlyReturns.map((r) => Math.abs(r.net)), 1)
+
   return (
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -147,7 +157,10 @@ export default function ReturnsAnalysisPage() {
           {monthlyComboData.length === 0 ? (
             <ChartEmptyState height={360} />
           ) : (
-            <ChartContainer height={360}>
+            <ChartContainer
+              height={360}
+              ariaLabel="Combo chart of monthly investment net profit or loss with a cumulative growth line."
+            >
               <AreaChart
                 data={monthlyComboData.map(d => ({
                   ...d,
@@ -218,24 +231,53 @@ export default function ReturnsAnalysisPage() {
             transition={{ delay: 0.2 }}
             className="glass rounded-2xl p-6"
           >
-            <p className="text-sm font-medium text-white mb-4">Monthly Performance</p>
+            <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+              <p className="text-sm font-medium text-white">Monthly Performance</p>
+              {/* Colour-scale legend: a profit/loss key so the tile shading reads
+                  beyond colour alone, plus a low-to-high intensity ramp. */}
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-3 h-3 rounded-sm"
+                    style={{ backgroundColor: hexToRgba(rawColors.app.green, 0.45) }}
+                  />
+                  Profit
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-3 h-3 rounded-sm"
+                    style={{ backgroundColor: hexToRgba(rawColors.app.red, 0.45) }}
+                  />
+                  Loss
+                </span>
+                <span className="hidden sm:inline">Low</span>
+                <span
+                  className="hidden sm:block w-16 h-3 rounded-sm"
+                  style={{
+                    background: `linear-gradient(to right, ${hexToRgba(rawColors.app.green, 0.12)}, ${hexToRgba(rawColors.app.green, 0.58)})`,
+                  }}
+                />
+                <span className="hidden sm:inline">High</span>
+              </div>
+            </div>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {monthlyReturns.map((m) => {
-                const maxAbs = Math.max(...monthlyReturns.map(r => Math.abs(r.net)), 1)
-                const intensity = Math.min(Math.abs(m.net) / maxAbs, 1)
-                const bg = m.net >= 0
-                  ? `rgba(48, 209, 88, ${intensity * 0.5 + 0.08})`
-                  : `rgba(255, 87, 87, ${intensity * 0.5 + 0.08})`
+                const intensity = Math.min(Math.abs(m.net) / heatmapMaxAbs, 1)
+                const token = m.net >= 0 ? rawColors.app.green : rawColors.app.red
+                const bg = hexToRgba(token, intensity * 0.5 + 0.08)
+                const sign = m.net >= 0 ? '+' : ''
                 return (
                   <div
                     key={m.month}
+                    role="img"
+                    aria-label={`${m.month}: ${m.net >= 0 ? 'profit' : 'loss'} of ${formatCurrency(Math.abs(m.net))}`}
                     className="flex-1 min-w-[56px] rounded-lg p-2.5 text-center transition-colors hover:ring-1 hover:ring-white/10"
                     style={{ backgroundColor: bg }}
                     title={`${m.month}: ${formatCurrency(m.net)}`}
                   >
                     <p className="text-[10px] text-muted-foreground mb-1">{m.month}</p>
                     <p className={`text-xs font-bold ${m.net >= 0 ? 'text-app-green' : 'text-app-red'}`}>
-                      {m.net >= 0 ? '+' : ''}{formatCurrencyShort(m.net)}
+                      {sign}{formatCurrencyShort(m.net)}
                     </p>
                   </div>
                 )
@@ -349,7 +391,10 @@ export default function ReturnsAnalysisPage() {
                 </p>
               </div>
             </div>
-            <ChartContainer height={Math.max(280, investmentAccounts.length * 36)}>
+            <ChartContainer
+              height={Math.max(280, investmentAccounts.length * 36)}
+              ariaLabel="Horizontal bar chart of investment accounts ranked by current balance."
+            >
               <BarChart
                 data={investmentAccounts.slice(0, 12).map((acc) => ({
                   name: acc.name,
@@ -368,7 +413,7 @@ export default function ReturnsAnalysisPage() {
                 <YAxis
                   type="category"
                   dataKey="name"
-                  width={140}
+                  width={holdingsAxisWidth}
                   tick={{ fill: rawColors.text.tertiary, fontSize: 11 }}
                   tickLine={false}
                   axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}

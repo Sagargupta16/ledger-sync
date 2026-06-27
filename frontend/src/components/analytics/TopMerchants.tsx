@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/formatters'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 import { CHART_COLORS } from '@/constants/chartColors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 
 interface MerchantData {
   name: string
@@ -113,12 +114,7 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
   }))
 
   if (isLoading) {
-    return (
-      <div className="glass rounded-2xl border border-border p-6 animate-pulse">
-        <div className="h-8 bg-muted rounded w-1/3 mb-4" />
-        <div className="h-64 bg-muted rounded" />
-      </div>
-    )
+    return <ChartSkeleton height="h-80" />
   }
 
   return (
@@ -140,7 +136,8 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
         <div className="flex gap-2">
           <button
             onClick={() => setViewMode('amount')}
-            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+            aria-pressed={viewMode === 'amount'}
+            className={`px-3 py-2.5 min-h-11 rounded-lg text-sm transition-colors ${
               viewMode === 'amount'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background/50 hover:bg-background/70'
@@ -150,7 +147,8 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
           </button>
           <button
             onClick={() => setViewMode('frequency')}
-            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+            aria-pressed={viewMode === 'frequency'}
+            className={`px-3 py-2.5 min-h-11 rounded-lg text-sm transition-colors ${
               viewMode === 'frequency'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background/50 hover:bg-background/70'
@@ -166,16 +164,21 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pie Chart */}
-          <StandardPieChart
-            data={pieData}
-            height={256}
-            innerRadius={60}
-            outerRadius={80}
-            showLegend={false}
-            tooltipFormatter={(value) =>
-              viewMode === 'amount' ? formatCurrency(value) : `${value} visits`
-            }
-          />
+          <div
+            role="img"
+            aria-label={`Donut chart of your top merchants by ${viewMode === 'amount' ? 'total amount spent' : 'visit frequency'}`}
+          >
+            <StandardPieChart
+              data={pieData}
+              height={256}
+              innerRadius={60}
+              outerRadius={80}
+              showLegend={false}
+              tooltipFormatter={(value) =>
+                viewMode === 'amount' ? formatCurrency(value) : `${value} visits`
+              }
+            />
+          </div>
 
           {/* Merchant List */}
           <div className="space-y-2 max-h-64 overflow-y-auto">

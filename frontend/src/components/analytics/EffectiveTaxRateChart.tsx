@@ -125,7 +125,7 @@ export default function EffectiveTaxRateChart({
         {fyYear === 0 ? (
           <ChartEmptyState height={350} message="Select a financial year to view effective tax rates" />
         ) : (
-        <ChartContainer>
+        <ChartContainer ariaLabel="Effective tax rate by income for the new and old regimes, with regime-crossover and your-income markers">
           <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <defs>
               {areaGradient('newRegime', rawColors.app.orange, 0.25)}

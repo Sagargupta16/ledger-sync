@@ -35,15 +35,10 @@ export default function TaxableIncomeTable({
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.7 }}
-      className="glass rounded-2xl border border-border p-6"
-    >
-      <h3 className="text-lg font-semibold text-white mb-6">
+    <div>
+      <p className="text-sm font-medium text-muted-foreground mb-4">
         Salaried Taxable Income for {selectedFY}
-      </h3>
+      </p>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -60,27 +55,29 @@ export default function TaxableIncomeTable({
                 ([group, data]) =>
                   data.transactions.length > 0 && (
                     <React.Fragment key={group}>
-                      <tr
-                        className="border-b border-border bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
-                        onClick={() => toggleGroup(group)}
-                      >
-                        <td colSpan={2} className="py-3 px-4 text-left font-bold text-white">
-                          <div className="flex items-center gap-2">
+                      <tr className="border-b border-border bg-white/5 hover:bg-white/10 transition-colors">
+                        <td className="py-3 px-4 text-left font-bold text-white">
+                          <button
+                            type="button"
+                            onClick={() => toggleGroup(group)}
+                            aria-expanded={expandedGroups.has(group)}
+                            className="flex items-center gap-2 w-full text-left min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40 rounded"
+                          >
                             {expandedGroups.has(group) ? (
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden />
                             ) : (
-                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" aria-hidden />
                             )}
                             {group}
                             <span className="text-xs font-normal text-muted-foreground">
                               ({data.transactions.length})
                             </span>
-                          </div>
+                          </button>
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-white">
                           {formatCurrency(data.total)}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-white">
+                        <td colSpan={2} className="py-3 px-4 text-right font-bold text-white">
                           {netTaxableIncome > 0
                             ? formatPercent((data.total / netTaxableIncome) * 100)
                             : '0%'}
@@ -123,6 +120,6 @@ export default function TaxableIncomeTable({
           </tbody>
         </table>
       </div>
-    </motion.div>
+    </div>
   )
 }

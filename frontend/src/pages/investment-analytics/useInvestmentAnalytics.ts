@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -138,6 +138,13 @@ export function useInvestmentAnalytics() {
       .sort((a, b) => b.value - a.value)
   }, [filteredInvestmentTotals, totalInvestmentValue])
 
+  // Total accounts with a positive balance, before the top-8 cap below. Lets the
+  // table surface a "+N more accounts" note when some are hidden.
+  const totalInvestmentAccountCount = useMemo(
+    () => Object.values(filteredInvestmentTotals.byAccount).filter((value) => value > 0).length,
+    [filteredInvestmentTotals],
+  )
+
   const portfolioData = useMemo(() => {
     return Object.entries(filteredInvestmentTotals.byAccount)
       .filter(([, value]) => value > 0)
@@ -265,36 +272,6 @@ export function useInvestmentAnalytics() {
     })
   }, [dailyGrowthData, dateRange])
 
-  const [investSortKey, setInvestSortKey] = useState<string | null>(null)
-  const [investSortDir, setInvestSortDir] = useState<'asc' | 'desc'>('desc')
-
-  const toggleInvestSort = (key: string) => {
-    if (investSortKey === key) {
-      setInvestSortDir(investSortDir === 'asc' ? 'desc' : 'asc')
-    } else {
-      setInvestSortKey(key)
-      setInvestSortDir('desc')
-    }
-  }
-
-  const sortedPortfolioData = useMemo(() => {
-    if (!investSortKey) return portfolioData
-    return [...portfolioData].sort((a, b) => {
-      let av: number, bv: number
-      if (investSortKey === 'value') {
-        av = a.value
-        bv = b.value
-      } else if (investSortKey === 'percentage') {
-        av = Number.parseFloat(a.percentage)
-        bv = Number.parseFloat(b.percentage)
-      } else {
-        return 0
-      }
-      const cmp = av - bv
-      return investSortDir === 'asc' ? cmp : -cmp
-    })
-  }, [portfolioData, investSortKey, investSortDir])
-
   return {
     isLoading,
     investmentAccounts,
@@ -307,11 +284,8 @@ export function useInvestmentAnalytics() {
     targetProgress,
     investmentTypeBreakdown,
     portfolioData,
-    sortedPortfolioData,
+    totalInvestmentAccountCount,
     filteredGrowthData,
     timeFilterProps,
-    investSortKey,
-    investSortDir,
-    toggleInvestSort,
   }
 }

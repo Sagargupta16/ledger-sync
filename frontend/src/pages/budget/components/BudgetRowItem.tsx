@@ -1,7 +1,10 @@
+import { useState } from 'react'
+
 import { motion } from 'framer-motion'
 import { AlertTriangle, CheckCircle, Edit2, Trash2 } from 'lucide-react'
 
 import Sparkline from '@/components/shared/Sparkline'
+import { ConfirmDialog } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import type { CategoryMomentum } from '@/lib/momentumCalculator'
@@ -15,6 +18,9 @@ interface BudgetRowItemProps {
   alertThreshold: number
   isFixed: boolean
   momentum: CategoryMomentum | undefined
+  /** Current day-of-month (1-based) and total days, for the month-end pace projection. */
+  todayDayOfMonth: number
+  daysInMonth: number
   onEdit: () => void
   onCancelEdit: () => void
   onSave: (limit: number, period: BudgetPeriod) => void
@@ -34,10 +40,38 @@ const MOMENTUM_CLASS = {
 }
 
 export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
-  const { row, isEditing, alertThreshold, isFixed, momentum, onEdit, onCancelEdit, onSave, onDelete } =
-    props
+  const {
+    row,
+    isEditing,
+    alertThreshold,
+    isFixed,
+    momentum,
+    todayDayOfMonth,
+    daysInMonth,
+    onEdit,
+    onCancelEdit,
+    onSave,
+    onDelete,
+  } = props
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const cfg = STATUS_CONFIG[row.status]
   const key = row.subcategory ? `${row.category}::${row.subcategory}` : row.category
+
+  // Month-end pace projection (monthly budgets only). Extrapolate the current
+  // month-to-date spend across the full month: projected = spent / dayN * days.
+  // If that overshoots the limit, estimate the day the budget runs out.
+  const projectedTotal =
+    row.period === 'monthly' && todayDayOfMonth > 0 && row.spent > 0
+      ? (row.spent / todayDayOfMonth) * daysInMonth
+      : null
+  const projectedOver = projectedTotal !== null && projectedTotal > row.limit
+  const overByDay = (() => {
+    if (!projectedOver || row.spent <= 0) return null
+    const day = Math.ceil((row.limit / row.spent) * todayDayOfMonth)
+    // Once already over today, the crossover day is in the past -- don't claim a
+    // future "over by Day N"; the red projected-total already says it's over.
+    return day >= todayDayOfMonth && day <= daysInMonth ? day : null
+  })()
 
   return (
     <motion.div
@@ -114,14 +148,14 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
               </span>
               <button
                 onClick={onEdit}
+                aria-label={`Edit budget for ${row.subcategory || row.category}`}
                 className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
               >
                 <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
               </button>
               <button
-                onClick={() => {
-                  if (globalThis.confirm('Delete this budget? This cannot be undone.')) onDelete()
-                }}
+                onClick={() => setConfirmOpen(true)}
+                aria-label={`Delete budget for ${row.subcategory || row.category}`}
                 className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-app-red"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -180,6 +214,24 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
         <span>{formatCurrency(row.spent)} spent</span>
         <span>of {formatCurrency(row.limit)}</span>
       </div>
+
+      {projectedTotal !== null && (
+        <p className={`mt-1.5 text-xs ${projectedOver ? 'text-app-red' : 'text-text-tertiary'}`}>
+          On pace for {formatCurrency(Math.round(projectedTotal))} by month-end
+          {overByDay !== null && (
+            <span> -- ~over by Day {overByDay}</span>
+          )}
+        </p>
+      )}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Delete budget?"
+        description={`This removes the budget for ${row.subcategory || row.category}. This cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={onDelete}
+      />
     </motion.div>
   )
 }

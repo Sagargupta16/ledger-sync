@@ -147,12 +147,3 @@ export function computeNetInvestmentPL(transactions: TransactionLike[]): number 
 
   return investmentProfit + dividendIncome + interestIncome - (investmentLoss + brokerFees)
 }
-
-export function ariaSort(
-  activeKey: string | null,
-  column: string,
-  dir: 'asc' | 'desc',
-): 'ascending' | 'descending' | 'none' {
-  if (activeKey !== column) return 'none'
-  return dir === 'asc' ? 'ascending' : 'descending'
-}

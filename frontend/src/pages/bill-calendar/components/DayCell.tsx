@@ -34,10 +34,18 @@ export default function DayCell({
     return 'text-text-quaternary'
   })()
 
+  const billLabel = (() => {
+    if (!hasBills) return 'no bills'
+    return `${bills.length} bill${bills.length === 1 ? '' : 's'}`
+  })()
+  const ariaLabel = `Day ${day}, ${billLabel}${isToday ? ', today' : ''}${isSelected ? ', selected' : ''}`
+
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label={ariaLabel}
+      aria-pressed={isSelected}
       className={`
         relative flex flex-col items-center justify-start p-1.5 sm:p-2 rounded-xl min-h-[60px] sm:min-h-[72px]
         transition-all duration-200 cursor-pointer group
@@ -49,7 +57,7 @@ export default function DayCell({
       <span className={`text-sm font-medium leading-none ${dayNumberClass}`}>{day}</span>
 
       {hasBills && (
-        <div className="flex items-center gap-0.5 mt-1.5 flex-wrap justify-center">
+        <div className="flex items-center gap-0.5 mt-1.5 flex-wrap justify-center" aria-hidden="true">
           {bills.slice(0, maxDotsShown).map((bill) => (
             <div
               key={bill.key}

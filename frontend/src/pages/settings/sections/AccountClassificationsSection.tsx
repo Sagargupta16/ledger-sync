@@ -18,6 +18,7 @@ interface Props {
   onDragStart: (item: string) => void
   onDragEnd: () => void
   onDropOnCategory: (category: string) => void
+  onAssignAccount: (account: string, category: string) => void
 }
 
 export default function AccountClassificationsSection({
@@ -30,6 +31,7 @@ export default function AccountClassificationsSection({
   onDragStart,
   onDragEnd,
   onDropOnCategory,
+  onAssignAccount,
 }: Readonly<Props>) {
   const handleDragOver = (e: React.DragEvent) => e.preventDefault()
 
@@ -43,27 +45,48 @@ export default function AccountClassificationsSection({
       {/* Unassigned accounts highlight */}
       {unclassifiedAccounts.length > 0 && (
         <div className="bg-app-yellow/10 border border-app-yellow/30 rounded-xl p-4">
-          <p className="text-sm font-medium text-app-yellow mb-2">
+          <p className="text-sm font-medium text-app-yellow mb-1">
             {unclassifiedAccounts.length}{' '}Unassigned Account{unclassifiedAccounts.length !== 1 && 's'}
           </p>
-          <div className="flex flex-wrap gap-2">
+          <p className="text-xs text-muted-foreground mb-3">
+            Drag a chip onto a category below, or pick a category from its dropdown.
+          </p>
+          <div className="flex flex-col gap-2">
             {unclassifiedAccounts.map((name) => (
-              <motion.div
-                key={name}
-                draggable
-                onDragStart={() => onDragStart(name)}
-                onDragEnd={onDragEnd}
-                whileHover={{ scale: 1.05 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-border rounded-full cursor-move hover:bg-white/20 transition-colors"
-              >
-                <GripVertical className="w-3 h-3 text-white/40" />
-                <span className="text-sm text-white">{name}</span>
-                {!balancesLoading && (
-                  <span className="text-xs text-muted-foreground font-mono ml-1">
-                    {formatCurrency(Math.abs(balanceData?.accounts[name]?.balance || 0))}
-                  </span>
-                )}
-              </motion.div>
+              <div key={name} className="flex items-center gap-2">
+                <motion.div
+                  draggable
+                  onDragStart={() => onDragStart(name)}
+                  onDragEnd={onDragEnd}
+                  whileHover={{ scale: 1.03 }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-border rounded-full cursor-move hover:bg-white/20 transition-colors min-w-0 flex-1"
+                >
+                  <GripVertical className="w-3 h-3 text-white/40 shrink-0" />
+                  <span className="text-sm text-white truncate">{name}</span>
+                  {!balancesLoading && (
+                    <span className="text-xs text-muted-foreground font-mono ml-auto pl-1 shrink-0">
+                      {formatCurrency(Math.abs(balanceData?.accounts[name]?.balance || 0))}
+                    </span>
+                  )}
+                </motion.div>
+                <select
+                  aria-label={`Classify ${name}`}
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) onAssignAccount(name, e.target.value)
+                  }}
+                  className="shrink-0 w-36 px-2 py-2 min-h-[44px] bg-white/5 border border-border rounded-lg text-white text-xs focus:border-primary focus:outline-none"
+                >
+                  <option value="" className="bg-background">
+                    Classify as...
+                  </option>
+                  {ACCOUNT_TYPES.map((category) => (
+                    <option key={category} value={category} className="bg-background">
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
             ))}
           </div>
         </div>

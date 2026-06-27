@@ -28,13 +28,15 @@ import {
   areaGradient,
   areaGradientUrl,
   chartTooltipProps,
+  currencyTooltipFormatter,
   shouldAnimate,
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
+import { CHART_SURFACE, CHART_TEXT } from '@/constants/chartColors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrencyShort } from '@/lib/formatters'
 
 import { STATUS_CONFIG } from '../budgetUtils'
 import type { BudgetRow } from '../types'
@@ -61,7 +63,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
           {chartData.length === 0 ? (
             <ChartEmptyState height={256} />
           ) : (
-            <ChartContainer>
+            <ChartContainer ariaLabel="Bar chart comparing each category's budget against actual spending">
               <BarChart data={chartData} barGap={4}>
                 <CartesianGrid {...GRID_DEFAULTS} />
                 <XAxis
@@ -72,12 +74,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                   dataKey="name"
                 />
                 <YAxis {...yAxisDefaults()} />
-                <Tooltip
-                  {...chartTooltipProps}
-                  formatter={(value) =>
-                    typeof value === 'number' ? formatCurrency(value) : ''
-                  }
-                />
+                <Tooltip {...chartTooltipProps} formatter={currencyTooltipFormatter} />
                 <Bar
                   dataKey="Budget"
                   fill={rawColors.app.blue}
@@ -91,7 +88,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                     <LabelList
                       dataKey="Budget"
                       position="top"
-                      fill="#f5f5f7"
+                      fill={CHART_TEXT.secondary}
                       fontSize={10}
                       formatter={(v: unknown) =>
                         !v || v === 0 ? '' : formatCurrencyShort(v as number)
@@ -115,7 +112,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                     <LabelList
                       dataKey="Spent"
                       position="top"
-                      fill="#f5f5f7"
+                      fill={CHART_TEXT.secondary}
                       fontSize={10}
                       formatter={(v: unknown) =>
                         !v || v === 0 ? '' : formatCurrencyShort(v as number)
@@ -153,7 +150,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                   <span className="flex items-center gap-1.5">
                     <span
                       className="w-4 h-0 border-t-2 border-dashed"
-                      style={{ borderColor: '#71717a' }}
+                      style={{ borderColor: CHART_TEXT.subtle }}
                     />{' '}
                     Ideal
                   </span>
@@ -167,7 +164,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                 </div>
               </div>
               <div className="h-64">
-                <ChartContainer>
+                <ChartContainer ariaLabel="Area chart showing remaining monthly budget day by day against the ideal spending pace">
                   <AreaChart data={burndownData}>
                     <defs>{areaGradient('burnActual', rawColors.app.green, 0.35, 0.02)}</defs>
                     <CartesianGrid {...GRID_DEFAULTS} />
@@ -181,7 +178,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                       {...chartTooltipProps}
                       labelFormatter={(label) => `Day ${label}`}
                       formatter={(value, name) => [
-                        typeof value === 'number' ? formatCurrency(value) : '',
+                        currencyTooltipFormatter(value),
                         name === 'ideal' ? 'Ideal Pace' : 'Actual Remaining',
                       ]}
                     />
@@ -200,7 +197,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                     <Line
                       type="monotone"
                       dataKey="ideal"
-                      stroke="#71717a"
+                      stroke={CHART_TEXT.subtle}
                       strokeWidth={1.5}
                       strokeDasharray="6 4"
                       dot={false}
@@ -228,17 +225,17 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                 </p>
               </div>
               <div className="h-64 flex items-center justify-center">
-                <ChartContainer>
+                <ChartContainer ariaLabel="Radar chart showing budget utilization percentage across the top categories">
                   <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                    <PolarGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+                    <PolarGrid stroke={CHART_SURFACE.polarGrid} strokeDasharray="3 3" />
                     <PolarAngleAxis
                       dataKey="category"
-                      tick={{ fill: '#71717a', fontSize: 10 }}
+                      tick={{ fill: CHART_TEXT.subtle, fontSize: 10 }}
                     />
                     <PolarRadiusAxis
                       angle={30}
                       domain={[0, Math.max(100, ...radarData.map((d) => d.usage))]}
-                      tick={{ fill: '#52525b', fontSize: 9 }}
+                      tick={{ fill: CHART_TEXT.dim, fontSize: 9 }}
                       axisLine={false}
                     />
                     <Radar

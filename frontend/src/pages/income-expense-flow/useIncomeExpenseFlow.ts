@@ -9,7 +9,9 @@ import { createSankeyNodeComponent } from './components/SankeyNodeRenderer'
 
 export function useIncomeExpenseFlow() {
   const { data: allTransactions = [], isLoading } = useTransactions()
-  const isMobile = useIsMobile()
+  // Gate the horizontal Sankey to lg+ (>=1024px): it uses left/right:200 margins
+  // that crush a tablet, so phones and tablets get the vertical MobileFlowView.
+  const isMobile = useIsMobile(1024)
 
   const { dateRange, currentFY, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
 

@@ -6,20 +6,20 @@ import {
   DollarSign,
   Hash,
   Clock,
+  X,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
+import { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useBillCalendar } from './useBillCalendar'
 import { formatMonthYear, formatShortDate, isSameDay } from './billUtils'
 import { DAY_NAMES } from './types'
 import SummaryCard from '@/components/shared/SummaryCard'
 import BillDetailItem from './components/BillDetailItem'
 import DayCell from './components/DayCell'
-
-const LOADING_PLACEHOLDER = '...'
 
 export default function BillCalendarPage() {
   const {
@@ -41,7 +41,6 @@ export default function BillCalendarPage() {
   } = useBillCalendar()
 
   const nextBillValue = (() => {
-    if (isLoading) return LOADING_PLACEHOLDER
     if (summary.nextBill) {
       return `${summary.nextBill.name} - ${formatCurrency(summary.nextBill.amount)}`
     }
@@ -56,35 +55,39 @@ export default function BillCalendarPage() {
           subtitle="Upcoming expected payments in a monthly calendar view"
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <SummaryCard
-            icon={DollarSign}
-            label="Total Due This Month"
-            value={isLoading ? LOADING_PLACEHOLDER : formatCurrency(summary.totalDue)}
-            colorClass="text-app-red"
-            bgClass="bg-app-red/20"
-            shadowClass="shadow-app-red/30"
-            delay={0.1}
-          />
-          <SummaryCard
-            icon={Hash}
-            label="Bills This Month"
-            value={isLoading ? LOADING_PLACEHOLDER : String(summary.billCount)}
-            colorClass="text-app-blue"
-            bgClass="bg-app-blue/20"
-            shadowClass="shadow-app-blue/30"
-            delay={0.2}
-          />
-          <SummaryCard
-            icon={Clock}
-            label="Next Upcoming Bill"
-            value={nextBillValue}
-            colorClass="text-app-orange"
-            bgClass="bg-app-orange/20"
-            shadowClass="shadow-app-orange/30"
-            delay={0.3}
-          />
-        </div>
+        {isLoading ? (
+          <CardGridSkeleton count={3} cols="grid-cols-1 sm:grid-cols-3" />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <SummaryCard
+              icon={DollarSign}
+              label="Total Due This Month"
+              value={formatCurrency(summary.totalDue)}
+              colorClass="text-app-red"
+              bgClass="bg-app-red/20"
+              shadowClass="shadow-app-red/30"
+              delay={0.1}
+            />
+            <SummaryCard
+              icon={Hash}
+              label="Bills This Month"
+              value={String(summary.billCount)}
+              colorClass="text-app-blue"
+              bgClass="bg-app-blue/20"
+              shadowClass="shadow-app-blue/30"
+              delay={0.2}
+            />
+            <SummaryCard
+              icon={Clock}
+              label="Next Upcoming Bill"
+              value={nextBillValue}
+              colorClass="text-app-orange"
+              bgClass="bg-app-orange/20"
+              shadowClass="shadow-app-orange/30"
+              delay={0.3}
+            />
+          </div>
+        )}
 
         <motion.div
           className="glass rounded-2xl border border-border p-4 sm:p-6"
@@ -226,6 +229,9 @@ export default function BillCalendarPage() {
           {selectedDay !== null && (
             <motion.div
               key={`detail-${selectedDay}`}
+              role="region"
+              aria-live="polite"
+              aria-label={`Bills for ${formatShortDate(viewYear, viewMonth, selectedDay)}`}
               initial={{ opacity: 0, y: 20, height: 0 }}
               animate={{ opacity: 1, y: 0, height: 'auto' }}
               exit={{ opacity: 0, y: -10, height: 0 }}
@@ -236,11 +242,21 @@ export default function BillCalendarPage() {
                 <h3 className="text-base font-semibold text-white">
                   Bills for {formatShortDate(viewYear, viewMonth, selectedDay)}
                 </h3>
-                {selectedDayBills.length > 0 && (
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-app-blue/15 text-app-blue font-medium">
-                    {selectedDayBills.length} bill{selectedDayBills.length === 1 ? '' : 's'}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {selectedDayBills.length > 0 && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-app-blue/15 text-app-blue font-medium">
+                      {selectedDayBills.length} bill{selectedDayBills.length === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDay(null)}
+                    aria-label="Close day details"
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {selectedDayBills.length === 0 ? (

@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { ArrowRightLeft } from 'lucide-react'
 import { Sankey, Tooltip } from 'recharts'
 
-import { ChartContainer } from '@/components/ui'
+import { ChartContainer, Spinner } from '@/components/ui'
 import { chartTooltipProps } from '@/components/ui/ChartTooltip'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
@@ -69,10 +69,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
 
       {isLoading && (
         <div className="h-[400px] md:h-[550px] lg:h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-app-purple mx-auto mb-4" />
-            <div className="text-muted-foreground">Loading flow diagram...</div>
-          </div>
+          <Spinner size="lg" label="Loading flow diagram..." />
         </div>
       )}
 
@@ -92,42 +89,43 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
           / a NaN layout. Links is the real "has data" signal. */}
       {!isLoading && !isMobile && sankeyData.links.length > 0 && (
         <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6">
-          <div style={{ width: '100%', height: 700, position: 'relative' }}>
-            <ChartContainer height={700}>
-              <Sankey
-                data={sankeyData}
-                nodeWidth={20}
-                nodePadding={60}
-                margin={{ top: 30, right: 200, bottom: 30, left: 200 }}
-                node={sankeyNodeComponent as never}
-                link={{
-                  stroke: rawColors.app.purple,
-                  strokeOpacity: 0.25,
-                }}
-              >
-                <defs>
-                  <linearGradient id="incomeGradient" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor={rawColors.app.green} stopOpacity={0.8} />
-                    <stop offset="100%" stopColor={rawColors.app.green} stopOpacity={0.8} />
-                  </linearGradient>
-                  <linearGradient id="middleGradient" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor={rawColors.app.indigo} stopOpacity={0.9} />
-                    <stop offset="100%" stopColor={rawColors.app.purple} stopOpacity={0.9} />
-                  </linearGradient>
-                  <linearGradient id="expenseGradient" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor={rawColors.app.red} stopOpacity={0.8} />
-                    <stop offset="100%" stopColor={rawColors.app.orange} stopOpacity={0.8} />
-                  </linearGradient>
-                </defs>
-                <Tooltip
-                  {...chartTooltipProps}
-                  formatter={(value) =>
-                    typeof value === 'number' ? [formatCurrency(value), 'Amount'] : ''
-                  }
-                />
-              </Sankey>
-            </ChartContainer>
-          </div>
+          <ChartContainer
+            height={700}
+            ariaLabel="Sankey diagram showing income sources flowing into total income, then splitting into savings and expense categories."
+          >
+            <Sankey
+              data={sankeyData}
+              nodeWidth={20}
+              nodePadding={60}
+              margin={{ top: 30, right: 200, bottom: 30, left: 200 }}
+              node={sankeyNodeComponent as never}
+              link={{
+                stroke: rawColors.app.purple,
+                strokeOpacity: 0.25,
+              }}
+            >
+              <defs>
+                <linearGradient id="incomeGradient" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor={rawColors.app.green} stopOpacity={0.8} />
+                  <stop offset="100%" stopColor={rawColors.app.green} stopOpacity={0.8} />
+                </linearGradient>
+                <linearGradient id="middleGradient" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor={rawColors.app.indigo} stopOpacity={0.9} />
+                  <stop offset="100%" stopColor={rawColors.app.purple} stopOpacity={0.9} />
+                </linearGradient>
+                <linearGradient id="expenseGradient" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor={rawColors.app.red} stopOpacity={0.8} />
+                  <stop offset="100%" stopColor={rawColors.app.red} stopOpacity={0.8} />
+                </linearGradient>
+              </defs>
+              <Tooltip
+                {...chartTooltipProps}
+                formatter={(value) =>
+                  typeof value === 'number' ? [formatCurrency(value), 'Amount'] : ''
+                }
+              />
+            </Sankey>
+          </ChartContainer>
 
           <div className="mt-6 pt-6 border-t border-border flex flex-wrap justify-center gap-6">
             <div className="flex items-center gap-2">
@@ -146,13 +144,13 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
                   background: `linear-gradient(to right, ${rawColors.app.indigo}, ${rawColors.app.purple})`,
                 }}
               />
-              <span className="text-sm text-foreground">Total Income / Savings / Expenses</span>
+              <span className="text-sm text-foreground">Total Income / Savings</span>
             </div>
             <div className="flex items-center gap-2">
               <div
                 className="w-4 h-4 rounded"
                 style={{
-                  background: `linear-gradient(to right, ${rawColors.app.red}, ${rawColors.app.orange})`,
+                  background: `linear-gradient(to right, ${rawColors.app.red}, ${rawColors.app.redVibrant})`,
                 }}
               />
               <span className="text-sm text-foreground">Expense Categories</span>

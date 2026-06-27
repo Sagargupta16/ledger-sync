@@ -83,7 +83,7 @@ export default function MobileFlowView({
           label="Expenses"
           amount={totalExpense}
           percent={expenseShare}
-          color={rawColors.app.pink}
+          color={rawColors.app.red}
         />
       </div>
 

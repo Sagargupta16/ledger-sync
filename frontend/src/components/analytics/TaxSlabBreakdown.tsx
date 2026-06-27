@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import { formatCurrency } from '@/lib/formatters'
 import type { TaxSlab, SlabBreakdownEntry } from '@/lib/taxCalculator'
 
@@ -34,15 +33,10 @@ export default function TaxSlabBreakdown({
   isProjecting = false,
 }: Readonly<TaxSlabBreakdownProps>) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.4 }}
-      className="glass rounded-2xl border border-border p-6"
-    >
-      <h3 className="text-xl font-semibold text-white mb-4">
+    <div>
+      <p className="text-sm font-medium text-muted-foreground mb-4">
         {isNewRegime ? 'Tax Slabs (FY 2025-26 Onwards)' : 'Tax Slabs (Before FY 2025-26)'}
-      </h3>
+      </p>
 
       {/* Standard Deduction Info */}
       <div className="mb-4 p-3 bg-app-blue/10 border border-app-blue/30 rounded-lg">
@@ -151,6 +145,6 @@ export default function TaxSlabBreakdown({
           </tbody>
         </table>
       </div>
-    </motion.div>
+    </div>
   )
 }

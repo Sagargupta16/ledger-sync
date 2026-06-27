@@ -70,10 +70,8 @@ export default function InvestmentAnalyticsPage() {
 
         {m.portfolioData.length > 0 && (
           <AccountsTable
-            sortedPortfolioData={m.sortedPortfolioData}
-            investSortKey={m.investSortKey}
-            investSortDir={m.investSortDir}
-            toggleInvestSort={m.toggleInvestSort}
+            portfolioData={m.portfolioData}
+            totalAccountCount={m.totalInvestmentAccountCount}
           />
         )}
       </div>

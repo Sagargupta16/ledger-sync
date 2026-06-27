@@ -160,6 +160,8 @@ export default function BudgetPage() {
                     alertThreshold={m.alertThreshold}
                     isFixed={m.fixedExpenseCategories.has(key.toLowerCase())}
                     momentum={m.categoryMomentum.get(row.category)}
+                    todayDayOfMonth={m.monthProgress.todayDay}
+                    daysInMonth={m.monthProgress.daysInMonth}
                     onEdit={() => m.setEditKey(key)}
                     onCancelEdit={() => m.setEditKey(null)}
                     onSave={(limit, period) => {
@@ -206,32 +208,40 @@ export default function BudgetPage() {
               <span className="text-xs text-text-tertiary">Based on current spending</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {m.availableCategories
-                .filter((c) => {
-                  const spent =
-                    m.spendingData.byCategory[c] || m.spendingData.bySubcategory[c] || 0
-                  return spent > 500
-                })
-                .slice(0, 8)
-                .map((cat) => {
-                  const spent =
-                    m.spendingData.byCategory[cat] || m.spendingData.bySubcategory[cat] || 0
-                  const displayName = cat.includes('::') ? cat.split('::')[1] : cat
-                  return (
-                    <motion.button
-                      key={cat}
-                      onClick={() => m.handleQuickAdd(cat, spent)}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors hover:scale-105"
-                      style={{
-                        backgroundColor: `${rawColors.app.green}15`,
-                        color: rawColors.app.green,
-                      }}
-                    >
-                      + {displayName} ({formatCurrency(spent)}/mo)
-                    </motion.button>
-                  )
-                })}
+              {(() => {
+                // Suggestions reflect the selected budget period: monthly uses
+                // current-month spend (/mo), yearly uses fiscal-year spend (/yr).
+                const isYearly = m.budgetPeriod === 'yearly'
+                const periodSuffix = isYearly ? '/yr' : '/mo'
+                const spendFor = (c: string) =>
+                  isYearly
+                    ? m.spendingData.byCategoryYearly[c] ||
+                      m.spendingData.bySubcategoryYearly[c] ||
+                      0
+                    : m.spendingData.byCategory[c] || m.spendingData.bySubcategory[c] || 0
+                return m.availableCategories
+                  .filter((c) => spendFor(c) > 500)
+                  .slice(0, 8)
+                  .map((cat) => {
+                    const spent = spendFor(cat)
+                    const displayName = cat.includes('::') ? cat.split('::')[1] : cat
+                    return (
+                      <motion.button
+                        key={cat}
+                        onClick={() => m.handleQuickAdd(cat, spent)}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors hover:scale-105"
+                        style={{
+                          backgroundColor: `${rawColors.app.green}15`,
+                          color: rawColors.app.green,
+                        }}
+                      >
+                        + {displayName} ({formatCurrency(spent)}
+                        {periodSuffix})
+                      </motion.button>
+                    )
+                  })
+              })()}
             </div>
           </motion.div>
         )}

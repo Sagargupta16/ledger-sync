@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Calculator, Percent, TrendingUp } from 'lucide-react'
 
+import { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import { formatCurrency } from '@/lib/formatters'
 
 interface OverviewCardsProps {
@@ -34,10 +35,14 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
     gainsSignPrefix,
   } = props
 
-  const currentBalanceDisplay = isLoading ? '...' : formatCurrency(currentBalance)
-  const monthlySipDisplay = isLoading ? '...' : formatCurrency(detectedMonthlySIP)
-  const totalInvestedDisplay = isLoading ? '...' : formatCurrency(totalHistoricalInvested)
-  const realizedGainsDisplay = isLoading ? '...' : formatCurrency(realizedGains)
+  if (isLoading) {
+    return <CardGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
+  }
+
+  const currentBalanceDisplay = formatCurrency(currentBalance)
+  const monthlySipDisplay = formatCurrency(detectedMonthlySIP)
+  const totalInvestedDisplay = formatCurrency(totalHistoricalInvested)
+  const realizedGainsDisplay = formatCurrency(realizedGains)
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

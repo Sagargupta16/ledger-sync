@@ -73,6 +73,10 @@ export default function TransactionsPage() {
   })
   const filteredTransactions = page?.data ?? []
   const total = page?.total ?? facets?.total_count ?? 0
+  const unfilteredTotal = facets?.total_count ?? 0
+  // When filters narrow the result set, show "X of Y" so the card doesn't
+  // contradict the filtered count shown in pagination.
+  const isFiltered = total !== unfilteredTotal
 
   const handleFilterChange = (newFilters: FilterValues) => {
     setFilters(newFilters)
@@ -147,8 +151,13 @@ export default function TransactionsPage() {
                 <Receipt className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Transactions</p>
-                <p className="text-2xl font-bold tabular-nums">{(facets?.total_count ?? 0).toLocaleString('en-IN')}</p>
+                <p className="text-sm text-muted-foreground">{isFiltered ? 'Matching Transactions' : 'Total Transactions'}</p>
+                <p className="text-2xl font-bold tabular-nums">
+                  {total.toLocaleString('en-IN')}
+                  {isFiltered && (
+                    <span className="text-base font-medium text-muted-foreground"> of {unfilteredTotal.toLocaleString('en-IN')}</span>
+                  )}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-8 sm:gap-10">

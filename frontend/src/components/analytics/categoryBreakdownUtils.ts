@@ -68,6 +68,18 @@ export function buildMonthlyHistoryByCategory(
   return buckets
 }
 
+/**
+ * Average spend per active month for a category, derived from its trailing
+ * 12-month series. Divides by the count of months that actually had spend
+ * (not all 12) so a category active for 3 months isn't diluted by 9 zeros.
+ * Returns 0 when the series is empty or all-zero.
+ */
+export function averagePerActiveMonth(monthlyHistory: number[]): number {
+  const active = monthlyHistory.filter((m) => m > 0)
+  if (active.length === 0) return 0
+  return active.reduce((sum, m) => sum + m, 0) / active.length
+}
+
 export function buildCategories(
   categoryData: { categories?: Record<string, Record<string, unknown>> } | undefined,
   colorMap: Record<string, string> | undefined,

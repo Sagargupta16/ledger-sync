@@ -6,8 +6,10 @@ import {
   RefreshCw, Calendar,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { PageHeader } from '@/components/ui'
+import { PageHeader, ConfirmDialog } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
+import EmptyState from '@/components/shared/EmptyState'
+import { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import {
   useRecurringTransactions,
@@ -218,6 +220,11 @@ function RecurringCard({
               <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-app-blue/10 text-app-blue">
                 {capitalize(item.frequency)}
               </span>
+              {!item.is_active && (
+                <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-white/10 text-text-tertiary">
+                  Paused
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3 mt-0.5 text-xs text-text-tertiary">
               {item.category && <span>{item.category}</span>}
@@ -273,6 +280,7 @@ export default function SubscriptionTrackerPage() {
 
   const [showForm, setShowForm] = useState(false)
   const [suggestion, setSuggestion] = useState<Suggestion | undefined>()
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
 
   // Only user-confirmed items (manually created ones have is_confirmed=true)
   const confirmed = useMemo(() => items.filter((i) => i.is_confirmed), [items])
@@ -329,8 +337,6 @@ export default function SubscriptionTrackerPage() {
     setShowForm(true)
   }
 
-  const p = isLoading ? '...' : undefined
-
   return (
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -345,35 +351,40 @@ export default function SubscriptionTrackerPage() {
           }
         />
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
-          <SummaryCard icon={ArrowDownCircle} label="Monthly Expense" value={p ?? formatCurrency(summary.monthlyExpense)}
-            colorClass="text-app-red" bgClass="bg-app-red/20" shadowClass="shadow-app-red/30" delay={0.1} compact />
-          <SummaryCard icon={ArrowUpCircle} label="Monthly Income" value={p ?? formatCurrency(summary.monthlyIncome)}
-            colorClass="text-app-green" bgClass="bg-app-green/20" shadowClass="shadow-app-green/30" delay={0.2} compact />
-          <SummaryCard icon={TrendingUp} label="Net Monthly"
-            value={p ?? formatCurrency(summary.netMonthly)}
-            colorClass={summary.netMonthly >= 0 ? 'text-app-green' : 'text-app-red'}
-            bgClass={summary.netMonthly >= 0 ? 'bg-app-green/20' : 'bg-app-red/20'}
-            shadowClass={summary.netMonthly >= 0 ? 'shadow-app-green/30' : 'shadow-app-red/30'} delay={0.3} compact />
-          <SummaryCard icon={Hash} label="Active Recurring" value={p ?? `${summary.count}`}
-            colorClass="text-app-blue" bgClass="bg-app-blue/20" shadowClass="shadow-app-blue/30" delay={0.4} compact />
-          {/* Savings-from-cancellations -- only show once the user has
-              deactivated at least one expense item, otherwise it's a confusing
-              "-" card. */}
-          {summary.deactivatedCount > 0 && (
-            <SummaryCard
-              icon={PowerOff}
-              label={`Saved / mo (${summary.deactivatedCount} cancelled)`}
-              value={p ?? formatCurrency(summary.deactivatedExpenseSavings)}
-              colorClass="text-app-purple"
-              bgClass="bg-app-purple/20"
-              shadowClass="shadow-app-purple/30"
-              delay={0.5}
-              compact
-            />
-          )}
-        </div>
+        {/* Summary Cards -- 5 columns only when the optional savings card is present,
+            otherwise 4 so the row stays gapless. */}
+        {isLoading ? (
+          <CardGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
+        ) : (
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${summary.deactivatedCount > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+            <SummaryCard icon={ArrowDownCircle} label="Monthly Expense" value={formatCurrency(summary.monthlyExpense)}
+              colorClass="text-app-red" bgClass="bg-app-red/20" shadowClass="shadow-app-red/30" delay={0.1} compact />
+            <SummaryCard icon={ArrowUpCircle} label="Monthly Income" value={formatCurrency(summary.monthlyIncome)}
+              colorClass="text-app-green" bgClass="bg-app-green/20" shadowClass="shadow-app-green/30" delay={0.2} compact />
+            <SummaryCard icon={TrendingUp} label="Net Monthly"
+              value={formatCurrency(summary.netMonthly)}
+              colorClass={summary.netMonthly >= 0 ? 'text-app-green' : 'text-app-red'}
+              bgClass={summary.netMonthly >= 0 ? 'bg-app-green/20' : 'bg-app-red/20'}
+              shadowClass={summary.netMonthly >= 0 ? 'shadow-app-green/30' : 'shadow-app-red/30'} delay={0.3} compact />
+            <SummaryCard icon={Hash} label="Active Recurring" value={`${summary.count}`}
+              colorClass="text-app-blue" bgClass="bg-app-blue/20" shadowClass="shadow-app-blue/30" delay={0.4} compact />
+            {/* Savings-from-cancellations -- only show once the user has
+                deactivated at least one expense item, otherwise it's a confusing
+                "-" card. */}
+            {summary.deactivatedCount > 0 && (
+              <SummaryCard
+                icon={PowerOff}
+                label={`Saved / mo (${summary.deactivatedCount} cancelled)`}
+                value={formatCurrency(summary.deactivatedExpenseSavings)}
+                colorClass="text-app-purple"
+                bgClass="bg-app-purple/20"
+                shadowClass="shadow-app-purple/30"
+                delay={0.5}
+                compact
+              />
+            )}
+          </div>
+        )}
 
         {/* Suggestions */}
         {!showForm && confirmed.length === 0 && !isLoading && (
@@ -427,7 +438,7 @@ export default function SubscriptionTrackerPage() {
                 <RecurringCard
                   item={item}
                   onUpdate={(patch) => handleUpdate(item.id, patch)}
-                  onDelete={() => handleDelete(item.id, item.name)}
+                  onDelete={() => setDeleteTarget({ id: item.id, name: item.name })}
                 />
               </motion.div>
             ))}
@@ -443,7 +454,7 @@ export default function SubscriptionTrackerPage() {
                 <RecurringCard
                   item={item}
                   onUpdate={(patch) => handleUpdate(item.id, patch)}
-                  onDelete={() => handleDelete(item.id, item.name)}
+                  onDelete={() => setDeleteTarget({ id: item.id, name: item.name })}
                 />
               </motion.div>
             ))}
@@ -452,10 +463,14 @@ export default function SubscriptionTrackerPage() {
 
         {/* Empty state */}
         {!isLoading && confirmed.length === 0 && !showForm && (
-          <div className="text-center py-12 text-muted-foreground">
-            <RefreshCw className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No recurring transactions yet. Add your first one above.</p>
-          </div>
+          <EmptyState
+            icon={RefreshCw}
+            title="No recurring transactions yet"
+            description="Add your regular income and bills to project monthly cash flow, or pick one from Quick Add above."
+            actionLabel="Add Recurring"
+            onAction={() => { setSuggestion(undefined); setShowForm(true) }}
+            variant="card"
+          />
         )}
 
         {/* Loading */}
@@ -467,6 +482,16 @@ export default function SubscriptionTrackerPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        title="Delete recurring transaction"
+        description={`Remove "${deleteTarget?.name ?? ''}"? This stops it from appearing in projected cash flow.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget.id, deleteTarget.name) }}
+      />
     </div>
   )
 }

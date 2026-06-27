@@ -12,7 +12,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  ResponsiveContainer,
 } from 'recharts'
 
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
@@ -21,15 +20,20 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { FY_START_MONTH } from '@/lib/taxCalculator'
 import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
 import { computeGSTAnalysis, getExpenseFYs } from '@/lib/gstCalculator'
+import type { GSTCategoryBreakdown } from '@/lib/gstCalculator'
 import {
   PageHeader,
   ChartContainer,
   chartTooltipProps,
+  currencyTooltipFormatter,
   GRID_DEFAULTS,
   xAxisDefaults,
   yAxisDefaults,
   shouldAnimate,
   BAR_RADIUS,
+  DataTable,
+  type DataTableColumn,
+  Spinner,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
@@ -46,6 +50,63 @@ const SLAB_COLORS: Record<number, string> = {
   28: rawColors.app.orange,
   40: rawColors.app.red,
 }
+
+const GST_CATEGORY_COLUMNS: DataTableColumn<GSTCategoryBreakdown>[] = [
+  {
+    key: 'category',
+    header: 'Category',
+    sortType: 'text',
+    cell: (cat) => (
+      <>
+        <span className="font-medium text-white">{cat.category}</span>
+        {cat.parentCategory !== cat.category && (
+          <span className="text-xs text-muted-foreground ml-2">{cat.parentCategory}</span>
+        )}
+      </>
+    ),
+  },
+  {
+    key: 'spending',
+    header: 'Spending',
+    align: 'right',
+    sortable: true,
+    cell: (cat) => formatCurrencyCompact(cat.spending),
+  },
+  {
+    key: 'gstRate',
+    header: 'GST Rate',
+    align: 'right',
+    cell: (cat) => (
+      <span
+        className="inline-flex px-2 py-0.5 rounded-md text-xs font-medium"
+        style={{
+          backgroundColor: `${SLAB_COLORS[cat.gstRate] ?? rawColors.app.blue}20`,
+          color: SLAB_COLORS[cat.gstRate] ?? rawColors.app.blue,
+        }}
+      >
+        {cat.gstRate}%
+      </span>
+    ),
+  },
+  {
+    key: 'gstAmount',
+    header: 'Est. GST',
+    align: 'right',
+    sortable: true,
+    cell: (cat) => (
+      <span className="text-app-indigo font-medium">{formatCurrencyCompact(cat.gstAmount)}</span>
+    ),
+  },
+  {
+    key: 'transactionCount',
+    header: 'Txns',
+    align: 'right',
+    sortable: true,
+    widthClass: 'hidden sm:table-cell',
+    cellClassName: () => 'hidden sm:table-cell',
+    cell: (cat) => <span className="text-muted-foreground">{cat.transactionCount}</span>,
+  },
+]
 
 function FYNavigator({
   fys,
@@ -134,11 +195,7 @@ export default function GSTAnalysisPage() {
         </span>
       </div>
 
-      {isLoading && (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-app-blue/30 border-t-app-blue rounded-full animate-spin" />
-        </div>
-      )}
+      {isLoading && <Spinner label="Loading GST analysis" className="py-20" />}
 
       {!isLoading && !hasData && (
         <ChartEmptyState message="No expense data found for this fiscal year" />
@@ -166,8 +223,8 @@ export default function GSTAnalysisPage() {
               icon={<BarChart3 className="w-6 h-6 text-app-purple" />}
               iconBg="bg-app-purple/20"
               label="Top GST Category"
-              value={gstData.categoryBreakdown[0]?.category ?? '-'}
-              subtitle={gstData.categoryBreakdown[0] ? formatCurrency(gstData.categoryBreakdown[0].gstAmount) : ''}
+              value={gstData.categoryBreakdown[0] ? formatCurrency(gstData.categoryBreakdown[0].gstAmount) : '-'}
+              subtitle={gstData.categoryBreakdown[0]?.category ?? ''}
             />
           </motion.div>
 
@@ -176,8 +233,12 @@ export default function GSTAnalysisPage() {
             {/* GST by Slab */}
             <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-5">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">GST by Slab</h3>
-              <div className="h-[240px]">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-[270px]">
+                <ChartContainer
+                  width="100%"
+                  height="100%"
+                  ariaLabel="Estimated GST paid split by tax slab rate"
+                >
                   <PieChart>
                     <Pie
                       data={gstSlabsWithTax}
@@ -195,12 +256,12 @@ export default function GSTAnalysisPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value) => formatCurrency(typeof value === 'number' ? value : 0)}
+                      formatter={currencyTooltipFormatter}
                       labelFormatter={(slab) => `${slab}% slab`}
                       {...chartTooltipProps}
                     />
                   </PieChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               </div>
               <div className="flex flex-wrap gap-3 mt-2 justify-center">
                 {gstSlabsWithTax.map((s) => (
@@ -218,29 +279,40 @@ export default function GSTAnalysisPage() {
             {/* Monthly GST Trend */}
             <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-5">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Monthly GST Trend</h3>
-              <ChartContainer width="100%" height={270}>
-                <BarChart data={gstData.monthlyTrend}>
-                  <CartesianGrid {...GRID_DEFAULTS} />
-                  <XAxis
-                    dataKey="monthLabel"
-                    {...xAxisDefaults(gstData.monthlyTrend.length)}
-                  />
-                  <YAxis
-                    {...yAxisDefaults()}
-                    tickFormatter={(v: number) => formatCurrencyShort(v)}
-                  />
-                  <Tooltip
-                    formatter={(value) => formatCurrency(typeof value === 'number' ? value : 0)}
-                    {...chartTooltipProps}
-                  />
-                  <Bar
-                    dataKey="gstAmount"
-                    fill={rawColors.app.indigo}
-                    radius={BAR_RADIUS}
-                    isAnimationActive={shouldAnimate(gstData.monthlyTrend.length)}
-                  />
-                </BarChart>
-              </ChartContainer>
+              {gstData.monthlyTrend.length <= 1 ? (
+                <ChartEmptyState
+                  height={270}
+                  message="Need at least two months of spending to show a trend"
+                />
+              ) : (
+                <ChartContainer
+                  width="100%"
+                  height={270}
+                  ariaLabel="Estimated GST paid each month across the selected fiscal year"
+                >
+                  <BarChart data={gstData.monthlyTrend}>
+                    <CartesianGrid {...GRID_DEFAULTS} />
+                    <XAxis
+                      dataKey="monthLabel"
+                      {...xAxisDefaults(gstData.monthlyTrend.length)}
+                    />
+                    <YAxis
+                      {...yAxisDefaults()}
+                      tickFormatter={(v: number) => formatCurrencyShort(v)}
+                    />
+                    <Tooltip
+                      formatter={currencyTooltipFormatter}
+                      {...chartTooltipProps}
+                    />
+                    <Bar
+                      dataKey="gstAmount"
+                      fill={rawColors.app.indigo}
+                      radius={BAR_RADIUS}
+                      isAnimationActive={shouldAnimate(gstData.monthlyTrend.length)}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              )}
             </motion.div>
           </div>
 
@@ -249,66 +321,24 @@ export default function GSTAnalysisPage() {
             <div className="px-5 py-4 border-b border-border">
               <h3 className="text-sm font-medium text-muted-foreground">GST by Category</h3>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-muted-foreground">
-                    <th className="text-left px-5 py-3 font-medium">Category</th>
-                    <th className="text-right px-5 py-3 font-medium">Spending</th>
-                    <th className="text-right px-5 py-3 font-medium">GST Rate</th>
-                    <th className="text-right px-5 py-3 font-medium">Est. GST</th>
-                    <th className="text-right px-5 py-3 font-medium hidden sm:table-cell">Txns</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {gstData.categoryBreakdown.map((cat) => (
-                    <tr
-                      key={cat.category}
-                      className="border-b border-border/50 hover:bg-white/[0.02] transition-colors"
-                    >
-                      <td className="px-5 py-3">
-                        <span className="font-medium text-white">{cat.category}</span>
-                        {cat.parentCategory !== cat.category && (
-                          <span className="text-xs text-muted-foreground ml-2">{cat.parentCategory}</span>
-                        )}
-                      </td>
-                      <td className="text-right px-5 py-3">{formatCurrencyCompact(cat.spending)}</td>
-                      <td className="text-right px-5 py-3">
-                        <span
-                          className="inline-flex px-2 py-0.5 rounded-md text-xs font-medium"
-                          style={{
-                            backgroundColor: `${SLAB_COLORS[cat.gstRate] ?? rawColors.app.blue}20`,
-                            color: SLAB_COLORS[cat.gstRate] ?? rawColors.app.blue,
-                          }}
-                        >
-                          {cat.gstRate}%
-                        </span>
-                      </td>
-                      <td className="text-right px-5 py-3 text-app-indigo font-medium">
-                        {formatCurrencyCompact(cat.gstAmount)}
-                      </td>
-                      <td className="text-right px-5 py-3 text-muted-foreground hidden sm:table-cell">
-                        {cat.transactionCount}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-border bg-white/[0.02]">
-                    <td className="px-5 py-3 font-semibold text-white">Total</td>
-                    <td className="text-right px-5 py-3 font-semibold">
-                      {formatCurrencyCompact(gstData.totalSpending)}
-                    </td>
-                    <td className="text-right px-5 py-3 font-semibold text-muted-foreground">
-                      {gstData.effectiveRate.toFixed(1)}%
-                    </td>
-                    <td className="text-right px-5 py-3 font-semibold text-app-indigo">
-                      {formatCurrencyCompact(gstData.totalGST)}
-                    </td>
-                    <td className="hidden sm:table-cell" />
-                  </tr>
-                </tfoot>
-              </table>
+            <DataTable<GSTCategoryBreakdown>
+              columns={GST_CATEGORY_COLUMNS}
+              rows={gstData.categoryBreakdown}
+              rowKey={(cat) => cat.category}
+              initialSort={{ key: 'gstAmount', dir: 'desc' }}
+              ariaLabel="GST estimated per category"
+            />
+            <div className="border-t border-border bg-white/[0.02] px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">
+              <span className="font-semibold text-white">Total</span>
+              <span className="flex items-center gap-4 tabular-nums">
+                <span className="font-semibold">{formatCurrencyCompact(gstData.totalSpending)}</span>
+                <span className="font-semibold text-muted-foreground">
+                  {gstData.effectiveRate.toFixed(1)}%
+                </span>
+                <span className="font-semibold text-app-indigo">
+                  {formatCurrencyCompact(gstData.totalGST)}
+                </span>
+              </span>
             </div>
           </motion.div>
         </motion.div>

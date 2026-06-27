@@ -3,6 +3,7 @@
  */
 
 import { Tags } from 'lucide-react'
+import EmptyState from '@/components/shared/EmptyState'
 import type { LocalPrefs, LocalPrefKey } from '../types'
 import { Section } from '../sectionPrimitives'
 import { normalizeArray } from '../helpers'
@@ -49,9 +50,14 @@ export default function ExpenseCategoriesSection({
       description="Toggle categories as essential or fixed monthly expenses"
     >
       {allExpenseCategories.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No expense categories found. Import some transactions first.
-        </p>
+        <EmptyState
+          variant="compact"
+          icon={EmptyState.icons.upload}
+          title="No expense categories yet"
+          description="Upload your bank statements to see categories you can tag as essential or fixed."
+          actionLabel="Upload transactions"
+          actionHref="/upload"
+        />
       ) : (
         <div className="space-y-2">
           {/* Legend */}
@@ -78,34 +84,42 @@ export default function ExpenseCategoriesSection({
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors"
                 >
                   <span className="text-sm text-white flex-1 truncate">{cat}</span>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0 -my-2.5">
                     <button
                       type="button"
                       title="Essential"
-                      aria-label="Essential"
+                      aria-label={`Mark ${cat} as essential`}
                       aria-pressed={isEssential}
                       onClick={() => toggleEssentialCategory(cat)}
-                      className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
-                        isEssential
-                          ? 'bg-app-green/25 text-app-green border border-app-green/50'
-                          : 'bg-white/5 text-white/30 border border-border hover:border-app-green/30 hover:text-app-green/60'
-                      }`}
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >
-                      E
+                      <span
+                        className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
+                          isEssential
+                            ? 'bg-app-green/25 text-app-green border border-app-green/50'
+                            : 'bg-white/5 text-white/30 border border-border hover:border-app-green/30 hover:text-app-green/60'
+                        }`}
+                      >
+                        E
+                      </span>
                     </button>
                     <button
                       type="button"
                       title="Fixed"
-                      aria-label="Fixed"
+                      aria-label={`Mark ${cat} as a fixed monthly expense`}
                       aria-pressed={isFixed}
                       onClick={() => toggleFixedCategory(cat)}
-                      className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
-                        isFixed
-                          ? 'bg-app-orange/25 text-app-orange border border-app-orange/50'
-                          : 'bg-white/5 text-white/30 border border-border hover:border-app-orange/30 hover:text-app-orange/60'
-                      }`}
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >
-                      F
+                      <span
+                        className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
+                          isFixed
+                            ? 'bg-app-orange/25 text-app-orange border border-app-orange/50'
+                            : 'bg-white/5 text-white/30 border border-border hover:border-app-orange/30 hover:text-app-orange/60'
+                        }`}
+                      >
+                        F
+                      </span>
                     </button>
                   </div>
                 </div>

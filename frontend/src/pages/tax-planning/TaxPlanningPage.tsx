@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion'
-import { ChevronRight, TrendingUp } from 'lucide-react'
+import { ChevronRight, TrendingUp, Lightbulb, Receipt, ListTree } from 'lucide-react'
 import { BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { formatCurrency } from '@/lib/formatters'
 import {
   PageHeader,
   ChartContainer,
+  CollapsibleSection,
   chartTooltipProps,
   GRID_DEFAULTS,
   xAxisDefaults,
@@ -119,21 +120,23 @@ export default function TaxPlanningPage() {
               </motion.div>
 
               <motion.div variants={fadeUpItem}>
-                <TaxSlabBreakdown
-                  isNewRegime={isNewRegime}
-                  taxSlabs={taxSlabs}
-                  slabBreakdown={display.slabBreakdown}
-                  grossTaxableIncome={display.gross}
-                  standardDeduction={standardDeduction}
-                  fyYear={fyYear}
-                  baseTax={display.baseTax}
-                  rebate87A={display.rebate87A}
-                  surcharge={display.surcharge}
-                  cess={display.cess}
-                  professionalTax={display.professionalTax}
-                  totalTax={display.totalTax}
-                  isProjecting={useSalaryProjection}
-                />
+                <CollapsibleSection title="Tax Slab Breakdown" icon={ListTree} defaultExpanded={false}>
+                  <TaxSlabBreakdown
+                    isNewRegime={isNewRegime}
+                    taxSlabs={taxSlabs}
+                    slabBreakdown={display.slabBreakdown}
+                    grossTaxableIncome={display.gross}
+                    standardDeduction={standardDeduction}
+                    fyYear={fyYear}
+                    baseTax={display.baseTax}
+                    rebate87A={display.rebate87A}
+                    surcharge={display.surcharge}
+                    cess={display.cess}
+                    professionalTax={display.professionalTax}
+                    totalTax={display.totalTax}
+                    isProjecting={useSalaryProjection}
+                  />
+                </CollapsibleSection>
               </motion.div>
 
               <motion.div variants={fadeUpItem}>
@@ -164,33 +167,29 @@ export default function TaxPlanningPage() {
 
               {!useSalaryProjection && (
                 <motion.div variants={fadeUpItem}>
-                  <TaxableIncomeTable
-                    selectedFY={effectiveFY}
-                    incomeGroups={currentFYData?.incomeGroups}
-                    netTaxableIncome={netTaxableIncome}
-                  />
+                  <CollapsibleSection title="Taxable Income Detail" icon={Receipt} defaultExpanded={false}>
+                    <TaxableIncomeTable
+                      selectedFY={effectiveFY}
+                      incomeGroups={currentFYData?.incomeGroups}
+                      netTaxableIncome={netTaxableIncome}
+                    />
+                  </CollapsibleSection>
                 </motion.div>
               )}
 
-              <motion.div
-                variants={fadeUpItem}
-                className="glass rounded-2xl border border-border p-4 md:p-6"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 bg-app-green/20 rounded-xl">
-                    <TrendingUp className="w-5 h-5 text-app-green" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">Tax Saving Suggestions</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {isNewRegime
-                        ? 'New Regime — Limited deductions, lower rates'
-                        : 'Old Regime — Maximize deductions to reduce taxable income'}
-                    </p>
-                  </div>
-                </div>
+              <motion.div variants={fadeUpItem}>
+                <CollapsibleSection
+                  title="Tax Saving Suggestions"
+                  icon={Lightbulb}
+                  defaultExpanded={false}
+                >
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {isNewRegime
+                      ? 'New Regime — Limited deductions, lower rates'
+                      : 'Old Regime — Maximize deductions to reduce taxable income'}
+                  </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {isNewRegime ? (
                     <>
                       <TaxTip
@@ -272,7 +271,8 @@ export default function TaxPlanningPage() {
                       />
                     </>
                   )}
-                </div>
+                  </div>
+                </CollapsibleSection>
               </motion.div>
 
               {fyList.length > 0 && (
@@ -313,7 +313,10 @@ export default function TaxPlanningPage() {
                     }
 
                     return (
-                      <ChartContainer height={300}>
+                      <ChartContainer
+                        height={300}
+                        ariaLabel="Tax per fiscal year -- paid versus projected, with a cumulative total trend line"
+                      >
                         <BarChart
                           data={yearlyTaxData}
                           margin={{ top: 8, right: 12, bottom: 8, left: 4 }}

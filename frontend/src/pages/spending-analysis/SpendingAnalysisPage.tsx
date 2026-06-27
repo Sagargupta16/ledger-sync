@@ -6,13 +6,13 @@ import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { formatMonthKey } from '@/lib/dateUtils'
 import {
   PieChart as RechartsPie, Pie, Cell, Tooltip,
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Line, ReferenceLine,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Line,
 } from 'recharts'
 import { SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
 import { rawColors } from '@/constants/colors'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import EmptyState from '@/components/shared/EmptyState'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { FilterBanner } from '@/components/shared/FilterBanner'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
@@ -27,6 +27,7 @@ import {
 import {
   chartTooltipProps, PageHeader, ChartContainer, shouldAnimate,
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl,
+  referenceLine, currencyTooltipFormatter,
 } from '@/components/ui'
 
 import { SAVINGS_COLOR } from './spendingAnalysisUtils'
@@ -80,7 +81,7 @@ export default function SpendingAnalysisPage() {
               {/* Nested Donut Chart: Inner = Target, Outer = Actual */}
               <div className="flex flex-col items-center">
                 <div className="w-44 h-44 md:w-48 md:h-48 lg:w-56 lg:h-56">
-                  <ChartContainer>
+                  <ChartContainer ariaLabel={`Nested donut comparing your actual Needs, Wants, and Savings split against the ${needsTarget}/${wantsTarget}/${savingsTarget} target`}>
                     <RechartsPie>
                       {/* Inner ring: Target split */}
                       <Pie
@@ -127,13 +128,13 @@ export default function SpendingAnalysisPage() {
 
                       <Tooltip
                         {...chartTooltipProps}
-                        formatter={(value) => typeof value === 'number' ? formatCurrency(value) : ''}
+                        formatter={currencyTooltipFormatter}
                       />
 
                       {/* Center label */}
                       <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                        <tspan x="50%" dy="-6" fill="#71717a" fontSize="11">Actual vs</tspan>
-                        <tspan x="50%" dy="16" fill="#71717a" fontSize="11">{needsTarget}/{wantsTarget}/{savingsTarget}</tspan>
+                        <tspan x="50%" dy="-6" fill={rawColors.text.tertiary} fontSize="11">Actual vs</tspan>
+                        <tspan x="50%" dy="16" fill={rawColors.text.tertiary} fontSize="11">{needsTarget}/{wantsTarget}/{savingsTarget}</tspan>
                       </text>
                     </RechartsPie>
                   </ChartContainer>
@@ -224,17 +225,17 @@ export default function SpendingAnalysisPage() {
 
         {/* Expense Trend -- monthly spend with a 3-month rolling average,
             mirroring the Income Analysis "Income Trend" chart. */}
-        {monthlyTrendData.length > 0 && (
-          <motion.div className="glass p-4 md:p-6 rounded-xl border border-border" {...SCROLL_FADE_UP}>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <TrendingDown className="w-5 h-5 text-app-red" />
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Expense Trend</h3>
-                  <p className="text-sm text-text-tertiary">Monthly spending with 3-month rolling average</p>
-                </div>
+        <motion.div className="glass p-4 md:p-6 rounded-xl border border-border" {...SCROLL_FADE_UP}>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <TrendingDown className="w-5 h-5 text-app-red" />
+              <div>
+                <h3 className="text-lg font-semibold text-white">Expense Trend</h3>
+                <p className="text-sm text-text-tertiary">Monthly spending with 3-month rolling average</p>
               </div>
-              <ChartContainer height={dims.chartHeight}>
+            </div>
+            {monthlyTrendData.length > 0 ? (
+              <ChartContainer height={dims.chartHeight} ariaLabel="Monthly spending over time with a 3-month rolling average line, plus peak and average reference lines">
                 <AreaChart data={monthlyTrendData} margin={dims.margin}>
                   <defs>
                     {areaGradient('expenseTrend', rawColors.app.red, 0.4, 0)}
@@ -249,17 +250,13 @@ export default function SpendingAnalysisPage() {
                       return month ? formatMonthKey(month, { month: 'long', year: 'numeric' }) : ''
                     }}
                     formatter={(value, name) => [
-                      typeof value === 'number' ? formatCurrency(value) : '',
+                      currencyTooltipFormatter(value),
                       name === 'expenseAvg' ? 'Spending (3m avg)' : 'Spending',
                     ]}
                     itemSorter={(item) => -(item.value as number)}
                   />
-                  <ReferenceLine
-                    y={peakExpense}
-                    stroke="rgba(255,255,255,0.2)"
-                    strokeDasharray="3 3"
-                    label={{ value: `Peak: ${formatCurrencyShort(peakExpense)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }}
-                  />
+                  {referenceLine({ y: peakExpense, label: `Peak: ${formatCurrencyShort(peakExpense)}`, variant: 'peak' })}
+                  {referenceLine({ y: monthlyAvgSpending, label: `Avg: ${formatCurrencyShort(monthlyAvgSpending)}`, variant: 'avg' })}
                   <Area
                     type="monotone"
                     dataKey="expense"
@@ -285,9 +282,11 @@ export default function SpendingAnalysisPage() {
                   />
                 </AreaChart>
               </ChartContainer>
-            </div>
-          </motion.div>
-        )}
+            ) : (
+              <ChartEmptyState height={dims.chartHeight} message="No spending in this range. Try a wider date range or upload more statements." />
+            )}
+          </div>
+        </motion.div>
 
         {/* Expense Treemap */}
         <motion.div {...SCROLL_FADE_UP}>
@@ -295,11 +294,9 @@ export default function SpendingAnalysisPage() {
         </motion.div>
 
         {/* Pareto Analysis -- which categories make up 80% of spend */}
-        {Object.keys(categoryBreakdown).length > 0 && (
-          <motion.div {...SCROLL_FADE_UP}>
-            <ParetoChart categoryBreakdown={categoryBreakdown} />
-          </motion.div>
-        )}
+        <motion.div {...SCROLL_FADE_UP}>
+          <ParetoChart categoryBreakdown={categoryBreakdown} />
+        </motion.div>
 
         {/* Top Merchants */}
         <motion.div {...SCROLL_FADE_UP}>

@@ -171,14 +171,17 @@ export default function MilestonesTable({
           Growth rate:{' '}
           <span
             className={hasGrowth ? 'text-app-green font-semibold' : 'text-app-red font-semibold'}
-            title={
-              hasGrowth
-                ? `~${formatCurrency(Math.round(approxMonthlyRupees))}/mo at current net worth`
-                : 'Need positive growth to project forward'
-            }
           >
             {hasGrowth ? `+${annualizedPercent.toFixed(1)}%/yr` : 'stalled'}
           </span>
+          {hasGrowth ? (
+            <span className="text-xs text-text-tertiary">
+              {' '}
+              (~{formatCurrency(Math.round(approxMonthlyRupees))}/mo)
+            </span>
+          ) : (
+            <span className="text-xs text-text-tertiary"> (need positive growth to project)</span>
+          )}
         </span>
         <span className="text-muted-foreground">
           Stable:{' '}

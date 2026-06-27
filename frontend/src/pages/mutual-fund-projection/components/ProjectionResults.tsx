@@ -13,6 +13,8 @@ interface ProjectionResultsProps {
 export function ProjectionResults(props: Readonly<ProjectionResultsProps>) {
   const { invested, value, returns, projectionYears, activeMonthlySIP } = props
 
+  const overallGainPercent = invested > 0 ? (returns / invested) * 100 : 0
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
       <motion.div
@@ -49,7 +51,7 @@ export function ProjectionResults(props: Readonly<ProjectionResultsProps>) {
         <div className="text-sm font-medium text-muted-foreground mb-1">Projected Returns</div>
         <div className="text-2xl font-bold text-app-blue">{formatCurrency(returns)}</div>
         <div className="text-sm text-muted-foreground mt-1">
-          {((returns / invested) * 100).toFixed(1)}% overall gain
+          {overallGainPercent.toFixed(1)}% overall gain
         </div>
       </motion.div>
     </div>

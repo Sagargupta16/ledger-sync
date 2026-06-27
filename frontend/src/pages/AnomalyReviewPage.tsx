@@ -1,15 +1,15 @@
 import { useState, useMemo } from 'react'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, Check, X, ChevronDown, ChevronUp, Settings2 } from 'lucide-react'
+import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Info, Check, X, ChevronDown, ChevronUp, Settings2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { PageHeader, StatCard } from '@/components/ui'
+import { PageHeader, StatCard, Spinner } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { useAnomalies, useReviewAnomaly } from '@/hooks/api/useAnalyticsV2'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatPercent, formatDate } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
@@ -29,11 +29,20 @@ const ANOMALY_TYPE_ICONS: Record<Anomaly['anomaly_type'], typeof TrendingUp> = {
   budget_exceeded: AlertTriangle,
 }
 
-const SEVERITY_STYLES: Record<Anomaly['severity'], { bg: string; text: string; border: string; borderLeft: string }> = {
-  high: { bg: 'bg-app-red/15', text: 'text-app-red', border: 'border-app-red/20', borderLeft: 'border-l-4 border-l-app-red' },
-  medium: { bg: 'bg-app-orange/15', text: 'text-app-orange', border: 'border-app-orange/20', borderLeft: 'border-l-4 border-l-app-orange' },
-  low: { bg: 'bg-app-yellow/15', text: 'text-app-yellow', border: 'border-app-yellow/20', borderLeft: 'border-l-4 border-l-app-yellow' },
+// Distinct icon per severity so the level reads without relying on colour alone.
+const SEVERITY_ICONS: Record<Anomaly['severity'], typeof AlertTriangle> = {
+  high: AlertTriangle,
+  medium: AlertCircle,
+  low: Info,
 }
+
+const SEVERITY_STYLES: Record<Anomaly['severity'], { bg: string; text: string; border: string; borderLeft: string; iconColor: string }> = {
+  high: { bg: 'bg-app-red/15', text: 'text-app-red', border: 'border-app-red/20', borderLeft: 'border-l-4 border-l-app-red', iconColor: rawColors.app.red },
+  medium: { bg: 'bg-app-orange/15', text: 'text-app-orange', border: 'border-app-orange/20', borderLeft: 'border-l-4 border-l-app-orange', iconColor: rawColors.app.orange },
+  low: { bg: 'bg-app-yellow/15', text: 'text-app-yellow', border: 'border-app-yellow/20', borderLeft: 'border-l-4 border-l-app-yellow', iconColor: rawColors.app.yellow },
+}
+
+const DETECTED_AT_OPTS: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
 
 export default function AnomalyReviewPage() {
   const [typeFilter, setTypeFilter] = useState<string>('')
@@ -48,15 +57,19 @@ export default function AnomalyReviewPage() {
     include_reviewed: includeReviewed,
   })
 
+  // Summary cards count every anomaly (ignoring the type/severity filters) so
+  // the tally reflects the full picture, not just the currently-filtered list.
+  const { data: allAnomalies = [] } = useAnomalies({ include_reviewed: includeReviewed })
+
   const reviewMutation = useReviewAnomaly()
   const { guardDemoAction } = useDemoGuard()
 
   const summary = useMemo(() => {
-    const high = anomalies.filter((a) => a.severity === 'high').length
-    const medium = anomalies.filter((a) => a.severity === 'medium').length
-    const low = anomalies.filter((a) => a.severity === 'low').length
+    const high = allAnomalies.filter((a) => a.severity === 'high').length
+    const medium = allAnomalies.filter((a) => a.severity === 'medium').length
+    const low = allAnomalies.filter((a) => a.severity === 'low').length
     return { high, medium, low }
-  }, [anomalies])
+  }, [allAnomalies])
 
   const handleReview = (anomalyId: number, dismiss: boolean) => {
     if (guardDemoAction('Reviewing anomalies')) return
@@ -99,13 +112,13 @@ export default function AnomalyReviewPage() {
         className="grid grid-cols-1 md:grid-cols-3 gap-5"
       >
         <motion.div variants={fadeUpItem}>
-          <StatCard title="High Severity" value={String(summary.high)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={rawColors.app.red} />
+          <StatCard title="High Severity" value={String(summary.high)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={SEVERITY_STYLES.high.iconColor} />
         </motion.div>
         <motion.div variants={fadeUpItem}>
-          <StatCard title="Medium Severity" value={String(summary.medium)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={rawColors.app.yellow} />
+          <StatCard title="Medium Severity" value={String(summary.medium)} icon={<AlertCircle className="w-5 h-5" />} iconColor={SEVERITY_STYLES.medium.iconColor} />
         </motion.div>
         <motion.div variants={fadeUpItem}>
-          <StatCard title="Low Severity" value={String(summary.low)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={rawColors.app.blue} />
+          <StatCard title="Low Severity" value={String(summary.low)} icon={<Info className="w-5 h-5" />} iconColor={SEVERITY_STYLES.low.iconColor} />
         </motion.div>
       </motion.div>
 
@@ -119,7 +132,8 @@ export default function AnomalyReviewPage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-app-purple/50"
+            aria-label="Filter by anomaly type"
+            className="px-3 py-2.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-app-purple/50"
           >
             <option value="">All Types</option>
             <option value="high_expense">High Expense</option>
@@ -131,7 +145,8 @@ export default function AnomalyReviewPage() {
           <select
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
-            className="px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-app-purple/50"
+            aria-label="Filter by severity"
+            className="px-3 py-2.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-app-purple/50"
           >
             <option value="">All Severities</option>
             <option value="high">High</option>
@@ -153,7 +168,9 @@ export default function AnomalyReviewPage() {
 
       {/* Anomaly List */}
       {isLoading && (
-        <div className="h-64 flex items-center justify-center text-muted-foreground">Loading anomalies...</div>
+        <div className="h-64 flex items-center justify-center">
+          <Spinner size="lg" label="Loading anomalies" />
+        </div>
       )}
       {!isLoading && anomalies.length === 0 && (
         <EmptyState
@@ -166,6 +183,7 @@ export default function AnomalyReviewPage() {
         <div className="space-y-3">
           {anomalies.map((anomaly) => {
             const TypeIcon = ANOMALY_TYPE_ICONS[anomaly.anomaly_type]
+            const SeverityIcon = SEVERITY_ICONS[anomaly.severity]
             const severity = SEVERITY_STYLES[anomaly.severity]
             const isExpanded = expandedNoteId === anomaly.id
 
@@ -187,7 +205,8 @@ export default function AnomalyReviewPage() {
                         <span className="text-sm font-medium text-white">
                           {ANOMALY_TYPE_LABELS[anomaly.anomaly_type]}
                         </span>
-                        <span className={`px-2 py-0.5 text-xs rounded-full border ${severity.bg} ${severity.text} ${severity.border}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border ${severity.bg} ${severity.text} ${severity.border}`}>
+                          <SeverityIcon className="w-3 h-3" />
                           {anomaly.severity}
                         </span>
                         {anomaly.is_reviewed && (
@@ -200,7 +219,7 @@ export default function AnomalyReviewPage() {
                     </div>
                   </div>
                   <span className="text-xs text-text-tertiary whitespace-nowrap">
-                    {new Date(anomaly.detected_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {formatDate(anomaly.detected_at, DETECTED_AT_OPTS)}
                   </span>
                 </div>
 

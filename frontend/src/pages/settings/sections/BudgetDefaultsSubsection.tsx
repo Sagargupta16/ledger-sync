@@ -4,7 +4,7 @@
 
 import { PiggyBank } from 'lucide-react'
 import type { LocalPrefs, LocalPrefKey } from '../types'
-import { FieldLabel } from '../sectionPrimitives'
+import { FieldLabel, Toggle } from '../sectionPrimitives'
 import { inputClass } from '../styles'
 
 interface Props {
@@ -38,24 +38,26 @@ export default function BudgetDefaultsSubsection({
             className={inputClass}
           />
         </div>
-        <label className="flex items-center gap-3 cursor-pointer pt-6">
-          <input
-            type="checkbox"
+        <div className="flex items-center gap-3 pt-6">
+          <Toggle
+            id="auto-create-budgets"
             checked={localPrefs.auto_create_budgets}
-            onChange={(e) => updateLocalPref('auto_create_budgets', e.target.checked)}
-            className="w-4 h-4 rounded bg-white/5 border-border text-primary focus:ring-primary"
+            onChange={(val) => updateLocalPref('auto_create_budgets', val)}
           />
-          <span className="text-sm text-white">Auto-create budgets</span>
-        </label>
-        <label className="flex items-center gap-3 cursor-pointer pt-6">
-          <input
-            type="checkbox"
+          <label htmlFor="auto-create-budgets" className="text-sm text-white cursor-pointer">
+            Auto-create budgets
+          </label>
+        </div>
+        <div className="flex items-center gap-3 pt-6">
+          <Toggle
+            id="budget-rollover-enabled"
             checked={localPrefs.budget_rollover_enabled}
-            onChange={(e) => updateLocalPref('budget_rollover_enabled', e.target.checked)}
-            className="w-4 h-4 rounded bg-white/5 border-border text-primary focus:ring-primary"
+            onChange={(val) => updateLocalPref('budget_rollover_enabled', val)}
           />
-          <span className="text-sm text-white">Budget rollover</span>
-        </label>
+          <label htmlFor="budget-rollover-enabled" className="text-sm text-white cursor-pointer">
+            Budget rollover
+          </label>
+        </div>
       </div>
     </div>
   )

@@ -5,7 +5,7 @@
 import { AlertTriangle, Check } from 'lucide-react'
 import { ANOMALY_TYPES } from '../types'
 import type { LocalPrefs, LocalPrefKey } from '../types'
-import { FieldLabel } from '../sectionPrimitives'
+import { FieldLabel, Toggle } from '../sectionPrimitives'
 import { inputClass } from '../styles'
 
 interface Props {
@@ -77,17 +77,16 @@ export default function AnomalyDetectionSubsection({
           </div>
         </div>
       </div>
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
+      <div className="flex items-center justify-between gap-4">
+        <FieldLabel htmlFor="auto-dismiss-recurring-anomalies">
+          Auto-dismiss recurring anomalies
+        </FieldLabel>
+        <Toggle
+          id="auto-dismiss-recurring-anomalies"
           checked={localPrefs.auto_dismiss_recurring_anomalies}
-          onChange={(e) =>
-            updateLocalPref('auto_dismiss_recurring_anomalies', e.target.checked)
-          }
-          className="w-4 h-4 rounded bg-white/5 border-border text-primary focus:ring-primary"
+          onChange={(val) => updateLocalPref('auto_dismiss_recurring_anomalies', val)}
         />
-        <span className="text-sm text-white">Auto-dismiss recurring anomalies</span>
-      </label>
+      </div>
     </div>
   )
 }

@@ -198,7 +198,7 @@ export default function AnalyticsTimeFilter({
             <ChevronLeft className="w-4 h-4" />
           </motion.button>
 
-          <span className="text-white font-medium min-w-36 text-center">
+          <span className="text-white font-medium min-w-28 sm:min-w-36 text-center truncate">
             {periodLabel}
           </span>
 
@@ -215,7 +215,7 @@ export default function AnalyticsTimeFilter({
       )}
 
       {/* View Mode Selector */}
-      <div className="flex items-center gap-1 p-1 bg-white/[0.04] rounded-lg" role="tablist">
+      <div className="flex items-center gap-1 p-1 bg-white/[0.04] rounded-lg" role="tablist" aria-label="Time range">
         {filteredViewModes.map((mode) => (
           <motion.button
             key={mode.value}
