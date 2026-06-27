@@ -378,8 +378,12 @@ export function computeGSTAnalysis(
     slabMap.set(slab, { spending: 0, gst: 0, categories: 0 })
   }
   for (const cat of categoryBreakdown) {
-    const nearestSlab = ALL_SLABS.reduce((prev, curr) =>
-      Math.abs(curr - cat.gstRate) < Math.abs(prev - cat.gstRate) ? curr : prev,
+    // ALL_SLABS is always non-empty (built from the constant slab sets), but
+    // seed reduce() with its first element so it never depends on that and an
+    // empty array can't throw.
+    const nearestSlab = ALL_SLABS.reduce(
+      (prev, curr) => (Math.abs(curr - cat.gstRate) < Math.abs(prev - cat.gstRate) ? curr : prev),
+      ALL_SLABS[0],
     )
     const entry = slabMap.get(nearestSlab)
     if (entry) {
