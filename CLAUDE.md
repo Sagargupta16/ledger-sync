@@ -172,6 +172,16 @@ Repo-specific skills live in [`.claude/skills/<name>/SKILL.md`](.claude/skills/)
 | `deployment-atlas` | Editing workflows, vercel.json, settings |
 | `indian-finance-expert` | Editing tax/investment/savings code — domain-expert reference |
 
+**Frontend craft skills** (`user-invocable: false`) — practice/best-practice guides grounded in current library docs + this repo's actual fixed bugs. Auto-load by `paths:` when editing frontend code.
+
+| Craft skill | Auto-loads when... |
+| --- | --- |
+| `query-states` | Editing pages/hooks/components — loading/empty/error states + undefined-data guards (TanStack Query v5) |
+| `accessible-ui` | Editing components/pages — ARIA names, modal semantics, label association, contrast |
+| `recharts-viz` | Editing analytics/chart components — ResponsiveContainer, token colors, NaN/empty guards |
+| `react-patterns` | Editing any frontend TS/TSX — useEffectEvent, stable keys, stale-state, lazy/Suspense, hooks lint |
+| `design-system-ui` | Editing components/pages/CSS — design tokens, mobile-first + 44px touch, h-dvh, banned AI-slop patterns |
+
 **Task skills** (user-invocable, also auto-trigger on phrasing) — recipes for recurring work. Consolidated to broad workflows rather than one skill per layer.
 
 | Task skill | Trigger when... |
