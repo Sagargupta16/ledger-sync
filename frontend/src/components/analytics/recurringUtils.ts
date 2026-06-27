@@ -1,4 +1,4 @@
-import { MS_PER_DAY } from '@/lib/dateUtils'
+import { MS_PER_DAY, parseLocalDate, toLocalDateKey } from '@/lib/dateUtils'
 
 export interface RecurringTransaction {
   pattern: string
@@ -95,7 +95,7 @@ export function detectPattern(
   const avgAmount = data.amounts.reduce((a, b) => a + b, 0) / data.amounts.length
   const lastDateStr = sortedDates.at(-1)
   if (!lastDateStr) return null
-  const lastDate = new Date(lastDateStr)
+  const lastDate = parseLocalDate(lastDateStr)
   const expectedNext = computeExpectedNextDate(lastDate, frequency)
   const isActive = checkIsActive(lastDate, frequency)
   const subcategorySuffix = data.subcategory ? ` - ${data.subcategory}` : ''
@@ -111,6 +111,6 @@ export function detectPattern(
     occurrences: data.amounts.length,
     totalSpent: data.amounts.reduce((a, b) => a + b, 0),
     isActive,
-    expectedNextDate: expectedNext.toISOString().split('T')[0],
+    expectedNextDate: toLocalDateKey(expectedNext),
   }
 }
