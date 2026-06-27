@@ -67,7 +67,7 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def get_session() -> Generator[Session, None, None]:
+def get_session() -> Generator[Session]:
     """Get database session.
 
     Only commits if the session has pending changes (new/dirty/deleted objects),
