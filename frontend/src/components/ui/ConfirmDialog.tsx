@@ -44,8 +44,8 @@ export default function ConfirmDialog({
 
   const confirmColors =
     variant === 'danger'
-      ? 'bg-red-500/90 hover:bg-red-500 text-white'
-      : 'bg-orange-500/90 hover:bg-orange-500 text-white'
+      ? 'bg-app-red/90 hover:bg-app-red text-white'
+      : 'bg-app-orange/90 hover:bg-app-orange text-white'
 
   return (
     <AnimatePresence>

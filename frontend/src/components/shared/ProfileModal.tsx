@@ -176,19 +176,19 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             )}
             Icon={RotateCcw}
             title="Reset Transactions"
-            toneText="text-orange-400"
-            toneBorder="border-orange-500/15"
-            toneBg="bg-orange-500/5"
+            toneText="text-app-orange"
+            toneBorder="border-app-orange/15"
+            toneBg="bg-app-orange/5"
             description="Clears all transactions, import history, and analytics. Your preferences, budgets, goals, and account classifications will be preserved."
             confirmKeyword="RESET"
-            confirmKeywordBg="bg-orange-500/20"
+            confirmKeywordBg="bg-app-orange/20"
             confirmText={resetConfirmText}
             setConfirmText={setResetConfirmText}
-            inputBorderFocus="focus:border-orange-500/50"
+            inputBorderFocus="focus:border-app-orange/50"
             actionButton={{
               label: 'Clear Transactions',
               pendingLabel: 'Resetting...',
-              bgClass: 'bg-orange-500/90 hover:bg-orange-500',
+              bgClass: 'bg-app-orange/90 hover:bg-app-orange',
               onClick: () => handleReset('transactions'),
               pending: resetAccount.isPending,
             }}
@@ -203,19 +203,19 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             )}
             Icon={RotateCcw}
             title="Complete Reset"
-            toneText="text-amber-500"
-            toneBorder="border-amber-600/15"
-            toneBg="bg-amber-600/5"
+            toneText="text-app-yellow"
+            toneBorder="border-app-yellow/15"
+            toneBg="bg-app-yellow/5"
             description="Permanently deletes all data -- transactions, preferences, budgets, goals, import history, and analytics. Your account and login method will be preserved."
             confirmKeyword="RESET"
-            confirmKeywordBg="bg-amber-500/20"
+            confirmKeywordBg="bg-app-yellow/20"
             confirmText={resetConfirmText}
             setConfirmText={setResetConfirmText}
-            inputBorderFocus="focus:border-amber-500/50"
+            inputBorderFocus="focus:border-app-yellow/50"
             actionButton={{
               label: 'Yes, Reset Everything',
               pendingLabel: 'Resetting...',
-              bgClass: 'bg-amber-600/90 hover:bg-amber-600',
+              bgClass: 'bg-app-yellow/90 hover:bg-app-yellow',
               onClick: () => handleReset('full'),
               pending: resetAccount.isPending,
             }}
@@ -226,19 +226,19 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             setExpanded={setShowDeleteConfirm}
             Icon={Trash2}
             title="Delete Account"
-            toneText="text-red-400"
-            toneBorder="border-red-500/15"
-            toneBg="bg-red-500/5"
+            toneText="text-app-red"
+            toneBorder="border-app-red/15"
+            toneBg="bg-app-red/5"
             description="Permanently delete your account and all associated data. This action cannot be undone."
             confirmKeyword="DELETE"
-            confirmKeywordBg="bg-red-500/20"
+            confirmKeywordBg="bg-app-red/20"
             confirmText={deleteConfirmText}
             setConfirmText={setDeleteConfirmText}
-            inputBorderFocus="focus:border-red-500/50"
+            inputBorderFocus="focus:border-app-red/50"
             actionButton={{
               label: 'Permanently Delete',
               pendingLabel: 'Deleting...',
-              bgClass: 'bg-red-500/90 hover:bg-red-500',
+              bgClass: 'bg-app-red/90 hover:bg-app-red',
               onClick: handleDelete,
               pending: deleteAccount.isPending,
             }}

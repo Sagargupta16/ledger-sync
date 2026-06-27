@@ -143,8 +143,8 @@ function BrandHeader({
       onClick={onOpenProfile}
       className="w-full flex items-center gap-3 px-4 py-4 border-b border-border hover:bg-white/[0.04] transition-colors duration-150 group/brand"
     >
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-500/15">
-        <PiggyBank className="w-5 h-5 text-blue-400" />
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-app-blue/15">
+        <PiggyBank className="w-5 h-5 text-app-blue" />
       </div>
       <div className="flex-1 min-w-0 text-left">
         <p className="text-[15px] font-semibold text-white truncate leading-tight">
@@ -329,7 +329,7 @@ export default function Sidebar() {
                 <button
                   type="button"
                   onClick={() => exitDemoMode(queryClient, navigate)}
-                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150"
+                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors duration-150"
                   title="Exit Demo"
                   aria-label="Exit Demo"
                 >
@@ -340,7 +340,7 @@ export default function Sidebar() {
                   type="button"
                   onClick={handleLogout}
                   disabled={logout.isPending}
-                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 disabled:opacity-50"
+                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors duration-150 disabled:opacity-50"
                   title="Sign out"
                   aria-label="Sign out"
                 >

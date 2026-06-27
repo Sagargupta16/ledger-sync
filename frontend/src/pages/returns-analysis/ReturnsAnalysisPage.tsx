@@ -92,14 +92,14 @@ export default function ReturnsAnalysisPage() {
             className="glass rounded-2xl p-6"
           >
             <div className="flex items-center gap-4 mb-6">
-              <div className={`p-4 rounded-2xl ${netProfitLoss >= 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+              <div className={`p-4 rounded-2xl ${netProfitLoss >= 0 ? 'bg-app-green/10' : 'bg-app-red/10'}`}>
                 {netProfitLoss >= 0
-                  ? <TrendingUp className="w-8 h-8 text-green-400" />
-                  : <TrendingDown className="w-8 h-8 text-red-400" />}
+                  ? <TrendingUp className="w-8 h-8 text-app-green" />
+                  : <TrendingDown className="w-8 h-8 text-app-red" />}
               </div>
               <div>
                 <p className="text-sm text-text-tertiary">Net Investment P&L</p>
-                <p className={`text-4xl font-bold tracking-tight ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <p className={`text-4xl font-bold tracking-tight ${netProfitLoss >= 0 ? 'text-app-green' : 'text-app-red'}`}>
                   {netProfitLoss >= 0 ? '+' : ''}{formatCurrency(netProfitLoss)}
                 </p>
               </div>
@@ -107,10 +107,10 @@ export default function ReturnsAnalysisPage() {
             {/* Quick stats row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'CAGR', value: isLoading ? '...' : formatPercent(estimatedCAGR), color: estimatedCAGR >= 0 ? 'text-green-400' : 'text-red-400' },
-                { label: 'Monthly ROI', value: isLoading ? '...' : formatPercent(roi), color: roi >= 0 ? 'text-green-400' : 'text-red-400' },
-                { label: 'Total Income', value: formatCurrencyShort(totalIncome), color: 'text-green-400' },
-                { label: 'Total Costs', value: formatCurrencyShort(totalExpenses), color: 'text-red-400' },
+                { label: 'CAGR', value: isLoading ? '...' : formatPercent(estimatedCAGR), color: estimatedCAGR >= 0 ? 'text-app-green' : 'text-app-red' },
+                { label: 'Monthly ROI', value: isLoading ? '...' : formatPercent(roi), color: roi >= 0 ? 'text-app-green' : 'text-app-red' },
+                { label: 'Total Income', value: formatCurrencyShort(totalIncome), color: 'text-app-green' },
+                { label: 'Total Costs', value: formatCurrencyShort(totalExpenses), color: 'text-app-red' },
               ].map(stat => (
                 <div key={stat.label} className="bg-white/[0.04] border border-border rounded-lg p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary">{stat.label}</p>
@@ -129,7 +129,7 @@ export default function ReturnsAnalysisPage() {
           className="glass rounded-2xl p-6"
         >
           <div className="flex items-center gap-3 mb-6">
-            <Activity className="w-5 h-5 text-blue-400" />
+            <Activity className="w-5 h-5 text-app-blue" />
             <div>
               <h3 className="text-lg font-semibold text-white">Monthly Investment P&L</h3>
               <p className="text-xs text-text-tertiary">Bars show monthly net, line shows cumulative growth</p>
@@ -225,7 +225,7 @@ export default function ReturnsAnalysisPage() {
                     title={`${m.month}: ${formatCurrency(m.net)}`}
                   >
                     <p className="text-[10px] text-muted-foreground mb-1">{m.month}</p>
-                    <p className={`text-xs font-bold ${m.net >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                    <p className={`text-xs font-bold ${m.net >= 0 ? 'text-app-green' : 'text-app-red'}`}>
                       {m.net >= 0 ? '+' : ''}{formatCurrencyShort(m.net)}
                     </p>
                   </div>
@@ -245,16 +245,16 @@ export default function ReturnsAnalysisPage() {
           >
             <h3 className="text-lg font-semibold text-white mb-4">Detailed Breakdown</h3>
             <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
-              <motion.div variants={fadeUpItem} className="bg-green-500/5 border border-green-500/15 rounded-xl p-5">
+              <motion.div variants={fadeUpItem} className="bg-app-green/5 border border-app-green/15 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <Banknote className="w-4 h-4 text-green-400" />
+                  <Banknote className="w-4 h-4 text-app-green" />
                   <p className="text-sm font-medium text-white">Income Sources</p>
                 </div>
                 <div className="space-y-3">
                   {[
-                    { label: 'Investment Profit', value: investmentProfit, color: 'text-green-400' },
-                    { label: 'Dividend Income', value: dividendIncome, color: 'text-green-400' },
-                    { label: 'Interest Income', value: interestIncome, color: 'text-teal-400' },
+                    { label: 'Investment Profit', value: investmentProfit, color: 'text-app-green' },
+                    { label: 'Dividend Income', value: dividendIncome, color: 'text-app-green' },
+                    { label: 'Interest Income', value: interestIncome, color: 'text-app-teal' },
                   ].map(item => (
                     <div key={item.label}>
                       <div className="flex justify-between mb-1">
@@ -271,21 +271,21 @@ export default function ReturnsAnalysisPage() {
                       )}
                     </div>
                   ))}
-                  <div className="flex justify-between border-t border-green-500/10 pt-3">
+                  <div className="flex justify-between border-t border-app-green/10 pt-3">
                     <span className="text-sm font-semibold text-white">Total</span>
-                    <span className="text-lg font-bold text-green-400">{formatCurrency(totalIncome)}</span>
+                    <span className="text-lg font-bold text-app-green">{formatCurrency(totalIncome)}</span>
                   </div>
                 </div>
               </motion.div>
-              <motion.div variants={fadeUpItem} className="bg-red-500/5 border border-red-500/15 rounded-xl p-5">
+              <motion.div variants={fadeUpItem} className="bg-app-red/5 border border-app-red/15 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <Receipt className="w-4 h-4 text-red-400" />
+                  <Receipt className="w-4 h-4 text-app-red" />
                   <p className="text-sm font-medium text-white">Costs & Losses</p>
                 </div>
                 <div className="space-y-3">
                   {[
-                    { label: 'Investment Loss', value: investmentLoss, color: 'text-red-400' },
-                    { label: 'Broker Fees', value: brokerFees, color: 'text-orange-400' },
+                    { label: 'Investment Loss', value: investmentLoss, color: 'text-app-red' },
+                    { label: 'Broker Fees', value: brokerFees, color: 'text-app-orange' },
                   ].map(item => (
                     <div key={item.label}>
                       <div className="flex justify-between mb-1">
@@ -302,9 +302,9 @@ export default function ReturnsAnalysisPage() {
                       )}
                     </div>
                   ))}
-                  <div className="flex justify-between border-t border-red-500/10 pt-3">
+                  <div className="flex justify-between border-t border-app-red/10 pt-3">
                     <span className="text-sm font-semibold text-white">Total</span>
-                    <span className="text-lg font-bold text-red-400">{formatCurrency(totalExpenses)}</span>
+                    <span className="text-lg font-bold text-app-red">{formatCurrency(totalExpenses)}</span>
                   </div>
                 </div>
               </motion.div>
@@ -313,7 +313,7 @@ export default function ReturnsAnalysisPage() {
             <div className="mt-4 bg-white/[0.04] border border-border rounded-xl p-5">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-white">Net Profit/Loss</span>
-                <span className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <span className={`text-2xl font-bold ${netProfitLoss >= 0 ? 'text-app-green' : 'text-app-red'}`}>
                   {netProfitLoss >= 0 ? '+' : ''}{formatCurrency(netProfitLoss)}
                 </span>
               </div>

@@ -252,7 +252,7 @@ function RecurringCard({
               {item.is_active ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
             </button>
             <button type="button" onClick={onDelete}
-              title="Delete" className="p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-red-500/10 transition-colors">
+              title="Delete" className="p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>

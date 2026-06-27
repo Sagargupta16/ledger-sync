@@ -30,8 +30,8 @@ const TransactionRow = memo(function TransactionRow({
         <div
           className={`p-2 rounded-lg transition-colors duration-150 ${
             transaction.type === 'Income'
-              ? 'bg-green-500/10 text-app-green'
-              : 'bg-red-500/10 text-app-red'
+              ? 'bg-app-green/10 text-app-green'
+              : 'bg-app-red/10 text-app-red'
           }`}
         >
           {transaction.type === 'Income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}

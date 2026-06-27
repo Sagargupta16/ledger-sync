@@ -168,7 +168,7 @@ export default function DropZone({ onFileSelect, isUploading, compact }: Readonl
         className={cn(
           'relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-150 ease-out',
           'hover:border-white/[0.15] hover:bg-white/[0.02]',
-          isDragActive && 'border-blue-400/50 bg-blue-500/5 scale-[1.01]',
+          isDragActive && 'border-app-blue/50 bg-app-blue/5 scale-[1.01]',
           isUploading && 'opacity-50 cursor-not-allowed',
           selectedFile ? 'border-white/[0.15] bg-white/[0.02]' : 'border-white/[0.10]',
           compact ? 'p-4' : 'p-12 rounded-2xl'

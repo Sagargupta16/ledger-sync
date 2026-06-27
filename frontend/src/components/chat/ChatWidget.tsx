@@ -79,6 +79,8 @@ export default function ChatWidget() {
         whileTap={{ scale: 0.95 }}
         onClick={handleToggle}
         title={isConfigured ? 'AI Assistant' : 'Configure AI key in Settings'}
+        aria-label={isConfigured ? 'Open AI Assistant' : 'AI Assistant — configure API key in Settings'}
+        aria-expanded={isOpen}
         className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${
           isConfigured
             ? 'bg-gradient-to-br from-primary to-secondary text-white hover:shadow-primary/25'

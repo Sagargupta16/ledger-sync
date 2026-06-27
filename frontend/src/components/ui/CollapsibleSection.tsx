@@ -38,7 +38,7 @@ export default function CollapsibleSection({
         <Icon className="w-5 h-5 text-muted-foreground shrink-0" />
         <span className="text-base font-semibold text-white flex-1">{title}</span>
         {badge !== undefined && (
-          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/15 text-blue-400">
+          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-app-blue/15 text-app-blue">
             {badge}
           </span>
         )}

@@ -50,7 +50,7 @@ export default function CashFlowForecast() {
             </div>
           </div>
           {insights.monthsUntilNegative && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-medium">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-app-orange/10 border border-app-orange/20 text-app-orange text-xs font-medium">
               <AlertTriangle className="w-3.5 h-3.5" />
               Deficit in {insights.monthsUntilNegative}mo
             </div>
@@ -125,7 +125,7 @@ export default function CashFlowForecast() {
             Forecast
           </span>
           <span className="flex items-center gap-1.5">{' '}
-            <span className="w-3 h-1.5 rounded-sm bg-blue-500/15" />{' '}
+            <span className="w-3 h-1.5 rounded-sm bg-app-blue/15" />{' '}
             Confidence
           </span>
         </div>

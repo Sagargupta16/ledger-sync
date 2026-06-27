@@ -38,13 +38,13 @@ export default function SidebarItem({
         <>
           {/* Subtle left accent bar */}
           {isActive && (
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 rounded-full bg-blue-400" />
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 rounded-full bg-app-blue" />
           )}
           <Icon
             size={18}
             className={cn(
               'flex-shrink-0 transition-colors duration-150',
-              isActive ? 'text-blue-400' : 'text-text-tertiary',
+              isActive ? 'text-app-blue' : 'text-text-tertiary',
             )}
           />
           <span className="flex-1 truncate">{label}</span>
@@ -53,7 +53,7 @@ export default function SidebarItem({
               className={cn(
                 'px-1.5 py-0.5 min-w-[20px] text-center text-[11px] font-semibold rounded-md flex-shrink-0',
                 badgeVariant === 'alert'
-                  ? 'bg-red-500/15 text-red-400'
+                  ? 'bg-app-red/15 text-app-red'
                   : 'bg-white/[0.08] text-muted-foreground',
               )}
             >

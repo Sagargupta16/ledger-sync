@@ -117,7 +117,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-white/[0.06] transition-colors duration-150"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-app-red hover:text-app-red hover:bg-white/[0.06] transition-colors duration-150"
               aria-label="Clear all filters"
             >
               <X className="w-4 h-4" aria-hidden="true" />

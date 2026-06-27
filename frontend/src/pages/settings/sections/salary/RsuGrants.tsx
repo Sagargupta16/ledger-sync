@@ -126,7 +126,7 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
             <button
               type="button"
               onClick={() => onRemoveGrant(grant.id)}
-              className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors mt-6"
+              className="p-2 rounded-lg text-app-red hover:bg-app-red/10 transition-colors mt-6"
               title="Delete grant"
             >
               <Trash2 className="w-4 h-4" />
@@ -189,7 +189,7 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
                           <button
                             type="button"
                             onClick={() => onRemoveVesting(grant.id, vi)}
-                            className="p-1 rounded text-red-400 hover:bg-red-500/10 transition-colors"
+                            className="p-1 rounded text-app-red hover:bg-app-red/10 transition-colors"
                             title="Remove vesting"
                           >
                             <X className="w-3.5 h-3.5" />

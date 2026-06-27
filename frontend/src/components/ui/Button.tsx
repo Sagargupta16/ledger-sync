@@ -13,13 +13,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-blue-500 text-white hover:bg-blue-400 active:scale-[0.98]',
+    'bg-app-blue text-white hover:bg-app-blue active:scale-[0.98]',
   secondary:
     'bg-white/[0.06] border border-white/[0.08] text-white hover:bg-white/[0.10] hover:text-white active:scale-[0.98]',
   ghost:
     'text-muted-foreground hover:text-white hover:bg-white/[0.06] active:scale-[0.98]',
   danger:
-    'bg-red-500/90 text-white hover:bg-red-500 active:scale-[0.98]',
+    'bg-app-red/90 text-white hover:bg-app-red active:scale-[0.98]',
   outline:
     'border border-white/[0.10] text-white hover:bg-white/[0.06] hover:text-white active:scale-[0.98]',
 }
@@ -45,7 +45,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       className={cn(
         'inline-flex items-center justify-center font-medium transition-all duration-150 ease-out',
         'disabled:opacity-50 disabled:pointer-events-none',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         variantClasses[variant],
         sizeClasses[size],
         className

@@ -74,9 +74,9 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
       const isTransfer = type === 'Transfer'
 
       const colorClass = (() => {
-        if (isTransfer) return 'text-teal-400'
-        if (isIncome) return 'text-green-400'
-        return 'text-red-400'
+        if (isTransfer) return 'text-app-teal'
+        if (isIncome) return 'text-app-green'
+        return 'text-app-red'
       })()
 
       const prefix = (() => {
