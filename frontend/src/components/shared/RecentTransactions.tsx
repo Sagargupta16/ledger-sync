@@ -8,16 +8,7 @@ import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { getSemanticTextClass } from '@/constants/chartColors'
 import type { Transaction } from '@/types'
 import { formatCurrency } from '@/lib/formatters'
-
-/**
- * Parse a `YYYY-MM-DD` transaction date at LOCAL midnight. `new Date(str)`
- * parses date-only strings as UTC midnight, and date-fns `format` then renders
- * the LOCAL day — shifting to the previous day for negative-offset (US) users.
- */
-function parseLocalDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
+import { parseLocalDate } from '@/lib/dateUtils'
 
 interface RecentTransactionsProps {
   transactions: Transaction[]

@@ -34,13 +34,17 @@ import {
 import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
-// Slab colors (matching GST slab identity)
+// Slab colors (matching GST slab identity). Covers both the legacy slabs
+// (12/28%, for transactions before the 2025-09-22 GST 2.0 cutover) and the
+// current ones (40% luxury de-merit rate).
 const SLAB_COLORS: Record<number, string> = {
   0: rawColors.app.green,
   3: rawColors.app.yellow,
   5: rawColors.app.teal,
+  12: rawColors.app.blue,
   18: rawColors.app.indigo,
-  28: rawColors.app.red,
+  28: rawColors.app.orange,
+  40: rawColors.app.red,
 }
 
 function FYNavigator({

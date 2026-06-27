@@ -39,7 +39,7 @@ export default function SettingsPage() {
   // Loading skeleton
   if (s.isLoading) {
     return (
-      <div className="min-h-screen p-4 md:p-6 lg:p-8">
+      <div className="min-h-dvh p-4 md:p-6 lg:p-8">
         <div className="max-w-5xl mx-auto space-y-4">
           {['skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4'].map((id) => (
             <div
@@ -55,7 +55,7 @@ export default function SettingsPage() {
   let sectionIndex = 0
 
   return (
-    <div className="min-h-screen p-4 md:p-6 lg:p-8">
+    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-5xl mx-auto space-y-5">
         {/* Page Header */}
         <PageHeader

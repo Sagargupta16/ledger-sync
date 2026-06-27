@@ -44,8 +44,8 @@ _MiddlewareCallNext = Callable[[Request], Awaitable[Response]]
 
 APP_VERSION = "1.0.0"
 
-# Initialize logging
-setup_logging("INFO")
+# Initialize logging at the configured level (LEDGER_SYNC_LOG_LEVEL, default INFO)
+setup_logging(settings.log_level)
 
 
 def _cleanup_stale_temp_files() -> None:
@@ -236,9 +236,15 @@ if settings.frontend_url:
     if _frontend_origin and _frontend_origin not in _cors_origins:
         _cors_origins.append(_frontend_origin)
 
+# Use the computed allowlist instead of "*". The list always contains the
+# localhost dev origins plus the production frontend origin derived from
+# settings.frontend_url (which is correctly set in prod -- OAuth redirects to
+# it and they work). auth is Bearer-token (allow_credentials=False), so this was
+# never a CSRF hole, but scoping origins removes the misleading dead computation
+# and follows least-privilege. Active origins are logged at startup for verify.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

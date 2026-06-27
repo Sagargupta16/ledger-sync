@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_GST_RATES,
+  DEFAULT_GST_RATES_LEGACY,
   GST_SLABS,
+  GST_SLABS_CURRENT,
+  GST_SLABS_LEGACY,
   calculateGSTFromInclusive,
   computeGSTAnalysis,
   getExpenseFYs,
   getGSTRate,
+  getRateTableForDate,
 } from '../gstCalculator'
 import type { Transaction } from '@/types'
 
@@ -20,17 +24,59 @@ const expense = (overrides: Partial<Transaction>): Transaction => ({
 })
 
 describe('GST_SLABS', () => {
-  it('lists the India GST slabs', () => {
-    expect(GST_SLABS).toEqual([0, 3, 5, 18, 28])
+  it('current (GST 2.0) slabs drop 12/28 and add 40', () => {
+    expect(GST_SLABS_CURRENT).toEqual([0, 3, 5, 18, 40])
+    expect(GST_SLABS).toEqual([0, 3, 5, 18, 40]) // back-compat export = current
+  })
+
+  it('legacy (pre-2025-09-22) slabs keep 12 and 28', () => {
+    expect(GST_SLABS_LEGACY).toEqual([0, 3, 5, 12, 18, 28])
   })
 })
 
-describe('DEFAULT_GST_RATES', () => {
-  it('maps known categories to their slabs', () => {
+describe('DEFAULT_GST_RATES (GST 2.0, current)', () => {
+  it('maps known categories to their current slabs', () => {
     expect(DEFAULT_GST_RATES['Restaurants']).toBe(5)
     expect(DEFAULT_GST_RATES['Jewellery']).toBe(3)
-    expect(DEFAULT_GST_RATES['Luxury']).toBe(28)
     expect(DEFAULT_GST_RATES['Rent']).toBe(0)
+  })
+
+  it('reflects GST 2.0 changes: luxury 40, insurance/electricity/water exempt, apparel 5', () => {
+    expect(DEFAULT_GST_RATES['Luxury']).toBe(40)
+    expect(DEFAULT_GST_RATES['Tobacco']).toBe(40)
+    expect(DEFAULT_GST_RATES['Insurance']).toBe(0)
+    expect(DEFAULT_GST_RATES['Electricity']).toBe(0)
+    expect(DEFAULT_GST_RATES['Water']).toBe(0)
+    expect(DEFAULT_GST_RATES['Clothing']).toBe(5)
+  })
+
+  it('legacy table keeps the pre-reform rates', () => {
+    expect(DEFAULT_GST_RATES_LEGACY['Luxury']).toBe(28)
+    expect(DEFAULT_GST_RATES_LEGACY['Insurance']).toBe(18)
+    expect(DEFAULT_GST_RATES_LEGACY['Electricity']).toBe(5)
+    expect(DEFAULT_GST_RATES_LEGACY['Clothing']).toBe(18)
+  })
+})
+
+describe('getRateTableForDate (GST 2.0 cutover)', () => {
+  it('uses legacy rates before 2025-09-22', () => {
+    expect(getRateTableForDate('2025-09-21').rates['Luxury']).toBe(28)
+  })
+  it('uses GST 2.0 rates on/after 2025-09-22', () => {
+    expect(getRateTableForDate('2025-09-22').rates['Luxury']).toBe(40)
+    expect(getRateTableForDate('2026-01-01').rates['Insurance']).toBe(0)
+  })
+})
+
+describe('getGSTRate date-awareness', () => {
+  it('returns the legacy luxury rate for a pre-reform date', () => {
+    expect(getGSTRate('Luxury', undefined, undefined, '2025-06-15')).toBe(28)
+  })
+  it('returns the GST 2.0 luxury rate for a post-reform date', () => {
+    expect(getGSTRate('Luxury', undefined, undefined, '2025-12-15')).toBe(40)
+  })
+  it('defaults to the current table when no date is given', () => {
+    expect(getGSTRate('Luxury')).toBe(40)
   })
 })
 
@@ -69,7 +115,7 @@ describe('getGSTRate', () => {
 
   it('is case-insensitive on exact match', () => {
     expect(getGSTRate('restaurants')).toBe(5)
-    expect(getGSTRate('LUXURY')).toBe(28)
+    expect(getGSTRate('LUXURY')).toBe(40) // GST 2.0 luxury de-merit rate
   })
 
   it('returns the default 18 for a fully unmapped category', () => {

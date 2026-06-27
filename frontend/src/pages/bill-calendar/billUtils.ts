@@ -1,19 +1,7 @@
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 import { rawColors } from '@/constants/colors'
-import { MS_PER_DAY } from '@/lib/dateUtils'
+import { MS_PER_DAY, parseLocalDate } from '@/lib/dateUtils'
 import { CATEGORY_COLORS, type PlacedBill } from './types'
-
-/**
- * Parse a `next_expected` date at LOCAL midnight. Demo mode emits date-only
- * strings (`YYYY-MM-DD`) which `new Date(str)` parses as UTC midnight; reading
- * `.getMonth()`/`.getDate()` or comparing against local-built month bounds then
- * shifts recurring bills by a day (and quarterly/yearly by a whole month) for
- * negative-offset users. Building from explicit parts keeps it timezone-stable.
- */
-function parseLocalDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
 
 /** Get the number of days in a given month (0-indexed month) */
 export function getDaysInMonth(year: number, month: number): number {

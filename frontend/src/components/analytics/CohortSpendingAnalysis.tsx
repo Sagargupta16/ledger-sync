@@ -7,20 +7,10 @@ import { rawColors } from '@/constants/colors'
 import StandardBarChart from '@/components/analytics/StandardBarChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { formatCurrencyShort } from '@/lib/formatters'
+import { parseLocalDate } from '@/lib/dateUtils'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-/**
- * Parse a `YYYY-MM-DD` date string at LOCAL midnight so day-of-week /
- * day-of-month / month buckets reflect the calendar date. `new Date(str)`
- * parses as UTC midnight, and the local getters then shift the day for
- * negative-offset (US) users — corrupting these cohort buckets.
- */
-function parseLocalDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
 
 type ViewMode = 'day-of-week' | 'day-of-month' | 'monthly'
 

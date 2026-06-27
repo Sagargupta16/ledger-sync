@@ -323,6 +323,30 @@ body {
   animation: fade-up 0.35s ease-out both;
 }
 
+/* ===== REDUCED MOTION =====
+ * Motion is visible BY DEFAULT (a deliberate product choice). This block ONLY
+ * fires when the user has set the OS "reduce motion" accessibility preference,
+ * which the framer-motion <MotionConfig reducedMotion="user"> already honors for
+ * JS animations -- this covers the CSS-keyframe layer (animate-glow/float/pulse/
+ * spin/fade-up) and transitions that MotionConfig can't reach. Scope is strictly
+ * the reduce query; it never tones motion down for everyone else. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Stop the always-on ambient background loops entirely. */
+  .animate-glow,
+  .animate-float {
+    animation: none !important;
+  }
+}
+
 /* ===== PAGE TRANSITION ===== */
 
 .page-enter {

@@ -67,6 +67,8 @@ export default function ChatPanel({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{ duration: 0.2 }}
+      role="dialog"
+      aria-label="AI Assistant chat"
       className="absolute bottom-16 right-0 w-[calc(100vw-2rem)] max-w-[380px] max-h-[70dvh] sm:max-h-[500px] glass rounded-2xl border border-border flex flex-col overflow-hidden shadow-2xl"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -81,6 +83,7 @@ export default function ChatPanel({
             onClick={onClear}
             className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
             title="Clear chat"
+            aria-label="Clear chat"
           >
             <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
@@ -89,13 +92,14 @@ export default function ChatPanel({
             onClick={onMinimize}
             className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
             title="Minimize"
+            aria-label="Minimize chat"
           >
             <Minus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px]">
+      <div ref={scrollRef} aria-live="polite" aria-atomic="false" className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px]">
         {messages.length === 0 && (
           <div className="text-center py-8">
             <p className="text-sm text-muted-foreground">Ask me anything about your finances.</p>
@@ -119,7 +123,7 @@ export default function ChatPanel({
       </div>
 
       {error && (
-        <div className="mx-4 mb-2 px-3 py-2 bg-app-red/10 border border-app-red/20 rounded-lg flex items-start gap-2">
+        <div role="alert" className="mx-4 mb-2 px-3 py-2 bg-app-red/10 border border-app-red/20 rounded-lg flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-app-red shrink-0 mt-0.5" />
           <p className="text-xs text-app-red">{error}</p>
         </div>
@@ -141,7 +145,8 @@ export default function ChatPanel({
             <button
               type="button"
               onClick={onStop}
-              className="p-2 rounded-xl bg-app-red/20 text-app-red hover:bg-app-red/30 transition-colors"
+              aria-label="Stop generating"
+              className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 rounded-xl bg-app-red/20 text-app-red hover:bg-app-red/30 transition-colors"
             >
               <Square className="w-4 h-4" />
             </button>
@@ -150,7 +155,8 @@ export default function ChatPanel({
               type="button"
               onClick={handleSend}
               disabled={!input.trim()}
-              className="p-2 rounded-xl bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              aria-label="Send message"
+              className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 rounded-xl bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
             </button>

@@ -26,6 +26,23 @@ export const getCurrentMonth = (): string => new Date().toISOString().substring(
 export const getDateKey = (dateString: string): string => dateString.substring(0, 10)
 
 /**
+ * Parse a `YYYY-MM-DD` (or longer ISO) date string at LOCAL midnight.
+ *
+ * `new Date('2026-06-06')` parses date-only strings as UTC midnight, so local
+ * getters (`getDay`/`getMonth`/`getDate`) and `date-fns` formatting shift the
+ * calendar day for negative-offset (US/Americas) users. Building the Date from
+ * the explicit Y/M/D parts pins it to the local calendar day instead. This is
+ * the single shared implementation — do not re-declare it per file.
+ */
+export const parseLocalDate = (dateStr: string): Date => {
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+/** Local weekday (0=Sun..6=Sat) for a `YYYY-MM-DD` date, timezone-stable. */
+export const weekdayOf = (dateStr: string): number => parseLocalDate(dateStr).getDay()
+
+/**
  * Format a Date's LOCAL calendar components as a YYYY-MM-DD key.
  *
  * Use this instead of `date.toISOString().substring(0, 10)` whenever the Date

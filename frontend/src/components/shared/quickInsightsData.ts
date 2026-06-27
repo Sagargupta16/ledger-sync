@@ -1,19 +1,6 @@
 import type React from 'react'
 
-import { MS_PER_DAY } from '@/lib/dateUtils'
-
-/**
- * Weekday (0=Sun..6=Sat) for a `YYYY-MM-DD` transaction date, timezone-stable.
- *
- * `new Date('2026-06-06').getDay()` parses the string as UTC midnight but reads
- * the LOCAL weekday — so a Saturday reads as Friday for negative-offset (US)
- * users, corrupting the weekend/weekday split and peak-day. Construct from the
- * explicit Y/M/D parts (local midnight) so the calendar day is preserved.
- */
-function weekdayOf(dateStr: string): number {
-  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
-  return new Date(y, m - 1, d).getDay()
-}
+import { MS_PER_DAY, weekdayOf } from '@/lib/dateUtils'
 
 /** Maps insight titles to widget keys used in Settings → Dashboard Widgets */
 const TITLE_TO_WIDGET_KEY: Record<string, string> = {
