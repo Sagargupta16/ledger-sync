@@ -8,6 +8,11 @@ re-investigating a topic.
 | --- | --- |
 | [studies/2026-06-27-calc-verification.md](studies/2026-06-27-calc-verification.md) | Real-data verification of every calculation domain (independent SQL oracles vs app); which are correct, which were wrong + fixed |
 | [studies/2026-06-27-db-schema-optimization.md](studies/2026-06-27-db-schema-optimization.md) | DB schema/storage/index study: current layout, what's optimal, recommended changes |
+| [studies/2026-06-27-optimized-schema-design.md](studies/2026-06-27-optimized-schema-design.md) | From-scratch optimized schema: star (fact+dimension) model, full rollup set, on-upload incremental compute pipeline, staged rollout |
+
+## Related skills
+
+- `~/.claude/skills/db-sql-patterns/SKILL.md` — live-cited DB/SQL best practices (indexing, Neon pooling, Alembic safety, money, keyset pagination). Auto-suggests on DB/schema/migration work.
 
 ## Conventions
 
