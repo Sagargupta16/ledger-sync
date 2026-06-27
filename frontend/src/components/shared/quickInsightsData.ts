@@ -2,6 +2,19 @@ import type React from 'react'
 
 import { MS_PER_DAY } from '@/lib/dateUtils'
 
+/**
+ * Weekday (0=Sun..6=Sat) for a `YYYY-MM-DD` transaction date, timezone-stable.
+ *
+ * `new Date('2026-06-06').getDay()` parses the string as UTC midnight but reads
+ * the LOCAL weekday — so a Saturday reads as Friday for negative-offset (US)
+ * users, corrupting the weekend/weekday split and peak-day. Construct from the
+ * explicit Y/M/D parts (local midnight) so the calendar day is preserved.
+ */
+function weekdayOf(dateStr: string): number {
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
+  return new Date(y, m - 1, d).getDay()
+}
+
 /** Maps insight titles to widget keys used in Settings → Dashboard Widgets */
 const TITLE_TO_WIDGET_KEY: Record<string, string> = {
   'Savings Rate': 'savings_rate',
@@ -132,7 +145,7 @@ export function computeWeekendSplit(transactions: Transaction[]) {
   let weekend = 0
   let weekday = 0
   for (const t of transactions) {
-    const day = new Date(t.date).getDay()
+    const day = weekdayOf(t.date)
     const amount = Math.abs(t.amount)
     if (day === 0 || day === 6) weekend += amount
     else weekday += amount
@@ -143,7 +156,7 @@ export function computeWeekendSplit(transactions: Transaction[]) {
 export function computePeakDay(transactions: Transaction[]) {
   const spendingByDay = [0, 0, 0, 0, 0, 0, 0]
   for (const t of transactions) {
-    spendingByDay[new Date(t.date).getDay()] += Math.abs(t.amount)
+    spendingByDay[weekdayOf(t.date)] += Math.abs(t.amount)
   }
   const peakIndex = spendingByDay.indexOf(Math.max(...spendingByDay))
   return { name: DAY_NAMES[peakIndex], total: spendingByDay[peakIndex] }
