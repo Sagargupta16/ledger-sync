@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computePeakDay, computeWeekendSplit } from '../quickInsightsData'
+import { computeNetCashback, computePeakDay, computeWeekendSplit } from '../quickInsightsData'
 import type { Transaction } from '@/types'
 
 /**
@@ -48,5 +48,31 @@ describe('computePeakDay', () => {
     ])
     expect(result.name).toBe('Saturday')
     expect(result.total).toBe(500)
+  })
+})
+
+describe('computeNetCashback', () => {
+  const cb = (subcategory: string, amount: number, type = 'Income'): Transaction =>
+    ({ id: `${subcategory}-${amount}`, date: '2026-06-06', amount, type, category: 'X', subcategory, account: 'A' }) as Transaction
+
+  it('matches cashback by subcategory substring, regardless of the parent category spelling', () => {
+    // Regression: real data uses "Refunds & Cashbacks" (plural); the old exact
+    // "Refund & Cashbacks" match returned 0. Match on the "cashback" subcategory.
+    const txns = [
+      cb('Credit Card Cashbacks', 300),
+      cb('Other Cashbacks', 200),
+      cb('Product/Service Refunds', 999), // a refund, NOT cashback -> excluded
+    ]
+    const { netCashback, cashbackCount } = computeNetCashback(txns)
+    expect(netCashback).toBe(500)
+    expect(cashbackCount).toBe(2)
+  })
+
+  it('subtracts shared cashback matched by destination substring', () => {
+    const txns: Transaction[] = [
+      cb('Credit Card Cashbacks', 1000),
+      { id: 's1', date: '2026-06-06', amount: 250, type: 'Transfer', category: 'X', account: 'A', to_account: 'Transfer: CC -> Cashback Shared' } as Transaction,
+    ]
+    expect(computeNetCashback(txns).netCashback).toBe(750)
   })
 })

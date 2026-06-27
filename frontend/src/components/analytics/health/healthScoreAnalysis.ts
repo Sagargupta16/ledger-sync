@@ -146,10 +146,22 @@ export function computeAnalysis(
   )
   const positiveSavingsMonths = monthlySavingsRates.filter((r) => r > 0).length
   const positiveSavingsRatio = positiveSavingsMonths / count
-  const savingsVolatilityCV = coefficientOfVariation(monthlySavingsRates.filter((r) => r > 0))
 
-  const monthlyIncomes = buckets.map((m) => m.income)
-  const incomeCV = coefficientOfVariation(monthlyIncomes)
+  // Stability/volatility are about RECENT consistency, so measure them over the
+  // last 12 months -- not the full history. Over a multi-year ramp (a student
+  // going from ~Rs0 to a salary) the all-time income CV is ~130%, which floors
+  // every stability score at 0 even when the last year is rock-steady (CV ~10%).
+  const VOLATILITY_WINDOW = 12
+  const recentBuckets = buckets.slice(-VOLATILITY_WINDOW)
+  const recentSavingsRates = recentBuckets.map((m) =>
+    m.income > 0 ? ((m.income - m.expense) / m.income) * 100 : 0,
+  )
+  const savingsVolatilityCV = coefficientOfVariation(recentSavingsRates.filter((r) => r > 0))
+
+  // Income CV over recent months that actually had income (a pre-earning month
+  // of Rs0 isn't "income instability"; it's no income yet).
+  const recentIncomes = recentBuckets.map((m) => m.income).filter((v) => v > 0)
+  const incomeCV = coefficientOfVariation(recentIncomes)
 
   return {
     monthsAnalyzed: count,

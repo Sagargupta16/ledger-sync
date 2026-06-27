@@ -191,14 +191,21 @@ export function computeMostExpensiveMonth(transactions: Transaction[]) {
 }
 
 export function computeNetCashback(allTransactions: Transaction[]) {
+  // Match by substring, NOT an exact hardcoded category string. The category is
+  // user-defined and varies ("Refund & Cashbacks" vs "Refunds & Cashbacks"), so
+  // an exact match silently returned 0 cashback for real data that used the
+  // plural spelling. A "cashback" subcategory under any refund/cashback category
+  // is what we want; refunds (Product/Service Refunds, Deposit Return) are not
+  // cashback and stay excluded.
   const cashbackTxs = allTransactions.filter(
     (t) =>
-      t.category === 'Refund & Cashbacks' &&
       t.type === 'Income' &&
-      (t.subcategory === 'Credit Card Cashbacks' || t.subcategory === 'Other Cashbacks'),
+      (t.subcategory || '').toLowerCase().includes('cashback'),
   )
+  // "Shared" cashback passed on to others, matched by destination substring so
+  // both "Cashback Shared" and "Transfer: X -> Cashback Shared" leg names count.
   const sharedTxs = allTransactions.filter(
-    (t) => t.type === 'Transfer' && t.to_account === 'Cashback Shared',
+    (t) => t.type === 'Transfer' && (t.to_account || '').toLowerCase().includes('cashback shared'),
   )
   const totalCashback = cashbackTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0)
   const totalShared = sharedTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0)

@@ -56,7 +56,14 @@ export default function DashboardPage() {
   )
   const daysOfBuffering = useMemo(() => {
     if (!filteredTransactions?.length || !filteredTotals) return null
-    const liquidBalance = (filteredTotals.total_income ?? 0) - Math.abs(filteredTotals.total_expenses ?? 0)
+    // Coerce to Number: totals can arrive as strings (backend Decimal serialized
+    // as a string), and `string - number` / Math.abs(string) yields NaN, which
+    // rendered "NaN days". Number() of a numeric string is safe; non-numeric
+    // falls through to the null guard below.
+    const income = Number(filteredTotals.total_income ?? 0)
+    const expenses = Number(filteredTotals.total_expenses ?? 0)
+    if (!Number.isFinite(income) || !Number.isFinite(expenses)) return null
+    const liquidBalance = income - Math.abs(expenses)
     return computeDaysOfBuffering(liquidBalance, filteredTransactions)
   }, [filteredTransactions, filteredTotals])
 
