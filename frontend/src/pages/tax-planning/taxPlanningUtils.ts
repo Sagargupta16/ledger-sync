@@ -6,7 +6,6 @@ import {
   getStandardDeduction,
   parseFYStartYear,
   getTaxSlabs,
-  getNewRegimeSlabs,
 } from '@/lib/taxCalculator'
 import { projectFiscalYear } from '@/lib/projectionCalculator'
 import type { Transaction } from '@/types'
@@ -131,14 +130,17 @@ export function computeTaxForFY(
   const standardDeduction = getStandardDeduction(fyYear)
 
   const hasEmploymentIncome = netTaxableIncome > 0
-  const newRegimeSlabs = getNewRegimeSlabs(fyYear)
 
+  // Back out gross using the SAME regime the tax is computed with below.
+  // Using new-regime slabs here while taxing with the old regime produced a
+  // gross inconsistent with the displayed tax (the page's net = gross - tax
+  // no longer matched the net the user actually entered).
   const grossTaxableIncome = calculateGrossFromNet(netTaxableIncome, {
-    slabs: newRegimeSlabs,
+    slabs: taxSlabs,
     standardDeduction,
     applyProfessionalTax: hasEmploymentIncome,
     salaryMonthsCount,
-    isNewRegime: true,
+    isNewRegime,
     fyStartYear: fyYear,
   })
 

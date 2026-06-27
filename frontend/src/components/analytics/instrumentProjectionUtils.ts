@@ -1,6 +1,7 @@
 import {
   EPF_MIN_MONTHLY_CONTRIBUTION,
   EPF_STATUTORY_RATE_PCT,
+  epfMonthlyContributions,
 } from '@/lib/instrumentCalculators'
 import type { ProjectionResult } from '@/lib/instrumentCalculators'
 import type { AccountBalances } from '@/services/api/calculations'
@@ -28,12 +29,15 @@ export function toChartData(data: ProjectionResult) {
 }
 
 export function computeEpfContribution(salary: number, contribPct: number) {
-  // Employee + employer both contribute the same %, total = 2x
-  const yourShare = (salary * contribPct) / 100
-  const totalMonthly = yourShare * 2
+  // Employee contributes contribPct% of basic (all to EPF). The employer's EPF
+  // share is 12% of basic minus the EPS diversion (8.33% of capped ₹15k wage),
+  // so it is NOT simply the same % — total corpus inflow is employee + employerEpf,
+  // not 2× the employee share.
+  const { employee: yourShare, employerEpf, total: totalMonthly } =
+    epfMonthlyContributions(salary, contribPct)
   // Floor is the statutory minimum; above the wage ceiling you contribute on full salary.
   const minContrib = Math.max(EPF_MIN_MONTHLY_CONTRIBUTION, (salary * EPF_STATUTORY_RATE_PCT) / 100)
-  return { yourShare, totalMonthly, minContrib }
+  return { yourShare, employerEpf, totalMonthly, minContrib }
 }
 
 // Keep allocation summing to 100

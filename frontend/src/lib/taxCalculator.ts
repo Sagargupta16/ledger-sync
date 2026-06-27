@@ -209,11 +209,17 @@ export function calculateTax(
   let rebate87A = 0
   if (taxableIncome <= rebateConfig.maxIncome) {
     rebate87A = Math.min(baseTax, rebateConfig.maxRebate)
-  } else {
-    // Marginal relief on 87A (Budget 2025, new regime): just above the rebate
-    // ceiling, total tax cannot exceed the income earned above the ceiling.
-    // Without this the rebate drops to 0 at the cliff, over-taxing by tens of
-    // thousands for incomes a few rupees over the ceiling.
+  } else if (isNewRegime) {
+    // Marginal relief on 87A exists ONLY in the new regime (Budget 2023 proviso,
+    // extended by Budget 2025): just above the rebate ceiling, total tax cannot
+    // exceed the income earned above the ceiling. Without this the rebate drops
+    // to 0 at the cliff, over-taxing by tens of thousands for incomes a few
+    // rupees over the ceiling.
+    //
+    // The OLD regime has NO such relief — it is a hard cliff at the ceiling
+    // (e.g. taxable income of 5,00,001 pays full slab tax, no rebate). So this
+    // branch must stay gated to the new regime, otherwise the old regime
+    // under-taxes the band just above its 5L ceiling.
     const incomeAboveCeiling = taxableIncome - rebateConfig.maxIncome
     if (baseTax > incomeAboveCeiling) {
       rebate87A = baseTax - incomeAboveCeiling

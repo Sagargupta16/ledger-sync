@@ -4,6 +4,8 @@
  * all functions are deterministic and unit-testable.
  */
 
+import { formatMonthKey } from '@/lib/dateUtils'
+
 export const calculateCAGR = (endingValue: number, beginningValue: number, years: number): number => {
   if (beginningValue <= 0 || years <= 0) return 0
   return (Math.pow(endingValue / beginningValue, 1 / years) - 1) * 100
@@ -80,7 +82,7 @@ export function groupTransactionsByMonth(
     const net = monthly[m].income - monthly[m].expenses
     cumulative += net
     return {
-      month: new Date(m + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      month: formatMonthKey(m, { month: 'short', year: '2-digit' }),
       income: Math.round(monthly[m].income),
       expenses: Math.round(monthly[m].expenses),
       net: Math.round(net),

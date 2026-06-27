@@ -18,7 +18,7 @@ interface ByokConfigFormProps {
   setApiKey: (v: string) => void
   showKey: boolean
   setShowKey: (v: boolean) => void
-  setTestStatus: (s: 'idle') => void
+  setTestStatus: (s: 'idle' | 'testing' | 'success' | 'error') => void
 }
 
 export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {

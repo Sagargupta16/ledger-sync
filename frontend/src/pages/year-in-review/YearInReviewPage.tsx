@@ -237,7 +237,7 @@ export default function YearInReviewPage() {
 
                 <section
                   className="flex gap-0.5"
-                  aria-label="Spending heatmap grid"
+                  aria-label={`${mode === 'expense' ? 'Spending' : mode === 'income' ? 'Earning' : 'Net cash flow'} heatmap grid`}
                   onMouseOver={(e) => {
                     const target = (e.target as HTMLElement).closest<HTMLElement>(
                       '[data-cell-date]',

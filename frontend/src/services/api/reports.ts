@@ -58,13 +58,20 @@ export async function downloadMonthlyReport(year: number, month: number) {
   const res = await fetch(`${API_BASE_URL}/api/reports/monthly?year=${year}&month=${month}&format=html`, {
     headers: { Authorization: `Bearer ${token}` },
   })
+  // Without this guard a 401/500 error body would be opened as if it were the
+  // report. Surface it as an error the caller can catch instead.
+  if (!res.ok) {
+    throw new Error(`Failed to generate report (HTTP ${res.status})`)
+  }
   const html = await res.text()
   const blob = new Blob([html], { type: 'text/html' })
   const url = URL.createObjectURL(blob)
   const win = window.open(url, '_blank')
-  if (win) {
-    win.addEventListener('load', () => URL.revokeObjectURL(url))
-  } else {
+  if (!win) {
     URL.revokeObjectURL(url)
+    return
   }
+  // The cross-tab `load` event is unreliable (often missed for blob: URLs), so
+  // revoke on a timer as a backstop -- long enough for the new tab to load.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }

@@ -280,6 +280,7 @@ export function buildInitialLocalPrefs(p: Record<string, unknown>): Record<strin
     auto_create_budgets: p.auto_create_budgets,
     budget_rollover_enabled: p.budget_rollover_enabled,
     number_format: p.number_format,
+    display_currency: p.display_currency ?? 'INR',
     currency_symbol: p.currency_symbol,
     currency_symbol_position: p.currency_symbol_position,
     default_time_range: p.default_time_range,

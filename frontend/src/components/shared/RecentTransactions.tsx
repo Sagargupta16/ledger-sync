@@ -9,6 +9,16 @@ import { getSemanticTextClass } from '@/constants/chartColors'
 import type { Transaction } from '@/types'
 import { formatCurrency } from '@/lib/formatters'
 
+/**
+ * Parse a `YYYY-MM-DD` transaction date at LOCAL midnight. `new Date(str)`
+ * parses date-only strings as UTC midnight, and date-fns `format` then renders
+ * the LOCAL day — shifting to the previous day for negative-offset (US) users.
+ */
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 interface RecentTransactionsProps {
   transactions: Transaction[]
   isLoading?: boolean
@@ -43,7 +53,7 @@ const TransactionRow = memo(function TransactionRow({
           <div className="flex items-center gap-3 mt-1 text-sm text-text-tertiary">
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
-              {format(new Date(transaction.date), 'MMM dd, yyyy')}
+              {format(parseLocalDate(transaction.date), 'MMM dd, yyyy')}
             </span>
             {transaction.category && (
               <span className="flex items-center gap-1">

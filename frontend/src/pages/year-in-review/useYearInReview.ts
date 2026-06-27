@@ -3,7 +3,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { useDailySummaries } from '@/hooks/api/useAnalyticsV2'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
-import { getCurrentFY, getCurrentMonth, getCurrentYear, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { getCurrentFY, getCurrentMonth, getCurrentYear, toLocalDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import type { DayCell } from './components/DayOfWeekChart'
 import {
   accumulateStats,
@@ -53,8 +53,11 @@ export function useYearInReview() {
       ? new Date(selectedYear + 1, fiscalYearStartMonth - 1, 0)
       : new Date(selectedYear, 11, 31)
 
-    const startStr = startDate.toISOString().substring(0, 10)
-    const endStr = endDate.toISOString().substring(0, 10)
+    // Local-component keys: startDate/endDate are built from local components
+    // (new Date(year, ...)), so toISOString() would roll them back a day in IST
+    // and drop the boundary day's transactions from the range filter.
+    const startStr = toLocalDateKey(startDate)
+    const endStr = toLocalDateKey(endDate)
 
     const summaryDates = dailySummaries.map((s) => s.date).sort()
     const hasCoverage =

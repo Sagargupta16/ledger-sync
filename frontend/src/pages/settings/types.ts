@@ -25,7 +25,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
   'Bank Accounts': 'from-app-blue to-app-teal',
   'Credit Cards': 'from-app-orange to-app-red',
   Investments: 'from-app-purple to-app-pink',
-  Loans: 'from-app-red to-app-orange',
+  'Loans/Lended': 'from-app-red to-app-orange',
   'Other Wallets': 'from-app-indigo to-app-blue',
 }
 

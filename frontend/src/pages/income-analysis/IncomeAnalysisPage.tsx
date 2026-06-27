@@ -16,7 +16,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl } from '@/components/ui'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
-import { getDateKey } from '@/lib/dateUtils'
+import { getDateKey, formatMonthKey } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
 import { FilterBanner } from '@/components/shared/FilterBanner'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
@@ -125,7 +125,7 @@ export default function IncomeAnalysisPage() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, income]) => ({
         month,
-        label: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        label: formatMonthKey(month, { month: 'short', year: '2-digit' }),
         income,
       }))
 
@@ -287,7 +287,7 @@ export default function IncomeAnalysisPage() {
                     {...chartTooltipProps}
                     labelFormatter={(_label: unknown, payload: ReadonlyArray<{ payload?: { month?: string } }>) => {
                       const month = payload?.[0]?.payload?.month
-                      return month ? new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''
+                      return month ? formatMonthKey(month, { month: 'long', year: 'numeric' }) : ''
                     }}
                     formatter={(value, name) => [
                       typeof value === 'number' ? formatCurrency(value) : '',

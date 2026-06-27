@@ -58,6 +58,27 @@ describe('calculateTax - Section 87A rebate', () => {
     expect(taxAfterRebate).toBeCloseTo(10_000, 0)
     expect(result.totalTax).toBeCloseTo(10_400, 0) // 10k + 4% cess
   })
+
+  it('regression: OLD regime is a HARD CLIFF above 5L (no marginal relief)', () => {
+    // The old regime has NO 87A marginal relief — only the new regime does.
+    // Taxable 5,10,000 (no SD), old regime:
+    //   2.5-5L * 5%  = 12,500
+    //   5L-5.1L * 20% = 2,000
+    //   base tax     = 14,500, and NO rebate (income > 5L ceiling).
+    // The earlier bug applied marginal relief here, granting a phantom ~4,500
+    // rebate and under-taxing. Lock in zero rebate + full slab tax.
+    const result = calculateTax(510_000, TAX_SLABS_OLD_REGIME, 0, false, 0, false, 2025)
+    expect(result.rebate87A).toBe(0)
+    expect(result.tax).toBe(14_500)
+    expect(result.totalTax).toBeCloseTo(14_500 * 1.04, 0) // base + 4% cess
+  })
+
+  it('old regime still zeros tax at/under the 5L ceiling (full rebate)', () => {
+    // Taxable exactly 5L: base tax 12,500, rebate caps it to 0.
+    const result = calculateTax(500_000, TAX_SLABS_OLD_REGIME, 0, false, 0, false, 2025)
+    expect(result.rebate87A).toBe(12_500)
+    expect(result.totalTax).toBe(0)
+  })
 })
 
 describe('calculateTax - surcharge marginal relief', () => {

@@ -18,6 +18,7 @@ import {
 import { rawColors } from '@/constants/colors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatMonthKey } from '@/lib/dateUtils'
 import {
   chartTooltipProps,
   PageHeader,
@@ -177,12 +178,7 @@ export default function TrendsForecastsPage() {
                           payload: ReadonlyArray<{ payload?: { month?: string } }>,
                         ) => {
                           const month = payload?.[0]?.payload?.month
-                          return month
-                            ? new Date(month + '-01').toLocaleDateString('en-US', {
-                                month: 'long',
-                                year: 'numeric',
-                              })
-                            : ''
+                          return month ? formatMonthKey(month, { month: 'long', year: 'numeric' }) : ''
                         }}
                         formatter={(value, name) => [
                           typeof value === 'number' ? formatCurrency(value) : '',

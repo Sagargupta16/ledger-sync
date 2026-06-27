@@ -41,7 +41,9 @@ export default function TimeSeriesLineChart({
         <YAxis {...yAxisDefaults()} />
         <Tooltip
           {...chartTooltipProps}
-          labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          // `displayPeriod` is already a formatted bucket label ("Wk 12 '24",
+          // "Jan 24"), not a parseable date — re-wrapping it in new Date()
+          // rendered a literal "Invalid Date" on week/month-bucketed views.
           formatter={(value) => formatCurrency(typeof value === 'number' ? value : 0)}
           itemSorter={(item) => -(item.value as number)}
         />

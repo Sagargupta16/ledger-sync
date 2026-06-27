@@ -3,7 +3,7 @@ import { useTrends } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
-import { getDateKey } from '@/lib/dateUtils'
+import { getDateKey, formatMonthKey } from '@/lib/dateUtils'
 import { percentChange } from '@/lib/formatters'
 import { getTrendDirection } from './trendsUtils'
 import type { TrendMetrics } from './types'
@@ -158,10 +158,7 @@ export function useTrendsForecasts() {
     if (!filteredMonthlyTrends.length) return []
     return filteredMonthlyTrends.map((t) => ({
       month: t.month,
-      label: new Date(t.month + '-01').toLocaleDateString('en-US', {
-        month: 'short',
-        year: '2-digit',
-      }),
+      label: formatMonthKey(t.month, { month: 'short', year: '2-digit' }),
       income: t.income,
       expenses: t.expenses,
       savings: t.surplus,

@@ -3,7 +3,7 @@ import { CheckCircle, Key, Zap } from 'lucide-react'
 import type { AIMode } from '@/services/api/aiConfig'
 import type { UsageResponse } from '@/services/api/aiUsage'
 
-import { FieldHint, FieldLabel } from '../../sectionPrimitives'
+import { FieldHint } from '../../sectionPrimitives'
 
 interface ModeToggleProps {
   mode: AIMode
@@ -21,8 +21,13 @@ function usageTone(ratio: number): string {
 export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeToggleProps>) {
   return (
     <div className="space-y-2">
-      <FieldLabel htmlFor="">How to power the chat</FieldLabel>
-      <div className="grid grid-cols-1 gap-2">
+      {/* Group caption for two card-buttons, not a single input — a <label>
+          with empty htmlFor associates with nothing, so use a plain caption
+          and label the choice group via role="group" + aria-label. */}
+      <p id="ai-mode-label" className="block text-sm font-medium text-foreground mb-1.5">
+        How to power the chat
+      </p>
+      <div className="grid grid-cols-1 gap-2" role="group" aria-labelledby="ai-mode-label">
         <ModeCard
           selected={mode === 'app_bedrock'}
           disabled={pending}
