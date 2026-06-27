@@ -90,9 +90,14 @@ export default function CashFlowForecast() {
                 strokeDasharray="4 4"
               />
             )}
-            {/* Confidence band (upper/lower) */}
-            <Area type="monotone" dataKey="upper" stroke="none" fill="url(#gradient-cone)" fillOpacity={1} connectNulls isAnimationActive={false} legendType="none" />
-            <Area type="monotone" dataKey="lower" stroke="none" fill="#000" fillOpacity={0.8} connectNulls isAnimationActive={false} legendType="none" />
+            {/* Confidence band as two STACKED areas: a transparent baseline at
+                `lower`, then the band height (`upper - lower`) stacked on top.
+                Stacking sits the visible band on the baseline regardless of sign,
+                so the cone renders correctly above, below, or across zero -- the
+                old approach faked it with a black mask Area that painted a solid
+                black wedge below zero whenever the forecast dipped negative. */}
+            <Area type="monotone" dataKey="lowerBase" stackId="cone" stroke="none" fill="none" fillOpacity={0} connectNulls isAnimationActive={false} legendType="none" />
+            <Area type="monotone" dataKey="bandRange" stackId="cone" stroke="none" fill="url(#gradient-cone)" fillOpacity={1} connectNulls isAnimationActive={false} legendType="none" />
             {/* Historical income/expense lines */}
             <Area type="monotone" dataKey="income" stroke={rawColors.app.green} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={600} strokeOpacity={0.5} legendType="none" />
             <Area type="monotone" dataKey="expense" stroke={rawColors.app.red} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={shouldAnimate(forecastData.combined.length)} animationDuration={600} strokeOpacity={0.5} legendType="none" />

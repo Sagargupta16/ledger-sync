@@ -18,7 +18,7 @@ import {
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatDate } from '@/lib/formatters'
 
 import { CATEGORY_CONFIG } from '../netWorthUtils'
 import type { MilestoneRow, NetWorthPoint } from '../netWorthProjection'
@@ -60,6 +60,14 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
   } = props
   const dims = useChartDimensions()
 
+  // Stacked view splits net worth into category proportions of a POSITIVE total;
+  // when cumulative net worth is negative those proportions collapse to a flat
+  // zero line (meaningless). Disable the stacked toggle for windows that dip
+  // negative and fall back to the total view.
+  const hasNegativeNetWorth = chartData.some((d) => typeof d.netWorth === 'number' && d.netWorth < 0)
+  const stackedAllowed = !hasNegativeNetWorth
+  const effectiveStacked = showStacked && stackedAllowed
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -91,13 +99,15 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
           </button>
           <button
             onClick={() => setShowStacked(!showStacked)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              showStacked
+            disabled={!stackedAllowed}
+            title={stackedAllowed ? undefined : 'Stacked view is unavailable while net worth is negative in this range'}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              effectiveStacked
                 ? 'bg-primary text-white'
                 : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
             }`}
           >
-            {showStacked ? '📊 Stacked View' : '📈 Total View'}
+            {effectiveStacked ? '📊 Stacked View' : '📈 Total View'}
           </button>
         </div>
       </div>
@@ -163,7 +173,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                 {...chartTooltipProps}
                 formatter={formattedValue}
                 labelFormatter={(label) =>
-                  new Date(label).toLocaleDateString('en-US', {
+                  formatDate(label, {
                     month: 'long',
                     day: 'numeric',
                     year: 'numeric',
@@ -187,7 +197,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
               {/* Upcoming milestones as faint horizontal threshold lines.
                   Recharts auto-clips lines outside the y-axis range so we
                   render the whole DEFAULT_MILESTONES set without filtering. */}
-              {!showStacked && milestoneRows?.filter((m) => m.status === 'upcoming').map((m) => (
+              {!effectiveStacked && milestoneRows?.filter((m) => m.status === 'upcoming').map((m) => (
                 <ReferenceLine
                   key={`milestone-${m.value}`}
                   y={m.value}
@@ -202,7 +212,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                   }}
                 />
               ))}
-              {showStacked ? (
+              {effectiveStacked ? (
                 <>
                   {allCategories.map((cat) => {
                     const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG.other
@@ -214,7 +224,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                         stackId="1"
                         stroke={config.color}
                         strokeWidth={2}
-                        dot={false}
+                        dot={chartData.length === 1 ? { r: 3, fill: config.color } : false}
                         activeDot={{ ...ACTIVE_DOT, fill: config.color }}
                         fillOpacity={1}
                         fill={`url(#color-${cat.replaceAll(/\s+/g, '')})`}
@@ -233,7 +243,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                     dataKey="netWorth"
                     stroke={rawColors.app.purple}
                     strokeWidth={2}
-                    dot={false}
+                    dot={chartData.length === 1 ? { r: 3, fill: rawColors.app.purple } : false}
                     activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.purple }}
                     fillOpacity={1}
                     fill={areaGradientUrl('netWorth')}
@@ -283,7 +293,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                   {...BRUSH_DEFAULTS}
                   dataKey="date"
                   tickFormatter={(value: string) =>
-                    new Date(value).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+                    formatDate(value, { month: 'short', year: '2-digit' })
                   }
                   startIndex={Math.max(0, chartData.length - Math.ceil(chartData.length / 3))}
                 />

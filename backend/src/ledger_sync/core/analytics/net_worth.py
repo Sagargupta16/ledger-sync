@@ -79,9 +79,24 @@ class NetWorthMixin(AnalyticsEngineBase):
         }
 
     def _get_net_worth_change(self, net_worth: Decimal) -> tuple[Decimal, float]:
-        """Compare *net_worth* against the most recent persisted snapshot."""
-        prev_query = self.db.query(NetWorthSnapshot).order_by(
-            NetWorthSnapshot.snapshot_date.desc(),
+        """Compare *net_worth* against the most recent persisted snapshot.
+
+        Excludes TODAY's snapshot from the "previous" lookup: this runs before
+        the upsert, but on a same-day re-upload today's row already exists, and
+        comparing against it yields a spurious change=0 (the bug that left 7/12
+        stored snapshots showing 0 change despite net worth moving). Compare
+        against the genuine prior day instead.
+        """
+        now = datetime.now(UTC)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        prev_query = (
+            self.db.query(NetWorthSnapshot)
+            .filter(
+                NetWorthSnapshot.snapshot_date < today_start,
+            )
+            .order_by(
+                NetWorthSnapshot.snapshot_date.desc(),
+            )
         )
         if self.user_id is not None:
             prev_query = prev_query.filter(NetWorthSnapshot.user_id == self.user_id)
@@ -172,9 +187,12 @@ class NetWorthMixin(AnalyticsEngineBase):
         """Auto-populate investment holdings from transaction data.
 
         Dynamically detects investment accounts using user preferences
-        (``investment_account_mappings``) and computes net invested amount
-        per account. Uses ``_is_investment_account`` / ``_get_investment_type``
-        from the ClassificationMixin.
+        (``investment_account_mappings``) and computes net invested amount per
+        account from BOTH transfer flows (money moved in/out) AND income/expense
+        booked directly on the account (EPF contributions, RSU vesting, sale
+        proceeds). Uses ``_is_investment_account`` / ``_get_investment_type``
+        from the ClassificationMixin. No market data is available, so realized
+        gains are not inferred -- see the per-account comments below.
         """
         if all_transactions is None:
             all_transactions = self._user_transaction_query().all()
@@ -200,10 +218,26 @@ class NetWorthMixin(AnalyticsEngineBase):
         count = 0
         for account, data in holdings_data.items():
             inv_type = self._get_investment_type(account) or "other"  # type: ignore[attr-defined]
-            invested = data["invested"]
-            realized = data["income"] - data["expense"]
-            # current_value = invested + realized gains (no market data available)
-            current_value = invested + realized
+            transfer_invested = data["invested"]
+            account_flow = data["income"] - data["expense"]
+            # Net cash deployed into the account, with no market data available:
+            #   transfers in/out (principal moved) + income/expense booked on the
+            #   account (contributions like EPF/RSU, withdrawals, dividends).
+            current_value = transfer_invested + account_flow
+
+            # Principal = everything that wasn't a withdrawal. Accounts funded by
+            # INCOME (EPF contributions, RSU vesting) have zero transfer_invested
+            # but real principal -- counting that income as "realized gains" (the
+            # old behaviour) reported the whole balance as gains on 0 invested.
+            # Without per-lot market data we cannot separate true gains from
+            # contributions, so treat positive account income as principal and
+            # leave realized_gains at 0 rather than fabricating a return.
+            invested = transfer_invested + max(account_flow, Decimal(0))
+
+            # Active = the account currently holds value, not merely "was funded
+            # by a transfer". The old `invested > 0` test hid income-funded
+            # holdings (EPF, RSU-vested stock) that the user genuinely owns.
+            is_active = current_value > 0
 
             self.db.add(
                 InvestmentHolding(
@@ -212,10 +246,10 @@ class NetWorthMixin(AnalyticsEngineBase):
                     investment_type=inv_type,
                     invested_amount=invested,
                     current_value=current_value,
-                    realized_gains=realized,
+                    realized_gains=Decimal(0),
                     unrealized_gains=Decimal(0),
                     last_updated=now,
-                    is_active=invested > 0,
+                    is_active=is_active,
                 ),
             )
             count += 1

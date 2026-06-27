@@ -1,5 +1,5 @@
 import { rawColors } from '@/constants/colors'
-import { MS_PER_DAY } from '@/lib/dateUtils'
+import { MS_PER_DAY, toLocalDateKey } from '@/lib/dateUtils'
 import type { DayCell } from './components/DayOfWeekChart'
 import { MONTHS_SHORT, type HeatmapMode } from './types'
 
@@ -95,7 +95,7 @@ export function buildDayCells(
   dayExpenses: Record<string, number>,
   dayIncomes: Record<string, number>,
 ) {
-  const todayStr = new Date().toISOString().substring(0, 10)
+  const todayStr = toLocalDateKey(new Date())
   const startDow = startDate.getDay()
   const cells: DayCell[] = []
   let mxE = 0
@@ -104,7 +104,9 @@ export function buildDayCells(
 
   const current = new Date(startDate)
   while (current <= endDate) {
-    const dateStr = current.toISOString().substring(0, 10)
+    // Local-component key so it matches this cell's getDay()/getMonth() and the
+    // YYYY-MM-DD transaction keys; toISOString() would shift a day in IST.
+    const dateStr = toLocalDateKey(current)
     const dayOffset = Math.floor((current.getTime() - startDate.getTime()) / MS_PER_DAY)
     const weekIndex = Math.floor((dayOffset + startDow) / 7)
     const exp = dayExpenses[dateStr] || 0

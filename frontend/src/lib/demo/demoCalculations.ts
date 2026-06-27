@@ -36,10 +36,23 @@ export function generateDemoMonthlyAggregation(
   const result: MonthlyAggregation = {}
   for (const tx of filtered) {
     const mk = monthKey(tx.date)
-    if (!result[mk]) result[mk] = { income: 0, expense: 0, net_savings: 0, transactions: 0 }
+    if (!result[mk])
+      result[mk] = {
+        income: 0,
+        expense: 0,
+        net_savings: 0,
+        transactions: 0,
+        income_count: 0,
+        expense_count: 0,
+      }
     const entry = result[mk]
-    if (isIncome(tx)) entry.income += tx.amount
-    else if (isExpense(tx)) entry.expense += tx.amount
+    if (isIncome(tx)) {
+      entry.income += tx.amount
+      entry.income_count++
+    } else if (isExpense(tx)) {
+      entry.expense += tx.amount
+      entry.expense_count++
+    }
     entry.transactions++
   }
   for (const entry of Object.values(result)) {

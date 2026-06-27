@@ -281,3 +281,45 @@ class FYSummary(Base):
         Boolean,
         default=False,
     )  # False if FY is still ongoing
+
+
+class CohortSpending(Base):
+    """Average expense by temporal cohort -- day-of-week, day-of-month, month.
+
+    Materializes the "Spending Patterns" widget so the browser stops pulling
+    every transaction to bucket it. Each row is one (user, dimension, bucket)
+    cell carrying the total spent and the *occurrence-correct* divisor:
+
+    - ``day_of_week`` (bucket 0=Sun..6=Sat): divisor = real count of that
+      weekday in the data's [min, max] date span (zero-spend days included).
+    - ``day_of_month`` (bucket 1..31): divisor = distinct YYYY-MM months whose
+      length actually reaches that day (29/30/31 don't exist every month).
+    - ``month_of_year`` (bucket 1..12): divisor = distinct years that month
+      appears in.
+
+    ``avg_amount = total_amount / max(1, occurrences)`` is precomputed so the
+    client renders directly. Storing dates server-side also removes the
+    timezone bug class -- the DB holds naive local dates, so SQL extraction is
+    stable regardless of the viewer's offset.
+    """
+
+    __tablename__ = "cohort_spending"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+
+    # 'day_of_week' | 'day_of_month' | 'month_of_year'
+    dimension: Mapped[str] = mapped_column(String(20), nullable=False)
+    # 0-6 for day_of_week, 1-31 for day_of_month, 1-12 for month_of_year
+    bucket: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    occurrences: Mapped[int] = mapped_column(Integer, default=0)
+    avg_amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+
+    last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        Index("ix_cohort_spending_user_dim", "user_id", "dimension", "bucket", unique=True),
+    )

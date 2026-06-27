@@ -22,3 +22,16 @@ export function useTransactions(filters?: TransactionFilters) {
     staleTime: Infinity,
   })
 }
+
+/**
+ * Fetch dropdown facets (distinct categories/accounts) and per-type counts
+ * for the Transactions page. Server-aggregated, so it replaces pulling the
+ * entire ledger into the browser just to derive these few values.
+ */
+export function useTransactionFacets() {
+  return useQuery({
+    queryKey: ['transaction-facets'],
+    queryFn: () => transactionsService.getFacets(),
+    staleTime: Infinity,
+  })
+}

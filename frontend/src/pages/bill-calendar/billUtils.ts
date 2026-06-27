@@ -1,6 +1,6 @@
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 import { rawColors } from '@/constants/colors'
-import { MS_PER_DAY } from '@/lib/dateUtils'
+import { MS_PER_DAY, parseLocalDate } from '@/lib/dateUtils'
 import { CATEGORY_COLORS, type PlacedBill } from './types'
 
 /** Get the number of days in a given month (0-indexed month) */
@@ -67,7 +67,7 @@ export function getRecurringDaysInMonth(
   daysInMonth: number,
   intervalDays: number,
 ): number[] {
-  const nextDate = new Date(nextExpected)
+  const nextDate = parseLocalDate(nextExpected)
   const days: number[] = []
   const monthStart = new Date(year, month, 1)
   const monthEnd = new Date(year, month, daysInMonth)
@@ -102,7 +102,7 @@ export function getQuarterlyDays(tx: RecurringTransaction, month: number, daysIn
     if (month % 3 === 0) return [clampDay(tx.expected_day, daysInMonth)]
     return []
   }
-  const nextDate = new Date(tx.next_expected)
+  const nextDate = parseLocalDate(tx.next_expected)
   const nextMonth = nextDate.getMonth()
   const diff = ((month - nextMonth) % 12 + 12) % 12
   if (diff % 3 === 0) return [clampDay(tx.expected_day, daysInMonth)]
@@ -111,7 +111,7 @@ export function getQuarterlyDays(tx: RecurringTransaction, month: number, daysIn
 
 export function getYearlyDays(tx: RecurringTransaction, month: number, daysInMonth: number): number[] {
   if (tx.expected_day == null || !tx.next_expected) return []
-  const nextDate = new Date(tx.next_expected)
+  const nextDate = parseLocalDate(tx.next_expected)
   if (nextDate.getMonth() === month) {
     return [clampDay(tx.expected_day, daysInMonth)]
   }

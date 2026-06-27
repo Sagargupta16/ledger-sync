@@ -1,14 +1,15 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { calculationsApi } from '@/services/api/calculations'
 import { formatCurrency } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 import Sparkline from '@/components/shared/Sparkline'
 
-import { buildCategories, buildMonthlyHistoryByCategory } from './categoryBreakdownUtils'
+import { buildCategories, trailingMonthKeys } from './categoryBreakdownUtils'
 
 interface CategoryBreakdownProps {
   readonly transactionType: 'income' | 'expense'
@@ -55,14 +56,21 @@ export default function CategoryBreakdown({
     end_date: dateRange?.end_date ?? undefined,
   })
 
-  // Pull all transactions to build the per-category 12-month sparkline.
-  // useTransactions is widely cached (staleTime: Infinity, invalidated on
-  // upload) so this is effectively free if any other page already mounted it.
-  const { data: transactions = [] } = useTransactions()
+  // Per-category 12-month sparkline series, aggregated server-side over a
+  // trailing-12-month window. The client computes the month keys (local
+  // calendar) and the backend buckets into exactly those, so the window lines
+  // up with tx.date regardless of timezone -- no full-ledger fetch.
+  const monthKeys = useMemo(() => trailingMonthKeys(12), [])
+  const { data: historyByCategory } = useQuery({
+    queryKey: ['category-monthly-history', transactionType, monthKeys],
+    queryFn: async () =>
+      (await calculationsApi.getCategoryMonthlyHistory(monthKeys, transactionType)).data,
+    staleTime: Infinity,
+  })
 
   const monthlyHistoryByCategory = useMemo(
-    () => buildMonthlyHistoryByCategory(transactions, transactionType),
-    [transactions, transactionType],
+    () => new Map(Object.entries(historyByCategory ?? {})),
+    [historyByCategory],
   )
 
   const { categories, grandTotal } = useMemo(
@@ -187,10 +195,12 @@ export default function CategoryBreakdown({
                 </div>
 
                 {/* Proportional bar + 12-month sparkline.
-                    Bar answers "how much of total?", sparkline answers
-                    "trending up or down across the last year?". They're
-                    complementary -- bar is glanceable, sparkline adds
-                    direction without taking the user to another page. */}
+                    Bar answers "how much of total?" (and respects the active
+                    date filter), sparkline answers "trending up or down across
+                    the last year?". The sparkline is ALWAYS the trailing 12
+                    months from today regardless of the selected range -- the
+                    title says so, so a filtered amount + full-year trend don't
+                    read as contradicting each other. */}
                 <div className="mt-2 flex items-center gap-3">
                   <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
                     <motion.div
@@ -206,7 +216,8 @@ export default function CategoryBreakdown({
                       variant="compact"
                       data={cat.monthlyHistory}
                       color={cat.color}
-                      ariaLabel={`${cat.name} 12-month trend`}
+                      ariaLabel={`${cat.name} trend over the last 12 months`}
+                      title={`${cat.name} — last 12 months (independent of the selected date range)`}
                     />
                   )}
                 </div>

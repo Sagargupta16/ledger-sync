@@ -7,6 +7,8 @@ export interface PeriodSummary {
   savings: number
   savingsRate: number
   transactions: number
+  /** Inclusive number of calendar days the period spans (for daily averages). */
+  days: number
   categories: Record<string, { income: number; expense: number }>
 }
 

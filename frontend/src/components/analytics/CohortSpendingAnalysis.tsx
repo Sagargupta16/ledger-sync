@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 
 import { motion } from 'framer-motion'
 import { Calendar, TrendingUp } from 'lucide-react'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { useCohortSpending } from '@/hooks/api/useAnalyticsV2'
 import { rawColors } from '@/constants/colors'
 import StandardBarChart from '@/components/analytics/StandardBarChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
@@ -25,64 +25,30 @@ interface BarDatum {
  * with the absolute amount so users get a takeaway without hovering.
  */
 export default function CohortSpendingAnalysis() {
-  const { data: transactions = [] } = useTransactions()
+  const { data: cohort } = useCohortSpending()
   const [view, setView] = useState<ViewMode>('day-of-week')
 
-  const expenses = useMemo(
-    () => transactions.filter((t) => t.type === 'Expense'),
-    [transactions],
-  )
-
-  // Day-of-week averages
+  // The backend pre-computes total / occurrence-correct divisor per bucket and
+  // returns `avg` directly (day-of-week in JS Sun..Sat order, day-of-month
+  // 1..31, month-of-year 1..12). The client just maps buckets to labels --
+  // moving the date bucketing server-side also removed the timezone bug class.
   const dowData = useMemo<BarDatum[]>(() => {
-    const totals = new Array(7).fill(0)
-    const counts = new Array(7).fill(0)
-    const weeks = new Set<string>()
-    for (const tx of expenses) {
-      const d = new Date(tx.date)
-      totals[d.getDay()] += Math.abs(tx.amount)
-      counts[d.getDay()]++
-      weeks.add(`${d.getFullYear()}-W${Math.ceil((d.getDate() + d.getDay()) / 7)}`)
-    }
-    const weekCount = Math.max(1, weeks.size)
-    return DAY_NAMES.map((name, i) => ({
-      name,
-      avg: Math.round(totals[i] / weekCount),
-    }))
-  }, [expenses])
+    const byBucket = new Map((cohort?.day_of_week ?? []).map((b) => [b.bucket, b.avg]))
+    return DAY_NAMES.map((name, i) => ({ name, avg: Math.round(byBucket.get(i) ?? 0) }))
+  }, [cohort])
 
-  // Day-of-month averages (1-31)
   const domData = useMemo<BarDatum[]>(() => {
-    const totals: Record<number, number> = {}
-    const months = new Set<string>()
-    for (const tx of expenses) {
-      const d = new Date(tx.date)
-      const day = d.getDate()
-      totals[day] = (totals[day] || 0) + Math.abs(tx.amount)
-      months.add(tx.date.substring(0, 7))
-    }
-    const monthCount = Math.max(1, months.size)
+    const byBucket = new Map((cohort?.day_of_month ?? []).map((b) => [b.bucket, b.avg]))
     return Array.from({ length: 31 }, (_, i) => ({
       name: String(i + 1),
-      avg: Math.round((totals[i + 1] || 0) / monthCount),
+      avg: Math.round(byBucket.get(i + 1) ?? 0),
     }))
-  }, [expenses])
+  }, [cohort])
 
-  // Monthly seasonal averages (Jan-Dec)
   const monthlyData = useMemo<BarDatum[]>(() => {
-    const totals = new Array(12).fill(0)
-    const yearSet = new Set<number>()
-    for (const tx of expenses) {
-      const d = new Date(tx.date)
-      totals[d.getMonth()] += Math.abs(tx.amount)
-      yearSet.add(d.getFullYear())
-    }
-    const yearCount = Math.max(1, yearSet.size)
-    return MONTH_NAMES.map((name, i) => ({
-      name,
-      avg: Math.round(totals[i] / yearCount),
-    }))
-  }, [expenses])
+    const byBucket = new Map((cohort?.month_of_year ?? []).map((b) => [b.bucket, b.avg]))
+    return MONTH_NAMES.map((name, i) => ({ name, avg: Math.round(byBucket.get(i + 1) ?? 0) }))
+  }, [cohort])
 
   const dataByView: Record<ViewMode, BarDatum[]> = {
     'day-of-week': dowData,
@@ -90,7 +56,7 @@ export default function CohortSpendingAnalysis() {
     'monthly': monthlyData,
   }
   const currentData = dataByView[view]
-  const hasData = expenses.length > 0
+  const hasData = currentData.some((d) => d.avg > 0)
 
   // Compute peak / dip insights for the active view so the user gets a
   // takeaway without having to hover.

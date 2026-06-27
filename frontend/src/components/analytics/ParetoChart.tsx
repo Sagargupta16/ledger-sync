@@ -5,6 +5,7 @@ import { TrendingDown } from 'lucide-react'
 import {
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Legend,
   Line,
@@ -159,7 +160,8 @@ export default function ParetoChart({
             }) as never}
           />
           <Legend {...LEGEND_DEFAULTS} />
-          {/* Vital-few bars (orange) vs trivial-many (muted) */}
+          {/* Vital-few bars (orange) vs trivial-many (muted) -- per-bar Cells so
+              the 80%-cutoff split the comment promises is actually rendered. */}
           <Bar
             yAxisId="left"
             dataKey="amount"
@@ -169,7 +171,14 @@ export default function ParetoChart({
             isAnimationActive={animate}
             animationDuration={600}
             animationEasing="ease-out"
-          />
+          >
+            {data.map((row, i) => (
+              <Cell
+                key={row.category}
+                fill={i < vitalFewCount ? rawColors.app.orange : rawColors.text.tertiary}
+              />
+            ))}
+          </Bar>
           <Line
             yAxisId="right"
             type="monotone"

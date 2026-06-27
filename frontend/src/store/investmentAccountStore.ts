@@ -7,6 +7,8 @@ interface InvestmentAccountStore {
   setInvestmentAccounts: (accounts: string[]) => void
   isInvestmentAccount: (accountName: string) => boolean
   getInvestmentAccounts: () => string[]
+  /** Clear all classifications (called on logout to avoid cross-user leak). */
+  reset: () => void
 }
 
 export const useInvestmentAccountStore = create<InvestmentAccountStore>()(
@@ -37,6 +39,8 @@ export const useInvestmentAccountStore = create<InvestmentAccountStore>()(
       getInvestmentAccounts: () => {
         return Array.from(get().investmentAccounts)
       },
+
+      reset: () => set({ investmentAccounts: new Set<string>() }),
     }),
     {
       name: 'investment-account-storage',

@@ -170,7 +170,7 @@ export default function ComparisonPage() {
         <h2 className="text-lg font-semibold mb-4">Quick Stats</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <QuickStat label="Transactions" valueA={periodA.transactions} valueB={periodB.transactions} labelA={periodA.label} labelB={periodB.label} />
-          <QuickStat label="Avg Daily Spend" valueA={periodA.expense / 30} valueB={periodB.expense / 30} labelA={periodA.label} labelB={periodB.label} isCurrency />
+          <QuickStat label="Avg Daily Spend" valueA={periodA.expense / periodA.days} valueB={periodB.expense / periodB.days} labelA={periodA.label} labelB={periodB.label} isCurrency />
           <QuickStat label="Categories Used" valueA={Object.keys(periodA.categories).length} valueB={Object.keys(periodB.categories).length} labelA={periodA.label} labelB={periodB.label} />
           <QuickStat label="Top Expense" valueA={Math.max(...Object.values(periodA.categories).map((c) => c.expense), 0)} valueB={Math.max(...Object.values(periodB.categories).map((c) => c.expense), 0)} labelA={periodA.label} labelB={periodB.label} isCurrency />
         </div>

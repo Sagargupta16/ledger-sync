@@ -15,6 +15,7 @@ from typing import Any
 from ledger_sync.core.analytics.anomalies import AnomaliesMixin
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.core.analytics.classification import ClassificationMixin
+from ledger_sync.core.analytics.cohort import CohortMixin
 from ledger_sync.core.analytics.fy_summaries import FYSummariesMixin
 from ledger_sync.core.analytics.merchants import MerchantsMixin
 from ledger_sync.core.analytics.net_worth import NetWorthMixin
@@ -34,6 +35,7 @@ class AnalyticsEngine(
     NetWorthMixin,
     FYSummariesMixin,
     AnomaliesMixin,
+    CohortMixin,
     AnalyticsEngineBase,
 ):
     """Engine for calculating and persisting analytics data.
@@ -177,6 +179,15 @@ class AnalyticsEngine(
             log_analytics_calculation(
                 "Budgets updated",
                 results["budgets_updated"],
+                (time.time() - t0) * 1000,
+            )
+
+            # 10. Cohort spending (day-of-week / day-of-month / month-of-year)
+            t0 = time.time()
+            results["cohort_spending"] = self._calculate_cohort_spending(all_transactions)
+            log_analytics_calculation(
+                "Cohort spending",
+                results["cohort_spending"],
                 (time.time() - t0) * 1000,
             )
 

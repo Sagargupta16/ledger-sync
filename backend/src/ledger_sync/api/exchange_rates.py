@@ -32,22 +32,26 @@ _rate_cache: dict[str, Any] = {}
 # Used only when frankfurter.dev is unreachable AND the in-memory cache is empty.
 # Responses built from this table carry ``fallback: true`` and ``fallback_as_of``
 # so the frontend can warn the user that rates are stale.
+# Values are ECB reference rates (via frankfurter.dev) for _FALLBACK_AS_OF,
+# INR -> X. The previous table had drifted ~13% stale (USD at 0.01180 ≈ ₹84.7,
+# vs the ~₹95.7 actual for the stated date). AED is not on ECB; derived from the
+# USD peg (3.6725 AED/USD).
 _FALLBACK_AS_OF = "2026-05-13"
 _FALLBACK_RATES: dict[str, float] = {
-    "USD": 0.01180,
-    "EUR": 0.01088,
-    "GBP": 0.00931,
-    "JPY": 1.7820,
-    "CAD": 0.01620,
-    "AUD": 0.01790,
-    "CHF": 0.00975,
-    "SGD": 0.01530,
-    "AED": 0.04333,
-    "CNY": 0.08490,
-    "KRW": 16.210,
-    "SEK": 0.11450,
-    "NZD": 0.01955,
-    "HKD": 0.09220,
+    "USD": 0.01045,
+    "EUR": 0.00892,
+    "GBP": 0.00774,
+    "JPY": 1.6491,
+    "CAD": 0.01431,
+    "AUD": 0.01442,
+    "CHF": 0.00817,
+    "SGD": 0.01330,
+    "AED": 0.03838,
+    "CNY": 0.07098,
+    "KRW": 15.5592,
+    "SEK": 0.09739,
+    "NZD": 0.01762,
+    "HKD": 0.08185,
 }
 
 

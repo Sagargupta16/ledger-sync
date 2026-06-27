@@ -26,6 +26,63 @@ export const getCurrentMonth = (): string => new Date().toISOString().substring(
 export const getDateKey = (dateString: string): string => dateString.substring(0, 10)
 
 /**
+ * Parse a `YYYY-MM-DD` (or longer ISO) date string at LOCAL midnight.
+ *
+ * `new Date('2026-06-06')` parses date-only strings as UTC midnight, so local
+ * getters (`getDay`/`getMonth`/`getDate`) and `date-fns` formatting shift the
+ * calendar day for negative-offset (US/Americas) users. Building the Date from
+ * the explicit Y/M/D parts pins it to the local calendar day instead. This is
+ * the single shared implementation — do not re-declare it per file.
+ */
+export const parseLocalDate = (dateStr: string): Date => {
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+/** Local weekday (0=Sun..6=Sat) for a `YYYY-MM-DD` date, timezone-stable. */
+export const weekdayOf = (dateStr: string): number => parseLocalDate(dateStr).getDay()
+
+/**
+ * Format a Date's LOCAL calendar components as a YYYY-MM-DD key.
+ *
+ * Use this instead of `date.toISOString().substring(0, 10)` whenever the Date
+ * was built from local components (e.g. `new Date(year, 0, 1)`) or you're
+ * iterating a local calendar. `toISOString()` converts to UTC first, so in a
+ * positive-offset zone (IST = UTC+5:30) a local-midnight date rolls back to the
+ * previous day — the key then disagrees with the same date's `getDay()`/
+ * `getMonth()`, corrupting day/month bucketing.
+ */
+export const toLocalDateKey = (date: Date): string => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+/**
+ * Format a `YYYY-MM` (or `YYYY-MM-DD`) month key as a human label, timezone-safe.
+ *
+ * `new Date('2024-01' + '-01')` parses as UTC midnight but `toLocaleDateString`
+ * formats in local time, so negative-offset (US) users see the PREVIOUS month
+ * ("Dec 2023" for a January bucket). Building the Date from explicit local
+ * components avoids the round-trip entirely.
+ *
+ * @param monthKey  `YYYY-MM` or any string whose first 7 chars are `YYYY-MM`
+ * @param opts      Intl month/year options (default: short month + numeric year)
+ */
+const DEFAULT_MONTH_KEY_OPTS: Intl.DateTimeFormatOptions = { month: 'short', year: 'numeric' }
+
+export const formatMonthKey = (
+  monthKey: string,
+  opts: Intl.DateTimeFormatOptions = DEFAULT_MONTH_KEY_OPTS,
+): string => {
+  const year = Number(monthKey.slice(0, 4))
+  const month = Number(monthKey.slice(5, 7))
+  if (!year || !month) return monthKey
+  return new Date(year, month - 1, 1).toLocaleDateString('en-US', opts)
+}
+
+/**
  * Filter an array of items with a `date` field by optional start/end date strings.
  */
 export const filterTransactionsByDateRange = <T extends { date: string }>(

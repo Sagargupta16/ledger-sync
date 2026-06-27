@@ -18,7 +18,7 @@ interface ByokConfigFormProps {
   setApiKey: (v: string) => void
   showKey: boolean
   setShowKey: (v: boolean) => void
-  setTestStatus: (s: 'idle') => void
+  setTestStatus: (s: 'idle' | 'testing' | 'success' | 'error') => void
 }
 
 export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
@@ -145,6 +145,7 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
             <button
               type="button"
               onClick={() => setShowKey(!showKey)}
+              aria-label={showKey ? 'Hide API key' : 'Show API key'}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-white"
             >
               {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

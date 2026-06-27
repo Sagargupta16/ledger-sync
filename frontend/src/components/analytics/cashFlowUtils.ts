@@ -1,6 +1,9 @@
 export function formatMonth(v: string) {
-  const d = new Date(v + '-01')
-  return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+  // Build from local Y/M parts: `new Date('YYYY-MM-01')` parses as UTC midnight
+  // and toLocaleDateString renders local, mislabeling the axis tick (prior
+  // month) for negative-offset users.
+  const [y, m] = v.slice(0, 7).split('-').map(Number)
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }
 
 /**
@@ -34,6 +37,11 @@ type CombinedPoint = {
   income: number | undefined; expense: number | undefined; net: number | undefined
   forecastIncome: number | undefined; forecastExpense: number | undefined; forecastNet: number | undefined
   upper: number | undefined; lower: number | undefined
+  // Stacked-band fields: a transparent baseline (= lower) plus the band height
+  // (= upper - lower) stacked on top render the confidence cone correctly above,
+  // below, or across the zero line -- unlike the old black-mask Area which only
+  // worked when the whole band was positive.
+  lowerBase: number | undefined; bandRange: number | undefined
 }
 
 export interface ForecastResult {
@@ -140,19 +148,22 @@ export function buildForecast(monthlyData: MonthlyData): ForecastResult | null {
       forecastIncome: undefined as number | undefined, forecastExpense: undefined as number | undefined,
       forecastNet: undefined as number | undefined,
       upper: undefined as number | undefined, lower: undefined as number | undefined,
+      lowerBase: undefined as number | undefined, bandRange: undefined as number | undefined,
     })),
-    // Bridge point
+    // Bridge point — zero-width band so the cone starts flush at the last actual.
     {
       month: lastHist.month, label: formatMonth(lastHist.month), isForecast: false,
       income: lastHist.income, expense: lastHist.expense, net: lastHist.net,
       forecastIncome: lastHist.income, forecastExpense: lastHist.expense, forecastNet: lastHist.net,
       upper: lastHist.net, lower: lastHist.net,
+      lowerBase: lastHist.net, bandRange: 0,
     },
     ...forecast.map(f => ({
       month: f.month, label: formatMonth(f.month), isForecast: true,
       income: undefined as number | undefined, expense: undefined as number | undefined, net: undefined as number | undefined,
       forecastIncome: f.income, forecastExpense: f.expense, forecastNet: f.net,
       upper: f.upper, lower: f.lower,
+      lowerBase: f.lower, bandRange: f.upper - f.lower,
     })),
   ]
   // Remove duplicate bridge

@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { ViewMode } from '@/lib/dateUtils'
+import { formatMonthKey, type ViewMode } from '@/lib/dateUtils'
 
 interface TimeNavigationControlsProps {
   viewMode: ViewMode
@@ -29,19 +29,18 @@ export default function TimeNavigationControls({
       <div className="flex items-center gap-3">
         <button
           onClick={handlePrevMonth}
+          aria-label="Previous month"
           className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
           type="button"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
         <span className="text-white font-medium min-w-30 text-center">
-          {new Date(currentMonth + '-01').toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric',
-          })}
+          {formatMonthKey(currentMonth, { month: 'long', year: 'numeric' })}
         </span>
         <button
           onClick={handleNextMonth}
+          aria-label="Next month"
           className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
           type="button"
         >
@@ -59,6 +58,7 @@ export default function TimeNavigationControls({
       <div className="flex items-center gap-3">
         <button
           onClick={handlePrevYear}
+          aria-label="Previous year"
           className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
           type="button"
         >
@@ -67,6 +67,7 @@ export default function TimeNavigationControls({
         <span className="text-white font-medium min-w-25 text-center">Year {currentYear}</span>
         <button
           onClick={handleNextYear}
+          aria-label="Next year"
           className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
           type="button"
         >

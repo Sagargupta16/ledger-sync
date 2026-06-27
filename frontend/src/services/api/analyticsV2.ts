@@ -235,6 +235,21 @@ export interface InvestmentHolding {
   last_updated: string | null
 }
 
+export interface CohortBucket {
+  /** day_of_week: 0=Sun..6=Sat; day_of_month: 1..31; month_of_year: 1..12 */
+  bucket: number
+  total: number
+  occurrences: number
+  /** total / occurrences, precomputed with the occurrence-correct divisor */
+  avg: number
+}
+
+export interface CohortSpendingData {
+  day_of_week: CohortBucket[]
+  day_of_month: CohortBucket[]
+  month_of_year: CohortBucket[]
+}
+
 // API functions
 
 // All V2 list endpoints wrap data in { data: T[], count: number, ... }
@@ -257,6 +272,14 @@ export const analyticsV2Service = {
   // Daily Summaries
   getDailySummaries(params?: { start_date?: string; end_date?: string; limit?: number }) {
     return getWrapped<DailySummary>('/api/analytics/v2/daily-summaries', params)
+  },
+
+  // Cohort Spending (day-of-week / day-of-month / month-of-year averages)
+  async getCohortSpending(): Promise<CohortSpendingData> {
+    const response = await apiClient.get<{ data: CohortSpendingData }>(
+      '/api/analytics/v2/cohort-spending',
+    )
+    return response.data.data
   },
 
   // Investment Holdings

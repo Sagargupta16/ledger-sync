@@ -1,4 +1,5 @@
 import { formatCurrency } from '@/lib/formatters'
+import { formatMonthKey } from '@/lib/dateUtils'
 
 export type CompareMode = 'months' | 'years'
 export type MetricFormat = 'currency' | 'percent' | 'number' | 'days'
@@ -63,10 +64,7 @@ export function formatValue(value: number, format?: string) {
 }
 
 export function formatMonthLabel(month: string) {
-  return new Date(month + '-01').toLocaleDateString('en-US', {
-    month: 'short',
-    year: 'numeric',
-  })
+  return formatMonthKey(month, { month: 'short', year: 'numeric' })
 }
 
 function safeDivide(numerator: number, denominator: number): number {

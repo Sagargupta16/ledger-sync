@@ -280,6 +280,7 @@ export function buildInitialLocalPrefs(p: Record<string, unknown>): Record<strin
     auto_create_budgets: p.auto_create_budgets,
     budget_rollover_enabled: p.budget_rollover_enabled,
     number_format: p.number_format,
+    display_currency: p.display_currency ?? 'INR',
     currency_symbol: p.currency_symbol,
     currency_symbol_position: p.currency_symbol_position,
     default_time_range: p.default_time_range,
@@ -309,5 +310,8 @@ export function buildInitialLocalPrefs(p: Record<string, unknown>): Record<strin
     notify_upcoming_bills: p.notify_upcoming_bills ?? true,
     notify_days_ahead: p.notify_days_ahead ?? 7,
     show_tds_schedule: p.show_tds_schedule ?? false,
+    epf_withdrawal_taxable: p.epf_withdrawal_taxable ?? false,
+    epf_taxable_percent: p.epf_taxable_percent ?? 100,
+    salary_is_net_of_tds: p.salary_is_net_of_tds ?? true,
   }
 }

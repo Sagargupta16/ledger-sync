@@ -37,19 +37,19 @@ class Transaction(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
 
     # Core transaction fields
-    date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="INR")
-    type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False, index=True)
+    type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False)
 
     # Categorization
-    account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    account: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str] = mapped_column(String(255), nullable=False)
     subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Transfer-specific fields (only used when type=Transfer)
-    from_account: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    to_account: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    from_account: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    to_account: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Optional fields
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -80,15 +80,32 @@ class Transaction(Base):
     # Relationship back to user
     user: Mapped["User"] = relationship("User", back_populates="transactions")
 
-    # Create composite indexes for common queries
+    # Composite indexes. EVERY query in this app is user-scoped
+    # (``WHERE user_id = ? AND is_deleted = false`` then a date range / type /
+    # category / account filter), so all indexes lead with ``user_id`` and are
+    # equality-first. Non-user-scoped indexes (date, type, category, ...) were
+    # removed: the planner can never use them for user-scoped queries, so they
+    # only taxed writes. See migration ``optimize_tx_indexes_2026``.
+    #
+    # NOTE: partial indexes (``WHERE is_deleted = false``) would shrink these
+    # further (~63% of rows are soft-deleted) but the predicate-matching of
+    # ``.is_(False)`` vs a ``= false`` partial differs between SQLite and
+    # Postgres and can't be verified here -- left as a Postgres-verified
+    # follow-up rather than shipped blind.
     __table_args__ = (
-        Index("ix_transactions_date_type", "date", "type"),
-        Index("ix_transactions_category_subcategory", "category", "subcategory"),
+        # Primary analytics range scan: user's rows ordered/filtered by date.
         Index("ix_transactions_user_date", "user_id", "date"),
-        Index("ix_transactions_user_deleted", "user_id", "is_deleted"),
-        Index("ix_transactions_user_type_deleted", "user_id", "type", "is_deleted"),
+        # Type-filtered + date range (search endpoint, type rollups) -- type is
+        # an equality filter so it leads the date range.
+        Index("ix_transactions_user_type_date", "user_id", "type", "date"),
+        # Category filter / breakdown.
         Index("ix_transactions_user_category", "user_id", "category"),
-        Index("ix_transactions_user_date_type", "user_id", "date", "type"),
+        # Account grouping (facets, account balances) + the account legs of the
+        # search OR (account == X OR from_account == X OR to_account == X) and
+        # transfer-flow aggregation.
+        Index("ix_transactions_user_account", "user_id", "account"),
+        Index("ix_transactions_user_from_account", "user_id", "from_account"),
+        Index("ix_transactions_user_to_account", "user_id", "to_account"),
     )
 
     def __repr__(self) -> str:

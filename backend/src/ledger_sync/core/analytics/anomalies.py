@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy import delete, func
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
-from ledger_sync.core.query_helpers import fmt_year_month
+from ledger_sync.core.query_helpers import apply_excluded_accounts_filter, fmt_year_month
 from ledger_sync.db.models import (
     Anomaly,
     AnomalyType,
@@ -39,6 +39,11 @@ class AnomaliesMixin(AnalyticsEngineBase):
         if self.user_id is not None:
             del_stmt = del_stmt.where(Anomaly.user_id == self.user_id)
         self.db.execute(del_stmt)
+
+        # Sort by deviation BEFORE the 50-row cap so the most severe anomalies
+        # survive -- the unsorted cap was silently dropping the biggest outliers
+        # (e.g. a 638%-over-average transaction) while keeping smaller ones.
+        anomalies_detected.sort(key=lambda a: a.get("deviation_pct") or 0, reverse=True)
 
         for anomaly_data in anomalies_detected[:50]:  # Limit to 50 anomalies
             anomaly = Anomaly(
@@ -75,6 +80,7 @@ class AnomaliesMixin(AnalyticsEngineBase):
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
         )
+        monthly_query = apply_excluded_accounts_filter(monthly_query, self.excluded_accounts)
         monthly_expenses = monthly_query.group_by(period_col).all()
 
         if len(monthly_expenses) <= 3:
@@ -116,6 +122,7 @@ class AnomaliesMixin(AnalyticsEngineBase):
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
         )
+        cat_avg_query = apply_excluded_accounts_filter(cat_avg_query, self.excluded_accounts)
         category_avgs = cat_avg_query.group_by(Transaction.category).all()
         category_avg_map = {c.category: float(c.avg_amount) for c in category_avgs}
 
@@ -126,10 +133,14 @@ class AnomaliesMixin(AnalyticsEngineBase):
         for txn in large_txns:
             cat_avg = category_avg_map.get(txn.category, 0)
             if cat_avg > 0 and float(txn.amount) > cat_avg * 3:
+                # Grade severity by how far above the category average it is,
+                # instead of a flat "medium" -- a 5x+ outlier reads as high.
+                ratio = float(txn.amount) / cat_avg
+                severity = "high" if ratio >= 5 else "medium"
                 anomalies.append(
                     {
                         "type": AnomalyType.HIGH_EXPENSE,
-                        "severity": "medium",
+                        "severity": severity,
                         "description": (
                             f"Large {txn.category} expense: "
                             f"{sym}{float(txn.amount):,.0f} vs avg {sym}{cat_avg:,.0f}"
@@ -165,9 +176,9 @@ class AnomaliesMixin(AnalyticsEngineBase):
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
             .filter(fmt_year_month(Transaction.date) == current_period)
-            .group_by(Transaction.category)
         )
-        current_spending = spending_query.all()
+        spending_query = apply_excluded_accounts_filter(spending_query, self.excluded_accounts)
+        current_spending = spending_query.group_by(Transaction.category).all()
         spending_map = {c.category: float(c.total) for c in current_spending}
 
         count = 0

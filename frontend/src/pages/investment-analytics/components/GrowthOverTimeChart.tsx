@@ -13,7 +13,7 @@ import {
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatDate } from '@/lib/formatters'
 
 import { CATEGORY_COLORS, INVESTMENT_CATEGORIES } from '../investmentUtils'
 
@@ -80,7 +80,7 @@ export function GrowthOverTimeChart({
                   name || '',
                 ]}
                 labelFormatter={(label) =>
-                  new Date(label).toLocaleDateString('en-US', {
+                  formatDate(label, {
                     month: 'long',
                     day: 'numeric',
                     year: 'numeric',
@@ -112,7 +112,7 @@ export function GrowthOverTimeChart({
                   {...BRUSH_DEFAULTS}
                   dataKey="date"
                   tickFormatter={(value: string) =>
-                    new Date(value).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+                    formatDate(value, { month: 'short', year: '2-digit' })
                   }
                   startIndex={Math.max(
                     0,

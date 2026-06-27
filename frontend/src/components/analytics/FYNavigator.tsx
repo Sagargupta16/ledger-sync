@@ -41,6 +41,7 @@ export default function FYNavigator({
         <button
           onClick={onGoBack}
           disabled={!canGoBack}
+          aria-label="Previous fiscal year"
           className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border shrink-0"
         >
           <ChevronLeft className="w-5 h-5" />
@@ -85,6 +86,7 @@ export default function FYNavigator({
         <button
           onClick={onGoForward}
           disabled={!canGoForward}
+          aria-label="Next fiscal year"
           className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border shrink-0"
         >
           <ChevronRight className="w-5 h-5" />

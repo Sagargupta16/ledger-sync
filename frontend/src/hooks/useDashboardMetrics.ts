@@ -111,6 +111,24 @@ export function useDashboardMetrics(): DashboardMetrics {
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth)
   const [currentFY, setCurrentFY] = useState(() => getCurrentFY(fiscalYearStartMonth))
 
+  // currentFY is seeded ONCE from the default fiscalYearStartMonth (4) before
+  // /api/preferences resolves; useState initializers never re-run, so a user
+  // with a non-April fiscal year would be stuck on the wrong FY window until
+  // they touched the selector. Mirror useAnalyticsTimeFilter's render-phase
+  // adjustment: when preferences arrive, resync the FY -- but only until the
+  // user interacts, so we never clobber a deliberate selection.
+  const [userInteracted, setUserInteracted] = useState(false)
+  const [syncedFsm, setSyncedFsm] = useState<number | null>(null)
+  if (preferences && !userInteracted && syncedFsm !== fiscalYearStartMonth) {
+    setSyncedFsm(fiscalYearStartMonth)
+    setCurrentFY(getCurrentFY(fiscalYearStartMonth))
+  }
+
+  const markInteracted = <T,>(setter: (v: T) => void) => (v: T) => {
+    setUserInteracted(true)
+    setter(v)
+  }
+
   // Analytics date range derived from the time-filter state
   const analyticsDateRange = useMemo(
     () => getAnalyticsDateRange({ viewMode, currentYear, currentMonth, currentFY, fiscalYearStartMonth }),
@@ -264,13 +282,13 @@ export function useDashboardMetrics(): DashboardMetrics {
 
   return {
     viewMode,
-    setViewMode,
+    setViewMode: markInteracted(setViewMode),
     currentYear,
-    setCurrentYear,
+    setCurrentYear: markInteracted(setCurrentYear),
     currentMonth,
-    setCurrentMonth,
+    setCurrentMonth: markInteracted(setCurrentMonth),
     currentFY,
-    setCurrentFY,
+    setCurrentFY: markInteracted(setCurrentFY),
     fiscalYearStartMonth,
     dataDateRange,
     dateRange,

@@ -1,12 +1,13 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Command, Search } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { transactionsService } from '@/services/api/transactions'
 
 import { PaletteResults } from './command-palette/PaletteResults'
 import {
@@ -14,8 +15,8 @@ import {
   fuzzyMatch,
   overlayVariants,
   panelVariants,
-  searchTransactions,
   type PaletteResult,
+  type TransactionResult,
 } from './command-palette/paletteData'
 
 export default function CommandPalette() {
@@ -27,7 +28,6 @@ export default function CommandPalette() {
   const listRef = useRef<HTMLUListElement>(null)
 
   const navigate = useNavigate()
-  const { data: transactions } = useTransactions()
 
   const close = useCallback(() => {
     setIsOpen(false)
@@ -75,10 +75,20 @@ export default function CommandPalette() {
   }, [isOpen])
 
   const deferredQuery = useDeferredValue(query)
+  const q = deferredQuery.trim()
+
+  // Transaction matches come from the server-side search endpoint (note /
+  // category / account, top 5) instead of filtering the full ledger in the
+  // browser. Only runs while the palette is open with a non-empty query.
+  const { data: txMatches = [] } = useQuery({
+    queryKey: ['command-palette-search', q],
+    queryFn: () => transactionsService.getTransactions({ query: q, limit: 5 }),
+    enabled: isOpen && q.length > 0,
+    staleTime: 60_000,
+  })
 
   const results: PaletteResult[] = useMemo(() => {
     const items: PaletteResult[] = []
-    const q = deferredQuery.trim()
 
     if (!q) {
       for (const entry of PAGE_ENTRIES) {
@@ -95,10 +105,12 @@ export default function CommandPalette() {
       }
     }
 
-    items.push(...searchTransactions(transactions, q))
+    for (const transaction of txMatches.slice(0, 5)) {
+      items.push({ kind: 'transaction', transaction } as TransactionResult)
+    }
 
     return items
-  }, [deferredQuery, transactions])
+  }, [q, txMatches])
 
   const executeResult = useCallback(
     (result: PaletteResult) => {

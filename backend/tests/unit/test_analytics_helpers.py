@@ -37,3 +37,16 @@ def test_first_of_month_outlier_from_end_of_month():
 def test_mid_month_even_count_uses_lower_median():
     # Mix of 10 and 12 with no clear mode
     assert infer_expected_day_of_month([10, 12]) == 10
+
+
+def test_day_one_bill_with_late_month_outliers():
+    # Regression: a day-1 bill (23x on the 1st) with sparse late-month noise must
+    # stay 1, not get pulled to 31 by the old "max>=25 -> max" rule.
+    days = [1] * 23 + [5, 16, 17, 30, 30, 30, 31]
+    assert infer_expected_day_of_month(days) == 1
+
+
+def test_salary_clustered_on_27th_with_stray_late_days():
+    # Salary mostly on the 27th (mode), occasional 28/31 -- should return 27.
+    days = [27] * 7 + [28] * 5 + [31]
+    assert infer_expected_day_of_month(days) == 27

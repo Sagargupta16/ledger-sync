@@ -12,6 +12,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { calculateSpendingBreakdown } from '@/lib/preferencesUtils'
 import { filterTransactionsByDateRange, computeCategoryBreakdown } from '@/lib/transactionUtils'
+import { formatMonthKey } from '@/lib/dateUtils'
 
 import { buildSpendingChartData, computeBudgetRuleMetrics } from './spendingAnalysisUtils'
 
@@ -81,6 +82,37 @@ export function useSpendingAnalysis() {
     return months.size > 0 ? total / months.size : 0
   }, [filteredTransactions])
 
+  // Monthly expense trend with a 3-month rolling average -- mirrors the Income
+  // Analysis "Income Trend" chart so spend has the same period-over-period view.
+  const monthlyTrendData = useMemo(() => {
+    const expenses = filteredTransactions.filter((t) => t.type === 'Expense')
+    const monthlyMap: Record<string, number> = {}
+    for (const tx of expenses) {
+      const month = tx.date.substring(0, 7) // YYYY-MM
+      monthlyMap[month] = (monthlyMap[month] || 0) + Math.abs(tx.amount)
+    }
+    const sorted = Object.entries(monthlyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, expense]) => ({
+        month,
+        label: formatMonthKey(month, { month: 'short', year: '2-digit' }),
+        expense,
+      }))
+    // 3-month rolling average (trailing window).
+    return sorted.map((d, i) => {
+      const window = sorted.slice(Math.max(0, i - 2), i + 1)
+      return {
+        ...d,
+        expenseAvg: window.reduce((s, w) => s + w.expense, 0) / window.length,
+      }
+    })
+  }, [filteredTransactions])
+
+  const peakExpense = useMemo(
+    () => Math.max(...monthlyTrendData.map((d) => d.expense), 0),
+    [monthlyTrendData],
+  )
+
   const spendingChartData = useMemo(
     () => buildSpendingChartData(spendingBreakdown, totalIncome, savings),
     [spendingBreakdown, savings, totalIncome],
@@ -112,5 +144,6 @@ export function useSpendingAnalysis() {
     spendingBreakdown, spendingChartData, spendingLegendColorStyles,
     budgetRuleMetrics,
     needsTarget, wantsTarget, savingsTarget,
+    monthlyTrendData, peakExpense,
   }
 }

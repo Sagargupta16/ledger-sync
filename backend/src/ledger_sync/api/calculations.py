@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
-from sqlalchemy import func
+from sqlalchemy import case, func
 
 from ledger_sync.api.calculations_helpers import (
     _build_category_analysis,
@@ -12,6 +12,9 @@ from ledger_sync.api.calculations_helpers import (
     _build_category_data_from_trends,
     _calculate_expense_averages,
     _compute_account_statistics,
+    _compute_category_monthly_history,
+    _compute_income_analysis,
+    _compute_quick_insights,
     _find_unusual_spending,
     _format_largest_transaction,
     _process_regular_transactions,
@@ -199,6 +202,8 @@ def get_monthly_aggregation(
                     "expense": float(s.total_expenses),
                     "net_savings": float(s.net_savings),
                     "transactions": s.total_transactions,
+                    "income_count": s.income_count,
+                    "expense_count": s.expense_count,
                 }
                 for s in summaries
             }
@@ -206,6 +211,12 @@ def get_monthly_aggregation(
     # Fallback: compute from raw transactions with date filters
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
     month_col = fmt_year_month(base.c.date).label("month")
+    income_count_col = func.sum(case((base.c.type == TransactionType.INCOME, 1), else_=0)).label(
+        "income_count"
+    )
+    expense_count_col = func.sum(case((base.c.type == TransactionType.EXPENSE, 1), else_=0)).label(
+        "expense_count"
+    )
 
     rows = (
         db.query(
@@ -213,6 +224,8 @@ def get_monthly_aggregation(
             income_sum_col(base, label="income"),
             expense_sum_col(base, label="expense"),
             func.count().label("transactions"),
+            income_count_col,
+            expense_count_col,
         )
         .group_by(month_col)
         .all()
@@ -227,6 +240,8 @@ def get_monthly_aggregation(
             "expense": expense,
             "net_savings": income - expense,
             "transactions": row.transactions,
+            "income_count": int(row.income_count or 0),
+            "expense_count": int(row.expense_count or 0),
         }
 
     return monthly_data
@@ -392,6 +407,156 @@ def get_financial_insights(
         "total_income": total_income,
         "total_expenses": total_expenses,
     }
+
+
+@router.get("/category-monthly-history")
+def get_category_monthly_history(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    months: Annotated[str, Query(description="Comma-separated YYYY-MM keys, oldest first")],
+    transaction_type: OptionalTransactionType = None,
+) -> dict[str, list[float]]:
+    """Per-category spend aligned to a caller-supplied list of month keys.
+
+    Powers the CategoryBreakdown sparkline (trailing 12 calendar months). The
+    client passes the exact month keys it wants (computed with its local
+    calendar), so buckets line up regardless of server timezone. Returns
+    ``{ category_name: [m0, m1, ...] }`` (absolute sums, 0 for empty months).
+    """
+    month_keys = [m.strip() for m in months.split(",") if m.strip()]
+    tx_type = _resolve_transaction_type(transaction_type) or TransactionType.EXPENSE
+
+    # Only need rows within the window's span; fetch all user rows of this type
+    # (the per-month bucketing drops anything outside the supplied keys).
+    transactions = (
+        build_transaction_query(db, current_user).filter(Transaction.type == tx_type).all()
+    )
+    return _compute_category_monthly_history(list(transactions), tx_type, month_keys)
+
+
+@router.get("/data-date-range")
+def get_data_date_range(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> dict[str, str | None]:
+    """Min/max transaction date (YYYY-MM-DD) for the user's active rows.
+
+    Powers the analytics time-filter's navigation bounds without shipping the
+    full ledger just to find the first/last date. Excluded-accounts and
+    soft-delete filters are applied (same base query as analytics).
+    """
+    base = build_transaction_query(db, current_user).subquery()
+    row = db.query(
+        func.min(base.c.date).label("min_date"),
+        func.max(base.c.date).label("max_date"),
+    ).one()
+    return {
+        "min_date": row.min_date.strftime("%Y-%m-%d") if row.min_date else None,
+        "max_date": row.max_date.strftime("%Y-%m-%d") if row.max_date else None,
+    }
+
+
+@router.get("/income-analysis")
+def get_income_analysis(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
+    cashback_categories: Annotated[
+        list[str] | None,
+        Query(description="Non-taxable 'Category::Subcategory' keys for cashback matching"),
+    ] = None,
+    category: Annotated[
+        str | None, Query(description="Deep-link: restrict to one category")
+    ] = None,
+) -> dict[str, Any]:
+    """Income page stats: total, by-category, monthly trend (+3mo avg), cashback.
+
+    The cashback classification list is the user's
+    ``non_taxable_income_categories`` preference, forwarded by the client so the
+    backend reproduces the same matching without owning a second preference
+    source. ``category`` mirrors the page's ``?category=`` deep-link filter.
+    Replaces the full-ledger fetch on the Income Analysis page.
+    """
+    query = build_transaction_query(db, current_user, start_date, end_date)
+    if category:
+        query = query.filter(Transaction.category == category)
+    return _compute_income_analysis(list(query.all()), cashback_categories or [])
+
+
+@router.get("/category-daily-series")
+def get_category_daily_series(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
+    transaction_type: OptionalTransactionType = None,
+    category: Annotated[str | None, Query(description="Restrict to one category")] = None,
+) -> dict[str, Any]:
+    """Daily per-(category, subcategory) sums for time-series charts.
+
+    Powers MultiCategoryTimeAnalysis (all categories -> client picks top N) and
+    EnhancedSubcategoryAnalysis (single ``category`` -> subcategory breakdown).
+    The client keeps its own day/week/month bucketing + cumulative logic; this
+    just ships daily aggregates (date, category, subcategory, amount) instead of
+    the full ledger. Absolute amounts; expense by default.
+    """
+    tx_type = _resolve_transaction_type(transaction_type) or TransactionType.EXPENSE
+
+    query = build_transaction_query(db, current_user, start_date, end_date).filter(
+        Transaction.type == tx_type
+    )
+    if category:
+        query = query.filter(Transaction.category == category)
+
+    base = query.subquery()
+    day_col = fmt_date(base.c.date).label("day")
+    cat_col = func.coalesce(base.c.category, "Uncategorized").label("category")
+    sub_col = func.coalesce(base.c.subcategory, "Other").label("subcategory")
+
+    rows = (
+        db.query(
+            day_col,
+            cat_col,
+            sub_col,
+            func.coalesce(func.sum(func.abs(base.c.amount)), 0).label("amount"),
+            func.count().label("count"),
+        )
+        .group_by(day_col, cat_col, sub_col)
+        .all()
+    )
+
+    return {
+        "data": [
+            {
+                "date": r.day,
+                "category": r.category,
+                "subcategory": r.subcategory,
+                "amount": float(r.amount),
+            }
+            for r in rows
+        ],
+        "transaction_count": sum(r.count for r in rows),
+    }
+
+
+@router.get("/quick-insights")
+def get_quick_insights(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    start_date: OptionalStartDate = None,
+    end_date: OptionalEndDate = None,
+) -> dict[str, Any]:
+    """Raw-transaction-derived Quick Insights stats, date-range aware.
+
+    Net cashback, median/biggest/avg expense, weekend split, peak weekday,
+    transfers, top income source, and most-expensive month -- the values the
+    Dashboard band previously computed client-side over the full ledger.
+    Income/expense totals and category breakdown stay on their existing
+    rollup-backed endpoints (``/totals``, ``/category-breakdown``).
+    """
+    transactions = get_transactions(db, current_user, start_date, end_date)
+    return _compute_quick_insights(transactions)
 
 
 @router.get("/daily-net-worth")

@@ -61,11 +61,11 @@ function EPFTab({
   const [balance, setBalance] = useState(initialBalance)
 
   const result = useMemo(
-    () => projectEPF(salary, contribPct, contribPct, rate, years, balance),
+    () => projectEPF(salary, contribPct, rate, years, balance),
     [salary, contribPct, rate, years, balance],
   )
 
-  const { yourShare, totalMonthly, minContrib } = computeEpfContribution(salary, contribPct)
+  const { yourShare, employerEpf, totalMonthly, minContrib } = computeEpfContribution(salary, contribPct)
 
   return (
     <div className="space-y-5">
@@ -74,7 +74,7 @@ function EPFTab({
         <MetricCard title="Total Contributed" value={formatCurrency(result.totalContributed)} icon={PiggyBank} color="blue" />
         <MetricCard title="Interest Earned" value={formatCurrency(result.totalReturns)} icon={IndianRupee} color="purple" />
         <MetricCard title="Monthly (You + Employer)" value={formatCurrency(totalMonthly)} icon={Percent} color="orange"
-          subtitle={`Rs ${Math.round(yourShare).toLocaleString('en-IN')} x 2`} />
+          subtitle={`You Rs ${Math.round(yourShare).toLocaleString('en-IN')} + Employer Rs ${Math.round(employerEpf).toLocaleString('en-IN')}`} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SliderInput id="epf-balance" label="Current EPF Balance" value={balance} onChange={setBalance} min={0} max={10000000} step={10000} prefix="Rs " />
@@ -84,7 +84,7 @@ function EPFTab({
         <SliderInput id="epf-years" label="Years to Retirement" value={years} onChange={setYears} min={1} max={35} step={1} suffix=" yrs" />
       </div>
       <ProjectionChart data={result} />
-      <p className="text-xs text-text-tertiary">Both employee and employer contribute {contribPct}% of basic. Minimum: 12% (Rs 1,800/mo on PF wage ceiling of Rs 15,000). Employee can voluntarily increase up to 20% (VPF).</p>
+      <p className="text-xs text-text-tertiary">You contribute {contribPct}% of basic; your employer adds 12%, but 8.33% of the capped Rs 15,000 wage (max Rs 1,250/mo) goes to EPS pension, not the EPF corpus. Minimum: 12% (Rs 1,800/mo on the PF wage ceiling). Employee can voluntarily increase up to 20% (VPF).</p>
     </div>
   )
 }

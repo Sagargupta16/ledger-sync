@@ -1,11 +1,17 @@
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank, Activity } from 'lucide-react' // Activity used for Monthly Avg card
 import MetricCard from '@/components/shared/MetricCard'
-import { formatCurrency } from '@/lib/formatters'
-import { PieChart as RechartsPie, Pie, Cell, Tooltip } from 'recharts'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatMonthKey } from '@/lib/dateUtils'
+import {
+  PieChart as RechartsPie, Pie, Cell, Tooltip,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Line, ReferenceLine,
+} from 'recharts'
 import { SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
+import { rawColors } from '@/constants/colors'
+import { CHART_AXIS_COLOR } from '@/constants/chartColors'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
 import EmptyState from '@/components/shared/EmptyState'
 import { FilterBanner } from '@/components/shared/FilterBanner'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -18,14 +24,17 @@ import {
   TopMerchants,
   CohortSpendingAnalysis,
 } from '@/components/analytics'
-import { chartTooltipProps, PageHeader, ChartContainer, shouldAnimate } from '@/components/ui'
+import {
+  chartTooltipProps, PageHeader, ChartContainer, shouldAnimate,
+  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl,
+} from '@/components/ui'
 
 import { SAVINGS_COLOR } from './spendingAnalysisUtils'
 import { BudgetRuleCard } from './components/BudgetRuleCard'
 import { useSpendingAnalysis } from './useSpendingAnalysis'
 
 export default function SpendingAnalysisPage() {
-  const navigate = useNavigate()
+  const dims = useChartDimensions()
   const {
     categoryFilter, clearCategoryFilter,
     timeFilterProps, dateRangeCompat, isLoading,
@@ -35,6 +44,7 @@ export default function SpendingAnalysisPage() {
     spendingBreakdown, spendingChartData, spendingLegendColorStyles,
     budgetRuleMetrics,
     needsTarget, wantsTarget, savingsTarget,
+    monthlyTrendData, peakExpense,
   } = useSpendingAnalysis()
 
   if (isLoading) return <PageSkeleton />
@@ -109,12 +119,6 @@ export default function SpendingAnalysisPage() {
                         isAnimationActive={shouldAnimate(spendingChartData.length)}
                         animationDuration={600}
                         animationEasing="ease-out"
-                        onClick={(data: { name?: string }) => {
-                          if (data?.name && data.name !== 'Savings') {
-                            navigate(`/transactions?type=Expense&spending_type=${encodeURIComponent(data.name)}`)
-                          }
-                        }}
-                        style={{ cursor: 'pointer' }}
                       >
                         {spendingChartData.map((entry) => (
                           <Cell key={`cell-${entry.name}`} fill={entry.color} />
@@ -217,6 +221,73 @@ export default function SpendingAnalysisPage() {
             />
           )}
         </motion.div>
+
+        {/* Expense Trend -- monthly spend with a 3-month rolling average,
+            mirroring the Income Analysis "Income Trend" chart. */}
+        {monthlyTrendData.length > 0 && (
+          <motion.div className="glass p-4 md:p-6 rounded-xl border border-border" {...SCROLL_FADE_UP}>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <TrendingDown className="w-5 h-5 text-app-red" />
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Expense Trend</h3>
+                  <p className="text-sm text-text-tertiary">Monthly spending with 3-month rolling average</p>
+                </div>
+              </div>
+              <ChartContainer height={dims.chartHeight}>
+                <AreaChart data={monthlyTrendData} margin={dims.margin}>
+                  <defs>
+                    {areaGradient('expenseTrend', rawColors.app.red, 0.4, 0)}
+                  </defs>
+                  <CartesianGrid {...GRID_DEFAULTS} />
+                  <XAxis {...xAxisDefaults(monthlyTrendData.length)} dataKey="label" />
+                  <YAxis {...yAxisDefaults()} />
+                  <Tooltip
+                    {...chartTooltipProps}
+                    labelFormatter={(_label: unknown, payload: ReadonlyArray<{ payload?: { month?: string } }>) => {
+                      const month = payload?.[0]?.payload?.month
+                      return month ? formatMonthKey(month, { month: 'long', year: 'numeric' }) : ''
+                    }}
+                    formatter={(value, name) => [
+                      typeof value === 'number' ? formatCurrency(value) : '',
+                      name === 'expenseAvg' ? 'Spending (3m avg)' : 'Spending',
+                    ]}
+                    itemSorter={(item) => -(item.value as number)}
+                  />
+                  <ReferenceLine
+                    y={peakExpense}
+                    stroke="rgba(255,255,255,0.2)"
+                    strokeDasharray="3 3"
+                    label={{ value: `Peak: ${formatCurrencyShort(peakExpense)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="expense"
+                    stroke={rawColors.app.red}
+                    fill={areaGradientUrl('expenseTrend')}
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={shouldAnimate(monthlyTrendData.length)}
+                    animationDuration={600}
+                    animationEasing="ease-out"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="expenseAvg"
+                    stroke={rawColors.app.red}
+                    strokeWidth={2}
+                    strokeDasharray="6 3"
+                    dot={false}
+                    name="Spending (3m avg)"
+                    isAnimationActive={shouldAnimate(monthlyTrendData.length)}
+                    animationDuration={600}
+                    animationEasing="ease-out"
+                  />
+                </AreaChart>
+              </ChartContainer>
+            </div>
+          </motion.div>
+        )}
 
         {/* Expense Treemap */}
         <motion.div {...SCROLL_FADE_UP}>

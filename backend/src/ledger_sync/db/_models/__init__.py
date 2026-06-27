@@ -12,6 +12,7 @@ from ledger_sync.db._models._constants import CASCADE_ALL_DELETE_ORPHAN, USER_FK
 from ledger_sync.db._models.ai_usage import AIUsageLog
 from ledger_sync.db._models.analytics import (
     CategoryTrend,
+    CohortSpending,
     DailySummary,
     FYSummary,
     MerchantIntelligence,
@@ -56,6 +57,7 @@ __all__ = [
     "AuditLog",
     "Budget",
     "CategoryTrend",
+    "CohortSpending",
     "ColumnMappingLog",
     "DailySummary",
     "FYSummary",

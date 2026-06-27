@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Download } from 'lucide-react'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
+import { calculationsApi } from '@/services/api/calculations'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
 import {
   bucketDate,
@@ -38,48 +40,50 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
   const [cumulative, setCumulative] = useState(true)
   const [granularityOverride, setGranularityOverride] = useState<Granularity | 'auto'>('auto')
 
-  const { data: transactions } = useTransactions()
+  // Category dropdown list from the (date-scoped) category breakdown rollup.
+  const { data: categoryData } = useCategoryBreakdown({
+    transaction_type: 'expense',
+    start_date: dateRange?.start_date,
+    end_date: dateRange?.end_date,
+  })
+  const categories = useMemo(
+    () => Object.keys(categoryData?.categories ?? {}).sort((a, b) => a.localeCompare(b)),
+    [categoryData],
+  )
 
-  // Get all expense categories for dropdown (filtered by dateRange)
-  const categories = useMemo(() => {
-    if (!transactions) return []
-    const expenseCategories = new Set<string>()
-    transactions.forEach((tx) => {
-      if (tx.type !== 'Expense' || !tx.category) return
-      if (dateRange?.start_date) {
-        const txDate = tx.date.substring(0, 10)
-        if (txDate < dateRange.start_date) return
-        if (dateRange.end_date && txDate > dateRange.end_date) return
-      }
-      expenseCategories.add(tx.category)
-    })
-    return Array.from(expenseCategories).sort((a, b) => a.localeCompare(b))
-  }, [transactions, dateRange])
+  // Daily per-subcategory sums for the selected category, aggregated
+  // server-side (date range + category filter in SQL). Client keeps its own
+  // day/week/month bucketing so the ISO-week + label logic is unchanged.
+  const { data: series } = useQuery({
+    queryKey: [
+      'category-daily-series',
+      'expense',
+      selectedCategory,
+      dateRange?.start_date,
+      dateRange?.end_date,
+    ],
+    queryFn: async () =>
+      (
+        await calculationsApi.getCategoryDailySeries({
+          transaction_type: 'expense',
+          category: selectedCategory,
+          start_date: dateRange?.start_date,
+          end_date: dateRange?.end_date,
+        })
+      ).data,
+    enabled: Boolean(selectedCategory),
+    staleTime: Infinity,
+  })
 
   // Process subcategory data for selected category
   const { chartData, totalTransactions, granularity } = useMemo(() => {
-    if (!transactions || !selectedCategory) {
-      return { chartData: [], totalTransactions: 0, granularity: 'day' as Granularity }
-    }
-
-    const categoryTransactions = transactions.filter((tx) => {
-      if (tx.type !== 'Expense' || tx.category !== selectedCategory) return false
-      if (dateRange?.start_date) {
-        const txDate = tx.date.substring(0, 10)
-        if (txDate < dateRange.start_date) return false
-        if (dateRange.end_date && txDate > dateRange.end_date) return false
-      }
-      return true
-    })
-
-    if (categoryTransactions.length === 0) {
+    const rows = series?.data ?? []
+    if (rows.length === 0) {
       return { chartData: [], totalTransactions: 0, granularity: 'day' as Granularity }
     }
 
     // Auto-pick granularity to keep the chart legible across long ranges.
-    const sortedDates = categoryTransactions
-      .map((t) => t.date.substring(0, 10))
-      .sort((a, b) => a.localeCompare(b))
+    const sortedDates = rows.map((r) => r.date).sort((a, b) => a.localeCompare(b))
     const spanDays = Math.max(
       1,
       Math.round(
@@ -93,12 +97,12 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
 
     const groupedData: Record<string, Record<string, number>> = {}
 
-    categoryTransactions.forEach((tx) => {
-      const period = bucketDate(tx.date.substring(0, 10), gran)
-      const subcategory = tx.subcategory || 'Uncategorized'
+    rows.forEach((row) => {
+      const period = bucketDate(row.date, gran)
+      const subcategory = row.subcategory || 'Uncategorized'
       if (!groupedData[period]) groupedData[period] = {}
       if (!groupedData[period][subcategory]) groupedData[period][subcategory] = 0
-      groupedData[period][subcategory] += Math.abs(tx.amount)
+      groupedData[period][subcategory] += row.amount
     })
 
     const subcategoryNames = new Set<string>()
@@ -125,10 +129,10 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
 
     return {
       chartData: finalData,
-      totalTransactions: categoryTransactions.length,
+      totalTransactions: series?.transaction_count ?? 0,
       granularity: gran,
     }
-  }, [transactions, selectedCategory, dateRange, cumulative, granularityOverride])
+  }, [series, cumulative, granularityOverride])
 
   const subcategories = useMemo(() => {
     if (chartData.length === 0) return []

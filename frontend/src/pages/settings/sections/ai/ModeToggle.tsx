@@ -3,7 +3,7 @@ import { CheckCircle, Key, Zap } from 'lucide-react'
 import type { AIMode } from '@/services/api/aiConfig'
 import type { UsageResponse } from '@/services/api/aiUsage'
 
-import { FieldHint, FieldLabel } from '../../sectionPrimitives'
+import { FieldHint } from '../../sectionPrimitives'
 
 interface ModeToggleProps {
   mode: AIMode
@@ -20,8 +20,12 @@ function usageTone(ratio: number): string {
 
 export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeToggleProps>) {
   return (
-    <div className="space-y-2">
-      <FieldLabel htmlFor="">How to power the chat</FieldLabel>
+    <fieldset className="space-y-2 border-0 p-0 m-0">
+      {/* Native <fieldset>/<legend> is the semantic grouping element for a set
+          of choice cards (no role="group" needed). */}
+      <legend className="block text-sm font-medium text-foreground mb-1.5 p-0">
+        How to power the chat
+      </legend>
       <div className="grid grid-cols-1 gap-2">
         <ModeCard
           selected={mode === 'app_bedrock'}
@@ -40,7 +44,7 @@ export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeT
           subtitle="Unlimited usage with your own OpenAI, Anthropic, or Bedrock key. You pay your provider."
         />
       </div>
-    </div>
+    </fieldset>
   )
 }
 

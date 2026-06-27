@@ -37,6 +37,21 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
   const [testError, setTestError] = useState('')
 
+  // provider/model/region are seeded lazily, but the ['ai-config'] query has
+  // not resolved on first render so the initializers capture the empty
+  // defaults. Unlike the limit fields below they had no resync, so a saved BYOK
+  // config showed blank Provider/Model/Region until the user re-picked. Mirror
+  // the lastSynced* reconciliation: when config arrives (or changes), adopt it
+  // -- but only until the user edits, so we never clobber an in-progress change.
+  const [byokInteracted, setByokInteracted] = useState(false)
+  const [lastSyncedProvider, setLastSyncedProvider] = useState(config?.provider ?? null)
+  if (config && !byokInteracted && (config.provider ?? '') !== (lastSyncedProvider ?? '')) {
+    setLastSyncedProvider(config.provider ?? null)
+    setProvider(config.provider ?? '')
+    setModel(config.model ?? '')
+    setRegion(config.region ?? 'us-east-1')
+  }
+
   const [dailyLimit, setDailyLimit] = useState<string>(() =>
     config?.daily_token_limit == null ? '' : String(config.daily_token_limit),
   )
@@ -212,11 +227,11 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
             <ByokConfigForm
               config={config}
               provider={provider}
-              setProvider={setProvider}
+              setProvider={(v) => { setByokInteracted(true); setProvider(v) }}
               model={model}
-              setModel={setModel}
+              setModel={(v) => { setByokInteracted(true); setModel(v) }}
               region={region}
-              setRegion={setRegion}
+              setRegion={(v) => { setByokInteracted(true); setRegion(v) }}
               apiKey={apiKey}
               setApiKey={setApiKey}
               showKey={showKey}

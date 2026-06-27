@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
+import { getActiveLocale } from '@/lib/formatters'
 
 /** Parse a formatted string like "$1,234.56" or "₹12,345" into parts */
 function parseFormattedNumber(str: string) {
@@ -37,7 +38,10 @@ function AnimatedValue({ value }: Readonly<{ value: string | number }>) {
       ease: [0.16, 1, 0.3, 1],
       onUpdate: () => {
         if (!ref.current) return
-        const formatted = motionVal.v.toLocaleString('en-IN', {
+        // Group with the active display locale (en-IN, en-US, de-DE...) so the
+        // count-up matches the currency the rest of the UI shows -- hardcoding
+        // 'en-IN' produced lakh/crore grouping mid-animation for non-INR users.
+        const formatted = motionVal.v.toLocaleString(getActiveLocale(), {
           minimumFractionDigits: decimalPlaces,
           maximumFractionDigits: decimalPlaces,
         })

@@ -243,16 +243,17 @@ function RecurringCard({
           </div>
           <div className="flex items-center gap-0.5">
             <button type="button" onClick={() => { setEditName(item.name); setEditFreq(item.frequency ?? 'monthly'); setEditAmt(String(Math.abs(item.expected_amount))); setEditing(true) }}
-              title="Edit" className="p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors">
+              title="Edit" aria-label="Edit recurring item" className="p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors">
               <Pencil className="w-3.5 h-3.5" />
             </button>
             <button type="button" onClick={() => onUpdate({ is_active: !item.is_active })}
               title={item.is_active ? 'Deactivate' : 'Activate'}
+              aria-label={item.is_active ? 'Pause recurring item' : 'Activate recurring item'}
               className={`p-1.5 rounded-lg transition-colors ${item.is_active ? 'text-app-green hover:bg-app-green/10' : 'text-text-tertiary hover:bg-white/10'}`}>
               {item.is_active ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
             </button>
             <button type="button" onClick={onDelete}
-              title="Delete" className="p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors">
+              title="Delete" aria-label="Delete recurring item" className="p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -331,7 +332,7 @@ export default function SubscriptionTrackerPage() {
   const p = isLoading ? '...' : undefined
 
   return (
-    <div className="min-h-screen p-4 md:p-6 lg:p-8">
+    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Recurring Transactions"

@@ -199,7 +199,9 @@ export function useBudget() {
   }, [filteredRows, transactions, currentMonthKey])
 
   const radarData = useMemo(() => {
-    return filteredRows.map((r) => ({
+    // Cap at the top 8 (rows are sorted by utilization desc) like the bar chart
+    // -- a radar with 15-25 spokes overlaps its axis labels into illegibility.
+    return filteredRows.slice(0, 8).map((r) => ({
       category:
         (r.subcategory || r.category).length > 10
           ? (r.subcategory || r.category).slice(0, 10) + '…'

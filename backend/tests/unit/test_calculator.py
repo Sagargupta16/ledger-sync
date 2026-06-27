@@ -284,21 +284,41 @@ def test_lifestyle_inflation_fewer_than_six_expenses() -> None:
 def test_lifestyle_inflation_genuine_increase() -> None:
     """First-3-months avg 100/mo vs last-3-months avg 200/mo -> +100%.
 
-    3 early expenses of 100 each (Jan), 3 late expenses of 200 each (Dec):
-    avg_first = 300/3 = 100, avg_last = 600/3 = 200 -> (200-100)/100*100 = 100.
+    Each window must span 3 DISTINCT months (the metric compares per-month
+    averages). Early window = Jan/Feb/Mar 2023 at 100 each; late window =
+    Oct/Nov/Dec 2024 at 200 each: avg_first = 300/3 = 100, avg_last = 600/3 =
+    200 -> +100%.
     """
-    early = [tx(100, date=datetime(2024, 1, d, tzinfo=UTC)) for d in (1, 2, 3)]
-    late = [tx(200, date=datetime(2024, 12, d, tzinfo=UTC)) for d in (1, 2, 3)]
+    early = [tx(100, date=datetime(2023, m, 15, tzinfo=UTC)) for m in (1, 2, 3)]
+    late = [tx(200, date=datetime(2024, m, 15, tzinfo=UTC)) for m in (10, 11, 12)]
     assert calculate_lifestyle_inflation(early + late) == pytest.approx(100.0)
 
 
 def test_lifestyle_inflation_avg_first_zero_returns_0() -> None:
-    """If the first window sums to zero, guard returns 0.0 (no div-by-zero).
+    """A degenerate first window returns 0.0 (no div-by-zero, no runaway %).
 
-    Zero-amount early expenses + non-zero late ones, all >= 6 total.
+    Zero-amount early expenses + non-zero late ones, all >= 6 total. Returns 0
+    via the window guards (single-month windows + near-zero baseline).
     """
     early = [tx(0, date=datetime(2024, 1, d, tzinfo=UTC)) for d in (1, 2, 3)]
     late = [tx(200, date=datetime(2024, 12, d, tzinfo=UTC)) for d in (1, 2, 3)]
+    assert calculate_lifestyle_inflation(early + late) == pytest.approx(0.0)
+
+
+def test_lifestyle_inflation_sparse_early_history_no_runaway() -> None:
+    """Regression: a tiny early month must not explode the percentage.
+
+    The real-data bug: first window had 2 sparse months (~Rs440 total) divided
+    by a hardcoded 3, producing a ~Rs147 baseline and a 61,000%+ result. With
+    the distinct-month divisor + 3-month-window requirement this returns 0.
+    """
+    early = [
+        tx(40, date=datetime(2019, 1, 5, tzinfo=UTC)),
+        tx(400, date=datetime(2019, 2, 5, tzinfo=UTC)),
+    ]
+    late = [tx(90000, date=datetime(2026, m, 15, tzinfo=UTC)) for m in (4, 5, 6)]
+    # 4 more rows so len>=6
+    early += [tx(10, date=datetime(2019, 1, 6, tzinfo=UTC)) for _ in range(4)]
     assert calculate_lifestyle_inflation(early + late) == pytest.approx(0.0)
 
 

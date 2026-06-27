@@ -9,9 +9,15 @@ import {
   type YearData,
 } from './period-comparison/periodMetrics'
 
-type RawMonthData = { income: number; expense: number; net_savings: number }
+type RawMonthData = {
+  income: number
+  expense: number
+  net_savings: number
+  transactions?: number
+  income_count?: number
+  expense_count?: number
+}
 type MonthlyData = Record<string, RawMonthData>
-type TransactionLike = { date: string; type: string }
 type TxCounts = Record<string, { total: number; income: number; expense: number }>
 
 export function deriveAvailableMonths(monthlyData: MonthlyData | undefined): MonthData[] {
@@ -52,16 +58,15 @@ export function deriveYearlyData(monthlyData: MonthlyData | undefined): Record<n
   return yearly
 }
 
-export function deriveTransactionCounts(transactions: TransactionLike[]): TxCounts {
+export function deriveTransactionCounts(monthlyData: MonthlyData | undefined): TxCounts {
   const counts: TxCounts = {}
-  transactions.forEach((tx) => {
-    const month = tx.date.slice(0, 7)
-    if (!counts[month]) {
-      counts[month] = { total: 0, income: 0, expense: 0 }
+  if (!monthlyData) return counts
+  Object.entries(monthlyData).forEach(([month, data]) => {
+    counts[month] = {
+      total: data.transactions ?? 0,
+      income: data.income_count ?? 0,
+      expense: data.expense_count ?? 0,
     }
-    counts[month].total += 1
-    if (tx.type === 'Income') counts[month].income += 1
-    else if (tx.type === 'Expense') counts[month].expense += 1
   })
   return counts
 }

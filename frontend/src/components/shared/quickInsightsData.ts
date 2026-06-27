@@ -1,6 +1,6 @@
 import type React from 'react'
 
-import { MS_PER_DAY } from '@/lib/dateUtils'
+import { MS_PER_DAY, weekdayOf } from '@/lib/dateUtils'
 
 /** Maps insight titles to widget keys used in Settings → Dashboard Widgets */
 const TITLE_TO_WIDGET_KEY: Record<string, string> = {
@@ -70,7 +70,16 @@ export interface CategoryData {
   subcategories: Record<string, number>
 }
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/** Format a "YYYY-MM" period key as e.g. "Dec 2024". */
+export function monthLabel(period: string): string {
+  const [y, m] = period.split('-')
+  return new Date(Number(y), Number(m) - 1).toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+  })
+}
 
 export interface DateRange {
   start_date?: string
@@ -132,7 +141,7 @@ export function computeWeekendSplit(transactions: Transaction[]) {
   let weekend = 0
   let weekday = 0
   for (const t of transactions) {
-    const day = new Date(t.date).getDay()
+    const day = weekdayOf(t.date)
     const amount = Math.abs(t.amount)
     if (day === 0 || day === 6) weekend += amount
     else weekday += amount
@@ -143,7 +152,7 @@ export function computeWeekendSplit(transactions: Transaction[]) {
 export function computePeakDay(transactions: Transaction[]) {
   const spendingByDay = [0, 0, 0, 0, 0, 0, 0]
   for (const t of transactions) {
-    spendingByDay[new Date(t.date).getDay()] += Math.abs(t.amount)
+    spendingByDay[weekdayOf(t.date)] += Math.abs(t.amount)
   }
   const peakIndex = spendingByDay.indexOf(Math.max(...spendingByDay))
   return { name: DAY_NAMES[peakIndex], total: spendingByDay[peakIndex] }
@@ -191,14 +200,21 @@ export function computeMostExpensiveMonth(transactions: Transaction[]) {
 }
 
 export function computeNetCashback(allTransactions: Transaction[]) {
+  // Match by substring, NOT an exact hardcoded category string. The category is
+  // user-defined and varies ("Refund & Cashbacks" vs "Refunds & Cashbacks"), so
+  // an exact match silently returned 0 cashback for real data that used the
+  // plural spelling. A "cashback" subcategory under any refund/cashback category
+  // is what we want; refunds (Product/Service Refunds, Deposit Return) are not
+  // cashback and stay excluded.
   const cashbackTxs = allTransactions.filter(
     (t) =>
-      t.category === 'Refund & Cashbacks' &&
       t.type === 'Income' &&
-      (t.subcategory === 'Credit Card Cashbacks' || t.subcategory === 'Other Cashbacks'),
+      (t.subcategory || '').toLowerCase().includes('cashback'),
   )
+  // "Shared" cashback passed on to others, matched by destination substring so
+  // both "Cashback Shared" and "Transfer: X -> Cashback Shared" leg names count.
   const sharedTxs = allTransactions.filter(
-    (t) => t.type === 'Transfer' && t.to_account === 'Cashback Shared',
+    (t) => t.type === 'Transfer' && (t.to_account || '').toLowerCase().includes('cashback shared'),
   )
   const totalCashback = cashbackTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0)
   const totalShared = sharedTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0)

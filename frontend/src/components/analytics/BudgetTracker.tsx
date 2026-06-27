@@ -4,18 +4,37 @@ import { motion } from 'framer-motion'
 import { Target, Plus, Trash2, AlertTriangle, CheckCircle, Edit2 } from 'lucide-react'
 
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
 import { useBudgetStore } from '@/store/budgetStore'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import { computeBudgetStatus, getStatusColor, getProgressColor } from './budgetUtils'
 import AddBudgetForm from './components/AddBudgetForm'
 
+/** First/last day of the current calendar month as YYYY-MM-DD (local). */
+function currentMonthRange(): { start_date: string; end_date: string } {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = now.getMonth()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const lastDay = new Date(y, m + 1, 0).getDate()
+  return {
+    start_date: `${y}-${pad(m + 1)}-01`,
+    end_date: `${y}-${pad(m + 1)}-${pad(lastDay)}`,
+  }
+}
+
 export default function BudgetTracker() {
+  // All-time expense categories (for the dropdown / suggestions list).
   const { data: categoryData } = useCategoryBreakdown({
     transaction_type: 'expense',
   })
-  const { data: transactions = [] } = useTransactions()
+  // Current-month expense per category, aggregated server-side (replaces the
+  // full-ledger fetch that filtered by date.startsWith(month) in the browser).
+  const monthRange = useMemo(() => currentMonthRange(), [])
+  const { data: monthCategoryData } = useCategoryBreakdown({
+    transaction_type: 'expense',
+    ...monthRange,
+  })
   const { budgets, setBudget, removeBudget } = useBudgetStore()
 
   const [isAdding, setIsAdding] = useState(false)
@@ -23,35 +42,24 @@ export default function BudgetTracker() {
   const [newCategory, setNewCategory] = useState('')
   const [newLimit, setNewLimit] = useState('')
 
-  // Get current month spending by category
+  // Get current month spending by category (from the month-scoped breakdown).
   const currentMonthSpending = useMemo(() => {
-    const now = new Date()
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
     const spending: Record<string, number> = {}
-
-    transactions
-      .filter((tx) => tx.type === 'Expense' && tx.date.startsWith(currentMonth))
-      .forEach((tx) => {
-        spending[tx.category] = (spending[tx.category] || 0) + Math.abs(tx.amount)
-      })
-
+    const cats = monthCategoryData?.categories ?? {}
+    for (const [cat, info] of Object.entries(cats)) {
+      spending[cat] = Math.abs(info.total)
+    }
     return spending
-  }, [transactions])
+  }, [monthCategoryData])
 
-  // All categories from data
+  // All expense categories (all-time) for the dropdown + suggestions.
   const allCategories = useMemo(() => {
     const cats = new Set<string>()
     if (categoryData?.categories) {
       Object.keys(categoryData.categories).forEach((c) => cats.add(c))
     }
-    transactions.forEach((tx) => {
-      if (tx.type === 'Expense' && tx.category) {
-        cats.add(tx.category)
-      }
-    })
     return Array.from(cats).sort((a, b) => a.localeCompare(b))
-  }, [categoryData, transactions])
+  }, [categoryData])
 
   // Budget status
   const budgetStatus = useMemo(

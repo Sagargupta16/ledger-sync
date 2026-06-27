@@ -13,7 +13,24 @@ import { prefetchCoreData } from '@/lib/prefetch'
 import { seedDemoCache } from '@/lib/demo/seedDemoCache'
 import { generateDemoPreferences } from '@/lib/demo/generateDerivedData'
 import { usePreferencesStore } from '@/store/preferencesStore'
+import { useBudgetStore } from '@/store/budgetStore'
+import { useAccountStore } from '@/store/accountStore'
+import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
 import { DEMO_USER } from '@/lib/demo/enterDemoMode'
+
+/**
+ * Clear every persisted, user-scoped Zustand store on logout. These stores
+ * persist to localStorage under static keys (not namespaced by user), so on a
+ * shared browser the next user would otherwise see the previous user's budgets,
+ * account classifications, and preferences. queryClient.clear() only drops the
+ * in-memory server cache -- it does NOT touch these localStorage-backed stores.
+ */
+function clearPersistedUserStores() {
+  useBudgetStore.getState().clearBudgets()
+  useAccountStore.getState().reset()
+  useInvestmentAccountStore.getState().reset()
+  usePreferencesStore.getState().reset()
+}
 
 export const AUTH_QUERY_KEY = ['auth', 'user']
 
@@ -29,11 +46,13 @@ export const useLogout = () => {
     onSuccess: () => {
       logout()
       queryClient.clear()
+      clearPersistedUserStores()
     },
     onError: () => {
       // Logout should always succeed client-side
       logout()
       queryClient.clear()
+      clearPersistedUserStores()
     },
   })
 }
@@ -137,6 +156,7 @@ export const useDeleteAccount = () => {
     onSuccess: () => {
       logout()
       queryClient.clear()
+      clearPersistedUserStores()
     },
   })
 }

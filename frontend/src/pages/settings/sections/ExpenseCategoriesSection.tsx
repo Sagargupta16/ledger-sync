@@ -82,6 +82,8 @@ export default function ExpenseCategoriesSection({
                     <button
                       type="button"
                       title="Essential"
+                      aria-label="Essential"
+                      aria-pressed={isEssential}
                       onClick={() => toggleEssentialCategory(cat)}
                       className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
                         isEssential
@@ -94,6 +96,8 @@ export default function ExpenseCategoriesSection({
                     <button
                       type="button"
                       title="Fixed"
+                      aria-label="Fixed"
+                      aria-pressed={isFixed}
                       onClick={() => toggleFixedCategory(cat)}
                       className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
                         isFixed

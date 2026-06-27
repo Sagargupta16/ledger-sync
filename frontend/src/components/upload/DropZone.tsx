@@ -76,6 +76,7 @@ function FileSelectedView({ selectedFile, compact, isUploading, onClear }: Reado
         <span className={cn('font-medium truncate', compact ? 'text-xs max-w-[120px]' : '')}>{selectedFile.name}</span>
         <button
           onClick={onClear}
+          aria-label="Remove selected file"
           className="ml-auto p-1 hover:bg-destructive/20 rounded-full transition-colors"
           disabled={isUploading}
         >

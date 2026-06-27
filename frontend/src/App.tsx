@@ -169,7 +169,7 @@ function LandingPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black" aria-label="Authenticating">
+      <div className="min-h-dvh flex items-center justify-center bg-black" aria-label="Authenticating">
         <Spinner />
       </div>
     )

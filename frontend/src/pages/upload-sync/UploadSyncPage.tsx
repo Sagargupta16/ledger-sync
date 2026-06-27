@@ -200,7 +200,7 @@ export default function UploadSyncPage() {
   })
 
   return (
-    <div className="min-h-screen flex flex-col justify-center p-6 md:p-8 pb-24">
+    <div className="min-h-dvh flex flex-col justify-center p-6 md:p-8 pb-24">
       <div className="max-w-5xl mx-auto w-full space-y-6">
         {/* Hero Section with Upload */}
         <motion.div

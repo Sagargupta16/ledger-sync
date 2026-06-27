@@ -43,8 +43,20 @@ interface UseAnalyticsTimeFilterOptions {
  * - Computing the data date range (min/max) from a transactions array
  * - Producing a spread-ready `timeFilterProps` object for `<AnalyticsTimeFilter>`
  */
+/** Either the legacy transactions array (min/max derived from it) or an
+ * explicit ``{minDate, maxDate}`` bounds object (from the lightweight
+ * ``/data-date-range`` endpoint -- no full-ledger fetch). */
+export type TimeFilterDateSource =
+  | Array<{ date: string }>
+  | { minDate?: string; maxDate?: string }
+  | undefined
+
+function isBounds(src: TimeFilterDateSource): src is { minDate?: string; maxDate?: string } {
+  return !!src && !Array.isArray(src)
+}
+
 export function useAnalyticsTimeFilter(
-  transactions: Array<{ date: string }> | undefined,
+  transactions: TimeFilterDateSource,
   options?: UseAnalyticsTimeFilterOptions,
 ) {
   const { data: preferences } = usePreferences()
@@ -112,13 +124,23 @@ export function useAnalyticsTimeFilter(
   ])
 
   const dataDateRange = useMemo(() => {
-    if (!transactions || transactions.length === 0)
-      return { minDate: undefined, maxDate: undefined }
-    const dates = transactions.map((t) => t.date.substring(0, 10)).sort((a, b) => a.localeCompare(b))
-    const rawMin = dates[0]
+    // Explicit bounds (lightweight /data-date-range) take the fast path.
+    let rawMin: string | undefined
+    let rawMax: string | undefined
+    if (isBounds(transactions)) {
+      rawMin = transactions.minDate
+      rawMax = transactions.maxDate
+    } else if (transactions && transactions.length > 0) {
+      const dates = transactions
+        .map((t) => t.date.substring(0, 10))
+        .sort((a, b) => a.localeCompare(b))
+      rawMin = dates[0]
+      rawMax = dates.at(-1)
+    }
+    if (!rawMin) return { minDate: undefined, maxDate: undefined }
     const clampedMin =
       clampStartToEarningStart(rawMin, earningStartDate, useEarningStartDate) ?? rawMin
-    return { minDate: clampedMin, maxDate: dates.at(-1) }
+    return { minDate: clampedMin, maxDate: rawMax }
   }, [transactions, earningStartDate, useEarningStartDate])
 
   const timeFilterProps = {

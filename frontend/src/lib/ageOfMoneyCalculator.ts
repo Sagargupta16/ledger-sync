@@ -77,6 +77,10 @@ export function computeDaysOfBuffering(
   transactions: Array<{ type: string; amount: number; date: string }>,
   lookbackDays = 90,
 ): number | null {
+  // Guard a non-finite balance (e.g. a string total that arithmetic turned into
+  // NaN upstream) so the card never renders "NaN days".
+  if (!Number.isFinite(liquidBalance)) return null
+
   const now = new Date()
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - lookbackDays)

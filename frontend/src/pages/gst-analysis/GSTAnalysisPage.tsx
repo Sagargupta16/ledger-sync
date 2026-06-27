@@ -34,13 +34,17 @@ import {
 import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
-// Slab colors (matching GST slab identity)
+// Slab colors (matching GST slab identity). Covers both the legacy slabs
+// (12/28%, for transactions before the 2025-09-22 GST 2.0 cutover) and the
+// current ones (40% luxury de-merit rate).
 const SLAB_COLORS: Record<number, string> = {
   0: rawColors.app.green,
   3: rawColors.app.yellow,
   5: rawColors.app.teal,
+  12: rawColors.app.blue,
   18: rawColors.app.indigo,
-  28: rawColors.app.red,
+  28: rawColors.app.orange,
+  40: rawColors.app.red,
 }
 
 function FYNavigator({
@@ -55,6 +59,7 @@ function FYNavigator({
         type="button"
         onClick={() => idx < fys.length - 1 && onSelect(fys[idx + 1])}
         disabled={idx >= fys.length - 1}
+        aria-label="Previous fiscal year"
         className="p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
@@ -64,6 +69,7 @@ function FYNavigator({
         type="button"
         onClick={() => idx > 0 && onSelect(fys[idx - 1])}
         disabled={idx <= 0}
+        aria-label="Next fiscal year"
         className="p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
       >
         <ChevronRight className="w-4 h-4" />
@@ -93,6 +99,10 @@ export default function GSTAnalysisPage() {
   )
 
   const hasData = gstData && gstData.totalSpending > 0
+  // The GST-by-slab pie keys on gstAmount, so exempt spend (0% slab: rent, fuel,
+  // insurance, transfers) would add an empty, dead-legend slice. Keep 0% rows in
+  // the table (their spending is meaningful) but drop them from the pie/legend.
+  const gstSlabsWithTax = (gstData?.slabBreakdown ?? []).filter((s) => s.gstAmount > 0)
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -170,7 +180,7 @@ export default function GSTAnalysisPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={gstData.slabBreakdown}
+                      data={gstSlabsWithTax}
                       dataKey="gstAmount"
                       nameKey="slab"
                       cx="50%"
@@ -178,9 +188,9 @@ export default function GSTAnalysisPage() {
                       outerRadius={90}
                       innerRadius={50}
                       paddingAngle={2}
-                      isAnimationActive={shouldAnimate(gstData.slabBreakdown.length)}
+                      isAnimationActive={shouldAnimate(gstSlabsWithTax.length)}
                     >
-                      {gstData.slabBreakdown.map((entry) => (
+                      {gstSlabsWithTax.map((entry) => (
                         <Cell key={entry.slab} fill={SLAB_COLORS[entry.slab] ?? rawColors.app.blue} />
                       ))}
                     </Pie>
@@ -193,7 +203,7 @@ export default function GSTAnalysisPage() {
                 </ResponsiveContainer>
               </div>
               <div className="flex flex-wrap gap-3 mt-2 justify-center">
-                {gstData.slabBreakdown.map((s) => (
+                {gstSlabsWithTax.map((s) => (
                   <div key={s.slab} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <div
                       className="w-2.5 h-2.5 rounded-full"

@@ -24,6 +24,8 @@ interface SparklineProps {
   width?: number
   /** Optional aria-label. Compact callsites should always provide one. */
   ariaLabel?: string
+  /** Optional hover title (native tooltip) for extra context. */
+  title?: string
 }
 
 /**
@@ -40,9 +42,10 @@ export default function Sparkline({
   variant = 'default',
   width: compactWidth = 80,
   ariaLabel,
+  title,
 }: Readonly<SparklineProps>) {
   if (variant === 'compact') {
-    return (
+    const compact = (
       <CompactSparkline
         data={data}
         color={color}
@@ -51,6 +54,9 @@ export default function Sparkline({
         ariaLabel={ariaLabel}
       />
     )
+    // Wrap in a titled span so callers can add a native tooltip without
+    // CompactSparkline needing a title prop of its own.
+    return title ? <span title={title} className="inline-flex">{compact}</span> : compact
   }
   return (
     <DefaultSparkline

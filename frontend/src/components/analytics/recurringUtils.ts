@@ -1,4 +1,5 @@
-import { MS_PER_DAY } from '@/lib/dateUtils'
+import { MS_PER_DAY, parseLocalDate, toLocalDateKey } from '@/lib/dateUtils'
+import type { RecurringTransaction as ApiRecurringTransaction } from '@/services/api/analyticsV2'
 
 export interface RecurringTransaction {
   pattern: string
@@ -14,6 +15,49 @@ export interface RecurringTransaction {
 }
 
 export type Frequency = 'monthly' | 'quarterly' | 'yearly'
+
+/** Map the backend's monthly-commitment weighting to one of the 3 display
+ * frequencies. The backend detects more bands (weekly/biweekly/bimonthly/
+ * semiannual); collapse them to the nearest display bucket so the commitment
+ * math (monthly = full, quarterly = /3, yearly = /12) stays meaningful. */
+const API_FREQUENCY_TO_DISPLAY: Record<string, Frequency> = {
+  WEEKLY: 'monthly', // ~4.3x/mo -> treated as a monthly commitment line
+  BIWEEKLY: 'monthly',
+  MONTHLY: 'monthly',
+  BIMONTHLY: 'quarterly',
+  QUARTERLY: 'quarterly',
+  SEMIANNUAL: 'yearly',
+  YEARLY: 'yearly',
+}
+
+/** Adapt backend recurring rows to the component's display shape.
+ *
+ * The backend ``recurring_transactions`` rollup is the source of truth (built
+ * by the analytics engine with confidence scoring), replacing the old
+ * client-side ``detectPattern`` over the full ledger. We keep the component's
+ * expense focus: income patterns (Salary, Stipend) are dropped so the
+ * "monthly commitment" total stays meaningful. */
+export function adaptApiRecurring(rows: ApiRecurringTransaction[]): RecurringTransaction[] {
+  return rows
+    .filter((r) => (r.type ?? '').toLowerCase() !== 'income')
+    .map((r) => {
+      const freq = API_FREQUENCY_TO_DISPLAY[(r.frequency ?? '').toUpperCase()] ?? 'monthly'
+      const amount = Math.abs(r.expected_amount)
+      return {
+        pattern: r.name,
+        category: r.category,
+        subcategory: r.subcategory ?? undefined,
+        avgAmount: amount,
+        frequency: freq,
+        lastDate: r.last_occurrence ?? '',
+        occurrences: r.occurrences,
+        totalSpent: amount * r.occurrences,
+        isActive: r.is_active,
+        expectedNextDate: r.next_expected ?? '',
+      }
+    })
+    .sort((a, b) => b.avgAmount - a.avgAmount)
+}
 
 export function computeIntervals(sortedDates: string[]): number[] {
   const intervals: number[] = []
@@ -95,7 +139,7 @@ export function detectPattern(
   const avgAmount = data.amounts.reduce((a, b) => a + b, 0) / data.amounts.length
   const lastDateStr = sortedDates.at(-1)
   if (!lastDateStr) return null
-  const lastDate = new Date(lastDateStr)
+  const lastDate = parseLocalDate(lastDateStr)
   const expectedNext = computeExpectedNextDate(lastDate, frequency)
   const isActive = checkIsActive(lastDate, frequency)
   const subcategorySuffix = data.subcategory ? ` - ${data.subcategory}` : ''
@@ -111,6 +155,6 @@ export function detectPattern(
     occurrences: data.amounts.length,
     totalSpent: data.amounts.reduce((a, b) => a + b, 0),
     isActive,
-    expectedNextDate: expectedNext.toISOString().split('T')[0],
+    expectedNextDate: toLocalDateKey(expectedNext),
   }
 }

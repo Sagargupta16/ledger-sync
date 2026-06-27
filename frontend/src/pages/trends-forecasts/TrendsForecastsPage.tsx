@@ -17,7 +17,8 @@ import {
 } from 'recharts'
 import { rawColors } from '@/constants/colors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatDate } from '@/lib/formatters'
+import { formatMonthKey } from '@/lib/dateUtils'
 import {
   chartTooltipProps,
   PageHeader,
@@ -57,7 +58,7 @@ export default function TrendsForecastsPage() {
   } = useTrendsForecasts()
 
   return (
-    <div className="min-h-screen p-4 md:p-6 lg:p-8">
+    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         <PageHeader
           title="Trends & Forecasts"
@@ -177,12 +178,7 @@ export default function TrendsForecastsPage() {
                           payload: ReadonlyArray<{ payload?: { month?: string } }>,
                         ) => {
                           const month = payload?.[0]?.payload?.month
-                          return month
-                            ? new Date(month + '-01').toLocaleDateString('en-US', {
-                                month: 'long',
-                                year: 'numeric',
-                              })
-                            : ''
+                          return month ? formatMonthKey(month, { month: 'long', year: 'numeric' }) : ''
                         }}
                         formatter={(value, name) => [
                           typeof value === 'number' ? formatCurrency(value) : '',
@@ -213,7 +209,7 @@ export default function TrendsForecastsPage() {
                         stroke={color}
                         fill={areaGradientUrl(id)}
                         strokeWidth={2}
-                        dot={false}
+                        dot={monthlyTrendWithAvg.length === 1 ? { r: 3, fill: color } : false}
                         activeDot={{ ...ACTIVE_DOT, fill: color }}
                         isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)}
                         animationDuration={600}
@@ -225,7 +221,7 @@ export default function TrendsForecastsPage() {
                         stroke={color}
                         strokeWidth={2}
                         strokeDasharray="6 3"
-                        dot={false}
+                        dot={monthlyTrendWithAvg.length === 1 ? { r: 3, fill: color } : false}
                         activeDot={{ ...ACTIVE_DOT, fill: color }}
                         name={`${label} (3m avg)`}
                         isAnimationActive={shouldAnimate(monthlyTrendWithAvg.length)}
@@ -288,7 +284,7 @@ export default function TrendsForecastsPage() {
                 <Tooltip
                   {...chartTooltipProps}
                   labelFormatter={(label) =>
-                    new Date(label).toLocaleDateString('en-US', {
+                    formatDate(label, {
                       month: 'long',
                       day: 'numeric',
                       year: 'numeric',
@@ -319,7 +315,7 @@ export default function TrendsForecastsPage() {
                   stroke={rawColors.app.purple}
                   fill={areaGradientUrl('savingsRate')}
                   strokeWidth={2}
-                  dot={false}
+                  dot={dailySavingsData.length === 1 ? { r: 3, fill: rawColors.app.purple } : false}
                   isAnimationActive={shouldAnimate(dailySavingsData.length)}
                   animationDuration={600}
                   animationEasing="ease-out"

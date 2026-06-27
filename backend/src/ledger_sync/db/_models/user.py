@@ -318,6 +318,26 @@ class UserPreferences(Base):
     # a salary structure configured.
     show_tds_schedule: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # ===== 19. EPF withdrawal taxability =====
+    # How EPF inflows (withdrawals / contribution credits) are treated for tax.
+    # Indian rule: an EPF withdrawal after 5 years of continuous service is fully
+    # EXEMPT u/s 10(12); before 5 years it is taxable. We can't infer tenure from
+    # a bank row, so default to exempt (the common case) and let the user opt in
+    # to taxing it. ``epf_taxable_percent`` (0-100) is the fraction counted as
+    # taxable when the toggle is on -- defaults to 100 (fully taxable). The old
+    # behaviour was a hardcoded 50%; this makes it an explicit, user-owned choice.
+    epf_withdrawal_taxable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    epf_taxable_percent: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+
+    # ===== 20. Salary TDS treatment =====
+    # Whether the salary amounts recorded in the ledger are NET of TDS (what hit
+    # the bank) or GROSS (pre-tax CTC). True (default) = net: the tax engine backs
+    # out the implied gross from the received amount and reports the TDS that was
+    # already deducted. False = the recorded amount IS the taxable gross, so tax is
+    # computed directly on it (no gross-up). This is a per-user reporting choice;
+    # bank-statement imports are typically net, so True preserves prior behaviour.
+    salary_is_net_of_tds: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
     # ── Salary & Tax Projections ──────────────────────────────────────────
     salary_structure: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     rsu_grants: Mapped[str] = mapped_column(Text, nullable=False, default="[]")

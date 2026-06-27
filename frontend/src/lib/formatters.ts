@@ -36,6 +36,13 @@ const convertAmount = (value: number): number => {
 const getActiveCurrencyMeta = () => getCurrencyMeta(getDisplayCurrency())
 
 /**
+ * Active display locale (e.g. 'en-IN', 'en-US', 'de-DE') derived from the user's
+ * display currency. Use this for ad-hoc `toLocaleString` grouping so it matches
+ * the currency the rest of the UI shows, instead of hardcoding 'en-IN'.
+ */
+export const getActiveLocale = (): string => getActiveCurrencyMeta().locale
+
+/**
  * Format a number with the appropriate locale
  */
 const formatWithLocale = (
@@ -142,12 +149,41 @@ export const percentChange = (current: number, previous: number): number | null 
  * @returns Formatted date string
  */
 export const formatDateTick = (dateStr: string, totalPoints: number): string => {
-  const date = new Date(dateStr)
+  // Build from local Y/M/D parts: new Date('YYYY-MM-DD') is UTC midnight and
+  // toLocaleDateString renders local, shifting the axis day for negative-offset
+  // users. A non-date string falls through unchanged.
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr)
+  const date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(dateStr)
   if (Number.isNaN(date.getTime())) return dateStr
   if (totalPoints > 365) {
     return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
   }
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+/**
+ * Format a `YYYY-MM-DD` (or longer ISO) date string for display, timezone-safe.
+ *
+ * Replaces date-fns `format(new Date(str), ...)`, which parsed the date-only
+ * string as UTC midnight and rendered the LOCAL day (off by one for US users).
+ * Builds the Date from explicit local Y/M/D parts so the calendar day holds.
+ *
+ * @param dateStr  ISO date string (only the first 10 chars are used)
+ * @param opts     Intl options (default: medium date, e.g. "Mar 15, 2026")
+ */
+const DEFAULT_DATE_OPTS: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'short',
+  day: '2-digit',
+}
+
+export const formatDate = (
+  dateStr: string,
+  opts: Intl.DateTimeFormatOptions = DEFAULT_DATE_OPTS,
+): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr)
+  if (!m) return dateStr
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('en-US', opts)
 }
 
 /** Return the English ordinal suffix for a day number (1→'st', 2→'nd', 3→'rd', etc.) */

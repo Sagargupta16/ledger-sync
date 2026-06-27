@@ -131,7 +131,15 @@ def calculate_consistency_score(monthly_expenses: list[float]) -> float:
 
 
 def calculate_lifestyle_inflation(transactions: list[Transaction]) -> float:
-    """Calculate lifestyle inflation: first 3 months vs last 3 months spending."""
+    """Calculate lifestyle inflation: first 3 months vs last 3 months spending.
+
+    Each window's average is its total divided by the number of DISTINCT months
+    it actually contains -- not a hardcoded 3. With sparse early history (e.g. a
+    couple of tiny test rows in the first calendar month), dividing by 3 yields a
+    near-zero baseline that explodes the percentage to nonsense (a real run
+    produced 61,000%+). We also require each window to span the full 3 months and
+    a non-trivial baseline, otherwise the comparison is meaningless -> return 0.
+    """
     expenses = sorted(
         (t for t in transactions if t.type == TransactionType.EXPENSE),
         key=lambda t: t.date,
@@ -156,10 +164,24 @@ def calculate_lifestyle_inflation(transactions: list[Transaction]) -> float:
     if not first_3_months or not last_3_months:
         return 0.0
 
-    avg_first = float(sum((_to_decimal(t.amount) for t in first_3_months), Decimal(0)) / 3)
-    avg_last = float(sum((_to_decimal(t.amount) for t in last_3_months), Decimal(0)) / 3)
+    def _distinct_months(txns: list[Transaction]) -> int:
+        return len({(t.date.year, t.date.month) for t in txns})
 
-    if avg_first == 0:
+    first_months = _distinct_months(first_3_months)
+    last_months = _distinct_months(last_3_months)
+    # Both windows must actually cover 3 months; a 1-2 month early window is not
+    # a comparable baseline (it was the source of the runaway percentage).
+    if first_months < 3 or last_months < 3:
+        return 0.0
+
+    first_total = sum((_to_decimal(t.amount) for t in first_3_months), Decimal(0))
+    last_total = sum((_to_decimal(t.amount) for t in last_3_months), Decimal(0))
+    avg_first = float(first_total / first_months)
+    avg_last = float(last_total / last_months)
+
+    # Guard a degenerate baseline: a near-zero first-window average turns any
+    # later spend into a meaningless thousands-of-percent figure.
+    if avg_first < 1:
         return 0.0
     return ((avg_last - avg_first) / avg_first) * 100
 
