@@ -45,6 +45,12 @@ export function useTaxPlanning() {
 
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || FY_START_MONTH
 
+  // EPF inflows are exempt by default; the user can opt in to taxing a chosen
+  // fraction (Settings > EPF withdrawal taxability). 0..1 fraction.
+  const epfTaxableFraction = preferences?.epf_withdrawal_taxable
+    ? (preferences.epf_taxable_percent ?? 100) / 100
+    : 0
+
   const incomeClassification = useMemo(
     () => ({
       taxable: preferences?.taxable_income_categories || [],
@@ -56,8 +62,8 @@ export function useTaxPlanning() {
   )
 
   const transactionsByFY = useMemo(
-    () => groupTransactionsByFY(allTransactions, fiscalYearStartMonth, incomeClassification),
-    [allTransactions, fiscalYearStartMonth, incomeClassification],
+    () => groupTransactionsByFY(allTransactions, fiscalYearStartMonth, incomeClassification, epfTaxableFraction),
+    [allTransactions, fiscalYearStartMonth, incomeClassification, epfTaxableFraction],
   )
 
   const txFyList = useMemo(

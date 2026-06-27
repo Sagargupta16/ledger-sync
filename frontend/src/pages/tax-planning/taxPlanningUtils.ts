@@ -39,11 +39,19 @@ export function createEmptyFYData(): FYData {
   }
 }
 
-/** Classify and accumulate an income transaction into the FY group */
+/**
+ * Classify and accumulate an income transaction into the FY group.
+ *
+ * @param epfTaxableFraction  Fraction (0..1) of an EPF inflow counted as
+ *   taxable. Defaults to 0 (exempt) -- the common post-5-year-service case.
+ *   The user sets this in Settings (EPF withdrawal taxable toggle + percent);
+ *   the old code hardcoded 0.5, which had no basis in EPF withdrawal rules.
+ */
 export function classifyAndAccumulateIncome(
   tx: Transaction,
   fyData: FYData,
   incomeClassification: IncomeClassification,
+  epfTaxableFraction = 0,
 ): void {
   const incomeType = classifyIncomeType(tx, incomeClassification)
   const note = tx.note?.toLowerCase() || ''
@@ -55,7 +63,9 @@ export function classifyAndAccumulateIncome(
     (tx.category === 'Employment Income' && tx.subcategory === 'EPF Contribution')
 
   if (isEPF) {
-    const epfTaxablePortion = tx.amount / 2
+    const epfTaxablePortion = tx.amount * epfTaxableFraction
+    // Always record the full EPF inflow in its group for display; only the
+    // taxable fraction feeds taxableIncome.
     fyData.taxableIncome += epfTaxablePortion
     fyData.incomeGroups.EPF.total += epfTaxablePortion
     fyData.incomeGroups.EPF.transactions.push(tx)
@@ -86,6 +96,7 @@ export function groupTransactionsByFY(
   transactions: Transaction[],
   fiscalYearStartMonth: number,
   incomeClassification: IncomeClassification,
+  epfTaxableFraction = 0,
 ): Record<string, FYData> {
   const grouped: Record<string, FYData> = {}
   for (const tx of transactions) {
@@ -94,7 +105,7 @@ export function groupTransactionsByFY(
     grouped[fy].transactions.push(tx)
     if (tx.type === 'Income') {
       grouped[fy].income += tx.amount
-      classifyAndAccumulateIncome(tx, grouped[fy], incomeClassification)
+      classifyAndAccumulateIncome(tx, grouped[fy], incomeClassification, epfTaxableFraction)
     } else if (tx.type === 'Expense') {
       grouped[fy].expense += tx.amount
     }
@@ -179,7 +190,12 @@ export function computePaidTax(
   regimeOverride: TaxRegimeOverride,
   preferredRegime: string,
 ): number {
-  const taxableAmt = fyData.taxableIncome > 0 ? fyData.taxableIncome : fyData.income
+  // Use the classified taxable income, never a fallback to gross inflow.
+  // fyData.income is ALL credits (incl. transfers, refunds, cashbacks,
+  // investment returns) -- taxing that overstates tax badly. When nothing is
+  // classified as taxable this yields 0, which is correct: the UI nudges the
+  // user to classify income rather than fabricating tax on raw inflow.
+  const taxableAmt = fyData.taxableIncome
   const salaryMonths = fyData.salaryMonths?.size || 0
   const computed = computeTaxForFY(fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime)
   return Math.round(computed.taxAlreadyPaid)

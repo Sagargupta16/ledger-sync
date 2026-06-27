@@ -155,6 +155,8 @@ export function generateDemoPreferences(): UserPreferences {
     notify_upcoming_bills: true,
     notify_days_ahead: 7,
     show_tds_schedule: true,
+    epf_withdrawal_taxable: false,
+    epf_taxable_percent: 100,
     salary_structure: buildDemoSalaryStructure(),
     rsu_grants: buildDemoRsuGrants(),
     growth_assumptions: {

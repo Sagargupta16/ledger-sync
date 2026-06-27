@@ -126,6 +126,9 @@ def reset_preferences(
     prefs.notify_anomalies = True
     prefs.notify_upcoming_bills = True
     prefs.notify_days_ahead = 7
+    prefs.show_tds_schedule = False
+    prefs.epf_withdrawal_taxable = False
+    prefs.epf_taxable_percent = 100
     prefs.updated_at = datetime.now(UTC)
 
     session.commit()

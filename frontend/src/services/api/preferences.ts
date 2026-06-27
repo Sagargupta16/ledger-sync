@@ -92,6 +92,10 @@ export interface UserPreferences {
   // 18. Tax display
   show_tds_schedule: boolean
 
+  // 19. EPF withdrawal taxability
+  epf_withdrawal_taxable: boolean
+  epf_taxable_percent: number
+
   // Salary & Tax Projections
   salary_structure: Record<string, SalaryComponents>
   rsu_grants: RsuGrant[]

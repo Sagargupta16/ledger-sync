@@ -6,6 +6,48 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.16.0 - 2026-06-27
+
+A correctness + reliability pass driven by a multi-agent audit (bug-finder matrix with adversarial verification, an assumption-research sweep cross-checked against official sources, and a 100-category scorecard). One new user-facing setting; the rest are fixes. No breaking API changes.
+
+### Added
+
+- **EPF withdrawal taxability is now a user setting** (Settings -> Financial). EPF inflows are treated as exempt by default (Section 10(12) -- withdrawals after 5 years of continuous service are tax-free); a toggle plus a 0-100% field lets you count a chosen fraction as taxable. Replaces a hardcoded 50% taxable assumption that had no basis in EPF rules. New ``epf_withdrawal_taxable`` / ``epf_taxable_percent`` columns on ``user_preferences`` (migration ``a1b2c3d4e5f6``).
+
+### Fixed
+
+- **GST 2.0 (effective 2025-09-22), verified against the GST Council / incometax.gov.in.** The GST estimator used the retired 12% and 28% slabs. It is now date-aware: transactions before the cutover use the legacy table ``[0,3,5,12,18,28]``; on/after use ``[0,3,5,18,40]`` (12% and 28% removed, 40% luxury/sin de-merit added; insurance -> Nil, electricity/water -> exempt, everyday apparel/household -> 5%, electronics 28% -> 18%). The slab breakdown buckets on the union of both sets so a fiscal year spanning the cutover keeps each rate on its own slab.
+- **Old-regime Section 87A is a hard cliff again.** Marginal relief was being applied to the old regime; relief exists only in the new regime, so the old regime under-taxed the band just above the 5L ceiling.
+- **Tax-planning gross-from-net uses the selected regime's slabs** (was always new-regime), so the displayed gross/net/tax are mutually consistent.
+- **Tax-planning no longer falls back to gross inflow** when nothing is classified as taxable -- that counted transfers/refunds/investment returns as salary. It now uses only classified taxable income (0 when nothing is classified).
+- **EPF maturity projection** uses the statutory employer split (12% of basic minus the EPS diversion, 8.33% of the capped 15,000 wage) instead of mirroring the employee %, and the current 8.25% rate (was a stale 8.15%).
+- **Cross-user data leak on shared browsers.** Budget, account-classification, investment-account, and preferences stores persisted to ``localStorage`` under static keys and survived logout. They are now reset on logout and account deletion.
+- **Finance math:** returns-analysis monthly ROI was an annual CAGR divided by 12 (linear) -> proper monthly compounding; the period comparison's "avg daily spend" divided by a hardcoded 30 regardless of range -> actual day count; the cohort day-of-week average divided by a broken week count -> real weekday occurrences; the Sankey empty state gated on a node count that was never zero -> gates on links.
+- **Backend:** amounts now convert straight to ``Decimal`` (HALF_UP) instead of rounding through ``float`` (2.675 -> 2.68); the ``list_accounts`` AI tool replaced 5N+1 queries with grouped aggregates and gained the result cap every other list tool has; three anomaly queries now honour the excluded-accounts filter; a duplicate ``NormalizationError`` class meant row-level normalization errors escaped every handler as a raw 500; transfers between two investment accounts no longer double-count as inflow; the transactions end-date filter is inclusive of the whole day; ``create_goal`` returns 400 (not 500) on a malformed target date.
+- **A timezone bug class across many sites** (UTC-parsed dates read with local getters, shifting the calendar day for non-UTC users): year-in-review heatmap, recent transactions, bill calendar, ISO-week bucketing, axis tick labels, financial-health month boundary, the category sparkline, and a month-label sweep. Consolidated shared date helpers (``parseLocalDate``, ``weekdayOf``, ``toLocalDateKey``, ``formatMonthKey``, ``formatDate``).
+- **Mutations no longer fail silently** -- a global error toast surfaces any failed save/delete that doesn't handle its own error (AI mode toggle, goals, recurring-item CRUD).
+- **Exchange-rate fallback table** corrected to verified ECB values for its stated date (was ~13% stale).
+
+### Changed
+
+- CORS now uses the computed origin allowlist instead of a wildcard; logging honours ``LEDGER_SYNC_LOG_LEVEL`` instead of a hardcoded level.
+- ``min-h-screen`` -> ``min-h-dvh`` across all page roots so layout tracks the mobile dynamic viewport.
+- Removed the ``date-fns`` dependency (replaced its three usages with a timezone-safe ``formatDate`` helper).
+
+### Security
+
+- Pinned ``msgpack>=1.2.1`` to clear GHSA-6v7p-g79w-8964 (transitive, dev-only via cachecontrol).
+
+### Accessibility
+
+- ``aria-label`` on icon-only buttons across 13 components; the chat panel is a labelled dialog with a live region and alert role; a ``prefers-reduced-motion`` block flattens CSS animations under the OS reduce flag (motion stays visible by default).
+
+### Tests
+
+- Added regression coverage for the old-regime 87A cliff, the EPF statutory split, EPF taxable-fraction, GST 2.0 date-aware rates, the timezone date helpers, and the normalizer's Decimal rounding. 255 frontend + 215 backend tests pass; ruff, mypy, tsc, and eslint clean.
+
+---
+
 ## 2.15.0 - 2026-06-07
 
 Dependency and pipeline maintenance. Took every held-back major version to latest behind a restored CI gate, unblocked the frontend deploy, and cleared two security advisories. No feature changes; no API contract breaks.

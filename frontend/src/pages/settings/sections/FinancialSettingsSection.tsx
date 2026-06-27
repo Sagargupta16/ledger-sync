@@ -166,6 +166,46 @@ export default function FinancialSettingsSection({
           />
         </div>
 
+        {/* EPF withdrawal taxability */}
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <FieldLabel>Tax EPF withdrawals</FieldLabel>
+            <FieldHint>
+              EPF withdrawals are tax-free after 5 years of continuous service
+              (Section 10(12)). Leave off if your withdrawals qualify; turn on to
+              count them as taxable income.
+            </FieldHint>
+          </div>
+          <Toggle
+            checked={localPrefs.epf_withdrawal_taxable ?? false}
+            onChange={(val) => updateLocalPref('epf_withdrawal_taxable', val)}
+          />
+        </div>
+
+        {localPrefs.epf_withdrawal_taxable && (
+          <div>
+            <FieldLabel htmlFor="epf-taxable-percent">Taxable portion of EPF (%)</FieldLabel>
+            <input
+              id="epf-taxable-percent"
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={localPrefs.epf_taxable_percent ?? 100}
+              onChange={(e) => {
+                const n = Number.parseInt(e.target.value, 10)
+                const clamped = Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0
+                updateLocalPref('epf_taxable_percent', clamped)
+              }}
+              className={inputClass}
+            />
+            <FieldHint>
+              Share of each EPF inflow treated as taxable. 100% if the whole
+              withdrawal is taxable (e.g. before 5 years of service).
+            </FieldHint>
+          </div>
+        )}
+
         {/* Spending Rule 50/30/20 */}
         <SpendingRuleFields localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
       </div>
