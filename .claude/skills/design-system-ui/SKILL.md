@@ -44,8 +44,17 @@ Most users are on phones. Tailwind is mobile-first: style unprefixed for mobile,
 
 `PageHeader` is `sticky top-0` and bakes `env(safe-area-inset-*)` into its padding so titles clear the iOS notch. Its horizontal padding scales with the breakout margins so the title aligns with page content (don't override `paddingLeft` with a flat inline value — that caused a 16px title/content misalignment). In demo mode the fixed banner needs top clearance on phone (`<main>` gets `pt-14 sm:pt-0`).
 
+## Motion (visible by default, respectful when asked)
+
+ledger-sync uses framer-motion heavily and motion is **wanted** — fade-up reveals, hover lifts, stagger. Keep it. Two rules borrowed from the sibling kalchar repo make it polished without dulling anything:
+
+- **Reduced-motion is handled at the library level**, not per-component: `<MotionConfig reducedMotion="user">` wraps the app, so motion stays full for everyone *except* users whose OS sets `prefers-reduced-motion: reduce` (vestibular/accessibility need). That's WCAG 2.3.3 with zero cost to normal viewing — don't hand-gate every animation.
+- **Named motion tokens, no magic timings.** Reuse the variants in `constants/animations.ts` (`fadeUpItem`, `staggerContainer`, …) rather than inlining `duration: 0.37`. Animate compositor-friendly props (opacity/transform), never layout (width/top/height) — that janks.
+- Desktop-only hover springs should gate on `@media (hover:hover) and (pointer:fine)` so phones don't pay for motion they can't trigger.
+
 ## Checklist
 - [ ] Colors via tokens/`app-*` / `rawColors.*` — no hex or raw `green-400`.
 - [ ] Spacing on-scale; standard `glass rounded-2xl border` card; no nested cards.
 - [ ] Mobile-first; grids collapse; tables scroll; touch targets ≥44px on phone.
 - [ ] `h-dvh` not `h-screen`; no `dark:`, no gradient text, no new side-stripes.
+- [ ] Motion reuses animation tokens + transform/opacity only; reduced-motion left to the root `MotionConfig`.
