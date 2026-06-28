@@ -42,7 +42,7 @@ function ActionButton({ actionLabel, actionHref, onAction, isCompact }: Readonly
   isCompact: boolean
 }>) {
   const sizeClass = getSizeClass(isCompact, 'text-xs', 'text-sm')
-  const baseClass = `inline-flex items-center gap-2 px-4 py-2 bg-app-blue text-foreground rounded-lg font-medium hover:bg-app-blue active:scale-[0.98] transition-colors duration-150 ${sizeClass}`
+  const baseClass = `inline-flex items-center gap-2 px-4 py-2 bg-app-blue text-white rounded-lg font-medium hover:bg-app-blue active:scale-[0.98] transition-colors duration-150 ${sizeClass}`
 
   if (actionHref) {
     return (

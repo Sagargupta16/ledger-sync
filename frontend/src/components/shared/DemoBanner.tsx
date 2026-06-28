@@ -15,7 +15,7 @@ export function DemoBanner() {
 
   return (
     <>
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 text-sm rounded-xl bg-black/80 border border-app-blue/30 backdrop-blur-md shadow-lg shadow-black/30">
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 text-sm rounded-xl bg-surface-dropdown/90 border border-app-blue/30 backdrop-blur-md shadow-lg">
         <Eye className="w-4 h-4 text-app-blue flex-shrink-0" />
         <span className="text-foreground/80 whitespace-nowrap">Sample data</span>
         <button

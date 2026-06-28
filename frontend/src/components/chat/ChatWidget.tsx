@@ -83,7 +83,7 @@ export default function ChatWidget() {
         aria-expanded={isOpen}
         className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${
           isConfigured
-            ? 'bg-gradient-to-br from-primary to-secondary text-foreground hover:shadow-primary/25'
+            ? 'bg-gradient-to-br from-primary to-secondary text-white hover:shadow-primary/25'
             : 'bg-[var(--overlay-5)] text-muted-foreground cursor-not-allowed'
         }`}
       >

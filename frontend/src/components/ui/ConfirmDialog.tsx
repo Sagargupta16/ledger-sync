@@ -44,7 +44,7 @@ export default function ConfirmDialog({
 
   const confirmColors =
     variant === 'danger'
-      ? 'bg-app-red/90 hover:bg-app-red text-foreground'
+      ? 'bg-app-red/90 hover:bg-app-red text-white'
       : 'bg-app-orange/90 hover:bg-app-orange text-foreground'
 
   return (

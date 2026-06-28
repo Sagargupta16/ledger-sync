@@ -65,7 +65,7 @@ export default function FYNavigator({
                   onClick={onToggleProjection}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                     showProjection
-                      ? 'bg-primary text-foreground'
+                      ? 'bg-primary text-white'
                       : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
                   }`}
                 >
