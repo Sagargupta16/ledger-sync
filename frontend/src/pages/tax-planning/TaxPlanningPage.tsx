@@ -144,7 +144,6 @@ export default function TaxPlanningPage() {
                   selectedFY={effectiveFY}
                   grossTaxableIncome={cardOverride?.taxableIncome ?? display.gross}
                   taxAlreadyPaid={cardOverride?.taxAlreadyPaid ?? display.totalTax}
-                  netTaxableIncome={display.net}
                   totalIncome={display.income}
                   totalExpense={expense}
                   isProjecting={useSalaryProjection}
@@ -289,7 +288,7 @@ export default function TaxPlanningPage() {
                     <div>
                       <h3 className="text-lg font-semibold">Tax Per Year</h3>
                       <p className="text-xs text-muted-foreground">
-                        Paid (red) vs projected (orange) with cumulative trend
+                        Paid (red) vs projected (orange) bars on the left axis; cumulative total (blue) on the right axis
                       </p>
                     </div>
                   </div>
@@ -323,7 +322,15 @@ export default function TaxPlanningPage() {
                         >
                           <CartesianGrid {...GRID_DEFAULTS} />
                           <XAxis {...xAxisDefaults(yearlyTaxData.length)} dataKey="fy" />
-                          <YAxis {...yAxisDefaults()} />
+                          {/* Left axis: per-year tax bars. Right axis: cumulative
+                              total -- on its own scale so the much larger running
+                              sum no longer flattens the yearly bars. */}
+                          <YAxis {...yAxisDefaults()} yAxisId="left" />
+                          <YAxis
+                            {...yAxisDefaults()}
+                            yAxisId="right"
+                            orientation="right"
+                          />
                           <Tooltip
                             {...chartTooltipProps}
                             formatter={(value, name) => {
@@ -338,6 +345,7 @@ export default function TaxPlanningPage() {
                             cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                           />
                           <Bar
+                            yAxisId="left"
                             dataKey="paidTax"
                             name="paidTax"
                             stackId="tax"
@@ -349,6 +357,7 @@ export default function TaxPlanningPage() {
                             animationEasing="ease-out"
                           />
                           <Bar
+                            yAxisId="left"
                             dataKey="projected"
                             name="projected"
                             stackId="tax"
@@ -361,6 +370,7 @@ export default function TaxPlanningPage() {
                             animationEasing="ease-out"
                           />
                           <Line
+                            yAxisId="right"
                             type="monotone"
                             dataKey="cumulative"
                             name="cumulative"

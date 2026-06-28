@@ -71,6 +71,13 @@ export default function MobileFlowView({
 
       <Arrow />
 
+      {/* One 100%-stacked bar: how each rupee of income splits between savings
+          and expenses. Single bar (not per-category) so it complements -- never
+          duplicates -- the desktop Sankey and the split cards below. */}
+      {totalIncome > 0 && (
+        <SplitShareBar savingsShare={savingsShare} expenseShare={expenseShare} />
+      )}
+
       {/* Savings vs Expenses split */}
       <div className="grid grid-cols-2 gap-3">
         <SplitCard
@@ -181,6 +188,65 @@ function FlowRow({
         </span>
       </div>
     </motion.div>
+  )
+}
+
+function SplitShareBar({
+  savingsShare,
+  expenseShare,
+}: Readonly<{ savingsShare: number; expenseShare: number }>) {
+  // Render widths are normalized so the two segments always fill the track even
+  // in a deficit month (expenseShare > 1, savingsShare 0). The labels keep the
+  // true share-of-income percentages.
+  const total = savingsShare + expenseShare
+  const savingsWidth = total > 0 ? (savingsShare / total) * 100 : 0
+  const expenseWidth = total > 0 ? (expenseShare / total) * 100 : 100
+
+  return (
+    <div className="rounded-2xl border border-border bg-white/[0.02] p-4">
+      <div className="flex items-baseline justify-between mb-2">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Where each rupee goes
+        </h4>
+        <span className="text-xs text-text-tertiary">share of income</span>
+      </div>
+      <div className="flex h-3 w-full rounded-full overflow-hidden bg-white/5">
+        {savingsWidth > 0 && (
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${savingsWidth}%` }}
+            transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="h-full"
+            style={{ background: rawColors.app.purple }}
+          />
+        )}
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${expenseWidth}%` }}
+          transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="h-full"
+          style={{ background: rawColors.app.red }}
+        />
+      </div>
+      <div className="flex items-center justify-between mt-2 text-xs">
+        <span className="flex items-center gap-1.5" style={{ color: rawColors.app.purple }}>
+          <span
+            className="w-2 h-2 rounded-full"
+            style={{ background: rawColors.app.purple }}
+            aria-hidden
+          />
+          Saved {formatPercent(savingsShare * 100)}
+        </span>
+        <span className="flex items-center gap-1.5" style={{ color: rawColors.app.red }}>
+          Spent {formatPercent(expenseShare * 100)}
+          <span
+            className="w-2 h-2 rounded-full"
+            style={{ background: rawColors.app.red }}
+            aria-hidden
+          />
+        </span>
+      </div>
+    </div>
   )
 }
 

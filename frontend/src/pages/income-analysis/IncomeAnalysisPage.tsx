@@ -9,6 +9,7 @@ import StandardPieChart from '@/components/analytics/StandardPieChart'
 
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
+import Sparkline from '@/components/shared/Sparkline'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useQuery } from '@tanstack/react-query'
 
@@ -97,6 +98,9 @@ export default function IncomeAnalysisPage() {
   }, [income])
 
   const primaryIncomeType = incomeTypeChartData[0]?.name || 'N/A'
+  const primaryIncomeValue = incomeTypeChartData[0]?.value ?? 0
+  const primaryShare = totalIncome > 0 ? (primaryIncomeValue / totalIncome) * 100 : 0
+  const cashbackShare = totalIncome > 0 ? (cashbacksTotal / totalIncome) * 100 : 0
 
   // Monthly trend with rolling 3-month average + display labels.
   const monthlyTrendData = useMemo(
@@ -116,6 +120,13 @@ export default function IncomeAnalysisPage() {
     const sum = monthlyTrendData.reduce((acc, d) => acc + d.income, 0)
     return sum / monthlyTrendData.length
   }, [monthlyTrendData])
+
+  // Bare monthly income series, reused for the Growth Rate KPI sparkline (same
+  // numbers the trend chart plots -- a compact mini-trend, not a second graph).
+  const incomeSeries = useMemo(
+    () => monthlyTrendData.map((d) => d.income),
+    [monthlyTrendData],
+  )
 
   if (isLoading) return <PageSkeleton />
 
@@ -138,9 +149,40 @@ export default function IncomeAnalysisPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard title="Total Income" value={formatCurrency(totalIncome)} icon={DollarSign} color="green" isLoading={isLoading} />
-          <MetricCard title="Primary Income Type" value={primaryIncomeType} icon={Activity} color="blue" isLoading={isLoading} />
-          <MetricCard title="Growth Rate" value={formatPercent(growthRate, true)} icon={TrendingUp} color={growthColor} isLoading={isLoading} />
-          <MetricCard title="Cashbacks Earned" value={formatCurrency(cashbacksTotal)} icon={Wallet} color="teal" isLoading={isLoading} />
+          <MetricCard
+            title="Primary Income Type"
+            value={primaryIncomeType}
+            subtitle={primaryShare > 0 ? `${formatPercent(primaryShare)} of income` : undefined}
+            icon={Activity}
+            color="blue"
+            isLoading={isLoading}
+          />
+          <MetricCard
+            title="Growth Rate"
+            value={formatPercent(growthRate, true)}
+            subtitle="First vs latest month"
+            trend={
+              incomeSeries.length >= 2 ? (
+                <Sparkline
+                  data={incomeSeries}
+                  color={rawColors.app[growthColor === 'red' ? 'red' : 'green']}
+                  height={36}
+                  showTooltip={false}
+                />
+              ) : undefined
+            }
+            icon={TrendingUp}
+            color={growthColor}
+            isLoading={isLoading}
+          />
+          <MetricCard
+            title="Cashbacks Earned"
+            value={formatCurrency(cashbacksTotal)}
+            subtitle={cashbacksTotal > 0 ? `${formatPercent(cashbackShare)} of income` : undefined}
+            icon={Wallet}
+            color="teal"
+            isLoading={isLoading}
+          />
         </div>
 
         {/* Income Category Breakdown */}

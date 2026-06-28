@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import { TrendingDown, Tag, PieChart, ShieldCheck, Sparkles, PiggyBank, Activity } from 'lucide-react' // Activity used for Monthly Avg card
 import MetricCard from '@/components/shared/MetricCard'
+import Sparkline from '@/components/shared/Sparkline'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { formatMonthKey } from '@/lib/dateUtils'
 import {
@@ -65,7 +66,24 @@ export default function SpendingAnalysisPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard title="Total Spending" value={formatCurrency(totalSpending)} icon={TrendingDown} color="red" isLoading={isLoading} />
-          <MetricCard title="Monthly Avg" value={formatCurrency(monthlyAvgSpending)} icon={Activity} color="orange" isLoading={isLoading} subtitle="Average spending per month" />
+          <MetricCard
+            title="Monthly Avg"
+            value={formatCurrency(monthlyAvgSpending)}
+            icon={Activity}
+            color="orange"
+            isLoading={isLoading}
+            subtitle="Average spending per month"
+            trend={
+              monthlyTrendData.length >= 2 ? (
+                <Sparkline
+                  data={monthlyTrendData.map((d) => d.expense)}
+                  color={rawColors.app.orange}
+                  height={40}
+                  showTooltip={false}
+                />
+              ) : undefined
+            }
+          />
           <MetricCard title="Top Category" value={topCategory} icon={Tag} color="blue" isLoading={isLoading} subtitle={topCategoryAmount > 0 ? formatCurrency(topCategoryAmount) : undefined} />
           <MetricCard title="Categories" value={`${categoriesCount} / ${subcategoriesCount}`} icon={PieChart} color="purple" isLoading={isLoading} subtitle="Categories / Subcategories" />
         </div>
@@ -78,42 +96,20 @@ export default function SpendingAnalysisPage() {
           <h3 className="text-lg font-semibold text-white mb-4">{needsTarget}/{wantsTarget}/{savingsTarget} Budget Rule Analysis</h3>
           {spendingChartData.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {/* Nested Donut Chart: Inner = Target, Outer = Actual */}
+              {/* Actual Needs/Wants/Savings split. The target ring was dropped --
+                  two rings at different radii made equal shares look unequal, so
+                  the per-category cards (each with a target line) carry the
+                  goal comparison instead. */}
               <div className="flex flex-col items-center">
                 <div className="w-44 h-44 md:w-48 md:h-48 lg:w-56 lg:h-56">
-                  <ChartContainer ariaLabel={`Nested donut comparing your actual Needs, Wants, and Savings split against the ${needsTarget}/${wantsTarget}/${savingsTarget} target`}>
+                  <ChartContainer ariaLabel="Donut showing your actual Needs, Wants, and Savings split of income">
                     <RechartsPie>
-                      {/* Inner ring: Target split */}
-                      <Pie
-                        data={[
-                          { name: `Needs (${needsTarget}%)`, value: needsTarget, color: SPENDING_TYPE_COLORS.essential },
-                          { name: `Wants (${wantsTarget}%)`, value: wantsTarget, color: SPENDING_TYPE_COLORS.discretionary },
-                          { name: `Savings (${savingsTarget}%)`, value: savingsTarget, color: SAVINGS_COLOR },
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius="30%"
-                        outerRadius="45%"
-                        dataKey="value"
-                        strokeWidth={0}
-                        paddingAngle={2}
-                        opacity={0.4}
-                        isAnimationActive={shouldAnimate(3)}
-                        animationDuration={600}
-                        animationEasing="ease-out"
-                      >
-                        <Cell fill={SPENDING_TYPE_COLORS.essential} />
-                        <Cell fill={SPENDING_TYPE_COLORS.discretionary} />
-                        <Cell fill={SAVINGS_COLOR} />
-                      </Pie>
-
-                      {/* Outer ring: Actual breakdown */}
                       <Pie
                         data={spendingChartData}
                         cx="50%"
                         cy="50%"
-                        innerRadius="55%"
-                        outerRadius="80%"
+                        innerRadius="58%"
+                        outerRadius="85%"
                         dataKey="value"
                         strokeWidth={0}
                         paddingAngle={2}
@@ -133,8 +129,8 @@ export default function SpendingAnalysisPage() {
 
                       {/* Center label */}
                       <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                        <tspan x="50%" dy="-6" fill={rawColors.text.tertiary} fontSize="11">Actual vs</tspan>
-                        <tspan x="50%" dy="16" fill={rawColors.text.tertiary} fontSize="11">{needsTarget}/{wantsTarget}/{savingsTarget}</tspan>
+                        <tspan x="50%" dy="-4" fill={rawColors.text.tertiary} fontSize="11">Actual split</tspan>
+                        <tspan x="50%" dy="16" fill={rawColors.text.tertiary} fontSize="11">of income</tspan>
                       </text>
                     </RechartsPie>
                   </ChartContainer>
@@ -151,17 +147,6 @@ export default function SpendingAnalysisPage() {
                     </div>
                   ))}
                 </div>
-                {/* Ring legend */}
-                <div className="flex items-center gap-4 mt-2 text-xs text-text-tertiary">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-2 rounded-sm bg-white/20" />
-                    <span>Inner = Target</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-2 rounded-sm bg-white/50" />
-                    <span>Outer = Actual</span>
-                  </div>
-                </div>
               </div>
 
               {/* Needs Card */}
@@ -172,12 +157,12 @@ export default function SpendingAnalysisPage() {
                 value={spendingBreakdown?.essential || 0}
                 percent={budgetRuleMetrics?.essentialPercent || 0}
                 target={`\u2264${needsTarget}%`}
+                targetPercent={needsTarget}
                 isOverBudget={budgetRuleMetrics?.isOverspendingEssential || false}
                 accentColor={SPENDING_TYPE_COLORS.essential}
                 bgClass="bg-app-blue/10 border border-app-blue/20"
                 iconBgClass="bg-app-blue/20"
                 textClass="text-app-blue"
-                delay={0.3}
               />
 
               {/* Wants Card */}
@@ -188,12 +173,12 @@ export default function SpendingAnalysisPage() {
                 value={spendingBreakdown?.discretionary || 0}
                 percent={budgetRuleMetrics?.discretionaryPercent || 0}
                 target={`\u2264${wantsTarget}%`}
+                targetPercent={wantsTarget}
                 isOverBudget={budgetRuleMetrics?.isOverspendingDiscretionary || false}
                 accentColor={SPENDING_TYPE_COLORS.discretionary}
                 bgClass="bg-app-orange/10 border border-app-orange/20"
                 iconBgClass="bg-app-orange/20"
                 textClass="text-app-orange"
-                delay={0.4}
               />
 
               {/* Savings Card */}
@@ -204,12 +189,12 @@ export default function SpendingAnalysisPage() {
                 value={savings}
                 percent={budgetRuleMetrics?.savingsPercent || 0}
                 target={`\u2265${savingsTarget}%`}
+                targetPercent={savingsTarget}
                 isOverBudget={budgetRuleMetrics?.isUnderSaving || false}
                 accentColor={SAVINGS_COLOR}
                 bgClass="bg-app-green/10 border border-app-green/20"
                 iconBgClass="bg-app-green/20"
                 textClass="text-app-green"
-                delay={0.5}
               />
             </div>
           ) : (

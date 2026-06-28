@@ -1,5 +1,11 @@
+import { formatCurrency } from '@/lib/formatters'
 import { getBillDotColor } from '../billUtils'
 import type { PlacedBill } from '../types'
+
+// Dot diameter (px) scales with amount so a heavy bill reads as a bigger dot.
+// Floored so even the smallest bill stays tappable/visible.
+const MIN_DOT_PX = 4
+const MAX_DOT_PX = 9
 
 interface Props {
   day: number
@@ -7,6 +13,8 @@ interface Props {
   isSelected: boolean
   isCurrentMonth: boolean
   bills: PlacedBill[]
+  /** Largest single-bill amount in the viewed month; the dot-size reference. */
+  maxBillAmount: number
   onClick: () => void
 }
 
@@ -16,10 +24,17 @@ export default function DayCell({
   isSelected,
   isCurrentMonth,
   bills,
+  maxBillAmount,
   onClick,
 }: Readonly<Props>) {
   const hasBills = bills.length > 0
   const maxDotsShown = 3
+
+  const dotSize = (amount: number): number => {
+    if (maxBillAmount <= 0) return MIN_DOT_PX
+    const ratio = Math.min(1, Math.max(0, amount / maxBillAmount))
+    return MIN_DOT_PX + ratio * (MAX_DOT_PX - MIN_DOT_PX)
+  }
 
   const opacityClass = isCurrentMonth ? '' : 'opacity-30'
   const selectionClass = isSelected
@@ -58,14 +73,21 @@ export default function DayCell({
 
       {hasBills && (
         <div className="flex items-center gap-0.5 mt-1.5 flex-wrap justify-center" aria-hidden="true">
-          {bills.slice(0, maxDotsShown).map((bill) => (
-            <div
-              key={bill.key}
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: getBillDotColor(bill) }}
-              title={bill.name}
-            />
-          ))}
+          {bills.slice(0, maxDotsShown).map((bill) => {
+            const size = dotSize(bill.amount)
+            return (
+              <div
+                key={bill.key}
+                className="rounded-full flex-shrink-0"
+                style={{
+                  width: size,
+                  height: size,
+                  backgroundColor: getBillDotColor(bill),
+                }}
+                title={`${bill.name} -- ${formatCurrency(bill.amount)}`}
+              />
+            )
+          })}
           {bills.length > maxDotsShown && (
             <span className="text-[9px] text-muted-foreground ml-0.5">
               +{bills.length - maxDotsShown}

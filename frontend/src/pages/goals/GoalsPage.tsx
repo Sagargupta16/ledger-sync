@@ -54,6 +54,37 @@ export default function GoalsPage() {
         </motion.div>
       </motion.div>
 
+      {/* Achieved vs in-progress completion strip (reuses summary counts) */}
+      {state.summary.total > 0 && (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-2 rounded-full overflow-hidden bg-white/[0.06] flex">
+            {state.summary.achieved > 0 && (
+              <div
+                className="h-full first:rounded-l-full last:rounded-r-full"
+                style={{
+                  width: `${(state.summary.achieved / state.summary.total) * 100}%`,
+                  backgroundColor: rawColors.app.green,
+                }}
+                title={`Achieved: ${state.summary.achieved}`}
+              />
+            )}
+            {state.summary.inProgress > 0 && (
+              <div
+                className="h-full first:rounded-l-full last:rounded-r-full"
+                style={{
+                  width: `${(state.summary.inProgress / state.summary.total) * 100}%`,
+                  backgroundColor: rawColors.app.orange,
+                }}
+                title={`In progress: ${state.summary.inProgress}`}
+              />
+            )}
+          </div>
+          <span className="text-xs font-medium text-text-secondary whitespace-nowrap">
+            {Math.round((state.summary.achieved / state.summary.total) * 100)}% achieved
+          </span>
+        </div>
+      )}
+
       {!state.totalsLoading && state.totals && state.goals.length > 0 && (
         <SavingsPoolSummary
           netSavings={state.netSavings}

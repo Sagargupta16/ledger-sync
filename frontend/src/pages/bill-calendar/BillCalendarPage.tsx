@@ -40,12 +40,19 @@ export default function BillCalendarPage() {
     isCurrentViewToday,
   } = useBillCalendar()
 
-  const nextBillValue = (() => {
-    if (summary.nextBill) {
-      return `${summary.nextBill.name} - ${formatCurrency(summary.nextBill.amount)}`
-    }
-    return 'None upcoming'
+  // The countdown is the headline; the bill name + amount becomes the context
+  // line. Leads with "what's the urgency" rather than "which bill".
+  const nextBill = summary.nextBill
+  const daysUntil = summary.nextBillDaysUntil
+  const nextBillPrimary = (() => {
+    if (!nextBill || daysUntil === null) return 'None upcoming'
+    if (daysUntil <= 0) return 'Due today'
+    if (daysUntil === 1) return 'Due tomorrow'
+    return `In ${daysUntil} days`
   })()
+  const nextBillContext = nextBill
+    ? `${nextBill.name} -- ${formatCurrency(nextBill.amount)}`
+    : 'Next Upcoming Bill'
 
   return (
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
@@ -79,8 +86,8 @@ export default function BillCalendarPage() {
             />
             <SummaryCard
               icon={Clock}
-              label="Next Upcoming Bill"
-              value={nextBillValue}
+              label={nextBillContext}
+              value={nextBillPrimary}
               colorClass="text-app-orange"
               bgClass="bg-app-orange/20"
               shadowClass="shadow-app-orange/30"
@@ -194,6 +201,7 @@ export default function BillCalendarPage() {
                       isSelected={isSelected}
                       isCurrentMonth={cell.isCurrentMonth}
                       bills={bills}
+                      maxBillAmount={summary.maxBillAmount}
                       onClick={() => {
                         if (cell.isCurrentMonth) {
                           setSelectedDay(selectedDay === cell.day ? null : cell.day)
@@ -219,6 +227,13 @@ export default function BillCalendarPage() {
                     style={{ backgroundColor: rawColors.app.blue }}
                   />
                   <span>Detected</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+                  <span className="flex items-end gap-0.5" aria-hidden="true">
+                    <span className="w-1 h-1 rounded-full bg-text-tertiary" />
+                    <span className="w-2 h-2 rounded-full bg-text-tertiary" />
+                  </span>
+                  <span>Bigger dot = larger amount</span>
                 </div>
               </div>
             </>

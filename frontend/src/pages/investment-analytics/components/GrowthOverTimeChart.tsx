@@ -61,8 +61,8 @@ export function GrowthOverTimeChart({
                     x2="0"
                     y2="1"
                   >
-                    <stop offset="5%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.8} />
-                    <stop offset="95%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.2} />
+                    <stop offset="5%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.55} />
+                    <stop offset="95%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.15} />
                   </linearGradient>
                 ))}
               </defs>

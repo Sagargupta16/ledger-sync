@@ -1,7 +1,11 @@
 import { motion } from 'framer-motion'
 import { ArrowRightLeft, TrendingDown, TrendingUp } from 'lucide-react'
 
+import { ProgressBar } from '@/components/shared'
+import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+
+const SAVINGS_RATE_BENCHMARK = 20
 
 interface FlowSummaryCardsProps {
   totalIncome: number
@@ -47,8 +51,14 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
             netSavings >= 0 ? 'text-primary' : 'text-app-red'
           }`}
         >
+          {netSavings < 0 && <span aria-hidden>-</span>}
           {formatCurrency(Math.abs(netSavings))}
         </p>
+        {netSavings < 0 && (
+          <p className="text-xs font-medium text-app-red mt-1 uppercase tracking-wide">
+            Deficit
+          </p>
+        )}
       </div>
 
       <div className="glass rounded-2xl border border-border p-6">
@@ -60,10 +70,23 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
         </div>
         <p
           className={`text-2xl font-bold ${
-            savingsRate >= 20 ? 'text-app-green' : 'text-app-yellow'
+            savingsRate >= SAVINGS_RATE_BENCHMARK ? 'text-app-green' : 'text-app-yellow'
           }`}
         >
           {formatPercent(savingsRate)}
+        </p>
+        <ProgressBar
+          value={Math.max(savingsRate, 0)}
+          target={SAVINGS_RATE_BENCHMARK}
+          color={
+            savingsRate >= SAVINGS_RATE_BENCHMARK ? rawColors.app.green : rawColors.app.yellow
+          }
+          height={6}
+          className="mt-3"
+          ariaLabel={`Savings rate ${formatPercent(savingsRate)} against ${SAVINGS_RATE_BENCHMARK}% benchmark`}
+        />
+        <p className="text-xs text-text-tertiary mt-1.5">
+          {SAVINGS_RATE_BENCHMARK}% benchmark
         </p>
       </div>
     </motion.div>

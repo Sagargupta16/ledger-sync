@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { DollarSign, LineChart, PieChart, Target, TrendingUp } from 'lucide-react'
+import { DollarSign, LineChart, Target, TrendingUp, Wallet } from 'lucide-react'
 
 import MetricCard from '@/components/shared/MetricCard'
 import { rawColors } from '@/constants/colors'
@@ -47,7 +47,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
       <MetricCard
         title="Portfolio Assets"
         value={investmentAccountsCount}
-        icon={PieChart}
+        icon={Wallet}
         color="blue"
         isLoading={isLoading}
       />

@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp } from 'lucide-react'
 import {
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -17,7 +17,7 @@ import { formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate } from '@/components/ui/chartDefaults'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate } from '@/components/ui/chartDefaults'
 import { fadeUpItem } from '@/constants/animations'
 
 interface EffectiveTaxRateChartProps {
@@ -126,11 +126,7 @@ export default function EffectiveTaxRateChart({
           <ChartEmptyState height={350} message="Select a financial year to view effective tax rates" />
         ) : (
         <ChartContainer ariaLabel="Effective tax rate by income for the new and old regimes, with regime-crossover and your-income markers">
-          <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
-            <defs>
-              {areaGradient('newRegime', rawColors.app.orange, 0.25)}
-              {areaGradient('oldRegime', rawColors.app.blue, 0.15)}
-            </defs>
+          <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis
               {...xAxisDefaults(chartData.length)}
@@ -157,12 +153,13 @@ export default function EffectiveTaxRateChart({
               ]}
               labelFormatter={(label: unknown) => `Income: ${formatCurrencyShort(Number(label))}`}
             />
-            {/* Old Regime — blue dashed */}
-            <Area
+            {/* Old Regime — blue dashed line (no fill, so the crossover with
+                the New Regime curve stays crisp instead of blurring under two
+                translucent area gradients) */}
+            <Line
               type="monotone"
               dataKey="oldRegimeRate"
               stroke={rawColors.app.blue}
-              fill={areaGradientUrl('oldRegime')}
               strokeWidth={2}
               strokeDasharray="6 3"
               dot={false}
@@ -171,12 +168,11 @@ export default function EffectiveTaxRateChart({
               animationEasing="ease-out"
               isAnimationActive={shouldAnimate(chartData.length)}
             />
-            {/* New Regime — orange solid */}
-            <Area
+            {/* New Regime — orange solid line */}
+            <Line
               type="monotone"
               dataKey="newRegimeRate"
               stroke={rawColors.app.orange}
-              fill={areaGradientUrl('newRegime')}
               strokeWidth={2}
               dot={false}
               name="newRegimeRate"
@@ -222,7 +218,7 @@ export default function EffectiveTaxRateChart({
                 />
               </>
             )}
-          </AreaChart>
+          </LineChart>
         </ChartContainer>
         )}
       </div>

@@ -2,10 +2,14 @@ import type { ReactNode } from 'react'
 
 import { motion } from 'framer-motion'
 
+import ProgressBar from '@/components/shared/ProgressBar'
+import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import { rawColors } from '@/constants/colors'
+import { formatCurrency } from '@/lib/formatters'
 
 import type { PeriodSummary, CategoryDelta } from '../types'
-import { CategoryDeltaRow } from './CategoryDeltaRow'
+import { changeBadgeClass } from '../utils'
+import { ChangeIcon } from './ChangeIcon'
 
 interface CategorySectionProps {
   icon: ReactNode
@@ -17,9 +21,84 @@ interface CategorySectionProps {
   delay: number
 }
 
+/**
+ * Sortable category-comparison table. Each row shows period A vs B as PAIRED
+ * mini progress bars (A faded above B solid, sharing one axis) plus a signed
+ * %-change badge. Sortable by category name, either period total, or the
+ * change magnitude so the user can surface the biggest movers either way.
+ */
 export function CategorySection({
   icon, title, deltas, periodA, periodB, invertChange, delay,
 }: Readonly<CategorySectionProps>) {
+  const axisMax = deltas.length > 0 ? Math.max(deltas[0].periodA, deltas[0].periodB, 1) : 1
+  const color = rawColors.app.indigo
+
+  const columns: DataTableColumn<CategoryDelta>[] = [
+    {
+      key: 'category',
+      header: 'Category',
+      sortable: true,
+      sortType: 'text',
+      sortValue: (d) => d.category,
+      cell: (d) => <span className="text-sm font-medium text-white truncate block">{d.category}</span>,
+    },
+    {
+      key: 'bars',
+      header: `${periodA.label} vs ${periodB.label}`,
+      widthClass: 'w-[42%]',
+      cell: (d) => (
+        <div className="space-y-1">
+          <ProgressBar
+            value={d.periodA}
+            max={axisMax}
+            color={color}
+            height={6}
+            className="opacity-40"
+            ariaLabel={`${d.category} ${periodA.label}: ${formatCurrency(d.periodA)}`}
+          />
+          <ProgressBar
+            value={d.periodB}
+            max={axisMax}
+            color={color}
+            height={6}
+            ariaLabel={`${d.category} ${periodB.label}: ${formatCurrency(d.periodB)}`}
+          />
+        </div>
+      ),
+    },
+    {
+      key: 'periodB',
+      header: periodB.label,
+      align: 'right',
+      sortable: true,
+      widthClass: 'w-24',
+      sortValue: (d) => d.periodB,
+      cell: (d) => (
+        <div className="leading-tight">
+          <p className="text-sm font-semibold text-white">{formatCurrency(d.periodB)}</p>
+          <p className="text-caption text-text-tertiary">{periodA.label}: {formatCurrency(d.periodA)}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'change',
+      header: 'Change',
+      align: 'right',
+      sortable: true,
+      widthClass: 'w-24',
+      sortValue: (d) => d.change,
+      cell: (d) => {
+        const isGood = invertChange ? d.change < 0 : d.change >= 0
+        return (
+          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${changeBadgeClass(d.change, isGood)}`}>
+            <ChangeIcon change={d.change} size="w-3 h-3" />
+            {d.change > 0 ? '+' : ''}{d.change.toFixed(1)}%
+          </span>
+        )
+      },
+    },
+  ]
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -39,21 +118,15 @@ export function CategorySection({
           No {title.toLowerCase().replace(' categories', '')} data for selected periods.
         </p>
       ) : (
-        <div className="space-y-3 max-h-[300px] md:h-[400px] lg:h-[520px] overflow-y-auto pr-1">
-          {deltas.map((d, i) => (
-            <CategoryDeltaRow
-              key={d.category}
-              delta={d}
-              labelA={periodA.label}
-              labelB={periodB.label}
-              maxValue={Math.max(deltas[0].periodA, deltas[0].periodB, 1)}
-              colorA={rawColors.app.blue}
-              colorB={rawColors.app.indigo}
-              invertChange={invertChange}
-              index={i}
-            />
-          ))}
-        </div>
+        <DataTable
+          columns={columns}
+          rows={deltas}
+          rowKey={(d) => d.category}
+          initialSort={{ key: 'periodB', dir: 'desc' }}
+          ariaLabel={title}
+          stickyHeader
+          maxHeightClass="max-h-[300px] md:max-h-[400px] lg:max-h-[520px]"
+        />
       )}
     </motion.div>
   )

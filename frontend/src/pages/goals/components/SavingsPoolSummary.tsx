@@ -18,20 +18,32 @@ export default function SavingsPoolSummary({
   effectiveAmounts: Record<number, number>
 }>) {
   const unallocated = netSavings - totalAllocated
+  const overAllocated = unallocated < 0
 
-  // Build colored segments for the allocation bar
-  const segments = useMemo(() => {
-    if (netSavings <= 0) return []
-    return goals
+  // Build colored segments for the allocation bar. The bar's full width is the
+  // LARGER of net-savings vs allocated, so:
+  //   - under-allocated: goal segments + an explicit "Unallocated" tail
+  //   - over-allocated:  segments normalize to totalAllocated (fill 100%, no clipping)
+  // This keeps every segment proportional and honest in both directions.
+  const { segments, barTotal } = useMemo(() => {
+    const denom = Math.max(netSavings, totalAllocated)
+    if (denom <= 0) return { segments: [], barTotal: 0 }
+    const segs = goals
       .filter((g) => (effectiveAmounts[g.id] ?? 0) > 0)
-      .map((g) => ({
-        id: g.id,
-        name: g.name,
-        amount: effectiveAmounts[g.id] ?? 0,
-        pct: Math.min(((effectiveAmounts[g.id] ?? 0) / netSavings) * 100, 100),
-        color: GOAL_TYPE_COLORS[g.goal_type],
-      }))
-  }, [goals, effectiveAmounts, netSavings])
+      .map((g) => {
+        const amount = effectiveAmounts[g.id] ?? 0
+        return {
+          id: g.id,
+          name: g.name,
+          amount,
+          pct: (amount / denom) * 100,
+          color: GOAL_TYPE_COLORS[g.goal_type],
+        }
+      })
+    return { segments: segs, barTotal: denom }
+  }, [goals, effectiveAmounts, netSavings, totalAllocated])
+
+  const unallocatedPct = barTotal > 0 && unallocated > 0 ? (unallocated / barTotal) * 100 : 0
 
   return (
     <motion.div
@@ -72,7 +84,7 @@ export default function SavingsPoolSummary({
       </div>
 
       {/* Allocation bar */}
-      {netSavings > 0 && (
+      {barTotal > 0 && (
         <div>
           <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden flex">
             {segments.map((seg) => (
@@ -86,7 +98,21 @@ export default function SavingsPoolSummary({
                 title={`${seg.name}: ${formatCurrencyCompact(seg.amount)}`}
               />
             ))}
+            {unallocatedPct > 0 && (
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${unallocatedPct}%` }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+                className="h-full first:rounded-l-full last:rounded-r-full bg-white/10"
+                title={`Unallocated: ${formatCurrencyCompact(unallocated)}`}
+              />
+            )}
           </div>
+          {overAllocated && (
+            <p className="mt-2 text-xs" style={{ color: rawColors.app.red }}>
+              Over-allocated by {formatCurrencyCompact(Math.abs(unallocated))} -- segments scaled to total allocated
+            </p>
+          )}
           {/* Legend */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
             {segments.map((seg) => (
@@ -98,7 +124,7 @@ export default function SavingsPoolSummary({
             {unallocated > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
                 <span className="w-2.5 h-2.5 rounded-full inline-block bg-white/10" />
-                Unallocated ({((unallocated / netSavings) * 100).toFixed(0)}%)
+                Unallocated ({unallocatedPct.toFixed(0)}%)
               </div>
             )}
           </div>

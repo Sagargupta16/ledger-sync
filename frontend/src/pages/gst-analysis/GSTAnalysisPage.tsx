@@ -37,6 +37,7 @@ import {
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { ProgressBar } from '@/components/shared'
 
 // Slab colors (matching GST slab identity). Covers both the legacy slabs
 // (12/28%, for transactions before the 2025-09-22 GST 2.0 cutover) and the
@@ -51,7 +52,8 @@ const SLAB_COLORS: Record<number, string> = {
   40: rawColors.app.red,
 }
 
-const GST_CATEGORY_COLUMNS: DataTableColumn<GSTCategoryBreakdown>[] = [
+function buildGSTCategoryColumns(maxSpending: number): DataTableColumn<GSTCategoryBreakdown>[] {
+  return [
   {
     key: 'category',
     header: 'Category',
@@ -70,7 +72,20 @@ const GST_CATEGORY_COLUMNS: DataTableColumn<GSTCategoryBreakdown>[] = [
     header: 'Spending',
     align: 'right',
     sortable: true,
-    cell: (cat) => formatCurrencyCompact(cat.spending),
+    sortValue: (cat) => cat.spending,
+    cell: (cat) => (
+      <div className="flex items-center justify-end gap-2.5">
+        <ProgressBar
+          value={cat.spending}
+          max={maxSpending}
+          color={rawColors.app.indigo}
+          height={6}
+          className="w-16 sm:w-20 shrink-0"
+          ariaLabel={`${cat.category} spending share`}
+        />
+        <span className="tabular-nums">{formatCurrencyCompact(cat.spending)}</span>
+      </div>
+    ),
   },
   {
     key: 'gstRate',
@@ -106,7 +121,8 @@ const GST_CATEGORY_COLUMNS: DataTableColumn<GSTCategoryBreakdown>[] = [
     cellClassName: () => 'hidden sm:table-cell',
     cell: (cat) => <span className="text-muted-foreground">{cat.transactionCount}</span>,
   },
-]
+  ]
+}
 
 function FYNavigator({
   fys,
@@ -164,6 +180,16 @@ export default function GSTAnalysisPage() {
   // insurance, transfers) would add an empty, dead-legend slice. Keep 0% rows in
   // the table (their spending is meaningful) but drop them from the pie/legend.
   const gstSlabsWithTax = (gstData?.slabBreakdown ?? []).filter((s) => s.gstAmount > 0)
+
+  // Scale the in-cell spending bars to the largest category so the widest bar
+  // fills the track and the rest read as a share of it.
+  const categoryColumns = useMemo(() => {
+    const maxSpending = Math.max(
+      0,
+      ...(gstData?.categoryBreakdown ?? []).map((cat) => cat.spending),
+    )
+    return buildGSTCategoryColumns(maxSpending)
+  }, [gstData])
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -263,16 +289,28 @@ export default function GSTAnalysisPage() {
                   </PieChart>
                 </ChartContainer>
               </div>
-              <div className="flex flex-wrap gap-3 mt-2 justify-center">
-                {gstSlabsWithTax.map((s) => (
-                  <div key={s.slab} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="flex flex-wrap gap-2 mt-2 justify-center">
+                {gstSlabsWithTax.map((s) => {
+                  const share = gstData.totalGST > 0 ? (s.gstAmount / gstData.totalGST) * 100 : 0
+                  return (
                     <div
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: SLAB_COLORS[s.slab] }}
-                    />
-                    {s.slab}%
-                  </div>
-                ))}
+                      key={s.slab}
+                      className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg bg-white/[0.04] border border-border"
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: SLAB_COLORS[s.slab] }}
+                      />
+                      <span className="font-medium text-white">{s.slab}%</span>
+                      <span className="tabular-nums text-app-indigo">
+                        {formatCurrencyCompact(s.gstAmount)}
+                      </span>
+                      <span className="tabular-nums text-text-tertiary">
+                        {share.toFixed(0)}%
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </motion.div>
 
@@ -322,7 +360,7 @@ export default function GSTAnalysisPage() {
               <h3 className="text-sm font-medium text-muted-foreground">GST by Category</h3>
             </div>
             <DataTable<GSTCategoryBreakdown>
-              columns={GST_CATEGORY_COLUMNS}
+              columns={categoryColumns}
               rows={gstData.categoryBreakdown}
               rowKey={(cat) => cat.category}
               initialSort={{ key: 'gstAmount', dir: 'desc' }}

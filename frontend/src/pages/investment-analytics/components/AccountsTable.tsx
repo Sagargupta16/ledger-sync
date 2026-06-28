@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion'
 
+import { ProgressBar } from '@/components/shared'
 import { DataTable, type DataTableColumn } from '@/components/ui'
+import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 interface PortfolioRow {
@@ -15,7 +17,7 @@ interface AccountsTableProps {
   totalAccountCount: number
 }
 
-function buildColumns(): DataTableColumn<PortfolioRow>[] {
+function buildColumns(maxAllocation: number): DataTableColumn<PortfolioRow>[] {
   return [
     {
       key: 'name',
@@ -38,9 +40,22 @@ function buildColumns(): DataTableColumn<PortfolioRow>[] {
       align: 'right',
       sortable: true,
       sortValue: (row) => Number.parseFloat(row.percentage),
-      cell: (row) => (
-        <span className="text-app-purple">{formatPercent(Number.parseFloat(row.percentage))}</span>
-      ),
+      cell: (row) => {
+        const pct = Number.parseFloat(row.percentage)
+        return (
+          <div className="flex items-center justify-end gap-2.5">
+            <ProgressBar
+              value={pct}
+              max={maxAllocation}
+              color={rawColors.app.purple}
+              height={6}
+              className="w-16 sm:w-20 shrink-0"
+              ariaLabel={`${row.name} allocation share`}
+            />
+            <span className="text-app-purple tabular-nums">{formatPercent(pct)}</span>
+          </div>
+        )
+      },
     },
   ]
 }
@@ -49,7 +64,11 @@ export function AccountsTable({
   portfolioData,
   totalAccountCount,
 }: Readonly<AccountsTableProps>) {
-  const columns = buildColumns()
+  const maxAllocation = Math.max(
+    0,
+    ...portfolioData.map((row) => Number.parseFloat(row.percentage)),
+  )
+  const columns = buildColumns(maxAllocation)
   const cappedCount = portfolioData.length
 
   return (

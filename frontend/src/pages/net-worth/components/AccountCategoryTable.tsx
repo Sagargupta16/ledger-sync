@@ -5,14 +5,43 @@ import { ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
 import { TableSkeleton } from '@/components/shared/LoadingSkeleton'
+import ProgressBar from '@/components/shared/ProgressBar'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import { ariaSort } from '../netWorthUtils'
 
-/** Allocation % guarded against a zero/invalid total so we never render NaN%. */
-function allocationPercent(balance: number, total: number): string {
-  if (!total) return 'n/a'
-  return formatPercent((balance / total) * 100)
+/** Raw allocation percent (0-100), or null when the total is zero/invalid. */
+function allocationRatio(balance: number, total: number): number | null {
+  if (!total) return null
+  return (balance / total) * 100
+}
+
+/**
+ * "% Allocated" cell: the number plus an inline mini-bar so each row's share
+ * of the total reads at a glance. Reuses the shared ProgressBar primitive
+ * rather than a hand-rolled fill div. `barColor` matches the asset/liability
+ * semantic so green vs red carries through to the bars.
+ */
+function AllocationCell({
+  balance,
+  total,
+  barColor,
+}: Readonly<{ balance: number; total: number; barColor: string }>) {
+  const ratio = allocationRatio(balance, total)
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <span className="tabular-nums">{ratio === null ? 'n/a' : formatPercent(ratio)}</span>
+      {ratio !== null && (
+        <ProgressBar
+          value={ratio}
+          color={barColor}
+          height={6}
+          className="w-16 hidden sm:block"
+          ariaLabel={`${formatPercent(ratio)} of total`}
+        />
+      )}
+    </div>
+  )
 }
 
 interface AccountCategoryTableProps {
@@ -21,6 +50,8 @@ interface AccountCategoryTableProps {
   readonly total: number
   readonly balanceColorClass: string
   readonly headerBalanceColorClass: string
+  /** Raw token color for the inline allocation mini-bars (green/red). */
+  readonly barColor: string
   readonly expandedCategories: Set<string>
   readonly onToggleCategory: (category: string) => void
   readonly getAccountType: (name: string) => string
@@ -36,6 +67,7 @@ export function AccountCategoryTable({
   total,
   balanceColorClass,
   headerBalanceColorClass,
+  barColor,
   expandedCategories,
   onToggleCategory,
   getAccountType,
@@ -177,7 +209,7 @@ export function AccountCategoryTable({
                           {formatCurrency(catBalance)}
                         </td>
                         <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
-                          {allocationPercent(catBalance, total)}
+                          <AllocationCell balance={catBalance} total={total} barColor={barColor} />
                         </td>
                         <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
                           n/a
@@ -202,7 +234,11 @@ export function AccountCategoryTable({
                           {formatCurrency(Math.abs(accountData.balance))}
                         </td>
                         <td className="py-3 px-4 text-right text-muted-foreground">
-                          {allocationPercent(Math.abs(accountData.balance), total)}
+                          <AllocationCell
+                            balance={Math.abs(accountData.balance)}
+                            total={total}
+                            barColor={barColor}
+                          />
                         </td>
                         <td className="py-3 px-4 text-right text-muted-foreground">
                           {getAccountType(accountName)}

@@ -4,8 +4,11 @@ import { Pencil, Trash2, Edit3 } from 'lucide-react'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { ProgressBar } from '@/components/shared'
+import { rawColors } from '@/constants/colors'
 import { GOAL_TYPE_COLORS, GOAL_TYPE_LABELS } from '../constants'
 import type { GoalProjection } from '../types'
+import { differenceInMonths } from '../helpers'
 import CircularProgress from './CircularProgress'
 import GoalProjections from './GoalProjections'
 import UpdateProgressForm from './UpdateProgressForm'
@@ -42,6 +45,20 @@ export default function GoalCard({
   const color = GOAL_TYPE_COLORS[goal.goal_type]
   const progressPct = goal.target_amount > 0 ? (effectiveAmount / goal.target_amount) * 100 : 0
   const remaining = Math.max(0, goal.target_amount - effectiveAmount)
+
+  // "On-pace" tick: the % of the target you should have funded by now, given how
+  // much of the goal's timeline (start_date -> target_date) has elapsed. The ring
+  // shows where you ARE; this tick shows where you SHOULD be -- the gap is the story.
+  // Derived from projection.monthsRemaining (already computed against "now" in the
+  // hook) so we stay render-pure: elapsed = totalSpan - monthsRemaining.
+  // Skip when the goal is open-ended (no deadline) or already achieved.
+  const onPacePct = (() => {
+    if (!goal.target_date || projection.status === 'achieved') return undefined
+    const totalSpan = differenceInMonths(new Date(goal.target_date), new Date(goal.start_date))
+    if (!Number.isFinite(totalSpan) || totalSpan <= 0) return undefined
+    const elapsedFraction = (totalSpan - projection.monthsRemaining) / totalSpan
+    return Math.max(0, Math.min(100, elapsedFraction * 100))
+  })()
 
   return (
     <motion.div
@@ -104,17 +121,29 @@ export default function GoalCard({
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Funded vs on-pace -- the tick marks where you should be by now */}
       <div className="mt-4">
-        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.min(progressPct, 100)}%` }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
-            className="h-full rounded-full"
-            style={{ backgroundColor: color }}
-          />
-        </div>
+        <ProgressBar
+          value={progressPct}
+          color={color}
+          height={8}
+          target={onPacePct}
+          ariaLabel={`${goal.name} progress: ${Math.round(progressPct)} percent funded`}
+        />
+        {onPacePct !== undefined && (
+          <p className="mt-1.5 text-[11px] text-text-tertiary">
+            {progressPct >= onPacePct ? (
+              <span style={{ color: rawColors.app.green }}>
+                {Math.round(progressPct - onPacePct)}% ahead of pace
+              </span>
+            ) : (
+              <span style={{ color: rawColors.app.orange }}>
+                {Math.round(onPacePct - progressPct)}% behind pace
+              </span>
+            )}
+            <span> &middot; should be {Math.round(onPacePct)}% by now</span>
+          </p>
+        )}
       </div>
 
       {/* Smart Projections */}

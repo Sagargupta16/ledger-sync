@@ -196,6 +196,39 @@ export function useNetWorth() {
 
   const currentNetWorth = anchor?.netWorth ?? 0
 
+  // Month-end net-worth series (reuses the same downsampling the chart uses) --
+  // drives the Net Worth KPI sparkline + its month-over-month delta. Derived
+  // purely from data already on the page; no extra fetch.
+  const monthlyNetWorth = useMemo(() => downsampleToMonthly(chartSeries), [chartSeries])
+
+  const netWorthSparkline = useMemo(
+    () => monthlyNetWorth.slice(-12).map((p) => p.netWorth),
+    [monthlyNetWorth],
+  )
+
+  // MoM % change on net worth. Returned only when the prior month-end is a
+  // positive base so the percentage is meaningful (negative/zero bases make
+  // a "% change" nonsensical -- the card then just omits the badge).
+  const netWorthMoMChange = useMemo(() => {
+    if (monthlyNetWorth.length < 2) return undefined
+    const prev = monthlyNetWorth.at(-2)?.netWorth ?? 0
+    const curr = monthlyNetWorth.at(-1)?.netWorth ?? 0
+    if (prev <= 0) return undefined
+    return Math.round(((curr - prev) / prev) * 1000) / 10
+  }, [monthlyNetWorth])
+
+  // Account counts for the asset/liability KPI subtitles (point-in-time
+  // balances have no truthful historical series client-side, so those two
+  // cards get a count + leverage context line instead of a fake trend).
+  const assetAccountCount = useMemo(
+    () => Object.values(accounts).filter((acc) => acc.balance > 0.01).length,
+    [accounts],
+  )
+  const liabilityAccountCount = useMemo(
+    () => Object.values(accounts).filter((acc) => acc.balance < -0.01).length,
+    [accounts],
+  )
+
   const toggleCategory = (
     setter: React.Dispatch<React.SetStateAction<Set<string>>>,
     category: string,
@@ -228,6 +261,10 @@ export function useNetWorth() {
     anchor,
     milestoneRows,
     currentNetWorth,
+    netWorthSparkline,
+    netWorthMoMChange,
+    assetAccountCount,
+    liabilityAccountCount,
     expandedAssetCategories,
     setExpandedAssetCategories,
     expandedLiabilityCategories,

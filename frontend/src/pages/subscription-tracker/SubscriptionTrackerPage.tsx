@@ -284,7 +284,19 @@ export default function SubscriptionTrackerPage() {
 
   // Only user-confirmed items (manually created ones have is_confirmed=true)
   const confirmed = useMemo(() => items.filter((i) => i.is_confirmed), [items])
-  const active = useMemo(() => confirmed.filter((i) => i.is_active), [confirmed])
+  // Active items sorted by monthly-equivalent amount DESC so the biggest drains
+  // (and biggest income) surface first -- implicit ranking, no extra viz.
+  const active = useMemo(
+    () =>
+      [...confirmed]
+        .filter((i) => i.is_active)
+        .sort(
+          (a, b) =>
+            toMonthlyAmount(b.expected_amount, b.frequency) -
+            toMonthlyAmount(a.expected_amount, a.frequency),
+        ),
+    [confirmed],
+  )
   const inactive = useMemo(() => confirmed.filter((i) => !i.is_active), [confirmed])
 
   const summary = useMemo(() => {
@@ -383,6 +395,54 @@ export default function SubscriptionTrackerPage() {
                 compact
               />
             )}
+          </div>
+        )}
+
+        {/* Recurring income vs expense -- one 100% stacked strip showing what
+            share of fixed monthly income the recurring expenses consume.
+            Reuses the totals already computed; no extra fetch, no second chart. */}
+        {!isLoading && active.length > 0 && summary.monthlyExpense + summary.monthlyIncome > 0 && (
+          <div className="glass rounded-2xl border border-border p-4 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-white">Recurring mix</span>
+              {summary.monthlyIncome > 0 && (
+                <span className="text-text-tertiary">
+                  Fixed expenses use{' '}
+                  <span
+                    className={
+                      summary.monthlyExpense > summary.monthlyIncome ? 'text-app-red' : 'text-white'
+                    }
+                  >
+                    {Math.round((summary.monthlyExpense / summary.monthlyIncome) * 100)}%
+                  </span>{' '}
+                  of recurring income
+                </span>
+              )}
+            </div>
+            <div className="flex h-3 w-full overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className="h-full bg-app-green transition-[width] duration-500"
+                style={{
+                  width: `${(summary.monthlyIncome / (summary.monthlyIncome + summary.monthlyExpense)) * 100}%`,
+                }}
+              />
+              <div
+                className="h-full bg-app-red transition-[width] duration-500"
+                style={{
+                  width: `${(summary.monthlyExpense / (summary.monthlyIncome + summary.monthlyExpense)) * 100}%`,
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-4 text-[11px] text-text-tertiary">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-app-green" /> Income{' '}
+                {formatCurrency(summary.monthlyIncome)}/mo
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-app-red" /> Expense{' '}
+                {formatCurrency(summary.monthlyExpense)}/mo
+              </span>
+            </div>
           </div>
         )}
 

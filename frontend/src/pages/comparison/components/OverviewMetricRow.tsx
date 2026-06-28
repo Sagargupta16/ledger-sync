@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import ProgressBar from '@/components/shared/ProgressBar'
 import { formatCurrency } from '@/lib/formatters'
 import { pctChange } from '../utils'
 import { ChangeIcon } from './ChangeIcon'
@@ -18,12 +18,12 @@ interface OverviewMetricRowProps {
 /**
  * One row per metric (Income / Expenses / Savings / Savings Rate).
  *
- * Renders the two periods overlaid on a single horizontal bar instead of
- * stacked one-above-the-other. Period A is the faded ghost layer; period B
- * is the solid layer on top. When B > A the user sees the change as the
- * solid bar's extent past where the ghost would end; when B < A the ghost's
- * tail extends past the solid bar (the "we shrank" trail). Reads in one
- * eye-fixation instead of two.
+ * Renders the two periods as PAIRED bars -- two thin tracks stacked within
+ * the row, both anchored to the same axis (`maxValue`). Period A is the
+ * faded bar, period B the solid one. Paired (rather than overlaid) so the
+ * smaller period is never occluded by the larger; both extents read at a
+ * glance and the change badge names the direction. The %-row pins to a
+ * 0-100 scale so the savings-rate bar fills proportionally to 100%.
  */
 export function OverviewMetricRow({
   label, valueA, valueB, labelA, labelB,
@@ -34,11 +34,8 @@ export function OverviewMetricRow({
   const isGood = invertChange ? !isPositive : isPositive
   const fmtVal = (v: number) => (isPercent ? `${v.toFixed(1)}%` : formatCurrency(v))
 
-  const barWidthA = maxValue > 0 ? (Math.abs(valueA) / maxValue) * 100 : 0
-  const barWidthB = maxValue > 0 ? (Math.abs(valueB) / maxValue) * 100 : 0
-
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {/* Header: metric label + change badge */}
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-white">{label}</span>
@@ -47,39 +44,36 @@ export function OverviewMetricRow({
           <span>{change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}</span>
         </div>
       </div>
-      {/* Single overlaid bar: ghost (A) + solid (B). Both anchored at the
-          same left edge so the user reads the delta as the visible gap. */}
-      <div className="flex items-center gap-3">
-        <span
-          className="text-caption text-text-tertiary tabular-nums w-24 truncate text-right"
-          title={`${labelA}: ${fmtVal(valueA)}`}
-        >
-          {labelA} · {fmtVal(valueA)}
-        </span>
-        <div className="relative flex-1 h-5 rounded-md bg-white/5 overflow-hidden">
-          <motion.div
-            className="absolute inset-y-0 left-0 rounded-md"
-            style={{ backgroundColor: color, opacity: 0.35 }}
-            initial={{ width: 0 }}
-            animate={{ width: `${barWidthA}%` }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            aria-hidden
-          />
-          <motion.div
-            className="absolute inset-y-0 left-0 rounded-md"
-            style={{ backgroundColor: color }}
-            initial={{ width: 0 }}
-            animate={{ width: `${barWidthB}%` }}
-            transition={{ duration: 0.6, ease: 'easeOut', delay: 0.1 }}
-            aria-hidden
-          />
+      {/* Paired bars: A (faded) above B (solid), sharing one axis so the
+          smaller period is never hidden behind the larger. */}
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-3">
+          <span className="text-caption text-text-tertiary w-20 truncate" title={labelA}>{labelA}</span>
+          <div className="flex-1">
+            <ProgressBar
+              value={Math.abs(valueA)}
+              max={maxValue}
+              color={color}
+              height={10}
+              className="opacity-40"
+              ariaLabel={`${label} ${labelA}: ${fmtVal(valueA)}`}
+            />
+          </div>
+          <span className="text-caption font-medium text-text-secondary tabular-nums w-24 truncate text-right">{fmtVal(valueA)}</span>
         </div>
-        <span
-          className="text-xs font-medium text-white tabular-nums w-24 truncate"
-          title={`${labelB}: ${fmtVal(valueB)}`}
-        >
-          {labelB} · {fmtVal(valueB)}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-caption text-text-tertiary w-20 truncate" title={labelB}>{labelB}</span>
+          <div className="flex-1">
+            <ProgressBar
+              value={Math.abs(valueB)}
+              max={maxValue}
+              color={color}
+              height={10}
+              ariaLabel={`${label} ${labelB}: ${fmtVal(valueB)}`}
+            />
+          </div>
+          <span className="text-xs font-semibold text-white tabular-nums w-24 truncate text-right">{fmtVal(valueB)}</span>
+        </div>
       </div>
     </div>
   )

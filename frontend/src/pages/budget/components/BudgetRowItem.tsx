@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { AlertTriangle, CheckCircle, Edit2, Trash2 } from 'lucide-react'
 
+import { ProgressBar } from '@/components/shared'
 import Sparkline from '@/components/shared/Sparkline'
 import { ConfirmDialog } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
@@ -165,37 +166,18 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
         </div>
       </div>
 
-      <div className="relative h-5 mb-2">
-        <div className="absolute inset-0 flex rounded-full overflow-hidden">
-          <div
-            className="h-full bg-white/5"
-            style={{ width: `${Math.min(alertThreshold * 0.75, 100)}%` }}
-          />
-          <div
-            className="h-full bg-white/10"
-            style={{
-              width: `${Math.min(alertThreshold - alertThreshold * 0.75, 100 - alertThreshold * 0.75)}%`,
-            }}
-          />
-          <div
-            className="h-full bg-white/10"
-            style={{ width: `${Math.max(100 - alertThreshold, 0)}%` }}
-          />
-        </div>
-        <motion.div
-          className="absolute top-1 left-0 h-3 rounded-full"
-          style={{ backgroundColor: cfg.color }}
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.min(100, row.percentage)}%` }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-        />
-        <div
-          className="absolute top-0 h-full w-0.5 bg-white/20"
-          style={{ left: `${Math.min(100, row.percentage)}%`, transform: 'translateX(-1px)' }}
-        />
-        <div
-          className="absolute top-0 h-full w-0.5 bg-app-yellow/60"
-          style={{ left: `${alertThreshold}%`, transform: 'translateX(-1px)' }}
+      <div className="mb-2">
+        <ProgressBar
+          value={Math.min(100, row.percentage)}
+          color={cfg.color}
+          height={12}
+          target={alertThreshold}
+          bands={[
+            { upTo: alertThreshold * 0.75, color: `${rawColors.app.green}14` },
+            { upTo: alertThreshold, color: `${rawColors.app.yellow}1f` },
+            { upTo: 100, color: `${rawColors.app.red}1f` },
+          ]}
+          ariaLabel={`${row.subcategory || row.category} budget used: ${Math.round(row.percentage)}% (alert at ${alertThreshold}%)`}
         />
       </div>
 

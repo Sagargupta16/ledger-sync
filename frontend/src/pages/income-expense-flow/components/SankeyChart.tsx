@@ -120,9 +120,22 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
               </defs>
               <Tooltip
                 {...chartTooltipProps}
-                formatter={(value) =>
-                  typeof value === 'number' ? [formatCurrency(value), 'Amount'] : ''
-                }
+                formatter={(value, _name, item) => {
+                  if (typeof value !== 'number') return ''
+                  // Recharts' Sankey payload exposes the resolved source/target
+                  // node objects on a link hover -- name the flow instead of a
+                  // bare "Amount". Falls back to the node name for node hovers.
+                  const link = item?.payload as
+                    | { source?: { name?: string }; target?: { name?: string }; name?: string }
+                    | undefined
+                  const source = link?.source?.name
+                  const target = link?.target?.name
+                  const label =
+                    source && target
+                      ? `${source} -> ${target}`
+                      : (link?.name ?? 'Amount')
+                  return [formatCurrency(value), label]
+                }}
               />
             </Sankey>
           </ChartContainer>

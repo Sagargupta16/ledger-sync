@@ -39,6 +39,7 @@ import {
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+import { ProgressBar } from '@/components/shared'
 import StatCard from '@/pages/year-in-review/components/StatCard'
 import InsightRow from '@/pages/year-in-review/components/InsightRow'
 import DayOfWeekChart, { type DayCell } from '@/pages/year-in-review/components/DayOfWeekChart'
@@ -173,6 +174,16 @@ export default function YearInReviewPage() {
           value={`${stats.savingsRate.toFixed(1)}%`}
           icon={stats.savingsRate >= 0 ? ArrowUpRight : ArrowDownRight}
           color={stats.savingsRate >= 20 ? rawColors.app.green : rawColors.app.orange}
+          footer={
+            <ProgressBar
+              value={stats.savingsRate}
+              max={50}
+              target={20}
+              color={stats.savingsRate >= 20 ? rawColors.app.green : rawColors.app.orange}
+              height={6}
+              ariaLabel={`Savings rate ${stats.savingsRate.toFixed(1)} percent against a 20 percent target`}
+            />
+          }
         />
         <StatCard
           label="Daily Average"
@@ -306,7 +317,20 @@ export default function YearInReviewPage() {
                       typeof value === 'number' ? formatCurrency(value) : ''
                     }
                   />
-                  <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+                  {/* Break-even baseline -- emphasized so the Net line's
+                      sign crossing (saving above, overspending below) reads at
+                      a glance against the income/spend bars. */}
+                  <ReferenceLine
+                    y={0}
+                    stroke="rgba(255,255,255,0.45)"
+                    strokeWidth={1.5}
+                    label={{
+                      value: 'Break-even',
+                      position: 'insideTopLeft',
+                      fill: rawColors.text.tertiary,
+                      fontSize: 10,
+                    }}
+                  />
                   <Bar
                     dataKey="Spending"
                     fill={rawColors.app.red}
@@ -437,7 +461,12 @@ export default function YearInReviewPage() {
           <InsightRow
             icon={BarChart3}
             label="Days with expenses"
-            value={`${stats.daysWithExpense} of ${grid.length}`}
+            value={`${stats.daysWithExpense} of ${stats.elapsedDays}`}
+            subtitle={
+              stats.elapsedDays > 0
+                ? `${Math.round((stats.daysWithExpense / stats.elapsedDays) * 100)}% of days`
+                : undefined
+            }
             color={rawColors.app.blue}
           />
 

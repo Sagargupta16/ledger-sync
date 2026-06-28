@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
+import { MS_PER_DAY } from '@/lib/dateUtils'
 import { buildBillMap, findNextUpcomingBill, getDaysInMonth, getFirstDayOfWeek } from './billUtils'
 import type { PlacedBill } from './types'
 
@@ -94,14 +95,26 @@ export function useBillCalendar() {
   const summary = useMemo(() => {
     let totalDue = 0
     let billCount = 0
+    let maxBillAmount = 0
     for (const [, bills] of billMap) {
       for (const bill of bills) {
         totalDue += bill.amount
         billCount++
+        if (bill.amount > maxBillAmount) maxBillAmount = bill.amount
       }
     }
     const nextBill = findNextUpcomingBill(billMap, viewYear, viewMonth, now)
-    return { totalDue, billCount, nextBill }
+
+    // Whole-day countdown to the next bill, measured at local midnight so
+    // partial days don't skew "in N days". Null when nothing is upcoming.
+    let nextBillDaysUntil: number | null = null
+    if (nextBill) {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const due = new Date(viewYear, viewMonth, nextBill.day)
+      nextBillDaysUntil = Math.round((due.getTime() - today.getTime()) / MS_PER_DAY)
+    }
+
+    return { totalDue, billCount, nextBill, nextBillDaysUntil, maxBillAmount }
   }, [billMap, viewYear, viewMonth, now])
 
   const selectedDayBills = useMemo<PlacedBill[]>(() => {

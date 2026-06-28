@@ -13,6 +13,7 @@ import { formatCurrency, formatPercent, formatDate } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
+import ProgressBar from '@/components/shared/ProgressBar'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 
 const ANOMALY_TYPE_LABELS: Record<Anomaly['anomaly_type'], string> = {
@@ -70,6 +71,15 @@ export default function AnomalyReviewPage() {
     const low = allAnomalies.filter((a) => a.severity === 'low').length
     return { high, medium, low }
   }, [allAnomalies])
+
+  // Newest-first so the most recently detected anomalies surface at the top.
+  const sortedAnomalies = useMemo(
+    () =>
+      [...anomalies].sort(
+        (a, b) => new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime(),
+      ),
+    [anomalies],
+  )
 
   const handleReview = (anomalyId: number, dismiss: boolean) => {
     if (guardDemoAction('Reviewing anomalies')) return
@@ -205,7 +215,7 @@ export default function AnomalyReviewPage() {
       )}
       {!isLoading && anomalies.length > 0 && (
         <div className="space-y-3">
-          {anomalies.map((anomaly) => {
+          {sortedAnomalies.map((anomaly) => {
             const TypeIcon = ANOMALY_TYPE_ICONS[anomaly.anomaly_type]
             const SeverityIcon = SEVERITY_ICONS[anomaly.severity]
             const severity = SEVERITY_STYLES[anomaly.severity]
@@ -247,24 +257,54 @@ export default function AnomalyReviewPage() {
                   </span>
                 </div>
 
-                {/* Expected vs Actual */}
-                {anomaly.expected_value != null && anomaly.actual_value != null && (
-                  <div className="flex items-center gap-6 mt-3 ml-11">
-                    <div className="text-xs">
-                      <span className="text-text-tertiary">Expected: </span>
-                      <span className="text-foreground">{formatCurrency(anomaly.expected_value)}</span>
+                {/* Expected vs Actual -- paired mini-bars on a shared scale so the
+                    gap between baseline and observed reads at a glance. */}
+                {anomaly.expected_value != null && anomaly.actual_value != null && (() => {
+                  const scaleMax = Math.max(
+                    Math.abs(anomaly.expected_value),
+                    Math.abs(anomaly.actual_value),
+                  )
+                  const overBaseline = (anomaly.deviation_pct ?? 0) >= 0
+                  const actualColor = overBaseline ? rawColors.app.red : rawColors.app.green
+                  return (
+                    <div className="mt-3 ml-11 space-y-1.5 max-w-md">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="grid grid-cols-[64px_1fr_auto] items-center gap-2 flex-1">
+                          <span className="text-xs text-text-tertiary">Expected</span>
+                          <ProgressBar
+                            value={Math.abs(anomaly.expected_value)}
+                            max={scaleMax}
+                            height={6}
+                            color={rawColors.text.tertiary}
+                            ariaLabel={`Expected ${formatCurrency(anomaly.expected_value)}`}
+                          />
+                          <span className="text-xs text-foreground tabular-nums text-right">
+                            {formatCurrency(anomaly.expected_value)}
+                          </span>
+                        </div>
+                        {anomaly.deviation_pct != null && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${overBaseline ? 'bg-app-red/10 text-app-red' : 'bg-app-green/10 text-app-green'}`}>
+                            {anomaly.deviation_pct > 0 ? '+' : ''}{formatPercent(anomaly.deviation_pct / 100)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-[64px_1fr_auto] items-center gap-2">
+                        <span className="text-xs text-text-tertiary">Actual</span>
+                        <ProgressBar
+                          value={Math.abs(anomaly.actual_value)}
+                          max={scaleMax}
+                          height={6}
+                          color={actualColor}
+                          target={Math.abs(anomaly.expected_value)}
+                          ariaLabel={`Actual ${formatCurrency(anomaly.actual_value)}`}
+                        />
+                        <span className="text-xs text-white font-medium tabular-nums text-right">
+                          {formatCurrency(anomaly.actual_value)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-xs">
-                      <span className="text-text-tertiary">Actual: </span>
-                      <span className="text-white font-medium">{formatCurrency(anomaly.actual_value)}</span>
-                    </div>
-                    {anomaly.deviation_pct != null && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${anomaly.deviation_pct > 0 ? 'bg-app-red/10 text-app-red' : 'bg-app-green/10 text-app-green'}`}>
-                        {anomaly.deviation_pct > 0 ? '+' : ''}{formatPercent(anomaly.deviation_pct / 100)}
-                      </span>
-                    )}
-                  </div>
-                )}
+                  )
+                })()}
 
                 {/* Review Notes */}
                 {anomaly.review_notes && (

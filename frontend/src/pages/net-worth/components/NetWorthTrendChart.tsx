@@ -202,9 +202,15 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                 />
               )}
               {/* Upcoming milestones as faint horizontal threshold lines.
-                  Recharts auto-clips lines outside the y-axis range so we
-                  render the whole DEFAULT_MILESTONES set without filtering. */}
-              {!effectiveStacked && milestoneRows?.filter((m) => m.status === 'upcoming').map((m) => (
+                  Capped to the next 3 above the current net worth -- rendering
+                  the whole DEFAULT_MILESTONES set crowded the top of the chart
+                  with labels (₹5Cr / ₹10Cr lines a saver won't hit for decades).
+                  Rows arrive sorted ascending by value, so the first 3 upcoming
+                  are the nearest targets. */}
+              {!effectiveStacked && milestoneRows
+                ?.filter((m) => m.status === 'upcoming')
+                .slice(0, 3)
+                .map((m) => (
                 <ReferenceLine
                   key={`milestone-${m.value}`}
                   y={m.value}
