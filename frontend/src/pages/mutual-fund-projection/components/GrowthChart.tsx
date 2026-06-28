@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Area, AreaChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, CartesianGrid, Legend, Line, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import {
@@ -36,6 +36,12 @@ interface GrowthChartProps {
 export function GrowthChart(props: Readonly<GrowthChartProps>) {
   const { chartData, projectionYears, onProjectionYearsChange } = props
 
+  // The "Today" boundary is the last historical point; everything after it is
+  // projected. Used for a reference line so past vs future reads at a glance.
+  const lastHistorical = [...chartData].reverse().find((d) => d.isHistorical)
+  const todayMonth = lastHistorical?.month
+  const hasExpected = chartData.some((d) => d.expectedValue !== undefined)
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -47,7 +53,8 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
         <div>
           <h3 className="text-lg font-semibold">Investment Growth Path</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Blue: Principal Invested | Green: Portfolio Value (with gains)
+            Blue: principal invested · Green: actual portfolio value · Orange:
+            expected at your assumed return
           </p>
         </div>
         <div
@@ -120,6 +127,29 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
                 animationDuration={600}
                 animationEasing="ease-out"
               />
+              {hasExpected && (
+                <Line
+                  type="monotone"
+                  dataKey="expectedValue"
+                  name="Expected (at assumed return)"
+                  stroke={rawColors.app.orange}
+                  strokeWidth={2}
+                  strokeDasharray="5 4"
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={shouldAnimate(chartData.length)}
+                  animationDuration={600}
+                  animationEasing="ease-out"
+                />
+              )}
+              {todayMonth && (
+                <ReferenceLine
+                  x={todayMonth}
+                  stroke="rgba(255,255,255,0.25)"
+                  strokeDasharray="3 3"
+                  label={{ value: 'Today', position: 'insideTopRight', fill: 'rgba(255,255,255,0.55)', fontSize: 10 }}
+                />
+              )}
             </AreaChart>
           </ChartContainer>
         )}
