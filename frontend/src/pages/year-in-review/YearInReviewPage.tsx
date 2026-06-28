@@ -3,58 +3,36 @@ import {
   Flame,
   TrendingDown,
   TrendingUp,
-  Sun,
-  Moon,
   DollarSign,
   BarChart3,
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react'
-import {
-  Tooltip as RechartsTooltip,
-  ComposedChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  LabelList,
-  ReferenceLine,
-} from 'recharts'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
-import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrencyCompact } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import {
-  chartTooltipProps,
-  PageContainer,
-  PageHeader,
-  ChartContainer,
-  GRID_DEFAULTS,
-  xAxisDefaults,
-  yAxisDefaults,
-  shouldAnimate,
-  BAR_RADIUS,
-} from '@/components/ui'
-import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { PageContainer, PageHeader } from '@/components/ui'
 import EmptyState from '@/components/shared/EmptyState'
+import ErrorState from '@/components/shared/ErrorState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { ProgressBar } from '@/components/shared'
 import StatCard from '@/pages/year-in-review/components/StatCard'
-import InsightRow from '@/pages/year-in-review/components/InsightRow'
 import DayOfWeekChart, { type DayCell } from '@/pages/year-in-review/components/DayOfWeekChart'
 import { useYearInReview } from './useYearInReview'
 import { DAYS, heatmapColors, modeAccent } from './types'
-import { getStreakColor } from './heatmapUtils'
 import MobileMonthlySummary from './components/MobileMonthlySummary'
 import HeatmapWeeks from './components/HeatmapWeeks'
 import HeatmapDayDetail from './components/HeatmapDayDetail'
+import MonthlyBreakdownChart from './components/MonthlyBreakdownChart'
+import YearInsightsPanel from './components/YearInsightsPanel'
 
 export default function YearInReviewPage() {
   const dims = useChartDimensions()
   const {
     transactions,
     isLoading,
+    isError,
     mode,
     setMode,
     hoveredDay,
@@ -79,6 +57,18 @@ export default function YearInReviewPage() {
   } = useYearInReview()
 
   if (isLoading) return <PageSkeleton />
+  if (isError) {
+    return (
+      <PageContainer>
+        <ErrorState
+          variant="card"
+          title="Couldn't load your year in review"
+          message="We couldn't fetch your transactions. Please try again."
+          onRetry={() => globalThis.location.reload()}
+        />
+      </PageContainer>
+    )
+  }
   if (transactions.length === 0) {
     return (
       <PageContainer>
@@ -133,8 +123,8 @@ export default function YearInReviewPage() {
                   onClick={() => setMode(val)}
                   className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     mode === val
-                      ? 'text-white'
-                      : 'text-muted-foreground hover:text-white hover:bg-white/10'
+                      ? 'text-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
                   }`}
                   whileTap={{ scale: 0.97 }}
                 >
@@ -156,7 +146,7 @@ export default function YearInReviewPage() {
         }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
         <StatCard
           label="Total Spending"
           value={formatCurrencyCompact(stats.totalExpense)}
@@ -294,229 +284,8 @@ export default function YearInReviewPage() {
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="lg:col-span-2 glass rounded-2xl border border-border p-4 sm:p-6"
-        >
-          <h2 className="text-lg font-semibold mb-4">Monthly Breakdown</h2>
-          <p className="text-xs text-text-tertiary mb-4">Income, spending, and net cash flow each month</p>
-          <div className="h-60 sm:h-72">
-            {monthlyBarData.every((d) => d.Spending === 0 && d.Earning === 0) ? (
-              <ChartEmptyState height={288} />
-            ) : (
-              <ChartContainer>
-                <ComposedChart data={monthlyBarData} barGap={4}>
-                  <CartesianGrid {...GRID_DEFAULTS} />
-                  {/* Angle the month labels only when the density check says so
-                      (mobile/tablet) and there are enough months to collide --
-                      keeps the desktop chart's flat labels untouched. */}
-                  <XAxis
-                    {...xAxisDefaults(
-                      monthlyBarData.length,
-                      dims.angleXLabels && monthlyBarData.length > 6
-                        ? { angle: -45, height: 50 }
-                        : undefined,
-                    )}
-                    dataKey="name"
-                  />
-                  <YAxis {...yAxisDefaults()} />
-                  <RechartsTooltip
-                    {...chartTooltipProps}
-                    formatter={(value) =>
-                      typeof value === 'number' ? formatCurrency(value) : ''
-                    }
-                  />
-                  {/* Break-even baseline -- emphasized so the Net line's
-                      sign crossing (saving above, overspending below) reads at
-                      a glance against the income/spend bars. */}
-                  <ReferenceLine
-                    y={0}
-                    stroke="rgba(255,255,255,0.45)"
-                    strokeWidth={1.5}
-                    label={{
-                      value: 'Break-even',
-                      position: 'insideTopLeft',
-                      fill: rawColors.text.tertiary,
-                      fontSize: 10,
-                    }}
-                  />
-                  <Bar
-                    dataKey="Spending"
-                    fill={rawColors.app.red}
-                    radius={BAR_RADIUS}
-                    opacity={0.8}
-                    isAnimationActive={shouldAnimate(monthlyBarData.length)}
-                    animationDuration={600}
-                    animationEasing="ease-out"
-                  >
-                    {dims.showBarLabels && (
-                      <LabelList
-                        dataKey="Spending"
-                        position="top"
-                        fill="#f5f5f7"
-                        fontSize={10}
-                        formatter={(v: unknown) =>
-                          !v || v === 0 ? '' : formatCurrencyShort(v as number)
-                        }
-                      />
-                    )}
-                  </Bar>
-                  <Bar
-                    dataKey="Earning"
-                    fill={rawColors.app.green}
-                    radius={BAR_RADIUS}
-                    opacity={0.8}
-                    isAnimationActive={shouldAnimate(monthlyBarData.length)}
-                    animationDuration={600}
-                    animationEasing="ease-out"
-                  >
-                    {dims.showBarLabels && (
-                      <LabelList
-                        dataKey="Earning"
-                        position="top"
-                        fill="#f5f5f7"
-                        fontSize={10}
-                        formatter={(v: unknown) =>
-                          !v || v === 0 ? '' : formatCurrencyShort(v as number)
-                        }
-                      />
-                    )}
-                  </Bar>
-                  {/* Net cash flow line so savings months pop visually --
-                      a peak above the bars means a saving month, a trough
-                      between them means an overspending month. */}
-                  <Line
-                    type="monotone"
-                    dataKey="Net"
-                    stroke={rawColors.app.blue}
-                    strokeWidth={2}
-                    strokeDasharray="6 3"
-                    dot={{ r: 3, fill: rawColors.app.blue, stroke: 'none' }}
-                    activeDot={{ r: 5, fill: rawColors.app.blue, stroke: '#000', strokeWidth: 2 }}
-                    isAnimationActive={shouldAnimate(monthlyBarData.length)}
-                    animationDuration={700}
-                  />
-                </ComposedChart>
-              </ChartContainer>
-            )}
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="glass rounded-2xl border border-border p-4 sm:p-6 space-y-4"
-        >
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Flame className="w-5 h-5" style={{ color: rawColors.app.orange }} />
-            Quick Insights
-          </h2>
-
-          <InsightRow
-            icon={Sun}
-            label="Best Month (lowest spend)"
-            value={stats.bestMonth}
-            color={rawColors.app.green}
-          />
-          <InsightRow
-            icon={Moon}
-            label="Worst Month (highest spend)"
-            value={stats.worstMonth}
-            color={rawColors.app.red}
-          />
-          <InsightRow
-            icon={Flame}
-            label="Longest no-spend streak"
-            value={`${stats.maxStreak} days`}
-            color={rawColors.app.orange}
-          />
-          <InsightRow
-            icon={TrendingDown}
-            label="Biggest spending day"
-            value={
-              stats.biggestExpenseDay.date
-                ? `${formatCurrencyCompact(stats.biggestExpenseDay.amount)}`
-                : 'N/A'
-            }
-            subtitle={
-              stats.biggestExpenseDay.date
-                ? new Date(stats.biggestExpenseDay.date + 'T00:00:00').toLocaleDateString(
-                    'en-IN',
-                    { month: 'short', day: 'numeric' },
-                  )
-                : undefined
-            }
-            color={rawColors.app.red}
-          />
-          <InsightRow
-            icon={TrendingUp}
-            label="Biggest earning day"
-            value={
-              stats.biggestIncomeDay.date
-                ? `${formatCurrencyCompact(stats.biggestIncomeDay.amount)}`
-                : 'N/A'
-            }
-            subtitle={
-              stats.biggestIncomeDay.date
-                ? new Date(stats.biggestIncomeDay.date + 'T00:00:00').toLocaleDateString(
-                    'en-IN',
-                    { month: 'short', day: 'numeric' },
-                  )
-                : undefined
-            }
-            color={rawColors.app.green}
-          />
-          <InsightRow
-            icon={BarChart3}
-            label="Days with expenses"
-            value={`${stats.daysWithExpense} of ${stats.elapsedDays}`}
-            subtitle={
-              stats.elapsedDays > 0
-                ? `${Math.round((stats.daysWithExpense / stats.elapsedDays) * 100)}% of days`
-                : undefined
-            }
-            color={rawColors.app.blue}
-          />
-
-          {stats.maxStreak > 0 && (
-            <div className="pt-3 mt-3 border-t border-border">
-              <p className="text-xs text-text-tertiary mb-2">No-Spend Streak Record</p>
-              <div className="flex items-baseline gap-2">
-                <span
-                  className="text-2xl font-bold tabular-nums"
-                  style={{ color: getStreakColor(stats.maxStreak) }}
-                >
-                  {stats.maxStreak}
-                </span>
-                <span className="text-sm text-text-tertiary">days in a row</span>
-              </div>
-              {/* Single accent bar -- streak length relative to a 30-day mark
-                  (replaces 30 identical dots that redundantly encoded one number). */}
-              <div className="mt-2 h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${Math.min(100, (stats.maxStreak / 30) * 100)}%`,
-                    backgroundColor: getStreakColor(stats.maxStreak),
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="pt-3 mt-3 border-t border-border">
-            <p className="text-xs text-text-tertiary mb-1">Total Savings</p>
-            <p
-              className={`text-xl font-bold ${stats.totalSavings >= 0 ? 'text-app-green' : 'text-app-red'}`}
-            >
-              {stats.totalSavings >= 0 ? '+' : ''}
-              {formatCurrencyCompact(stats.totalSavings)}
-            </p>
-          </div>
-        </motion.div>
+        <MonthlyBreakdownChart monthlyBarData={monthlyBarData} dims={dims} />
+        <YearInsightsPanel stats={stats} />
       </div>
 
       <motion.div

@@ -41,7 +41,7 @@ export function CategorySection({
       sortType: 'text',
       sortValue: (d) => d.category,
       mobilePrimary: true,
-      cell: (d) => <span className="text-sm font-medium text-white truncate block">{d.category}</span>,
+      cell: (d) => <span className="text-sm font-medium text-foreground truncate block">{d.category}</span>,
     },
     {
       key: 'bars',
@@ -78,7 +78,7 @@ export function CategorySection({
       sortValue: (d) => d.periodB,
       cell: (d) => (
         <div className="leading-tight">
-          <p className="text-sm font-semibold text-white">{formatCurrency(d.periodB)}</p>
+          <p className="text-sm font-semibold text-foreground">{formatCurrency(d.periodB)}</p>
           <p className="text-caption text-text-tertiary">{periodA.label}: {formatCurrency(d.periodA)}</p>
         </div>
       ),

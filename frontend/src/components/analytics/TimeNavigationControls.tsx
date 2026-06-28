@@ -30,18 +30,18 @@ export default function TimeNavigationControls({
         <button
           onClick={handlePrevMonth}
           aria-label="Previous month"
-          className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
+          className="p-1.5 hover:bg-[var(--overlay-5)] rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           type="button"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <span className="text-white font-medium min-w-30 text-center">
+        <span className="text-foreground font-medium min-w-30 text-center">
           {formatMonthKey(currentMonth, { month: 'long', year: 'numeric' })}
         </span>
         <button
           onClick={handleNextMonth}
           aria-label="Next month"
-          className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
+          className="p-1.5 hover:bg-[var(--overlay-5)] rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           type="button"
         >
           <ChevronRight className="w-5 h-5" />
@@ -59,16 +59,16 @@ export default function TimeNavigationControls({
         <button
           onClick={handlePrevYear}
           aria-label="Previous year"
-          className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
+          className="p-1.5 hover:bg-[var(--overlay-5)] rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           type="button"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <span className="text-white font-medium min-w-25 text-center">Year {currentYear}</span>
+        <span className="text-foreground font-medium min-w-25 text-center">Year {currentYear}</span>
         <button
           onClick={handleNextYear}
           aria-label="Next year"
-          className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-white transition-colors"
+          className="p-1.5 hover:bg-[var(--overlay-5)] rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           type="button"
         >
           <ChevronRight className="w-5 h-5" />

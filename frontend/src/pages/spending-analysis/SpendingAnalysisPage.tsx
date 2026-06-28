@@ -26,7 +26,7 @@ import {
   CohortSpendingAnalysis,
 } from '@/components/analytics'
 import {
-  chartTooltipProps, PageHeader, ChartContainer, shouldAnimate,
+  chartTooltipProps, PageContainer, PageHeader, ChartContainer, shouldAnimate,
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl,
   referenceLine, currencyTooltipFormatter,
 } from '@/components/ui'
@@ -52,10 +52,9 @@ export default function SpendingAnalysisPage() {
   if (isLoading) return <PageSkeleton />
 
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+    <PageContainer>
         <PageHeader
-          title="Spending Analysis"
+          title="Expense Analysis"
           subtitle="Track and analyze your spending patterns"
           action={
             <AnalyticsTimeFilter {...timeFilterProps} />
@@ -93,7 +92,7 @@ export default function SpendingAnalysisPage() {
           className="glass p-4 sm:p-6 rounded-xl border border-border"
           {...SCROLL_FADE_UP}
         >
-          <h3 className="text-lg font-semibold text-white mb-4">{needsTarget}/{wantsTarget}/{savingsTarget} Budget Rule Analysis</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">{needsTarget}/{wantsTarget}/{savingsTarget} Budget Rule Analysis</h3>
           {spendingChartData.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
               {/* Actual Needs/Wants/Savings split. The target ring was dropped --
@@ -101,7 +100,7 @@ export default function SpendingAnalysisPage() {
                   the per-category cards (each with a target line) carry the
                   goal comparison instead. */}
               <div className="flex flex-col items-center">
-                <div className="w-44 h-44 md:w-48 md:h-48 lg:w-56 lg:h-56">
+                <div className="w-44 h-44 sm:w-48 sm:h-48 md:w-48 md:h-48 lg:w-56 lg:h-56">
                   <ChartContainer ariaLabel="Donut showing your actual Needs, Wants, and Savings split of income">
                     <RechartsPie>
                       <Pie
@@ -215,7 +214,7 @@ export default function SpendingAnalysisPage() {
             <div className="flex items-center gap-3">
               <TrendingDown className="w-5 h-5 text-app-red" />
               <div>
-                <h3 className="text-lg font-semibold text-white">Expense Trend</h3>
+                <h3 className="text-lg font-semibold text-foreground">Expense Trend</h3>
                 <p className="text-sm text-text-tertiary">Monthly spending with 3-month rolling average</p>
               </div>
             </div>
@@ -306,8 +305,6 @@ export default function SpendingAnalysisPage() {
         <motion.div {...SCROLL_FADE_UP}>
           <CohortSpendingAnalysis />
         </motion.div>
-
-      </div>
-    </div>
+    </PageContainer>
   )
 }

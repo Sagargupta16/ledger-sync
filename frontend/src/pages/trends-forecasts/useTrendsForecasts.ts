@@ -23,7 +23,7 @@ export function useTrendsForecasts() {
   const { data: preferences } = usePreferences()
   const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
 
-  const { data: trendsData, isLoading } = useTrends('all_time')
+  const { data: trendsData, isLoading, isError } = useTrends('all_time')
   const { data: allTransactions = [] } = useTransactions()
 
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions, {
@@ -203,6 +203,7 @@ export function useTrendsForecasts() {
   return {
     savingsGoalPercent,
     isLoading,
+    isError,
     timeFilterProps,
     metrics,
     chartData,

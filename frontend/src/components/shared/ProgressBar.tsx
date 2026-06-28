@@ -53,7 +53,7 @@ export default function ProgressBar({
 
   return (
     <div
-      className={`relative w-full rounded-full overflow-hidden bg-white/[0.06] ${className}`}
+      className={`relative w-full rounded-full overflow-hidden bg-[var(--overlay-3)] ${className}`}
       style={{ height }}
       role={ariaLabel ? 'progressbar' : undefined}
       aria-label={ariaLabel}
@@ -88,7 +88,7 @@ export default function ProgressBar({
       {targetPct !== null && (
         <div
           aria-hidden
-          className="absolute inset-y-0 w-0.5 bg-white/70"
+          className="absolute inset-y-0 w-0.5 bg-[var(--overlay-8)]"
           style={{ left: `${targetPct}%` }}
         />
       )}

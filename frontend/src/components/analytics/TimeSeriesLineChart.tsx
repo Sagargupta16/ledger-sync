@@ -13,6 +13,8 @@ interface TimeSeriesLineChartProps {
   readonly legendFormatter?: (value: string) => string
   readonly emptyMessage?: string
   readonly height?: number
+  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  readonly ariaLabel?: string
 }
 
 export default function TimeSeriesLineChart({
@@ -22,6 +24,7 @@ export default function TimeSeriesLineChart({
   legendFormatter,
   emptyMessage = 'No data available',
   height = 400,
+  ariaLabel,
 }: TimeSeriesLineChartProps) {
   if (chartData.length === 0 || seriesKeys.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -30,7 +33,7 @@ export default function TimeSeriesLineChart({
   const animate = shouldAnimate(chartData.length)
 
   return (
-    <ChartContainer height={height}>
+    <ChartContainer height={height} ariaLabel={ariaLabel}>
       <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
         <CartesianGrid {...GRID_DEFAULTS} />
         <XAxis

@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Receipt, Percent, BarChart3, Info } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Receipt, Percent, BarChart3, Info, Landmark } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import {
   BarChart,
   Bar,
@@ -14,6 +15,7 @@ import {
   Cell,
 } from 'recharts'
 
+import { ROUTES } from '@/constants'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -34,9 +36,11 @@ import {
   DataTable,
   type DataTableColumn,
   Spinner,
+  PageContainer,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import ErrorState from '@/components/shared/ErrorState'
 import { ProgressBar } from '@/components/shared'
 
 // Slab colors (matching GST slab identity). Covers both the legacy slabs
@@ -61,7 +65,7 @@ function buildGSTCategoryColumns(maxSpending: number): DataTableColumn<GSTCatego
     mobilePrimary: true,
     cell: (cat) => (
       <>
-        <span className="font-medium text-white">{cat.category}</span>
+        <span className="font-medium text-foreground">{cat.category}</span>
         {cat.parentCategory !== cat.category && (
           <span className="text-xs text-muted-foreground ml-2">{cat.parentCategory}</span>
         )}
@@ -138,7 +142,7 @@ function FYNavigator({
         onClick={() => idx < fys.length - 1 && onSelect(fys[idx + 1])}
         disabled={idx >= fys.length - 1}
         aria-label="Previous fiscal year"
-        className="p-2.5 sm:p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
+        className="p-2.5 sm:p-1.5 rounded-lg border border-border hover:bg-[var(--overlay-3)] disabled:opacity-30 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
@@ -148,7 +152,7 @@ function FYNavigator({
         onClick={() => idx > 0 && onSelect(fys[idx - 1])}
         disabled={idx <= 0}
         aria-label="Next fiscal year"
-        className="p-2.5 sm:p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
+        className="p-2.5 sm:p-1.5 rounded-lg border border-border hover:bg-[var(--overlay-3)] disabled:opacity-30 transition-colors"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
@@ -157,7 +161,7 @@ function FYNavigator({
 }
 
 export default function GSTAnalysisPage() {
-  const { data: transactions, isLoading } = useTransactions()
+  const { data: transactions, isLoading, isError } = useTransactions()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month ?? FY_START_MONTH
 
@@ -193,18 +197,28 @@ export default function GSTAnalysisPage() {
   }, [gstData])
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <PageContainer className="space-y-6">
       <PageHeader
         title="Indirect Tax (GST)"
         subtitle="Estimated GST paid on your expenses"
         action={
-          allFYs.length > 0 && (
-            <FYNavigator
-              fys={allFYs}
-              selectedFY={effectiveFY}
-              onSelect={setSelectedFY}
-            />
-          )
+          <div className="flex items-center gap-3 flex-wrap">
+            {allFYs.length > 0 && (
+              <FYNavigator
+                fys={allFYs}
+                selectedFY={effectiveFY}
+                onSelect={setSelectedFY}
+              />
+            )}
+            <Link
+              to={ROUTES.TAX_PLANNING}
+              className="inline-flex items-center gap-2 px-3 py-2.5 sm:py-1.5 text-sm font-medium rounded-lg border border-border bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+              title="View Income Tax planning"
+            >
+              <Landmark className="w-4 h-4" />
+              <span>View Income Tax</span>
+            </Link>
+          </div>
         }
       />
 
@@ -214,7 +228,7 @@ export default function GSTAnalysisPage() {
       <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-app-orange/5 border border-app-orange/20 text-sm text-muted-foreground">
         <Info className="w-4 h-4 mt-0.5 text-app-orange shrink-0" />
         <span>
-          <strong className="text-white">Approximate figures only.</strong>{' '}
+          <strong className="text-foreground">Approximate figures only.</strong>{' '}
           GST isn't line-itemed in bank statements, so we apply typical slab
           rates per category (restaurants 5%, electronics 18%, etc.) to your
           inclusive-of-tax spend. Use this for lifestyle-scale awareness of
@@ -224,14 +238,21 @@ export default function GSTAnalysisPage() {
 
       {isLoading && <Spinner label="Loading GST analysis" className="py-20" />}
 
-      {!isLoading && !hasData && (
+      {!isLoading && isError && (
+        <ErrorState
+          variant="card"
+          message="We couldn't load your transactions for GST analysis. Please try again."
+        />
+      )}
+
+      {!isLoading && !isError && !hasData && (
         <ChartEmptyState message="No expense data found for this fiscal year" />
       )}
 
       {!isLoading && hasData && gstData && (
         <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
           {/* Summary Cards */}
-          <motion.div variants={fadeUpItem} className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+          <motion.div variants={fadeUpItem} className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
             <SummaryCard
               icon={<Receipt className="w-6 h-6 text-app-red" />}
               iconBg="bg-app-red/20"
@@ -297,13 +318,13 @@ export default function GSTAnalysisPage() {
                   return (
                     <div
                       key={s.slab}
-                      className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg bg-white/[0.04] border border-border"
+                      className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg bg-[var(--overlay-2)] border border-border"
                     >
                       <div
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: SLAB_COLORS[s.slab] }}
                       />
-                      <span className="font-medium text-white">{s.slab}%</span>
+                      <span className="font-medium text-foreground">{s.slab}%</span>
                       <span className="tabular-nums text-app-indigo">
                         {formatCurrencyCompact(s.gstAmount)}
                       </span>
@@ -369,8 +390,8 @@ export default function GSTAnalysisPage() {
               ariaLabel="GST estimated per category"
               mobileCards
             />
-            <div className="border-t border-border bg-white/[0.02] px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">
-              <span className="font-semibold text-white">Total</span>
+            <div className="border-t border-border bg-[var(--overlay-1)] px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">
+              <span className="font-semibold text-foreground">Total</span>
               <span className="flex items-center gap-4 tabular-nums">
                 <span className="font-semibold">{formatCurrencyCompact(gstData.totalSpending)}</span>
                 <span className="font-semibold text-muted-foreground">
@@ -384,7 +405,7 @@ export default function GSTAnalysisPage() {
           </motion.div>
         </motion.div>
       )}
-    </div>
+    </PageContainer>
   )
 }
 
@@ -409,7 +430,7 @@ function SummaryCard({
         <div className={`p-2.5 sm:p-3 rounded-xl ${iconBg}`}>{icon}</div>
         <div className="min-w-0 flex-1">
           <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-xl sm:text-2xl font-bold truncate">{value}</p>
+          <p className="text-kpi-value font-bold truncate">{value}</p>
           <p className="text-xs text-muted-foreground mt-1 truncate">{subtitle}</p>
         </div>
       </div>

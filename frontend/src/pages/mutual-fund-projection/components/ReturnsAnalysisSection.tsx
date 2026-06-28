@@ -60,7 +60,7 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
             value={currentValueInput || ''}
             placeholder={formatCurrency(currentBalance).replace('₹', '').trim()}
             onChange={(e) => onCurrentValueChange(Number(e.target.value))}
-            className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
+            className="w-full bg-[var(--overlay-2)] border border-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
             min="0"
             step="1000"
           />

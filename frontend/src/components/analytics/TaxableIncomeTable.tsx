@@ -40,7 +40,7 @@ export default function TaxableIncomeTable({
         Salaried Taxable Income for {selectedFY}
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full" aria-label="Salaried taxable income breakdown">
           <thead>
             <tr className="border-b border-border">
               <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Date</th>
@@ -59,8 +59,8 @@ export default function TaxableIncomeTable({
                 ([group, data]) =>
                   data.transactions.length > 0 && (
                     <React.Fragment key={group}>
-                      <tr className="border-b border-border bg-white/5 hover:bg-white/10 transition-colors">
-                        <td className="py-3 px-4 text-left font-bold text-white">
+                      <tr className="border-b border-border bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] transition-colors">
+                        <td className="py-3 px-4 text-left font-bold text-foreground">
                           <button
                             type="button"
                             onClick={() => toggleGroup(group)}
@@ -78,7 +78,7 @@ export default function TaxableIncomeTable({
                             </span>
                           </button>
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-white">
+                        <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums">
                           {formatCurrency(data.total)}
                           <span className="sm:hidden block text-xs font-normal text-muted-foreground">
                             {netTaxableIncome > 0
@@ -89,7 +89,7 @@ export default function TaxableIncomeTable({
                         </td>
                         <td
                           colSpan={2}
-                          className="hidden sm:table-cell py-3 px-4 text-right font-bold text-white"
+                          className="hidden sm:table-cell py-3 px-4 text-right font-bold text-foreground"
                         >
                           {netTaxableIncome > 0
                             ? formatPercent((data.total / netTaxableIncome) * 100)
@@ -104,7 +104,7 @@ export default function TaxableIncomeTable({
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                           >
-                            <td className="py-3 pl-10 pr-4 text-white">
+                            <td className="py-3 pl-10 pr-4 text-foreground">
                               {new Date(tx.date).toLocaleDateString()}
                               {(tx.type || tx.note) && (
                                 <span className="sm:hidden block text-xs text-muted-foreground truncate max-w-[10rem]">
@@ -112,7 +112,7 @@ export default function TaxableIncomeTable({
                                 </span>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-right">
+                            <td className="py-3 px-4 text-right tabular-nums">
                               {group === 'EPF' ? (
                                 <div>
                                   <div className="font-bold text-app-green">
@@ -128,8 +128,8 @@ export default function TaxableIncomeTable({
                                 </span>
                               )}
                             </td>
-                            <td className="hidden sm:table-cell py-3 px-4 text-white">{tx.type}</td>
-                            <td className="hidden sm:table-cell py-3 px-4 text-white">{tx.note}</td>
+                            <td className="hidden sm:table-cell py-3 px-4 text-foreground">{tx.type}</td>
+                            <td className="hidden sm:table-cell py-3 px-4 text-foreground">{tx.note}</td>
                           </motion.tr>
                         ))}
                     </React.Fragment>

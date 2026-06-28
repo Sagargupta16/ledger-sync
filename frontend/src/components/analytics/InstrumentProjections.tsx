@@ -181,7 +181,7 @@ export default function InstrumentProjections() {
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           <Landmark className="w-5 h-5 text-app-blue" />
-          <h3 className="text-lg font-semibold text-white">Instrument Maturity Projections</h3>
+          <h3 className="text-lg font-semibold text-foreground">Instrument Maturity Projections</h3>
           <StaleDataBadge
             isFallback={isFallback}
             reason="Couldn't fetch the latest instrument rates -- using compiled-in defaults until the next refresh."
@@ -192,7 +192,7 @@ export default function InstrumentProjections() {
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === key ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === key ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {label}
             </button>

@@ -5,7 +5,7 @@ import { rawColors } from '@/constants/colors'
 import { formatMonthLabel, type CompareMode, type MonthData } from './periodMetrics'
 
 const SELECT_CLASS =
-  'px-3 py-2 rounded-xl bg-[rgba(44,44,46,0.6)] border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors backdrop-blur-xl'
+  'px-3 py-2 rounded-xl bg-surface-3 border border-border text-sm text-foreground cursor-pointer hover:bg-surface-hover transition-colors backdrop-blur-xl'
 
 interface PeriodSelectorsProps {
   compareMode: CompareMode
@@ -40,7 +40,7 @@ export function PeriodSelectors(props: Readonly<PeriodSelectorsProps>) {
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6 p-4 rounded-2xl glass-thin">
-      <div className="flex bg-white/5 rounded-xl p-1" role="tablist" aria-label="Compare mode">
+      <div className="flex bg-[var(--overlay-2)] rounded-xl p-1" role="tablist" aria-label="Compare mode">
         <button
           type="button"
           role="tab"
@@ -69,7 +69,7 @@ export function PeriodSelectors(props: Readonly<PeriodSelectorsProps>) {
         </button>
       </div>
 
-      <div className="h-6 w-px bg-white/10 hidden sm:block" />
+      <div className="h-6 w-px bg-[var(--overlay-5)] hidden sm:block" />
 
       <div className="flex items-center gap-2 flex-wrap">
         <Calendar className="w-4 h-4" style={{ color: rawColors.text.tertiary }} />

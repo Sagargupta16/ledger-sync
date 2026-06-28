@@ -42,7 +42,7 @@ function ActionButton({ actionLabel, actionHref, onAction, isCompact }: Readonly
   isCompact: boolean
 }>) {
   const sizeClass = getSizeClass(isCompact, 'text-xs', 'text-sm')
-  const baseClass = `inline-flex items-center gap-2 px-4 py-2 bg-app-blue text-white rounded-lg font-medium hover:bg-app-blue active:scale-[0.98] transition-colors duration-150 ${sizeClass}`
+  const baseClass = `inline-flex items-center gap-2 px-4 py-2 bg-app-blue text-primary-foreground rounded-lg font-medium hover:bg-app-blue active:scale-[0.98] transition-colors duration-150 ${sizeClass}`
 
   if (actionHref) {
     return (
@@ -77,11 +77,15 @@ export default function EmptyState({
       <div className={`py-8 px-6 text-center ${className}`}>
         {/* Faux chart skeleton */}
         <div className="mx-auto max-w-sm mb-4">
-          <div className="flex items-end gap-1 h-24 border-l border-b border-border pl-2 pb-1">
+          <div
+            role="img"
+            aria-label="Empty chart placeholder"
+            className="flex items-end gap-1 h-24 border-l border-b border-border pl-2 pb-1"
+          >
             {[40, 65, 30, 80, 55, 45, 70, 35, 60, 50].map((h) => (
               <div
                 key={`empty-bar-${h}`}
-                className="flex-1 rounded-t bg-white/[0.06]"
+                className="flex-1 rounded-t bg-[var(--overlay-3)]"
                 style={{ height: `${h}%` }}
               />
             ))}
@@ -89,7 +93,7 @@ export default function EmptyState({
         </div>
         <div className="flex flex-col items-center gap-2">
           {Icon && <Icon className="w-8 h-8 text-text-tertiary" />}
-          <h3 className="text-base font-medium text-white">{title}</h3>
+          <h3 className="text-base font-medium text-foreground">{title}</h3>
           {description && <p className="text-sm text-text-tertiary max-w-sm">{description}</p>}
           {actionLabel && actionHref && (
             <a href={actionHref} className="mt-2 text-sm text-app-blue hover:text-app-blue transition-colors duration-150">{actionLabel}</a>
@@ -107,7 +111,7 @@ export default function EmptyState({
     >
       {/* Icon */}
       <div
-        className={`rounded-xl bg-white/[0.06] flex items-center justify-center mb-4 ${
+        className={`rounded-xl bg-[var(--overlay-3)] flex items-center justify-center mb-4 ${
           getSizeClass(isCompact, 'w-12 h-12', 'w-16 h-16')
         }`}
       >
@@ -115,7 +119,7 @@ export default function EmptyState({
       </div>
 
       {/* Title */}
-      <h3 className={`font-medium text-white mb-1 ${getSizeClass(isCompact, 'text-sm', 'text-base')}`}>
+      <h3 className={`font-medium text-foreground mb-1 ${getSizeClass(isCompact, 'text-sm', 'text-base')}`}>
         {title}
       </h3>
 

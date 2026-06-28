@@ -21,8 +21,10 @@ import {
 } from './netWorthUtils'
 
 export function useNetWorth() {
-  const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
-  const { data: transactions = [], isLoading: transactionsLoading } = useTransactions()
+  const { data: balanceData, isLoading: balancesLoading, isError: balancesError } =
+    useAccountBalances()
+  const { data: transactions = [], isLoading: transactionsLoading, isError: transactionsError } =
+    useTransactions()
   const { data: preferences } = usePreferences()
   const [showStacked, setShowStacked] = useState(false)
   const [showProjection, setShowProjection] = useState(false)
@@ -49,6 +51,7 @@ export function useNetWorth() {
   }, [])
 
   const isLoading = balancesLoading || transactionsLoading
+  const isError = balancesError || transactionsError
 
   const accounts = useMemo(() => balanceData?.accounts || {}, [balanceData?.accounts])
   const totalAssets = Object.values(accounts)
@@ -246,6 +249,7 @@ export function useNetWorth() {
 
   return {
     isLoading,
+    isError,
     accounts,
     totalAssets,
     totalLiabilities,

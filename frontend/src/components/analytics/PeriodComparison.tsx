@@ -123,7 +123,7 @@ export default function PeriodComparison() {
             <Zap className="w-6 h-6" style={{ color: rawColors.app.indigo }} />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-white">Quick Comparisons</h3>
+            <h3 className="text-lg font-semibold text-foreground">Quick Comparisons</h3>
             <p className="text-sm" style={{ color: rawColors.text.secondary }}>
               Compare {compareMode === 'months' ? 'monthly' : 'yearly'} performance
             </p>
@@ -148,7 +148,7 @@ export default function PeriodComparison() {
 
       {comparisonMetrics && comparisonMetrics.length > 0 ? (
         <div className="overflow-x-auto rounded-xl">
-          <table className="w-full">
+          <table className="w-full" aria-label="Period comparison metrics">
             <thead>
               <tr className="border-b border-border">
                 <th
@@ -185,16 +185,16 @@ export default function PeriodComparison() {
               {comparisonMetrics.map((metric) => (
                 <tr
                   key={metric.label}
-                  className="border-b border-border hover:bg-white/10 transition-colors"
+                  className="border-b border-border hover:bg-[var(--overlay-5)] transition-colors"
                 >
-                  <td className="py-3 px-4 text-sm font-medium text-white/90">{metric.label}</td>
+                  <td className="py-3 px-4 text-sm font-medium text-foreground/90">{metric.label}</td>
                   <td
-                    className="py-3 px-4 text-sm text-right font-semibold"
+                    className="py-3 px-4 text-sm text-right font-semibold tabular-nums"
                     style={{ color: rawColors.app.blue }}
                   >
                     {formatValue(metric.period1Value, metric.format)}
                   </td>
-                  <td className="py-3 px-4 text-sm text-right" style={{ color: rawColors.app.purple }}>
+                  <td className="py-3 px-4 text-sm text-right tabular-nums" style={{ color: rawColors.app.purple }}>
                     {formatValue(metric.period2Value, metric.format)}
                   </td>
                   <td className="py-3 px-4 text-sm text-right">

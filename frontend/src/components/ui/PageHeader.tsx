@@ -33,7 +33,7 @@ const PageHeader = memo(function PageHeader({ title, subtitle, action }: PageHea
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="sticky top-0 z-20 -mx-4 md:-mx-6 lg:-mx-8 px-[max(1rem,env(safe-area-inset-left))] md:px-[max(1.5rem,env(safe-area-inset-left))] lg:px-[max(2rem,env(safe-area-inset-left))] py-3 md:py-4 transition-all duration-150 ease-out backdrop-blur-md bg-black/80"
+      className="sticky top-0 z-20 -mx-4 md:-mx-6 lg:-mx-8 px-[max(1rem,env(safe-area-inset-left))] md:px-[max(1.5rem,env(safe-area-inset-left))] lg:px-[max(2rem,env(safe-area-inset-left))] py-3 md:py-4 transition-all duration-150 ease-out backdrop-blur-md bg-[var(--header-bg)]"
       style={{
         paddingTop: `calc(${basePadTop} + env(safe-area-inset-top, 0px))`,
         paddingBottom: basePadBottom,
@@ -47,7 +47,7 @@ const PageHeader = memo(function PageHeader({ title, subtitle, action }: PageHea
       <div className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:justify-between sm:text-left gap-3 sm:gap-4">
         <div className="min-w-0 px-12 sm:px-0">
           <h1
-            className="text-page-title text-white tracking-tight transition-all duration-150 ease-out"
+            className="text-page-title text-foreground tracking-tight break-words transition-all duration-150 ease-out"
             style={{ fontSize: scrolled ? '1.25rem' : undefined }}
           >
             {title}

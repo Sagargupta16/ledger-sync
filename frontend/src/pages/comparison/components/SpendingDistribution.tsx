@@ -63,7 +63,7 @@ export function SpendingDistribution({
     >
       <h2 className="text-lg font-semibold mb-1">Spending Distribution</h2>
       <p className="text-xs text-text-tertiary mb-2">
-        Category-by-category comparison &mdash; longer side = higher spend that period
+        Category-by-category comparison -- longer side = higher spend that period
       </p>
       <div className="flex items-center justify-center gap-6 mb-4">
         <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export function SpendingDistribution({
         </div>
       </div>
       <div style={{ height: Math.max(300, butterflyData.length * 32) }}>
-        <ChartContainer>
+        <ChartContainer ariaLabel={`Spending distribution butterfly chart -- ${periodA.label} bars extend left, ${periodB.label} bars extend right, one diverging row per category`}>
           <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ top: 8, right: 50, bottom: 8, left: 50 }}>
             <CartesianGrid {...GRID_DEFAULTS} horizontal={false} vertical={true} />
             <XAxis
@@ -84,7 +84,7 @@ export function SpendingDistribution({
               domain={[-maxVal, maxVal]}
               tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }}
               tickLine={false}
-              axisLine={{ stroke: 'rgba(255, 255, 255, 0.06)' }}
+              axisLine={{ stroke: rawColors.chart.axisLine }}
               tickFormatter={(v: number) => formatCurrencyShort(Math.abs(v))}
             />
             <YAxis
@@ -93,7 +93,7 @@ export function SpendingDistribution({
               width={110}
               tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: 'rgba(255, 255, 255, 0.06)' }}
+              axisLine={{ stroke: rawColors.chart.axisLine }}
             />
             <Tooltip
               {...chartTooltipProps}
@@ -119,7 +119,7 @@ export function SpendingDistribution({
               <LabelList
                 dataKey="periodA"
                 position="left"
-                fill="#a1a1aa"
+                fill={rawColors.chart.textMuted}
                 fontSize={10}
                 formatter={(v: unknown) => {
                   const n = Math.abs(v as number)
@@ -146,7 +146,7 @@ export function SpendingDistribution({
               <LabelList
                 dataKey="periodB"
                 position="right"
-                fill="#a1a1aa"
+                fill={rawColors.chart.textMuted}
                 fontSize={10}
                 formatter={(v: unknown) => {
                   const n = v as number

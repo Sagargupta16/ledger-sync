@@ -26,7 +26,7 @@ export default function MobileMonthlySummary({
             style={{ backgroundColor: heatmapColors[mode][level] }}
           >
             <div className="text-xs text-muted-foreground mb-1">{m}</div>
-            <div className="text-sm font-semibold text-white">
+            <div className="text-sm font-semibold text-foreground">
               {formatCurrencyCompact(Math.abs(val))}
             </div>
           </div>

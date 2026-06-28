@@ -184,28 +184,32 @@ export default function AnalyticsTimeFilter({
   const showNavigation = viewMode !== 'all_time'
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-4">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
       {/* Period Navigation — LEFT of the mode selector */}
       {showNavigation && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center sm:justify-start gap-2">
           <motion.button
             onClick={handlePrevious}
             disabled={!canGoPrev}
-            className="p-2.5 sm:p-2 text-text-tertiary hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
+            className="p-2.5 sm:p-2 text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] rounded-lg transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
             whileTap={canGoPrev ? { scale: 0.95 } : undefined}
             aria-label="Previous period"
           >
             <ChevronLeft className="w-4 h-4" />
           </motion.button>
 
-          <span className="text-white font-medium min-w-28 sm:min-w-36 text-center truncate">
+          <span
+            aria-live="polite"
+            aria-atomic="true"
+            className="text-foreground font-medium min-w-28 sm:min-w-36 text-center truncate"
+          >
             {periodLabel}
           </span>
 
           <motion.button
             onClick={handleNext}
             disabled={!canGoNext}
-            className="p-2.5 sm:p-2 text-text-tertiary hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
+            className="p-2.5 sm:p-2 text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] rounded-lg transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
             whileTap={canGoNext ? { scale: 0.95 } : undefined}
             aria-label="Next period"
           >
@@ -214,25 +218,26 @@ export default function AnalyticsTimeFilter({
         </div>
       )}
 
-      {/* View Mode Selector */}
-      <div className="flex items-center gap-1 p-1 bg-white/[0.04] rounded-lg" role="tablist" aria-label="Time range">
+      {/* View Mode Selector. Full-width on phone so the 4 tabs flex evenly and
+          never overflow under ~400px; auto-width inline pill from sm+. */}
+      <div className="flex items-center gap-1 p-1 bg-[var(--overlay-2)] rounded-lg w-full sm:w-auto" role="tablist" aria-label="Time range">
         {filteredViewModes.map((mode) => (
           <motion.button
             key={mode.value}
             role="tab"
             aria-selected={viewMode === mode.value}
             onClick={() => onViewModeChange(mode.value)}
-            className={`relative px-3 py-2.5 sm:py-1.5 rounded-md text-sm transition-colors duration-150 ease-out ${
+            className={`relative flex-1 sm:flex-none px-2 sm:px-3 py-2.5 sm:py-1.5 rounded-md text-sm transition-colors duration-150 ease-out ${
               viewMode === mode.value
-                ? 'text-white font-medium'
-                : 'text-muted-foreground hover:text-white hover:bg-white/[0.04]'
+                ? 'text-foreground font-medium'
+                : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-2)]'
             }`}
             whileTap={{ scale: 0.97 }}
           >
             {viewMode === mode.value && (
               <motion.div
                 layoutId="analyticsActiveTab"
-                className="absolute inset-0 bg-white/[0.10] rounded-md"
+                className="absolute inset-0 bg-[var(--overlay-5)] rounded-md"
                 initial={false}
                 transition={{ type: 'spring', stiffness: 500, damping: 35 }}
               />

@@ -83,13 +83,13 @@ export default function ChatWidget() {
         aria-expanded={isOpen}
         className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${
           isConfigured
-            ? 'bg-gradient-to-br from-primary to-secondary text-white hover:shadow-primary/25'
-            : 'bg-white/10 text-muted-foreground cursor-not-allowed'
+            ? 'bg-gradient-to-br from-primary to-secondary text-on-accent hover:shadow-primary/25'
+            : 'bg-[var(--overlay-5)] text-muted-foreground cursor-not-allowed'
         }`}
       >
         <Sparkles className="w-5 h-5" />
         {isConfigured && !isOpen && (
-          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-app-green rounded-full border-2 border-black" />
+          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-app-green rounded-full border-2 border-[var(--color-background)]" />
         )}
       </motion.button>
     </div>

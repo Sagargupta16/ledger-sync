@@ -62,7 +62,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
       mobilePrimary: true,
       cell: (row) => (
         <div>
-          <div className="font-semibold text-white">{row.label}</div>
+          <div className="font-semibold text-foreground">{row.label}</div>
           <div className="text-xs text-muted-foreground">{formatCurrency(row.value)}</div>
         </div>
       ),
@@ -170,7 +170,7 @@ export default function MilestonesTable({
       <div className="flex items-center gap-6 text-sm flex-wrap">
         <span className="text-muted-foreground">
           Current:{' '}
-          <span className="text-white font-semibold">{formatCurrency(currentNetWorth)}</span>
+          <span className="text-foreground font-semibold">{formatCurrency(currentNetWorth)}</span>
         </span>
         <span className="text-muted-foreground">
           Growth rate:{' '}
@@ -196,7 +196,7 @@ export default function MilestonesTable({
         </span>
         <span className="text-muted-foreground">
           Reached:{' '}
-          <span className="text-white font-semibold">
+          <span className="text-foreground font-semibold">
             {reachedCount} / {rows.length}
           </span>
         </span>

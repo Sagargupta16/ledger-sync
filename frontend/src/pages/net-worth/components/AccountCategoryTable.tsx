@@ -123,7 +123,7 @@ export function AccountCategoryTable({
               }}
               tabIndex={0}
               aria-sort={ariaSort(sortKey, 'balance', sortDir)}
-              className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
+              className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none"
             >
               Balance {sortKey === 'balance' && (sortDir === 'asc' ? '↑' : '↓')}
             </th>
@@ -183,7 +183,7 @@ export function AccountCategoryTable({
                     acc.elements.push(
                       <tr
                         key={`header-${currentCategory}`}
-                        className="bg-white/5 hover:bg-white/10 transition-colors"
+                        className="bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] transition-colors"
                       >
                         <td className="py-2 px-4 text-sm font-semibold text-primary">
                           <button
@@ -204,7 +204,7 @@ export function AccountCategoryTable({
                           </button>
                         </td>
                         <td
-                          className={`py-2 px-4 text-right text-sm font-medium ${headerBalanceColorClass}`}
+                          className={`py-2 px-4 text-right text-sm font-medium tabular-nums ${headerBalanceColorClass}`}
                         >
                           {formatCurrency(catBalance)}
                         </td>
@@ -225,12 +225,14 @@ export function AccountCategoryTable({
                     acc.elements.push(
                       <motion.tr
                         key={accountName}
-                        className="border-b border-border hover:bg-white/10 transition-colors"
+                        className="border-b border-border hover:bg-[var(--overlay-5)] transition-colors"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                       >
-                        <td className="py-3 pl-10 pr-4 text-white font-medium">{accountName}</td>
-                        <td className={`py-3 px-4 text-right font-bold ${balanceColorClass}`}>
+                        <td className="py-3 pl-10 pr-4 text-foreground font-medium">{accountName}</td>
+                        <td
+                          className={`py-3 px-4 text-right font-bold tabular-nums ${balanceColorClass}`}
+                        >
                           {formatCurrency(Math.abs(accountData.balance))}
                         </td>
                         <td className="py-3 px-4 text-right text-muted-foreground">

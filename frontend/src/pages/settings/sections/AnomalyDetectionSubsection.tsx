@@ -29,7 +29,7 @@ export default function AnomalyDetectionSubsection({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium text-white flex items-center gap-2">
+      <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
         <AlertTriangle className="w-4 h-4 text-primary" />
         Anomaly Detection
       </h3>
@@ -64,13 +64,13 @@ export default function AnomalyDetectionSubsection({
                     aria-pressed={isEnabled}
                     className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${
                       isEnabled
-                        ? 'bg-primary text-white'
-                        : 'bg-white/5 border border-border'
+                        ? 'bg-primary text-on-accent'
+                        : 'bg-[var(--overlay-2)] border border-border'
                     }`}
                   >
                     {isEnabled && <Check className="w-3 h-3" />}
                   </button>
-                  <span className="text-sm text-white">{type.label}</span>
+                  <span className="text-sm text-foreground">{type.label}</span>
                 </label>
               )
             })}

@@ -33,7 +33,7 @@ export default function HeatmapCell({ cell, mode, modeMax }: Readonly<Props>) {
       type="button"
       data-cell-date={cell.date}
       aria-label={label}
-      className="w-[13px] h-[13px] rounded-sm p-0 border-0 cursor-default transition-[outline-color] duration-150 hover:ring-1 hover:ring-white/50 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/70"
+      className="w-[13px] h-[13px] rounded-sm p-0 border-0 cursor-default transition-[outline-color] duration-150 hover:ring-1 hover:ring-[var(--hairline-5)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--hairline-5)]"
       style={{
         backgroundColor: bgColor,
         outline: cell.isToday ? `2px solid ${modeAccent[mode]}` : undefined,

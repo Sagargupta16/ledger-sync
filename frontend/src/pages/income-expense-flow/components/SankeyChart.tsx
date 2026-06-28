@@ -56,7 +56,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
             <ArrowRightLeft className="w-6 h-6 text-app-purple" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className="text-lg font-semibold text-foreground">
               <span className="sm:hidden">Cash Flow</span>
               <span className="hidden sm:inline">Cash Flow Sankey</span>
             </h3>

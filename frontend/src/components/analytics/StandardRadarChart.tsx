@@ -16,6 +16,7 @@ import {
 
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { shouldAnimate } from '@/components/ui/chartDefaults'
+import { rawColors } from '@/constants/colors'
 
 interface StandardRadarChartProps<T> {
   readonly data: readonly T[]
@@ -35,6 +36,8 @@ interface StandardRadarChartProps<T> {
   /** Dot radius on the radar line. Default 2. */
   readonly dotRadius?: number
   readonly fillOpacity?: number
+  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  readonly ariaLabel?: string
 }
 
 export default function StandardRadarChart<T>({
@@ -49,21 +52,22 @@ export default function StandardRadarChart<T>({
   showRadiusTicks = false,
   dotRadius = 2,
   fillOpacity = 0.15,
+  ariaLabel,
 }: StandardRadarChartProps<T>) {
   const animate = shouldAnimate(data.length)
 
   return (
-    <ChartContainer height={height}>
+    <ChartContainer height={height} ariaLabel={ariaLabel}>
       <RadarChart data={data as unknown as Array<Record<string, unknown>>}>
-        <PolarGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+        <PolarGrid stroke={rawColors.chart.axisLine} strokeDasharray="3 3" />
         <PolarAngleAxis
           dataKey={categoryKey}
-          tick={{ fill: '#71717a', fontSize: labelFontSize }}
+          tick={{ fill: rawColors.chart.textSubtle, fontSize: labelFontSize }}
         />
         <PolarRadiusAxis
           angle={30}
           domain={radiusDomain}
-          tick={showRadiusTicks ? { fill: '#52525b', fontSize: 9 } : false}
+          tick={showRadiusTicks ? { fill: rawColors.chart.textDim, fontSize: 9 } : false}
           axisLine={false}
         />
         <Radar

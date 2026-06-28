@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
-import { Wallet, CreditCard } from 'lucide-react'
+import { Wallet, CreditCard, Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 
@@ -81,6 +81,24 @@ export default function DashboardPage() {
 
   if (isLoading) return <PageSkeleton />
 
+  // First-run: no transactions at all. Show a single full-page prompt to upload
+  // instead of a grid of empty widgets.
+  if (!filteredTransactions?.length) {
+    return (
+      <PageContainer>
+        <PageHeader title="Dashboard" subtitle="Your financial overview at a glance" />
+        <EmptyState
+          icon={Upload}
+          title="No transactions yet"
+          description="Upload a bank statement to unlock your spending breakdowns, insights, and health score."
+          actionLabel="Upload Data"
+          actionHref={ROUTES.UPLOAD}
+          variant="card"
+        />
+      </PageContainer>
+    )
+  }
+
   return (
     <PageContainer>
       <PageHeader
@@ -127,6 +145,7 @@ export default function DashboardPage() {
                 data={incomeChartData}
                 height={180}
                 showLegend={false}
+                ariaLabel="Income sources pie chart"
                 centerValue={formatCurrencyShort(incomeTotal)}
                 centerLabel="Total"
                 onSliceClick={(name) =>
@@ -139,11 +158,11 @@ export default function DashboardPage() {
                     key={item.name}
                     type="button"
                     onClick={() => navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(item.name)}`)}
-                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-white/[0.04] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-green/40"
+                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-[var(--overlay-2)] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-green/40"
                   >
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="w-3 h-3 rounded-full shrink-0" style={incomeColorStyles[i]} />
-                      <span className="text-sm truncate">{item.name}</span>
+                      <span className="text-sm truncate" title={item.name}>{item.name}</span>
                     </span>
                     <span className="text-sm font-medium shrink-0">{formatCurrency(item.value)}</span>
                   </button>
@@ -184,6 +203,7 @@ export default function DashboardPage() {
                 data={expenseChartData}
                 height={180}
                 showLegend={false}
+                ariaLabel="Expense sources pie chart"
                 centerValue={formatCurrencyShort(expenseTotal)}
                 centerLabel="Total"
                 onSliceClick={(name) =>
@@ -196,11 +216,11 @@ export default function DashboardPage() {
                     key={item.name}
                     type="button"
                     onClick={() => navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(item.name)}`)}
-                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-white/[0.04] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-red/40"
+                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-[var(--overlay-2)] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-red/40"
                   >
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="w-3 h-3 rounded-full shrink-0" style={expenseColorStyles[i]} />
-                      <span className="text-sm truncate">{item.name}</span>
+                      <span className="text-sm truncate" title={item.name}>{item.name}</span>
                     </span>
                     <span className="text-sm font-medium shrink-0">{formatCurrency(item.value)}</span>
                   </button>

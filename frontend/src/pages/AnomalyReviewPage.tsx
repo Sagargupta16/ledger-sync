@@ -1,18 +1,22 @@
 import { useState, useMemo } from 'react'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Info, Check, X, ChevronDown, ChevronUp, Settings2 } from 'lucide-react'
+import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Info, Check, X, ChevronDown, ChevronUp, Settings2, Save, SlidersHorizontal } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { PageHeader, StatCard, Spinner } from '@/components/ui'
+import { PageHeader, StatCard, CollapsibleSection } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { useAnomalies, useReviewAnomaly } from '@/hooks/api/useAnalyticsV2'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
+import { usePreferences, useUpdateAnomalySettings } from '@/hooks/api/usePreferences'
+import type { LocalPrefs, LocalPrefKey } from '@/pages/settings/types'
+import AnomalyDetectionSubsection from '@/pages/settings/sections/AnomalyDetectionSubsection'
 import { formatCurrency, formatPercent, formatDate } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import ProgressBar from '@/components/shared/ProgressBar'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 
@@ -44,6 +48,78 @@ const SEVERITY_STYLES: Record<Anomaly['severity'], { bg: string; text: string; b
 }
 
 const DETECTED_AT_OPTS: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
+
+/**
+ * Contextual Anomaly Detection panel. Reuses the Settings
+ * `AnomalyDetectionSubsection` as-is and saves the same fields via the
+ * dedicated anomaly-settings preferences endpoint. The Settings page keeps its
+ * own copy.
+ */
+function AnomalyDetectionPanel() {
+  const { data: preferences } = usePreferences()
+  const updateAnomalySettings = useUpdateAnomalySettings()
+  const { guardDemoAction } = useDemoGuard()
+
+  const [edits, setEdits] = useState<
+    Partial<
+      Pick<
+        LocalPrefs,
+        'anomaly_expense_threshold' | 'anomaly_types_enabled' | 'auto_dismiss_recurring_anomalies'
+      >
+    >
+  >({})
+  const [hasChanges, setHasChanges] = useState(false)
+
+  const localPrefs = useMemo<LocalPrefs | null>(
+    () => (preferences ? ({ ...preferences, ...edits } as unknown as LocalPrefs) : null),
+    [preferences, edits],
+  )
+
+  const updateLocalPref = <K extends LocalPrefKey>(key: K, value: LocalPrefs[K]) => {
+    setEdits((prev) => ({ ...prev, [key]: value }))
+    setHasChanges(true)
+  }
+
+  const handleSave = async () => {
+    if (!localPrefs || guardDemoAction('Saving anomaly settings')) return
+    try {
+      await updateAnomalySettings.mutateAsync({
+        anomaly_expense_threshold: localPrefs.anomaly_expense_threshold,
+        anomaly_types_enabled: localPrefs.anomaly_types_enabled,
+        auto_dismiss_recurring_anomalies: localPrefs.auto_dismiss_recurring_anomalies,
+      })
+      setHasChanges(false)
+      setEdits({})
+      toast.success('Anomaly settings saved')
+    } catch {
+      toast.error('Failed to save anomaly settings')
+    }
+  }
+
+  if (!localPrefs) return null
+
+  return (
+    <CollapsibleSection title="Anomaly Detection" icon={SlidersHorizontal} defaultExpanded={false}>
+      <AnomalyDetectionSubsection localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
+      <div className="flex items-center justify-end gap-3 pt-4">
+        {hasChanges && (
+          <span className="text-sm text-app-yellow flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-app-yellow animate-pulse" /> Unsaved
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!hasChanges || updateAnomalySettings.isPending}
+          className="flex items-center gap-2 px-4 py-2.5 sm:py-2 min-h-11 rounded-lg bg-gradient-to-r from-primary to-secondary text-on-accent text-sm font-medium transition-all hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Save className="w-4 h-4" />
+          {updateAnomalySettings.isPending ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </CollapsibleSection>
+  )
+}
 
 export default function AnomalyReviewPage() {
   const [typeFilter, setTypeFilter] = useState<string>('')
@@ -100,12 +176,12 @@ export default function AnomalyReviewPage() {
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
       <PageHeader
-        title="Anomaly Review Board"
+        title="Anomaly Review"
         subtitle="Review and manage detected financial anomalies"
         action={
           <Link
             to={ROUTES.SETTINGS}
-            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-white/[0.02] hover:bg-white/[0.05] text-muted-foreground hover:text-white transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-[var(--overlay-1)] hover:bg-[var(--overlay-2)] text-muted-foreground hover:text-foreground transition-colors"
             title="Tune sensitivity, threshold, and which anomaly types are active"
           >
             <Settings2 className="w-3.5 h-3.5" />
@@ -113,6 +189,8 @@ export default function AnomalyReviewPage() {
           </Link>
         }
       />
+
+      <AnomalyDetectionPanel />
 
       {/* Summary Cards */}
       <motion.div
@@ -201,11 +279,7 @@ export default function AnomalyReviewPage() {
       </motion.div>
 
       {/* Anomaly List */}
-      {isLoading && (
-        <div className="h-64 flex items-center justify-center">
-          <Spinner size="lg" label="Loading anomalies" />
-        </div>
-      )}
+      {isLoading && <PageSkeleton />}
       {!isLoading && anomalies.length === 0 && (
         <EmptyState
           icon={AlertTriangle}
@@ -236,7 +310,7 @@ export default function AnomalyReviewPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-white">
+                        <span className="text-sm font-medium text-foreground">
                           {ANOMALY_TYPE_LABELS[anomaly.anomaly_type]}
                         </span>
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border ${severity.bg} ${severity.text} ${severity.border}`}>
@@ -298,7 +372,7 @@ export default function AnomalyReviewPage() {
                           target={Math.abs(anomaly.expected_value)}
                           ariaLabel={`Actual ${formatCurrency(anomaly.actual_value)}`}
                         />
-                        <span className="text-xs text-white font-medium tabular-nums text-right">
+                        <span className="text-xs text-foreground font-medium tabular-nums text-right">
                           {formatCurrency(anomaly.actual_value)}
                         </span>
                       </div>
@@ -336,7 +410,7 @@ export default function AnomalyReviewPage() {
                           setExpandedNoteId(isExpanded ? null : anomaly.id)
                           setNoteText('')
                         }}
-                        className="flex items-center gap-1 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-white/5 text-muted-foreground border border-border hover:bg-white/10 transition-colors"
+                        className="flex items-center gap-1 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-[var(--overlay-2)] text-muted-foreground border border-border hover:bg-[var(--overlay-5)] transition-colors"
                       >
                         {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         Add Note
@@ -355,6 +429,7 @@ export default function AnomalyReviewPage() {
                             value={noteText}
                             onChange={(e) => setNoteText(e.target.value)}
                             placeholder="Add review notes..."
+                            aria-label="Add review notes"
                             className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-purple/50"
                           />
                         </motion.div>

@@ -56,7 +56,7 @@ export default function ComparisonPage() {
     <PageContainer>
       {/* Header */}
       <PageHeader
-        title="Period Comparison"
+        title="Comparison"
         subtitle="Compare financial metrics across time periods"
         action={
           <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">
@@ -67,7 +67,7 @@ export default function ComparisonPage() {
                 aria-selected={mode === val}
                 onClick={() => setMode(val)}
                 className={`relative px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-lg text-sm font-medium transition-colors ${
-                  mode === val ? 'text-white' : 'text-muted-foreground hover:text-white hover:bg-white/10'
+                  mode === val ? 'text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
                 }`}
                 whileTap={{ scale: 0.97 }}
               >
@@ -182,7 +182,7 @@ export default function ComparisonPage() {
           </div>
           <div className="space-y-2">
             {insights.map((insight, i) => (
-              <motion.div key={insight} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.05 }} className="flex items-start gap-3 p-3 rounded-xl bg-white/5">
+              <motion.div key={insight} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.05 }} className="flex items-start gap-3 p-3 rounded-xl bg-[var(--overlay-2)]">
                 <div className="w-1.5 h-1.5 rounded-full bg-app-orange mt-1.5 shrink-0" />
                 <p className="text-sm text-foreground">{insight}</p>
               </motion.div>

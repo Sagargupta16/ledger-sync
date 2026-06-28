@@ -23,7 +23,7 @@ export const Card = memo(function Card({
 }: CardProps) {
   const variantClasses = {
     default: 'glass rounded-2xl border border-border p-6',
-    interactive: 'glass rounded-2xl border border-border p-6 transition-all duration-150 ease-out hover:border-white/[0.10]'
+    interactive: 'glass rounded-2xl border border-border p-6 transition-all duration-150 ease-out hover:border-[var(--hairline-3)]'
   }
 
   if (animate) {
@@ -70,7 +70,7 @@ export const CardHeader = memo(function CardHeader({
           </div>
         )}
         <div>
-          <h3 className="text-sm font-medium text-white">{title}</h3>
+          <h3 className="text-sm font-medium text-foreground">{title}</h3>
           {subtitle && (
             <p className="text-xs text-text-tertiary">{subtitle}</p>
           )}
@@ -122,7 +122,7 @@ export const StatCard = memo(function StatCard({
         )}
         <div className="flex-1">
           <p className="text-xs text-text-tertiary">{title}</p>
-          <p className="text-lg sm:text-xl font-semibold text-white">{value}</p>
+          <p className="text-lg sm:text-xl font-semibold text-foreground">{value}</p>
           {subtitle && (
             <p className="text-[11px] text-text-quaternary mt-1">{subtitle}</p>
           )}

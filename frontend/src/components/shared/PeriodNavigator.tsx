@@ -31,7 +31,7 @@ export const PeriodNavigator = memo(function PeriodNavigator({
   return (
     <div className={cn('flex flex-wrap items-center gap-4', className)}>
       {/* View Mode Toggle */}
-      <div className="flex bg-white/[0.04] rounded-lg p-1" role="tablist" aria-label="Period view mode">
+      <div className="flex bg-[var(--overlay-2)] rounded-lg p-1" role="tablist" aria-label="Period view mode">
         <button
           type="button"
           role="tab"
@@ -40,8 +40,8 @@ export const PeriodNavigator = memo(function PeriodNavigator({
           className={cn(
             'px-3 py-1.5 text-sm rounded-md transition-colors duration-150 ease-out',
             viewMode === 'monthly'
-              ? 'bg-white/[0.10] text-white font-medium'
-              : 'text-muted-foreground hover:text-white'
+              ? 'bg-[var(--overlay-5)] text-foreground font-medium'
+              : 'text-muted-foreground hover:text-foreground'
           )}
         >
           Monthly
@@ -54,8 +54,8 @@ export const PeriodNavigator = memo(function PeriodNavigator({
           className={cn(
             'px-3 py-1.5 text-sm rounded-md transition-colors duration-150 ease-out',
             viewMode === 'yearly'
-              ? 'bg-white/[0.10] text-white font-medium'
-              : 'text-muted-foreground hover:text-white'
+              ? 'bg-[var(--overlay-5)] text-foreground font-medium'
+              : 'text-muted-foreground hover:text-foreground'
           )}
         >
           Yearly
@@ -69,8 +69,8 @@ export const PeriodNavigator = memo(function PeriodNavigator({
             className={cn(
               'px-3 py-1.5 text-sm rounded-md transition-colors duration-150 ease-out',
               viewMode === 'all_time'
-                ? 'bg-white/[0.10] text-white font-medium'
-                : 'text-muted-foreground hover:text-white'
+                ? 'bg-[var(--overlay-5)] text-foreground font-medium'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             All Time
@@ -84,19 +84,19 @@ export const PeriodNavigator = memo(function PeriodNavigator({
           <button
             type="button"
             onClick={onPrevious}
-            className="p-2 text-text-tertiary hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out"
+            className="p-2 text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] rounded-lg transition-colors duration-150 ease-out"
             aria-label="Previous period"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] rounded-lg min-w-[140px] justify-center">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--overlay-2)] rounded-lg min-w-[140px] justify-center">
             <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium text-white">{periodLabel}</span>
+            <span className="font-medium text-foreground">{periodLabel}</span>
           </div>
           <button
             type="button"
             onClick={onNext}
-            className="p-2 text-text-tertiary hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors duration-150 ease-out"
+            className="p-2 text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] rounded-lg transition-colors duration-150 ease-out"
             aria-label="Next period"
           >
             <ChevronRight className="w-5 h-5" />

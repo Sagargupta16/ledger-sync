@@ -38,7 +38,7 @@ export function OverviewMetricRow({
     <div className="space-y-2">
       {/* Header: metric label + change badge */}
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-white">{label}</span>
+        <span className="text-sm font-medium text-foreground">{label}</span>
         <div className={`flex items-center gap-1 text-xs font-medium ${isGood ? 'text-app-green' : 'text-app-red'}`}>
           <ChangeIcon change={change} size="w-3 h-3" />
           <span>{change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}</span>
@@ -59,7 +59,7 @@ export function OverviewMetricRow({
               ariaLabel={`${label} ${labelA}: ${fmtVal(valueA)}`}
             />
           </div>
-          <span className="text-caption font-medium text-text-secondary tabular-nums w-24 truncate text-right">{fmtVal(valueA)}</span>
+          <span className="text-caption font-medium text-text-secondary tabular-nums w-24 truncate text-right" title={fmtVal(valueA)}>{fmtVal(valueA)}</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-caption text-text-tertiary w-20 truncate" title={labelB}>{labelB}</span>
@@ -72,7 +72,7 @@ export function OverviewMetricRow({
               ariaLabel={`${label} ${labelB}: ${fmtVal(valueB)}`}
             />
           </div>
-          <span className="text-xs font-semibold text-white tabular-nums w-24 truncate text-right">{fmtVal(valueB)}</span>
+          <span className="text-xs font-semibold text-foreground tabular-nums w-24 truncate text-right" title={fmtVal(valueB)}>{fmtVal(valueB)}</span>
         </div>
       </div>
     </div>

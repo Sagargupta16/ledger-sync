@@ -6,7 +6,8 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import MetricCard from '@/components/shared/MetricCard'
 import Sparkline from '@/components/shared/Sparkline'
 import { rawColors } from '@/constants/colors'
-import { PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader } from '@/components/ui'
+import ErrorState from '@/components/shared/ErrorState'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import MilestonesTable from './components/MilestonesTable'
@@ -21,9 +22,20 @@ export default function NetWorthPage() {
   // computed in the hook; clamps the assets-zero edge so we never divide by 0.
   const leveragePct = m.totalAssets > 0 ? (m.totalLiabilities / m.totalAssets) * 100 : 0
 
+  if (m.isError && !m.isLoading) {
+    return (
+      <PageContainer className="space-y-6">
+        <PageHeader title="Net Worth" subtitle="Track your total assets and liabilities" />
+        <ErrorState
+          variant="card"
+          message="We couldn't load your net worth data. Please try again."
+        />
+      </PageContainer>
+    )
+  }
+
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <PageContainer className="space-y-6">
         <PageHeader
           title="Net Worth"
           subtitle="Track your total assets and liabilities"
@@ -104,7 +116,7 @@ export default function NetWorthPage() {
         >
           <div className="flex items-center gap-3 mb-4">
             <Target className="w-5 h-5 text-app-blue" />
-            <h3 className="text-lg font-semibold text-white">Net Worth Milestones</h3>
+            <h3 className="text-lg font-semibold text-foreground">Net Worth Milestones</h3>
           </div>
           <MilestonesTable
             rows={m.milestoneRows}
@@ -120,7 +132,7 @@ export default function NetWorthPage() {
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="glass rounded-2xl border border-border p-4 md:p-6"
         >
-          <h3 className="text-lg font-semibold text-white mb-4">Assets (Positive Balances)</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Assets (Positive Balances)</h3>
           <AccountCategoryTable
             accounts={m.accounts}
             filterFn={(b) => b > 0}
@@ -145,7 +157,7 @@ export default function NetWorthPage() {
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="glass rounded-2xl border border-border p-4 md:p-6"
         >
-          <h3 className="text-lg font-semibold text-white mb-4">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Liabilities (Negative Balances)
           </h3>
           <AccountCategoryTable
@@ -166,7 +178,6 @@ export default function NetWorthPage() {
         </motion.div>
 
         <CreditCardHealth />
-      </div>
-    </div>
+    </PageContainer>
   )
 }

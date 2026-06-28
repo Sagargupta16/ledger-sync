@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Landmark,
   Receipt,
+  Compass,
   LogOut,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -44,7 +45,17 @@ interface MoreSection {
 // have a mental model don't have to relearn it. Colors are finance-semantic
 // (income=green, expense=red, investment=blue, savings=purple, etc.) so the
 // grid is scannable at a glance.
+// Grouping mirrors the desktop sidebar exactly so the mental model is shared
+// across viewports: Overview standalone, then Analytics, Wealth (Net Worth +
+// Investments merged), Commitments, Planning, Tax, and a Data section that now
+// includes Transactions (was missing on mobile -- desktop/mobile parity fix).
 const SECTIONS: readonly MoreSection[] = [
+  {
+    title: 'Overview',
+    items: [
+      { to: ROUTES.OVERVIEW, label: 'Overview', icon: Compass, color: 'text-app-blue' },
+    ],
+  },
   {
     title: 'Analytics',
     items: [
@@ -55,22 +66,17 @@ const SECTIONS: readonly MoreSection[] = [
     ],
   },
   {
-    title: 'Net Worth',
+    title: 'Wealth',
     items: [
       { to: ROUTES.NET_WORTH, label: 'Net Worth', icon: Wallet, color: 'text-app-indigo' },
       { to: ROUTES.TRENDS_FORECASTS, label: 'Forecasts', icon: LineChart, color: 'text-app-teal' },
-    ],
-  },
-  {
-    title: 'Investments',
-    items: [
-      { to: ROUTES.INVESTMENT_ANALYTICS, label: 'Analytics', icon: TrendingUp, color: 'text-app-blue' },
+      { to: ROUTES.INVESTMENT_ANALYTICS, label: 'Investments', icon: TrendingUp, color: 'text-app-blue' },
       { to: ROUTES.MUTUAL_FUND_PROJECTION, label: 'Projections', icon: Target, color: 'text-app-purple' },
       { to: ROUTES.RETURNS_ANALYSIS, label: 'Returns', icon: Coins, color: 'text-app-yellow' },
     ],
   },
   {
-    title: 'Tracking',
+    title: 'Commitments',
     items: [
       { to: ROUTES.SUBSCRIPTIONS, label: 'Recurring', icon: CreditCard, color: 'text-app-teal' },
       { to: ROUTES.BILL_CALENDAR, label: 'Bill Calendar', icon: CalendarDays, color: 'text-app-orange' },
@@ -95,6 +101,7 @@ const SECTIONS: readonly MoreSection[] = [
   {
     title: 'Data',
     items: [
+      { to: ROUTES.TRANSACTIONS, label: 'Transactions', icon: Receipt, color: 'text-app-blue' },
       { to: ROUTES.UPLOAD, label: 'Upload', icon: Upload, color: 'text-app-blue' },
       { to: ROUTES.SETTINGS, label: 'Settings', icon: Settings2, color: 'text-text-secondary' },
     ],
@@ -107,7 +114,7 @@ function MoreTile({ item }: Readonly<{ item: MoreItem }>) {
       to={item.to}
       className="flex flex-col items-center justify-center gap-2 p-3 rounded-2xl glass border border-border active:scale-95 transition-transform"
     >
-      <div className="w-11 h-11 rounded-xl bg-white/[0.04] flex items-center justify-center">
+      <div className="w-11 h-11 rounded-xl bg-[var(--overlay-2)] flex items-center justify-center">
         <item.icon className={`w-5 h-5 ${item.color}`} />
       </div>
       <span className="text-xs text-center text-foreground leading-tight">
@@ -126,7 +133,7 @@ export default function MorePage() {
   }
 
   return (
-    <div className="min-h-full p-4">
+    <div className="min-h-dvh p-4">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader title="More" subtitle="Everything else" />
 
@@ -138,10 +145,10 @@ export default function MorePage() {
             transition={{ delay: sIdx * 0.03 }}
             className="space-y-2"
           >
-            <h2 className="text-[11px] uppercase tracking-wider text-text-tertiary font-semibold px-1">
+            <h2 className="text-overline uppercase tracking-wider text-text-tertiary font-semibold px-1">
               {section.title}
             </h2>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
               {section.items.map((item) => (
                 <MoreTile key={item.to} item={item} />
               ))}

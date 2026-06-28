@@ -61,14 +61,14 @@ export default function UpdateProgressForm({
         <div className="flex gap-2 pt-4">
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white transition-colors hover:opacity-90"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground transition-colors hover:opacity-90"
             style={{ background: `linear-gradient(135deg, ${rawColors.app.green}, ${rawColors.app.teal})` }}
           >
             <Save className="w-3.5 h-3.5" /> Save
           </button>
           <button
             onClick={onCancel}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-muted-foreground bg-white/5 border border-border hover:bg-white/10 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-muted-foreground bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-5)] transition-colors"
           >
             <X className="w-3.5 h-3.5" /> Cancel
           </button>

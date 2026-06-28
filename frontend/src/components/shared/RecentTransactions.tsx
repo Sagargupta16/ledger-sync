@@ -22,7 +22,7 @@ const TransactionRow = memo(function TransactionRow({
   return (
     <motion.div
       variants={fadeUpItem}
-      className="flex items-center justify-between p-4 rounded-lg hover:bg-white/[0.04] transition-colors duration-150 group"
+      className="flex items-center justify-between p-4 rounded-lg hover:bg-[var(--overlay-2)] transition-colors duration-150 group"
     >
       <div className="flex items-center gap-4 flex-1">
         {/* Icon */}

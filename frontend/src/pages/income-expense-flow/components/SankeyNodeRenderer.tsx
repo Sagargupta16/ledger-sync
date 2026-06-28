@@ -74,7 +74,7 @@ export const SankeyNodeRenderer = ({
         y={y + height / 2 - fontSize * 0.25}
         textAnchor={anchor}
         dominantBaseline="middle"
-        fill="#ffffff"
+        fill={rawColors.chart.textPrimary}
         fontSize={fontSize}
         fontWeight="600"
       >

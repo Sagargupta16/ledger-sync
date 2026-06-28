@@ -25,7 +25,7 @@ function buildColumns(maxAllocation: number): DataTableColumn<PortfolioRow>[] {
       sortable: true,
       sortType: 'text',
       mobilePrimary: true,
-      cell: (row) => <span className="text-white font-medium">{row.name}</span>,
+      cell: (row) => <span className="text-foreground font-medium">{row.name}</span>,
     },
     {
       key: 'value',
@@ -81,7 +81,7 @@ export function AccountsTable({
       transition={{ delay: 0.6 }}
       className="glass rounded-2xl border border-border p-4 md:p-6"
     >
-      <h3 className="text-lg font-semibold text-white mb-4">Investment Accounts</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-4">Investment Accounts</h3>
       <DataTable<PortfolioRow>
         columns={columns}
         rows={portfolioData}

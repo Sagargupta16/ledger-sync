@@ -14,7 +14,7 @@ export function WhatIsSection() {
           className="grid md:grid-cols-2 gap-12 items-center"
         >
           <div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-6">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-6">
               What is Ledger Sync?
             </h2>
             <p className="text-muted-foreground mb-6 leading-relaxed">
@@ -31,7 +31,7 @@ export function WhatIsSection() {
                   <FileSpreadsheet className="w-5 h-5" style={{ color: rawColors.app.blue }} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white mb-1">Excel Import</h3>
+                  <h3 className="font-semibold text-foreground mb-1">Excel Import</h3>
                   <p className="text-sm text-muted-foreground">
                     Upload your Money Manager Pro exports. Smart duplicate detection ensures no
                     double entries.
@@ -46,7 +46,7 @@ export function WhatIsSection() {
                   <Calculator className="w-5 h-5" style={{ color: rawColors.app.green }} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white mb-1">Smart Analytics</h3>
+                  <h3 className="font-semibold text-foreground mb-1">Smart Analytics</h3>
                   <p className="text-sm text-muted-foreground">
                     50/30/20 budget analysis, spending trends, income patterns, and investment
                     returns.
@@ -61,7 +61,7 @@ export function WhatIsSection() {
                   <Wallet className="w-5 h-5" style={{ color: rawColors.app.orange }} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white mb-1">India-Focused</h3>
+                  <h3 className="font-semibold text-foreground mb-1">India-Focused</h3>
                   <p className="text-sm text-muted-foreground">
                     Fiscal year (April-March) support, INR formatting, and India-specific tax
                     planning tools.
@@ -77,7 +77,7 @@ export function WhatIsSection() {
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <div className="text-sm text-muted-foreground">Net Worth</div>
-                    <div className="text-2xl sm:text-3xl font-bold text-white">₹24,85,000</div>
+                    <div className="text-2xl sm:text-3xl font-bold text-foreground">₹24,85,000</div>
                   </div>
                   <div
                     className="px-3 py-1 rounded-full text-sm"
@@ -90,21 +90,21 @@ export function WhatIsSection() {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-[var(--overlay-2)] rounded-xl p-4">
                     <div className="text-xs text-muted-foreground">Income</div>
-                    <div className="text-lg font-semibold text-white">₹1,25,000</div>
+                    <div className="text-lg font-semibold text-foreground">₹1,25,000</div>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-[var(--overlay-2)] rounded-xl p-4">
                     <div className="text-xs text-muted-foreground">Expenses</div>
-                    <div className="text-lg font-semibold text-white">₹68,500</div>
+                    <div className="text-lg font-semibold text-foreground">₹68,500</div>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-[var(--overlay-2)] rounded-xl p-4">
                     <div className="text-xs text-muted-foreground">Savings</div>
-                    <div className="text-lg font-semibold text-white">₹56,500</div>
+                    <div className="text-lg font-semibold text-foreground">₹56,500</div>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-[var(--overlay-2)] rounded-xl p-4">
                     <div className="text-xs text-muted-foreground">Investments</div>
-                    <div className="text-lg font-semibold text-white">₹12,40,000</div>
+                    <div className="text-lg font-semibold text-foreground">₹12,40,000</div>
                   </div>
                 </div>
               </div>

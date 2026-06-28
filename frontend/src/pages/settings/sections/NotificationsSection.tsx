@@ -31,7 +31,7 @@ export default function NotificationsSection({
           <div className="flex items-start gap-3">
             <Receipt className="w-5 h-5 text-primary mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-white">Budget Alerts</p>
+              <p className="text-sm font-medium text-foreground">Budget Alerts</p>
               <p className="text-xs text-muted-foreground">
                 Notify when spending approaches budget thresholds
               </p>
@@ -48,7 +48,7 @@ export default function NotificationsSection({
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-primary mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-white">Anomaly Alerts</p>
+              <p className="text-sm font-medium text-foreground">Anomaly Alerts</p>
               <p className="text-xs text-muted-foreground">
                 Notify when unusual spending patterns are detected
               </p>
@@ -65,7 +65,7 @@ export default function NotificationsSection({
           <div className="flex items-start gap-3">
             <Clock className="w-5 h-5 text-primary mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-white">Upcoming Bills</p>
+              <p className="text-sm font-medium text-foreground">Upcoming Bills</p>
               <p className="text-xs text-muted-foreground">
                 Notify before recurring bills are due
               </p>
@@ -84,7 +84,7 @@ export default function NotificationsSection({
             id="notify-days"
             value={localPrefs.notify_days_ahead ?? 7}
             onChange={(e) => updateLocalPref('notify_days_ahead', Number(e.target.value))}
-            className="px-3 py-1.5 bg-white/5 border border-border rounded-lg text-white text-sm focus:border-primary focus:outline-none"
+            className="px-3 py-1.5 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm focus:border-primary focus:outline-none"
           >
             {DAYS_AHEAD_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value} className="bg-background">

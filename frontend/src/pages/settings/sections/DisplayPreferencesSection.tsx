@@ -5,8 +5,10 @@
  * from the CURRENCIES metadata map.
  */
 
-import { Settings2, Palette } from 'lucide-react'
+import { Settings2, Sun, Moon, Monitor, type LucideIcon } from 'lucide-react'
 import { CURRENCIES, getCurrencyMeta } from '@/constants/currencies'
+import { useThemeStore } from '@/store/themeStore'
+import type { ThemeMode } from '@/lib/theme'
 import { TIME_RANGE_OPTIONS } from '../types'
 import type { LocalPrefs, LocalPrefKey } from '../types'
 import { Section, FieldLabel, FieldHint } from '../sectionPrimitives'
@@ -15,20 +17,24 @@ import { selectClass } from '../styles'
 interface Props {
   index: number
   localPrefs: LocalPrefs
-  theme: 'dark' | 'system'
-  setTheme: (t: 'dark' | 'system') => void
   updateLocalPref: <K extends LocalPrefKey>(key: K, value: LocalPrefs[K]) => void
 }
 
 const currencyList = Object.values(CURRENCIES)
 
+const THEME_OPTIONS: { value: ThemeMode; label: string; Icon: LucideIcon }[] = [
+  { value: 'light', label: 'Light', Icon: Sun },
+  { value: 'dark', label: 'Dark', Icon: Moon },
+  { value: 'system', label: 'System', Icon: Monitor },
+]
+
 export default function DisplayPreferencesSection({
   index,
   localPrefs,
-  theme,
-  setTheme,
   updateLocalPref,
 }: Readonly<Props>) {
+  const themeMode = useThemeStore((s) => s.mode)
+  const setThemeMode = useThemeStore((s) => s.setMode)
   const handleCurrencyChange = (code: string) => {
     const meta = getCurrencyMeta(code)
     updateLocalPref('display_currency', code)
@@ -70,7 +76,7 @@ export default function DisplayPreferencesSection({
         {/* Derived preferences (read-only) */}
         <div>
           <FieldLabel>Format (auto)</FieldLabel>
-          <div className="px-3 py-2 bg-white/[0.04] border border-border/50 rounded-lg text-sm text-muted-foreground">
+          <div className="px-3 py-2 bg-[var(--overlay-2)] border border-border/50 rounded-lg text-sm text-muted-foreground">
             {selectedMeta.numberFormat === 'indian' ? 'Indian (1,00,000)' : 'International (100,000)'}
             {' '}&middot;{' '}
             Symbol: {selectedMeta.symbol} ({selectedMeta.symbolPosition})
@@ -111,9 +117,9 @@ export default function DisplayPreferencesSection({
                 checked={localPrefs.use_earning_start_date}
                 disabled={!localPrefs.earning_start_date}
                 onChange={(e) => updateLocalPref('use_earning_start_date', e.target.checked)}
-                className="w-4 h-4 rounded bg-white/5 border-border text-primary focus:ring-primary disabled:opacity-40"
+                className="w-4 h-4 rounded bg-[var(--overlay-2)] border-border text-primary focus:ring-primary disabled:opacity-40"
               />
-              <span className="text-sm text-white">Use as analytics start</span>
+              <span className="text-sm text-foreground">Use as analytics start</span>
             </label>
           </div>
           {localPrefs.use_earning_start_date && localPrefs.earning_start_date && (
@@ -127,46 +133,33 @@ export default function DisplayPreferencesSection({
           )}
         </div>
 
-        {/* Appearance */}
+        {/* Appearance -- applied immediately (not part of the staged Save). */}
         <div className="lg:col-span-3">
           <FieldLabel>Appearance</FieldLabel>
-          <div className="flex gap-2">
-            {(['dark', 'system'] as const).map((t) => (
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Theme">
+            {THEME_OPTIONS.map(({ value, label, Icon }) => (
               <label
-                key={t}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors border text-sm ${
-                  theme === t
-                    ? 'bg-primary/15 border-primary text-white font-medium'
-                    : 'bg-white/5 border-border text-muted-foreground hover:text-white'
+                key={value}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg cursor-pointer transition-colors border text-sm ${
+                  themeMode === value
+                    ? 'bg-primary/15 border-primary text-foreground font-medium'
+                    : 'bg-surface-hover border-border text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <input
                   type="radio"
                   name="theme"
-                  value={t}
-                  checked={theme === t}
-                  onChange={() => {
-                    setTheme(t)
-                    try {
-                      localStorage.setItem('ledger-sync-theme', t)
-                    } catch {
-                      // localStorage may be unavailable (private browsing, quota)
-                    }
-                  }}
+                  value={value}
+                  checked={themeMode === value}
+                  onChange={() => setThemeMode(value)}
                   className="sr-only"
                 />
-                <Palette className="w-4 h-4" />
-                {t === 'system' ? 'System (Auto)' : 'Dark'}
+                <Icon className="w-4 h-4" />
+                {label}
               </label>
             ))}
           </div>
-          {theme === 'system' && (
-            <FieldHint>
-              <span className="text-app-yellow">
-                Light theme coming soon. Currently defaults to dark.
-              </span>
-            </FieldHint>
-          )}
+          <FieldHint>System follows your device's light/dark setting.</FieldHint>
         </div>
       </div>
     </Section>

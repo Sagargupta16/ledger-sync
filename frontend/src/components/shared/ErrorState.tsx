@@ -84,7 +84,7 @@ export default function ErrorState({
 
       {/* Title */}
       <h3
-        className={`font-medium text-white mb-1 ${
+        className={`font-medium text-foreground mb-1 ${
           isCompact ? 'text-sm' : 'text-base'
         }`}
       >

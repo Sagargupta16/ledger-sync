@@ -49,18 +49,18 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">Salary Structure</h3>
+        <h3 className="text-sm font-semibold text-foreground">Salary Structure</h3>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onPrev}
             disabled={fyIdx <= 0}
             aria-label="Previous financial year"
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
-            <ChevronLeft className="w-4 h-4 text-white" />
+            <ChevronLeft className="w-4 h-4 text-foreground" />
           </button>
-          <span className="text-sm font-medium text-white min-w-[80px] text-center">
+          <span className="text-sm font-medium text-foreground min-w-[80px] text-center">
             {fyKeys.length > 0 ? `FY ${selectedFY}` : 'No FY'}
           </span>
           <button
@@ -68,9 +68,9 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
             onClick={onNext}
             disabled={fyIdx >= fyKeys.length - 1}
             aria-label="Next financial year"
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
-            <ChevronRight className="w-4 h-4 text-white" />
+            <ChevronRight className="w-4 h-4 text-foreground" />
           </button>
           <button
             type="button"
@@ -110,11 +110,11 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
           <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 flex items-center justify-between">
             <div>
               <p className="text-xs text-muted-foreground">Total Annual CTC (excl. RSUs)</p>
-              <p className="text-lg font-semibold text-white">{formatCurrency(annualCTC)}</p>
+              <p className="text-lg font-semibold text-foreground">{formatCurrency(annualCTC)}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground">Monthly (pre-tax)</p>
-              <p className="text-lg font-semibold text-white">{formatCurrency(annualCTC / 12)}</p>
+              <p className="text-lg font-semibold text-foreground">{formatCurrency(annualCTC / 12)}</p>
             </div>
           </div>
         </>

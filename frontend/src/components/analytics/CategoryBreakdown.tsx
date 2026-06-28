@@ -102,7 +102,7 @@ export default function CategoryBreakdown({
 
   if (categories.length === 0) {
     return (
-      <div className="bg-white/[0.04] p-6 rounded-xl border border-border">
+      <div className="bg-[var(--overlay-2)] p-6 rounded-xl border border-border">
         <EmptyState
           icon={emptyIcon}
           title={emptyTitle}
@@ -116,13 +116,13 @@ export default function CategoryBreakdown({
   }
 
   return (
-    <div className="bg-white/[0.04] p-6 rounded-xl border border-border">
+    <div className="bg-[var(--overlay-2)] p-6 rounded-xl border border-border">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
           <HeaderIcon className={`w-5 h-5 ${headerIconColor}`} />
           <div>
-            <h3 className="text-lg font-semibold text-white">{headerTitle}</h3>
+            <h3 className="text-lg font-semibold text-foreground">{headerTitle}</h3>
             <p className="text-xs text-text-tertiary">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
           </div>
         </div>
@@ -162,7 +162,7 @@ export default function CategoryBreakdown({
                 onClick={() => hasSubcategories && toggleExpand(cat.name)}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-150 group ${
                   hasSubcategories ? 'cursor-pointer' : 'cursor-default'
-                } ${isExpanded ? 'bg-white/[0.05] border border-white/[0.08]' : 'bg-white/[0.04] border border-border hover:bg-white/[0.05] hover:border-white/[0.10]'}`}
+                } ${isExpanded ? 'bg-[var(--overlay-2)] border border-[var(--hairline-2)]' : 'bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-2)] hover:border-[var(--hairline-3)]'}`}
               >
                 <div className="flex items-center gap-3">
                   {/* Color dot */}
@@ -174,7 +174,7 @@ export default function CategoryBreakdown({
                   {/* Name + compact meta (subcategory count, avg per active month).
                       Reuses data already on the row -- no extra fetch. */}
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-medium text-white truncate">
+                    <span className="block text-sm font-medium text-foreground truncate">
                       {cat.name}
                     </span>
                     {(cat.subcategories.length > 0 || avgPerMonthByName.get(cat.name)) ? (
@@ -196,7 +196,7 @@ export default function CategoryBreakdown({
                   <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                     {cat.percent.toFixed(1)}%
                   </span>
-                  <span className="text-sm font-semibold text-white tabular-nums shrink-0 w-20 sm:w-28 text-right">
+                  <span className="text-sm font-semibold text-foreground tabular-nums shrink-0 w-20 sm:w-28 text-right">
                     {formatCurrency(cat.total)}
                   </span>
 
@@ -205,7 +205,7 @@ export default function CategoryBreakdown({
                     <motion.div
                       animate={{ rotate: isExpanded ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
-                      className="text-text-tertiary group-hover:text-white"
+                      className="text-text-tertiary group-hover:text-foreground"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </motion.div>
@@ -220,7 +220,7 @@ export default function CategoryBreakdown({
                     title says so, so a filtered amount + full-year trend don't
                     read as contradicting each other. */}
                 <div className="mt-2 flex items-center gap-3">
-                  <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div className="flex-1 h-1.5 rounded-full bg-[var(--overlay-2)] overflow-hidden">
                     <motion.div
                       className="h-full rounded-full"
                       style={{ backgroundColor: cat.color }}
@@ -255,7 +255,7 @@ export default function CategoryBreakdown({
                       {cat.subcategories.map((sub, si) => (
                         <div
                           key={sub.name}
-                          className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/[0.05] transition-colors duration-150"
+                          className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-[var(--overlay-2)] transition-colors duration-150"
                         >
                           {/* Indent marker */}
                           <div
@@ -263,12 +263,12 @@ export default function CategoryBreakdown({
                             style={{ backgroundColor: cat.color }}
                           />
 
-                          <span className="text-xs text-white flex-1 truncate">
+                          <span className="text-xs text-foreground flex-1 truncate">
                             {sub.name}
                           </span>
 
                           {/* Subcategory bar */}
-                          <div className="w-12 md:w-20 h-1 rounded-full bg-white/5 overflow-hidden shrink-0">
+                          <div className="w-12 md:w-20 h-1 rounded-full bg-[var(--overlay-2)] overflow-hidden shrink-0">
                             <motion.div
                               className="h-full rounded-full opacity-70"
                               style={{ backgroundColor: cat.color }}
@@ -281,7 +281,7 @@ export default function CategoryBreakdown({
                           <span className="text-xs text-text-tertiary tabular-nums shrink-0 w-10 text-right">
                             {sub.percent.toFixed(0)}%
                           </span>
-                          <span className="text-xs font-medium text-white tabular-nums shrink-0 w-18 sm:w-24 text-right">
+                          <span className="text-xs font-medium text-foreground tabular-nums shrink-0 w-18 sm:w-24 text-right">
                             {formatCurrency(sub.amount)}
                           </span>
                         </div>

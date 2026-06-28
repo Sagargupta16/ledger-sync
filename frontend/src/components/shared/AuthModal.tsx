@@ -83,7 +83,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
             exit={{ opacity: 0 }}
             onClick={onClose}
             aria-hidden="true"
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-[var(--modal-backdrop)] backdrop-blur-sm z-50"
           />
 
           {/* Modal */}
@@ -97,12 +97,12 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50 p-4"
           >
-            <div className="relative bg-[#1a1a1c] rounded-2xl p-8 border border-white/[0.08] shadow-2xl">
+            <div className="relative bg-surface-dropdown rounded-2xl p-8 border border-[var(--hairline-2)] shadow-2xl">
               {/* Close Button */}
               <button
                 onClick={onClose}
                 aria-label="Close sign-in dialog"
-                className="absolute top-4 right-4 p-2 rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] transition-colors duration-150 ease-out"
+                className="absolute top-4 right-4 p-2 rounded-lg text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] transition-colors duration-150 ease-out"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -112,7 +112,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                 <div className="p-3 rounded-xl bg-app-blue/10 mb-3">
                   <PiggyBank className="w-8 h-8 text-app-blue" />
                 </div>
-                <h2 id="auth-modal-title" className="text-xl font-semibold text-white">
+                <h2 id="auth-modal-title" className="text-xl font-semibold text-foreground">
                   Welcome to Ledger Sync
                 </h2>
                 <p className="text-muted-foreground text-sm mt-1">
@@ -136,7 +136,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                         <button
                           type="button"
                           onClick={() => handleOAuthLogin(googleProvider)}
-                          className="w-full py-3 px-4 rounded-xl font-medium text-white flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10]"
+                          className="w-full py-3 px-4 rounded-xl font-medium text-foreground flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-[var(--overlay-3)] border border-[var(--hairline-2)] hover:bg-[var(--overlay-5)]"
                         >
                           <GoogleIcon className="w-5 h-5" />
                           Continue with Google
@@ -146,7 +146,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                         <button
                           type="button"
                           onClick={() => handleOAuthLogin(githubProvider)}
-                          className="w-full py-3 px-4 rounded-xl font-medium text-white flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10]"
+                          className="w-full py-3 px-4 rounded-xl font-medium text-foreground flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-[var(--overlay-3)] border border-[var(--hairline-2)] hover:bg-[var(--overlay-5)]"
                         >
                           <GitHubIcon className="w-5 h-5" />
                           Continue with GitHub
@@ -185,7 +185,7 @@ export function LoginButton({ onClick }: Readonly<{ onClick: () => void }>) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white transition-colors hover:scale-105 border border-border-strong hover:border-border-strong bg-white/5 hover:bg-white/10"
+      className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-foreground transition-colors hover:scale-105 border border-border-strong hover:border-border-strong bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)]"
     >
       <LogIn className="w-4 h-4" />
       Sign In

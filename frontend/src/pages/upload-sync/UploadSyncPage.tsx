@@ -221,7 +221,7 @@ export default function UploadSyncPage() {
                   <Sparkles className="w-4 h-4" />
                   <span>Smart Sync</span>
                 </div>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground">
                   Upload & Sync
                 </h1>
                 <p className="text-lg text-muted-foreground max-w-md">
@@ -252,11 +252,11 @@ export default function UploadSyncPage() {
                   })}
                   className={cn(
                     'relative border-2 border-dashed rounded-2xl p-4 md:p-8 text-center cursor-pointer transition-colors duration-300',
-                    'bg-black/20 backdrop-blur-sm',
+                    'bg-[var(--overlay-3)] backdrop-blur-sm',
                     'hover:border-primary hover:bg-primary/10',
                     isDragActive && 'border-primary bg-primary/20 scale-[1.02]',
                     isBusy && 'opacity-50 cursor-not-allowed',
-                    selectedFile ? 'border-primary' : 'border-white/20'
+                    selectedFile ? 'border-primary' : 'border-[var(--hairline-5)]'
                   )}
                 >
                   <input {...getInputProps()} />
@@ -278,14 +278,14 @@ export default function UploadSyncPage() {
                         )} />
                       </div>
                       <div>
-                        <p className="font-semibold text-white text-lg">
+                        <p className="font-semibold text-foreground text-lg">
                           {isDragActive ? 'Drop your file here' : 'Drop Excel or CSV file here'}
                         </p>
                         <p className="text-sm text-muted-foreground mt-1">
                           or click to browse
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-border">
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--overlay-2)] border border-border">
                         <FileSpreadsheet className="w-4 h-4 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">.xlsx, .xls, .csv supported</span>
                       </div>
@@ -311,13 +311,13 @@ export default function UploadSyncPage() {
             <div className="flex-1 min-w-[12rem]">
               <h3 className="font-semibold text-app-yellow">File Already Uploaded</h3>
               <p className="text-sm text-muted-foreground">
-                <span className="font-mono text-sm text-white">{conflictError.parsed.fileName}</span> was imported before. Re-upload to sync changes.
+                <span className="font-mono text-sm text-foreground">{conflictError.parsed.fileName}</span> was imported before. Re-upload to sync changes.
               </p>
             </div>
             <button
               onClick={handleForceReupload}
               disabled={isBusy}
-              className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] bg-app-yellow text-black rounded-lg hover:bg-app-yellow/90 transition-colors font-medium disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] bg-app-yellow text-on-warning rounded-lg hover:bg-app-yellow/90 transition-colors font-medium disabled:opacity-50"
             >
               <RefreshCw className={cn('w-4 h-4', isBusy && 'animate-spin')} aria-hidden="true" />
               Force Reupload
@@ -337,16 +337,16 @@ export default function UploadSyncPage() {
               <FileSpreadsheet className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-white">Expected Format</h2>
+              <h2 className="text-lg font-semibold text-foreground">Expected Format</h2>
               <p className="text-sm text-muted-foreground">Your Excel or CSV should look like this</p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-border overflow-hidden bg-black/20 backdrop-blur-sm">
+          <div className="rounded-xl border border-border overflow-hidden bg-[var(--overlay-3)] backdrop-blur-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-white/5">
+                  <tr className="border-b border-border bg-[var(--overlay-2)]">
                     <th className="px-4 py-3 text-left font-medium text-primary">Date</th>
                     <th className="px-4 py-3 text-left font-medium text-primary">Account</th>
                     <th className="px-4 py-3 text-left font-medium text-primary">Category</th>
@@ -360,7 +360,7 @@ export default function UploadSyncPage() {
                   {SAMPLE_EXCEL_DATA.map((row) => (
                     <tr
                       key={`${row.date}-${row.amount}-${row.note}`}
-                      className="border-b border-border hover:bg-white/10 transition-colors even:bg-white/5"
+                      className="border-b border-border hover:bg-[var(--overlay-5)] transition-colors even:bg-[var(--overlay-2)]"
                     >
                       <td className="px-4 py-2.5 text-foreground font-mono text-xs">{row.date}</td>
                       <td className="px-4 py-2.5 text-foreground">{row.account}</td>
@@ -374,7 +374,7 @@ export default function UploadSyncPage() {
                           {row.type}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-foreground">
+                      <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
                         ₹{row.amount.toLocaleString('en-IN')}
                       </td>
                       <td className="px-4 py-2.5 text-text-tertiary text-xs">{row.note}</td>
@@ -385,7 +385,7 @@ export default function UploadSyncPage() {
             </div>
 
             {/* Footer tip */}
-            <div className="px-4 py-3 border-t border-border bg-white/5 flex items-center gap-2">
+            <div className="px-4 py-3 border-t border-border bg-[var(--overlay-2)] flex items-center gap-2">
               <ArrowRight className="w-4 h-4 text-primary shrink-0" />
               <p className="text-xs text-muted-foreground">
                 Column names are flexible — <span className="text-foreground">"Period"</span> or <span className="text-foreground">"Date"</span> both work.

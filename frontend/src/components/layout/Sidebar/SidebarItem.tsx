@@ -29,8 +29,8 @@ export default function SidebarItem({
           'flex items-center gap-3 px-3 py-2 text-sm rounded-lg relative',
           'transition-all duration-150 ease-out',
           isActive
-            ? 'bg-white/[0.08] text-white font-medium'
-            : 'text-muted-foreground hover:bg-white/[0.04] hover:text-white',
+            ? 'bg-[var(--overlay-4)] text-foreground font-medium'
+            : 'text-muted-foreground hover:bg-[var(--overlay-2)] hover:text-foreground',
         )
       }
     >
@@ -54,7 +54,7 @@ export default function SidebarItem({
                 'px-1.5 py-0.5 min-w-[20px] text-center text-[11px] font-semibold rounded-md flex-shrink-0',
                 badgeVariant === 'alert'
                   ? 'bg-app-red/15 text-app-red'
-                  : 'bg-white/[0.08] text-muted-foreground',
+                  : 'bg-[var(--overlay-4)] text-muted-foreground',
               )}
             >
               {badge > 99 ? '99+' : badge}

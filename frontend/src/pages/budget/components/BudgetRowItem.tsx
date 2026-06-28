@@ -79,7 +79,7 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
       key={key}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`glass rounded-2xl border p-4 sm:p-6 hover:bg-white/[0.04] transition-colors ${cfg.border} ${cfg.bg}`}
+      className={`glass rounded-2xl border p-4 sm:p-6 hover:bg-[var(--overlay-2)] transition-colors ${cfg.border} ${cfg.bg}`}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -94,7 +94,7 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
               <span className="text-muted-foreground text-sm ml-1">/ {row.subcategory}</span>
             )}
           </div>
-          <span className="text-xs text-text-tertiary ml-2 px-2 py-0.5 rounded-full bg-white/5">
+          <span className="text-xs text-text-tertiary ml-2 px-2 py-0.5 rounded-full bg-[var(--overlay-2)]">
             {row.period}
           </span>
           {isFixed && (
@@ -139,7 +139,7 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
                 }
                 if (e.key === 'Escape') onCancelEdit()
               }}
-              className="w-28 px-2 py-1 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white"
+              className="w-28 px-2 py-1 rounded-lg bg-surface-3 backdrop-blur-xl border border-border text-sm text-foreground"
               autoFocus
             />
           ) : (
@@ -150,14 +150,14 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
               <button
                 onClick={onEdit}
                 aria-label={`Edit budget for ${row.subcategory || row.category}`}
-                className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                className="p-2.5 sm:p-1.5 rounded-lg hover:bg-[var(--overlay-5)] transition-colors"
               >
                 <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
               </button>
               <button
                 onClick={() => setConfirmOpen(true)}
                 aria-label={`Delete budget for ${row.subcategory || row.category}`}
-                className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 transition-colors text-app-red"
+                className="p-2.5 sm:p-1.5 rounded-lg hover:bg-[var(--overlay-5)] transition-colors text-app-red"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

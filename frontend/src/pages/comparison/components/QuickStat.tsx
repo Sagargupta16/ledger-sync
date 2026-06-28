@@ -27,7 +27,7 @@ export function QuickStat({
     : `${absDelta > 0 ? '+' : ''}${Math.round(absDelta)}`
 
   return (
-    <div className="p-4 rounded-xl bg-white/5">
+    <div className="p-4 rounded-xl bg-[var(--overlay-2)]">
       <p className="text-xs text-muted-foreground mb-2">{label}</p>
       <div className="flex items-baseline justify-between">
         <div>

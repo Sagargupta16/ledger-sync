@@ -198,13 +198,15 @@ export default function BudgetTracker() {
                       <span className="font-bold">{formatPercent(budget.percentage)}</span>
                       <button
                         onClick={() => setEditingCategory(budget.category)}
-                        className="p-1 rounded hover:bg-white/10"
+                        aria-label={`Edit ${budget.category} budget`}
+                        className="inline-flex items-center justify-center min-w-6 min-h-6 p-1 rounded hover:bg-[var(--overlay-5)]"
                       >
                         <Edit2 className="w-3 h-3" />
                       </button>
                       <button
                         onClick={() => removeBudget(budget.category)}
-                        className="p-1 rounded hover:bg-white/10 text-app-red"
+                        aria-label={`Remove ${budget.category} budget`}
+                        className="inline-flex items-center justify-center min-w-6 min-h-6 p-1 rounded hover:bg-[var(--overlay-5)] text-app-red"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>

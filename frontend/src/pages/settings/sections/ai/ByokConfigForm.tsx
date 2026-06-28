@@ -146,7 +146,7 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
               type="button"
               onClick={() => setShowKey(!showKey)}
               aria-label={showKey ? 'Hide API key' : 'Show API key'}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-white"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
             >
               {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>

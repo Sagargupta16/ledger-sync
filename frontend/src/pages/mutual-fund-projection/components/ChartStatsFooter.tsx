@@ -34,7 +34,9 @@ export function ChartStatsFooter(props: Readonly<ChartStatsFooterProps>) {
             {isLoading ? (
               <LoadingSkeleton className="h-6 w-24 mt-1" />
             ) : (
-              <p className={`text-xl font-bold ${stat.color}`}>{formatCurrency(stat.value)}</p>
+              <p className={`text-xl font-bold tabular-nums ${stat.color}`}>
+                {formatCurrency(stat.value)}
+              </p>
             )}
           </div>
         ))}

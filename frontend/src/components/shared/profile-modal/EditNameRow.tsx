@@ -16,7 +16,7 @@ export function EditNameRow(props: Readonly<EditNameRowProps>) {
     props
 
   return (
-    <div className="rounded-xl bg-white/[0.04] border border-border p-4">
+    <div className="rounded-xl bg-[var(--overlay-2)] border border-border p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Pencil size={14} className="text-muted-foreground" />
@@ -44,7 +44,7 @@ export function EditNameRow(props: Readonly<EditNameRowProps>) {
               if (e.key === 'Escape') onCancelEdit()
             }}
             autoFocus
-            className="flex-1 px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-white text-sm focus:border-app-blue/50 focus:outline-none transition-colors duration-150 ease-out"
+            className="flex-1 px-3 py-1.5 bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg text-foreground text-sm focus:border-app-blue/50 focus:outline-none transition-colors duration-150 ease-out"
             placeholder="Your name"
           />
           <button
@@ -60,13 +60,13 @@ export function EditNameRow(props: Readonly<EditNameRowProps>) {
             type="button"
             onClick={onCancelEdit}
             aria-label="Cancel"
-            className="p-1.5 rounded-lg bg-white/[0.06] text-muted-foreground hover:bg-white/[0.10] transition-colors duration-150 ease-out"
+            className="p-1.5 rounded-lg bg-[var(--overlay-3)] text-muted-foreground hover:bg-[var(--overlay-5)] transition-colors duration-150 ease-out"
           >
             <X size={14} />
           </button>
         </div>
       ) : (
-        <p className="text-sm text-white mt-1">{fullName || 'Not set'}</p>
+        <p className="text-sm text-foreground mt-1">{fullName || 'Not set'}</p>
       )}
     </div>
   )

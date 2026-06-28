@@ -74,7 +74,7 @@ export default function RegimeComparison({
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div
-          className={`p-4 rounded-xl border ${newIsBetter ? 'border-app-green/30 bg-app-green/5' : 'border-border bg-white/5'}`}
+          className={`p-4 rounded-xl border ${newIsBetter ? 'border-app-green/30 bg-app-green/5' : 'border-border bg-[var(--overlay-2)]'}`}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">New Regime</span>
@@ -90,7 +90,7 @@ export default function RegimeComparison({
           </p>
         </div>
         <div
-          className={`p-4 rounded-xl border ${oldIsBetter ? 'border-app-green/30 bg-app-green/5' : 'border-border bg-white/5'}`}
+          className={`p-4 rounded-xl border ${oldIsBetter ? 'border-app-green/30 bg-app-green/5' : 'border-border bg-[var(--overlay-2)]'}`}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Old Regime</span>
@@ -116,11 +116,11 @@ export default function RegimeComparison({
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-white/[0.02] p-4">
+      <div className="rounded-xl border border-border bg-[var(--overlay-1)] p-4">
         <button
           type="button"
           onClick={() => setShowDeductions(!showDeductions)}
-          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-white transition-colors w-full"
+          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full"
         >
           {showDeductions ? (
             <ChevronLeft className="w-4 h-4 rotate-[-90deg]" />

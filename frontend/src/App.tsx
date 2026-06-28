@@ -14,6 +14,7 @@ import { ChunkErrorBoundary } from '@/components/shared/ChunkErrorBoundary'
 import { PreferencesProvider } from '@/components/shared/PreferencesProvider'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { useAuthStore } from '@/store/authStore'
+import { useThemeStore } from '@/store/themeStore'
 import { useAuthInit } from '@/hooks/api/useAuth'
 
 // Eagerly loaded — core pages the user hits immediately
@@ -46,6 +47,7 @@ const pageImports = {
   BillCalendarPage: () => import('@/pages/bill-calendar/BillCalendarPage'),
   FIRECalculatorPage: () => import('@/pages/FIRECalculatorPage'),
   MorePage: () => import('@/pages/MorePage'),
+  OverviewPage: () => import('@/pages/OverviewPage'),
 }
 
 const UploadSyncPage = lazy(pageImports.UploadSyncPage)
@@ -70,6 +72,7 @@ const SubscriptionTrackerPage = lazy(pageImports.SubscriptionTrackerPage)
 const BillCalendarPage = lazy(pageImports.BillCalendarPage)
 const FIRECalculatorPage = lazy(pageImports.FIRECalculatorPage)
 const MorePage = lazy(pageImports.MorePage)
+const OverviewPage = lazy(pageImports.OverviewPage)
 
 /**
  * Prefetch all lazy page chunks in the background after initial load.
@@ -123,17 +126,37 @@ function NotFoundPage() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-4">
       <div className="text-center space-y-4">
-        <h1 className="text-6xl font-bold text-white">404</h1>
+        <h1 className="text-6xl font-bold text-foreground">404</h1>
         <p className="text-xl text-muted-foreground">Page not found</p>
         <Link
           to={ROUTES.DASHBOARD}
-          className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-colors"
+          className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-on-accent rounded-lg hover:shadow-lg transition-colors"
         >
           Go to Dashboard
         </Link>
       </div>
     </div>
   )
+}
+
+// Keeps the resolved theme in sync when the OS color-scheme changes while the
+// user is in 'system' mode. The initial theme is already applied pre-paint by
+// the inline script in index.html; this re-applies on store mount (covering a
+// localStorage value the inline script also read) and watches OS changes.
+function ThemeWatcher() {
+  const mode = useThemeStore((s) => s.mode)
+  const syncResolved = useThemeStore((s) => s.syncResolved)
+
+  useEffect(() => {
+    syncResolved()
+    if (mode !== 'system') return
+    const mq = globalThis.matchMedia('(prefers-color-scheme: light)')
+    const onChange = () => syncResolved()
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [mode, syncResolved])
+
+  return null
 }
 
 // Auth initializer component
@@ -160,7 +183,7 @@ function LandingPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-dvh flex items-center justify-center bg-black" aria-label="Authenticating">
+      <div className="min-h-dvh flex items-center justify-center bg-background" aria-label="Authenticating">
         <Spinner />
       </div>
     )
@@ -169,13 +192,15 @@ function LandingPage() {
   return <HomePage />
 }
 
-/** Extracted style object for the Toaster component (avoids recreating on every render) */
+/** Extracted style object for the Toaster component (avoids recreating on every render).
+ *  Uses CSS tokens so toasts flip with the light/dark theme instead of always
+ *  rendering as a dark glass chip (which was unreadable in light mode). */
 const TOASTER_STYLE: React.CSSProperties = {
-  background: 'rgba(20, 20, 25, 0.95)',
+  background: 'var(--color-popover)',
   backdropFilter: 'blur(12px)',
-  border: '1px solid rgba(255, 255, 255, 0.15)',
-  color: '#ffffff',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+  border: '1px solid var(--glass-border-strong)',
+  color: 'var(--color-foreground)',
+  boxShadow: 'var(--glass-shadow-strong)',
 }
 
 const TOASTER_OPTIONS = {
@@ -186,6 +211,7 @@ const TOASTER_OPTIONS = {
 function App() {
   return (
     <ErrorBoundary>
+      <ThemeWatcher />
       {/* reducedMotion="user" keeps motion full for everyone EXCEPT users whose
           OS requests reduced motion (WCAG 2.3.3) — library-level, so individual
           components don't each need a prefers-reduced-motion gate. */}
@@ -213,6 +239,7 @@ function App() {
                   >
                     <Route path="home" element={<HomePage />} />
                     <Route path={toRelativePath(ROUTES.DASHBOARD)} element={<DashboardPage />} />
+                    <Route path={toRelativePath(ROUTES.OVERVIEW)} element={<OverviewPage />} />
                     <Route path={toRelativePath(ROUTES.UPLOAD)} element={<UploadSyncPage />} />
                     <Route path={toRelativePath(ROUTES.SETTINGS)} element={<SettingsPage />} />
                     <Route path={toRelativePath(ROUTES.TRANSACTIONS)} element={<TransactionsPage />} />

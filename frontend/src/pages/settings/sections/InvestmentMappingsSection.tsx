@@ -52,7 +52,7 @@ export default function InvestmentMappingsSection({
             key={account}
             className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-2 border-b border-border last:border-0"
           >
-            <span className="text-sm text-white flex-1 min-w-0 truncate">{account}</span>
+            <span className="text-sm text-foreground flex-1 min-w-0 truncate">{account}</span>
             <select
               aria-label={`Investment type for ${account}`}
               value={localPrefs.investment_account_mappings[account] || ''}

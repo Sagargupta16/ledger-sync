@@ -30,7 +30,7 @@ export function FilterBanner({ value, label = 'Category', onClear }: FilterBanne
           role="status"
         >
           <Filter className="w-4 h-4 text-app-blue shrink-0" aria-hidden />
-          <p className="text-sm text-white flex-1 truncate">
+          <p className="text-sm text-foreground flex-1 truncate">
             <span className="text-text-tertiary">{label}:</span>{' '}
             <span className="font-medium">{value}</span>
           </p>

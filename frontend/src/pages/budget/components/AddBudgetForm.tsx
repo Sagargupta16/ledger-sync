@@ -56,7 +56,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
             <button
               onClick={() => setIsAdding(false)}
               aria-label="Close new budget form"
-              className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10"
+              className="p-2.5 sm:p-1.5 rounded-lg hover:bg-[var(--overlay-5)]"
             >
               <X className="w-4 h-4" />
             </button>
@@ -74,7 +74,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
                   id="budget-category"
                   value={formCategory}
                   onChange={(e) => setFormCategory(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface-3 backdrop-blur-xl border border-border text-sm text-foreground cursor-pointer hover:bg-surface-hover transition-colors"
                 >
                   <option value="">Select category</option>
                   {availableCategories.map((c) => (
@@ -100,7 +100,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
                       setFormCategory(e.target.value)
                       setFormSubcategory('')
                     }}
-                    className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
+                    className="w-full px-3 py-2.5 rounded-lg bg-surface-3 backdrop-blur-xl border border-border text-sm text-foreground cursor-pointer hover:bg-surface-hover transition-colors"
                   >
                     <option value="">Select category</option>
                     {allCategories
@@ -123,7 +123,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
                     id="budget-subcategory"
                     value={formSubcategory}
                     onChange={(e) => setFormSubcategory(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors disabled:opacity-50"
+                    className="w-full px-3 py-2.5 rounded-lg bg-surface-3 backdrop-blur-xl border border-border text-sm text-foreground cursor-pointer hover:bg-surface-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:text-muted-foreground"
                     disabled={!formCategory}
                   >
                     <option value="">Select subcategory</option>
@@ -149,7 +149,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
                 value={formLimit}
                 onChange={(e) => setFormLimit(e.target.value)}
                 placeholder="Amount"
-                className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white placeholder-gray-500"
+                className="w-full px-3 py-2.5 rounded-lg bg-surface-3 backdrop-blur-xl border border-border text-sm text-foreground placeholder:text-text-quaternary"
               />
             </div>
             <div className="flex-1 min-w-28 sm:flex-none sm:w-32">
@@ -160,7 +160,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
                 id="budget-period"
                 value={budgetPeriod}
                 onChange={(e) => setBudgetPeriod(e.target.value as BudgetPeriod)}
-                className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors"
+                className="w-full px-3 py-2.5 rounded-lg bg-surface-3 backdrop-blur-xl border border-border text-sm text-foreground cursor-pointer hover:bg-surface-hover transition-colors"
               >
                 <option value="monthly">Monthly</option>
                 <option value="yearly">Yearly</option>
@@ -169,7 +169,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
             <button
               onClick={onAdd}
               disabled={!formCategory || !formLimit}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-colors"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-medium text-foreground disabled:opacity-40 transition-colors"
               style={{ backgroundColor: rawColors.app.green }}
             >
               Add

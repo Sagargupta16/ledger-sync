@@ -56,8 +56,8 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
             <TrendingUp className="w-6 h-6 text-app-purple" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">Current Balance</p>
-            <p className="text-xl sm:text-2xl font-bold truncate">{currentBalanceDisplay}</p>
+            <p className="text-kpi-label text-muted-foreground">Current Balance</p>
+            <p className="text-kpi-value font-bold truncate">{currentBalanceDisplay}</p>
             {primaryAccountName && (
               <p className="text-xs text-muted-foreground mt-1 truncate">{primaryAccountName}</p>
             )}
@@ -76,8 +76,8 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
             <Calculator className="w-6 h-6 text-app-green" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">Monthly SIP</p>
-            <p className="text-xl sm:text-2xl font-bold truncate">{monthlySipDisplay}</p>
+            <p className="text-kpi-label text-muted-foreground">Monthly SIP</p>
+            <p className="text-kpi-value font-bold truncate">{monthlySipDisplay}</p>
             <p className="text-xs text-muted-foreground mt-1">{transactionCount} transactions</p>
           </div>
         </div>
@@ -94,8 +94,8 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
             <Percent className="w-6 h-6 text-app-blue" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">Total Invested</p>
-            <p className="text-xl sm:text-2xl font-bold truncate">{totalInvestedDisplay}</p>
+            <p className="text-kpi-label text-muted-foreground">Total Invested</p>
+            <p className="text-kpi-value font-bold truncate">{totalInvestedDisplay}</p>
             <p className="text-xs text-muted-foreground mt-1">Actual contributions</p>
           </div>
         </div>
@@ -112,8 +112,8 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
             <TrendingUp className={`w-6 h-6 ${gainsIconClass}`} />
           </div>
           <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">Realized Gain</p>
-            <p className={`text-xl sm:text-2xl font-bold truncate ${gainsTextClass}`}>
+            <p className="text-kpi-label text-muted-foreground">Realized Gain</p>
+            <p className={`text-kpi-value font-bold truncate ${gainsTextClass}`}>
               {realizedGainsDisplay}
             </p>
             <p className="text-xs text-muted-foreground mt-1">

@@ -21,7 +21,7 @@ export default function FeasibilityWarning({
     >
       <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: rawColors.app.orange }} />
       <div className="text-sm">
-        <span className="font-medium text-white">Goal allocations exceed savings. </span>
+        <span className="font-medium text-foreground">Goal allocations exceed savings. </span>
         <span className="text-text-secondary">
           Your goal allocations ({formatCurrencyCompact(totalAllocated)}) exceed your total net savings (
           {formatCurrencyCompact(netSavings)}). Consider adjusting your goals or increasing savings.

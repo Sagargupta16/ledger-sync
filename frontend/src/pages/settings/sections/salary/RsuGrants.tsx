@@ -37,7 +37,7 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">RSU Grants</h3>
+        <h3 className="text-sm font-semibold text-foreground">RSU Grants</h3>
         <button
           type="button"
           onClick={onAddGrant}
@@ -57,7 +57,7 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
       {grants.map((grant) => (
         <div
           key={grant.id}
-          className="rounded-xl bg-white/[0.03] border border-border p-4 space-y-3"
+          className="rounded-xl bg-[var(--overlay-1)] border border-border p-4 space-y-3"
         >
           <div className="flex items-start gap-3">
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -99,7 +99,7 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
                         ? `Fetch latest price for ${grant.stock_name}`
                         : 'Enter stock name first'
                     }
-                    className="shrink-0 p-2 rounded-lg border border-border text-muted-foreground hover:text-white hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="shrink-0 p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     {fetchingPriceFor === grant.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -218,11 +218,11 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
         <div className="flex items-center gap-6 text-sm text-muted-foreground pt-1">
           <span>
             Total shares:{' '}
-            <span className="text-white font-medium">{rsuTotals.shares.toLocaleString()}</span>
+            <span className="text-foreground font-medium">{rsuTotals.shares.toLocaleString()}</span>
           </span>
           <span>
             Total value:{' '}
-            <span className="text-white font-medium">{formatCurrency(rsuTotals.value)}</span>
+            <span className="text-foreground font-medium">{formatCurrency(rsuTotals.value)}</span>
           </span>
         </div>
       )}

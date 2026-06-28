@@ -29,7 +29,7 @@ export function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, ta
           <Icon className={`w-5 h-5 ${textClass}`} />
         </div>
         <div>
-          <p className="font-medium text-white">{title}</p>
+          <p className="font-medium text-foreground">{title}</p>
           <p className="text-xs text-muted-foreground">{subtitle}</p>
         </div>
       </div>

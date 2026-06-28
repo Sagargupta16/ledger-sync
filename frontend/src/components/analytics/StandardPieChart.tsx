@@ -10,13 +10,13 @@
  *   />
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { LEGEND_DEFAULTS, shouldAnimate } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { getChartColor, SEMANTIC_COLORS } from '@/constants/chartColors'
+import { getChartColor, SEMANTIC_COLORS, CHART_TEXT } from '@/constants/chartColors'
 
 interface PieDataItem {
   name: string
@@ -59,6 +59,8 @@ interface StandardPieChartProps {
    * wedges. Pass 0 to disable capping.
    */
   readonly maxSlices?: number
+  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  readonly ariaLabel?: string
 }
 
 export default function StandardPieChart({
@@ -75,12 +77,14 @@ export default function StandardPieChart({
   paddingAngle = 3,
   onSliceClick,
   maxSlices = 8,
+  ariaLabel,
 }: StandardPieChartProps) {
-  const positive = data.filter((d) => d.value > 0)
   // Cap slice count: keep the largest (maxSlices - 1) and fold the rest into a
   // single muted "Other" slice, so a 15-30 category pie stays legible and the
-  // 12-color palette never collides on adjacent wedges.
-  const filteredData = (() => {
+  // 12-color palette never collides on adjacent wedges. Memoized so the sort +
+  // reduce only re-run when the data or cap changes, not on every hover.
+  const filteredData = useMemo(() => {
+    const positive = data.filter((d) => d.value > 0)
     if (maxSlices <= 0 || positive.length <= maxSlices) return positive
     const sorted = [...positive].sort((a, b) => b.value - a.value)
     const head = sorted.slice(0, maxSlices - 1)
@@ -88,7 +92,7 @@ export default function StandardPieChart({
     return otherValue > 0
       ? [...head, { name: 'Other', value: otherValue, color: SEMANTIC_COLORS.muted }]
       : head
-  })()
+  }, [data, maxSlices])
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   if (filteredData.length === 0) {
@@ -101,7 +105,7 @@ export default function StandardPieChart({
   const centerValueFontSize = pickCenterValueFontSize(centerValueLength)
 
   return (
-    <ChartContainer height={height}>
+    <ChartContainer height={height} ariaLabel={ariaLabel}>
       <PieChart>
         <Pie
           data={filteredData}
@@ -120,7 +124,7 @@ export default function StandardPieChart({
           label={showLabels ? (({ name, percent }: { name?: string; percent?: number }) => (
             `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
           )) as never : undefined}
-          labelLine={showLabels ? { stroke: '#71717a', strokeWidth: 1 } : undefined}
+          labelLine={showLabels ? { stroke: CHART_TEXT.subtle, strokeWidth: 1 } : undefined}
         >
           {filteredData.map((entry, i) => {
             const isActive = activeIndex === i
@@ -167,14 +171,14 @@ export default function StandardPieChart({
               <tspan
                 x="50%"
                 dy="-8"
-                fill="#fafafa"
+                fill={CHART_TEXT.primary}
                 fontSize={centerValueFontSize}
                 fontWeight="700"
               >
                 {centerValue}
               </tspan>
             )}
-            <tspan x="50%" dy={centerValue ? '20' : '0'} fill="#71717a" fontSize="11">
+            <tspan x="50%" dy={centerValue ? '20' : '0'} fill={CHART_TEXT.subtle} fontSize="11">
               {centerLabel}
             </tspan>
           </text>

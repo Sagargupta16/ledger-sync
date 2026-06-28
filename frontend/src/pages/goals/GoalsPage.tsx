@@ -4,6 +4,7 @@ import { PageContainer, PageHeader, StatCard } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 
 import useGoalsState from './useGoalsState'
 import SavingsPoolSummary from './components/SavingsPoolSummary'
@@ -33,7 +34,7 @@ export default function GoalsPage() {
         action={
           <button
             onClick={() => state.setShowCreateForm(!state.showCreateForm)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors hover:opacity-90"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-on-accent transition-colors hover:opacity-90"
             style={{ background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})` }}
           >
             <Plus className="w-4 h-4" /> Create Goal
@@ -57,7 +58,7 @@ export default function GoalsPage() {
       {/* Achieved vs in-progress completion strip (reuses summary counts) */}
       {state.summary.total > 0 && (
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-2 rounded-full overflow-hidden bg-white/[0.06] flex">
+          <div className="flex-1 h-2 rounded-full overflow-hidden bg-[var(--overlay-3)] flex">
             {state.summary.achieved > 0 && (
               <div
                 className="h-full first:rounded-l-full last:rounded-r-full"
@@ -110,9 +111,7 @@ export default function GoalsPage() {
         )}
       </AnimatePresence>
 
-      {state.isLoading && (
-        <div className="h-64 flex items-center justify-center text-muted-foreground">Loading goals...</div>
-      )}
+      {state.isLoading && <PageSkeleton />}
       {!state.isLoading && state.goals.length === 0 && (
         <EmptyState
           icon={Target}

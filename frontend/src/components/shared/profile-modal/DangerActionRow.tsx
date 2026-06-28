@@ -83,14 +83,14 @@ export function DangerActionRow(props: Readonly<DangerActionRowProps>) {
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
                 placeholder={`Type ${confirmKeyword} to confirm`}
-                className={`w-full px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-white text-sm ${inputBorderFocus} focus:outline-none transition-colors duration-150 ease-out`}
+                className={`w-full px-3 py-1.5 bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg text-foreground text-sm ${inputBorderFocus} focus:outline-none transition-colors duration-150 ease-out`}
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={actionButton.onClick}
                   disabled={confirmText !== confirmKeyword || actionButton.pending}
-                  className={`flex items-center gap-2 px-3 py-1.5 ${actionButton.bgClass} text-white text-sm rounded-lg transition-colors duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`flex items-center gap-2 px-3 py-1.5 ${actionButton.bgClass} text-foreground text-sm rounded-lg transition-colors duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {actionButton.pending ? actionButton.pendingLabel : actionButton.label}
                 </button>
@@ -100,7 +100,7 @@ export function DangerActionRow(props: Readonly<DangerActionRowProps>) {
                     setExpanded(false)
                     setConfirmText('')
                   }}
-                  className="px-3 py-1.5 bg-white/[0.06] border border-white/[0.08] text-white text-sm rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out"
+                  className="px-3 py-1.5 bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-foreground text-sm rounded-lg hover:bg-[var(--overlay-5)] transition-colors duration-150 ease-out"
                 >
                   Cancel
                 </button>

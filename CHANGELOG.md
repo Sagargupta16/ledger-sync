@@ -6,6 +6,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.19.0 - 2026-06-28
+
+A premium **light theme**, a world-class UI/UX elevation pass, and an information-architecture restructure. Adds a Light/Dark/System toggle and makes the entire app render flawlessly in both themes, driven by live design-system research (Radix Colors, Material 3, Apple HIG), a 14-lens UI audit, and a 5-lens IA audit. Frontend-only -- no API, schema, or backend changes. Dark theme is preserved byte-for-byte.
+
+### Added
+
+- **Overview page (`/overview`).** A single "whole picture" view composing existing data (income/spending/net-saved/savings-rate KPIs, budgets-at-risk, goals progress, top income vs spending) with deep links to each detail page. Sits beside Dashboard, which stays the configurable widget board.
+- **Premium light theme + Light/Dark/System toggle.** A warm off-white palette (LAB surfaces, white cards lifting off the page, soft layered shadows, AA-contrast accents) controlled entirely from `index.css` tokens. Switch via the sidebar cycle button or Settings > Appearance; an anti-flash inline script applies the stored theme before first paint, and `System` follows the OS preference live. The public landing page gets its own toggle in the header.
+- **Theme-aware, reactive charts.** 20 new `--chart-*` tokens (axis, grid, tooltip, reference-line, label colors) flip with the theme; Recharts/SVG colors resolve through `rawColors` at runtime (CSS `var()` does not work in SVG attributes). All derived palettes (`CHART_COLORS`, `metricColorConfig`, category colors) rebuild in place on toggle, and the routed view remounts on theme change so charts repaint without a reload.
+
+### Changed
+
+- **One source of truth for color.** Swept the remaining hardcoded color literals app-wide (`text-white`/`bg-white/N`/`bg-black/N`/gray-family/SVG hex/inline rgba) onto semantic tokens (`text-foreground`, `bg-surface-*`, `bg-[var(--overlay-N)]`, `border-[var(--hairline-N)]`), so a single token edit re-themes everything. White-on-solid-accent button text is the only intentional exception.
+- **World-class UI/UX elevation (52 surgical improvements):** `tabular-nums` on currency/KPI/table numbers so digits stop shifting width; accessible names on chart primitives + icon-only controls (listbox/option roles on dropdowns, aria-valuenow on the FIRE slider); page headers now mirror the canonical sidebar labels (Expense Analysis, Cash Flow, Income Tax, Budget Manager, ...); 2-column KPI grids on phones with >=44px touch targets; standardized loading/empty states; shared press/hover micro-interactions (motion kept fully visible).
+- **Information-architecture restructure** (from a 5-lens IA audit). Sidebar reordered to the money decision-flow and regrouped: Net Worth + Investments merged into one **Wealth** section, the dead-end single-item Transactions section folded into a new **Data** section (with Upload & Sync elevated out of the icon bar), and Tracking renamed **Commitments**. **Settings** regrouped from 11 flat sections into four task groups (Money Setup, Categories & Classification, Profile & Display, Advanced) with essential setup expanded first. Budget Defaults and Anomaly Detection now also appear as collapsible panels on their own feature pages (context-of-use), Income Tax and GST cross-link, the mobile More tab shows an alert badge (anomalies + over-budget), and the Dashboard shows an upload CTA when a new user has no data. New tokens `--color-on-accent` / `--color-on-warning` / `--modal-backdrop` name the white-on-accent / black-on-warning / dialog-scrim conventions; the mobile browser chrome (`theme-color`) now tracks the active theme.
+
+### Fixed
+
+- **Theme switch desync** -- a short-lived `theme-transition` class gives every element one uniform 300ms cross-fade so the whole UI flips in sync instead of parts easing at different speeds.
+- Removed an erroneous static `aria-current="page"` on sidebar/mobile-tab `NavLink`s (every item announced as the current page; `NavLink` already sets it on the active link) and a dead `getStoredTheme()` helper.
+
+---
+
 ## 2.18.0 - 2026-06-28
 
 A frontend-only UX, visualization, and mobile pass. No API, schema, or backend changes -- every commit touches `frontend/src`. Driven by a senior-design audit of the shared UI primitives and every page, a data-visualization-fit audit (~295 elements scored), and a live mobile audit at 390px. Desktop layout is preserved throughout (mobile changes are gated behind `sm:`/`lg:`/`useIsMobile`).

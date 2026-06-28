@@ -19,13 +19,13 @@ export default function CashFlowForecast() {
   const forecastData = useMemo(() => buildForecast(monthlyData), [monthlyData])
 
   if (isLoading) {
-    return <div className="glass rounded-2xl p-6 animate-pulse"><div className="h-8 bg-white/[0.04] rounded w-1/3 mb-4" /><div className="h-64 bg-white/[0.04] rounded" /></div>
+    return <div className="glass rounded-2xl p-6 animate-pulse"><div className="h-8 bg-[var(--overlay-2)] rounded w-1/3 mb-4" /><div className="h-64 bg-[var(--overlay-2)] rounded" /></div>
   }
 
   if (!forecastData) {
     return (
       <div className="glass rounded-2xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-2">Cash Flow Forecast</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-2">Cash Flow Forecast</h3>
         <ChartEmptyState message="Need at least 3 months of data for forecasting." />
       </div>
     )
@@ -45,7 +45,7 @@ export default function CashFlowForecast() {
                 : <TrendingDown className="w-6 h-6 text-app-red" />}
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">Future Cash Flow Forecast</h3>
+              <h3 className="text-lg font-semibold text-foreground">Future Cash Flow Forecast</h3>
               <p className="text-xs text-text-tertiary">Projected income, expenses & net savings</p>
             </div>
           </div>
@@ -89,7 +89,7 @@ export default function CashFlowForecast() {
             {forecastData.forecastStartMonth && (
               <ReferenceLine
                 x={formatMonth(forecastData.forecastStartMonth)}
-                stroke="rgba(255,255,255,0.2)"
+                stroke={rawColors.chart.referenceLineStrong}
                 strokeDasharray="4 4"
               />
             )}
@@ -141,21 +141,21 @@ export default function CashFlowForecast() {
 
       {/* ── Insight Cards ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-        <div className="bg-white/[0.04] border border-border rounded-xl p-4">
+        <div className="bg-[var(--overlay-2)] border border-border rounded-xl p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">Avg Monthly Income</p>
           <p className="text-xl font-bold text-app-green">{formatCurrencyShort(insights.avgIncome)}</p>
           <p className="text-xs text-text-tertiary mt-1">
             {insights.incomeGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.incomeGrowth).toFixed(1)}% monthly trend
           </p>
         </div>
-        <div className="bg-white/[0.04] border border-border rounded-xl p-4">
+        <div className="bg-[var(--overlay-2)] border border-border rounded-xl p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">Avg Monthly Expenses</p>
           <p className="text-xl font-bold text-app-red">{formatCurrencyShort(insights.avgExpense)}</p>
           <p className="text-xs text-text-tertiary mt-1">
             {insights.expenseGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.expenseGrowth).toFixed(1)}% monthly trend
           </p>
         </div>
-        <div className="bg-white/[0.04] border border-border rounded-xl p-4">
+        <div className="bg-[var(--overlay-2)] border border-border rounded-xl p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">1-Year Projected Savings</p>
           <p className={`text-xl font-bold ${insights.projectedSavings >= 0 ? 'text-app-blue' : 'text-app-red'}`}>
             {insights.projectedSavings >= 0 ? '+' : ''}{formatCurrencyShort(insights.projectedSavings)}

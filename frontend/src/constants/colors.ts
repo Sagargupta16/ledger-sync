@@ -129,16 +129,77 @@ function buildRawColors() {
       tertiary:   r('--color-text-tertiary',   '#7c7c80'),
       quaternary: r('--color-text-quaternary', '#48484a'),
     },
+    // Chart-only neutrals/surfaces. CSS var() can't be used in SVG presentation
+    // attributes, so these resolve the --chart-* tokens to concrete strings for
+    // Recharts. Fallbacks are the historical dark values so SSR/no-DOM is safe.
+    chart: {
+      textPrimary:         r('--chart-text-primary',         '#fafafa'),
+      textSecondary:       r('--chart-text-secondary',       '#f5f5f7'),
+      textMuted:           r('--chart-text-muted',           '#a1a1aa'),
+      textSubtle:          r('--chart-text-subtle',          '#71717a'),
+      textDim:             r('--chart-text-dim',             '#52525b'),
+      axisColor:           r('--chart-axis-color',           '#9ca3af'),
+      grid:                r('--chart-grid',                 'rgba(255, 255, 255, 0.04)'),
+      axisLine:            r('--chart-axis-line',            'rgba(255, 255, 255, 0.06)'),
+      cursor:              r('--chart-cursor',               'rgba(255, 255, 255, 0.06)'),
+      referenceLine:       r('--chart-reference-line',       'rgba(255, 255, 255, 0.15)'),
+      referenceLineStrong: r('--chart-reference-line-strong', 'rgba(255, 255, 255, 0.2)'),
+      activeStroke:        r('--chart-active-stroke',        'rgba(255, 255, 255, 0.3)'),
+      svgStroke:           r('--chart-svg-stroke',           'rgba(255, 255, 255, 0.08)'),
+      tooltipBg:           r('--chart-tooltip-bg',           'rgba(26, 26, 28, 0.95)'),
+      tooltipBorder:       r('--chart-tooltip-border',       'rgba(255, 255, 255, 0.08)'),
+      gridSolid:           r('--chart-grid-solid',           '#2a2a2e'),
+      neutral:             r('--chart-neutral',              '#9ca3af'),
+      muted:               r('--chart-muted',                '#6b7280'),
+      inputBg:             r('--chart-input-bg',             'rgba(44, 44, 46, 0.6)'),
+      inputBorder:         r('--chart-input-border',         'rgba(58, 58, 60, 0.6)'),
+    },
   }
 }
 
 // Resolved once at module load (DOM is ready by the time React renders)
 export const rawColors = buildRawColors()
 
+/**
+ * Subscribers notified after `rawColors` is rebuilt. chartColors.ts registers
+ * one to re-sync its derived `CHART_*` constants. Kept as a registry (rather
+ * than importing chartColors here) so the dependency only flows one way:
+ * chartColors imports colors, never the reverse.
+ */
+const rawColorsListeners = new Set<() => void>()
+
+/** Register a callback to run after each `refreshRawColors()`. */
+export function onRawColorsRefresh(listener: () => void): void {
+  rawColorsListeners.add(listener)
+}
+
+/**
+ * Rebuild the resolved color values IN PLACE on the existing `rawColors`
+ * object, preserving its identity so modules that imported `rawColors` (and the
+ * derived `CHART_*` constants in chartColors.ts) keep their reference and just
+ * see fresh values. Call after a theme toggle (see lib/theme.ts applyTheme) so
+ * Recharts repaints with the active theme's chart colors.
+ */
+export function refreshRawColors(): void {
+  const next = buildRawColors()
+  Object.assign(rawColors.app, next.app)
+  Object.assign(rawColors.financial, next.financial)
+  Object.assign(rawColors.text, next.text)
+  Object.assign(rawColors.chart, next.chart)
+  for (const listener of rawColorsListeners) listener()
+}
+
 // ─── MetricCard color configs (derived from rawColors) ───────────────────────
 
+interface MetricColorEntry {
+  bg: string
+  text: string
+  glow: string
+  className: string
+}
+
 function buildMetricColorConfig() {
-  const mc = (color: string, twClass: string) => ({
+  const mc = (color: string, twClass: string): MetricColorEntry => ({
     bg: hexToRgba(color, 0.12),
     text: color,
     glow: hexToRgba(color, 0.15),
@@ -153,9 +214,15 @@ function buildMetricColorConfig() {
     teal:   mc(rawColors.app.teal,   'text-app-teal'),
     orange: mc(rawColors.app.orange, 'text-app-orange'),
     indigo: mc(rawColors.app.indigo, 'text-app-indigo'),
-  } as const
+  }
 }
 
+// Mutated in place on theme toggle so MetricCard's inline-style tint/glow/icon
+// colors (baked rgba strings, not var()-backed) track the active theme. Kept as
+// a stable object identity for importers; refreshed via onRawColorsRefresh below.
 export const metricColorConfig = buildMetricColorConfig()
 
 export type MetricColor = keyof typeof metricColorConfig
+
+// Rebuild the derived metric tints after rawColors is re-resolved on a toggle.
+onRawColorsRefresh(() => Object.assign(metricColorConfig, buildMetricColorConfig()))

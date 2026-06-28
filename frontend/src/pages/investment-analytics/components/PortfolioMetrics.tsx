@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { DollarSign, LineChart, Target, TrendingUp, Wallet } from 'lucide-react'
 
 import MetricCard from '@/components/shared/MetricCard'
-import { rawColors } from '@/constants/colors'
+import { hexToRgba, rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 interface PortfolioMetricsProps {
@@ -72,16 +72,16 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="relative col-span-2 lg:col-span-1 p-4 md:p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10"
+          className="relative col-span-2 lg:col-span-1 p-4 md:p-6 glass rounded-2xl overflow-hidden group border border-[var(--hairline-1)] border-t-[var(--hairline-3)] border-l-[var(--hairline-3)]"
         >
           <div
             className="inline-flex p-3 rounded-2xl mb-4 bg-app-orange/15"
-            style={{ boxShadow: '0 8px 24px rgba(255,159,10,0.15)' }}
+            style={{ boxShadow: `0 8px 24px ${hexToRgba(rawColors.app.orange, 0.15)}` }}
           >
             <Target className="w-6 h-6 text-app-orange" />
           </div>
-          <h3 className="text-sm font-medium mb-1 text-text-secondary">Monthly Target</h3>
-          <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-white">
+          <h3 className="text-kpi-label font-medium mb-1 text-muted-foreground">Monthly Target</h3>
+          <p className="text-kpi-value font-bold text-foreground">
             {formatCurrency(monthlyInvestmentTarget)}
           </p>
           <div className="mt-3 space-y-1.5">
@@ -99,7 +99,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
                 {targetProgress.toFixed(0)}%
               </span>
             </div>
-            <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+            <div className="w-full h-2 rounded-full bg-[var(--overlay-5)] overflow-hidden">
               <motion.div
                 className="h-full rounded-full"
                 style={{

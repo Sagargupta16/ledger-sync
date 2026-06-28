@@ -6,7 +6,7 @@ export type InvestmentCategory = (typeof INVESTMENT_CATEGORIES)[number]
 export const CATEGORY_COLORS: Record<InvestmentCategory, string> = {
   'FD/Bonds': rawColors.app.pink,
   'Mutual Funds': rawColors.app.purple,
-  'PPF/EPF': '#f59e0b',
+  'PPF/EPF': rawColors.app.orange,
   Stocks: rawColors.app.green,
 }
 

@@ -30,7 +30,7 @@ export default function CreateGoalForm({
       className="overflow-hidden"
     >
       <form onSubmit={onSubmit} className="glass rounded-2xl border border-border p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-white">Create New Goal</h3>
+        <h3 className="text-lg font-semibold text-foreground">Create New Goal</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
             type="text"
@@ -83,7 +83,7 @@ export default function CreateGoalForm({
           <button
             type="submit"
             disabled={isPending}
-            className="px-5 py-2 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50"
+            className="px-5 py-2 rounded-xl text-sm font-medium text-foreground transition-colors disabled:opacity-50"
             style={{ background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})` }}
           >
             {isPending ? 'Creating...' : 'Create Goal'}
@@ -91,7 +91,7 @@ export default function CreateGoalForm({
           <button
             type="button"
             onClick={onCancel}
-            className="px-5 py-2 rounded-xl text-sm text-muted-foreground bg-white/5 border border-border hover:bg-white/10 transition-colors"
+            className="px-5 py-2 rounded-xl text-sm text-muted-foreground bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-5)] transition-colors"
           >
             Cancel
           </button>

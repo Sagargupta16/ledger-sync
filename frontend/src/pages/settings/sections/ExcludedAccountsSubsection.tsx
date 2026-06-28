@@ -26,7 +26,7 @@ export default function ExcludedAccountsSubsection({
 
   return (
     <div className="pt-4 border-t border-border space-y-3">
-      <h3 className="text-sm font-medium text-white flex items-center gap-2">
+      <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
         <EyeOff className="w-4 h-4 text-primary" />
         Excluded Accounts
         {excludedAccounts.length > 0 && (
@@ -47,22 +47,22 @@ export default function ExcludedAccountsSubsection({
             return (
               <label
                 key={account}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--overlay-2)] transition-colors"
               >
                 <button
                   type="button"
                   onClick={() => toggleExcludedAccount(account)}
                   className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${
                     isExcluded
-                      ? 'bg-app-yellow text-black'
-                      : 'bg-white/5 border border-border'
+                      ? 'bg-app-yellow text-on-warning'
+                      : 'bg-[var(--overlay-2)] border border-border'
                   }`}
                 >
                   {isExcluded && <Check className="w-3 h-3" />}
                 </button>
                 <span
                   className={`text-sm truncate ${
-                    isExcluded ? 'text-muted-foreground line-through' : 'text-white'
+                    isExcluded ? 'text-muted-foreground line-through' : 'text-foreground'
                   }`}
                 >
                   {account}

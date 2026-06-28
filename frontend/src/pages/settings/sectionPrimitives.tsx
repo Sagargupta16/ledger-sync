@@ -48,13 +48,13 @@ export function Section({
         onClick={() => setExpanded((p) => !p)}
         aria-expanded={expanded}
         aria-controls={panelId}
-        className="flex items-center gap-3 w-full px-6 py-5 text-left hover:bg-white/5 transition-colors"
+        className="flex items-center gap-3 w-full px-6 py-5 text-left hover:bg-[var(--overlay-2)] transition-colors"
       >
         <div className="p-2 rounded-xl bg-primary/10">
           <Icon className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-semibold text-white">{title}</h2>
+          <h2 className="text-base font-semibold text-foreground">{title}</h2>
           {description && (
             <p className="text-xs text-muted-foreground mt-0.5 truncate">{description}</p>
           )}
@@ -82,6 +82,24 @@ export function Section({
 }
 
 // ---------------------------------------------------------------------------
+// Group heading
+// ---------------------------------------------------------------------------
+
+/**
+ * Lightweight label above a cluster of related sections. Gives the Settings
+ * page information scent so the 11 sections read as a few task-based groups
+ * instead of one flat list. Matches the overline group-header style used on
+ * the More page.
+ */
+export function GroupHeader({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <h2 className="text-overline uppercase tracking-wider text-text-tertiary font-semibold px-1 pt-2 first:pt-0">
+      {children}
+    </h2>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Toggle switch
 // ---------------------------------------------------------------------------
 
@@ -101,12 +119,14 @@ export function Toggle({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-        checked ? 'bg-primary' : 'bg-white/20'
+      // Track stays 24x44px visually; a ::before pseudo expands the tap target
+      // to the 44px min on touch without changing the switch's proportions.
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] ${
+        checked ? 'bg-primary' : 'bg-[var(--overlay-6)]'
       }`}
     >
       <span
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-foreground shadow-lg transition-transform ${
           checked ? 'translate-x-5' : 'translate-x-0'
         }`}
       />

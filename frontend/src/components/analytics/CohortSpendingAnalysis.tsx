@@ -89,7 +89,7 @@ export default function CohortSpendingAnalysis() {
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-app-teal" />
-          <h3 className="text-lg font-semibold text-white">Spending Patterns</h3>
+          <h3 className="text-lg font-semibold text-foreground">Spending Patterns</h3>
         </div>
         <div className="flex gap-1 p-0.5 rounded-lg bg-muted/20">
           {([
@@ -101,7 +101,7 @@ export default function CohortSpendingAnalysis() {
               key={key}
               onClick={() => setView(key)}
               aria-pressed={view === key}
-              className={`px-2.5 py-2.5 min-h-11 rounded-md text-xs font-medium transition-colors ${view === key ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+              className={`px-2.5 py-2.5 min-h-11 rounded-md text-xs font-medium transition-colors ${view === key ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {label}
             </button>
@@ -147,7 +147,7 @@ export default function CohortSpendingAnalysis() {
                   <p className="text-[10px] uppercase tracking-widest text-text-quaternary font-semibold">
                     Peak {viewLabel(view, 'singular')}
                   </p>
-                  <p className="text-sm font-semibold text-white mt-0.5 truncate">
+                  <p className="text-sm font-semibold text-foreground mt-0.5 truncate">
                     <span className="text-app-teal">{peakName}</span>
                     <span className="text-text-tertiary text-xs font-normal">
                       {' '}· {formatCurrencyShort(insights.peakAmount)}
@@ -158,11 +158,11 @@ export default function CohortSpendingAnalysis() {
                   </p>
                 </div>
               </div>
-              <div className="px-3 py-2.5 rounded-lg bg-white/[0.04] border border-border">
+              <div className="px-3 py-2.5 rounded-lg bg-[var(--overlay-2)] border border-border">
                 <p className="text-[10px] uppercase tracking-widest text-text-quaternary font-semibold">
                   Quietest {viewLabel(view, 'singular')}
                 </p>
-                <p className="text-sm font-semibold text-white mt-0.5 truncate">
+                <p className="text-sm font-semibold text-foreground mt-0.5 truncate">
                   {insights.dipName}
                 </p>
               </div>

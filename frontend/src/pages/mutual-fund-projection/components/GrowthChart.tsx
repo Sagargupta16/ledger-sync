@@ -146,9 +146,9 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
               {todayMonth && (
                 <ReferenceLine
                   x={todayMonth}
-                  stroke="rgba(255,255,255,0.25)"
+                  stroke={rawColors.chart.referenceLineStrong}
                   strokeDasharray="3 3"
-                  label={{ value: 'Today', position: 'insideTopRight', fill: 'rgba(255,255,255,0.55)', fontSize: 10 }}
+                  label={{ value: 'Today', position: 'insideTopRight', fill: rawColors.chart.textSubtle, fontSize: 10 }}
                 />
               )}
             </AreaChart>

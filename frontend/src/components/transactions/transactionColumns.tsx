@@ -18,7 +18,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     header: ({ column }) => (
       <button
         onClick={() => column.toggleSorting()}
-        className="flex items-center gap-2 text-text-tertiary hover:text-white transition-colors duration-150"
+        className="flex items-center gap-2 text-text-tertiary hover:text-foreground transition-colors duration-150"
       >
         Date
         {sortIcon(column)}
@@ -71,7 +71,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     header: ({ column }) => (
       <button
         onClick={() => column.toggleSorting()}
-        className="flex items-center gap-2 text-text-tertiary hover:text-white transition-colors duration-150"
+        className="flex items-center gap-2 text-text-tertiary hover:text-foreground transition-colors duration-150"
       >
         Amount
         {sortIcon(column)}

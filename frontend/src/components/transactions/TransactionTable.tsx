@@ -61,11 +61,11 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
 
   if (isLoading) {
     return (
-      <div className="bg-white/[0.02] border border-border rounded-xl overflow-hidden">
+      <div className="bg-[var(--overlay-1)] border border-border rounded-xl overflow-hidden">
         {/* Desktop skeleton */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-white/[0.04] border-b border-white/[0.04] sticky top-0 z-10">
+            <thead className="bg-[var(--overlay-2)] border-b border-[var(--hairline-1)] sticky top-0 z-10">
               <tr>
                 {Array.from({ length: 6 }, (_, i) => (
                   <th key={`skeleton-header-${i}`} className="px-6 py-3 text-left">
@@ -76,7 +76,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
             </thead>
             <tbody>
               {Array.from({ length: 10 }, (_, i) => (
-                <tr key={`skeleton-row-${i}`} className="border-b border-white/[0.04]">
+                <tr key={`skeleton-row-${i}`} className="border-b border-[var(--hairline-1)]">
                   {Array.from({ length: 6 }, (_, j) => (
                     <td key={`skeleton-cell-${i}-${j}`} className="px-6 py-4">
                       <div className="h-4 skeleton w-full" />
@@ -88,9 +88,9 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
           </table>
         </div>
         {/* Mobile skeleton */}
-        <div className="md:hidden divide-y divide-white/5 p-4 space-y-3">
+        <div className="md:hidden divide-y divide-[var(--hairline-1)] p-4 space-y-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={`skeleton-card-${i}`} className="p-4 rounded-lg bg-white/[0.04] border border-border space-y-3">
+            <div key={`skeleton-card-${i}`} className="p-4 rounded-lg bg-[var(--overlay-2)] border border-border space-y-3">
               <div className="flex justify-between">
                 <div className="h-4 skeleton w-24" />
                 <div className="h-5 skeleton w-20" />
@@ -109,7 +109,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
 
   if (transactions.length === 0) {
     return (
-      <div className="bg-white/[0.02] border border-border rounded-xl">
+      <div className="bg-[var(--overlay-1)] border border-border rounded-xl">
         <EmptyState
           icon={Search}
           title="No transactions found"
@@ -124,13 +124,13 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white/[0.02] border border-border rounded-xl overflow-hidden"
+      className="bg-[var(--overlay-1)] border border-border rounded-xl overflow-hidden"
     >
       {/* Desktop table */}
       <div className="hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-white/[0.04] border-b border-white/[0.04] sticky top-0 z-10">
+            <thead className="bg-[var(--overlay-2)] border-b border-[var(--hairline-1)] sticky top-0 z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
@@ -165,7 +165,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
               {table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors duration-150"
+                  className="border-b border-[var(--hairline-1)] hover:bg-[var(--overlay-2)] transition-colors duration-150"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-6 py-4">
@@ -200,7 +200,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
             return (
               <div key={dateKey}>
                 {/* Day header */}
-                <div className="sticky top-0 z-10 px-4 py-2 bg-background/90 backdrop-blur-sm flex items-center justify-between border-b border-white/[0.04]">
+                <div className="sticky top-0 z-10 px-4 py-2 bg-background/90 backdrop-blur-sm flex items-center justify-between border-b border-[var(--hairline-1)]">
                   <span className="text-xs font-semibold text-text-tertiary">
                     {formatDate(dateKey, { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })}
                   </span>
@@ -209,7 +209,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                   </span>
                 </div>
                 {/* Day transactions */}
-                <div className="divide-y divide-white/5">
+                <div className="divide-y divide-[var(--hairline-1)]">
                   {dayRows.map((row) => {
                     const tx = row.original
                     const isIncome = tx.type === 'Income'
@@ -219,7 +219,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                     const TypeIcon = isIncome ? TrendingUp : TrendingDown
 
                     return (
-                      <div key={row.id} className="p-3 sm:p-4 hover:bg-white/[0.04] transition-colors duration-150">
+                      <div key={row.id} className="p-3 sm:p-4 hover:bg-[var(--overlay-2)] transition-colors duration-150">
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2">
                             {isTransfer ? (
@@ -227,9 +227,9 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                             ) : (
                               <TypeIcon className={`w-3.5 h-3.5 ${isIncome ? 'text-app-green' : 'text-app-red'}`} />
                             )}
-                            <span className="text-sm font-medium">{tx.category}</span>
+                            <span className="text-sm font-medium" title={tx.category}>{tx.category}</span>
                             {tx.subcategory && (
-                              <span className="text-xs text-text-tertiary">/ {tx.subcategory}</span>
+                              <span className="text-xs text-text-tertiary" title={tx.subcategory}>/ {tx.subcategory}</span>
                             )}
                           </div>
                           <span className={`text-sm font-semibold ${amountColor}`}>

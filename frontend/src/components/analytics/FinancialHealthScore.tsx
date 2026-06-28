@@ -99,9 +99,9 @@ function HealthMetricCard({ metric }: Readonly<{ metric: HealthMetric }>) {
   const color = TIER_COLORS[metric.status] ?? rawColors.app.red
 
   return (
-    <div className="p-2.5 rounded-lg border border-border bg-white/[0.02]">
+    <div className="p-2.5 rounded-lg border border-border bg-[var(--overlay-1)]">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium text-white truncate">{metric.name}</span>
+        <span className="text-xs font-medium text-foreground truncate">{metric.name}</span>
         <span className="text-xs font-bold" style={{ color }}>{Math.round(metric.score)}</span>
       </div>
       <div className="h-1 bg-muted/30 rounded-full overflow-hidden mb-1.5">
@@ -201,7 +201,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
           subtitle={`Last ${analysisData.monthsAnalyzed} months`}
           color={fhnStatus.color}
         />
-        <RadarVisualization metrics={fhnRadarData} chartColor="#4a9eff" />
+        <RadarVisualization metrics={fhnRadarData} chartColor={rawColors.app.blue} />
         <p className="text-[11px] text-center text-muted-foreground mb-3">{getSummary(overallScore)}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {metrics.map((m) => <HealthMetricCard key={m.name} metric={m} />)}

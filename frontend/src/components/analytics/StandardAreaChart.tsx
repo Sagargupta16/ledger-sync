@@ -21,6 +21,7 @@ import {
   areaGradient, areaGradientUrl, LEGEND_DEFAULTS, shouldAnimate, ACTIVE_DOT,
   BRUSH_DEFAULTS,
 } from '@/components/ui/chartDefaults'
+import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface AreaConfig {
@@ -63,6 +64,8 @@ interface StandardAreaChartProps {
    * to inspect a sub-range without changing the global filter. Default off.
    */
   readonly showBrush?: boolean
+  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  readonly ariaLabel?: string
 }
 
 export default function StandardAreaChart({
@@ -79,6 +82,7 @@ export default function StandardAreaChart({
   referenceLines,
   stacked = false,
   showBrush = false,
+  ariaLabel,
 }: StandardAreaChartProps) {
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -89,7 +93,7 @@ export default function StandardAreaChart({
   const yDefaults = yAxisDefaults()
 
   return (
-    <ChartContainer height={height}>
+    <ChartContainer height={height} ariaLabel={ariaLabel}>
       <AreaChart
         data={data}
         margin={{ top: 8, right: 12, bottom: xAngle ? 20 : 8, left: 4 }}
@@ -119,11 +123,11 @@ export default function StandardAreaChart({
             key={`${ref.y ?? ''}${ref.x ?? ''}${ref.label ?? ''}`}
             y={ref.y}
             x={ref.x}
-            stroke={ref.color ?? 'rgba(255,255,255,0.2)'}
+            stroke={ref.color ?? CHART_SURFACE.referenceLineStrong}
             strokeDasharray={ref.strokeDasharray ?? '6 4'}
             label={ref.label ? {
               value: ref.label,
-              fill: '#71717a',
+              fill: CHART_TEXT.subtle,
               fontSize: 11,
               position: 'insideTopRight',
             } : undefined}

@@ -9,7 +9,7 @@ export default function HeatmapDayDetail({ hoveredDay }: Readonly<Props>) {
   if (hoveredDay) {
     return (
       <>
-        <span className="text-white font-medium">
+        <span className="text-foreground font-medium">
           {new Date(hoveredDay.date + 'T00:00:00').toLocaleDateString('en-IN', {
             weekday: 'short',
             day: 'numeric',

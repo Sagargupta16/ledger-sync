@@ -42,7 +42,7 @@ export default function FYNavigator({
           onClick={onGoBack}
           disabled={!canGoBack}
           aria-label="Previous fiscal year"
-          className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border shrink-0"
+          className="p-3 rounded-xl bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border shrink-0"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -50,7 +50,7 @@ export default function FYNavigator({
         <div className="text-center flex-1 min-w-0">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white">{selectedFY || 'Select FY'}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{selectedFY || 'Select FY'}</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {isNewRegime
                   ? 'New Tax Regime (2025-26 onwards)'
@@ -65,8 +65,8 @@ export default function FYNavigator({
                   onClick={onToggleProjection}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                     showProjection
-                      ? 'bg-primary text-white'
-                      : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                      ? 'bg-primary text-on-accent'
+                      : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
                   }`}
                 >
                   {showProjection ? 'Showing Projection' : 'Show Year-End Projection'}
@@ -87,7 +87,7 @@ export default function FYNavigator({
           onClick={onGoForward}
           disabled={!canGoForward}
           aria-label="Next fiscal year"
-          className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border shrink-0"
+          className="p-3 rounded-xl bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border shrink-0"
         >
           <ChevronRight className="w-5 h-5" />
         </button>

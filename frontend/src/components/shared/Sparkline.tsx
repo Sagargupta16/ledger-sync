@@ -163,7 +163,7 @@ function DefaultSparkline({
           y1={avgY}
           x2={width}
           y2={avgY}
-          stroke="rgba(255,255,255,0.08)"
+          stroke={rawColors.chart.svgStroke}
           strokeWidth={1}
           strokeDasharray="3 3"
         />
@@ -193,7 +193,7 @@ function DefaultSparkline({
               y1={0}
               x2={hoverPoint.x}
               y2={height}
-              stroke="rgba(255,255,255,0.15)"
+              stroke={rawColors.chart.referenceLine}
               strokeWidth={1}
               strokeDasharray="3 3"
             />
@@ -222,7 +222,7 @@ function DefaultSparkline({
       {/* Tooltip */}
       {showTooltip && hoverPoint && (
         <div
-          className="absolute -top-8 px-2 py-1 bg-surface-tooltip text-white text-caption font-medium rounded shadow-lg pointer-events-none whitespace-nowrap border border-border"
+          className="absolute -top-8 px-2 py-1 bg-surface-tooltip text-foreground text-caption font-medium rounded shadow-lg pointer-events-none whitespace-nowrap border border-border"
           style={{
             left: `${(hoverPoint.x / width) * 100}%`,
             transform: 'translateX(-50%)',

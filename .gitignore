@@ -222,3 +222,12 @@ typings/
 # Added for consistency
 .env.*.local
 Thumbs.db
+
+# Test / verification artifacts (Playwright MCP screenshots, ad-hoc captures, traces)
+.playwright-mcp/
+playwright-report/
+test-results/
+*.local.jpeg
+*.local.png
+/*.jpeg
+/*.png

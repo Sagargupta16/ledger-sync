@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { ArrowRight, Eye, Heart, PiggyBank, Upload } from 'lucide-react'
 
+import ThemeToggle from '@/components/layout/Sidebar/ThemeToggle'
 import { AuthModal, LoginButton } from '@/components/shared/AuthModal'
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
@@ -34,7 +35,7 @@ export default function HomePage() {
   return (
     <div className="min-h-dvh flex flex-col">
       <header
-        className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-black/50 border-b border-border"
+        className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-[var(--header-bg)] border-b border-border"
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
@@ -49,16 +50,17 @@ export default function HomePage() {
                 background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
               }}
             >
-              <PiggyBank className="w-6 h-6 text-white" />
+              <PiggyBank className="w-6 h-6 text-foreground" />
             </div>
-            <span className="text-xl font-bold text-white">Ledger Sync</span>
+            <span className="text-xl font-bold text-foreground">Ledger Sync</span>
           </Link>
 
-          <div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             {isAuthenticated ? (
               <Link
                 to={ROUTES.DASHBOARD}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white transition-colors hover:scale-105"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-primary-foreground transition-colors hover:scale-105"
                 style={{
                   background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
                 }}
@@ -92,17 +94,17 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4">
                 Ready to Take Control?
               </h2>
               <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
                 Start tracking your finances today. It's free, private, and takes just a minute
                 to get started.
               </p>
-              <div className="flex flex-wrap justify-center gap-4">
+              <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4">
                 <button
                   onClick={handleGetStarted}
-                  className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
+                  className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-on-accent transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
                   style={{
                     background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
                     boxShadow: `0 10px 30px ${rawColors.app.blue}50`,
@@ -115,7 +117,7 @@ export default function HomePage() {
                 {!isAuthenticated && (
                   <button
                     onClick={handleTryDemo}
-                    className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
+                    className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-foreground transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
                   >
                     <Eye className="w-5 h-5" />
                     Try Demo

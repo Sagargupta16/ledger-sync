@@ -172,13 +172,13 @@ export default function CommandPalette() {
           transition={{ duration: 0.15, ease: 'easeOut' }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-[var(--modal-backdrop)] backdrop-blur-sm"
             onClick={close}
             aria-hidden="true"
           />
 
           <motion.div
-            className="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl bg-[#1a1a1c]/95 backdrop-blur-lg border border-white/[0.08] flex flex-col max-h-[80vh]"
+            className="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl bg-surface-dropdown/95 backdrop-blur-lg border border-[var(--hairline-2)] flex flex-col max-h-[80vh]"
             style={{
               boxShadow: `0 25px 60px rgba(0, 0, 0, 0.5), 0 0 80px ${rawColors.app.blue}10`,
             }}
@@ -190,7 +190,7 @@ export default function CommandPalette() {
             aria-modal="true"
             aria-label="Command palette"
           >
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.08]">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--hairline-2)]">
               <Search
                 size={20}
                 className="flex-shrink-0"
@@ -206,11 +206,11 @@ export default function CommandPalette() {
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="Search pages, transactions..."
-                className="flex-1 bg-transparent text-white text-base placeholder:text-text-quaternary outline-none"
+                className="flex-1 bg-transparent text-foreground text-base placeholder:text-text-quaternary outline-none"
                 autoComplete="off"
                 spellCheck={false}
               />
-              <kbd className="hidden sm:flex items-center gap-1 px-2 py-1 rounded bg-white/[0.06] border border-white/[0.08] text-xs font-medium text-text-tertiary">
+              <kbd className="hidden sm:flex items-center gap-1 px-2 py-1 rounded bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-xs font-medium text-text-tertiary">
                 ESC
               </kbd>
             </div>
@@ -224,19 +224,19 @@ export default function CommandPalette() {
               listRef={listRef}
             />
 
-            <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.08] bg-black/10">
+            <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--hairline-2)] bg-[var(--overlay-2)]">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1 text-xs text-text-tertiary">
-                  <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-white/[0.06] border border-white/[0.08] text-[10px] text-text-tertiary">
+                  <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-[10px] text-text-tertiary">
                     ↑
                   </kbd>
-                  <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-white/[0.06] border border-white/[0.08] text-[10px] text-text-tertiary">
+                  <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-[10px] text-text-tertiary">
                     ↓
                   </kbd>
                   <span className="ml-1">Navigate</span>
                 </span>
                 <span className="flex items-center gap-1 text-xs text-text-tertiary">
-                  <kbd className="inline-flex items-center justify-center px-1.5 h-5 rounded bg-white/[0.06] border border-white/[0.08] text-[10px] text-text-tertiary">
+                  <kbd className="inline-flex items-center justify-center px-1.5 h-5 rounded bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-[10px] text-text-tertiary">
                     ↵
                   </kbd>
                   <span className="ml-1">Open</span>

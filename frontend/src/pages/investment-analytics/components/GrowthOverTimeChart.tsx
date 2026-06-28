@@ -39,7 +39,7 @@ export function GrowthOverTimeChart({
     >
       <div className="flex items-center gap-3 mb-6">
         <LineChart className="w-5 h-5 text-app-purple" />
-        <h3 className="text-lg font-semibold text-white">Investment Growth Over Time</h3>
+        <h3 className="text-lg font-semibold text-foreground">Investment Growth Over Time</h3>
       </div>
       {isLoading && <ChartSkeleton />}
       {!isLoading &&

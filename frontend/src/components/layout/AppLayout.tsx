@@ -8,6 +8,7 @@ import ChatWidget from '@/components/chat/ChatWidget'
 import { DemoBanner } from '@/components/shared/DemoBanner'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { useDemoStore } from '@/store/demoStore'
+import { useThemeStore } from '@/store/themeStore'
 import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 
 import Sidebar from './Sidebar/Sidebar'
@@ -23,6 +24,7 @@ const pageTransition = {
 // Route → browser tab title
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/overview': 'Overview',
   '/transactions': 'Transactions',
   '/subscriptions': 'Subscriptions',
   '/bill-calendar': 'Bill Calendar',
@@ -43,11 +45,18 @@ const PAGE_TITLES: Record<string, string> = {
   '/tax/gst': 'Indirect Tax (GST)',
   '/upload': 'Upload & Sync',
   '/settings': 'Settings',
+  '/more': 'More',
+  '/demo': 'Demo',
 }
 
 export default function AppLayout() {
   const location = useLocation()
   const isDemoMode = useDemoStore((s) => s.isDemoMode)
+  // Resolved theme ('dark' | 'light'). Folded into the routed-content key below
+  // so a theme toggle remounts the page subtree, forcing Recharts/SVG to re-read
+  // the freshly re-resolved chart colors (rawColors is refreshed in applyTheme).
+  // Cached query data (staleTime: Infinity) is preserved, so the remount is cheap.
+  const resolvedTheme = useThemeStore((s) => s.resolved)
 
   // Fetch exchange rate when display currency changes (pushes to store for formatters)
   useExchangeRate()
@@ -60,13 +69,14 @@ export default function AppLayout() {
   }, [location.pathname])
 
   return (
-    <div className="flex h-dvh bg-black relative overflow-hidden">
+    <div className="flex h-dvh bg-background relative overflow-hidden">
       {isDemoMode && <DemoBanner />}
 
       {/* Skip to main content link for keyboard users */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-app-blue focus:text-white focus:rounded-xl focus:text-sm focus:font-medium focus:shadow-lg"
+        aria-label="Skip to main content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-app-blue focus:text-on-accent focus:rounded-xl focus:text-sm focus:font-medium focus:shadow-lg"
       >
         Skip to main content
       </a>
@@ -110,7 +120,7 @@ export default function AppLayout() {
         }`}
       >
         <AnimatePresence mode="popLayout">
-          <motion.div key={location.pathname} {...pageTransition}>
+          <motion.div key={`${location.pathname}:${resolvedTheme}`} {...pageTransition}>
             {/*
               Page-scoped error boundary: a crash in one route renders the
               fallback INSIDE the layout (sidebar + nav stay alive) instead of

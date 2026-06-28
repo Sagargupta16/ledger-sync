@@ -39,13 +39,13 @@ export default function DayCell({
   const opacityClass = isCurrentMonth ? '' : 'opacity-30'
   const selectionClass = isSelected
     ? 'bg-app-blue/20 border border-app-blue/40'
-    : 'hover:bg-white/8 border border-transparent'
+    : 'hover:bg-[var(--overlay-4)] border border-transparent'
   const todayBorderClass = isToday && !isSelected ? 'ring-2 ring-app-blue/50' : ''
 
   const dayNumberClass = (() => {
-    if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-app-blue text-white'
+    if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-app-blue text-on-accent'
     if (isSelected) return 'text-app-blue'
-    if (isCurrentMonth) return 'text-white'
+    if (isCurrentMonth) return 'text-foreground'
     return 'text-text-quaternary'
   })()
 

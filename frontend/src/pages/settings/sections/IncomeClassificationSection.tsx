@@ -16,6 +16,7 @@ interface Props {
   unclassifiedIncomeItems: string[]
   setLocalPrefs: Dispatch<SetStateAction<LocalPrefs | null>>
   setHasChanges: (v: boolean) => void
+  defaultCollapsed?: boolean
 }
 
 function getClassification(
@@ -38,6 +39,7 @@ export default function IncomeClassificationSection({
   unclassifiedIncomeItems,
   setLocalPrefs,
   setHasChanges,
+  defaultCollapsed = true,
 }: Readonly<Props>) {
   const handleClassify = (item: string, newType: IncomeClassificationType | 'unclassified') => {
     const updated = { ...localPrefs }
@@ -59,6 +61,7 @@ export default function IncomeClassificationSection({
       icon={DollarSign}
       title="Income Classification"
       description="Classify income subcategories by type for tax and analytics"
+      defaultCollapsed={defaultCollapsed}
     >
       {Object.keys(allIncomeCategories).length === 0 ? (
         <EmptyState
@@ -84,9 +87,9 @@ export default function IncomeClassificationSection({
                   return (
                     <div
                       key={fullKey}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--overlay-2)] transition-colors"
                     >
-                      <span className="text-sm text-white flex-1 min-w-0 truncate">{sub}</span>
+                      <span className="text-sm text-foreground flex-1 min-w-0 truncate">{sub}</span>
                       <select
                         aria-label={`Income classification for ${sub}`}
                         value={currentType}
@@ -96,7 +99,7 @@ export default function IncomeClassificationSection({
                             e.target.value as IncomeClassificationType | 'unclassified',
                           )
                         }
-                        className="px-2 py-1.5 bg-white/5 border border-border rounded-lg text-white text-xs focus:border-primary focus:outline-none w-40 sm:w-44"
+                        className="px-2 py-1.5 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-xs focus:border-primary focus:outline-none w-40 sm:w-44"
                       >
                         <option value="unclassified" className="bg-background">
                           Unclassified

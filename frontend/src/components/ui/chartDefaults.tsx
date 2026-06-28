@@ -285,7 +285,8 @@ export const BRUSH_DEFAULTS = {
   traveller: (props: { x: number; y: number; width: number; height: number }) =>
     renderBrushTraveller(props),
   // Hairline frame around the overview strip; the traveller carries the accent.
-  stroke: 'rgba(255,255,255,0.10)',
+  // Theme-aware ink/white hairline (SVG attr -> concrete value, not var()).
+  stroke: rawColors.chart.svgStroke,
   // Selection window: a blue wash so the kept range reads as "selected"
   // against the dimmed full-history overview behind it.
   fill: 'rgba(74,158,255,0.12)',

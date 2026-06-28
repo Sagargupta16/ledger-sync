@@ -48,13 +48,13 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
             </div>
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold text-white">Something went wrong</h2>
+              <h2 className="text-2xl font-bold text-foreground">Something went wrong</h2>
               <p className="text-muted-foreground">
                 An unexpected error occurred. Don't worry, your data is safe.
               </p>
             </div>
             {this.state.error && import.meta.env.DEV && (
-              <div className="bg-black/30 rounded-lg p-4 border border-app-red/20">
+              <div className="bg-[var(--overlay-2)] rounded-lg p-4 border border-app-red/20">
                 <p className="text-sm text-app-red font-mono break-words">
                   {this.state.error.message}
                 </p>
@@ -63,14 +63,14 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex gap-3">
               <button
                 onClick={this.handleReset}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary to-secondary text-on-accent rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
                 Try Again
               </button>
               <button
                 onClick={() => globalThis.location.reload()}
-                className="flex-1 px-4 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+                className="flex-1 px-4 py-3 bg-[var(--overlay-5)] text-foreground rounded-lg hover:bg-[var(--overlay-6)] transition-colors"
               >
                 Reload Page
               </button>

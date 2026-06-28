@@ -78,7 +78,7 @@ export default function OAuthCallbackPage() {
   }, [provider, searchParams, navigate, login, setTokens])
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-black">
+    <div className="min-h-dvh flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
         <Loader2 className="w-10 h-10 text-app-blue animate-spin" />
         <p className="text-muted-foreground text-sm">
