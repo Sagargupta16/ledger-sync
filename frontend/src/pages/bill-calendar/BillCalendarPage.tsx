@@ -65,7 +65,7 @@ export default function BillCalendarPage() {
         {isLoading ? (
           <CardGridSkeleton count={3} cols="grid-cols-1 sm:grid-cols-3" />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5">
             <SummaryCard
               icon={DollarSign}
               label="Total Due This Month"
@@ -74,6 +74,7 @@ export default function BillCalendarPage() {
               bgClass="bg-app-red/20"
               shadowClass="shadow-app-red/30"
               delay={0.1}
+              compact
             />
             <SummaryCard
               icon={Hash}
@@ -83,16 +84,22 @@ export default function BillCalendarPage() {
               bgClass="bg-app-blue/20"
               shadowClass="shadow-app-blue/30"
               delay={0.2}
+              compact
             />
-            <SummaryCard
-              icon={Clock}
-              label={nextBillContext}
-              value={nextBillPrimary}
-              colorClass="text-app-orange"
-              bgClass="bg-app-orange/20"
-              shadowClass="shadow-app-orange/30"
-              delay={0.3}
-            />
+            {/* Next-bill card spans full width on phone so it never sits
+                lopsided alone in the 2-column row. */}
+            <div className="col-span-2 sm:col-span-1">
+              <SummaryCard
+                icon={Clock}
+                label={nextBillContext}
+                value={nextBillPrimary}
+                colorClass="text-app-orange"
+                bgClass="bg-app-orange/20"
+                shadowClass="shadow-app-orange/30"
+                delay={0.3}
+                compact
+              />
+            </div>
           </div>
         )}
 
@@ -104,7 +111,7 @@ export default function BillCalendarPage() {
             <button
               type="button"
               onClick={goToPrevMonth}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
+              className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2 rounded-lg hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
               aria-label="Previous month"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -118,7 +125,7 @@ export default function BillCalendarPage() {
                 <button
                   type="button"
                   onClick={goToToday}
-                  className="text-xs px-2.5 py-1 rounded-md bg-app-blue/15 text-app-blue hover:bg-app-blue/25 transition-colors font-medium"
+                  className="text-xs px-3 py-2 sm:py-1 min-h-11 sm:min-h-0 rounded-md bg-app-blue/15 text-app-blue hover:bg-app-blue/25 transition-colors font-medium"
                 >
                   Today
                 </button>
@@ -128,7 +135,7 @@ export default function BillCalendarPage() {
             <button
               type="button"
               onClick={goToNextMonth}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
+              className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2 rounded-lg hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
               aria-label="Next month"
             >
               <ChevronRight className="w-5 h-5" />
@@ -251,7 +258,7 @@ export default function BillCalendarPage() {
               animate={{ opacity: 1, y: 0, height: 'auto' }}
               exit={{ opacity: 0, y: -10, height: 0 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="glass rounded-2xl border border-border p-6 overflow-hidden"
+              className="glass rounded-2xl border border-border p-4 sm:p-6 overflow-hidden"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-semibold text-white">
@@ -267,7 +274,7 @@ export default function BillCalendarPage() {
                     type="button"
                     onClick={() => setSelectedDay(null)}
                     aria-label="Close day details"
-                    className="p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
+                    className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>

@@ -47,7 +47,7 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.8 }}
-      className="glass rounded-2xl border border-border p-6"
+      className="glass rounded-2xl border border-border p-4 sm:p-6"
     >
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         <div>
@@ -78,15 +78,16 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
           ))}
         </div>
       </div>
-      <div className="h-96" style={{ height: '384px' }}>
-        {chartData.length === 0 ? (
-          <ChartEmptyState
-            height={384}
-            message="No SIP transactions found. Transfer data to a mutual fund account to see projections."
-          />
-        ) : (
+      {chartData.length === 0 ? (
+        <ChartEmptyState
+          height={384}
+          message="No SIP transactions found. Transfer data to a mutual fund account to see projections."
+        />
+      ) : (
+        <div className="h-72 sm:h-96">
           <ChartContainer
-            height={384}
+            height="100%"
+            mobileHeight="100%"
             ariaLabel="Area chart projecting principal invested versus portfolio value over the selected number of years."
           >
             <AreaChart data={chartData}>
@@ -152,8 +153,8 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
               )}
             </AreaChart>
           </ChartContainer>
-        )}
-      </div>
+        </div>
+      )}
     </motion.div>
   )
 }

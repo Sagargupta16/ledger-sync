@@ -76,7 +76,7 @@ export default function GoalCard({
                 onClick={onStartEditDetails}
                 title="Edit goal"
                 aria-label="Edit goal"
-                className="p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors"
+                className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors"
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
@@ -84,7 +84,7 @@ export default function GoalCard({
                 onClick={() => setConfirmDelete(true)}
                 title="Delete goal"
                 aria-label={`Delete goal: ${goal.name}`}
-                className="p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors"
+                className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -153,7 +153,7 @@ export default function GoalCard({
       <div className="flex items-center justify-between mt-4">
         <button
           onClick={onStartEdit}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-white/5 border border-border hover:bg-white/10 text-text-secondary hover:text-white"
+          className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-colors bg-white/5 border border-border hover:bg-white/10 text-text-secondary hover:text-white"
         >
           <Pencil className="w-3.5 h-3.5" /> Update Progress
         </button>

@@ -24,6 +24,7 @@ function buildColumns(maxAllocation: number): DataTableColumn<PortfolioRow>[] {
       header: 'Account',
       sortable: true,
       sortType: 'text',
+      mobilePrimary: true,
       cell: (row) => <span className="text-white font-medium">{row.name}</span>,
     },
     {
@@ -32,6 +33,7 @@ function buildColumns(maxAllocation: number): DataTableColumn<PortfolioRow>[] {
       align: 'right',
       sortable: true,
       sortValue: (row) => row.value,
+      mobileLabel: 'Value',
       cell: (row) => <span className="text-app-green">{formatCurrency(row.value)}</span>,
     },
     {
@@ -40,6 +42,7 @@ function buildColumns(maxAllocation: number): DataTableColumn<PortfolioRow>[] {
       align: 'right',
       sortable: true,
       sortValue: (row) => Number.parseFloat(row.percentage),
+      mobileLabel: 'Allocation',
       cell: (row) => {
         const pct = Number.parseFloat(row.percentage)
         return (
@@ -85,6 +88,7 @@ export function AccountsTable({
         rowKey={(row) => row.name}
         initialSort={{ key: 'value', dir: 'desc' }}
         ariaLabel="Investment accounts by value and allocation"
+        mobileCards
       />
       {totalAccountCount > cappedCount && (
         <p className="mt-3 text-xs text-text-tertiary">

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Area, AreaChart, CartesianGrid, Line, Tooltip, XAxis, YAxis } from 'recharts'
 
 import StandardBarChart from '@/components/analytics/StandardBarChart'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   ChartContainer,
   GRID_DEFAULTS,
@@ -30,13 +31,21 @@ interface BudgetChartsProps {
 
 export function BudgetCharts({ chartData, burndownData, usageData }: Readonly<BudgetChartsProps>) {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
+
+  // On phones the y-axis category labels would eat a quarter of a 390px card,
+  // so narrow the label gutter; per-row bars also read better with a touch
+  // more height than the desktop 256px when there are several categories.
+  const barYWidth = isMobile ? 64 : 96
+  const bvaHeight = isMobile ? Math.max(220, chartData.length * 44) : 256
+  const usageHeight = isMobile ? Math.max(220, usageData.length * 44) : 256
 
   return (
     <>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="glass rounded-2xl border border-border p-4 sm:p-6"
       >
         <div className="mb-4">
           <h2 className="text-lg font-semibold">Budget vs Actual</h2>
@@ -44,14 +53,14 @@ export function BudgetCharts({ chartData, burndownData, usageData }: Readonly<Bu
             Bar color reflects status -- tap a row to see its transactions
           </p>
         </div>
-        <div className="h-64">
+        <div style={{ height: bvaHeight }}>
           <StandardBarChart
             data={chartData}
             layout="vertical"
             yCategoryKey="name"
-            yWidth={96}
+            yWidth={barYWidth}
             dataKey="name"
-            height={256}
+            height={bvaHeight}
             bars={[
               { key: 'Budget', label: 'Budget', color: rawColors.app.blue, fillOpacity: 0.4 },
               {
@@ -78,9 +87,9 @@ export function BudgetCharts({ chartData, burndownData, usageData }: Readonly<Bu
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="glass rounded-2xl border border-border p-6"
+              className="glass rounded-2xl border border-border p-4 sm:p-6"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-y-2 mb-4">
                 <div>
                   <h2 className="text-lg font-semibold">Budget Burn-down</h2>
                   <p className="text-xs text-muted-foreground">
@@ -158,7 +167,7 @@ export function BudgetCharts({ chartData, burndownData, usageData }: Readonly<Bu
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="glass rounded-2xl border border-border p-6"
+              className="glass rounded-2xl border border-border p-4 sm:p-6"
             >
               <div className="mb-4">
                 <h2 className="text-lg font-semibold">Budget Utilization</h2>
@@ -166,14 +175,14 @@ export function BudgetCharts({ chartData, burndownData, usageData }: Readonly<Bu
                   Percent of budget used per category (highest first) -- the dashed line marks 100%
                 </p>
               </div>
-              <div className="h-64">
+              <div style={{ height: usageHeight }}>
                 <StandardBarChart
                   data={usageData}
                   layout="vertical"
                   yCategoryKey="category"
-                  yWidth={96}
+                  yWidth={barYWidth}
                   dataKey="category"
-                  height={256}
+                  height={usageHeight}
                   bars={[
                     {
                       key: 'usage',

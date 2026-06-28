@@ -40,12 +40,14 @@ export function CategorySection({
       sortable: true,
       sortType: 'text',
       sortValue: (d) => d.category,
+      mobilePrimary: true,
       cell: (d) => <span className="text-sm font-medium text-white truncate block">{d.category}</span>,
     },
     {
       key: 'bars',
       header: `${periodA.label} vs ${periodB.label}`,
       widthClass: 'w-[42%]',
+      mobileLabel: `${periodA.label} vs ${periodB.label}`,
       cell: (d) => (
         <div className="space-y-1">
           <ProgressBar
@@ -72,6 +74,7 @@ export function CategorySection({
       align: 'right',
       sortable: true,
       widthClass: 'w-24',
+      mobileLabel: `${periodA.label} / ${periodB.label}`,
       sortValue: (d) => d.periodB,
       cell: (d) => (
         <div className="leading-tight">
@@ -86,6 +89,7 @@ export function CategorySection({
       align: 'right',
       sortable: true,
       widthClass: 'w-24',
+      mobileLabel: 'Change',
       sortValue: (d) => d.change,
       cell: (d) => {
         const isGood = invertChange ? d.change < 0 : d.change >= 0
@@ -125,6 +129,7 @@ export function CategorySection({
           initialSort={{ key: 'periodB', dir: 'desc' }}
           ariaLabel={title}
           stickyHeader
+          mobileCards
           maxHeightClass="max-h-[300px] md:max-h-[400px] lg:max-h-[520px]"
         />
       )}

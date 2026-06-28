@@ -196,7 +196,7 @@ export default function YearInReviewPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="glass rounded-2xl border border-border p-4 sm:p-6"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -298,18 +298,29 @@ export default function YearInReviewPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="lg:col-span-2 glass rounded-2xl border border-border p-6"
+          className="lg:col-span-2 glass rounded-2xl border border-border p-4 sm:p-6"
         >
           <h2 className="text-lg font-semibold mb-4">Monthly Breakdown</h2>
           <p className="text-xs text-text-tertiary mb-4">Income, spending, and net cash flow each month</p>
-          <div className="h-72">
+          <div className="h-60 sm:h-72">
             {monthlyBarData.every((d) => d.Spending === 0 && d.Earning === 0) ? (
               <ChartEmptyState height={288} />
             ) : (
               <ChartContainer>
                 <ComposedChart data={monthlyBarData} barGap={4}>
                   <CartesianGrid {...GRID_DEFAULTS} />
-                  <XAxis {...xAxisDefaults(monthlyBarData.length)} dataKey="name" />
+                  {/* Angle the month labels only when the density check says so
+                      (mobile/tablet) and there are enough months to collide --
+                      keeps the desktop chart's flat labels untouched. */}
+                  <XAxis
+                    {...xAxisDefaults(
+                      monthlyBarData.length,
+                      dims.angleXLabels && monthlyBarData.length > 6
+                        ? { angle: -45, height: 50 }
+                        : undefined,
+                    )}
+                    dataKey="name"
+                  />
                   <YAxis {...yAxisDefaults()} />
                   <RechartsTooltip
                     {...chartTooltipProps}
@@ -397,7 +408,7 @@ export default function YearInReviewPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass rounded-2xl border border-border p-6 space-y-4"
+          className="glass rounded-2xl border border-border p-4 sm:p-6 space-y-4"
         >
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Flame className="w-5 h-5" style={{ color: rawColors.app.orange }} />
@@ -512,7 +523,7 @@ export default function YearInReviewPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="glass rounded-2xl border border-border p-4 sm:p-6"
       >
         <h2 className="text-lg font-semibold mb-4">Spending by Day of Week</h2>
         <DayOfWeekChart grid={grid} />

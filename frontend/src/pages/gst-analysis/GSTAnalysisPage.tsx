@@ -138,7 +138,7 @@ function FYNavigator({
         onClick={() => idx < fys.length - 1 && onSelect(fys[idx + 1])}
         disabled={idx >= fys.length - 1}
         aria-label="Previous fiscal year"
-        className="p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
+        className="p-2.5 sm:p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
@@ -148,7 +148,7 @@ function FYNavigator({
         onClick={() => idx > 0 && onSelect(fys[idx - 1])}
         disabled={idx <= 0}
         aria-label="Next fiscal year"
-        className="p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
+        className="p-2.5 sm:p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
@@ -231,7 +231,7 @@ export default function GSTAnalysisPage() {
       {!isLoading && hasData && gstData && (
         <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
           {/* Summary Cards */}
-          <motion.div variants={fadeUpItem} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <motion.div variants={fadeUpItem} className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
             <SummaryCard
               icon={<Receipt className="w-6 h-6 text-app-red" />}
               iconBg="bg-app-red/20"
@@ -252,6 +252,7 @@ export default function GSTAnalysisPage() {
               label="Top GST Category"
               value={gstData.categoryBreakdown[0] ? formatCurrency(gstData.categoryBreakdown[0].gstAmount) : '-'}
               subtitle={gstData.categoryBreakdown[0]?.category ?? ''}
+              className="col-span-2 sm:col-span-1"
             />
           </motion.div>
 
@@ -393,21 +394,23 @@ function SummaryCard({
   label,
   value,
   subtitle,
+  className,
 }: Readonly<{
   icon: React.ReactNode
   iconBg: string
   label: string
   value: string
   subtitle: string
+  className?: string
 }>) {
   return (
-    <div className="glass rounded-2xl border border-border p-6">
+    <div className={`glass rounded-2xl border border-border p-4 sm:p-6 ${className ?? ''}`}>
       <div className="flex items-center gap-3">
-        <div className={`p-3 rounded-xl ${iconBg}`}>{icon}</div>
+        <div className={`p-2.5 sm:p-3 rounded-xl ${iconBg}`}>{icon}</div>
         <div className="min-w-0 flex-1">
           <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold truncate">{value}</p>
-          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+          <p className="text-xl sm:text-2xl font-bold truncate">{value}</p>
+          <p className="text-xs text-muted-foreground mt-1 truncate">{subtitle}</p>
         </div>
       </div>
     </div>

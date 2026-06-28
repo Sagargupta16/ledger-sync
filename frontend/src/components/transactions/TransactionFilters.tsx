@@ -149,7 +149,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-white/[0.04] border border-border rounded-xl p-6 space-y-4 overflow-hidden"
+            className="bg-white/[0.04] border border-border rounded-xl p-4 sm:p-6 space-y-4 overflow-hidden"
             role="region"
             aria-label="Advanced filters"
           >

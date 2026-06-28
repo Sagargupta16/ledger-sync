@@ -104,17 +104,17 @@ export default function ReturnsAnalysisPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl p-6"
+            className="glass rounded-2xl p-4 sm:p-6"
           >
             <div className="flex items-center gap-4 mb-6">
-              <div className={`p-4 rounded-2xl ${netProfitLoss >= 0 ? 'bg-app-green/10' : 'bg-app-red/10'}`}>
+              <div className={`p-4 rounded-2xl shrink-0 ${netProfitLoss >= 0 ? 'bg-app-green/10' : 'bg-app-red/10'}`}>
                 {netProfitLoss >= 0
                   ? <TrendingUp className="w-8 h-8 text-app-green" />
                   : <TrendingDown className="w-8 h-8 text-app-red" />}
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-text-tertiary">Net Investment P&L</p>
-                <p className={`text-4xl font-bold tracking-tight ${netProfitLoss >= 0 ? 'text-app-green' : 'text-app-red'}`}>
+                <p className={`text-3xl sm:text-4xl font-bold tracking-tight truncate ${netProfitLoss >= 0 ? 'text-app-green' : 'text-app-red'}`}>
                   {netProfitLoss >= 0 ? '+' : ''}{formatCurrency(netProfitLoss)}
                 </p>
               </div>
@@ -141,7 +141,7 @@ export default function ReturnsAnalysisPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass rounded-2xl p-6"
+          className="glass rounded-2xl p-4 sm:p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <Activity className="w-5 h-5 text-app-blue" />
@@ -215,7 +215,7 @@ export default function ReturnsAnalysisPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="glass rounded-2xl p-6"
+            className="glass rounded-2xl p-4 sm:p-6"
           >
             <h3 className="text-lg font-semibold text-white mb-4">Detailed Breakdown</h3>
             <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
@@ -300,7 +300,7 @@ export default function ReturnsAnalysisPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl p-6"
+            className="glass rounded-2xl p-4 sm:p-6"
           >
             <div className="flex items-center gap-3 mb-4">
               <Activity className="w-5 h-5 text-app-purple" />
@@ -316,6 +316,7 @@ export default function ReturnsAnalysisPage() {
             </div>
             <ChartContainer
               height={Math.max(280, investmentAccounts.length * 36)}
+              mobileHeight={Math.max(240, Math.min(investmentAccounts.length, 12) * 32)}
               ariaLabel="Horizontal bar chart of investment accounts ranked by current balance."
             >
               <BarChart

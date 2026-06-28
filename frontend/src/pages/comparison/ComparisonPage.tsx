@@ -66,7 +66,7 @@ export default function ComparisonPage() {
                 role="tab"
                 aria-selected={mode === val}
                 onClick={() => setMode(val)}
-                className={`relative px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`relative px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-lg text-sm font-medium transition-colors ${
                   mode === val ? 'text-white' : 'text-muted-foreground hover:text-white hover:bg-white/10'
                 }`}
                 whileTap={{ scale: 0.97 }}
@@ -120,7 +120,7 @@ export default function ComparisonPage() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5"
         >
           <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} />
           <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} invertChange />
@@ -165,7 +165,7 @@ export default function ComparisonPage() {
       {/* Quick Stats */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass rounded-2xl border border-border p-4 md:p-6">
         <h2 className="text-lg font-semibold mb-4">Quick Stats</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <QuickStat label="Transactions" valueA={periodA.transactions} valueB={periodB.transactions} labelA={periodA.label} labelB={periodB.label} />
           <QuickStat label="Avg Daily Spend" valueA={periodA.expense / periodA.days} valueB={periodB.expense / periodB.days} labelA={periodA.label} labelB={periodB.label} isCurrency />
           <QuickStat label="Categories Used" valueA={Object.keys(periodA.categories).length} valueB={Object.keys(periodB.categories).length} labelA={periodA.label} labelB={periodB.label} />

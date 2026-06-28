@@ -121,7 +121,7 @@ export default function FIRECalculatorPage() {
                   aria-selected={activeTab === 'fire'}
                   aria-controls="fire-panel"
                   onClick={() => setActiveTab('fire')}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'fire' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+                  className={`px-4 py-2.5 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'fire' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
                 >
                   <Flame className="w-4 h-4 inline mr-1.5" />FIRE
                 </button>
@@ -131,7 +131,7 @@ export default function FIRECalculatorPage() {
                   aria-selected={activeTab === 'retirement'}
                   aria-controls="retirement-panel"
                   onClick={() => setActiveTab('retirement')}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'retirement' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+                  className={`px-4 py-2.5 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'retirement' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
                 >
                   <Calculator className="w-4 h-4 inline mr-1.5" />Retirement
                 </button>
@@ -168,7 +168,7 @@ export default function FIRECalculatorPage() {
             {/* FIRE Variants -- one shared INR axis so the tiers are directly
                 comparable (Fat = 2x Standard, Lean < Standard) at a glance,
                 instead of four isolated number tiles. */}
-            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
+            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-4">FIRE Variants</h3>
               <StandardBarChart
                 data={[
@@ -208,9 +208,9 @@ export default function FIRECalculatorPage() {
             </motion.div>
 
             {/* FIRE Sliders */}
-            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
+            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-4">Adjust Assumptions</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 sm:gap-6">
                 <SliderInput id="fire-swr" label="Safe Withdrawal Rate" value={swr} min={2} max={5} step={0.5} unit="%" valueText={`${swr} percent`} onChange={setSwr} />
                 <SliderInput id="fire-return" label="Real Return (post-inflation)" value={realReturn} min={2} max={12} step={0.5} unit="%" valueText={`${realReturn} percent`} onChange={setRealReturn} />
                 <SliderInput id="fire-years" label="Years to FIRE" value={yearsToRetire} min={5} max={40} step={1} unit=" yrs" valueText={`${yearsToRetire} years`} onChange={setYearsToRetire} />
@@ -244,7 +244,7 @@ export default function FIRECalculatorPage() {
 
             {/* Projection Chart */}
             {retirementResult.projectionData.length > 0 && (
-              <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
+              <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
                 <h3 className="text-lg font-semibold mb-4">Corpus Growth Projection</h3>
                 <div
                   role="img"
@@ -271,9 +271,9 @@ export default function FIRECalculatorPage() {
             )}
 
             {/* Retirement Sliders */}
-            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
+            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-4">Adjust Assumptions</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 sm:gap-6">
                 <SliderInput id="ret-inflation" label="Inflation Rate" value={inflation} min={3} max={10} step={0.5} unit="%" valueText={`${inflation} percent`} onChange={setInflation} />
                 <SliderInput id="ret-return" label="Expected Return" value={expectedReturn} min={6} max={18} step={0.5} unit="%" valueText={`${expectedReturn} percent`} onChange={setExpectedReturn} />
                 <SliderInput id="ret-years" label="Years to Retirement" value={retirementYears} min={5} max={40} step={1} unit=" yrs" valueText={`${retirementYears} years`} onChange={setRetirementYears} />

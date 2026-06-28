@@ -79,10 +79,10 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
       key={key}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`glass rounded-2xl border p-6 hover:bg-white/[0.04] transition-colors ${cfg.border} ${cfg.bg}`}
+      className={`glass rounded-2xl border p-4 sm:p-6 hover:bg-white/[0.04] transition-colors ${cfg.border} ${cfg.bg}`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           {row.status === 'exceeded' ? (
             <AlertTriangle className={`w-4 h-4 ${cfg.text}`} />
           ) : (
@@ -117,7 +117,7 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {isEditing ? (
             <input
               type="number"
@@ -150,14 +150,14 @@ export function BudgetRowItem(props: Readonly<BudgetRowItemProps>) {
               <button
                 onClick={onEdit}
                 aria-label={`Edit budget for ${row.subcategory || row.category}`}
-                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 transition-colors"
               >
                 <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
               </button>
               <button
                 onClick={() => setConfirmOpen(true)}
                 aria-label={`Delete budget for ${row.subcategory || row.category}`}
-                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-app-red"
+                className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 transition-colors text-app-red"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

@@ -119,7 +119,7 @@ export default function AnomalyReviewPage() {
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 md:grid-cols-3 gap-5"
+        className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5"
       >
         <motion.div variants={fadeUpItem}>
           <StatCard title="High Severity" value={String(summary.high)} icon={<AlertTriangle className="w-5 h-5" />} iconColor={SEVERITY_STYLES.high.iconColor} />
@@ -160,9 +160,9 @@ export default function AnomalyReviewPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="glass rounded-2xl border border-border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
@@ -226,7 +226,7 @@ export default function AnomalyReviewPage() {
                 key={anomaly.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`glass rounded-2xl border p-6 ${severity.borderLeft} ${anomaly.is_reviewed ? 'border-border opacity-60' : 'border-border'}`}
+                className={`glass rounded-2xl border p-4 sm:p-6 ${severity.borderLeft} ${anomaly.is_reviewed ? 'border-border opacity-60' : 'border-border'}`}
               >
                 {/* Header Row */}
                 <div className="flex items-start justify-between gap-4">
@@ -267,7 +267,7 @@ export default function AnomalyReviewPage() {
                   const overBaseline = (anomaly.deviation_pct ?? 0) >= 0
                   const actualColor = overBaseline ? rawColors.app.red : rawColors.app.green
                   return (
-                    <div className="mt-3 ml-11 space-y-1.5 max-w-md">
+                    <div className="mt-3 ml-0 sm:ml-11 space-y-1.5 max-w-md">
                       <div className="flex items-center justify-between gap-3">
                         <div className="grid grid-cols-[64px_1fr_auto] items-center gap-2 flex-1">
                           <span className="text-xs text-text-tertiary">Expected</span>
@@ -308,26 +308,26 @@ export default function AnomalyReviewPage() {
 
                 {/* Review Notes */}
                 {anomaly.review_notes && (
-                  <div className="mt-3 ml-11 text-xs text-text-tertiary italic">
+                  <div className="mt-3 ml-0 sm:ml-11 text-xs text-text-tertiary italic">
                     Note: {anomaly.review_notes}
                   </div>
                 )}
 
                 {/* Actions */}
                 {!anomaly.is_reviewed && (
-                  <div className="mt-4 ml-11 space-y-2">
-                    <div className="flex items-center gap-2">
+                  <div className="mt-4 ml-0 sm:ml-11 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => handleReview(anomaly.id, false)}
                         disabled={reviewMutation.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-app-green/10 text-app-green border border-app-green/20 hover:bg-app-green/20 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-app-green/10 text-app-green border border-app-green/20 hover:bg-app-green/20 transition-colors disabled:opacity-50"
                       >
                         <Check className="w-3 h-3" /> Review
                       </button>
                       <button
                         onClick={() => handleReview(anomaly.id, true)}
                         disabled={reviewMutation.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-app-red/10 text-app-red border border-app-red/20 hover:bg-app-red/20 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-app-red/10 text-app-red border border-app-red/20 hover:bg-app-red/20 transition-colors disabled:opacity-50"
                       >
                         <X className="w-3 h-3" /> Dismiss
                       </button>
@@ -336,7 +336,7 @@ export default function AnomalyReviewPage() {
                           setExpandedNoteId(isExpanded ? null : anomaly.id)
                           setNoteText('')
                         }}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg bg-white/5 text-muted-foreground border border-border hover:bg-white/10 transition-colors"
+                        className="flex items-center gap-1 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-white/5 text-muted-foreground border border-border hover:bg-white/10 transition-colors"
                       >
                         {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         Add Note

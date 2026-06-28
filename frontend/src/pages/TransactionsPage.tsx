@@ -143,16 +143,16 @@ export default function TransactionsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass rounded-2xl border border-border p-6"
+          className="glass rounded-2xl border border-border p-4 sm:p-6"
         >
-          <div className="flex flex-wrap items-center justify-between gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 sm:gap-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-primary/20 rounded-xl">
                 <Receipt className="w-6 h-6 text-primary" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{isFiltered ? 'Matching Transactions' : 'Total Transactions'}</p>
-                <p className="text-2xl font-bold tabular-nums">
+                <p className="text-xl sm:text-2xl font-bold tabular-nums">
                   {total.toLocaleString('en-IN')}
                   {isFiltered && (
                     <span className="text-base font-medium text-muted-foreground"> of {unfilteredTotal.toLocaleString('en-IN')}</span>
@@ -161,7 +161,7 @@ export default function TransactionsPage() {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-8 sm:gap-10">
+              <div className="flex items-center gap-6 sm:gap-10">
                 <div>
                   <p className="text-sm text-muted-foreground">Income</p>
                   <p className="text-xl font-semibold tabular-nums text-app-green">{typeCounts.income.toLocaleString('en-IN')}</p>

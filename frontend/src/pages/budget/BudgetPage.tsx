@@ -43,7 +43,7 @@ export default function BudgetPage() {
                     role="tab"
                     aria-selected={m.viewMode === val}
                     onClick={() => m.setViewMode(val)}
-                    className={`relative px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    className={`relative px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       m.viewMode === val
                         ? 'text-white'
                         : 'text-muted-foreground hover:text-white hover:bg-white/10'
@@ -66,7 +66,7 @@ export default function BudgetPage() {
               <motion.button
                 onClick={() => m.setIsAdding(true)}
                 whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-medium text-white transition-colors"
                 style={{
                   background: `linear-gradient(135deg, ${rawColors.app.green}, ${rawColors.app.teal})`,
                 }}
@@ -79,7 +79,7 @@ export default function BudgetPage() {
 
         {m.summary.count > 0 && (
           <motion.div
-            className="grid grid-cols-2 md:grid-cols-4 gap-5"
+            className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-5"
             initial="hidden"
             animate="visible"
             variants={staggerContainer}
@@ -200,9 +200,9 @@ export default function BudgetPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl border border-border p-6"
+            className="glass rounded-2xl border border-border p-4 sm:p-6"
           >
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex flex-wrap items-center gap-2 mb-4">
               <BarChart3 className="w-5 h-5 text-muted-foreground" />
               <h3 className="text-sm font-medium">Suggested Budgets</h3>
               <span className="text-xs text-text-tertiary">Based on current spending</span>
@@ -230,7 +230,7 @@ export default function BudgetPage() {
                         key={cat}
                         onClick={() => m.handleQuickAdd(cat, spent)}
                         whileTap={{ scale: 0.95 }}
-                        className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors hover:scale-105"
+                        className="px-3 py-2 sm:py-1.5 rounded-full text-xs font-medium transition-colors hover:scale-105"
                         style={{
                           backgroundColor: `${rawColors.app.green}15`,
                           color: rawColors.app.green,

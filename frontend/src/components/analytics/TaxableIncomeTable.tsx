@@ -45,8 +45,12 @@ export default function TaxableIncomeTable({
             <tr className="border-b border-border">
               <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Date</th>
               <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Amount</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Type</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Note</th>
+              <th className="hidden sm:table-cell text-left py-3 px-4 text-sm font-semibold text-foreground">
+                Type
+              </th>
+              <th className="hidden sm:table-cell text-left py-3 px-4 text-sm font-semibold text-foreground">
+                Note
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -76,8 +80,17 @@ export default function TaxableIncomeTable({
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-white">
                           {formatCurrency(data.total)}
+                          <span className="sm:hidden block text-xs font-normal text-muted-foreground">
+                            {netTaxableIncome > 0
+                              ? formatPercent((data.total / netTaxableIncome) * 100)
+                              : '0%'}{' '}
+                            of total
+                          </span>
                         </td>
-                        <td colSpan={2} className="py-3 px-4 text-right font-bold text-white">
+                        <td
+                          colSpan={2}
+                          className="hidden sm:table-cell py-3 px-4 text-right font-bold text-white"
+                        >
                           {netTaxableIncome > 0
                             ? formatPercent((data.total / netTaxableIncome) * 100)
                             : '0%'}
@@ -93,6 +106,11 @@ export default function TaxableIncomeTable({
                           >
                             <td className="py-3 pl-10 pr-4 text-white">
                               {new Date(tx.date).toLocaleDateString()}
+                              {(tx.type || tx.note) && (
+                                <span className="sm:hidden block text-xs text-muted-foreground truncate max-w-[10rem]">
+                                  {[tx.type, tx.note].filter(Boolean).join(' · ')}
+                                </span>
+                              )}
                             </td>
                             <td className="py-3 px-4 text-right">
                               {group === 'EPF' ? (
@@ -110,8 +128,8 @@ export default function TaxableIncomeTable({
                                 </span>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-white">{tx.type}</td>
-                            <td className="py-3 px-4 text-white">{tx.note}</td>
+                            <td className="hidden sm:table-cell py-3 px-4 text-white">{tx.type}</td>
+                            <td className="hidden sm:table-cell py-3 px-4 text-white">{tx.note}</td>
                           </motion.tr>
                         ))}
                     </React.Fragment>

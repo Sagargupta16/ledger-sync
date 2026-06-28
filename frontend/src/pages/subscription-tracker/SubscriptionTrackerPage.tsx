@@ -193,10 +193,10 @@ function RecurringCard({
             className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50" />
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={saveEdit} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-app-blue/20 text-app-blue hover:bg-app-blue/30 transition-colors">
+          <button type="button" onClick={saveEdit} className="flex items-center gap-1 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-sm font-medium bg-app-blue/20 text-app-blue hover:bg-app-blue/30 transition-colors">
             <Check className="w-3.5 h-3.5" /> Save
           </button>
-          <button type="button" onClick={() => setEditing(false)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-muted-foreground bg-white/5 hover:bg-white/10 transition-colors">
+          <button type="button" onClick={() => setEditing(false)} className="flex items-center gap-1 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-sm text-muted-foreground bg-white/5 hover:bg-white/10 transition-colors">
             <X className="w-3.5 h-3.5" /> Cancel
           </button>
         </div>
@@ -250,17 +250,17 @@ function RecurringCard({
           </div>
           <div className="flex items-center gap-0.5">
             <button type="button" onClick={() => { setEditName(item.name); setEditFreq(item.frequency ?? 'monthly'); setEditAmt(String(Math.abs(item.expected_amount))); setEditing(true) }}
-              title="Edit" aria-label="Edit recurring item" className="p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors">
+              title="Edit" aria-label="Edit recurring item" className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors">
               <Pencil className="w-3.5 h-3.5" />
             </button>
             <button type="button" onClick={() => onUpdate({ is_active: !item.is_active })}
               title={item.is_active ? 'Deactivate' : 'Activate'}
               aria-label={item.is_active ? 'Pause recurring item' : 'Activate recurring item'}
-              className={`p-1.5 rounded-lg transition-colors ${item.is_active ? 'text-app-green hover:bg-app-green/10' : 'text-text-tertiary hover:bg-white/10'}`}>
+              className={`flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg transition-colors ${item.is_active ? 'text-app-green hover:bg-app-green/10' : 'text-text-tertiary hover:bg-white/10'}`}>
               {item.is_active ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
             </button>
             <button type="button" onClick={onDelete}
-              title="Delete" aria-label="Delete recurring item" className="p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors">
+              title="Delete" aria-label="Delete recurring item" className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -368,7 +368,7 @@ export default function SubscriptionTrackerPage() {
         {isLoading ? (
           <CardGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
         ) : (
-          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${summary.deactivatedCount > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+          <div className={`grid grid-cols-2 gap-3 sm:gap-5 ${summary.deactivatedCount > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             <SummaryCard icon={ArrowDownCircle} label="Monthly Expense" value={formatCurrency(summary.monthlyExpense)}
               colorClass="text-app-red" bgClass="bg-app-red/20" shadowClass="shadow-app-red/30" delay={0.1} compact />
             <SummaryCard icon={ArrowUpCircle} label="Monthly Income" value={formatCurrency(summary.monthlyIncome)}

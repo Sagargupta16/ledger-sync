@@ -64,7 +64,7 @@ export default function SpendingAnalysisPage() {
 
         <FilterBanner value={categoryFilter} label="Category" onClear={clearCategoryFilter} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard title="Total Spending" value={formatCurrency(totalSpending)} icon={TrendingDown} color="red" isLoading={isLoading} />
           <MetricCard
             title="Monthly Avg"
@@ -90,7 +90,7 @@ export default function SpendingAnalysisPage() {
 
         {/* 50/30/20 Budget Rule Analysis */}
         <motion.div
-          className="glass p-6 rounded-xl border border-border"
+          className="glass p-4 sm:p-6 rounded-xl border border-border"
           {...SCROLL_FADE_UP}
         >
           <h3 className="text-lg font-semibold text-white mb-4">{needsTarget}/{wantsTarget}/{savingsTarget} Budget Rule Analysis</h3>
