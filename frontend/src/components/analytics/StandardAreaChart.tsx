@@ -19,8 +19,8 @@ import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import {
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
   areaGradient, areaGradientUrl, LEGEND_DEFAULTS, shouldAnimate, ACTIVE_DOT,
+  BRUSH_DEFAULTS,
 } from '@/components/ui/chartDefaults'
-import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface AreaConfig {
@@ -151,11 +151,8 @@ export default function StandardAreaChart({
         ))}
         {showBrush && data.length > 4 && (
           <Brush
+            {...BRUSH_DEFAULTS}
             dataKey={dataKey}
-            height={24}
-            travellerWidth={8}
-            stroke={rawColors.app.blue}
-            fill="rgba(255,255,255,0.04)"
             tickFormatter={xTickFormatter}
             // Default to showing the most recent ~quarter of the data so the
             // chart still reads at full fidelity on first paint.
