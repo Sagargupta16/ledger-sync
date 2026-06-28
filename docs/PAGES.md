@@ -147,13 +147,13 @@ Interactive Recharts Sankey with hover-to-highlight and a legend (Income / Middl
 
 The Recharts Sankey doesn't scale down — phones get a dedicated **vertical flow view** (cards stacked top-to-bottom) showing:
 
-1. Top 10 income sources
+1. Top 8 income sources (plus an "Other (n)" row for the tail), led by a 100% income-split share bar
 2. "↓" dividing band with net savings + savings rate
-3. Top 10 expense categories
+3. Top 8 expense categories (plus "Other (n)")
 
 ### Data source
 
-Filtered transaction list grouped by `type = 'Income'` and `type = 'Expense'`, then top-10 by amount per side. Transfers and Investments are excluded.
+Filtered transaction list grouped by `type = 'Income'` and `type = 'Expense'`, then capped to the **top 8 by amount per side** with everything beyond folded into a single **"Other (n)"** node so the visible flows still sum to Total Income / Total Expenses (the old top-10 slice silently dropped the tail). Transfers and Investments are excluded.
 
 ---
 
@@ -161,12 +161,14 @@ Filtered transaction list grouped by `type = 'Income'` and `type = 'Expense'`, t
 
 **Route:** `/spending` · [SpendingAnalysisPage.tsx](../frontend/src/pages/spending-analysis/SpendingAnalysisPage.tsx)
 
-A deep dive on where your money is going. Four stacked sections:
+A deep dive on where your money is going. Stacked sections:
 
-1. **50/30/20 panel** — your Needs (fixed + essential), Wants (everything else), Savings as stacked bars vs your target percentages (50/30/20 default; configurable in Settings → Financial Settings)
-2. **Category treemap** — rectangles sized by spend, colored by parent category. Click a rectangle to drill into its subcategories
-3. **Monthly trend** — line chart of total expense month-over-month for the selected window
-4. **Top 10 merchants** — ranked by `SUM(amount)` across the window, sourced from `merchant_intelligence` pre-aggregated table when all-time, from raw transactions when a date range is active
+1. **KPI strip** — total spend, transaction count, and a **Monthly Avg** card with a 12-month sparkline
+2. **50/30/20 panel** — a single-ring donut of Needs (fixed + essential) / Wants (everything else) / Savings, with the target percentages (50/30/20 default; configurable in Settings → Financial Settings) shown on the per-bucket Needs / Wants / Savings cards rather than on a second donut ring
+3. **Category treemap** — rectangles sized by spend, colored by parent category. Click a rectangle to drill into its subcategories
+4. **Multi-category + subcategory time charts** — default to **per-period** (non-cumulative) so they show _when_ spending happened; a cumulative toggle is available. The subcategory chart caps to the **top 6 by spend** with the rest folded into a single **"Other"** series
+5. **Monthly trend** — line chart of total expense month-over-month for the selected window
+6. **Top merchants** — a ranked list with an inline proportional bar per row (the donut was dropped — a list reads magnitudes more accurately and keeps the per-merchant detail like visits and average). Ranked by `SUM(amount)` across the window, sourced from `merchant_intelligence` pre-aggregated table when all-time, from raw transactions when a date range is active
 
 ### Controls
 
@@ -186,6 +188,11 @@ The income counterpart to Expense Analysis. Breaks your income into four tax-rel
 - **Non-taxable** — cashback, refunds, reimbursements, deposit returns
 - **Other** — gifts, prizes, EPF contributions, balancing entries
 
+### KPIs
+
+- **Primary Income Type** — your largest bucket, with its **share of total income** shown as the subtitle
+- **Growth Rate** — month-over-month income growth, with a sparkline of the monthly income series
+
 ### Views
 
 - **Pie of buckets** — proportion of gross income in each bucket
@@ -200,13 +207,13 @@ The taxable bucket feeds directly into [Tax Planning](#income-tax-planning); the
 
 **Route:** `/comparison` · [ComparisonPage.tsx](../frontend/src/pages/comparison/ComparisonPage.tsx)
 
-Side-by-side view of two periods. Pick "This Month vs Last Month" / "This FY vs Last FY" / "Custom A vs Custom B" from the range picker. For each KPI (income, expense, savings, savings rate, net worth change), the page shows A, B, Δ, and %Δ with green/red colouring.
+Side-by-side view of two periods. Pick "This Month vs Last Month" / "This FY vs Last FY" / "Custom A vs Custom B" from the range picker. For each quick-stat (income, expense, savings, savings rate, net worth change), the page shows A, B, and a **signed delta** (`+`/`−`) with green/red colouring.
 
-Three charts below:
+Below:
 
-1. **Category delta** — bar chart of `spend_A − spend_B` per category; positive (spent more) = red, negative = green
+1. **Category distribution** — paired bars per category, period A and period B set against a shared axis (a diverging/butterfly layout) so you can compare each category across the two periods at a glance
 2. **Trend overlay** — A and B plotted on the same x-axis normalized to day-of-period, so a 31-day month and a 28-day month align
-3. **Top movers table** — the 10 categories that changed most in absolute terms
+3. **Category lists** — sortable tables of per-category spend for each period with a signed change column; card-stack on mobile
 
 ---
 
@@ -222,8 +229,10 @@ Sections rendered top to bottom as a scroll narrative:
 2. **Spending heatmap** — 52×7 grid (one cell per day), coloured by spend intensity. Sourced from `daily_summaries` table
 3. **Peak day / peak month / peak merchant** — highest single-day spend, highest-spend month, most-frequented merchant
 4. **Category of the year** — the category that grew most and the category that shrank most
-5. **Milestones** — achievements detected from your data: _"Crossed ₹10L savings"_, _"Paid off EMI"_, _"First investment month"_, etc.
-6. **Fun facts** — weekend vs weekday spend, early-month vs late-month, biggest single transaction, longest streak without dining out, etc.
+5. **Spending by day of week** — a grouped 7-day bar (Sun→Sat) showing average spending vs average earning side by side
+6. **No-spend streak** — your longest run of consecutive zero-spend days, shown as a bold day count with a single accent bar sized relative to a 30-day mark
+7. **Milestones** — achievements detected from your data: _"Crossed ₹10L savings"_, _"Paid off EMI"_, _"First investment month"_, etc.
+8. **Fun facts** — weekend vs weekday spend, early-month vs late-month, biggest single transaction, etc.
 
 All data is derived from the transaction table + `fy_summaries` + `daily_summaries` for that year.
 
@@ -242,12 +251,18 @@ Two donut charts side by side:
 - **Assets** (green palette): Cash & Bank · Stocks · Mutual Funds · Fixed Deposits · PPF/EPF · Other Assets
 - **Liabilities** (red palette): Credit Card Outstanding · Loans Payable
 
+The asset and liability tables carry an inline **%-of-total bar** on each row so you can read each holding's weight at a glance.
+
 ### KPIs
+
+Three cards: **Total Assets**, **Total Liabilities**, and the hero **Net Worth** card. The cards carry context beyond the headline number — Net Worth shows its **MoM delta** and a **trend sparkline**, Liabilities shows **leverage** (% of assets) and account count, Assets shows its account count.
 
 - **Net Worth** = Assets − Liabilities
 - **Liquid Net Worth** = Cash/Bank + Stocks + MF (excludes locked PPF/EPF and FDs)
 - **Debt-to-Asset ratio**
 - **Emergency-fund months** = Cash balance ÷ monthly average fixed expenses
+
+Credit-card utilization renders as a **bullet bar** (threshold bands + a 30% target tick). The milestones table card-stacks on mobile.
 
 ### Trend chart
 
@@ -325,8 +340,12 @@ Future-value calculator for SIPs and lump sums.
 ### Outputs
 
 - Maturity value, total invested, wealth gained
-- Year-by-year table + line chart of corpus growth
+- Year-by-year table + a **Growth Path** chart of corpus growth, overlaid with an **expected-return benchmark line** (orange dashed) and a **"Today" reference line**
 - Real-return toggle (subtracts your configured inflation from the nominal return)
+
+### Instrument tabs
+
+Per-instrument projections (PPF / EPF / NPS, etc.). NPS shows its asset allocation as a **100% stacked bar** (Equity / Corporate / Government segments) instead of inline text.
 
 Pure client-side math in `projectionCalculator.ts`.
 
@@ -337,6 +356,10 @@ Pure client-side math in `projectionCalculator.ts`.
 **Route:** `/investments/returns` · [ReturnsAnalysisPage.tsx](../frontend/src/pages/returns-analysis/ReturnsAnalysisPage.tsx)
 
 Which of your investment accounts has actually made money?
+
+### Monthly net chart
+
+A single signed bar per month (green when net-positive, red when negative) with a cumulative line overlay, a zero reference line, and a brush for scrubbing longer histories. (Replaces the old split positive/negative area chart; the redundant monthly-performance heatmap strip was dropped.)
 
 ### Ranking table
 
@@ -383,10 +406,15 @@ Confirmed + active items populate the **Bill Calendar** and the **Next expected*
 
 Month-view calendar of upcoming bills and past recurring payments.
 
+### Next Upcoming Bill
+
+Leads with a due-date **countdown** ("Due today" / "Due tomorrow" / "In N days"), with the bill name and amount underneath.
+
 ### Month grid
 
 Each cell shows expected / paid bills for that date with:
 
+- Day dots **scaled by amount** — bigger bills get a larger dot
 - Past-due indicator (red dot) — expected but no payment seen
 - Paid indicator (green check) — transaction matched the expected amount
 - Amount variance (yellow pill) — paid but > 10 % different from expected
@@ -408,11 +436,12 @@ Monthly category budgets with live tracking.
 
 ### Rows
 
-Per category: Budget amount · Spent · Remaining · % used · status badge (On track / Warning / Over)
+Per category: Budget amount · Spent · Remaining · % used · status badge (On track / Warning / Over). Each row's progress is a **bullet bar** (threshold bands + a target tick).
 
-### Bar
+### Charts
 
-A stacked bar across all budgets showing total budget vs total spent vs projected-month-end.
+- **Budget vs Actual** — a horizontal bar per category comparing budget against actual spend, the spent bar coloured by status
+- **Budget Utilization** — a horizontal bar of percent-of-budget used per category, sorted highest first, with a dashed **100% reference line** (replaces the old category-usage radar)
 
 ### Settings
 
@@ -467,6 +496,7 @@ Stored in the `goals` table. The "current balance" is recomputed on every net-wo
 
 ### Outputs
 
+- **FIRE variants comparison** — Lean / Barista / Standard / Fat target numbers as a single horizontal bar on a shared axis (so the tiers are directly comparable) plus a descriptive legend, replacing four isolated number tiles
 - Projection chart: corpus over years, with horizontal bands at Coast FIRE, FIRE number, Fat FIRE
 - Year-by-year table: age, contributions, growth, corpus, passive income at SWR
 
@@ -486,6 +516,8 @@ Unusual transactions flagged by the backend, awaiting your review.
 - **Unusual amount** — transaction amount > 3× the category's trailing-90-day median
 - **Unusual category** — a category that hasn't appeared in 6 months suddenly reappears
 - **Missing recurring** — an expected recurring payment didn't occur
+
+Amount-based anomalies render an **expected-vs-actual mini comparison** — two bars on a shared scale with a deviation-% badge between them.
 
 ### Review actions
 
@@ -508,8 +540,8 @@ India-specific income tax estimator for the selected financial year (Apr–Mar).
 
 1. **Gross taxable income** — sum of subcategories classified as `taxable_income_categories` in Settings → Income Classification, broken into Salary / Perks / Other Taxable
 2. **Deductions** — Standard deduction (₹50 000), 80C (PF contributions + ELSS + PPF detected from transactions, capped at ₹1.5L), HRA if rent category present, Section 80D (health insurance), 24(b) (home loan interest)
-3. **Old vs New regime** — side-by-side slab breakdown. The "better regime" is highlighted
-4. **Final tax** — tax after cess (4 %) and surcharge (if applicable), plus effective tax rate
+3. **Old vs New regime** — side-by-side slab breakdown. The "better regime" is highlighted. A dual-regime **effective-rate chart** plots each regime as a line (old dashed, new solid) across income, with regime-crossover and your-income markers
+4. **Final tax** — tax after cess (4 %) and surcharge (if applicable), plus effective tax rate. The tax-summary grid no longer repeats cells already shown in the KPI cards
 
 ### Salary projection
 
@@ -533,6 +565,8 @@ All math in [projectionCalculator.ts](../frontend/src/lib/projectionCalculator.t
 Estimates indirect tax (GST) you've paid on expenses this FY.
 
 Assumes standard Indian GST rates per category (e.g. restaurants 5 %, electronics 18 %, alcohol 28 %) and applies them against your spend per category. The result is an approximation — GST isn't line-itemed in bank statements — but it gives you a ballpark of "taxes-within-taxes" paid.
+
+The GST-by-category breakdown is a sortable table that card-stacks on mobile.
 
 ---
 
@@ -611,6 +645,14 @@ Phone-only grid menu for every page that didn't earn a bottom-tab slot. Grouped 
 ---
 
 ## Cross-page mechanics
+
+### Charts, tables, and bars
+
+App-wide conventions shared by every page:
+
+- **Accessible charts** — every chart carries an accessible name (`aria-label` on `ChartContainer`) so screen readers announce what it shows
+- **Responsive tables** — wide tables card-stack on mobile (the `DataTable` `mobileCards` option renders each row as a label/value card under the `lg` breakpoint)
+- **Shared progress bars** — a single `ProgressBar` primitive backs every progress, bullet, and utilization bar (threshold bands + optional target tick), so they look and behave the same across Budgets, Net Worth, Tax, and Anomalies
 
 ### Demo mode
 

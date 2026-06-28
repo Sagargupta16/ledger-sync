@@ -6,6 +6,32 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.18.0 - 2026-06-28
+
+A frontend-only UX, visualization, and mobile pass. No API, schema, or backend changes -- every commit touches `frontend/src`. Driven by a senior-design audit of the shared UI primitives and every page, a data-visualization-fit audit (~295 elements scored), and a live mobile audit at 390px. Desktop layout is preserved throughout (mobile changes are gated behind `sm:`/`lg:`/`useIsMobile`).
+
+### Added
+
+- **Shared UI primitives** so pages stop hand-rolling equivalents: `PageContainer` (one centered page scaffold), `Spinner` (one `role="status"` spinner), `ProgressBar` (fill + target tick + bullet-graph threshold bands), and chart helpers `referenceLine()` (peak/avg/target/goal/zero variants) + `currencyTooltipFormatter()`. `MetricCard` gained an opt-in `hero` size; `StandardBarChart` gained `onBarClick` + `ariaLabel`; `DataTable` gained a sticky/scrollable header.
+- **Expected-return benchmark line on the SIP Growth Path chart.** A third series shows what the portfolio *should* be worth each historical month if every contribution had compounded at the assumed return from its own investment date -- so the actual-value line reads as ahead of or behind target. Plus a "Today" reference line marking the history/projection boundary. Covered by unit tests.
+- **Informative context across pages, reusing data already on the page** (no new fetches): Net Worth KPIs get month-over-month deltas + trend sparklines + leverage/account-count context; Income shows primary-source share and a growth sparkline; savings-rate / utilization / recurring-coverage bare percentages become progress bars with a target tick; Comparison quick-stats get signed deltas; Bill Calendar leads with a due-date countdown; Anomalies show an expected-vs-actual mini-comparison; Budgets show a per-row month-end pace projection.
+- **`DataTable` mobile card-stack mode** (`mobileCards`) -- below 640px, wide tables render as stacked label/value cards (a `mobilePrimary` column becomes the card title) instead of horizontally scrolling.
+
+### Changed
+
+- **Charts reshaped to fit their data** (data-viz-fit audit): the Income/Expense Flow Sankey now caps to the top 8 per side with an explicit "Other (n)" node so flows reconcile with the KPI totals (was a silent top-10 truncation); the Budget utilization radar and Year-in-Review day-of-week radar became sorted/grouped bars; the FIRE variant tiles became one shared-axis bar; the Returns monthly net became a single signed bar; Top Merchants donut became a ranked list with inline bars; the Spending multi-category / subcategory lines default to per-period (not cumulative) and cap to a top-N + "Other"; the SIP NPS allocation became a 100% stacked bar.
+- **App-wide UX consistency**: every chart got an accessible name; hand-rolled spinners became the shared `Spinner`, bare empties became `EmptyState`, and `'...'`/text loaders became shaped skeletons; flat hand-rolled tables (GST, investment accounts, comparison categories) migrated to the sortable `DataTable`; the time-range brush slider got a rounded grip with grip-lines.
+- **Mobile-first polish on every data page**: KPI/stat grids show 2-up on phones (were single-column), oversized hero numbers truncate instead of clipping, chart heights shrink on small screens, toggle/legend/pill rows wrap, and interactive controls (toggles, FY navigators, pagination, icon buttons, form inputs) meet the 44px touch-target minimum.
+
+### Fixed
+
+- **Wide data tables horizontal-scrolled on phones** (Tax slab table reached ~677px). They now card-stack or drop low-priority columns on mobile; the pivoted multi-year projection table keeps its label column pinned while FY columns scroll.
+- **Dashboard expense pie/legend colors could mismatch** -- palette colors were assigned by pre-sort index. Colors are now assigned after the value sort.
+- **Dashboard income/expense legends ran past the 8-slice pie** -- capped to 7 + a "+N more" row so the visible rows reconcile with the total.
+- A pre-existing `QuickInsights.biggest_expense` crash in demo mode (missing optional chaining), surfaced during the live verification pass.
+
+---
+
 ## 2.17.0 - 2026-06-27
 
 A performance + data-architecture pass: analytics pages that pulled the entire transaction ledger into the browser now read server-side aggregations, and the `transactions` index set was rationalised. No breaking API changes; all numbers verified against the real database with independent SQL oracles.
