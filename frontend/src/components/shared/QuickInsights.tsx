@@ -53,8 +53,8 @@ function InsightCard({ item }: Readonly<{ item: InsightDescriptor }>) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[11px] text-muted-foreground">{item.title}</p>
-        <p className="text-sm font-semibold text-foreground truncate">{item.value}</p>
-        {item.subtitle && <p className="text-[11px] text-text-tertiary truncate">{item.subtitle}</p>}
+        <p className="text-sm font-semibold text-foreground truncate" title={item.value}>{item.value}</p>
+        {item.subtitle && <p className="text-[11px] text-text-tertiary truncate" title={item.subtitle}>{item.subtitle}</p>}
       </div>
     </motion.div>
   )

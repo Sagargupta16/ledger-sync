@@ -227,9 +227,9 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                             ) : (
                               <TypeIcon className={`w-3.5 h-3.5 ${isIncome ? 'text-app-green' : 'text-app-red'}`} />
                             )}
-                            <span className="text-sm font-medium">{tx.category}</span>
+                            <span className="text-sm font-medium" title={tx.category}>{tx.category}</span>
                             {tx.subcategory && (
-                              <span className="text-xs text-text-tertiary">/ {tx.subcategory}</span>
+                              <span className="text-xs text-text-tertiary" title={tx.subcategory}>/ {tx.subcategory}</span>
                             )}
                           </div>
                           <span className={`text-sm font-semibold ${amountColor}`}>

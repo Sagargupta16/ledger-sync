@@ -198,7 +198,11 @@ export default function AnalyticsTimeFilter({
             <ChevronLeft className="w-4 h-4" />
           </motion.button>
 
-          <span className="text-foreground font-medium min-w-28 sm:min-w-36 text-center truncate">
+          <span
+            aria-live="polite"
+            aria-atomic="true"
+            className="text-foreground font-medium min-w-28 sm:min-w-36 text-center truncate"
+          >
             {periodLabel}
           </span>
 

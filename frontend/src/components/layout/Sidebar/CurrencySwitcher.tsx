@@ -91,11 +91,17 @@ export default function CurrencySwitcher() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-xl bg-surface-dropdown border border-border shadow-xl z-50">
+        <div
+          role="listbox"
+          aria-label="Display currency"
+          className="absolute bottom-full left-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-xl bg-surface-dropdown border border-border shadow-xl z-50"
+        >
           {currencyList.map((meta) => (
             <button
               key={meta.code}
               type="button"
+              role="option"
+              aria-selected={meta.code === displayCurrency}
               onClick={() => handleSelect(meta)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors',

@@ -64,7 +64,7 @@ export default function MobileFlowView({
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Total Income
         </p>
-        <p className="text-2xl font-bold text-foreground mt-1 break-all">
+        <p className="text-2xl font-bold text-foreground mt-1 break-all tabular-nums">
           {formatCurrency(totalIncome)}
         </p>
       </motion.div>
@@ -272,7 +272,7 @@ function SplitCard({
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color }}>
         {label}
       </p>
-      <p className="text-lg font-bold text-foreground mt-1 break-all">{formatCurrency(amount)}</p>
+      <p className="text-lg font-bold text-foreground mt-1 break-all tabular-nums">{formatCurrency(amount)}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{formatPercent(percent * 100)}</p>
     </div>
   )

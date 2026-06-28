@@ -127,6 +127,7 @@ export default function DashboardPage() {
                 data={incomeChartData}
                 height={180}
                 showLegend={false}
+                ariaLabel="Income sources pie chart"
                 centerValue={formatCurrencyShort(incomeTotal)}
                 centerLabel="Total"
                 onSliceClick={(name) =>
@@ -143,7 +144,7 @@ export default function DashboardPage() {
                   >
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="w-3 h-3 rounded-full shrink-0" style={incomeColorStyles[i]} />
-                      <span className="text-sm truncate">{item.name}</span>
+                      <span className="text-sm truncate" title={item.name}>{item.name}</span>
                     </span>
                     <span className="text-sm font-medium shrink-0">{formatCurrency(item.value)}</span>
                   </button>
@@ -184,6 +185,7 @@ export default function DashboardPage() {
                 data={expenseChartData}
                 height={180}
                 showLegend={false}
+                ariaLabel="Expense sources pie chart"
                 centerValue={formatCurrencyShort(expenseTotal)}
                 centerLabel="Total"
                 onSliceClick={(name) =>
@@ -200,7 +202,7 @@ export default function DashboardPage() {
                   >
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="w-3 h-3 rounded-full shrink-0" style={expenseColorStyles[i]} />
-                      <span className="text-sm truncate">{item.name}</span>
+                      <span className="text-sm truncate" title={item.name}>{item.name}</span>
                     </span>
                     <span className="text-sm font-medium shrink-0">{formatCurrency(item.value)}</span>
                   </button>

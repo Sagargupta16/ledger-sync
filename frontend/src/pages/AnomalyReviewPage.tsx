@@ -5,7 +5,7 @@ import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Inf
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { PageHeader, StatCard, Spinner } from '@/components/ui'
+import { PageHeader, StatCard } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { useAnomalies, useReviewAnomaly } from '@/hooks/api/useAnalyticsV2'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
@@ -13,6 +13,7 @@ import { formatCurrency, formatPercent, formatDate } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import ProgressBar from '@/components/shared/ProgressBar'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 
@@ -100,7 +101,7 @@ export default function AnomalyReviewPage() {
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
       <PageHeader
-        title="Anomaly Review Board"
+        title="Anomaly Review"
         subtitle="Review and manage detected financial anomalies"
         action={
           <Link
@@ -201,11 +202,7 @@ export default function AnomalyReviewPage() {
       </motion.div>
 
       {/* Anomaly List */}
-      {isLoading && (
-        <div className="h-64 flex items-center justify-center">
-          <Spinner size="lg" label="Loading anomalies" />
-        </div>
-      )}
+      {isLoading && <PageSkeleton />}
       {!isLoading && anomalies.length === 0 && (
         <EmptyState
           icon={AlertTriangle}
@@ -355,6 +352,7 @@ export default function AnomalyReviewPage() {
                             value={noteText}
                             onChange={(e) => setNoteText(e.target.value)}
                             placeholder="Add review notes..."
+                            aria-label="Add review notes"
                             className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-purple/50"
                           />
                         </motion.div>

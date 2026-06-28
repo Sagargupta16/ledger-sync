@@ -156,7 +156,7 @@ export default function YearInReviewPage() {
         }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
         <StatCard
           label="Total Spending"
           value={formatCurrencyCompact(stats.totalExpense)}
@@ -306,7 +306,7 @@ export default function YearInReviewPage() {
             {monthlyBarData.every((d) => d.Spending === 0 && d.Earning === 0) ? (
               <ChartEmptyState height={288} />
             ) : (
-              <ChartContainer>
+              <ChartContainer ariaLabel="Monthly breakdown -- income and spending bars with a net cash flow line per month, against a break-even baseline">
                 <ComposedChart data={monthlyBarData} barGap={4}>
                   <CartesianGrid {...GRID_DEFAULTS} />
                   {/* Angle the month labels only when the density check says so

@@ -51,7 +51,7 @@ export default function TaxSlabBreakdown({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full" aria-label="Tax slab breakdown">
           <thead>
             <tr className="border-b border-border">
               <th className="hidden sm:table-cell text-left py-3 px-4 text-sm font-semibold text-foreground">
@@ -78,19 +78,19 @@ export default function TaxSlabBreakdown({
                   key={`${slab.lower}-${slab.upper}`}
                   className={`border-b border-border ${isApplicable ? 'bg-primary/5' : ''}`}
                 >
-                  <td className="hidden sm:table-cell py-3 px-4 text-foreground">
+                  <td className="hidden sm:table-cell py-3 px-4 text-foreground tabular-nums">
                     {formatCurrency(slab.lower)}
                   </td>
-                  <td className="py-3 px-4 text-foreground">
+                  <td className="py-3 px-4 text-foreground tabular-nums">
                     {slab.upper === Infinity ? 'Above' : formatCurrency(slab.upper)}
                     <span className="sm:hidden block text-xs text-muted-foreground">
                       from {formatCurrency(slab.lower)}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right text-foreground font-semibold">
+                  <td className="py-3 px-4 text-right text-foreground font-semibold tabular-nums">
                     {slab.rate.toFixed(2)}%
                   </td>
-                  <td className="py-3 px-4 text-right font-bold text-primary">
+                  <td className="py-3 px-4 text-right font-bold text-primary tabular-nums">
                     {isApplicable ? formatCurrency(taxAmount) : formatCurrency(0)}
                   </td>
                 </tr>
@@ -100,7 +100,7 @@ export default function TaxSlabBreakdown({
               <td colSpan={3} className="py-3 px-4 text-right font-semibold text-foreground">
                 Tax on Base:
               </td>
-              <td className="py-3 px-4 text-right font-bold text-foreground">
+              <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums">
                 {formatCurrency(baseTax)}
               </td>
             </tr>
@@ -109,7 +109,7 @@ export default function TaxSlabBreakdown({
               <td colSpan={3} className="py-3 px-4 text-right text-sm text-app-green">
                 - Section 87A Rebate:
               </td>
-              <td className="py-3 px-4 text-right text-sm text-app-green">
+              <td className="py-3 px-4 text-right text-sm text-app-green tabular-nums">
                 -{formatCurrency(rebate87A)}
               </td>
             </tr>
@@ -119,7 +119,7 @@ export default function TaxSlabBreakdown({
               <td colSpan={3} className="py-3 px-4 text-right text-sm text-muted-foreground">
                 + Surcharge:
               </td>
-              <td className="py-3 px-4 text-right text-sm text-foreground">
+              <td className="py-3 px-4 text-right text-sm text-foreground tabular-nums">
                 {formatCurrency(surcharge)}
               </td>
             </tr>
@@ -128,7 +128,7 @@ export default function TaxSlabBreakdown({
               <td colSpan={3} className="py-3 px-4 text-right text-sm text-muted-foreground">
                 + Health & Education Cess (4%):
               </td>
-              <td className="py-3 px-4 text-right text-sm text-foreground">
+              <td className="py-3 px-4 text-right text-sm text-foreground tabular-nums">
                 {formatCurrency(cess)}
               </td>
             </tr>
@@ -136,7 +136,7 @@ export default function TaxSlabBreakdown({
               <td colSpan={3} className="py-3 px-4 text-right text-sm text-muted-foreground">
                 + Professional Tax:
               </td>
-              <td className="py-3 px-4 text-right text-sm text-foreground">
+              <td className="py-3 px-4 text-right text-sm text-foreground tabular-nums">
                 {formatCurrency(professionalTax)}
               </td>
             </tr>
@@ -144,7 +144,7 @@ export default function TaxSlabBreakdown({
               <td colSpan={3} className="py-4 px-4 text-right text-lg font-bold text-foreground">
                 {isProjecting ? 'Total Estimated Tax:' : 'Total Tax Already Paid:'}
               </td>
-              <td className="py-4 px-4 text-right text-2xl font-bold text-primary">
+              <td className="py-4 px-4 text-right text-2xl font-bold text-primary tabular-nums">
                 {formatCurrency(totalTax)}
               </td>
             </tr>

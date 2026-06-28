@@ -44,7 +44,7 @@ export default function CollapsibleSection({
         )}
         <ChevronDown
           className={cn(
-            'w-4 h-4 text-text-tertiary transition-transform duration-150',
+            'w-4 h-4 text-text-tertiary transition-transform duration-200',
             !expanded && '-rotate-90',
           )}
         />

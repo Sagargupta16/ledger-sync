@@ -353,7 +353,7 @@ export default function SubscriptionTrackerPage() {
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader
-          title="Recurring Transactions"
+          title="Recurring"
           subtitle="Track your regular income and expenses for projected cash flow"
           action={
             <button type="button" onClick={() => { setSuggestion(undefined); setShowForm(true) }}

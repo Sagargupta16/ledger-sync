@@ -15,6 +15,8 @@ export default function ChartEmptyState({
 }: ChartEmptyStateProps) {
   return (
     <div
+      role="status"
+      aria-label="No data available for this chart"
       className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border"
       style={{ height }}
     >

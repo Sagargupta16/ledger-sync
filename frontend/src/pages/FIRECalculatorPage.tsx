@@ -36,6 +36,7 @@ function SliderInput({ id, label, value, min, max, step, unit, valueText, onChan
           max={max}
           step={step}
           value={value}
+          aria-valuenow={value}
           aria-valuetext={valueText ?? `${value}${unit}`}
           onChange={(e) => onChange(Number(e.target.value))}
           className="w-full h-1.5 rounded-full appearance-none bg-[var(--overlay-5)] accent-app-blue cursor-pointer"
@@ -108,7 +109,7 @@ export default function FIRECalculatorPage() {
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         <PageHeader
-          title="FIRE & Retirement Calculator"
+          title="FIRE Calculator"
           subtitle="Plan your financial independence using your actual spending data"
           action={
             // Only render the tablist when the panels it controls exist (no-data

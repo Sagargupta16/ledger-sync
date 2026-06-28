@@ -252,7 +252,7 @@ export default function UploadSyncPage() {
                   })}
                   className={cn(
                     'relative border-2 border-dashed rounded-2xl p-4 md:p-8 text-center cursor-pointer transition-colors duration-300',
-                    'bg-black/20 backdrop-blur-sm',
+                    'bg-[var(--overlay-3)] backdrop-blur-sm',
                     'hover:border-primary hover:bg-primary/10',
                     isDragActive && 'border-primary bg-primary/20 scale-[1.02]',
                     isBusy && 'opacity-50 cursor-not-allowed',
@@ -342,7 +342,7 @@ export default function UploadSyncPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border overflow-hidden bg-black/20 backdrop-blur-sm">
+          <div className="rounded-xl border border-border overflow-hidden bg-[var(--overlay-3)] backdrop-blur-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -374,7 +374,7 @@ export default function UploadSyncPage() {
                           {row.type}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-foreground">
+                      <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
                         ₹{row.amount.toLocaleString('en-IN')}
                       </td>
                       <td className="px-4 py-2.5 text-text-tertiary text-xs">{row.note}</td>

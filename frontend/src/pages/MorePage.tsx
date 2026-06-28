@@ -126,7 +126,7 @@ export default function MorePage() {
   }
 
   return (
-    <div className="min-h-full p-4">
+    <div className="min-h-dvh p-4">
       <div className="max-w-7xl mx-auto space-y-6">
         <PageHeader title="More" subtitle="Everything else" />
 
@@ -138,10 +138,10 @@ export default function MorePage() {
             transition={{ delay: sIdx * 0.03 }}
             className="space-y-2"
           >
-            <h2 className="text-[11px] uppercase tracking-wider text-text-tertiary font-semibold px-1">
+            <h2 className="text-overline uppercase tracking-wider text-text-tertiary font-semibold px-1">
               {section.title}
             </h2>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
               {section.items.map((item) => (
                 <MoreTile key={item.to} item={item} />
               ))}

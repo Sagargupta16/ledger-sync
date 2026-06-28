@@ -53,7 +53,7 @@ export default function AccountClassifier() {
 
       <div className="bg-[var(--overlay-2)] backdrop-blur-sm rounded-xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left" aria-label="Account classification matrix">
           <thead>
             <tr className="bg-[var(--overlay-2)] border-b border-border">
               <th className="p-4 font-medium">Account Name</th>

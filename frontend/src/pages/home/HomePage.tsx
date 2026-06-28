@@ -60,7 +60,7 @@ export default function HomePage() {
             {isAuthenticated ? (
               <Link
                 to={ROUTES.DASHBOARD}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white transition-colors hover:scale-105"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-primary-foreground transition-colors hover:scale-105"
                 style={{
                   background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
                 }}
@@ -101,7 +101,7 @@ export default function HomePage() {
                 Start tracking your finances today. It's free, private, and takes just a minute
                 to get started.
               </p>
-              <div className="flex flex-wrap justify-center gap-4">
+              <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4">
                 <button
                   onClick={handleGetStarted}
                   className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-foreground transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"

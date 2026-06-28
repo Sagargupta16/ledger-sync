@@ -106,7 +106,7 @@ export function Toggle({
       }`}
     >
       <span
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-foreground shadow-lg transition-transform ${
           checked ? 'translate-x-5' : 'translate-x-0'
         }`}
       />

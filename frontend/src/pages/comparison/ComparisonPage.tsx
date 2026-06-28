@@ -56,7 +56,7 @@ export default function ComparisonPage() {
     <PageContainer>
       {/* Header */}
       <PageHeader
-        title="Period Comparison"
+        title="Comparison"
         subtitle="Compare financial metrics across time periods"
         action={
           <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">
@@ -120,7 +120,7 @@ export default function ComparisonPage() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5"
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5"
         >
           <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} />
           <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} invertChange />

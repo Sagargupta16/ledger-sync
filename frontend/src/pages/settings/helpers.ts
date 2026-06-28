@@ -262,10 +262,6 @@ export function getStoredWidgets(): string[] {
   return [...DEFAULT_VISIBLE_WIDGETS]
 }
 
-export function getStoredTheme(): 'dark' | 'system' {
-  return (localStorage.getItem('ledger-sync-theme') as 'dark' | 'system') || 'dark'
-}
-
 /** Build a deep-cloned LocalPrefs from server preferences data */
 export function buildInitialLocalPrefs(p: Record<string, unknown>): Record<string, unknown> {
   return {

@@ -4,6 +4,7 @@ import { PageContainer, PageHeader, StatCard } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 
 import useGoalsState from './useGoalsState'
 import SavingsPoolSummary from './components/SavingsPoolSummary'
@@ -110,9 +111,7 @@ export default function GoalsPage() {
         )}
       </AnimatePresence>
 
-      {state.isLoading && (
-        <div className="h-64 flex items-center justify-center text-muted-foreground">Loading goals...</div>
-      )}
+      {state.isLoading && <PageSkeleton />}
       {!state.isLoading && state.goals.length === 0 && (
         <EmptyState
           icon={Target}

@@ -13,13 +13,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-app-blue text-white hover:bg-app-blue active:scale-[0.98]',
+    'bg-app-blue text-primary-foreground hover:bg-app-blue active:scale-[0.98]',
   secondary:
     'bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-foreground hover:bg-[var(--overlay-5)] hover:text-foreground active:scale-[0.98]',
   ghost:
     'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)] active:scale-[0.98]',
   danger:
-    'bg-app-red/90 text-white hover:bg-app-red active:scale-[0.98]',
+    'bg-app-red/90 text-destructive-foreground hover:bg-app-red active:scale-[0.98]',
   outline:
     'border border-[var(--hairline-3)] text-foreground hover:bg-[var(--overlay-3)] hover:text-foreground active:scale-[0.98]',
 }
@@ -45,7 +45,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       className={cn(
         'inline-flex items-center justify-center font-medium transition-all duration-150 ease-out',
         'disabled:opacity-50 disabled:pointer-events-none',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         variantClasses[variant],
         sizeClasses[size],
         className

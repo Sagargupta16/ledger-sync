@@ -64,6 +64,8 @@ interface StandardAreaChartProps {
    * to inspect a sub-range without changing the global filter. Default off.
    */
   readonly showBrush?: boolean
+  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  readonly ariaLabel?: string
 }
 
 export default function StandardAreaChart({
@@ -80,6 +82,7 @@ export default function StandardAreaChart({
   referenceLines,
   stacked = false,
   showBrush = false,
+  ariaLabel,
 }: StandardAreaChartProps) {
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -90,7 +93,7 @@ export default function StandardAreaChart({
   const yDefaults = yAxisDefaults()
 
   return (
-    <ChartContainer height={height}>
+    <ChartContainer height={height} ariaLabel={ariaLabel}>
       <AreaChart
         data={data}
         margin={{ top: 8, right: 12, bottom: xAngle ? 20 : 8, left: 4 }}

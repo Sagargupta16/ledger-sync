@@ -40,7 +40,7 @@ export default function TaxableIncomeTable({
         Salaried Taxable Income for {selectedFY}
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full" aria-label="Salaried taxable income breakdown">
           <thead>
             <tr className="border-b border-border">
               <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Date</th>
@@ -78,7 +78,7 @@ export default function TaxableIncomeTable({
                             </span>
                           </button>
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-foreground">
+                        <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums">
                           {formatCurrency(data.total)}
                           <span className="sm:hidden block text-xs font-normal text-muted-foreground">
                             {netTaxableIncome > 0
@@ -112,7 +112,7 @@ export default function TaxableIncomeTable({
                                 </span>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-right">
+                            <td className="py-3 px-4 text-right tabular-nums">
                               {group === 'EPF' ? (
                                 <div>
                                   <div className="font-bold text-app-green">

@@ -204,7 +204,7 @@ export function AccountCategoryTable({
                           </button>
                         </td>
                         <td
-                          className={`py-2 px-4 text-right text-sm font-medium ${headerBalanceColorClass}`}
+                          className={`py-2 px-4 text-right text-sm font-medium tabular-nums ${headerBalanceColorClass}`}
                         >
                           {formatCurrency(catBalance)}
                         </td>
@@ -230,7 +230,9 @@ export function AccountCategoryTable({
                         animate={{ opacity: 1 }}
                       >
                         <td className="py-3 pl-10 pr-4 text-foreground font-medium">{accountName}</td>
-                        <td className={`py-3 px-4 text-right font-bold ${balanceColorClass}`}>
+                        <td
+                          className={`py-3 px-4 text-right font-bold tabular-nums ${balanceColorClass}`}
+                        >
                           {formatCurrency(Math.abs(accountData.balance))}
                         </td>
                         <td className="py-3 px-4 text-right text-muted-foreground">

@@ -55,7 +55,7 @@ export default function SpendingAnalysisPage() {
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         <PageHeader
-          title="Spending Analysis"
+          title="Expense Analysis"
           subtitle="Track and analyze your spending patterns"
           action={
             <AnalyticsTimeFilter {...timeFilterProps} />
@@ -101,7 +101,7 @@ export default function SpendingAnalysisPage() {
                   the per-category cards (each with a target line) carry the
                   goal comparison instead. */}
               <div className="flex flex-col items-center">
-                <div className="w-44 h-44 md:w-48 md:h-48 lg:w-56 lg:h-56">
+                <div className="w-44 h-44 sm:w-48 sm:h-48 md:w-48 md:h-48 lg:w-56 lg:h-56">
                   <ChartContainer ariaLabel="Donut showing your actual Needs, Wants, and Savings split of income">
                     <RechartsPie>
                       <Pie

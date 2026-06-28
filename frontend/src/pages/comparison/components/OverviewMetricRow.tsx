@@ -59,7 +59,7 @@ export function OverviewMetricRow({
               ariaLabel={`${label} ${labelA}: ${fmtVal(valueA)}`}
             />
           </div>
-          <span className="text-caption font-medium text-text-secondary tabular-nums w-24 truncate text-right">{fmtVal(valueA)}</span>
+          <span className="text-caption font-medium text-text-secondary tabular-nums w-24 truncate text-right" title={fmtVal(valueA)}>{fmtVal(valueA)}</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-caption text-text-tertiary w-20 truncate" title={labelB}>{labelB}</span>
@@ -72,7 +72,7 @@ export function OverviewMetricRow({
               ariaLabel={`${label} ${labelB}: ${fmtVal(valueB)}`}
             />
           </div>
-          <span className="text-xs font-semibold text-foreground tabular-nums w-24 truncate text-right">{fmtVal(valueB)}</span>
+          <span className="text-xs font-semibold text-foreground tabular-nums w-24 truncate text-right" title={fmtVal(valueB)}>{fmtVal(valueB)}</span>
         </div>
       </div>
     </div>

@@ -107,7 +107,7 @@ export function getSemanticBadgeClass(type: string): string {
   if (type === 'Transfer-Out') return 'bg-app-orange/20 text-app-orange border-app-orange/30'
   if (type === 'Transfer-In') return 'bg-app-blue/20 text-app-blue border-app-blue/30'
   if (type === 'Transfer') return 'bg-app-teal/20 text-app-teal border-app-teal/30'
-  return 'bg-white/10 text-text-secondary border-white/10'
+  return 'bg-[var(--overlay-2)] text-text-secondary border-[var(--hairline-2)]'
 }
 
 /**

@@ -28,7 +28,7 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
           <TrendingUp className="w-5 h-5 text-app-green shrink-0" />
           <p className="text-sm text-muted-foreground">Total Income</p>
         </div>
-        <p className="text-xl sm:text-2xl font-bold text-app-green truncate" title={formatCurrency(totalIncome)}>{formatCurrency(totalIncome)}</p>
+        <p className="text-xl sm:text-2xl font-bold text-app-green truncate tabular-nums" title={formatCurrency(totalIncome)}>{formatCurrency(totalIncome)}</p>
       </div>
 
       <div className="glass rounded-2xl border border-border border-l-4 border-l-app-red p-4 sm:p-6">
@@ -36,7 +36,7 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
           <TrendingDown className="w-5 h-5 text-app-red shrink-0" />
           <p className="text-sm text-muted-foreground">Total Expense</p>
         </div>
-        <p className="text-xl sm:text-2xl font-bold text-app-red truncate" title={formatCurrency(totalExpense)}>{formatCurrency(totalExpense)}</p>
+        <p className="text-xl sm:text-2xl font-bold text-app-red truncate tabular-nums" title={formatCurrency(totalExpense)}>{formatCurrency(totalExpense)}</p>
       </div>
 
       <div className="glass rounded-2xl border border-border p-4 sm:p-6">
@@ -47,7 +47,7 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
           <p className="text-sm text-muted-foreground">Net Savings</p>
         </div>
         <p
-          className={`text-xl sm:text-2xl font-bold truncate ${
+          className={`text-xl sm:text-2xl font-bold truncate tabular-nums ${
             netSavings >= 0 ? 'text-primary' : 'text-app-red'
           }`}
         >
@@ -69,7 +69,7 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
           <p className="text-sm text-muted-foreground">Savings Rate</p>
         </div>
         <p
-          className={`text-xl sm:text-2xl font-bold ${
+          className={`text-xl sm:text-2xl font-bold tabular-nums ${
             savingsRate >= SAVINGS_RATE_BENCHMARK ? 'text-app-green' : 'text-app-yellow'
           }`}
         >

@@ -123,7 +123,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
                     id="budget-subcategory"
                     value={formSubcategory}
                     onChange={(e) => setFormSubcategory(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-surface-3 backdrop-blur-xl border border-border text-sm text-foreground cursor-pointer hover:bg-surface-hover transition-colors disabled:opacity-50"
+                    className="w-full px-3 py-2.5 rounded-lg bg-surface-3 backdrop-blur-xl border border-border text-sm text-foreground cursor-pointer hover:bg-surface-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:text-muted-foreground"
                     disabled={!formCategory}
                   >
                     <option value="">Select subcategory</option>
@@ -149,7 +149,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
                 value={formLimit}
                 onChange={(e) => setFormLimit(e.target.value)}
                 placeholder="Amount"
-                className="w-full px-3 py-2.5 rounded-lg bg-surface-3 backdrop-blur-xl border border-border text-sm text-foreground placeholder-gray-500"
+                className="w-full px-3 py-2.5 rounded-lg bg-surface-3 backdrop-blur-xl border border-border text-sm text-foreground placeholder:text-text-quaternary"
               />
             </div>
             <div className="flex-1 min-w-28 sm:flex-none sm:w-32">

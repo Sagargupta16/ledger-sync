@@ -74,7 +74,7 @@ export default function MobileTabBar() {
                   />
                   <span
                     className={cn(
-                      'relative z-[1] text-[10px] font-medium leading-none',
+                      'relative z-[1] text-[10px] sm:text-[11px] font-medium leading-none',
                       isActive && 'text-foreground',
                     )}
                   >

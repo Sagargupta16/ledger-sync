@@ -64,18 +64,18 @@ export default function SavingsPoolSummary({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         <div>
           <p className="text-xs text-text-tertiary mb-1">Total Net Savings</p>
-          <p className="text-xl font-bold text-foreground">{formatCurrencyCompact(netSavings)}</p>
+          <p className="text-xl font-bold text-foreground tabular-nums">{formatCurrencyCompact(netSavings)}</p>
         </div>
         <div>
           <p className="text-xs text-text-tertiary mb-1">Total Allocated</p>
-          <p className="text-xl font-bold" style={{ color: rawColors.app.blue }}>
+          <p className="text-xl font-bold tabular-nums" style={{ color: rawColors.app.blue }}>
             {formatCurrencyCompact(totalAllocated)}
           </p>
         </div>
         <div>
           <p className="text-xs text-text-tertiary mb-1">Unallocated</p>
           <p
-            className="text-xl font-bold"
+            className="text-xl font-bold tabular-nums"
             style={{ color: unallocated >= 0 ? rawColors.app.green : rawColors.app.red }}
           >
             {formatCurrencyCompact(unallocated)}

@@ -47,7 +47,7 @@ const PageHeader = memo(function PageHeader({ title, subtitle, action }: PageHea
       <div className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:justify-between sm:text-left gap-3 sm:gap-4">
         <div className="min-w-0 px-12 sm:px-0">
           <h1
-            className="text-page-title text-foreground tracking-tight transition-all duration-150 ease-out"
+            className="text-page-title text-foreground tracking-tight break-words transition-all duration-150 ease-out"
             style={{ fontSize: scrolled ? '1.25rem' : undefined }}
           >
             {title}

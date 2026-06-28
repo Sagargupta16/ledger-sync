@@ -59,6 +59,8 @@ interface StandardPieChartProps {
    * wedges. Pass 0 to disable capping.
    */
   readonly maxSlices?: number
+  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  readonly ariaLabel?: string
 }
 
 export default function StandardPieChart({
@@ -75,6 +77,7 @@ export default function StandardPieChart({
   paddingAngle = 3,
   onSliceClick,
   maxSlices = 8,
+  ariaLabel,
 }: StandardPieChartProps) {
   const positive = data.filter((d) => d.value > 0)
   // Cap slice count: keep the largest (maxSlices - 1) and fold the rest into a
@@ -101,7 +104,7 @@ export default function StandardPieChart({
   const centerValueFontSize = pickCenterValueFontSize(centerValueLength)
 
   return (
-    <ChartContainer height={height}>
+    <ChartContainer height={height} ariaLabel={ariaLabel}>
       <PieChart>
         <Pie
           data={filteredData}
@@ -120,7 +123,7 @@ export default function StandardPieChart({
           label={showLabels ? (({ name, percent }: { name?: string; percent?: number }) => (
             `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
           )) as never : undefined}
-          labelLine={showLabels ? { stroke: '#71717a', strokeWidth: 1 } : undefined}
+          labelLine={showLabels ? { stroke: CHART_TEXT.subtle, strokeWidth: 1 } : undefined}
         >
           {filteredData.map((entry, i) => {
             const isActive = activeIndex === i

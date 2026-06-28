@@ -208,7 +208,7 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
             <p className="text-xs text-muted-foreground">Top Merchants</p>
           </div>
           <div>
-            <p className="text-2xl font-bold break-all">{formatCurrency(totalSpentAtTopMerchants)}</p>
+            <p className="text-2xl font-bold break-all tabular-nums">{formatCurrency(totalSpentAtTopMerchants)}</p>
             <p className="text-xs text-muted-foreground">Total at Top 10</p>
           </div>
           <div>

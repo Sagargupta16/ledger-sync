@@ -152,6 +152,7 @@ export default function NotificationCenter() {
         {isOpen && (
           <motion.div
             ref={panelRef}
+            aria-label="Notifications panel"
             initial={{ opacity: 0, x: -8, scale: 0.96 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: -8, scale: 0.96 }}
@@ -201,7 +202,7 @@ export default function NotificationCenter() {
             </div>
 
             {/* Notification list */}
-            <div className="overflow-y-auto max-h-[calc(70vh-48px)] scrollbar-none">
+            <div role="list" className="overflow-y-auto max-h-[calc(70vh-48px)] scrollbar-none">
               {totalCount === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 px-4">
                   <div
@@ -249,6 +250,7 @@ export default function NotificationCenter() {
                       {items.map((item) => (
                         <motion.div
                           key={item.id}
+                          role="listitem"
                           layout
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}

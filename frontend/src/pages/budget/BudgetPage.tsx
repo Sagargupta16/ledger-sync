@@ -27,7 +27,7 @@ export default function BudgetPage() {
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         <PageHeader
-          title="Budget Tracker"
+          title="Budget Manager"
           subtitle="Set limits and track spending by category"
           action={
             <div className="flex flex-wrap items-center justify-center gap-3">

@@ -36,6 +36,8 @@ interface StandardRadarChartProps<T> {
   /** Dot radius on the radar line. Default 2. */
   readonly dotRadius?: number
   readonly fillOpacity?: number
+  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  readonly ariaLabel?: string
 }
 
 export default function StandardRadarChart<T>({
@@ -50,11 +52,12 @@ export default function StandardRadarChart<T>({
   showRadiusTicks = false,
   dotRadius = 2,
   fillOpacity = 0.15,
+  ariaLabel,
 }: StandardRadarChartProps<T>) {
   const animate = shouldAnimate(data.length)
 
   return (
-    <ChartContainer height={height}>
+    <ChartContainer height={height} ariaLabel={ariaLabel}>
       <RadarChart data={data as unknown as Array<Record<string, unknown>>}>
         <PolarGrid stroke={rawColors.chart.axisLine} strokeDasharray="3 3" />
         <PolarAngleAxis

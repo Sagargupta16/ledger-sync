@@ -42,7 +42,7 @@ function ActionButton({ actionLabel, actionHref, onAction, isCompact }: Readonly
   isCompact: boolean
 }>) {
   const sizeClass = getSizeClass(isCompact, 'text-xs', 'text-sm')
-  const baseClass = `inline-flex items-center gap-2 px-4 py-2 bg-app-blue text-white rounded-lg font-medium hover:bg-app-blue active:scale-[0.98] transition-colors duration-150 ${sizeClass}`
+  const baseClass = `inline-flex items-center gap-2 px-4 py-2 bg-app-blue text-primary-foreground rounded-lg font-medium hover:bg-app-blue active:scale-[0.98] transition-colors duration-150 ${sizeClass}`
 
   if (actionHref) {
     return (
@@ -77,7 +77,11 @@ export default function EmptyState({
       <div className={`py-8 px-6 text-center ${className}`}>
         {/* Faux chart skeleton */}
         <div className="mx-auto max-w-sm mb-4">
-          <div className="flex items-end gap-1 h-24 border-l border-b border-border pl-2 pb-1">
+          <div
+            role="img"
+            aria-label="Empty chart placeholder"
+            className="flex items-end gap-1 h-24 border-l border-b border-border pl-2 pb-1"
+          >
             {[40, 65, 30, 80, 55, 45, 70, 35, 60, 50].map((h) => (
               <div
                 key={`empty-bar-${h}`}

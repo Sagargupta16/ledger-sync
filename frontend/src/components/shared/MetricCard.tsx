@@ -144,7 +144,7 @@ export default function MetricCard({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
             title={String(value)}
-            className={`${hero ? 'text-kpi-hero' : 'text-kpi-value'} font-bold text-foreground leading-tight truncate`}
+            className={`${hero ? 'text-kpi-hero' : 'text-kpi-value'} font-bold text-foreground leading-tight break-words`}
           >
             <AnimatedValue value={value} />
           </motion.p>
