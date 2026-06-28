@@ -333,7 +333,7 @@ export default function YearInReviewPage() {
                       a glance against the income/spend bars. */}
                   <ReferenceLine
                     y={0}
-                    stroke="rgba(255,255,255,0.45)"
+                    stroke={rawColors.chart.referenceLineStrong}
                     strokeWidth={1.5}
                     label={{
                       value: 'Break-even',
@@ -355,7 +355,7 @@ export default function YearInReviewPage() {
                       <LabelList
                         dataKey="Spending"
                         position="top"
-                        fill="#f5f5f7"
+                        fill={rawColors.chart.textPrimary}
                         fontSize={10}
                         formatter={(v: unknown) =>
                           !v || v === 0 ? '' : formatCurrencyShort(v as number)
@@ -376,7 +376,7 @@ export default function YearInReviewPage() {
                       <LabelList
                         dataKey="Earning"
                         position="top"
-                        fill="#f5f5f7"
+                        fill={rawColors.chart.textPrimary}
                         fontSize={10}
                         formatter={(v: unknown) =>
                           !v || v === 0 ? '' : formatCurrencyShort(v as number)
@@ -394,7 +394,7 @@ export default function YearInReviewPage() {
                     strokeWidth={2}
                     strokeDasharray="6 3"
                     dot={{ r: 3, fill: rawColors.app.blue, stroke: 'none' }}
-                    activeDot={{ r: 5, fill: rawColors.app.blue, stroke: '#000', strokeWidth: 2 }}
+                    activeDot={{ r: 5, fill: rawColors.app.blue, stroke: rawColors.chart.activeStroke, strokeWidth: 2 }}
                     isAnimationActive={shouldAnimate(monthlyBarData.length)}
                     animationDuration={700}
                   />

@@ -5,65 +5,58 @@
  * so changing index.css propagates to charts automatically.
  */
 
-import { rawColors } from './colors'
+import { rawColors, onRawColorsRefresh } from './colors'
 
-const c = rawColors.app
-const f = rawColors.financial
+// Palette builders read rawColors.app/financial fresh each call, so the arrays
+// can be rebuilt in place on theme toggle (see refreshChartConstants). The
+// elements are primitive hex strings captured at build time -- rebuilding is
+// what keeps series colors tracking the active theme.
+const buildChartColors = () => {
+  const c = rawColors.app
+  return [
+    c.purple, c.indigo, c.blue, c.teal, c.green, c.greenVibrant,
+    c.yellow, c.orange, c.red, c.pink, c.blueVibrant, c.purpleVibrant,
+  ]
+}
 
+const buildChartColorsWarm = () => {
+  const c = rawColors.app
+  return [
+    c.red, c.orange, c.yellow, c.greenVibrant, c.green, c.teal,
+    c.blue, c.indigo, c.purple, c.purpleVibrant, c.pink, c.blueVibrant,
+  ]
+}
+
+const buildIncomeColors = () => {
+  const c = rawColors.app
+  return [c.green, c.teal, c.blue, c.purple, c.pink, c.orange]
+}
+
+// Mutable arrays (stable identity for importers) rebuilt in place on theme
+// toggle. Spread-fill is via refreshChartConstants() -> rebuildPalette().
 // Primary chart color palette
-export const CHART_COLORS = [
-  c.purple,
-  c.indigo,
-  c.blue,
-  c.teal,
-  c.green,
-  c.greenVibrant,
-  c.yellow,
-  c.orange,
-  c.red,
-  c.pink,
-  c.blueVibrant,
-  c.purpleVibrant,
-] as const
+export const CHART_COLORS: string[] = buildChartColors()
 
 // Alternative palette with warmer tones
-export const CHART_COLORS_WARM = [
-  c.red,
-  c.orange,
-  c.yellow,
-  c.greenVibrant,
-  c.green,
-  c.teal,
-  c.blue,
-  c.indigo,
-  c.purple,
-  c.purpleVibrant,
-  c.pink,
-  c.blueVibrant,
-] as const
+export const CHART_COLORS_WARM: string[] = buildChartColorsWarm()
 
 // Income-focused palette
-export const INCOME_COLORS = [
-  c.green,
-  c.teal,
-  c.blue,
-  c.purple,
-  c.pink,
-  c.orange,
-] as const
+export const INCOME_COLORS: string[] = buildIncomeColors()
 
-// Semantic colors for charts
+// Semantic colors for charts. Values resolve from rawColors at module load and
+// are rebuilt in place by refreshChartConstants() on theme toggle, so the keys
+// stay stable for all consumers while the underlying colors track the theme.
 export const SEMANTIC_COLORS = {
-  income:     f.income,
-  expense:    f.expense,
-  savings:    f.savings,
-  transfer:   f.transfer,
-  investment: f.investment,
-  positive:   f.income,
-  negative:   f.expense,
-  neutral:    '#9ca3af',
-  muted:      '#6b7280',
-} as const
+  income:     rawColors.financial.income,
+  expense:    rawColors.financial.expense,
+  savings:    rawColors.financial.savings,
+  transfer:   rawColors.financial.transfer,
+  investment: rawColors.financial.investment,
+  positive:   rawColors.financial.income,
+  negative:   rawColors.financial.expense,
+  neutral:    rawColors.chart.neutral,
+  muted:      rawColors.chart.muted,
+}
 
 /**
  * Canonical labels for the income / expense / savings trio.
@@ -151,9 +144,10 @@ export function getStatusBadgeClass(status: Status): string {
   return 'bg-info/10 text-info border-info/20'
 }
 
-// Chart axis and grid colors
-export const CHART_AXIS_COLOR = '#9ca3af'
-export const CHART_GRID_COLOR = '#2a2a2e'
+// Chart axis and grid colors. `let` (not const) so the ESM live binding updates
+// for importers when refreshChartConstants() reassigns them on theme toggle.
+export let CHART_AXIS_COLOR = rawColors.chart.axisColor
+export let CHART_GRID_COLOR = rawColors.chart.gridSolid
 
 // Get color by index with wrap-around
 export const getChartColor = (index: number): string => {
@@ -165,32 +159,91 @@ export const getWarmColor = (index: number): string => {
   return CHART_COLORS_WARM[index % CHART_COLORS_WARM.length]
 }
 
-// ─── Chart neutral palette (zinc scale for axes, labels, grids) ─────────────
+// ─── Chart neutral palette (theme-aware via rawColors.chart) ────────────────
+//
+// Values resolve from the --chart-* CSS tokens through rawColors.chart at
+// module load. They are NOT `as const`: refreshChartConstants() reassigns each
+// prop in place on theme toggle so every consumer (which reads e.g.
+// CHART_TEXT.subtle) sees the active theme's color without changing the object
+// identity it imported. `tooltipShadow`/`overlayBg` stay literal black washes
+// (a drop shadow / scrim works in both themes).
 
 export const CHART_TEXT = {
-  primary: '#fafafa',     // zinc-50  — primary labels, tooltips
-  secondary: '#f5f5f7',   // near zinc-50 — bar labels
-  muted: '#a1a1aa',       // zinc-400 — tooltip labels, secondary text
-  subtle: '#71717a',      // zinc-500 — axis ticks, grid text, peak labels
-  dim: '#52525b',         // zinc-600 — secondary axis ticks
-} as const
+  primary: rawColors.chart.textPrimary,     // primary labels, tooltips
+  secondary: rawColors.chart.textSecondary, // bar labels
+  muted: rawColors.chart.textMuted,         // tooltip labels, secondary text
+  subtle: rawColors.chart.textSubtle,       // axis ticks, grid text, peak labels
+  dim: rawColors.chart.textDim,             // secondary axis ticks
+}
 
 export const CHART_SURFACE = {
-  tooltipBg: 'rgba(26, 26, 28, 0.95)',
-  tooltipBorder: 'rgba(255, 255, 255, 0.08)',
+  tooltipBg: rawColors.chart.tooltipBg,
+  tooltipBorder: rawColors.chart.tooltipBorder,
   tooltipShadow: 'rgba(0, 0, 0, 0.4)',
-  gridLine: 'rgba(255, 255, 255, 0.04)',
-  axisLine: 'rgba(255, 255, 255, 0.06)',
-  cursor: 'rgba(255, 255, 255, 0.06)',
-  polarGrid: 'rgba(255, 255, 255, 0.06)',
-  referenceLine: 'rgba(255, 255, 255, 0.15)',
-  referenceLineStrong: 'rgba(255, 255, 255, 0.2)',
-  activeStroke: 'rgba(255, 255, 255, 0.3)',
-  svgStroke: 'rgba(255, 255, 255, 0.08)',
+  gridLine: rawColors.chart.grid,
+  axisLine: rawColors.chart.axisLine,
+  cursor: rawColors.chart.cursor,
+  polarGrid: rawColors.chart.axisLine,
+  referenceLine: rawColors.chart.referenceLine,
+  referenceLineStrong: rawColors.chart.referenceLineStrong,
+  activeStroke: rawColors.chart.activeStroke,
+  svgStroke: rawColors.chart.svgStroke,
   overlayBg: 'rgba(0, 0, 0, 0.5)',
-} as const
+}
 
 export const CHART_INPUT = {
-  bg: 'rgba(44, 44, 46, 0.6)',
-  border: 'rgba(58, 58, 60, 0.6)',
-} as const
+  bg: rawColors.chart.inputBg,
+  border: rawColors.chart.inputBorder,
+}
+
+/**
+ * Re-sync the derived chart constants from the (already-rebuilt) `rawColors`
+ * after a theme toggle. Mutates each exported object in place + reassigns the
+ * `let`-bound primitives so ESM live bindings update for every importer.
+ * Registered with colors.ts so refreshRawColors() drives it.
+ */
+function rebuildPalette(target: string[], next: string[]): void {
+  target.length = 0
+  target.push(...next)
+}
+
+function refreshChartConstants(): void {
+  rebuildPalette(CHART_COLORS, buildChartColors())
+  rebuildPalette(CHART_COLORS_WARM, buildChartColorsWarm())
+  rebuildPalette(INCOME_COLORS, buildIncomeColors())
+
+  CHART_TEXT.primary = rawColors.chart.textPrimary
+  CHART_TEXT.secondary = rawColors.chart.textSecondary
+  CHART_TEXT.muted = rawColors.chart.textMuted
+  CHART_TEXT.subtle = rawColors.chart.textSubtle
+  CHART_TEXT.dim = rawColors.chart.textDim
+
+  CHART_SURFACE.tooltipBg = rawColors.chart.tooltipBg
+  CHART_SURFACE.tooltipBorder = rawColors.chart.tooltipBorder
+  CHART_SURFACE.gridLine = rawColors.chart.grid
+  CHART_SURFACE.axisLine = rawColors.chart.axisLine
+  CHART_SURFACE.cursor = rawColors.chart.cursor
+  CHART_SURFACE.polarGrid = rawColors.chart.axisLine
+  CHART_SURFACE.referenceLine = rawColors.chart.referenceLine
+  CHART_SURFACE.referenceLineStrong = rawColors.chart.referenceLineStrong
+  CHART_SURFACE.activeStroke = rawColors.chart.activeStroke
+  CHART_SURFACE.svgStroke = rawColors.chart.svgStroke
+
+  CHART_INPUT.bg = rawColors.chart.inputBg
+  CHART_INPUT.border = rawColors.chart.inputBorder
+
+  CHART_AXIS_COLOR = rawColors.chart.axisColor
+  CHART_GRID_COLOR = rawColors.chart.gridSolid
+
+  SEMANTIC_COLORS.income = rawColors.financial.income
+  SEMANTIC_COLORS.expense = rawColors.financial.expense
+  SEMANTIC_COLORS.savings = rawColors.financial.savings
+  SEMANTIC_COLORS.transfer = rawColors.financial.transfer
+  SEMANTIC_COLORS.investment = rawColors.financial.investment
+  SEMANTIC_COLORS.positive = rawColors.financial.income
+  SEMANTIC_COLORS.negative = rawColors.financial.expense
+  SEMANTIC_COLORS.neutral = rawColors.chart.neutral
+  SEMANTIC_COLORS.muted = rawColors.chart.muted
+}
+
+onRawColorsRefresh(refreshChartConstants)

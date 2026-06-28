@@ -89,7 +89,7 @@ export default function ChatWidget() {
       >
         <Sparkles className="w-5 h-5" />
         {isConfigured && !isOpen && (
-          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-app-green rounded-full border-2 border-black" />
+          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-app-green rounded-full border-2 border-[var(--color-background)]" />
         )}
       </motion.button>
     </div>

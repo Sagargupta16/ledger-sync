@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { ArrowRight, Eye, Heart, PiggyBank, Upload } from 'lucide-react'
 
+import ThemeToggle from '@/components/layout/Sidebar/ThemeToggle'
 import { AuthModal, LoginButton } from '@/components/shared/AuthModal'
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
@@ -34,7 +35,7 @@ export default function HomePage() {
   return (
     <div className="min-h-dvh flex flex-col">
       <header
-        className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-black/50 border-b border-border"
+        className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-[var(--header-bg)] border-b border-border"
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
@@ -54,11 +55,12 @@ export default function HomePage() {
             <span className="text-xl font-bold text-foreground">Ledger Sync</span>
           </Link>
 
-          <div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             {isAuthenticated ? (
               <Link
                 to={ROUTES.DASHBOARD}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-foreground transition-colors hover:scale-105"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white transition-colors hover:scale-105"
                 style={{
                   background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
                 }}

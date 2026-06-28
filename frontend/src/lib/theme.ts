@@ -10,6 +10,8 @@
  * first paint (no flash); this module keeps it in sync at runtime.
  */
 
+import { refreshRawColors } from '@/constants/colors'
+
 export type ThemeMode = 'dark' | 'light' | 'system'
 
 export const THEME_STORAGE_KEY = 'ledger-sync-theme'
@@ -65,6 +67,11 @@ export function applyTheme(resolved: 'dark' | 'light', skipTransition = false): 
   }
 
   root.setAttribute('data-theme', resolved)
+
+  // Re-resolve the chart color tokens (Recharts/SVG read concrete values, not
+  // var()) so charts repaint with the active theme's palette. Runs after the
+  // data-theme switch so getComputedStyle sees the new token values.
+  refreshRawColors()
 }
 
 /** Persist the mode and apply it immediately. Returns the resolved theme. */

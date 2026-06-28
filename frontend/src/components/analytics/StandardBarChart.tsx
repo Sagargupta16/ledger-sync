@@ -22,6 +22,7 @@ import {
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
   BAR_RADIUS, LEGEND_DEFAULTS, shouldAnimate,
 } from '@/components/ui/chartDefaults'
+import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
 import { barLabelFormatter, barLabelStyle } from '@/lib/chartUtils'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
@@ -202,7 +203,7 @@ export default function StandardBarChart({
 
   const referenceLineLabel = (label: string) => ({
     value: label,
-    fill: 'rgba(255,255,255,0.45)',
+    fill: CHART_TEXT.subtle,
     fontSize: 10,
   })
 
@@ -237,7 +238,7 @@ export default function StandardBarChart({
             key={`${ref.x ?? ''}${ref.y ?? ''}${ref.label ?? ''}`}
             x={ref.x}
             y={ref.y}
-            stroke={ref.color ?? 'rgba(255,255,255,0.25)'}
+            stroke={ref.color ?? CHART_SURFACE.referenceLineStrong}
             strokeDasharray={ref.strokeDasharray ?? '3 3'}
             label={ref.label ? referenceLineLabel(ref.label) : undefined}
           />

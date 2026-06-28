@@ -16,7 +16,7 @@ import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { LEGEND_DEFAULTS, shouldAnimate } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { getChartColor, SEMANTIC_COLORS } from '@/constants/chartColors'
+import { getChartColor, SEMANTIC_COLORS, CHART_TEXT } from '@/constants/chartColors'
 
 interface PieDataItem {
   name: string
@@ -167,14 +167,14 @@ export default function StandardPieChart({
               <tspan
                 x="50%"
                 dy="-8"
-                fill="#fafafa"
+                fill={CHART_TEXT.primary}
                 fontSize={centerValueFontSize}
                 fontWeight="700"
               >
                 {centerValue}
               </tspan>
             )}
-            <tspan x="50%" dy={centerValue ? '20' : '0'} fill="#71717a" fontSize="11">
+            <tspan x="50%" dy={centerValue ? '20' : '0'} fill={CHART_TEXT.subtle} fontSize="11">
               {centerLabel}
             </tspan>
           </text>

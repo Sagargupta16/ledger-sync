@@ -190,13 +190,15 @@ function LandingPage() {
   return <HomePage />
 }
 
-/** Extracted style object for the Toaster component (avoids recreating on every render) */
+/** Extracted style object for the Toaster component (avoids recreating on every render).
+ *  Uses CSS tokens so toasts flip with the light/dark theme instead of always
+ *  rendering as a dark glass chip (which was unreadable in light mode). */
 const TOASTER_STYLE: React.CSSProperties = {
-  background: 'rgba(20, 20, 25, 0.95)',
+  background: 'var(--color-popover)',
   backdropFilter: 'blur(12px)',
-  border: '1px solid rgba(255, 255, 255, 0.15)',
-  color: '#ffffff',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+  border: '1px solid var(--glass-border-strong)',
+  color: 'var(--color-foreground)',
+  boxShadow: 'var(--glass-shadow-strong)',
 }
 
 const TOASTER_OPTIONS = {

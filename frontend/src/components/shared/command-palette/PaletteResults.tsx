@@ -61,7 +61,7 @@ export function PaletteResults(props: Readonly<PaletteResultsProps>) {
                       style={{
                         background: isSelected
                           ? `${rawColors.app.blue}20`
-                          : 'rgba(255, 255, 255, 0.06)',
+                          : 'var(--overlay-3)',
                       }}
                     >
                       <Icon
@@ -99,7 +99,7 @@ export function PaletteResults(props: Readonly<PaletteResultsProps>) {
               const isSelected = index === selectedIndex
               const isIncome = tx.type === 'Income'
 
-              let iconBgColor = 'rgba(255, 255, 255, 0.06)'
+              let iconBgColor = 'var(--overlay-3)'
               if (isSelected) {
                 iconBgColor = isIncome ? `${rawColors.app.green}20` : `${rawColors.app.red}20`
               }

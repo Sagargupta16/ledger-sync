@@ -213,7 +213,7 @@ export default function EffectiveTaxRateChart({
                   y={currentPoint.effectiveRate}
                   r={5}
                   fill={rawColors.app.green}
-                  stroke="#000"
+                  stroke={rawColors.chart.activeStroke}
                   strokeWidth={2}
                 />
               </>

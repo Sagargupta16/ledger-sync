@@ -89,7 +89,7 @@ export default function CashFlowForecast() {
             {forecastData.forecastStartMonth && (
               <ReferenceLine
                 x={formatMonth(forecastData.forecastStartMonth)}
-                stroke="rgba(255,255,255,0.2)"
+                stroke={rawColors.chart.referenceLineStrong}
                 strokeDasharray="4 4"
               />
             )}

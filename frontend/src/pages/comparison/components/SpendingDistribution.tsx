@@ -84,7 +84,7 @@ export function SpendingDistribution({
               domain={[-maxVal, maxVal]}
               tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }}
               tickLine={false}
-              axisLine={{ stroke: 'rgba(255, 255, 255, 0.06)' }}
+              axisLine={{ stroke: rawColors.chart.axisLine }}
               tickFormatter={(v: number) => formatCurrencyShort(Math.abs(v))}
             />
             <YAxis
@@ -93,7 +93,7 @@ export function SpendingDistribution({
               width={110}
               tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: 'rgba(255, 255, 255, 0.06)' }}
+              axisLine={{ stroke: rawColors.chart.axisLine }}
             />
             <Tooltip
               {...chartTooltipProps}
@@ -119,7 +119,7 @@ export function SpendingDistribution({
               <LabelList
                 dataKey="periodA"
                 position="left"
-                fill="#a1a1aa"
+                fill={rawColors.chart.textMuted}
                 fontSize={10}
                 formatter={(v: unknown) => {
                   const n = Math.abs(v as number)
@@ -146,7 +146,7 @@ export function SpendingDistribution({
               <LabelList
                 dataKey="periodB"
                 position="right"
-                fill="#a1a1aa"
+                fill={rawColors.chart.textMuted}
                 fontSize={10}
                 formatter={(v: unknown) => {
                   const n = v as number

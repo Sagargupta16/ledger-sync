@@ -8,6 +8,7 @@ import ChatWidget from '@/components/chat/ChatWidget'
 import { DemoBanner } from '@/components/shared/DemoBanner'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { useDemoStore } from '@/store/demoStore'
+import { useThemeStore } from '@/store/themeStore'
 import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 
 import Sidebar from './Sidebar/Sidebar'
@@ -48,6 +49,11 @@ const PAGE_TITLES: Record<string, string> = {
 export default function AppLayout() {
   const location = useLocation()
   const isDemoMode = useDemoStore((s) => s.isDemoMode)
+  // Resolved theme ('dark' | 'light'). Folded into the routed-content key below
+  // so a theme toggle remounts the page subtree, forcing Recharts/SVG to re-read
+  // the freshly re-resolved chart colors (rawColors is refreshed in applyTheme).
+  // Cached query data (staleTime: Infinity) is preserved, so the remount is cheap.
+  const resolvedTheme = useThemeStore((s) => s.resolved)
 
   // Fetch exchange rate when display currency changes (pushes to store for formatters)
   useExchangeRate()
@@ -110,7 +116,7 @@ export default function AppLayout() {
         }`}
       >
         <AnimatePresence mode="popLayout">
-          <motion.div key={location.pathname} {...pageTransition}>
+          <motion.div key={`${location.pathname}:${resolvedTheme}`} {...pageTransition}>
             {/*
               Page-scoped error boundary: a crash in one route renders the
               fallback INSIDE the layout (sidebar + nav stay alive) instead of

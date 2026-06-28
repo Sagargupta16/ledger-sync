@@ -224,7 +224,7 @@ export default function CommandPalette() {
               listRef={listRef}
             />
 
-            <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--hairline-2)] bg-black/10">
+            <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--hairline-2)] bg-[var(--overlay-2)]">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1 text-xs text-text-tertiary">
                   <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-[10px] text-text-tertiary">

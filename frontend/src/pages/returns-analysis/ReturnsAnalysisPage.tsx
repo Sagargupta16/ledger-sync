@@ -36,8 +36,8 @@ function AccountTooltip({
   return (
     <div style={CHART_TOOLTIP_STYLE}>
       <p style={{ ...CHART_TOOLTIP_LABEL_STYLE, marginBottom: 6 }}>{p.name}</p>
-      <div style={{ color: '#fafafa', fontSize: 14, fontWeight: 600 }}>{formatCurrency(p.value)}</div>
-      <div style={{ color: '#71717a', fontSize: 11, marginTop: 2 }}>{p.transactions} transaction{p.transactions === 1 ? '' : 's'}</div>
+      <div style={{ color: rawColors.chart.textPrimary, fontSize: 14, fontWeight: 600 }}>{formatCurrency(p.value)}</div>
+      <div style={{ color: rawColors.chart.textSubtle, fontSize: 11, marginTop: 2 }}>{p.transactions} transaction{p.transactions === 1 ? '' : 's'}</div>
     </div>
   )
 }
@@ -65,8 +65,8 @@ function ComboTooltip({
       {payload.map((p) => (
         <div key={p.dataKey ?? p.color} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-          <span style={{ color: '#71717a', fontSize: 11 }}>{COMBO_SERIES_LABELS[p.dataKey ?? ''] ?? p.dataKey}</span>
-          <span style={{ color: '#fafafa', fontSize: 12, fontWeight: 600, marginLeft: 'auto' }}>{formatCurrency(p.value ?? 0)}</span>
+          <span style={{ color: rawColors.chart.textSubtle, fontSize: 11 }}>{COMBO_SERIES_LABELS[p.dataKey ?? ''] ?? p.dataKey}</span>
+          <span style={{ color: rawColors.chart.textPrimary, fontSize: 12, fontWeight: 600, marginLeft: 'auto' }}>{formatCurrency(p.value ?? 0)}</span>
         </div>
       ))}
     </div>
@@ -165,7 +165,7 @@ export default function ReturnsAnalysisPage() {
                 <XAxis {...xAxisDefaults(monthlyComboData.length)} dataKey="month" />
                 <YAxis {...yAxisDefaults()} />
                 <Tooltip content={ComboTooltip as never} cursor={chartTooltipProps.cursor} />
-                <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
+                <ReferenceLine y={0} stroke={rawColors.chart.referenceLine} />
                 {/* Single signed bar per month -- green above zero, red below.
                     A bar's baseline-anchored length encodes the monthly net far
                     more accurately than a split area fill did. */}
@@ -340,10 +340,10 @@ export default function ReturnsAnalysisPage() {
                   width={holdingsAxisWidth}
                   tick={{ fill: rawColors.text.tertiary, fontSize: 11 }}
                   tickLine={false}
-                  axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
+                  axisLine={{ stroke: rawColors.chart.axisLine }}
                 />
                 <Tooltip
-                  cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                  cursor={{ fill: rawColors.chart.grid }}
                   content={AccountTooltip as never}
                 />
                 <Bar

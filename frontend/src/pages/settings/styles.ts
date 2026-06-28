@@ -12,7 +12,7 @@ export const sectionVariants = {
 }
 
 export const inputClass =
-  'w-full px-3 py-2 bg-white/5 border border-border rounded-lg text-white text-sm focus:border-primary focus:outline-none transition-colors'
+  'w-full px-3 py-2 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm focus:border-primary focus:outline-none transition-colors'
 
 export const selectClass =
-  'w-full px-3 py-2 bg-white/5 border border-border rounded-lg text-white text-sm focus:border-primary focus:outline-none transition-colors'
+  'w-full px-3 py-2 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm focus:border-primary focus:outline-none transition-colors'

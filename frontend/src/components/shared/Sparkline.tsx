@@ -163,7 +163,7 @@ function DefaultSparkline({
           y1={avgY}
           x2={width}
           y2={avgY}
-          stroke="rgba(255,255,255,0.08)"
+          stroke={rawColors.chart.svgStroke}
           strokeWidth={1}
           strokeDasharray="3 3"
         />
@@ -193,7 +193,7 @@ function DefaultSparkline({
               y1={0}
               x2={hoverPoint.x}
               y2={height}
-              stroke="rgba(255,255,255,0.15)"
+              stroke={rawColors.chart.referenceLine}
               strokeWidth={1}
               strokeDasharray="3 3"
             />

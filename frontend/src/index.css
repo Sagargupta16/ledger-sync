@@ -99,13 +99,29 @@
   --glass-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
   --glass-shadow-strong: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
   --glass-shadow-ultra: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+  /* Base shadow under contextual-glow cards. DARK: none -- in dark a glow card
+     is just the colored wash (no drop shadow), matching the original look.
+     LIGHT overrides this to the glass shadow so glow cards keep real depth. */
+  --glow-base-shadow: none;
   --glow-strength: 0.05;
+  /* Distinct glass-border tiers so each glass variant keeps its original dark
+     hairline weight (they used to be separate literals; tokenizing collapsed
+     them). Light overrides live in the [data-theme='light'] block. */
+  --glass-border-ultra: rgba(255, 255, 255, 0.04);
+  --glass-border-thin: rgba(255, 255, 255, 0.05);
+  --glass-border-strong-hover: rgba(255, 255, 255, 0.12);
   --scrollbar-thumb: rgba(255, 255, 255, 0.10);
-  --skeleton-base: rgba(255, 255, 255, 0.04);
-  --skeleton-highlight: rgba(255, 255, 255, 0.08);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.18);
+  --skeleton-base: rgba(255, 255, 255, 0.03);
+  --skeleton-highlight: rgba(255, 255, 255, 0.06);
   --divider-color: rgba(255, 255, 255, 0.1);
   --header-bg: rgba(0, 0, 0, 0.8);
   --sidebar-bg: rgba(17, 17, 19, 0.95);
+  /* Focus ring (theme-aware). Used by :focus-visible and form :focus so the
+     ring tracks the accent color in BOTH themes instead of a hardcoded dark
+     blue. Carried as a full rgba so box-shadow can use it directly. */
+  --focus-ring: rgba(74, 158, 255, 0.5);
+  --focus-ring-soft: rgba(74, 158, 255, 0.12);
 
   /* ===== OVERLAY + HAIRLINE LADDER (theme-aware) =====
      The app used dozens of `bg-white/N` (raised surfaces, hovers) and
@@ -126,6 +142,34 @@
   --hairline-3: rgba(255, 255, 255, 0.10);
   --hairline-4: rgba(255, 255, 255, 0.15);
   --hairline-5: rgba(255, 255, 255, 0.20);
+
+  /* ===== CHART TOKENS (theme-aware) =====
+     Charts render via Recharts/SVG, where CSS var() does NOT work in
+     presentation attributes -- so these are resolved to concrete values at
+     runtime by buildRawColors() in constants/colors.ts and consumed through
+     rawColors.chart in constants/chartColors.ts. The dark values below are the
+     historical hardcoded chart colors verbatim, so the dark look is unchanged;
+     the [data-theme='light'] block overrides them with AA-contrast values. */
+  --chart-text-primary: #fafafa;
+  --chart-text-secondary: #f5f5f7;
+  --chart-text-muted: #a1a1aa;
+  --chart-text-subtle: #71717a;
+  --chart-text-dim: #52525b;
+  --chart-axis-color: #9ca3af;
+  --chart-grid: rgba(255, 255, 255, 0.04);
+  --chart-axis-line: rgba(255, 255, 255, 0.06);
+  --chart-cursor: rgba(255, 255, 255, 0.06);
+  --chart-reference-line: rgba(255, 255, 255, 0.15);
+  --chart-reference-line-strong: rgba(255, 255, 255, 0.2);
+  --chart-active-stroke: rgba(255, 255, 255, 0.3);
+  --chart-svg-stroke: rgba(255, 255, 255, 0.08);
+  --chart-tooltip-bg: rgba(26, 26, 28, 0.95);
+  --chart-tooltip-border: rgba(255, 255, 255, 0.08);
+  --chart-grid-solid: #2a2a2e;
+  --chart-neutral: #9ca3af;
+  --chart-muted: #6b7280;
+  --chart-input-bg: rgba(44, 44, 46, 0.6);
+  --chart-input-border: rgba(58, 58, 60, 0.6);
 
   /* ===== Z-INDEX SCALE ===== */
   --z-base: 0;
@@ -232,8 +276,15 @@
   --glass-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px -2px rgba(17, 24, 39, 0.08);
   --glass-shadow-strong: 0 2px 4px rgba(17, 24, 39, 0.05), 0 8px 24px -4px rgba(17, 24, 39, 0.12);
   --glass-shadow-ultra: 0 4px 8px rgba(17, 24, 39, 0.06), 0 20px 40px -10px rgba(17, 24, 39, 0.16);
+  /* In light, glow cards DO get a soft drop shadow for premium depth. */
+  --glow-base-shadow: var(--glass-shadow);
   --glow-strength: 0.08;
+  /* Glass-border tiers (light): hairline ink edges that match the other light borders. */
+  --glass-border-ultra: rgba(17, 24, 39, 0.06);
+  --glass-border-thin: rgba(17, 24, 39, 0.06);
+  --glass-border-strong-hover: rgba(17, 24, 39, 0.16);
   --scrollbar-thumb: rgba(17, 24, 39, 0.18);
+  --scrollbar-thumb-hover: rgba(17, 24, 39, 0.30);
   --skeleton-base: rgba(17, 24, 39, 0.05);
   --skeleton-highlight: rgba(17, 24, 39, 0.10);
   --divider-color: rgba(17, 24, 39, 0.08);
@@ -241,6 +292,9 @@
   /* Light sidebar: a hair softer/warmer than pure white so it reads as a
      distinct rail against the white content cards. */
   --sidebar-bg: lab(98.5% 0.4 2.6 / 0.95);
+  /* Focus ring uses the darkened light-theme blue (#2563eb) for AA contrast. */
+  --focus-ring: rgba(37, 99, 235, 0.55);
+  --focus-ring-soft: rgba(37, 99, 235, 0.15);
 
   /* Overlay + hairline ladder flipped to dark-alpha so "raised surface" and
      "hairline border" read correctly on a light background. */
@@ -257,6 +311,32 @@
   --hairline-3: rgba(17, 24, 39, 0.10);
   --hairline-4: rgba(17, 24, 39, 0.14);
   --hairline-5: rgba(17, 24, 39, 0.18);
+
+  /* ===== CHART TOKENS (light overrides) =====
+     Near-black ink for chart text so axis ticks / bar labels / tooltips clear
+     WCAG AA on the off-white chart surface (the dark values are white and would
+     vanish in light). Grid/axis/cursor lines use ink-alpha; the tooltip surface
+     flips to near-opaque white with an ink hairline. */
+  --chart-text-primary: #1a1c1f;
+  --chart-text-secondary: #1a1c1f;
+  --chart-text-muted: #5b6068;
+  --chart-text-subtle: #767b84;
+  --chart-text-dim: #9aa0a8;
+  --chart-axis-color: #5b6068;
+  --chart-grid: rgba(17, 24, 39, 0.07);
+  --chart-axis-line: rgba(17, 24, 39, 0.12);
+  --chart-cursor: rgba(17, 24, 39, 0.06);
+  --chart-reference-line: rgba(17, 24, 39, 0.18);
+  --chart-reference-line-strong: rgba(17, 24, 39, 0.28);
+  --chart-active-stroke: rgba(17, 24, 39, 0.30);
+  --chart-svg-stroke: rgba(17, 24, 39, 0.10);
+  --chart-tooltip-bg: rgba(255, 255, 255, 0.98);
+  --chart-tooltip-border: rgba(17, 24, 39, 0.10);
+  --chart-grid-solid: #e5e7eb;
+  --chart-neutral: #6b7280;
+  --chart-muted: #9aa0a8;
+  --chart-input-bg: #ffffff;
+  --chart-input-border: rgba(17, 24, 39, 0.12);
 }
 
 * {
@@ -352,14 +432,14 @@ body {
 }
 
 .glass-strong:hover {
-  border-color: var(--glass-border-hover);
+  border-color: var(--glass-border-strong-hover);
 }
 
 .glass-ultra {
   background: var(--color-surface-nav);
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--glass-border-ultra);
   border-top-color: var(--glass-edge);
   border-left-color: var(--glass-edge);
   box-shadow: var(--glass-shadow-ultra);
@@ -369,7 +449,7 @@ body {
   background: var(--color-surface-thin);
   backdrop-filter: blur(8px) saturate(130%);
   -webkit-backdrop-filter: blur(8px) saturate(130%);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--glass-border-thin);
 }
 
 /* ===== CONTEXTUAL GLOW — Financial card accents ===== */
@@ -378,31 +458,31 @@ body {
    shadow, so the card keeps its depth in both themes. `--glow-strength` lifts
    the wash slightly on light where a faint tint reads weaker. */
 .glow-income {
-  box-shadow: var(--glass-shadow), 0 0 30px rgba(48, 209, 88, var(--glow-strength));
+  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(48, 209, 88, var(--glow-strength));
 }
 
 .glow-expense {
-  box-shadow: var(--glass-shadow), 0 0 30px rgba(255, 87, 87, var(--glow-strength));
+  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(255, 87, 87, var(--glow-strength));
 }
 
 .glow-savings {
-  box-shadow: var(--glass-shadow), 0 0 30px rgba(167, 139, 250, var(--glow-strength));
+  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(167, 139, 250, var(--glow-strength));
 }
 
 .glow-transfer {
-  box-shadow: var(--glass-shadow), 0 0 30px rgba(90, 200, 245, var(--glow-strength));
+  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(90, 200, 245, var(--glow-strength));
 }
 
 .glow-investment {
-  box-shadow: var(--glass-shadow), 0 0 30px rgba(74, 158, 255, var(--glow-strength));
+  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(74, 158, 255, var(--glow-strength));
 }
 
 .glow-error {
-  box-shadow: var(--glass-shadow), 0 0 30px rgba(255, 87, 87, calc(var(--glow-strength) + 0.02));
+  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(255, 87, 87, calc(var(--glow-strength) + 0.02));
 }
 
 .glow-warning {
-  box-shadow: var(--glass-shadow), 0 0 30px rgba(255, 159, 10, calc(var(--glow-strength) + 0.02));
+  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(255, 159, 10, calc(var(--glow-strength) + 0.02));
 }
 
 /* ===== SCROLLBAR ===== */
@@ -422,7 +502,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-border-strong);
+  background: var(--scrollbar-thumb-hover);
 }
 
 .scrollbar-none {
@@ -609,14 +689,14 @@ select {
 select option,
 option {
   background-color: var(--color-surface-dropdown);
-  color: #ffffff;
+  color: var(--color-foreground);
 }
 
 select:focus,
 input:not([type="checkbox"]):not([type="radio"]):focus {
-  border-color: rgba(74, 158, 255, 0.5);
+  border-color: var(--focus-ring);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.12);
+  box-shadow: 0 0 0 2px var(--focus-ring-soft);
 }
 
 /* ===== MOBILE: prevent iOS Safari auto-zoom on input focus =====
@@ -654,7 +734,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus {
 @media (max-width: 639px) {
   .data-table-scroll::-webkit-scrollbar { height: 4px; }
   .data-table-scroll::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--scrollbar-thumb);
     border-radius: 2px;
   }
   .data-table-scroll { scrollbar-width: thin; }
@@ -676,7 +756,7 @@ button:focus-visible,
   outline: none;
   box-shadow:
     0 0 0 2px var(--color-background),
-    0 0 0 3px rgba(74, 158, 255, 0.5);
+    0 0 0 3px var(--focus-ring);
   border-radius: 8px;
 }
 

@@ -201,7 +201,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
           subtitle={`Last ${analysisData.monthsAnalyzed} months`}
           color={fhnStatus.color}
         />
-        <RadarVisualization metrics={fhnRadarData} chartColor="#4a9eff" />
+        <RadarVisualization metrics={fhnRadarData} chartColor={rawColors.app.blue} />
         <p className="text-[11px] text-center text-muted-foreground mb-3">{getSummary(overallScore)}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {metrics.map((m) => <HealthMetricCard key={m.name} metric={m} />)}

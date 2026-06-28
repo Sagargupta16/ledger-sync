@@ -342,7 +342,7 @@ export default function TaxPlanningPage() {
                               }
                               return [formatCurrency(value), labels[name ?? ''] ?? name]
                             }}
-                            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                            cursor={{ fill: rawColors.chart.grid }}
                           />
                           <Bar
                             yAxisId="left"

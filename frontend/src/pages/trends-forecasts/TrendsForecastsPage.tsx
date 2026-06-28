@@ -194,7 +194,7 @@ export default function TrendsForecastsPage() {
                       {activeLabel && (
                         <ReferenceLine
                           x={activeLabel}
-                          stroke="rgba(255,255,255,0.3)"
+                          stroke={rawColors.chart.activeStroke}
                           strokeDasharray="3 3"
                         />
                       )}

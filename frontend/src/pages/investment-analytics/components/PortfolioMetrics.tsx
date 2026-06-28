@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { DollarSign, LineChart, Target, TrendingUp, Wallet } from 'lucide-react'
 
 import MetricCard from '@/components/shared/MetricCard'
-import { rawColors } from '@/constants/colors'
+import { hexToRgba, rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 interface PortfolioMetricsProps {
@@ -76,7 +76,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
         >
           <div
             className="inline-flex p-3 rounded-2xl mb-4 bg-app-orange/15"
-            style={{ boxShadow: '0 8px 24px rgba(255,159,10,0.15)' }}
+            style={{ boxShadow: `0 8px 24px ${hexToRgba(rawColors.app.orange, 0.15)}` }}
           >
             <Target className="w-6 h-6 text-app-orange" />
           </div>

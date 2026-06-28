@@ -54,7 +54,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
             transition={{ delay: 0.2 }}
             className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-4 sm:mb-6"
           >
-            <span className="bg-gradient-to-r from-white via-white to-muted-foreground bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-transparent">
               Take Control of{' '}
             </span>
             <br />

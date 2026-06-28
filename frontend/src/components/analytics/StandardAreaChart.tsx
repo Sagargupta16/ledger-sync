@@ -21,6 +21,7 @@ import {
   areaGradient, areaGradientUrl, LEGEND_DEFAULTS, shouldAnimate, ACTIVE_DOT,
   BRUSH_DEFAULTS,
 } from '@/components/ui/chartDefaults'
+import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface AreaConfig {
@@ -119,11 +120,11 @@ export default function StandardAreaChart({
             key={`${ref.y ?? ''}${ref.x ?? ''}${ref.label ?? ''}`}
             y={ref.y}
             x={ref.x}
-            stroke={ref.color ?? 'rgba(255,255,255,0.2)'}
+            stroke={ref.color ?? CHART_SURFACE.referenceLineStrong}
             strokeDasharray={ref.strokeDasharray ?? '6 4'}
             label={ref.label ? {
               value: ref.label,
-              fill: '#71717a',
+              fill: CHART_TEXT.subtle,
               fontSize: 11,
               position: 'insideTopRight',
             } : undefined}
