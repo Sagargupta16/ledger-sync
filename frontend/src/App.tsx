@@ -8,6 +8,7 @@ import { Toaster } from 'sonner'
 import { queryClient } from '@/lib/queryClient'
 import { ROUTES } from '@/constants'
 import AppLayout from '@/components/layout/AppLayout'
+import { Spinner } from '@/components/ui'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { ChunkErrorBoundary } from '@/components/shared/ChunkErrorBoundary'
 import { PreferencesProvider } from '@/components/shared/PreferencesProvider'
@@ -86,16 +87,6 @@ function prefetchAllPages() {
   } else {
     setTimeout(prefetch, 2000)
   }
-}
-
-/** Reusable loading spinner */
-function Spinner({ label = 'Loading...', className = '' }: Readonly<{ label?: string; className?: string }>) {
-  return (
-    <div className={`flex flex-col items-center gap-3 ${className}`}>
-      <div className="w-8 h-8 border-2 border-app-blue/30 border-t-app-blue rounded-full animate-spin" />
-      <span className="text-sm text-muted-foreground">{label}</span>
-    </div>
-  )
 }
 
 /**

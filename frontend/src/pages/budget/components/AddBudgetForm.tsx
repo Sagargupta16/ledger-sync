@@ -49,13 +49,14 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="glass rounded-2xl border border-border p-6 overflow-hidden"
+          className="glass rounded-2xl border border-border p-4 sm:p-6 overflow-hidden"
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">New Budget</h3>
             <button
               onClick={() => setIsAdding(false)}
-              className="p-1.5 rounded-lg hover:bg-white/10"
+              aria-label="Close new budget form"
+              className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10"
             >
               <X className="w-4 h-4" />
             </button>
@@ -135,7 +136,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
                 </div>
               </>
             )}
-            <div className="w-36">
+            <div className="flex-1 min-w-28 sm:flex-none sm:w-36">
               <label htmlFor="budget-limit" className="text-xs text-muted-foreground mb-1 block">
                 Limit (₹)
               </label>
@@ -151,7 +152,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
                 className="w-full px-3 py-2.5 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white placeholder-gray-500"
               />
             </div>
-            <div className="w-32">
+            <div className="flex-1 min-w-28 sm:flex-none sm:w-32">
               <label htmlFor="budget-period" className="text-xs text-muted-foreground mb-1 block">
                 Period
               </label>
@@ -168,7 +169,7 @@ export function AddBudgetForm(props: Readonly<AddBudgetFormProps>) {
             <button
               onClick={onAdd}
               disabled={!formCategory || !formLimit}
-              className="px-5 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-colors"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-colors"
               style={{ backgroundColor: rawColors.app.green }}
             >
               Add

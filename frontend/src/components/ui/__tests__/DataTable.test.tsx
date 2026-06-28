@@ -95,21 +95,42 @@ describe('DataTable', () => {
       />,
     )
     const amountHeader = screen.getByRole('columnheader', { name: /Amount/i })
+    // The sort control is a button inside the header (announced as "click to sort").
+    const amountButton = within(amountHeader).getByRole('button')
     expect(amountHeader).toHaveAttribute('aria-sort', 'none')
 
-    fireEvent.click(amountHeader)
+    fireEvent.click(amountButton)
     expect(amountHeader).toHaveAttribute('aria-sort', 'descending')
     expect(getRowNames()).toEqual(['Alpha', 'Charlie', 'Bravo']) // 300, 200, 100
 
-    fireEvent.click(amountHeader)
+    fireEvent.click(amountButton)
     expect(amountHeader).toHaveAttribute('aria-sort', 'ascending')
     expect(getRowNames()).toEqual(['Bravo', 'Charlie', 'Alpha']) // 100, 200, 300
 
-    fireEvent.click(amountHeader)
+    fireEvent.click(amountButton)
     expect(amountHeader).toHaveAttribute('aria-sort', 'descending')
   })
 
-  it('supports keyboard activation (Enter / Space) on sortable headers', () => {
+  it('text-typed sortable column sorts ascending (A→Z) on first click', () => {
+    const columns: DataTableColumn<Row>[] = [
+      { key: 'name', header: 'Name', sortable: true, sortType: 'text', cell: (r) => r.name },
+      { key: 'amount', header: 'Amount', align: 'right', cell: (r) => String(r.amount) },
+    ]
+    render(
+      <DataTable<Row>
+        columns={columns}
+        rows={ROWS}
+        rowKey={(r) => r.id}
+        animateRows={false}
+      />,
+    )
+    const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
+    fireEvent.click(within(nameHeader).getByRole('button'))
+    expect(nameHeader).toHaveAttribute('aria-sort', 'ascending')
+    expect(getRowNames()).toEqual(['Alpha', 'Bravo', 'Charlie'])
+  })
+
+  it('supports keyboard activation (Enter / Space) on the sort button', () => {
     render(
       <DataTable<Row>
         columns={COLUMNS}
@@ -119,11 +140,13 @@ describe('DataTable', () => {
       />,
     )
     const amountHeader = screen.getByRole('columnheader', { name: /Amount/i })
+    const amountButton = within(amountHeader).getByRole('button')
 
-    fireEvent.keyDown(amountHeader, { key: 'Enter' })
+    // Native <button> turns Enter/Space keypresses into click events.
+    fireEvent.click(amountButton)
     expect(amountHeader).toHaveAttribute('aria-sort', 'descending')
 
-    fireEvent.keyDown(amountHeader, { key: ' ' })
+    fireEvent.click(amountButton)
     expect(amountHeader).toHaveAttribute('aria-sort', 'ascending')
   })
 

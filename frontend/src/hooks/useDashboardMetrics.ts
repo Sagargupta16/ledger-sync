@@ -201,14 +201,13 @@ export function useDashboardMetrics(): DashboardMetrics {
 
   const expenseChartData = useMemo(() => {
     if (!expenseBreakdown) return []
+    // Sort by value FIRST, then assign palette colors by rank -- assigning the
+    // index-based color before the sort scrambled the dot/wedge color vs. rank.
     return Object.entries(expenseBreakdown)
       .filter(([, value]) => value > 0)
-      .map(([category, value], i) => ({
-        name: category,
-        value,
-        color: getChartColor(i),
-      }))
+      .map(([category, value]) => ({ name: category, value }))
       .sort((a, b) => b.value - a.value)
+      .map((d, i) => ({ ...d, color: getChartColor(i) }))
   }, [expenseBreakdown])
 
   // Precomputed style objects (stable refs)

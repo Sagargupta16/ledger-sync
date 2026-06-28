@@ -1,40 +1,24 @@
 import { useNavigate } from 'react-router-dom'
 
 import { motion } from 'framer-motion'
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  LabelList,
-  Line,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Area, AreaChart, CartesianGrid, Line, Tooltip, XAxis, YAxis } from 'recharts'
 
-import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import StandardBarChart from '@/components/analytics/StandardBarChart'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
-  BAR_RADIUS,
   ChartContainer,
   GRID_DEFAULTS,
   areaGradient,
   areaGradientUrl,
   chartTooltipProps,
+  currencyTooltipFormatter,
   shouldAnimate,
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
-import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { CHART_TEXT } from '@/constants/chartColors'
+import { formatCurrencyShort } from '@/lib/formatters'
 
 import { STATUS_CONFIG } from '../budgetUtils'
 import type { BudgetRow } from '../types'
@@ -42,106 +26,70 @@ import type { BudgetRow } from '../types'
 interface BudgetChartsProps {
   chartData: Array<{ name: string; Budget: number; Spent: number; status: BudgetRow['status'] }>
   burndownData: Array<{ day: number; ideal: number; actual: number | undefined }>
-  radarData: Array<{ category: string; usage: number; fullMark: number }>
+  usageData: Array<{ category: string; usage: number; status: BudgetRow['status'] }>
 }
 
-export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<BudgetChartsProps>) {
-  const dims = useChartDimensions()
+export function BudgetCharts({ chartData, burndownData, usageData }: Readonly<BudgetChartsProps>) {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
+
+  // On phones the y-axis category labels would eat a quarter of a 390px card,
+  // so narrow the label gutter; per-row bars also read better with a touch
+  // more height than the desktop 256px when there are several categories.
+  const barYWidth = isMobile ? 64 : 96
+  const bvaHeight = isMobile ? Math.max(220, chartData.length * 44) : 256
+  const usageHeight = isMobile ? Math.max(220, usageData.length * 44) : 256
 
   return (
     <>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="glass rounded-2xl border border-border p-4 sm:p-6"
       >
-        <h2 className="text-lg font-semibold mb-4">Budget vs Actual</h2>
-        <div className="h-64">
-          {chartData.length === 0 ? (
-            <ChartEmptyState height={256} />
-          ) : (
-            <ChartContainer>
-              <BarChart data={chartData} barGap={4}>
-                <CartesianGrid {...GRID_DEFAULTS} />
-                <XAxis
-                  {...xAxisDefaults(chartData.length, {
-                    angle: dims.angleXLabels ? -20 : undefined,
-                    height: 50,
-                  })}
-                  dataKey="name"
-                />
-                <YAxis {...yAxisDefaults()} />
-                <Tooltip
-                  {...chartTooltipProps}
-                  formatter={(value) =>
-                    typeof value === 'number' ? formatCurrency(value) : ''
-                  }
-                />
-                <Bar
-                  dataKey="Budget"
-                  fill={rawColors.app.blue}
-                  radius={BAR_RADIUS}
-                  opacity={0.5}
-                  isAnimationActive={shouldAnimate(chartData.length)}
-                  animationDuration={600}
-                  animationEasing="ease-out"
-                >
-                  {dims.showBarLabels && (
-                    <LabelList
-                      dataKey="Budget"
-                      position="top"
-                      fill="#f5f5f7"
-                      fontSize={10}
-                      formatter={(v: unknown) =>
-                        !v || v === 0 ? '' : formatCurrencyShort(v as number)
-                      }
-                    />
-                  )}
-                </Bar>
-                <Bar
-                  dataKey="Spent"
-                  radius={BAR_RADIUS}
-                  isAnimationActive={shouldAnimate(chartData.length)}
-                  animationDuration={600}
-                  animationEasing="ease-out"
-                  onClick={(data: { name?: string }) => {
-                    if (data?.name)
-                      navigate(`/transactions?category=${encodeURIComponent(data.name)}`)
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {dims.showBarLabels && (
-                    <LabelList
-                      dataKey="Spent"
-                      position="top"
-                      fill="#f5f5f7"
-                      fontSize={10}
-                      formatter={(v: unknown) =>
-                        !v || v === 0 ? '' : formatCurrencyShort(v as number)
-                      }
-                    />
-                  )}
-                  {chartData.map((entry) => (
-                    <Cell key={entry.name} fill={STATUS_CONFIG[entry.status].color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
-          )}
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold">Budget vs Actual</h2>
+          <p className="text-xs text-muted-foreground">
+            Bar color reflects status -- tap a row to see its transactions
+          </p>
+        </div>
+        <div style={{ height: bvaHeight }}>
+          <StandardBarChart
+            data={chartData}
+            layout="vertical"
+            yCategoryKey="name"
+            yWidth={barYWidth}
+            dataKey="name"
+            height={bvaHeight}
+            bars={[
+              { key: 'Budget', label: 'Budget', color: rawColors.app.blue, fillOpacity: 0.4 },
+              {
+                key: 'Spent',
+                label: 'Spent',
+                color: rawColors.app.blue,
+                getCellColor: (row) =>
+                  STATUS_CONFIG[(row as { status: BudgetRow['status'] }).status].color,
+              },
+            ]}
+            barGap={2}
+            tooltipFormatter={(v) => formatCurrencyShort(v)}
+            xTickFormatter={(v) => formatCurrencyShort(Number(v))}
+            onBarClick={(name) => navigate(`/transactions?category=${encodeURIComponent(name)}`)}
+            ariaLabel="Horizontal grouped bar chart comparing each category's budget against actual spending, spent bars colored by status"
+          />
         </div>
       </motion.div>
 
-      {(burndownData.length > 0 || radarData.length > 0) && (
+      {(burndownData.length > 0 || usageData.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {burndownData.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="glass rounded-2xl border border-border p-6"
+              className="glass rounded-2xl border border-border p-4 sm:p-6"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-y-2 mb-4">
                 <div>
                   <h2 className="text-lg font-semibold">Budget Burn-down</h2>
                   <p className="text-xs text-muted-foreground">
@@ -153,7 +101,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                   <span className="flex items-center gap-1.5">
                     <span
                       className="w-4 h-0 border-t-2 border-dashed"
-                      style={{ borderColor: '#71717a' }}
+                      style={{ borderColor: CHART_TEXT.subtle }}
                     />{' '}
                     Ideal
                   </span>
@@ -167,7 +115,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                 </div>
               </div>
               <div className="h-64">
-                <ChartContainer>
+                <ChartContainer ariaLabel="Area chart showing remaining monthly budget day by day against the ideal spending pace">
                   <AreaChart data={burndownData}>
                     <defs>{areaGradient('burnActual', rawColors.app.green, 0.35, 0.02)}</defs>
                     <CartesianGrid {...GRID_DEFAULTS} />
@@ -181,7 +129,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                       {...chartTooltipProps}
                       labelFormatter={(label) => `Day ${label}`}
                       formatter={(value, name) => [
-                        typeof value === 'number' ? formatCurrency(value) : '',
+                        currencyTooltipFormatter(value),
                         name === 'ideal' ? 'Ideal Pace' : 'Actual Remaining',
                       ]}
                     />
@@ -200,7 +148,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
                     <Line
                       type="monotone"
                       dataKey="ideal"
-                      stroke="#71717a"
+                      stroke={CHART_TEXT.subtle}
                       strokeWidth={1.5}
                       strokeDasharray="6 4"
                       dot={false}
@@ -214,50 +162,41 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
             </motion.div>
           )}
 
-          {radarData.length >= 3 && (
+          {usageData.length >= 3 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="glass rounded-2xl border border-border p-6"
+              className="glass rounded-2xl border border-border p-4 sm:p-6"
             >
               <div className="mb-4">
-                <h2 className="text-lg font-semibold">Category Usage Radar</h2>
+                <h2 className="text-lg font-semibold">Budget Utilization</h2>
                 <p className="text-xs text-muted-foreground">
-                  Budget utilization (%) across all categories
+                  Percent of budget used per category (highest first) -- the dashed line marks 100%
                 </p>
               </div>
-              <div className="h-64 flex items-center justify-center">
-                <ChartContainer>
-                  <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                    <PolarGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-                    <PolarAngleAxis
-                      dataKey="category"
-                      tick={{ fill: '#71717a', fontSize: 10 }}
-                    />
-                    <PolarRadiusAxis
-                      angle={30}
-                      domain={[0, Math.max(100, ...radarData.map((d) => d.usage))]}
-                      tick={{ fill: '#52525b', fontSize: 9 }}
-                      axisLine={false}
-                    />
-                    <Radar
-                      dataKey="usage"
-                      stroke={rawColors.app.blue}
-                      fill={rawColors.app.blue}
-                      fillOpacity={0.15}
-                      strokeWidth={2}
-                      dot={{ r: 3, fill: rawColors.app.blue }}
-                      isAnimationActive={shouldAnimate(radarData.length)}
-                      animationDuration={600}
-                      animationEasing="ease-out"
-                    />
-                    <Tooltip
-                      {...chartTooltipProps}
-                      formatter={(v) => (typeof v === 'number' ? `${v}%` : '')}
-                    />
-                  </RadarChart>
-                </ChartContainer>
+              <div style={{ height: usageHeight }}>
+                <StandardBarChart
+                  data={usageData}
+                  layout="vertical"
+                  yCategoryKey="category"
+                  yWidth={barYWidth}
+                  dataKey="category"
+                  height={usageHeight}
+                  bars={[
+                    {
+                      key: 'usage',
+                      color: rawColors.app.blue,
+                      getCellColor: (row) =>
+                        STATUS_CONFIG[(row as { status: BudgetRow['status'] }).status].color,
+                    },
+                  ]}
+                  showLegend={false}
+                  tooltipFormatter={(v) => `${v}%`}
+                  xTickFormatter={(v) => `${v}%`}
+                  referenceLines={[{ x: 100, label: '100%', color: CHART_TEXT.subtle }]}
+                  ariaLabel="Horizontal bar chart of budget utilization percentage per category, sorted highest first, with a reference line at 100 percent"
+                />
               </div>
             </motion.div>
           )}

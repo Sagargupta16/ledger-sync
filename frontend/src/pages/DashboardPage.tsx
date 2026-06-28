@@ -13,7 +13,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import { FinancialHealthScore } from '@/components/analytics'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -70,11 +70,19 @@ export default function DashboardPage() {
   const incomeTotal = useMemo(() => incomeChartData.reduce((sum, d) => sum + d.value, 0), [incomeChartData])
   const expenseTotal = useMemo(() => expenseChartData.reduce((sum, d) => sum + d.value, 0), [expenseChartData])
 
+  // The pie folds to the largest 7 slices + an "Other" wedge (maxSlices=8).
+  // Mirror that in the legend: show the top 7 rows, then a "+N more" line so the
+  // visible rows reconcile with the all-categories Total below.
+  const LEGEND_CAP = 7
+  const incomeLegend = useMemo(() => incomeChartData.slice(0, LEGEND_CAP), [incomeChartData])
+  const expenseLegend = useMemo(() => expenseChartData.slice(0, LEGEND_CAP), [expenseChartData])
+  const incomeHiddenCount = Math.max(0, incomeChartData.length - LEGEND_CAP)
+  const expenseHiddenCount = Math.max(0, expenseChartData.length - LEGEND_CAP)
+
   if (isLoading) return <PageSkeleton />
 
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+    <PageContainer>
       <PageHeader
         title="Dashboard"
         subtitle="Your financial overview at a glance"
@@ -125,16 +133,24 @@ export default function DashboardPage() {
                   navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
                 }
               />
-              <div className="space-y-2">
-                {incomeChartData.map((item, i) => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={incomeColorStyles[i]} />
-                      <span className="text-sm">{item.name}</span>
-                    </div>
-                    <span className="text-sm font-medium">{formatCurrency(item.value)}</span>
-                  </div>
+              <div className="space-y-1">
+                {incomeLegend.map((item, i) => (
+                  <button
+                    key={item.name}
+                    type="button"
+                    onClick={() => navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(item.name)}`)}
+                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-white/[0.04] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-green/40"
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="w-3 h-3 rounded-full shrink-0" style={incomeColorStyles[i]} />
+                      <span className="text-sm truncate">{item.name}</span>
+                    </span>
+                    <span className="text-sm font-medium shrink-0">{formatCurrency(item.value)}</span>
+                  </button>
                 ))}
+                {incomeHiddenCount > 0 && (
+                  <p className="text-xs text-text-tertiary px-1">+{incomeHiddenCount} more in Other</p>
+                )}
                 {incomeBreakdown && (
                   <div className="pt-2 mt-2 border-t border-border space-y-1">
                     <div className="flex items-center justify-between">
@@ -174,16 +190,24 @@ export default function DashboardPage() {
                   navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
                 }
               />
-              <div className="space-y-2">
-                {expenseChartData.map((item, i) => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={expenseColorStyles[i]} />
-                      <span className="text-sm">{item.name}</span>
-                    </div>
-                    <span className="text-sm font-medium">{formatCurrency(item.value)}</span>
-                  </div>
+              <div className="space-y-1">
+                {expenseLegend.map((item, i) => (
+                  <button
+                    key={item.name}
+                    type="button"
+                    onClick={() => navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(item.name)}`)}
+                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-white/[0.04] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-red/40"
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="w-3 h-3 rounded-full shrink-0" style={expenseColorStyles[i]} />
+                      <span className="text-sm truncate">{item.name}</span>
+                    </span>
+                    <span className="text-sm font-medium shrink-0">{formatCurrency(item.value)}</span>
+                  </button>
                 ))}
+                {expenseHiddenCount > 0 && (
+                  <p className="text-xs text-text-tertiary px-1">+{expenseHiddenCount} more in Other</p>
+                )}
                 <div className="pt-2 mt-2 border-t border-border">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Total</span>
@@ -197,7 +221,6 @@ export default function DashboardPage() {
           )}
         </div>
       </motion.div>
-      </div>
-    </div>
+    </PageContainer>
   )
 }

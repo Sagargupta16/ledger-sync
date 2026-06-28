@@ -3,17 +3,20 @@ import { LineChart } from 'lucide-react'
 import { Area, AreaChart, Brush, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'recharts'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import {
   BRUSH_DEFAULTS,
   ChartContainer,
   GRID_DEFAULTS,
   LEGEND_DEFAULTS,
   chartTooltipProps,
+  currencyTooltipFormatter,
   shouldAnimate,
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { formatDate } from '@/lib/formatters'
 
 import { CATEGORY_COLORS, INVESTMENT_CATEGORIES } from '../investmentUtils'
 
@@ -26,6 +29,7 @@ export function GrowthOverTimeChart({
   isLoading,
   filteredGrowthData,
 }: Readonly<GrowthOverTimeChartProps>) {
+  const dims = useChartDimensions()
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -37,16 +41,15 @@ export function GrowthOverTimeChart({
         <LineChart className="w-5 h-5 text-app-purple" />
         <h3 className="text-lg font-semibold text-white">Investment Growth Over Time</h3>
       </div>
-      {isLoading && (
-        <div className="h-80 flex items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Loading chart...</div>
-        </div>
-      )}
+      {isLoading && <ChartSkeleton />}
       {!isLoading &&
         (filteredGrowthData.length === 0 ? (
           <ChartEmptyState height={400} />
         ) : (
-          <ChartContainer height={400}>
+          <ChartContainer
+            height={400}
+            ariaLabel="Stacked area chart of investment value over time, split by asset class."
+          >
             <AreaChart data={filteredGrowthData}>
               <defs>
                 {INVESTMENT_CATEGORIES.map((category) => (
@@ -58,15 +61,15 @@ export function GrowthOverTimeChart({
                     x2="0"
                     y2="1"
                   >
-                    <stop offset="5%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.8} />
-                    <stop offset="95%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.2} />
+                    <stop offset="5%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.55} />
+                    <stop offset="95%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.15} />
                   </linearGradient>
                 ))}
               </defs>
               <CartesianGrid {...GRID_DEFAULTS} />
               <XAxis
                 {...xAxisDefaults(filteredGrowthData.length, {
-                  angle: -45,
+                  angle: dims.angleXLabels ? -45 : undefined,
                   height: 80,
                   dateFormatter: true,
                 })}
@@ -75,10 +78,7 @@ export function GrowthOverTimeChart({
               <YAxis {...yAxisDefaults()} />
               <Tooltip
                 {...chartTooltipProps}
-                formatter={(value, name) => [
-                  typeof value === 'number' ? formatCurrency(value) : '',
-                  name || '',
-                ]}
+                formatter={(value, name) => [currencyTooltipFormatter(value), name || '']}
                 labelFormatter={(label) =>
                   formatDate(label, {
                     month: 'long',

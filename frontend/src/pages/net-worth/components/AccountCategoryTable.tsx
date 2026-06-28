@@ -4,9 +4,45 @@ import { motion } from 'framer-motion'
 import { ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
+import { TableSkeleton } from '@/components/shared/LoadingSkeleton'
+import ProgressBar from '@/components/shared/ProgressBar'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import { ariaSort } from '../netWorthUtils'
+
+/** Raw allocation percent (0-100), or null when the total is zero/invalid. */
+function allocationRatio(balance: number, total: number): number | null {
+  if (!total) return null
+  return (balance / total) * 100
+}
+
+/**
+ * "% Allocated" cell: the number plus an inline mini-bar so each row's share
+ * of the total reads at a glance. Reuses the shared ProgressBar primitive
+ * rather than a hand-rolled fill div. `barColor` matches the asset/liability
+ * semantic so green vs red carries through to the bars.
+ */
+function AllocationCell({
+  balance,
+  total,
+  barColor,
+}: Readonly<{ balance: number; total: number; barColor: string }>) {
+  const ratio = allocationRatio(balance, total)
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <span className="tabular-nums">{ratio === null ? 'n/a' : formatPercent(ratio)}</span>
+      {ratio !== null && (
+        <ProgressBar
+          value={ratio}
+          color={barColor}
+          height={6}
+          className="w-16 hidden sm:block"
+          ariaLabel={`${formatPercent(ratio)} of total`}
+        />
+      )}
+    </div>
+  )
+}
 
 interface AccountCategoryTableProps {
   readonly accounts: Record<string, { balance: number; transactions: number }>
@@ -14,6 +50,8 @@ interface AccountCategoryTableProps {
   readonly total: number
   readonly balanceColorClass: string
   readonly headerBalanceColorClass: string
+  /** Raw token color for the inline allocation mini-bars (green/red). */
+  readonly barColor: string
   readonly expandedCategories: Set<string>
   readonly onToggleCategory: (category: string) => void
   readonly getAccountType: (name: string) => string
@@ -29,6 +67,7 @@ export function AccountCategoryTable({
   total,
   balanceColorClass,
   headerBalanceColorClass,
+  barColor,
   expandedCategories,
   onToggleCategory,
   getAccountType,
@@ -50,7 +89,7 @@ export function AccountCategoryTable({
   }
 
   if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">Loading accounts...</div>
+    return <TableSkeleton />
   }
 
   const hasAccounts = Object.keys(accounts).some((name) => filterFn(accounts[name].balance))
@@ -151,7 +190,7 @@ export function AccountCategoryTable({
                             type="button"
                             onClick={() => onToggleCategory(currentCategory)}
                             aria-expanded={expandedCategories.has(currentCategory)}
-                            className="flex items-center gap-2 w-full bg-transparent border-none cursor-pointer text-inherit font-inherit p-0"
+                            className="flex items-center gap-2 w-full bg-transparent border-none cursor-pointer text-inherit font-inherit p-0 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40"
                           >
                             {expandedCategories.has(currentCategory) ? (
                               <ChevronDown className="w-4 h-4" />
@@ -170,10 +209,10 @@ export function AccountCategoryTable({
                           {formatCurrency(catBalance)}
                         </td>
                         <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
-                          {formatPercent((catBalance / total) * 100)}
+                          <AllocationCell balance={catBalance} total={total} barColor={barColor} />
                         </td>
                         <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
-                          —
+                          n/a
                         </td>
                         <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
                           {catTransactions}
@@ -195,7 +234,11 @@ export function AccountCategoryTable({
                           {formatCurrency(Math.abs(accountData.balance))}
                         </td>
                         <td className="py-3 px-4 text-right text-muted-foreground">
-                          {formatPercent((Math.abs(accountData.balance) / total) * 100)}
+                          <AllocationCell
+                            balance={Math.abs(accountData.balance)}
+                            total={total}
+                            barColor={barColor}
+                          />
                         </td>
                         <td className="py-3 px-4 text-right text-muted-foreground">
                           {getAccountType(accountName)}

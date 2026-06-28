@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import { formatCurrency } from '@/lib/formatters'
 import type { TaxSlab, SlabBreakdownEntry } from '@/lib/taxCalculator'
 
@@ -34,15 +33,10 @@ export default function TaxSlabBreakdown({
   isProjecting = false,
 }: Readonly<TaxSlabBreakdownProps>) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.4 }}
-      className="glass rounded-2xl border border-border p-6"
-    >
-      <h3 className="text-xl font-semibold text-white mb-4">
+    <div>
+      <p className="text-sm font-medium text-muted-foreground mb-4">
         {isNewRegime ? 'Tax Slabs (FY 2025-26 Onwards)' : 'Tax Slabs (Before FY 2025-26)'}
-      </h3>
+      </p>
 
       {/* Standard Deduction Info */}
       <div className="mb-4 p-3 bg-app-blue/10 border border-app-blue/30 rounded-lg">
@@ -60,11 +54,12 @@ export default function TaxSlabBreakdown({
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">
+              <th className="hidden sm:table-cell text-left py-3 px-4 text-sm font-semibold text-foreground">
                 Lower Limit
               </th>
               <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">
-                Upper Limit
+                <span className="sm:hidden">Slab</span>
+                <span className="hidden sm:inline">Upper Limit</span>
               </th>
               <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Tax %</th>
               <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">
@@ -83,9 +78,14 @@ export default function TaxSlabBreakdown({
                   key={`${slab.lower}-${slab.upper}`}
                   className={`border-b border-border ${isApplicable ? 'bg-primary/5' : ''}`}
                 >
-                  <td className="py-3 px-4 text-white">{formatCurrency(slab.lower)}</td>
+                  <td className="hidden sm:table-cell py-3 px-4 text-white">
+                    {formatCurrency(slab.lower)}
+                  </td>
                   <td className="py-3 px-4 text-white">
                     {slab.upper === Infinity ? 'Above' : formatCurrency(slab.upper)}
+                    <span className="sm:hidden block text-xs text-muted-foreground">
+                      from {formatCurrency(slab.lower)}
+                    </span>
                   </td>
                   <td className="py-3 px-4 text-right text-white font-semibold">
                     {slab.rate.toFixed(2)}%
@@ -151,6 +151,6 @@ export default function TaxSlabBreakdown({
           </tbody>
         </table>
       </div>
-    </motion.div>
+    </div>
   )
 }

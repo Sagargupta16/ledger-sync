@@ -42,13 +42,6 @@ export function getStreakColor(maxStreak: number): string {
   return rawColors.app.green
 }
 
-/** Get streak dot color based on position in the streak */
-export function getStreakDotColor(index: number): string {
-  if (index < 7) return rawColors.app.green
-  if (index < 14) return rawColors.app.blue
-  return rawColors.app.purple
-}
-
 /** Aggregate per-day expense/income totals from transactions within a date range. */
 export function aggregateDayTotals(
   transactions: { date: string; type: string; amount: number }[],
@@ -153,9 +146,14 @@ export function deriveMonthLabels(cells: DayCell[]) {
 
 /** Accumulate summary statistics from grid cells. */
 export function accumulateStats(grid: DayCell[]) {
+  // Days that have actually happened in the period. The grid spans the whole
+  // calendar/fiscal year, so for the current year its tail is future-dated and
+  // would inflate any "X of N days" denominator. Cap N at today.
+  const todayStr = toLocalDateKey(new Date())
   let totalExpense = 0
   let totalIncome = 0
   let daysWithExpense = 0
+  let elapsedDays = 0
   let biggestExpenseDay = { date: '', amount: 0 }
   let biggestIncomeDay = { date: '', amount: 0 }
   let streak = 0
@@ -164,6 +162,7 @@ export function accumulateStats(grid: DayCell[]) {
   const monthlyIncome: number[] = Array.from({ length: 12 }, () => 0)
 
   for (const cell of grid) {
+    if (cell.date <= todayStr) elapsedDays++
     totalExpense += cell.expense
     totalIncome += cell.income
     monthlyExpense[cell.month] += cell.expense
@@ -191,6 +190,7 @@ export function accumulateStats(grid: DayCell[]) {
     totalExpense,
     totalIncome,
     daysWithExpense,
+    elapsedDays,
     biggestExpenseDay,
     biggestIncomeDay,
     maxStreak,

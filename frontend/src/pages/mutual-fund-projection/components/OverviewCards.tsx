@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Calculator, Percent, TrendingUp } from 'lucide-react'
 
+import { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import { formatCurrency } from '@/lib/formatters'
 
 interface OverviewCardsProps {
@@ -34,27 +35,31 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
     gainsSignPrefix,
   } = props
 
-  const currentBalanceDisplay = isLoading ? '...' : formatCurrency(currentBalance)
-  const monthlySipDisplay = isLoading ? '...' : formatCurrency(detectedMonthlySIP)
-  const totalInvestedDisplay = isLoading ? '...' : formatCurrency(totalHistoricalInvested)
-  const realizedGainsDisplay = isLoading ? '...' : formatCurrency(realizedGains)
+  if (isLoading) {
+    return <CardGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
+  }
+
+  const currentBalanceDisplay = formatCurrency(currentBalance)
+  const monthlySipDisplay = formatCurrency(detectedMonthlySIP)
+  const totalInvestedDisplay = formatCurrency(totalHistoricalInvested)
+  const realizedGainsDisplay = formatCurrency(realizedGains)
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="glass rounded-2xl border border-border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-purple/20 rounded-xl">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-3 bg-app-purple/20 rounded-xl shrink-0">
             <TrendingUp className="w-6 h-6 text-app-purple" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-muted-foreground">Current Balance</p>
-            <p className="text-2xl font-bold">{currentBalanceDisplay}</p>
+            <p className="text-xl sm:text-2xl font-bold truncate">{currentBalanceDisplay}</p>
             {primaryAccountName && (
-              <p className="text-xs text-muted-foreground mt-1">{primaryAccountName}</p>
+              <p className="text-xs text-muted-foreground mt-1 truncate">{primaryAccountName}</p>
             )}
           </div>
         </div>
@@ -64,15 +69,15 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="glass rounded-2xl border border-border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-green/20 rounded-xl">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-3 bg-app-green/20 rounded-xl shrink-0">
             <Calculator className="w-6 h-6 text-app-green" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-muted-foreground">Monthly SIP</p>
-            <p className="text-2xl font-bold">{monthlySipDisplay}</p>
+            <p className="text-xl sm:text-2xl font-bold truncate">{monthlySipDisplay}</p>
             <p className="text-xs text-muted-foreground mt-1">{transactionCount} transactions</p>
           </div>
         </div>
@@ -82,15 +87,15 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="glass rounded-2xl border border-border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-blue/20 rounded-xl">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-3 bg-app-blue/20 rounded-xl shrink-0">
             <Percent className="w-6 h-6 text-app-blue" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-muted-foreground">Total Invested</p>
-            <p className="text-2xl font-bold">{totalInvestedDisplay}</p>
+            <p className="text-xl sm:text-2xl font-bold truncate">{totalInvestedDisplay}</p>
             <p className="text-xs text-muted-foreground mt-1">Actual contributions</p>
           </div>
         </div>
@@ -100,15 +105,17 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="glass rounded-2xl border border-border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl ${gainsBgClass}`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`p-3 rounded-xl shrink-0 ${gainsBgClass}`}>
             <TrendingUp className={`w-6 h-6 ${gainsIconClass}`} />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-muted-foreground">Realized Gain</p>
-            <p className={`text-2xl font-bold ${gainsTextClass}`}>{realizedGainsDisplay}</p>
+            <p className={`text-xl sm:text-2xl font-bold truncate ${gainsTextClass}`}>
+              {realizedGainsDisplay}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
               {gainsSignPrefix}
               {realizedGainsPercent.toFixed(2)}% returns

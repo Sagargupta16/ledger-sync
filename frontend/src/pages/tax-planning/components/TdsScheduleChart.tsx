@@ -13,8 +13,8 @@ import {
 import { rawColors } from '@/constants/colors'
 import type { TdsMonthRow } from '@/lib/tdsScheduleCalculator'
 
-/** Faded variant of the deducted-bar colour (app blue #4a9eff), for future months. */
-const EXPECTED_FILL = 'rgba(74, 158, 255, 0.35)'
+/** Opacity applied to the app-blue bar/swatch for future (expected) months. */
+const EXPECTED_OPACITY = 0.35
 
 interface Props {
   readonly schedule: readonly TdsMonthRow[]
@@ -51,7 +51,10 @@ export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
         </div>
       </div>
 
-      <ChartContainer height={300}>
+      <ChartContainer
+        height={300}
+        ariaLabel="Tax deducted per month -- solid bars for months already paid, faded for the expected remainder of the year"
+      >
         <BarChart data={schedule as TdsMonthRow[]} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
           <CartesianGrid {...GRID_DEFAULTS} />
           <XAxis dataKey="month" {...xAxisDefaults(schedule.length)} />
@@ -80,7 +83,8 @@ export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
               return (
                 <Cell
                   key={r.month}
-                  fill={isPaid ? rawColors.app.blue : EXPECTED_FILL}
+                  fill={rawColors.app.blue}
+                  fillOpacity={isPaid ? 1 : EXPECTED_OPACITY}
                 />
               )
             })}
@@ -95,7 +99,10 @@ export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
             <span className="text-muted-foreground">Deducted ({formatCurrency(paidSoFar)})</span>
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: EXPECTED_FILL }} />
+            <span
+              className="w-2.5 h-2.5 rounded-sm"
+              style={{ backgroundColor: rawColors.app.blue, opacity: EXPECTED_OPACITY }}
+            />
             <span className="text-muted-foreground">Expected ({formatCurrency(expectedRest)})</span>
           </span>
         </div>

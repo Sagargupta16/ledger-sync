@@ -28,7 +28,7 @@ function resolveColor(varName: string, fallback: string): string {
  * Convert a resolved hex color to an rgba string at a given opacity.
  * Handles both #RRGGBB and #RGB formats.
  */
-function hexToRgba(hex: string, alpha: number): string {
+export function hexToRgba(hex: string, alpha: number): string {
   const cleaned = hex.replace('#', '')
   const r = Number.parseInt(cleaned.length === 3 ? cleaned[0] + cleaned[0] : cleaned.slice(0, 2), 16)
   const g = Number.parseInt(cleaned.length === 3 ? cleaned[1] + cleaned[1] : cleaned.slice(2, 4), 16)

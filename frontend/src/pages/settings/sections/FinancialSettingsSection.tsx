@@ -69,7 +69,13 @@ export default function FinancialSettingsSection({
               min="0"
               max="100"
               value={localPrefs.savings_goal_percent ?? 20}
-              onChange={(e) => updateLocalPref('savings_goal_percent', Number(e.target.value))}
+              onChange={(e) => {
+                const n = Number(e.target.value)
+                updateLocalPref(
+                  'savings_goal_percent',
+                  Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0,
+                )
+              }}
               className="w-16 px-2 py-2 bg-white/5 border border-border rounded-lg text-white text-sm text-center focus:border-primary focus:outline-none"
             />
           </div>
@@ -89,7 +95,10 @@ export default function FinancialSettingsSection({
               min="0"
               step="1000"
               value={localPrefs.monthly_investment_target ?? 0}
-              onChange={(e) => updateLocalPref('monthly_investment_target', Number(e.target.value))}
+              onChange={(e) => {
+                const n = Number(e.target.value)
+                updateLocalPref('monthly_investment_target', Number.isFinite(n) ? Math.max(0, n) : 0)
+              }}
               className={inputClass}
             />
           </div>

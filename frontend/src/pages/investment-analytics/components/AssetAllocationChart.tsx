@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { PieChart } from 'lucide-react'
 
 import StandardPieChart from '@/components/analytics/StandardPieChart'
+import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 
 interface AssetAllocationChartProps {
@@ -34,21 +35,21 @@ export function AssetAllocationChart({
         )}
       </div>
       {isLoading ? (
-        <div className="h-80 flex items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Loading chart...</div>
-        </div>
+        <ChartSkeleton />
       ) : (
-        <StandardPieChart
-          data={assetAllocation.map((item) => ({
-            name: item.name,
-            value: item.value,
-            color: item.color,
-          }))}
-          height={340}
-          centerLabel="Total"
-          centerValue={formatCurrencyShort(total)}
-          tooltipFormatter={(value) => formatCurrency(value)}
-        />
+        <div role="img" aria-label="Donut chart breaking down portfolio value by asset class.">
+          <StandardPieChart
+            data={assetAllocation.map((item) => ({
+              name: item.name,
+              value: item.value,
+              color: item.color,
+            }))}
+            height={340}
+            centerLabel="Total"
+            centerValue={formatCurrencyShort(total)}
+            tooltipFormatter={(value) => formatCurrency(value)}
+          />
+        </div>
       )}
     </motion.div>
   )

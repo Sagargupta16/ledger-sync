@@ -6,8 +6,10 @@ import {
   RefreshCw, Calendar,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { PageHeader } from '@/components/ui'
+import { PageHeader, ConfirmDialog } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
+import EmptyState from '@/components/shared/EmptyState'
+import { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import {
   useRecurringTransactions,
@@ -191,10 +193,10 @@ function RecurringCard({
             className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50" />
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={saveEdit} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-app-blue/20 text-app-blue hover:bg-app-blue/30 transition-colors">
+          <button type="button" onClick={saveEdit} className="flex items-center gap-1 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-sm font-medium bg-app-blue/20 text-app-blue hover:bg-app-blue/30 transition-colors">
             <Check className="w-3.5 h-3.5" /> Save
           </button>
-          <button type="button" onClick={() => setEditing(false)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-muted-foreground bg-white/5 hover:bg-white/10 transition-colors">
+          <button type="button" onClick={() => setEditing(false)} className="flex items-center gap-1 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-sm text-muted-foreground bg-white/5 hover:bg-white/10 transition-colors">
             <X className="w-3.5 h-3.5" /> Cancel
           </button>
         </div>
@@ -218,6 +220,11 @@ function RecurringCard({
               <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-app-blue/10 text-app-blue">
                 {capitalize(item.frequency)}
               </span>
+              {!item.is_active && (
+                <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-white/10 text-text-tertiary">
+                  Paused
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3 mt-0.5 text-xs text-text-tertiary">
               {item.category && <span>{item.category}</span>}
@@ -243,17 +250,17 @@ function RecurringCard({
           </div>
           <div className="flex items-center gap-0.5">
             <button type="button" onClick={() => { setEditName(item.name); setEditFreq(item.frequency ?? 'monthly'); setEditAmt(String(Math.abs(item.expected_amount))); setEditing(true) }}
-              title="Edit" aria-label="Edit recurring item" className="p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors">
+              title="Edit" aria-label="Edit recurring item" className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors">
               <Pencil className="w-3.5 h-3.5" />
             </button>
             <button type="button" onClick={() => onUpdate({ is_active: !item.is_active })}
               title={item.is_active ? 'Deactivate' : 'Activate'}
               aria-label={item.is_active ? 'Pause recurring item' : 'Activate recurring item'}
-              className={`p-1.5 rounded-lg transition-colors ${item.is_active ? 'text-app-green hover:bg-app-green/10' : 'text-text-tertiary hover:bg-white/10'}`}>
+              className={`flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg transition-colors ${item.is_active ? 'text-app-green hover:bg-app-green/10' : 'text-text-tertiary hover:bg-white/10'}`}>
               {item.is_active ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
             </button>
             <button type="button" onClick={onDelete}
-              title="Delete" aria-label="Delete recurring item" className="p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors">
+              title="Delete" aria-label="Delete recurring item" className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -273,10 +280,23 @@ export default function SubscriptionTrackerPage() {
 
   const [showForm, setShowForm] = useState(false)
   const [suggestion, setSuggestion] = useState<Suggestion | undefined>()
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
 
   // Only user-confirmed items (manually created ones have is_confirmed=true)
   const confirmed = useMemo(() => items.filter((i) => i.is_confirmed), [items])
-  const active = useMemo(() => confirmed.filter((i) => i.is_active), [confirmed])
+  // Active items sorted by monthly-equivalent amount DESC so the biggest drains
+  // (and biggest income) surface first -- implicit ranking, no extra viz.
+  const active = useMemo(
+    () =>
+      [...confirmed]
+        .filter((i) => i.is_active)
+        .sort(
+          (a, b) =>
+            toMonthlyAmount(b.expected_amount, b.frequency) -
+            toMonthlyAmount(a.expected_amount, a.frequency),
+        ),
+    [confirmed],
+  )
   const inactive = useMemo(() => confirmed.filter((i) => !i.is_active), [confirmed])
 
   const summary = useMemo(() => {
@@ -329,8 +349,6 @@ export default function SubscriptionTrackerPage() {
     setShowForm(true)
   }
 
-  const p = isLoading ? '...' : undefined
-
   return (
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -345,35 +363,88 @@ export default function SubscriptionTrackerPage() {
           }
         />
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
-          <SummaryCard icon={ArrowDownCircle} label="Monthly Expense" value={p ?? formatCurrency(summary.monthlyExpense)}
-            colorClass="text-app-red" bgClass="bg-app-red/20" shadowClass="shadow-app-red/30" delay={0.1} compact />
-          <SummaryCard icon={ArrowUpCircle} label="Monthly Income" value={p ?? formatCurrency(summary.monthlyIncome)}
-            colorClass="text-app-green" bgClass="bg-app-green/20" shadowClass="shadow-app-green/30" delay={0.2} compact />
-          <SummaryCard icon={TrendingUp} label="Net Monthly"
-            value={p ?? formatCurrency(summary.netMonthly)}
-            colorClass={summary.netMonthly >= 0 ? 'text-app-green' : 'text-app-red'}
-            bgClass={summary.netMonthly >= 0 ? 'bg-app-green/20' : 'bg-app-red/20'}
-            shadowClass={summary.netMonthly >= 0 ? 'shadow-app-green/30' : 'shadow-app-red/30'} delay={0.3} compact />
-          <SummaryCard icon={Hash} label="Active Recurring" value={p ?? `${summary.count}`}
-            colorClass="text-app-blue" bgClass="bg-app-blue/20" shadowClass="shadow-app-blue/30" delay={0.4} compact />
-          {/* Savings-from-cancellations -- only show once the user has
-              deactivated at least one expense item, otherwise it's a confusing
-              "-" card. */}
-          {summary.deactivatedCount > 0 && (
-            <SummaryCard
-              icon={PowerOff}
-              label={`Saved / mo (${summary.deactivatedCount} cancelled)`}
-              value={p ?? formatCurrency(summary.deactivatedExpenseSavings)}
-              colorClass="text-app-purple"
-              bgClass="bg-app-purple/20"
-              shadowClass="shadow-app-purple/30"
-              delay={0.5}
-              compact
-            />
-          )}
-        </div>
+        {/* Summary Cards -- 5 columns only when the optional savings card is present,
+            otherwise 4 so the row stays gapless. */}
+        {isLoading ? (
+          <CardGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
+        ) : (
+          <div className={`grid grid-cols-2 gap-3 sm:gap-5 ${summary.deactivatedCount > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+            <SummaryCard icon={ArrowDownCircle} label="Monthly Expense" value={formatCurrency(summary.monthlyExpense)}
+              colorClass="text-app-red" bgClass="bg-app-red/20" shadowClass="shadow-app-red/30" delay={0.1} compact />
+            <SummaryCard icon={ArrowUpCircle} label="Monthly Income" value={formatCurrency(summary.monthlyIncome)}
+              colorClass="text-app-green" bgClass="bg-app-green/20" shadowClass="shadow-app-green/30" delay={0.2} compact />
+            <SummaryCard icon={TrendingUp} label="Net Monthly"
+              value={formatCurrency(summary.netMonthly)}
+              colorClass={summary.netMonthly >= 0 ? 'text-app-green' : 'text-app-red'}
+              bgClass={summary.netMonthly >= 0 ? 'bg-app-green/20' : 'bg-app-red/20'}
+              shadowClass={summary.netMonthly >= 0 ? 'shadow-app-green/30' : 'shadow-app-red/30'} delay={0.3} compact />
+            <SummaryCard icon={Hash} label="Active Recurring" value={`${summary.count}`}
+              colorClass="text-app-blue" bgClass="bg-app-blue/20" shadowClass="shadow-app-blue/30" delay={0.4} compact />
+            {/* Savings-from-cancellations -- only show once the user has
+                deactivated at least one expense item, otherwise it's a confusing
+                "-" card. */}
+            {summary.deactivatedCount > 0 && (
+              <SummaryCard
+                icon={PowerOff}
+                label={`Saved / mo (${summary.deactivatedCount} cancelled)`}
+                value={formatCurrency(summary.deactivatedExpenseSavings)}
+                colorClass="text-app-purple"
+                bgClass="bg-app-purple/20"
+                shadowClass="shadow-app-purple/30"
+                delay={0.5}
+                compact
+              />
+            )}
+          </div>
+        )}
+
+        {/* Recurring income vs expense -- one 100% stacked strip showing what
+            share of fixed monthly income the recurring expenses consume.
+            Reuses the totals already computed; no extra fetch, no second chart. */}
+        {!isLoading && active.length > 0 && summary.monthlyExpense + summary.monthlyIncome > 0 && (
+          <div className="glass rounded-2xl border border-border p-4 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-white">Recurring mix</span>
+              {summary.monthlyIncome > 0 && (
+                <span className="text-text-tertiary">
+                  Fixed expenses use{' '}
+                  <span
+                    className={
+                      summary.monthlyExpense > summary.monthlyIncome ? 'text-app-red' : 'text-white'
+                    }
+                  >
+                    {Math.round((summary.monthlyExpense / summary.monthlyIncome) * 100)}%
+                  </span>{' '}
+                  of recurring income
+                </span>
+              )}
+            </div>
+            <div className="flex h-3 w-full overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className="h-full bg-app-green transition-[width] duration-500"
+                style={{
+                  width: `${(summary.monthlyIncome / (summary.monthlyIncome + summary.monthlyExpense)) * 100}%`,
+                }}
+              />
+              <div
+                className="h-full bg-app-red transition-[width] duration-500"
+                style={{
+                  width: `${(summary.monthlyExpense / (summary.monthlyIncome + summary.monthlyExpense)) * 100}%`,
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-4 text-[11px] text-text-tertiary">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-app-green" /> Income{' '}
+                {formatCurrency(summary.monthlyIncome)}/mo
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-app-red" /> Expense{' '}
+                {formatCurrency(summary.monthlyExpense)}/mo
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Suggestions */}
         {!showForm && confirmed.length === 0 && !isLoading && (
@@ -427,7 +498,7 @@ export default function SubscriptionTrackerPage() {
                 <RecurringCard
                   item={item}
                   onUpdate={(patch) => handleUpdate(item.id, patch)}
-                  onDelete={() => handleDelete(item.id, item.name)}
+                  onDelete={() => setDeleteTarget({ id: item.id, name: item.name })}
                 />
               </motion.div>
             ))}
@@ -443,7 +514,7 @@ export default function SubscriptionTrackerPage() {
                 <RecurringCard
                   item={item}
                   onUpdate={(patch) => handleUpdate(item.id, patch)}
-                  onDelete={() => handleDelete(item.id, item.name)}
+                  onDelete={() => setDeleteTarget({ id: item.id, name: item.name })}
                 />
               </motion.div>
             ))}
@@ -452,10 +523,14 @@ export default function SubscriptionTrackerPage() {
 
         {/* Empty state */}
         {!isLoading && confirmed.length === 0 && !showForm && (
-          <div className="text-center py-12 text-muted-foreground">
-            <RefreshCw className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No recurring transactions yet. Add your first one above.</p>
-          </div>
+          <EmptyState
+            icon={RefreshCw}
+            title="No recurring transactions yet"
+            description="Add your regular income and bills to project monthly cash flow, or pick one from Quick Add above."
+            actionLabel="Add Recurring"
+            onAction={() => { setSuggestion(undefined); setShowForm(true) }}
+            variant="card"
+          />
         )}
 
         {/* Loading */}
@@ -467,6 +542,16 @@ export default function SubscriptionTrackerPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        title="Delete recurring transaction"
+        description={`Remove "${deleteTarget?.name ?? ''}"? This stops it from appearing in projected cash flow.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget.id, deleteTarget.name) }}
+      />
     </div>
   )
 }

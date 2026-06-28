@@ -7,9 +7,10 @@ import { calculationsApi } from '@/services/api/calculations'
 import { formatCurrency } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
+import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import Sparkline from '@/components/shared/Sparkline'
 
-import { buildCategories, trailingMonthKeys } from './categoryBreakdownUtils'
+import { averagePerActiveMonth, buildCategories, trailingMonthKeys } from './categoryBreakdownUtils'
 
 interface CategoryBreakdownProps {
   readonly transactionType: 'income' | 'expense'
@@ -78,6 +79,13 @@ export default function CategoryBreakdown({
     [categoryData, colorMap, defaultColors, monthlyHistoryByCategory, categoryFilter],
   )
 
+  // Average spend per active month per category, derived from the trailing
+  // 12-month series already on each row -- powers the compact "X/mo avg" label.
+  const avgPerMonthByName = useMemo(
+    () => new Map(categories.map((cat) => [cat.name, averagePerActiveMonth(cat.monthlyHistory)])),
+    [categories],
+  )
+
   // Auto-expand when a single category is rendered (deep-link drill-down).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing local UI state to a URL-derived prop
@@ -89,13 +97,7 @@ export default function CategoryBreakdown({
   }
 
   if (isLoading) {
-    return (
-      <div className="bg-white/[0.04] p-6 rounded-xl border border-border">
-        <div className="h-64 flex items-center justify-center">
-          <div className="animate-pulse text-text-tertiary">Loading breakdown...</div>
-        </div>
-      </div>
-    )
+    return <ChartSkeleton height="h-80" />
   }
 
   if (categories.length === 0) {
@@ -169,9 +171,25 @@ export default function CategoryBreakdown({
                     style={{ backgroundColor: cat.color }}
                   />
 
-                  {/* Name */}
-                  <span className="text-sm font-medium text-white flex-1 truncate">
-                    {cat.name}
+                  {/* Name + compact meta (subcategory count, avg per active month).
+                      Reuses data already on the row -- no extra fetch. */}
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-medium text-white truncate">
+                      {cat.name}
+                    </span>
+                    {(cat.subcategories.length > 0 || avgPerMonthByName.get(cat.name)) ? (
+                      <span className="block text-[11px] text-text-tertiary truncate">
+                        {cat.subcategories.length > 0 && (
+                          <>{cat.subcategories.length} {cat.subcategories.length === 1 ? 'subcategory' : 'subcategories'}</>
+                        )}
+                        {cat.subcategories.length > 0 && (avgPerMonthByName.get(cat.name) ?? 0) > 0 && (
+                          <span className="text-text-quaternary"> &middot; </span>
+                        )}
+                        {(avgPerMonthByName.get(cat.name) ?? 0) > 0 && (
+                          <>{formatCurrency(avgPerMonthByName.get(cat.name) ?? 0)}/mo avg</>
+                        )}
+                      </span>
+                    ) : null}
                   </span>
 
                   {/* Percentage + Amount */}

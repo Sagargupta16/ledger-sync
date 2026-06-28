@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { getDirectionIcon } from '../trendsUtils'
 import type { TrendDirection, TrendMetrics } from '../types'
@@ -71,9 +72,13 @@ export default function TrendCard({
           </div>
           <div>
             <p className="text-sm text-muted-foreground">{label}</p>
-            <p className={`text-xl sm:text-2xl font-bold ${valueClassName}`}>
-              {isLoading ? '...' : formatCurrency(metrics.current)}
-            </p>
+            {isLoading ? (
+              <LoadingSkeleton className="h-7 w-28 mt-1" />
+            ) : (
+              <p className={`text-xl sm:text-2xl font-bold ${valueClassName}`}>
+                {formatCurrency(metrics.current)}
+              </p>
+            )}
           </div>
         </div>
         {!isLoading && getTrendIcon(metrics.direction, isPositiveGood)}

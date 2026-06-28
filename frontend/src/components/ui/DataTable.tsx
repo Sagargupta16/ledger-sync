@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react'
 
 import { motion } from 'framer-motion'
 
+import { useIsMobile } from '@/hooks/useIsMobile'
+
 type Align = 'left' | 'right' | 'center'
 type SortDir = 'asc' | 'desc'
 
@@ -14,11 +16,28 @@ export interface DataTableColumn<T> {
   /** Tailwind width class, e.g. `w-24`. Applied to both `<th>` and cells. */
   readonly widthClass?: string
   readonly sortable?: boolean
+  /**
+   * Value type, used to pick the first-click sort direction: numeric/date
+   * columns default to descending (largest first — the usual intent for
+   * amounts), text columns to ascending (A→Z). Defaults to `'number'`.
+   */
+  readonly sortType?: 'number' | 'text'
   /** Override the value used for comparison. Default: `row[key]` when row is a string-keyed object. */
   readonly sortValue?: (row: T) => number | string
   readonly cell: (row: T, index: number) => ReactNode
   /** Per-row className override for this column (e.g. color based on sign of the value). */
   readonly cellClassName?: (row: T, index: number) => string
+  /**
+   * Label shown beside this column's value in the mobile card-stack layout
+   * (when `mobileCards` is on). Defaults to the `header` if it's a string.
+   * Set to `''` to render the value with no label (e.g. a primary name row).
+   */
+  readonly mobileLabel?: string
+  /**
+   * In mobile card mode, treat this column as the card's title row (rendered
+   * full-width at the top, no label). Use for the primary identifying column.
+   */
+  readonly mobilePrimary?: boolean
 }
 
 export interface DataTableProps<T> {
@@ -31,6 +50,16 @@ export interface DataTableProps<T> {
   readonly rowClassName?: (row: T, index: number) => string
   readonly emptyState?: ReactNode
   readonly ariaLabel?: string
+  /** Keep the header row pinned while the body scrolls. Pair with `maxHeight`. */
+  readonly stickyHeader?: boolean
+  /** Max height (e.g. `max-h-96`) for a scrollable body. */
+  readonly maxHeightClass?: string
+  /**
+   * Below the `sm` breakpoint (640px), render each row as a stacked label/value
+   * card instead of a horizontally-scrolling table. Far more readable on phones
+   * for wide tables. Columns use `mobileLabel` / `mobilePrimary` to lay out.
+   */
+  readonly mobileCards?: boolean
 }
 
 const ALIGN_CLASS: Record<Align, string> = {
@@ -61,8 +90,8 @@ function ariaSort(
 }
 
 function sortArrow(active: boolean, dir: SortDir): string {
-  if (!active) return ''
-  return dir === 'asc' ? ' ↑' : ' ↓'
+  if (!active) return '↕'
+  return dir === 'asc' ? '↑' : '↓'
 }
 
 export default function DataTable<T>({
@@ -74,7 +103,11 @@ export default function DataTable<T>({
   rowClassName,
   emptyState,
   ariaLabel,
+  stickyHeader = false,
+  maxHeightClass,
+  mobileCards = false,
 }: DataTableProps<T>) {
+  const isMobile = useIsMobile()
   const [sortKey, setSortKey] = useState<string | null>(initialSort?.key ?? null)
   const [sortDir, setSortDir] = useState<SortDir>(initialSort?.dir ?? 'desc')
 
@@ -97,7 +130,10 @@ export default function DataTable<T>({
       return
     }
     setSortKey(key)
-    setSortDir('desc')
+    // First click: text columns read most naturally A→Z (asc); numeric/date
+    // columns default to largest-first (desc).
+    const col = columns.find((c) => c.key === key)
+    setSortDir(col?.sortType === 'text' ? 'asc' : 'desc')
   }
 
   if (rows.length === 0 && emptyState !== undefined) {
@@ -106,10 +142,59 @@ export default function DataTable<T>({
 
   const shouldAnimate = animateRows && sortedRows.length <= 200
 
+  // Mobile card-stack: each row becomes a stacked label/value card so wide
+  // tables don't force horizontal scrolling on phones. One column may be the
+  // card title (mobilePrimary); the rest render as label/value rows.
+  if (mobileCards && isMobile) {
+    const labelFor = (col: DataTableColumn<T>) =>
+      col.mobileLabel ?? (typeof col.header === 'string' ? col.header : '')
+    return (
+      <div className="space-y-2" aria-label={ariaLabel}>
+        {sortedRows.map((row, i) => {
+          const primary = columns.find((c) => c.mobilePrimary)
+          const rest = columns.filter((c) => !c.mobilePrimary)
+          return (
+            <div
+              key={rowKey(row, i)}
+              className={`glass rounded-xl border border-border p-3 ${rowClassName?.(row, i) ?? ''}`.trim()}
+            >
+              {primary && (
+                <div className={`mb-2 font-medium ${primary.cellClassName?.(row, i) ?? ''}`.trim()}>
+                  {primary.cell(row, i)}
+                </div>
+              )}
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                {rest.map((col) => (
+                  <div key={col.key} className="flex items-baseline justify-between gap-2 min-w-0">
+                    <dt className="text-xs text-text-tertiary shrink-0">{labelFor(col)}</dt>
+                    <dd className={`text-sm text-right min-w-0 truncate ${col.cellClassName?.(row, i) ?? ''}`.trim()}>
+                      {col.cell(row, i)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  const scrollClass = [
+    'overflow-x-auto data-table-scroll',
+    maxHeightClass ? `${maxHeightClass} overflow-y-auto` : '',
+  ].join(' ').trim()
+  const theadClass = stickyHeader ? 'sticky top-0 z-10 bg-surface-dropdown/95 backdrop-blur-md' : ''
+  const justifyForAlign: Record<Align, string> = {
+    left: 'justify-start',
+    right: 'justify-end',
+    center: 'justify-center',
+  }
+
   return (
-    <div className="overflow-x-auto data-table-scroll">
+    <div className={scrollClass}>
       <table className="w-full" aria-label={ariaLabel}>
-        <thead>
+        <thead className={theadClass}>
           <tr className="border-b border-border">
             {columns.map((col) => {
               const alignClass = ALIGN_CLASS[col.align ?? 'left']
@@ -130,19 +215,22 @@ export default function DataTable<T>({
               return (
                 <th
                   key={col.key}
-                  className={`${baseClass} cursor-pointer hover:text-white select-none`.trim()}
-                  onClick={() => toggleSort(col.key)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      toggleSort(col.key)
-                    }
-                  }}
-                  tabIndex={0}
+                  className={baseClass.trim()}
                   aria-sort={ariaSort(isActive, sortDir)}
                 >
-                  {col.header}
-                  {arrow}
+                  <button
+                    type="button"
+                    onClick={() => toggleSort(col.key)}
+                    className={`inline-flex items-center gap-1 ${justifyForAlign[col.align ?? 'left']} w-full hover:text-white select-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40 rounded`}
+                  >
+                    {col.header}
+                    <span
+                      aria-hidden
+                      className={isActive ? 'text-white' : 'text-text-quaternary'}
+                    >
+                      {arrow}
+                    </span>
+                  </button>
                 </th>
               )
             })}

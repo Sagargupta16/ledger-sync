@@ -59,6 +59,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
       key: 'label',
       header: 'Target',
       widthClass: 'w-28',
+      mobilePrimary: true,
       cell: (row) => (
         <div>
           <div className="font-semibold text-white">{row.label}</div>
@@ -70,6 +71,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
       key: 'status',
       header: 'Status',
       widthClass: 'w-32',
+      mobileLabel: 'Status',
       cell: (row) => <StatusCell row={row} />,
     },
     {
@@ -77,6 +79,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
       header: 'First Reached',
       align: 'right',
       widthClass: 'w-36',
+      mobileLabel: 'First reached',
       cell: (row) => {
         if (row.date === null || row.status !== 'achieved') {
           return <span className="text-muted-foreground">—</span>
@@ -93,6 +96,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
       header: 'Stable Since',
       align: 'right',
       widthClass: 'w-36',
+      mobileLabel: 'Stable since',
       cell: (row) => {
         if (row.stableSince === null) {
           if (row.status === 'achieved') {
@@ -111,6 +115,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
       key: 'expectedToReach',
       header: 'Expected to Reach',
       align: 'right',
+      mobileLabel: 'Expected',
       cell: (row) => {
         if (row.status === 'achieved') {
           return <span className="text-muted-foreground">—</span>
@@ -171,14 +176,17 @@ export default function MilestonesTable({
           Growth rate:{' '}
           <span
             className={hasGrowth ? 'text-app-green font-semibold' : 'text-app-red font-semibold'}
-            title={
-              hasGrowth
-                ? `~${formatCurrency(Math.round(approxMonthlyRupees))}/mo at current net worth`
-                : 'Need positive growth to project forward'
-            }
           >
             {hasGrowth ? `+${annualizedPercent.toFixed(1)}%/yr` : 'stalled'}
           </span>
+          {hasGrowth ? (
+            <span className="text-xs text-text-tertiary">
+              {' '}
+              (~{formatCurrency(Math.round(approxMonthlyRupees))}/mo)
+            </span>
+          ) : (
+            <span className="text-xs text-text-tertiary"> (need positive growth to project)</span>
+          )}
         </span>
         <span className="text-muted-foreground">
           Stable:{' '}
@@ -204,6 +212,7 @@ export default function MilestonesTable({
           return 'opacity-75'
         }}
         ariaLabel="Net worth milestones"
+        mobileCards
       />
 
       <p className="text-xs text-muted-foreground">

@@ -17,14 +17,14 @@ interface PeriodSelectorProps {
 }
 
 const selectClass =
-  'px-3 py-2 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors'
+  'w-full sm:w-auto px-3 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-[rgba(44,44,46,0.6)] backdrop-blur-xl border border-border text-sm text-white cursor-pointer hover:bg-[rgba(58,58,60,0.6)] transition-colors'
 
 export function PeriodSelector({
   mode, label, monthOptions, yearOptions, fyOptions,
   month, year, fy, onMonth, onYear, onFy,
 }: Readonly<PeriodSelectorProps>) {
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex w-full sm:w-auto flex-col items-center gap-1.5">
       <div className="flex items-center gap-1.5">
         <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
         <span className="text-xs text-muted-foreground font-medium">{label}</span>

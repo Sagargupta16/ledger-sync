@@ -7,9 +7,31 @@ import { getDateKey } from '@/lib/dateUtils'
 
 import { createSankeyNodeComponent } from './components/SankeyNodeRenderer'
 
+/** Cap a category map to the top N by amount, folding the remainder into a
+ * single "Other (n)" bucket so the displayed flows still sum to the totals
+ * shown on the KPI cards (a raw top-10 slice silently dropped the tail). */
+const SANKEY_TOP_N = 8
+function topCategoriesWithOther(
+  byCategory: Record<string, number>,
+  otherLabel: string,
+): Array<{ name: string; amount: number }> {
+  const sorted = Object.entries(byCategory)
+    .filter(([, amount]) => amount > 0)
+    .sort((a, b) => b[1] - a[1])
+  if (sorted.length <= SANKEY_TOP_N) {
+    return sorted.map(([name, amount]) => ({ name, amount }))
+  }
+  const head = sorted.slice(0, SANKEY_TOP_N).map(([name, amount]) => ({ name, amount }))
+  const restCount = sorted.length - SANKEY_TOP_N
+  const otherAmount = sorted.slice(SANKEY_TOP_N).reduce((sum, [, amount]) => sum + amount, 0)
+  return [...head, { name: `${otherLabel} (${restCount})`, amount: otherAmount }]
+}
+
 export function useIncomeExpenseFlow() {
   const { data: allTransactions = [], isLoading } = useTransactions()
-  const isMobile = useIsMobile()
+  // Gate the horizontal Sankey to lg+ (>=1024px): it uses left/right:200 margins
+  // that crush a tablet, so phones and tablets get the vertical MobileFlowView.
+  const isMobile = useIsMobile(1024)
 
   const { dateRange, currentFY, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
 
@@ -52,21 +74,26 @@ export function useIncomeExpenseFlow() {
     const netSavings = totalIncome - totalExpense
     const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0
 
+    // Top-N + "Other" so every visible flow reconciles with the totals (and
+    // therefore the KPI cards). A raw slice(0,10) silently dropped categories
+    // 11+, so the flows didn't sum to Total Income / Expenses for users with
+    // many categories.
+    const topIncomeCats = topCategoriesWithOther(incomeByCategory, 'Other Income')
+    const topExpenseCats = topCategoriesWithOther(expenseByCategory, 'Other Expense')
+
     const nodes: Array<{ name: string; color?: string }> = []
     const links: Array<{ source: number; target: number; value: number; color?: string }> = []
     let nodeIndex = 0
-    const nodeMap = new Map<string, number>()
+    const incomeNodeIndexByName = new Map<string, number>()
+    const expenseNodeIndexByName = new Map<string, number>()
     const nodeValues = new Map<number, number>()
 
-    Object.entries(incomeByCategory)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .forEach(([category, amount]) => {
-        nodeMap.set(category, nodeIndex)
-        nodeValues.set(nodeIndex, amount)
-        nodes.push({ name: category })
-        nodeIndex++
-      })
+    topIncomeCats.forEach(({ name, amount }) => {
+      incomeNodeIndexByName.set(name, nodeIndex)
+      nodeValues.set(nodeIndex, amount)
+      nodes.push({ name })
+      nodeIndex++
+    })
 
     const totalIncomeNodeIndex = nodeIndex
     nodeValues.set(nodeIndex, totalIncome)
@@ -83,25 +110,19 @@ export function useIncomeExpenseFlow() {
     nodes.push({ name: 'Expenses' })
     nodeIndex++
 
-    Object.entries(expenseByCategory)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .forEach(([category, amount]) => {
-        nodeMap.set(`expense_${category}`, nodeIndex)
-        nodeValues.set(nodeIndex, amount)
-        nodes.push({ name: category })
-        nodeIndex++
-      })
+    topExpenseCats.forEach(({ name, amount }) => {
+      expenseNodeIndexByName.set(name, nodeIndex)
+      nodeValues.set(nodeIndex, amount)
+      nodes.push({ name })
+      nodeIndex++
+    })
 
-    Object.entries(incomeByCategory)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .forEach(([category, amount]) => {
-        const sourceIndex = nodeMap.get(category)
-        if (sourceIndex !== undefined) {
-          links.push({ source: sourceIndex, target: totalIncomeNodeIndex, value: amount })
-        }
-      })
+    topIncomeCats.forEach(({ name, amount }) => {
+      const sourceIndex = incomeNodeIndexByName.get(name)
+      if (sourceIndex !== undefined) {
+        links.push({ source: sourceIndex, target: totalIncomeNodeIndex, value: amount })
+      }
+    })
 
     if (netSavings > 0) {
       links.push({ source: totalIncomeNodeIndex, target: savingsNodeIndex, value: netSavings })
@@ -110,17 +131,14 @@ export function useIncomeExpenseFlow() {
       links.push({ source: totalIncomeNodeIndex, target: expensesNodeIndex, value: totalExpense })
     }
 
-    Object.entries(expenseByCategory)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .forEach(([category, amount]) => {
-        const targetIndex = nodeMap.get(`expense_${category}`)
-        if (targetIndex !== undefined) {
-          links.push({ source: expensesNodeIndex, target: targetIndex, value: amount })
-        }
-      })
+    topExpenseCats.forEach(({ name, amount }) => {
+      const targetIndex = expenseNodeIndexByName.get(name)
+      if (targetIndex !== undefined) {
+        links.push({ source: expensesNodeIndex, target: targetIndex, value: amount })
+      }
+    })
 
-    const incomeCategoryCount = Object.keys(incomeByCategory).length
+    const incomeCategoryCount = topIncomeCats.length
     const chartWidth = isMobile ? 720 : 900
     const sankeyNodeComponent = createSankeyNodeComponent({
       nodeValues,
@@ -133,14 +151,9 @@ export function useIncomeExpenseFlow() {
       fontSize: isMobile ? 11 : 13,
     })
 
-    const topIncome = Object.entries(incomeByCategory)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([name, amount]) => ({ name, amount }))
-    const topExpense = Object.entries(expenseByCategory)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([name, amount]) => ({ name, amount }))
+    // Mobile rows reuse the same top-N + Other lists so phone + desktop agree.
+    const topIncome = topIncomeCats
+    const topExpense = topExpenseCats
 
     return {
       totalIncome,

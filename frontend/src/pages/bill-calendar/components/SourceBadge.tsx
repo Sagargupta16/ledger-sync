@@ -1,4 +1,4 @@
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Sparkles } from 'lucide-react'
 import type { PlacedBill } from '../types'
 
 interface Props {
@@ -14,5 +14,10 @@ export default function SourceBadge({ source }: Readonly<Props>) {
       </span>
     )
   }
-  return null
+  return (
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-app-blue/15 text-app-blue">
+      <Sparkles className="w-2.5 h-2.5" />
+      Detected
+    </span>
+  )
 }

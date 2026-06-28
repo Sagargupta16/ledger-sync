@@ -1,17 +1,9 @@
 import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
-import {
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
-  Tooltip,
-} from 'recharts'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { ChartContainer, chartTooltipProps, shouldAnimate } from '@/components/ui'
+import StandardBarChart from '@/components/analytics/StandardBarChart'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 
@@ -36,15 +28,11 @@ export interface DayOfWeekChartProps {
 /**
  * Year-in-Review's spending-by-day-of-week chart.
  *
- * Uses a radar polar chart instead of a flat bar chart -- it wraps Sun→Sat
- * into a closed loop which makes the weekly spending pattern visually
- * obvious (e.g. weekend-heavy spenders show a clear lobe over Fri/Sat/Sun).
- * Spending and earning overlay each other so the user can spot mismatches
- * at a glance.
- *
- * Insights row below the chart calls out the highest-spending day and
- * weekend-vs-weekday ratio so users get a clear takeaway without having
- * to hover.
+ * A grouped 7-day bar (Sun→Sat) with avg Spending and avg Earning side by
+ * side. Bars compare magnitudes far more accurately than a radar -- and the
+ * two series are different currencies (spend vs earn), which a radar's shared
+ * area encoding would misrepresent. The insights row below calls out the
+ * highest-spending day and weekend-vs-weekday delta as the plain takeaway.
  */
 export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) {
   const { data, insights } = useMemo(() => {
@@ -92,52 +80,20 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
   const hasData = grid.some((c) => c.hasTx)
   if (!hasData) return <ChartEmptyState height={260} />
 
-  const animate = shouldAnimate(7)
-
   return (
     <div className="space-y-3">
-      <ChartContainer height={260}>
-        <RadarChart data={data} outerRadius="78%">
-          <PolarGrid stroke="rgba(255,255,255,0.08)" />
-          <PolarAngleAxis
-            dataKey="day"
-            tick={{ fill: rawColors.text.secondary, fontSize: 12, fontWeight: 500 }}
-          />
-          <PolarRadiusAxis
-            angle={90}
-            tick={{ fill: rawColors.text.tertiary, fontSize: 10 }}
-            tickFormatter={(v: number) => formatCurrencyShort(v)}
-            axisLine={false}
-          />
-          <Tooltip
-            {...chartTooltipProps}
-            formatter={(value, name) =>
-              [
-                typeof value === 'number' ? formatCurrency(value) : '',
-                name === 'spending' ? 'Avg Spending' : 'Avg Earning',
-              ] as never
-            }
-          />
-          <Radar
-            name="spending"
-            dataKey="spending"
-            stroke={rawColors.app.red}
-            fill={rawColors.app.red}
-            fillOpacity={0.35}
-            isAnimationActive={animate}
-            animationDuration={700}
-          />
-          <Radar
-            name="earning"
-            dataKey="earning"
-            stroke={rawColors.app.green}
-            fill={rawColors.app.green}
-            fillOpacity={0.18}
-            isAnimationActive={animate}
-            animationDuration={700}
-          />
-        </RadarChart>
-      </ChartContainer>
+      <StandardBarChart
+        data={data}
+        dataKey="day"
+        height={260}
+        bars={[
+          { key: 'spending', color: rawColors.app.red, label: 'Avg Spending' },
+          { key: 'earning', color: rawColors.app.green, label: 'Avg Earning' },
+        ]}
+        tooltipFormatter={(v) => formatCurrency(v)}
+        yTickFormatter={(v) => formatCurrencyShort(v as number)}
+        ariaLabel="Grouped bar chart of average spending and earning by day of the week, Sunday through Saturday"
+      />
 
       {insights && (
         <motion.div

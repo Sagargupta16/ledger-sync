@@ -5,10 +5,10 @@ import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 
 import { useMonthlyAggregation } from '@/hooks/api/useAnalytics'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, ACTIVE_DOT } from '@/components/ui/chartDefaults'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, shouldAnimate, ACTIVE_DOT, currencyTooltipFormatter, referenceLine } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 import { buildForecast, formatMonth } from './cashFlowUtils'
@@ -58,7 +58,10 @@ export default function CashFlowForecast() {
         </div>
 
         {/* ── Net Savings Chart with Confidence Cone ──────────────── */}
-        <ChartContainer height={280}>
+        <ChartContainer
+          height={280}
+          ariaLabel="Historical and forecast cash flow showing income, expenses and net savings with a confidence band"
+        >
           <AreaChart data={forecastData.combined} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <defs>
               {areaGradient('netSavings', rawColors.app.blue, 0.2, 0.02)}
@@ -79,10 +82,10 @@ export default function CashFlowForecast() {
                   forecastIncome: 'Income (Forecast)', forecastExpense: 'Expenses (Forecast)',
                   forecastNet: 'Net (Forecast)', upper: 'Optimistic', lower: 'Conservative',
                 }
-                return [formatCurrency(value), labels[name ?? ''] ?? name]
+                return [currencyTooltipFormatter(value), labels[name ?? ''] ?? name]
               }}
             />
-            <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
+            {referenceLine({ y: 0, variant: 'zero' })}
             {forecastData.forecastStartMonth && (
               <ReferenceLine
                 x={formatMonth(forecastData.forecastStartMonth)}

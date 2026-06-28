@@ -55,7 +55,8 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
             type="button"
             onClick={onPrev}
             disabled={fyIdx <= 0}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Previous financial year"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronLeft className="w-4 h-4 text-white" />
           </button>
@@ -66,7 +67,8 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
             type="button"
             onClick={onNext}
             disabled={fyIdx >= fyKeys.length - 1}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Next financial year"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronRight className="w-4 h-4 text-white" />
           </button>

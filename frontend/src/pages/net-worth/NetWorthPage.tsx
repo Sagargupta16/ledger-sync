@@ -4,8 +4,10 @@ import { CreditCard, PiggyBank, Target, TrendingUp } from 'lucide-react'
 import { CreditCardHealth } from '@/components/analytics'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import MetricCard from '@/components/shared/MetricCard'
+import Sparkline from '@/components/shared/Sparkline'
+import { rawColors } from '@/constants/colors'
 import { PageHeader } from '@/components/ui'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import MilestonesTable from './components/MilestonesTable'
 import { AccountCategoryTable } from './components/AccountCategoryTable'
@@ -14,6 +16,10 @@ import { useNetWorth } from './useNetWorth'
 
 export default function NetWorthPage() {
   const m = useNetWorth()
+
+  // Leverage = liabilities as a share of assets. Reuses the totals already
+  // computed in the hook; clamps the assets-zero edge so we never divide by 0.
+  const leveragePct = m.totalAssets > 0 ? (m.totalLiabilities / m.totalAssets) * 100 : 0
 
   return (
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
@@ -30,6 +36,11 @@ export default function NetWorthPage() {
             value={formatCurrency(m.totalAssets)}
             icon={PiggyBank}
             color="green"
+            subtitle={
+              m.assetAccountCount > 0
+                ? `Across ${m.assetAccountCount} account${m.assetAccountCount === 1 ? '' : 's'}`
+                : undefined
+            }
             isLoading={m.isLoading}
           />
           <MetricCard
@@ -37,6 +48,11 @@ export default function NetWorthPage() {
             value={formatCurrency(m.totalLiabilities)}
             icon={CreditCard}
             color="red"
+            subtitle={
+              m.liabilityAccountCount > 0
+                ? `${formatPercent(leveragePct)} of assets · ${m.liabilityAccountCount} account${m.liabilityAccountCount === 1 ? '' : 's'}`
+                : 'Debt-free'
+            }
             isLoading={m.isLoading}
           />
           <MetricCard
@@ -44,6 +60,20 @@ export default function NetWorthPage() {
             value={formatCurrency(m.netWorth)}
             icon={TrendingUp}
             color="blue"
+            hero
+            change={m.netWorthMoMChange}
+            changeLabel="vs last month"
+            subtitle="Assets less liabilities"
+            trend={
+              m.netWorthSparkline.length >= 2 ? (
+                <Sparkline
+                  data={m.netWorthSparkline}
+                  color={rawColors.app.blue}
+                  height={40}
+                  showTooltip={false}
+                />
+              ) : undefined
+            }
             isLoading={m.isLoading}
           />
         </div>
@@ -97,6 +127,7 @@ export default function NetWorthPage() {
             total={m.totalAssets}
             balanceColorClass="text-app-green"
             headerBalanceColorClass="text-app-green/70"
+            barColor={rawColors.app.green}
             expandedCategories={m.expandedAssetCategories}
             onToggleCategory={(cat) => m.toggleCategory(m.setExpandedAssetCategories, cat)}
             getAccountType={m.getAccountType}
@@ -123,6 +154,7 @@ export default function NetWorthPage() {
             total={m.totalLiabilities}
             balanceColorClass="text-app-red"
             headerBalanceColorClass="text-app-red/70"
+            barColor={rawColors.app.red}
             expandedCategories={m.expandedLiabilityCategories}
             onToggleCategory={(cat) => m.toggleCategory(m.setExpandedLiabilityCategories, cat)}
             getAccountType={m.getAccountType}

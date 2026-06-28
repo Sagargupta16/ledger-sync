@@ -133,13 +133,27 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
             <thead className="bg-white/[0.04] border-b border-white/[0.04] sticky top-0 z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-6 py-3 text-left text-sm font-semibold">
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
+                  {headerGroup.headers.map((header) => {
+                    const sorted = header.column.getIsSorted()
+                    const canSort = header.column.getCanSort()
+                    const ariaSort = (() => {
+                      if (!canSort) return undefined
+                      if (sorted === 'asc') return 'ascending'
+                      if (sorted === 'desc') return 'descending'
+                      return 'none'
+                    })()
+                    return (
+                      <th
+                        key={header.id}
+                        className="px-6 py-3 text-left text-sm font-semibold"
+                        aria-sort={ariaSort}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    )
+                  })}
                 </tr>
               ))}
             </thead>

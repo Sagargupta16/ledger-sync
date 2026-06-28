@@ -16,16 +16,18 @@ import {
 } from 'recharts'
 
 import { rawColors } from '@/constants/colors'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrencyShort } from '@/lib/formatters'
 import {
   ChartContainer,
   GRID_DEFAULTS,
   LEGEND_DEFAULTS,
   chartTooltipProps,
+  currencyTooltipFormatter,
   shouldAnimate,
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface ParetoChartProps {
   /**
@@ -96,8 +98,6 @@ export default function ParetoChart({
     })
   }, [categoryBreakdown, maxBars])
 
-  if (data.length === 0) return null
-
   // Find the bar where cumulative crosses the threshold -- used to colour
   // the "vital few" bars differently from the "trivial many".
   const thresholdIndex = data.findIndex((r) => r.cumulativePct >= threshold)
@@ -118,12 +118,16 @@ export default function ParetoChart({
         <div>
           <h3 className="text-lg font-semibold text-white">Pareto Analysis</h3>
           <p className="text-xs text-text-tertiary">
-            {vitalFewCount} {vitalFewCount === 1 ? 'category' : 'categories'} make up{' '}
-            {threshold}% of your spend -- the rest are the long tail
+            {data.length === 0
+              ? `Which categories make up ${threshold}% of your spend`
+              : `${vitalFewCount} ${vitalFewCount === 1 ? 'category' : 'categories'} make up ${threshold}% of your spend -- the rest are the long tail`}
           </p>
         </div>
       </div>
-      <ChartContainer height={height}>
+      {data.length === 0 ? (
+        <ChartEmptyState height={height} message="No spending in this range. Try a wider date range or upload more statements." />
+      ) : (
+      <ChartContainer height={height} ariaLabel={`Pareto chart of category spending: bars show spend per category with a cumulative percentage line and an ${threshold} percent reference line`}>
         <ComposedChart
           data={data}
           margin={{ top: 8, right: 24, bottom: 8, left: 4 }}
@@ -152,12 +156,10 @@ export default function ParetoChart({
           />
           <Tooltip
             {...chartTooltipProps}
-            formatter={((value: number | undefined, name: string | undefined) => {
-              const v = value ?? 0
-              return name === 'cumulativePct'
-                ? `${v.toFixed(1)}%`
-                : formatCurrency(v)
-            }) as never}
+            formatter={((value: number | undefined, name: string | undefined) =>
+              name === 'cumulativePct'
+                ? `${(value ?? 0).toFixed(1)}%`
+                : currencyTooltipFormatter(value)) as never}
           />
           <Legend {...LEGEND_DEFAULTS} />
           {/* Vital-few bars (orange) vs trivial-many (muted) -- per-bar Cells so
@@ -205,6 +207,7 @@ export default function ParetoChart({
           />
         </ComposedChart>
       </ChartContainer>
+      )}
     </motion.div>
   )
 }

@@ -19,11 +19,15 @@ export function KpiCard({
 }: Readonly<KpiCardProps>) {
   const change = isPercent ? valueB - valueA : pctChange(valueB, valueA)
   const isPositive = change >= 0
+  // Treat a sub-1 swing as flat: neutral icon AND neutral text, so a "0.9%"
+  // change never reads as a green win / red loss it isn't.
+  const isFlat = Math.abs(change) < 1
   const isGood = invertChange ? !isPositive : isPositive
+  const changeColorClass = isFlat ? 'text-muted-foreground' : isGood ? 'text-app-green' : 'text-app-red'
   const fmtVal = (v: number) => (isPercent ? `${v.toFixed(1)}%` : formatCurrency(v))
 
   const changeIndicator = (() => {
-    if (Math.abs(change) < 1) return <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+    if (isFlat) return <Minus className="w-3.5 h-3.5 text-muted-foreground" />
     if (isPositive) return <ArrowUpRight className="w-3.5 h-3.5" />
     return <ArrowDownRight className="w-3.5 h-3.5" />
   })()
@@ -40,7 +44,7 @@ export function KpiCard({
       <div className="text-kpi-label text-muted-foreground mb-2">
         <span className="opacity-60">{labelA}:</span> {fmtVal(valueA)}
       </div>
-      <div className={`flex items-center gap-1 text-sm font-medium ${isGood ? 'text-app-green' : 'text-app-red'}`}>
+      <div className={`flex items-center gap-1 text-sm font-medium ${changeColorClass}`}>
         {changeIndicator}
         <span>
           {change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}

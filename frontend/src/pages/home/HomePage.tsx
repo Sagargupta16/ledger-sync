@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { ArrowRight, Eye, PiggyBank, Upload } from 'lucide-react'
+import { ArrowRight, Eye, Heart, PiggyBank, Upload } from 'lucide-react'
 
 import { AuthModal, LoginButton } from '@/components/shared/AuthModal'
 import { ROUTES } from '@/constants'
@@ -92,7 +92,7 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-3xl md:text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
                 Ready to Take Control?
               </h2>
               <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
@@ -131,8 +131,10 @@ export default function HomePage() {
           style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
         >
           <div className="max-w-6xl mx-auto px-6 text-center">
-            <p className="text-sm text-text-tertiary">
-              Made with ❤️ for better financial management
+            <p className="inline-flex items-center justify-center gap-1.5 text-sm text-text-tertiary">
+              Made with
+              <Heart className="w-4 h-4 text-app-red fill-app-red" aria-label="love" />
+              for better financial management
             </p>
           </div>
         </footer>

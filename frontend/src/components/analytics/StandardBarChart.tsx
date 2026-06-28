@@ -88,6 +88,14 @@ interface StandardBarChartProps {
   /** Disable vertical grid line (useful for horizontal-layout bar charts). Default: inherit from GRID_DEFAULTS. */
   readonly hideVerticalGrid?: boolean
   readonly hideHorizontalGrid?: boolean
+  /**
+   * Per-bar click handler. Receives the clicked row's `dataKey` value (the
+   * category/label) so callers can deep-link (e.g. to a filtered list). When
+   * set, bars render with a pointer cursor.
+   */
+  readonly onBarClick?: (label: string) => void
+  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  readonly ariaLabel?: string
 }
 
 function resolveCellColor(
@@ -173,6 +181,8 @@ export default function StandardBarChart({
   margin,
   hideVerticalGrid,
   hideHorizontalGrid,
+  onBarClick,
+  ariaLabel,
 }: StandardBarChartProps) {
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -197,7 +207,7 @@ export default function StandardBarChart({
   })
 
   return (
-    <ChartContainer height={height}>
+    <ChartContainer height={height} ariaLabel={ariaLabel}>
       <BarChart
         data={data}
         layout={layout}
@@ -249,6 +259,16 @@ export default function StandardBarChart({
             maxBarSize={bar.barSize ?? barSize ?? 48}
             barSize={bar.barSize}
             stackId={stacked ? 'stack' : bar.stackId}
+            cursor={onBarClick ? 'pointer' : undefined}
+            onClick={
+              onBarClick
+                ? (entry: unknown) => {
+                    const row = (entry as { payload?: Record<string, unknown> })?.payload
+                    const label = row?.[dataKey]
+                    if (typeof label === 'string') onBarClick(label)
+                  }
+                : undefined
+            }
           >
             {renderBarCells(bar, data)}
             {showLabels && (

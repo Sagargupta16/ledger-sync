@@ -73,6 +73,10 @@ export default function TransactionsPage() {
   })
   const filteredTransactions = page?.data ?? []
   const total = page?.total ?? facets?.total_count ?? 0
+  const unfilteredTotal = facets?.total_count ?? 0
+  // When filters narrow the result set, show "X of Y" so the card doesn't
+  // contradict the filtered count shown in pagination.
+  const isFiltered = total !== unfilteredTotal
 
   const handleFilterChange = (newFilters: FilterValues) => {
     setFilters(newFilters)
@@ -139,31 +143,51 @@ export default function TransactionsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass rounded-2xl border border-border p-6"
+          className="glass rounded-2xl border border-border p-4 sm:p-6"
         >
-          <div className="flex flex-wrap items-center justify-between gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 sm:gap-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-primary/20 rounded-xl">
                 <Receipt className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Transactions</p>
-                <p className="text-2xl font-bold tabular-nums">{(facets?.total_count ?? 0).toLocaleString('en-IN')}</p>
+                <p className="text-sm text-muted-foreground">{isFiltered ? 'Matching Transactions' : 'Total Transactions'}</p>
+                <p className="text-xl sm:text-2xl font-bold tabular-nums">
+                  {total.toLocaleString('en-IN')}
+                  {isFiltered && (
+                    <span className="text-base font-medium text-muted-foreground"> of {unfilteredTotal.toLocaleString('en-IN')}</span>
+                  )}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-8 sm:gap-10">
-              <div>
-                <p className="text-sm text-muted-foreground">Income</p>
-                <p className="text-xl font-semibold tabular-nums text-app-green">{typeCounts.income.toLocaleString('en-IN')}</p>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-6 sm:gap-10">
+                <div>
+                  <p className="text-sm text-muted-foreground">Income</p>
+                  <p className="text-xl font-semibold tabular-nums text-app-green">{typeCounts.income.toLocaleString('en-IN')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Expense</p>
+                  <p className="text-xl font-semibold tabular-nums text-app-red">{typeCounts.expense.toLocaleString('en-IN')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Transfer</p>
+                  <p className="text-xl font-semibold tabular-nums text-app-teal">{typeCounts.transfer.toLocaleString('en-IN')}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Expense</p>
-                <p className="text-xl font-semibold tabular-nums text-app-red">{typeCounts.expense.toLocaleString('en-IN')}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Transfer</p>
-                <p className="text-xl font-semibold tabular-nums text-app-teal">{typeCounts.transfer.toLocaleString('en-IN')}</p>
-              </div>
+              {/* Type mix as a 100% stacked bar -- the proportional split the
+                  three counts above imply, without a separate chart. */}
+              {typeCounts.income + typeCounts.expense + typeCounts.transfer > 0 && (
+                <div
+                  className="flex h-1.5 w-full min-w-40 overflow-hidden rounded-full"
+                  role="img"
+                  aria-label={`Transaction type mix: ${typeCounts.income} income, ${typeCounts.expense} expense, ${typeCounts.transfer} transfer`}
+                >
+                  <div className="bg-app-green" style={{ width: `${(typeCounts.income / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
+                  <div className="bg-app-red" style={{ width: `${(typeCounts.expense / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
+                  <div className="bg-app-teal" style={{ width: `${(typeCounts.transfer / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
+                </div>
+              )}
             </div>
           </div>
         </motion.div>

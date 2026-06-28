@@ -3,12 +3,13 @@ import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
 import { TrendingUp, DollarSign, Activity, Wallet, Briefcase, PiggyBank } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Line, ReferenceLine } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Line } from 'recharts'
 
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
+import Sparkline from '@/components/shared/Sparkline'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useQuery } from '@tanstack/react-query'
 
@@ -17,7 +18,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { calculationsApi } from '@/services/api/calculations'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
-import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl, referenceLine, currencyTooltipFormatter } from '@/components/ui'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { formatMonthKey } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
@@ -25,7 +26,6 @@ import { FilterBanner } from '@/components/shared/FilterBanner'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import CategoryBreakdown from '@/components/analytics/CategoryBreakdown'
 import { INCOME_CATEGORY_COLORS } from '@/lib/preferencesUtils'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
 
 // Icons for income categories (based on actual data categories)
 const INCOME_CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -82,7 +82,6 @@ export default function IncomeAnalysisPage() {
   const cashbacksTotal = income?.cashbacks_total ?? 0
   const peakIncome = income?.peak_income ?? 0
   const growthRate = income?.growth_rate ?? 0
-  const incomeBreakdown: Record<string, number> = income?.category_breakdown ?? {}
 
   // Income category chart data (actual data categories, colored + sorted).
   const incomeTypeChartData = useMemo(() => {
@@ -99,6 +98,9 @@ export default function IncomeAnalysisPage() {
   }, [income])
 
   const primaryIncomeType = incomeTypeChartData[0]?.name || 'N/A'
+  const primaryIncomeValue = incomeTypeChartData[0]?.value ?? 0
+  const primaryShare = totalIncome > 0 ? (primaryIncomeValue / totalIncome) * 100 : 0
+  const cashbackShare = totalIncome > 0 ? (cashbacksTotal / totalIncome) * 100 : 0
 
   // Monthly trend with rolling 3-month average + display labels.
   const monthlyTrendData = useMemo(
@@ -110,6 +112,20 @@ export default function IncomeAnalysisPage() {
         incomeAvg: d.income_avg_3m,
       })),
     [income],
+  )
+
+  // Mean monthly income, drawn as a reference line alongside the peak marker.
+  const avgIncome = useMemo(() => {
+    if (monthlyTrendData.length === 0) return 0
+    const sum = monthlyTrendData.reduce((acc, d) => acc + d.income, 0)
+    return sum / monthlyTrendData.length
+  }, [monthlyTrendData])
+
+  // Bare monthly income series, reused for the Growth Rate KPI sparkline (same
+  // numbers the trend chart plots -- a compact mini-trend, not a second graph).
+  const incomeSeries = useMemo(
+    () => monthlyTrendData.map((d) => d.income),
+    [monthlyTrendData],
   )
 
   if (isLoading) return <PageSkeleton />
@@ -131,11 +147,42 @@ export default function IncomeAnalysisPage() {
 
         <FilterBanner value={categoryFilter} label="Source" onClear={clearCategoryFilter} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard title="Total Income" value={formatCurrency(totalIncome)} icon={DollarSign} color="green" isLoading={isLoading} />
-          <MetricCard title="Primary Income Type" value={primaryIncomeType} icon={Activity} color="blue" isLoading={isLoading} />
-          <MetricCard title="Growth Rate" value={formatPercent(growthRate, true)} icon={TrendingUp} color={growthColor} isLoading={isLoading} />
-          <MetricCard title="Cashbacks Earned" value={formatCurrency(cashbacksTotal)} icon={Wallet} color="teal" isLoading={isLoading} />
+          <MetricCard
+            title="Primary Income Type"
+            value={primaryIncomeType}
+            subtitle={primaryShare > 0 ? `${formatPercent(primaryShare)} of income` : undefined}
+            icon={Activity}
+            color="blue"
+            isLoading={isLoading}
+          />
+          <MetricCard
+            title="Growth Rate"
+            value={formatPercent(growthRate, true)}
+            subtitle="First vs latest month"
+            trend={
+              incomeSeries.length >= 2 ? (
+                <Sparkline
+                  data={incomeSeries}
+                  color={rawColors.app[growthColor === 'red' ? 'red' : 'green']}
+                  height={36}
+                  showTooltip={false}
+                />
+              ) : undefined
+            }
+            icon={TrendingUp}
+            color={growthColor}
+            isLoading={isLoading}
+          />
+          <MetricCard
+            title="Cashbacks Earned"
+            value={formatCurrency(cashbacksTotal)}
+            subtitle={cashbacksTotal > 0 ? `${formatPercent(cashbackShare)} of income` : undefined}
+            icon={Wallet}
+            color="teal"
+            isLoading={isLoading}
+          />
         </div>
 
         {/* Income Category Breakdown */}
@@ -148,7 +195,7 @@ export default function IncomeAnalysisPage() {
           <h3 className="text-lg font-semibold text-white mb-4">Income by Category</h3>
           {incomeTypeChartData.length > 0 ? (
             <div className="flex flex-col lg:flex-row items-center gap-4 md:gap-6 lg:gap-8">
-              <div className="w-64">
+              <div className="w-64" role="img" aria-label="Donut chart breaking down total income by source category.">
                 <StandardPieChart
                   data={incomeTypeChartData}
                   height={256}
@@ -163,9 +210,7 @@ export default function IncomeAnalysisPage() {
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {incomeTypeChartData.map((item) => {
                   const Icon = INCOME_CATEGORY_ICONS[item.category] || DollarSign
-                  const percentage = incomeBreakdown
-                    ? ((item.value / Object.values(incomeBreakdown).reduce((a, b) => a + b, 0)) * 100).toFixed(1)
-                    : '0'
+                  const percentage = totalIncome > 0 ? ((item.value / totalIncome) * 100).toFixed(1) : '0'
                   return (
                     <div
                       key={item.name}
@@ -221,13 +266,11 @@ export default function IncomeAnalysisPage() {
               </div>
             </div>
 
-            {isLoading && (
-              <div className="h-96 flex items-center justify-center">
-                <div className="animate-pulse text-muted-foreground">Loading chart...</div>
-              </div>
-            )}
-            {!isLoading && monthlyTrendData.length > 0 && (
-              <ChartContainer height={dims.chartHeight}>
+            {monthlyTrendData.length > 0 && (
+              <ChartContainer
+                height={dims.chartHeight}
+                ariaLabel="Monthly income over time with a 3-month rolling average, plus peak and average reference lines."
+              >
                 <AreaChart data={monthlyTrendData} margin={dims.margin}>
                   <defs>
                     {areaGradient('incomeTrend', rawColors.app.green, 0.4, 0)}
@@ -245,17 +288,14 @@ export default function IncomeAnalysisPage() {
                       return month ? formatMonthKey(month, { month: 'long', year: 'numeric' }) : ''
                     }}
                     formatter={(value, name) => [
-                      typeof value === 'number' ? formatCurrency(value) : '',
+                      currencyTooltipFormatter(value),
                       name === 'incomeAvg' ? 'Income (3m avg)' : 'Income',
                     ]}
                     itemSorter={(item) => -(item.value as number)}
                   />
-                  <ReferenceLine
-                    y={peakIncome}
-                    stroke="rgba(255,255,255,0.2)"
-                    strokeDasharray="3 3"
-                    label={{ value: `Peak: ${formatCurrencyShort(peakIncome)}`, fill: CHART_AXIS_COLOR, fontSize: 10, position: 'insideTopRight' }}
-                  />
+                  {referenceLine({ y: peakIncome, label: `Peak: ${formatCurrencyShort(peakIncome)}`, variant: 'peak' })}
+                  {avgIncome > 0 &&
+                    referenceLine({ y: avgIncome, label: `Avg: ${formatCurrencyShort(avgIncome)}`, variant: 'avg' })}
                   <Area
                     type="monotone"
                     dataKey="income"

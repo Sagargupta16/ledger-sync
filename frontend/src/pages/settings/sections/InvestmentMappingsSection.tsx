@@ -54,6 +54,7 @@ export default function InvestmentMappingsSection({
           >
             <span className="text-sm text-white flex-1 min-w-0 truncate">{account}</span>
             <select
+              aria-label={`Investment type for ${account}`}
               value={localPrefs.investment_account_mappings[account] || ''}
               onChange={(e) => setInvestmentMapping(account, e.target.value)}
               className={`${selectClass} w-full sm:w-48`}

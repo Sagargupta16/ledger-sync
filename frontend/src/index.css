@@ -502,6 +502,18 @@ button:focus-visible,
   border-radius: 8px;
 }
 
+/* ===== FORM CONTROLS ===== */
+
+/* Hide native number-input spinners (used by projection / parameter inputs). */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
 /* ===== PRINT STYLESHEET ===== */
 
 @media print {

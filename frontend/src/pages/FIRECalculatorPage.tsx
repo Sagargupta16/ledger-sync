@@ -4,16 +4,20 @@ import { motion } from 'framer-motion'
 import { Flame, Calculator } from 'lucide-react'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import EmptyState from '@/components/shared/EmptyState'
 import { useTotals, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
 import { formatCurrency } from '@/lib/formatters'
 import { computeFIRE, computeRetirementCorpus } from '@/lib/fireCalculator'
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
 import StandardAreaChart from '@/components/analytics/StandardAreaChart'
-import { PageHeader } from '@/components/ui'
+import StandardBarChart from '@/components/analytics/StandardBarChart'
+import { PageHeader, currencyTooltipFormatter } from '@/components/ui'
+import { formatCurrencyShort } from '@/lib/formatters'
 
-function SliderInput({ id, label, value, min, max, step, unit, onChange }: Readonly<{
+function SliderInput({ id, label, value, min, max, step, unit, valueText, onChange }: Readonly<{
   id: string; label: string; value: number; min: number; max: number; step: number; unit: string
+  valueText?: string
   onChange: (v: number) => void
 }>) {
   return (
@@ -22,16 +26,21 @@ function SliderInput({ id, label, value, min, max, step, unit, onChange }: Reado
         <label htmlFor={id} className="text-xs font-medium text-muted-foreground">{label}</label>
         <span className="text-xs font-semibold text-foreground">{value}{unit}</span>
       </div>
-      <input
-        id={id}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-app-blue cursor-pointer"
-      />
+      {/* Visible track stays thin (h-1.5) but the input fills a >=44px tall box
+          so the pointer/touch hit area is accessible for dragging. */}
+      <div className="flex items-center min-h-[44px]">
+        <input
+          id={id}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          aria-valuetext={valueText ?? `${value}${unit}`}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-app-blue cursor-pointer"
+        />
+      </div>
     </div>
   )
 }
@@ -102,20 +111,32 @@ export default function FIRECalculatorPage() {
           title="FIRE & Retirement Calculator"
           subtitle="Plan your financial independence using your actual spending data"
           action={
-            <div className="flex gap-1 p-1 rounded-lg bg-muted/20">
-              <button
-                onClick={() => setActiveTab('fire')}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'fire' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
-              >
-                <Flame className="w-4 h-4 inline mr-1.5" />FIRE
-              </button>
-              <button
-                onClick={() => setActiveTab('retirement')}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'retirement' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
-              >
-                <Calculator className="w-4 h-4 inline mr-1.5" />Retirement
-              </button>
-            </div>
+            // Only render the tablist when the panels it controls exist (no-data
+            // shows an EmptyState instead, so aria-controls would dangle).
+            autoValues.annualExpenses > 0 ? (
+              <div className="flex gap-1 p-1 rounded-lg bg-muted/20" role="tablist" aria-label="Calculator mode">
+                <button
+                  role="tab"
+                  id="fire-tab"
+                  aria-selected={activeTab === 'fire'}
+                  aria-controls="fire-panel"
+                  onClick={() => setActiveTab('fire')}
+                  className={`px-4 py-2.5 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'fire' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+                >
+                  <Flame className="w-4 h-4 inline mr-1.5" />FIRE
+                </button>
+                <button
+                  role="tab"
+                  id="retirement-tab"
+                  aria-selected={activeTab === 'retirement'}
+                  aria-controls="retirement-panel"
+                  onClick={() => setActiveTab('retirement')}
+                  className={`px-4 py-2.5 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'retirement' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+                >
+                  <Calculator className="w-4 h-4 inline mr-1.5" />Retirement
+                </button>
+              </div>
+            ) : undefined
           }
         />
       <motion.div
@@ -125,8 +146,17 @@ export default function FIRECalculatorPage() {
         className="space-y-6 md:space-y-8"
       >
 
-        {activeTab === 'fire' ? (
-          <>
+        {autoValues.annualExpenses <= 0 ? (
+          <EmptyState
+            variant="card"
+            icon={Flame}
+            title="No spending data yet"
+            description="FIRE and retirement targets are derived from your actual income and expenses. Upload a bank statement to see your numbers."
+            actionLabel="Upload transactions"
+            actionHref="/upload"
+          />
+        ) : activeTab === 'fire' ? (
+          <div role="tabpanel" id="fire-panel" aria-labelledby="fire-tab" className="space-y-6 md:space-y-8">
             {/* FIRE Metrics */}
             <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               <MetricCard title="FIRE Number" value={formatCurrency(fireResult.fireNumber)} icon={Flame} color="red" subtitle={`At ${swr}% SWR`} />
@@ -135,44 +165,55 @@ export default function FIRECalculatorPage() {
               <MetricCard title="Savings Rate" value={`${fireResult.currentSavingsRate.toFixed(1)}%`} icon={Flame} color="green" subtitle={savingsRateSubtitle(fireResult.currentSavingsRate)} />
             </motion.div>
 
-            {/* FIRE Variants */}
-            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
+            {/* FIRE Variants -- one shared INR axis so the tiers are directly
+                comparable (Fat = 2x Standard, Lean < Standard) at a glance,
+                instead of four isolated number tiles. */}
+            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-4">FIRE Variants</h3>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl bg-app-green/5 border border-app-green/20">
-                  <p className="text-xs text-muted-foreground mb-1">Lean FIRE</p>
-                  <p className="text-xl font-bold text-app-green">{formatCurrency(fireResult.leanFIRE)}</p>
-                  <p className="text-xs text-text-tertiary mt-1">Essential expenses only (60%)</p>
-                </div>
-                <div className="p-4 rounded-xl bg-app-teal/5 border border-app-teal/20">
-                  <p className="text-xs text-muted-foreground mb-1">Barista FIRE</p>
-                  <p className="text-xl font-bold text-app-teal">{formatCurrency(fireResult.baristaFIRE)}</p>
-                  <p className="text-xs text-text-tertiary mt-1">
-                    {baristaMonthlyIncome > 0
-                      ? `With ${formatCurrency(baristaMonthlyIncome)}/mo part-time`
-                      : 'Set part-time income below'}
-                  </p>
-                </div>
-                <div className="p-4 rounded-xl bg-app-blue/5 border border-app-blue/20">
-                  <p className="text-xs text-muted-foreground mb-1">Standard FIRE</p>
-                  <p className="text-xl font-bold text-app-blue">{formatCurrency(fireResult.fireNumber)}</p>
-                  <p className="text-xs text-text-tertiary mt-1">Current lifestyle maintained</p>
-                </div>
-                <div className="p-4 rounded-xl bg-app-purple/5 border border-app-purple/20">
-                  <p className="text-xs text-muted-foreground mb-1">Fat FIRE</p>
-                  <p className="text-xl font-bold text-app-purple">{formatCurrency(fireResult.fatFIRE)}</p>
-                  <p className="text-xs text-text-tertiary mt-1">2x lifestyle with buffer</p>
-                </div>
+              <StandardBarChart
+                data={[
+                  { tier: 'Lean', corpus: fireResult.leanFIRE, color: rawColors.app.green },
+                  { tier: 'Barista', corpus: fireResult.baristaFIRE, color: rawColors.app.teal },
+                  { tier: 'Standard', corpus: fireResult.fireNumber, color: rawColors.app.blue },
+                  { tier: 'Fat', corpus: fireResult.fatFIRE, color: rawColors.app.purple },
+                ]}
+                layout="vertical"
+                yCategoryKey="tier"
+                dataKey="tier"
+                yWidth={72}
+                height={200}
+                bars={[
+                  {
+                    key: 'corpus',
+                    color: rawColors.app.blue,
+                    getCellColor: (row) => (row as { color: string }).color,
+                  },
+                ]}
+                showLegend={false}
+                tooltipFormatter={(v) => formatCurrency(v)}
+                xTickFormatter={(v) => formatCurrencyShort(v as number)}
+                ariaLabel="Horizontal bar chart comparing the corpus needed for Lean, Barista, Standard and Fat FIRE"
+              />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-3 text-xs text-text-tertiary">
+                <p><span className="text-app-green font-medium">Lean</span> · essentials only (60%)</p>
+                <p>
+                  <span className="text-app-teal font-medium">Barista</span> ·{' '}
+                  {baristaMonthlyIncome > 0
+                    ? `${formatCurrencyShort(baristaMonthlyIncome)}/mo part-time`
+                    : 'set part-time income below'}
+                </p>
+                <p><span className="text-app-blue font-medium">Standard</span> · current lifestyle</p>
+                <p><span className="text-app-purple font-medium">Fat</span> · 2x with buffer</p>
               </div>
             </motion.div>
 
             {/* FIRE Sliders */}
-            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
+            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-4">Adjust Assumptions</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <SliderInput id="fire-swr" label="Safe Withdrawal Rate" value={swr} min={2} max={5} step={0.5} unit="%" onChange={setSwr} />
-                <SliderInput id="fire-return" label="Real Return (post-inflation)" value={realReturn} min={2} max={12} step={0.5} unit="%" onChange={setRealReturn} />
-                <SliderInput id="fire-years" label="Years to Retirement" value={yearsToRetire} min={5} max={40} step={1} unit=" yrs" onChange={setYearsToRetire} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 sm:gap-6">
+                <SliderInput id="fire-swr" label="Safe Withdrawal Rate" value={swr} min={2} max={5} step={0.5} unit="%" valueText={`${swr} percent`} onChange={setSwr} />
+                <SliderInput id="fire-return" label="Real Return (post-inflation)" value={realReturn} min={2} max={12} step={0.5} unit="%" valueText={`${realReturn} percent`} onChange={setRealReturn} />
+                <SliderInput id="fire-years" label="Years to FIRE" value={yearsToRetire} min={5} max={40} step={1} unit=" yrs" valueText={`${yearsToRetire} years`} onChange={setYearsToRetire} />
                 <SliderInput
                   id="fire-barista"
                   label="Barista / Part-time income"
@@ -181,17 +222,18 @@ export default function FIRECalculatorPage() {
                   max={200_000}
                   step={5_000}
                   unit="/mo"
+                  valueText={`${formatCurrency(baristaMonthlyIncome)} per month`}
                   onChange={setBaristaMonthlyIncome}
                 />
               </div>
-              <p className="text-xs text-text-quaternary mt-4">
+              <p className="text-xs text-text-tertiary mt-4">
                 India defaults: 3% SWR (higher inflation vs 4% US rule), 6% real return (12% nominal - 6% inflation).
                 Set a non-zero barista income to see how much smaller your corpus needs to be with part-time work.
               </p>
             </motion.div>
-          </>
+          </div>
         ) : (
-          <>
+          <div role="tabpanel" id="retirement-panel" aria-labelledby="retirement-tab" className="space-y-6 md:space-y-8">
             {/* Retirement Metrics */}
             <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               <MetricCard title="Required Corpus" value={formatCurrency(retirementResult.requiredCorpus)} icon={Calculator} color="blue" subtitle={`In ${retirementYears} years`} />
@@ -202,40 +244,45 @@ export default function FIRECalculatorPage() {
 
             {/* Projection Chart */}
             {retirementResult.projectionData.length > 0 && (
-              <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
+              <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
                 <h3 className="text-lg font-semibold mb-4">Corpus Growth Projection</h3>
-                <StandardAreaChart
-                  data={retirementResult.projectionData}
-                  dataKey="year"
-                  height={320}
-                  xTickFormatter={(v) => `Yr ${v}`}
-                  tooltipFormatter={(value) => formatCurrency(value)}
-                  areas={[
-                    { key: 'corpus', color: rawColors.app.blue, label: 'Total Corpus' },
-                    {
-                      key: 'contributed',
-                      color: rawColors.app.green,
-                      label: 'Contributed',
-                      strokeDasharray: '4 4',
-                    },
-                  ]}
-                />
+                <div
+                  role="img"
+                  aria-label={`Projected retirement corpus growth over ${retirementYears} years, comparing total corpus against amount contributed`}
+                >
+                  <StandardAreaChart
+                    data={retirementResult.projectionData}
+                    dataKey="year"
+                    height={320}
+                    xTickFormatter={(v) => `Yr ${v}`}
+                    tooltipFormatter={currencyTooltipFormatter}
+                    areas={[
+                      { key: 'corpus', color: rawColors.app.blue, label: 'Total Corpus' },
+                      {
+                        key: 'contributed',
+                        color: rawColors.app.green,
+                        label: 'Contributed',
+                        strokeDasharray: '4 4',
+                      },
+                    ]}
+                  />
+                </div>
               </motion.div>
             )}
 
             {/* Retirement Sliders */}
-            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
+            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-4">Adjust Assumptions</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <SliderInput id="ret-inflation" label="Inflation Rate" value={inflation} min={3} max={10} step={0.5} unit="%" onChange={setInflation} />
-                <SliderInput id="ret-return" label="Expected Return" value={expectedReturn} min={6} max={18} step={0.5} unit="%" onChange={setExpectedReturn} />
-                <SliderInput id="ret-years" label="Years to Retirement" value={retirementYears} min={5} max={40} step={1} unit=" yrs" onChange={setRetirementYears} />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 sm:gap-6">
+                <SliderInput id="ret-inflation" label="Inflation Rate" value={inflation} min={3} max={10} step={0.5} unit="%" valueText={`${inflation} percent`} onChange={setInflation} />
+                <SliderInput id="ret-return" label="Expected Return" value={expectedReturn} min={6} max={18} step={0.5} unit="%" valueText={`${expectedReturn} percent`} onChange={setExpectedReturn} />
+                <SliderInput id="ret-years" label="Years to Retirement" value={retirementYears} min={5} max={40} step={1} unit=" yrs" valueText={`${retirementYears} years`} onChange={setRetirementYears} />
               </div>
-              <p className="text-xs text-text-quaternary mt-4">
+              <p className="text-xs text-text-tertiary mt-4">
                 Indian defaults: 6.5% inflation (CPI avg), 12% equity return (Nifty 50 long-term CAGR)
               </p>
             </motion.div>
-          </>
+          </div>
         )}
       </motion.div>
       </div>

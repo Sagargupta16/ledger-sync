@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { CreditCard, AlertTriangle, CheckCircle } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 
+import ProgressBar from '@/components/shared/ProgressBar'
+import { hexToRgba, rawColors } from '@/constants/colors'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
@@ -24,6 +26,27 @@ interface CreditCardAccount {
 }
 
 const DEFAULT_CREDIT_LIMIT = 100000
+
+// Recommended utilization ceiling -- credit bureaus flag scores above 30%.
+const UTILIZATION_TARGET = 30
+
+// Bullet-graph background zones: low-alpha qualitative ranges (green < 30,
+// blue 30-50, yellow 50-75, red > 75) so a bar reads "where do I sit" even
+// before the fill is interpreted. Tokens only, never raw hex.
+const UTILIZATION_BANDS = [
+  { upTo: 30, color: hexToRgba(rawColors.app.green, 0.18) },
+  { upTo: 50, color: hexToRgba(rawColors.app.blue, 0.18) },
+  { upTo: 75, color: hexToRgba(rawColors.app.yellow, 0.18) },
+  { upTo: 100, color: hexToRgba(rawColors.app.red, 0.18) },
+] as const
+
+/** Solid fill color matching the utilization tier. */
+function utilizationFill(utilization: number): string {
+  if (utilization > 75) return rawColors.app.red
+  if (utilization > 50) return rawColors.app.yellow
+  if (utilization > 30) return rawColors.app.blue
+  return rawColors.app.green
+}
 
 export default function CreditCardHealth() {
   const { data: balanceData, isLoading: isBalanceLoading } = useAccountBalances()
@@ -107,21 +130,16 @@ export default function CreditCardHealth() {
     }
   }
 
-  const getUtilizationBar = (utilization: number) => {
-    let color = 'bg-app-green'
-    if (utilization > 75) color = 'bg-app-red'
-    else if (utilization > 50) color = 'bg-app-yellow'
-    else if (utilization > 30) color = 'bg-app-blue'
-
-    return (
-      <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${color} transition-colors duration-500`}
-          style={{ width: `${Math.min(100, utilization)}%` }}
-        />
-      </div>
-    )
-  }
+  const getUtilizationBar = (utilization: number, ariaLabel: string) => (
+    <ProgressBar
+      value={Math.min(100, utilization)}
+      color={utilizationFill(utilization)}
+      height={8}
+      target={UTILIZATION_TARGET}
+      bands={UTILIZATION_BANDS}
+      ariaLabel={ariaLabel}
+    />
+  )
 
   if (isLoading) {
     return (
@@ -178,7 +196,10 @@ export default function CreditCardHealth() {
             {formatPercent(overallUtilization)}
           </span>
         </div>
-        {getUtilizationBar(overallUtilization)}
+        {getUtilizationBar(
+          overallUtilization,
+          `Total credit utilization ${formatPercent(overallUtilization)}, target under 30%`,
+        )}
         <div className="flex justify-between text-xs text-muted-foreground mt-2">
           <span>Outstanding: {formatCurrency(totalBalance)}</span>
           <span>Total Limit: {formatCurrency(totalLimit)}</span>
@@ -199,7 +220,10 @@ export default function CreditCardHealth() {
               </div>
               <span className="font-bold">{formatPercent(card.utilization)}</span>
             </div>
-            {getUtilizationBar(card.utilization)}
+            {getUtilizationBar(
+              card.utilization,
+              `${card.name} utilization ${formatPercent(card.utilization)}, target under 30%`,
+            )}
             <div className="flex justify-between text-xs text-muted-foreground mt-2">
               <span>{formatCurrency(card.balance)} used</span>
               <span>Limit: {formatCurrency(card.creditLimit)}</span>

@@ -77,10 +77,6 @@ export default function CohortSpendingAnalysis() {
     }
   }, [currentData, hasData])
 
-  // Highlight the peak bucket in the chart by giving it a brighter colour;
-  // we do this by emitting a per-bar fill via a parallel Cell array, which
-  // StandardBarChart doesn't support directly, so we simulate by pre-computing
-  // the colour list. Falls back to a single colour when there's no clear peak.
   const peakName = insights?.peakName
 
   return (
@@ -104,7 +100,8 @@ export default function CohortSpendingAnalysis() {
             <button
               key={key}
               onClick={() => setView(key)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${view === key ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+              aria-pressed={view === key}
+              className={`px-2.5 py-2.5 min-h-11 rounded-md text-xs font-medium transition-colors ${view === key ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
             >
               {label}
             </button>
@@ -120,27 +117,23 @@ export default function CohortSpendingAnalysis() {
 
       {hasData ? (
         <>
-          <StandardBarChart
-            data={currentData.map((d) => ({
-              ...d,
-              // Add a per-row "fill" so the peak bucket can be highlighted.
-              // StandardBarChart doesn't natively support per-bar colour, so
-              // we cheat: same `avg` series, but the first item is the peak
-              // and rendered with a brighter teal via opacity.
-            }))}
-            dataKey="name"
-            height={260}
-            bars={[
-              {
-                key: 'avg',
-                label: 'Avg Spending',
-                color: rawColors.app.teal,
-                fillOpacity: 0.7,
-                barSize: view === 'day-of-month' ? 14 : 30,
-              },
-            ]}
-            showLegend={false}
-          />
+          <div role="img" aria-label={viewAriaLabel(view)}>
+            <StandardBarChart
+              data={currentData}
+              dataKey="name"
+              height={260}
+              bars={[
+                {
+                  key: 'avg',
+                  label: 'Avg Spending',
+                  color: rawColors.app.teal,
+                  fillOpacity: 0.7,
+                  barSize: view === 'day-of-month' ? 14 : 30,
+                },
+              ]}
+              showLegend={false}
+            />
+          </div>
           {insights && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
@@ -187,4 +180,10 @@ function viewLabel(view: ViewMode, form: 'singular' | 'plural'): string {
   if (view === 'day-of-week') return form === 'singular' ? 'Day' : 'Days'
   if (view === 'day-of-month') return form === 'singular' ? 'Date' : 'Dates'
   return form === 'singular' ? 'Month' : 'Months'
+}
+
+function viewAriaLabel(view: ViewMode): string {
+  if (view === 'day-of-week') return 'Bar chart of average spending by day of the week'
+  if (view === 'day-of-month') return 'Bar chart of average spending by day of the month'
+  return 'Bar chart of average spending by month of the year'
 }

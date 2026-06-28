@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Landmark, IndianRupee, PiggyBank, TrendingUp, Percent } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
+import { rawColors } from '@/constants/colors'
 import { StaleDataBadge } from '@/components/shared/StaleDataBadge'
 import MetricCard from '@/components/shared/MetricCard'
 import { projectPPF, projectEPF, projectNPS } from '@/lib/instrumentCalculators'
@@ -133,8 +134,29 @@ function NPSTab({ rates }: Readonly<{ rates: InstrumentRates }>) {
         <SliderInput id="nps-equity" label="Equity (E)" value={equity} onChange={handleEquity} min={0} max={75} step={5} suffix="%" />
         <SliderInput id="nps-years" label="Years to Retirement" value={years} onChange={setYears} min={1} max={35} step={1} suffix=" yrs" />
       </div>
-      <div className="flex items-center gap-4 text-xs text-text-tertiary">
-        <span>Allocation: E {equity}% | C {corp}% | G {govt}%</span>
+      {/* Allocation as a 100% stacked bar -- segment widths show the E/C/G
+          split at a glance instead of a "E 50% | C 30% | G 20%" text string. */}
+      <div>
+        <div className="flex h-2.5 w-full overflow-hidden rounded-full" role="img"
+          aria-label={`NPS allocation: equity ${equity} percent, corporate bonds ${corp} percent, government bonds ${govt} percent`}>
+          <div style={{ width: `${equity}%`, backgroundColor: rawColors.app.blue }} />
+          <div style={{ width: `${corp}%`, backgroundColor: rawColors.app.teal }} />
+          <div style={{ width: `${govt}%`, backgroundColor: rawColors.app.green }} />
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-tertiary">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: rawColors.app.blue }} />
+            Equity {equity}%
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: rawColors.app.teal }} />
+            Corporate {corp}%
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: rawColors.app.green }} />
+            Govt {govt}%
+          </span>
+        </div>
       </div>
       <ProjectionChart data={result} />
       <p className="text-xs text-text-tertiary">NPS Tier-I: Max 75% equity (auto-choice). At maturity, 60% is tax-free lump sum, 40% must buy annuity. Extra Rs 50K deduction under 80CCD(1B).</p>

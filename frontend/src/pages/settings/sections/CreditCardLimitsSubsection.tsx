@@ -40,15 +40,17 @@ export default function CreditCardLimitsSubsection({
                 <input
                   type="number"
                   inputMode="decimal"
+                  aria-label={`Credit limit for ${card.replace(' Credit Card', '')}`}
                   min="0"
                   step="10000"
                   value={localPrefs.credit_card_limits[card] ?? 100000}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const n = Number(e.target.value)
                     updateLocalPref('credit_card_limits', {
                       ...localPrefs.credit_card_limits,
-                      [card]: Number(e.target.value),
+                      [card]: Number.isFinite(n) ? Math.max(0, n) : 0,
                     })
-                  }
+                  }}
                   className="w-32 px-2 py-1.5 bg-white/5 border border-border rounded-lg text-white text-sm focus:border-primary focus:outline-none"
                 />
               </div>

@@ -1,22 +1,79 @@
 import { motion } from 'framer-motion'
 
+import { ProgressBar } from '@/components/shared'
+import { DataTable, type DataTableColumn } from '@/components/ui'
+import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
-import { ariaSort } from '../investmentUtils'
+interface PortfolioRow {
+  name: string
+  value: number
+  percentage: string
+}
 
 interface AccountsTableProps {
-  sortedPortfolioData: Array<{ name: string; value: number; percentage: string }>
-  investSortKey: string | null
-  investSortDir: 'asc' | 'desc'
-  toggleInvestSort: (key: string) => void
+  portfolioData: Array<PortfolioRow>
+  /** Total accounts before the top-8 cap, so we can surface a "+N more" note. */
+  totalAccountCount: number
+}
+
+function buildColumns(maxAllocation: number): DataTableColumn<PortfolioRow>[] {
+  return [
+    {
+      key: 'name',
+      header: 'Account',
+      sortable: true,
+      sortType: 'text',
+      mobilePrimary: true,
+      cell: (row) => <span className="text-white font-medium">{row.name}</span>,
+    },
+    {
+      key: 'value',
+      header: 'Value',
+      align: 'right',
+      sortable: true,
+      sortValue: (row) => row.value,
+      mobileLabel: 'Value',
+      cell: (row) => <span className="text-app-green">{formatCurrency(row.value)}</span>,
+    },
+    {
+      key: 'percentage',
+      header: 'Allocation',
+      align: 'right',
+      sortable: true,
+      sortValue: (row) => Number.parseFloat(row.percentage),
+      mobileLabel: 'Allocation',
+      cell: (row) => {
+        const pct = Number.parseFloat(row.percentage)
+        return (
+          <div className="flex items-center justify-end gap-2.5">
+            <ProgressBar
+              value={pct}
+              max={maxAllocation}
+              color={rawColors.app.purple}
+              height={6}
+              className="w-16 sm:w-20 shrink-0"
+              ariaLabel={`${row.name} allocation share`}
+            />
+            <span className="text-app-purple tabular-nums">{formatPercent(pct)}</span>
+          </div>
+        )
+      },
+    },
+  ]
 }
 
 export function AccountsTable({
-  sortedPortfolioData,
-  investSortKey,
-  investSortDir,
-  toggleInvestSort,
+  portfolioData,
+  totalAccountCount,
 }: Readonly<AccountsTableProps>) {
+  const maxAllocation = Math.max(
+    0,
+    ...portfolioData.map((row) => Number.parseFloat(row.percentage)),
+  )
+  const columns = buildColumns(maxAllocation)
+  const cappedCount = portfolioData.length
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -25,66 +82,20 @@ export function AccountsTable({
       className="glass rounded-2xl border border-border p-4 md:p-6"
     >
       <h3 className="text-lg font-semibold text-white mb-4">Investment Accounts</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
-                Account
-              </th>
-              <th
-                onClick={() => toggleInvestSort('value')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    toggleInvestSort('value')
-                  }
-                }}
-                tabIndex={0}
-                aria-sort={ariaSort(investSortKey, 'value', investSortDir)}
-                className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
-              >
-                Value{' '}
-                {investSortKey === 'value' && (investSortDir === 'asc' ? '↑' : '↓')}
-              </th>
-              <th
-                onClick={() => toggleInvestSort('percentage')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    toggleInvestSort('percentage')
-                  }
-                }}
-                tabIndex={0}
-                aria-sort={ariaSort(investSortKey, 'percentage', investSortDir)}
-                className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-white select-none"
-              >
-                Allocation{' '}
-                {investSortKey === 'percentage' && (investSortDir === 'asc' ? '↑' : '↓')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedPortfolioData.map((item, index) => (
-              <motion.tr
-                key={item.name}
-                className="border-b border-border hover:bg-white/10 transition-colors"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 + index * 0.05 }}
-              >
-                <td className="py-3 px-4 text-white font-medium">{item.name}</td>
-                <td className="py-3 px-4 text-right text-app-green">
-                  {formatCurrency(item.value)}
-                </td>
-                <td className="py-3 px-4 text-right text-app-purple">
-                  {formatPercent(Number.parseFloat(item.percentage))}
-                </td>
-              </motion.tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable<PortfolioRow>
+        columns={columns}
+        rows={portfolioData}
+        rowKey={(row) => row.name}
+        initialSort={{ key: 'value', dir: 'desc' }}
+        ariaLabel="Investment accounts by value and allocation"
+        mobileCards
+      />
+      {totalAccountCount > cappedCount && (
+        <p className="mt-3 text-xs text-text-tertiary">
+          Showing the top {cappedCount} accounts by value. +{totalAccountCount - cappedCount} more
+          not shown.
+        </p>
+      )}
     </motion.div>
   )
 }

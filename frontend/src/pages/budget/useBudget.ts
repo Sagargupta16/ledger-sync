@@ -48,6 +48,14 @@ export function useBudget() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   }, [])
 
+  // Current day-of-month and total days, shared by the burndown chart and the
+  // per-row month-end pace projection so they stay in sync.
+  const monthProgress = useMemo(() => {
+    const now = new Date()
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    return { todayDay: now.getDate(), daysInMonth }
+  }, [])
+
   const fyRange = useMemo(() => {
     const fy = getCurrentFY(fiscalYearStartMonth)
     return getFYDateRange(fy, fiscalYearStartMonth)
@@ -161,10 +169,7 @@ export function useBudget() {
   }, [filteredRows])
 
   const burndownData = useMemo(() => {
-    const now = new Date()
-    const currentYear = now.getFullYear()
-    const currentMonth = now.getMonth() + 1
-    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
+    const { daysInMonth } = monthProgress
 
     const totalBudget = filteredRows
       .filter((r) => r.period === 'monthly')
@@ -189,25 +194,23 @@ export function useBudget() {
       cumulative.push(runningTotal)
     }
 
-    const todayDay = now.getDate()
+    const todayDay = monthProgress.todayDay
 
     return Array.from({ length: daysInMonth }, (_, i) => ({
       day: i + 1,
       ideal: Math.round(totalBudget - (totalBudget / daysInMonth) * (i + 1)),
       actual: i < todayDay ? Math.round(totalBudget - cumulative[i]) : undefined,
     }))
-  }, [filteredRows, transactions, currentMonthKey])
+  }, [filteredRows, transactions, currentMonthKey, monthProgress])
 
-  const radarData = useMemo(() => {
-    // Cap at the top 8 (rows are sorted by utilization desc) like the bar chart
-    // -- a radar with 15-25 spokes overlaps its axis labels into illegibility.
+  const usageData = useMemo(() => {
+    // Top 8 by utilization (rows are sorted desc). Rendered as a sorted
+    // horizontal bar -- length encodes utilization far more readably than radar
+    // spokes, and full category names fit on the y-axis.
     return filteredRows.slice(0, 8).map((r) => ({
-      category:
-        (r.subcategory || r.category).length > 10
-          ? (r.subcategory || r.category).slice(0, 10) + '…'
-          : r.subcategory || r.category,
+      category: r.subcategory || r.category,
       usage: Math.round(r.percentage),
-      fullMark: 100,
+      status: r.status,
     }))
   }, [filteredRows])
 
@@ -247,9 +250,9 @@ export function useBudget() {
   const handleQuickAdd = useCallback(
     (cat: string, spent: number) => {
       const suggested = Math.ceil((spent * 1.2) / 1000) * 1000
-      setBudget(cat, suggested, 'monthly')
+      setBudget(cat, suggested, budgetPeriod)
     },
-    [setBudget],
+    [setBudget, budgetPeriod],
   )
 
   return {
@@ -280,7 +283,8 @@ export function useBudget() {
     summary,
     chartData,
     burndownData,
-    radarData,
+    usageData,
+    monthProgress,
     availableCategories,
     handleAdd,
     handleQuickAdd,

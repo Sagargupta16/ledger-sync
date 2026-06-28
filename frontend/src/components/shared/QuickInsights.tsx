@@ -129,8 +129,8 @@ export default function QuickInsights({
   // ─── Build two arrays: Quick Insights (key metrics) + Fun Facts (behavioral) ─
 
   const biggestTransaction = {
-    amount: insights?.biggest_expense.amount ?? 0,
-    category: insights?.biggest_expense.category || 'N/A',
+    amount: insights?.biggest_expense?.amount ?? 0,
+    category: insights?.biggest_expense?.category || 'N/A',
   }
 
   // Recurring coverage: what % of monthly income goes to fixed recurring

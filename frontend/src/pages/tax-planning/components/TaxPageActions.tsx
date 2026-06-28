@@ -37,7 +37,7 @@ export default function TaxPageActions({
           <button
             type="button"
             onClick={() => setRegimeOverride('new')}
-            className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`px-3 py-2.5 sm:py-1.5 text-sm font-medium transition-colors ${
               isNewRegime
                 ? 'bg-primary text-white'
                 : 'bg-white/5 text-muted-foreground hover:bg-white/10'
@@ -48,7 +48,7 @@ export default function TaxPageActions({
           <button
             type="button"
             onClick={() => setRegimeOverride('old')}
-            className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`px-3 py-2.5 sm:py-1.5 text-sm font-medium transition-colors ${
               isNewRegime
                 ? 'bg-white/5 text-muted-foreground hover:bg-white/10'
                 : 'bg-primary text-white'
@@ -63,7 +63,7 @@ export default function TaxPageActions({
         <button
           onClick={() => setShowProjection(!showProjection)}
           type="button"
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             showProjection
               ? 'bg-primary text-white shadow-lg shadow-primary/50'
               : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'

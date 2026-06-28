@@ -23,7 +23,9 @@ interface MultiCategoryTimeAnalysisProps {
 }
 
 export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTimeAnalysisProps) {
-  const [cumulative, setCumulative] = useState(true)
+  // Default to per-period (non-cumulative) so the chart shows WHEN spending
+  // happened; cumulative fans upward and hides the timing. Toggle still available.
+  const [cumulative, setCumulative] = useState(false)
   const [granularityOverride, setGranularityOverride] = useState<Granularity | 'auto'>('auto')
 
   // Daily per-category sums, aggregated server-side (date-range applied in SQL).
@@ -156,6 +158,7 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
               value={cumulative ? 'cumulative' : 'regular'}
               onChange={(e) => setCumulative(e.target.value === 'cumulative')}
               className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
+              aria-label="Cumulative or regular totals"
             >
               <option value="cumulative" className="bg-surface-dropdown text-foreground">Cumulative</option>
               <option value="regular" className="bg-surface-dropdown text-foreground">Regular</option>
@@ -164,9 +167,10 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
             {/* Export */}
             <button
               onClick={handleExport}
-              className="p-2 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-foreground transition-colors"
+              className="p-2.5 min-h-11 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-foreground transition-colors"
               type="button"
               title="Export chart"
+              aria-label="Export chart as CSV"
             >
               <Download className="w-4 h-4" />
             </button>
@@ -174,11 +178,13 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
         </div>
 
         {/* Chart */}
-        <TimeSeriesLineChart
-          chartData={chartData}
-          seriesKeys={topCategories}
-          colors={COLORS}
-        />
+        <div role="img" aria-label="Line chart of spending over time for the top expense categories">
+          <TimeSeriesLineChart
+            chartData={chartData}
+            seriesKeys={topCategories}
+            colors={COLORS}
+          />
+        </div>
       </div>
     </motion.div>
   )

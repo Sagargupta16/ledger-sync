@@ -35,6 +35,11 @@ export default function SettingsPage() {
     }
     handleDragEnd()
   }
+  // Keyboard/tap fallback for the drag-and-drop classifier.
+  const handleAssignAccount = (account: string, category: string) => {
+    s.setClassifications((prev) => ({ ...prev, [account]: category }))
+    s.setHasChanges(true)
+  }
 
   // Loading skeleton
   if (s.isLoading) {
@@ -99,6 +104,7 @@ export default function SettingsPage() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDropOnCategory={handleDropOnCategory}
+          onAssignAccount={handleAssignAccount}
         />
 
         {s.localPrefs && (

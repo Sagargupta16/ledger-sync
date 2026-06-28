@@ -109,7 +109,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
             )}
             <a
               href="#features"
-              className="flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
+              className="group flex items-center gap-2 px-6 py-4 min-h-[44px] rounded-2xl font-medium text-muted-foreground hover:text-white hover:bg-white/[0.06] transition-[color,background-color,transform] duration-300 hover:scale-105"
             >
               Learn More
             </a>

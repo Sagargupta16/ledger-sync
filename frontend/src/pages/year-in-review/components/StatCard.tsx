@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import { motion } from 'framer-motion'
 
 export interface StatCardProps {
@@ -5,9 +7,11 @@ export interface StatCardProps {
   value: string
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
   color: string
+  /** Optional slot under the value -- e.g. a target ProgressBar for the savings rate. */
+  footer?: ReactNode
 }
 
-export default function StatCard({ label, value, icon: Icon, color }: Readonly<StatCardProps>) {
+export default function StatCard({ label, value, icon: Icon, color, footer }: Readonly<StatCardProps>) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -24,6 +28,7 @@ export default function StatCard({ label, value, icon: Icon, color }: Readonly<S
           <p className="text-kpi-value font-bold" style={{ color }}>{value}</p>
         </div>
       </div>
+      {footer && <div className="mt-3">{footer}</div>}
     </motion.div>
   )
 }

@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, Sparkles, TrendingUp } from 'lucide-react'
 import { Area, AreaChart, Brush, CartesianGrid, Legend, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 
 import EmptyState from '@/components/shared/EmptyState'
+import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import {
   ACTIVE_DOT,
   BRUSH_DEFAULTS,
@@ -12,13 +13,14 @@ import {
   areaGradient,
   areaGradientUrl,
   chartTooltipProps,
+  currencyTooltipFormatter,
   shouldAnimate,
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { formatDate } from '@/lib/formatters'
 
 import { CATEGORY_CONFIG } from '../netWorthUtils'
 import type { MilestoneRow, NetWorthPoint } from '../netWorthProjection'
@@ -80,44 +82,48 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
           <BarChart3 className="w-5 h-5 text-app-blue" />
           <h3 className="text-lg font-semibold text-white">Net Worth Trend</h3>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Net worth chart view options">
           <button
             onClick={() => setShowProjection(!showProjection)}
             disabled={monthlyGrowthRate <= 0}
+            aria-pressed={showProjection}
             title={
               monthlyGrowthRate <= 0
                 ? 'Need positive monthly growth to project'
                 : `Project forward at ${(monthlyGrowthRate * 100).toFixed(2)} %/month compound (~${(((1 + monthlyGrowthRate) ** 12 - 1) * 100).toFixed(1)} % annualized)`
             }
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
               showProjection
                 ? 'bg-app-blue/20 text-white border border-app-blue/40'
                 : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
             } disabled:opacity-40 disabled:cursor-not-allowed`}
           >
-            {showProjection ? '🔮 Projecting' : '🔮 Project'}
+            <Sparkles className="w-4 h-4" aria-hidden />
+            {showProjection ? 'Projecting' : 'Project'}
           </button>
           <button
             onClick={() => setShowStacked(!showStacked)}
             disabled={!stackedAllowed}
+            aria-pressed={effectiveStacked}
             title={stackedAllowed ? undefined : 'Stacked view is unavailable while net worth is negative in this range'}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
               effectiveStacked
                 ? 'bg-primary text-white'
                 : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
             }`}
           >
-            {effectiveStacked ? '📊 Stacked View' : '📈 Total View'}
+            {effectiveStacked ? (
+              <BarChart3 className="w-4 h-4" aria-hidden />
+            ) : (
+              <TrendingUp className="w-4 h-4" aria-hidden />
+            )}
+            {effectiveStacked ? 'Stacked View' : 'Total View'}
           </button>
         </div>
       </div>
       {(() => {
         if (isLoading) {
-          return (
-            <div className="h-80 flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Loading chart...</div>
-            </div>
-          )
+          return <ChartSkeleton />
         }
         if (filteredNetWorthData.length === 0) {
           return (
@@ -131,12 +137,13 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
             />
           )
         }
-        const formattedValue = (value: number | string | readonly (number | string)[] | undefined) =>
-          typeof value === 'number' ? formatCurrency(value) : ''
         const anchorDateIso = anchor?.date ?? new Date().toISOString().substring(0, 10)
         const showProjectionLine = showProjection && monthlyGrowthRate > 0
         return (
-          <ChartContainer height={320}>
+          <ChartContainer
+            height={320}
+            ariaLabel="Net worth over time, with optional category breakdown and forward projection band"
+          >
             <AreaChart data={chartData}>
               <defs>
                 {areaGradient('netWorth', rawColors.app.purple)}
@@ -171,7 +178,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
               <YAxis {...yAxisDefaults()} />
               <Tooltip
                 {...chartTooltipProps}
-                formatter={formattedValue}
+                formatter={currencyTooltipFormatter}
                 labelFormatter={(label) =>
                   formatDate(label, {
                     month: 'long',
@@ -195,9 +202,15 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                 />
               )}
               {/* Upcoming milestones as faint horizontal threshold lines.
-                  Recharts auto-clips lines outside the y-axis range so we
-                  render the whole DEFAULT_MILESTONES set without filtering. */}
-              {!effectiveStacked && milestoneRows?.filter((m) => m.status === 'upcoming').map((m) => (
+                  Capped to the next 3 above the current net worth -- rendering
+                  the whole DEFAULT_MILESTONES set crowded the top of the chart
+                  with labels (₹5Cr / ₹10Cr lines a saver won't hit for decades).
+                  Rows arrive sorted ascending by value, so the first 3 upcoming
+                  are the nearest targets. */}
+              {!effectiveStacked && milestoneRows
+                ?.filter((m) => m.status === 'upcoming')
+                .slice(0, 3)
+                .map((m) => (
                 <ReferenceLine
                   key={`milestone-${m.value}`}
                   y={m.value}

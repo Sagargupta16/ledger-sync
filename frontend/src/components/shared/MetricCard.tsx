@@ -74,11 +74,17 @@ interface MetricCardProps {
   href?: string
   /** When set, the entire card becomes clickable. */
   onClick?: () => void
+  /**
+   * Opt-in larger value readout for hero KPIs (the 3-4 headline numbers on a
+   * page). Bumps the value to `text-kpi-hero` (24px). Default cards stay at
+   * `text-kpi-value` (20px) so secondary metrics don't compete.
+   */
+  hero?: boolean
 }
 
 export default function MetricCard({
   title, value, change, invertChange, changeLabel, icon: Icon,
-  color = 'blue', isLoading, trend, subtitle, href, onClick,
+  color = 'blue', isLoading, trend, subtitle, href, onClick, hero = false,
 }: Readonly<MetricCardProps>) {
   const colors = metricColorConfig[color]
 
@@ -123,7 +129,7 @@ export default function MetricCard({
       <div className="relative z-10">
         <div className="flex items-center gap-2 mb-2">
           <div
-            className="p-1.5 rounded-lg"
+            className="p-2 rounded-xl"
             style={{ background: colors.bg }}
           >
             <Icon className="w-4 h-4" style={{ color: colors.text }} />
@@ -137,7 +143,8 @@ export default function MetricCard({
             initial={{ opacity: 0.6, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
-            className="text-kpi-value font-bold text-white leading-tight break-all"
+            title={String(value)}
+            className={`${hero ? 'text-kpi-hero' : 'text-kpi-value'} font-bold text-white leading-tight truncate`}
           >
             <AnimatedValue value={value} />
           </motion.p>

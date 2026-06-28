@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Banknote, Receipt, Activity } from 'lucide-react'
 import {
-  AreaChart, Area, XAxis, YAxis,
+  XAxis, YAxis,
   CartesianGrid, Tooltip, Line, ReferenceLine,
-  BarChart, Bar, Cell, Brush,
+  BarChart, Bar, Cell, Brush, ComposedChart,
 } from 'recharts'
 
 import { rawColors } from '@/constants/colors'
@@ -11,11 +11,12 @@ import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import {
   PageHeader, ChartContainer,
   BRUSH_DEFAULTS,
-  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl,
+  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
   shouldAnimate, ACTIVE_DOT, chartTooltipProps,
 } from '@/components/ui'
 import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE } from '@/components/ui/ChartTooltip'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 
@@ -80,8 +81,13 @@ export default function ReturnsAnalysisPage() {
     dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss,
     totalIncome, totalExpenses,
     estimatedCAGR, roi,
-    monthlyComboData, monthlyReturns,
+    monthlyComboData,
   } = useReturnsAnalysis()
+
+  // Account names on the Holdings y-axis need room to read, but a fixed 140px
+  // width eats the plot area on phones -- shrink it on mobile.
+  const { breakpoint } = useChartDimensions()
+  const holdingsAxisWidth = breakpoint === 'mobile' ? 84 : 140
 
   return (
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
@@ -98,17 +104,17 @@ export default function ReturnsAnalysisPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl p-6"
+            className="glass rounded-2xl p-4 sm:p-6"
           >
             <div className="flex items-center gap-4 mb-6">
-              <div className={`p-4 rounded-2xl ${netProfitLoss >= 0 ? 'bg-app-green/10' : 'bg-app-red/10'}`}>
+              <div className={`p-4 rounded-2xl shrink-0 ${netProfitLoss >= 0 ? 'bg-app-green/10' : 'bg-app-red/10'}`}>
                 {netProfitLoss >= 0
                   ? <TrendingUp className="w-8 h-8 text-app-green" />
                   : <TrendingDown className="w-8 h-8 text-app-red" />}
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-text-tertiary">Net Investment P&L</p>
-                <p className={`text-4xl font-bold tracking-tight ${netProfitLoss >= 0 ? 'text-app-green' : 'text-app-red'}`}>
+                <p className={`text-3xl sm:text-4xl font-bold tracking-tight truncate ${netProfitLoss >= 0 ? 'text-app-green' : 'text-app-red'}`}>
                   {netProfitLoss >= 0 ? '+' : ''}{formatCurrency(netProfitLoss)}
                 </p>
               </div>
@@ -135,7 +141,7 @@ export default function ReturnsAnalysisPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass rounded-2xl p-6"
+          className="glass rounded-2xl p-4 sm:p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <Activity className="w-5 h-5 text-app-blue" />
@@ -147,44 +153,37 @@ export default function ReturnsAnalysisPage() {
           {monthlyComboData.length === 0 ? (
             <ChartEmptyState height={360} />
           ) : (
-            <ChartContainer height={360}>
-              <AreaChart
-                data={monthlyComboData.map(d => ({
-                  ...d,
-                  pos: Math.max(d.net, 0),
-                  neg: Math.min(d.net, 0),
-                }))}
+            <ChartContainer
+              height={360}
+              ariaLabel="Combo chart of monthly investment net profit or loss with a cumulative growth line."
+            >
+              <ComposedChart
+                data={monthlyComboData}
                 margin={{ top: 8, right: 12, bottom: 8, left: 4 }}
               >
-                <defs>
-                  {areaGradient('gain', rawColors.app.green, 0.35, 0.02)}
-                  {areaGradient('loss', rawColors.app.red, 0.35, 0.02)}
-                </defs>
                 <CartesianGrid {...GRID_DEFAULTS} />
                 <XAxis {...xAxisDefaults(monthlyComboData.length)} dataKey="month" />
                 <YAxis {...yAxisDefaults()} />
                 <Tooltip content={ComboTooltip as never} cursor={chartTooltipProps.cursor} />
                 <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
-                {/* Green area above zero */}
-                <Area
-                  type="monotone" dataKey="pos" name="net"
-                  stroke={rawColors.app.green} strokeWidth={2}
-                  fill={areaGradientUrl('gain')} fillOpacity={1}
-                  dot={monthlyComboData.length === 1 ? { r: 3, fill: rawColors.app.green } : false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.green }}
+                {/* Single signed bar per month -- green above zero, red below.
+                    A bar's baseline-anchored length encodes the monthly net far
+                    more accurately than a split area fill did. */}
+                <Bar
+                  dataKey="net"
+                  name="net"
+                  radius={[3, 3, 0, 0]}
                   isAnimationActive={shouldAnimate(monthlyComboData.length)}
-                  animationDuration={600} animationEasing="ease-out"
-                  connectNulls
-                />
-                {/* Red area below zero */}
-                <Area
-                  type="monotone" dataKey="neg" name="net"
-                  stroke={rawColors.app.red} strokeWidth={2}
-                  fill={areaGradientUrl('loss')} fillOpacity={1}
-                  dot={monthlyComboData.length === 1 ? { r: 3, fill: rawColors.app.red } : false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.red }}
-                  isAnimationActive={shouldAnimate(monthlyComboData.length)}
-                  animationDuration={600} animationEasing="ease-out"
-                  connectNulls
-                />
+                  animationDuration={600}
+                  animationEasing="ease-out"
+                >
+                  {monthlyComboData.map((d) => (
+                    <Cell
+                      key={d.month}
+                      fill={d.net >= 0 ? rawColors.app.green : rawColors.app.red}
+                    />
+                  ))}
+                </Bar>
                 {/* Cumulative line overlay */}
                 <Line
                   type="monotone" dataKey="cumulative" name="Cumulative"
@@ -205,44 +204,10 @@ export default function ReturnsAnalysisPage() {
                     )}
                   />
                 )}
-              </AreaChart>
+              </ComposedChart>
             </ChartContainer>
           )}
         </motion.div>
-
-        {/* ── Monthly Returns Heatmap Strip ── */}
-        {monthlyReturns.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass rounded-2xl p-6"
-          >
-            <p className="text-sm font-medium text-white mb-4">Monthly Performance</p>
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
-              {monthlyReturns.map((m) => {
-                const maxAbs = Math.max(...monthlyReturns.map(r => Math.abs(r.net)), 1)
-                const intensity = Math.min(Math.abs(m.net) / maxAbs, 1)
-                const bg = m.net >= 0
-                  ? `rgba(48, 209, 88, ${intensity * 0.5 + 0.08})`
-                  : `rgba(255, 87, 87, ${intensity * 0.5 + 0.08})`
-                return (
-                  <div
-                    key={m.month}
-                    className="flex-1 min-w-[56px] rounded-lg p-2.5 text-center transition-colors hover:ring-1 hover:ring-white/10"
-                    style={{ backgroundColor: bg }}
-                    title={`${m.month}: ${formatCurrency(m.net)}`}
-                  >
-                    <p className="text-[10px] text-muted-foreground mb-1">{m.month}</p>
-                    <p className={`text-xs font-bold ${m.net >= 0 ? 'text-app-green' : 'text-app-red'}`}>
-                      {m.net >= 0 ? '+' : ''}{formatCurrencyShort(m.net)}
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
-          </motion.div>
-        )}
 
         {/* ── P&L Breakdown: Income vs Expenses ── */}
         {investmentAccounts.length > 0 && (
@@ -250,7 +215,7 @@ export default function ReturnsAnalysisPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="glass rounded-2xl p-6"
+            className="glass rounded-2xl p-4 sm:p-6"
           >
             <h3 className="text-lg font-semibold text-white mb-4">Detailed Breakdown</h3>
             <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" initial="hidden" animate="visible" variants={staggerContainer}>
@@ -335,7 +300,7 @@ export default function ReturnsAnalysisPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl p-6"
+            className="glass rounded-2xl p-4 sm:p-6"
           >
             <div className="flex items-center gap-3 mb-4">
               <Activity className="w-5 h-5 text-app-purple" />
@@ -349,7 +314,11 @@ export default function ReturnsAnalysisPage() {
                 </p>
               </div>
             </div>
-            <ChartContainer height={Math.max(280, investmentAccounts.length * 36)}>
+            <ChartContainer
+              height={Math.max(280, investmentAccounts.length * 36)}
+              mobileHeight={Math.max(240, Math.min(investmentAccounts.length, 12) * 32)}
+              ariaLabel="Horizontal bar chart of investment accounts ranked by current balance."
+            >
               <BarChart
                 data={investmentAccounts.slice(0, 12).map((acc) => ({
                   name: acc.name,
@@ -368,7 +337,7 @@ export default function ReturnsAnalysisPage() {
                 <YAxis
                   type="category"
                   dataKey="name"
-                  width={140}
+                  width={holdingsAxisWidth}
                   tick={{ fill: rawColors.text.tertiary, fontSize: 11 }}
                   tickLine={false}
                   axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}

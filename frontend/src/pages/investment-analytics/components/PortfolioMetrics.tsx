@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { DollarSign, LineChart, PieChart, Target, TrendingUp } from 'lucide-react'
+import { DollarSign, LineChart, Target, TrendingUp, Wallet } from 'lucide-react'
 
 import MetricCard from '@/components/shared/MetricCard'
 import { rawColors } from '@/constants/colors'
@@ -35,7 +35,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
 
   return (
     <div
-      className={`grid grid-cols-1 sm:grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 sm:gap-4 lg:gap-6`}
+      className={`grid grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 sm:gap-4 lg:gap-6`}
     >
       <MetricCard
         title="Total Investment Value"
@@ -47,7 +47,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
       <MetricCard
         title="Portfolio Assets"
         value={investmentAccountsCount}
-        icon={PieChart}
+        icon={Wallet}
         color="blue"
         isLoading={isLoading}
       />
@@ -72,7 +72,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="relative p-4 md:p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10"
+          className="relative col-span-2 lg:col-span-1 p-4 md:p-6 glass rounded-2xl overflow-hidden group border border-white/5 border-t-white/10 border-l-white/10"
         >
           <div
             className="inline-flex p-3 rounded-2xl mb-4 bg-app-orange/15"

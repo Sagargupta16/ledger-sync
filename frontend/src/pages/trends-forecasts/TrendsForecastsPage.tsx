@@ -30,10 +30,12 @@ import {
   areaGradientUrl,
   shouldAnimate,
   ACTIVE_DOT,
+  referenceLine,
 } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { useTrendsForecasts } from './useTrendsForecasts'
 import { formatTooltipName } from './trendsUtils'
@@ -119,11 +121,7 @@ export default function TrendsForecastsPage() {
               </p>
             </div>
           </div>
-          {isLoading && (
-            <div className="h-80 flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Loading chart...</div>
-            </div>
-          )}
+          {isLoading && <ChartSkeleton height="h-80" />}
           {!isLoading && monthlyTrendWithAvg.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {(
@@ -159,7 +157,10 @@ export default function TrendsForecastsPage() {
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
                     <span className="text-sm font-medium text-white">{label}</span>
                   </div>
-                  <ChartContainer height={180}>
+                  <ChartContainer
+                    height={180}
+                    ariaLabel={`Monthly ${label.toLowerCase()} with 3-month rolling average and peak reference line`}
+                  >
                     <AreaChart
                       data={monthlyTrendWithAvg}
                       onMouseMove={(e) => {
@@ -185,17 +186,11 @@ export default function TrendsForecastsPage() {
                           formatTooltipName(name === undefined ? undefined : String(name)),
                         ]}
                       />
-                      <ReferenceLine
-                        y={peak}
-                        stroke="rgba(255,255,255,0.2)"
-                        strokeDasharray="3 3"
-                        label={{
-                          value: `Peak: ${formatCurrencyShort(peak)}`,
-                          fill: '#71717a',
-                          fontSize: 10,
-                          position: 'insideTopRight',
-                        }}
-                      />
+                      {referenceLine({
+                        y: peak,
+                        label: `Peak: ${formatCurrencyShort(peak)}`,
+                        variant: 'peak',
+                      })}
                       {activeLabel && (
                         <ReferenceLine
                           x={activeLabel}
@@ -258,13 +253,12 @@ export default function TrendsForecastsPage() {
             <h3 className="text-lg font-semibold text-white">Savings Rate Trend</h3>
             <span className="text-sm text-text-tertiary">(% of income saved each month)</span>
           </div>
-          {isLoading && (
-            <div className="h-64 flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Loading chart...</div>
-            </div>
-          )}
+          {isLoading && <ChartSkeleton height="h-64" />}
           {!isLoading && dailySavingsData.length > 0 && (
-            <ChartContainer height={250}>
+            <ChartContainer
+              height={250}
+              ariaLabel="Cumulative savings rate over time as a percentage of income, with savings-goal target line"
+            >
               <AreaChart data={dailySavingsData}>
                 <defs>{areaGradient('savingsRate', rawColors.app.purple, 0.4, 0.02)}</defs>
                 <CartesianGrid {...GRID_DEFAULTS} />
@@ -297,18 +291,11 @@ export default function TrendsForecastsPage() {
                     return [label, 'Cumulative Savings Rate']
                   }}
                 />
-                <ReferenceLine
-                  y={savingsGoalPercent}
-                  stroke={rawColors.app.green}
-                  strokeDasharray="6 4"
-                  strokeWidth={1.5}
-                  label={{
-                    value: `Target: ${savingsGoalPercent}%`,
-                    fill: rawColors.app.green,
-                    fontSize: 11,
-                    position: 'insideTopRight',
-                  }}
-                />
+                {referenceLine({
+                  y: savingsGoalPercent,
+                  label: `Target: ${savingsGoalPercent}%`,
+                  variant: 'goal',
+                })}
                 <Area
                   type="monotone"
                   dataKey="savingsRate"

@@ -34,10 +34,29 @@ export function calculateSIPProjection(
   }
 }
 
-/** Build historical chart data from SIP transfers. */
+/** Integer month index (year*12 + monthIndex) for a `YYYY-MM` key, for gap math. */
+function monthIndexOfKey(monthKey: string): number {
+  const [year, month] = monthKey.split('-').map(Number)
+  return year * 12 + (month - 1)
+}
+
+/**
+ * Build historical chart data from SIP transfers.
+ *
+ * Each output point carries three series:
+ * - `invested`: cumulative principal contributed through that month.
+ * - `value`: the *actual* portfolio value, back-distributed across months in
+ *   proportion to how much was invested by then (so the latest point equals the
+ *   real current balance).
+ * - `expectedValue`: what the portfolio *should* be worth that month if every
+ *   contribution had compounded at `expectedReturn` from its own investment
+ *   month. Comparing `value` vs `expectedValue` shows whether the real fund is
+ *   running ahead of or behind the assumed return.
+ */
 export function buildHistoricalChartData(
   sipTransfers: Array<{ date: string; amount: number }>,
   effectiveCurrentValue: number,
+  expectedReturn = 0,
 ): ChartDataPoint[] {
   const data: ChartDataPoint[] = []
   let cumulativeInvested = 0
@@ -52,6 +71,16 @@ export function buildHistoricalChartData(
 
   const totalInvested = cumulativeInvested
   const totalGains = effectiveCurrentValue - totalInvested
+  const monthlyRate = expectedReturn / 12 / 100
+
+  // Pre-bucket each transfer by its month index so the expected-value pass can
+  // compound every contribution forward without re-parsing dates each month.
+  const contributionsByMonth = new Map<number, number>()
+  for (const tx of sipTransfers) {
+    const d = new Date(tx.date)
+    const idx = d.getFullYear() * 12 + d.getMonth()
+    contributionsByMonth.set(idx, (contributionsByMonth.get(idx) ?? 0) + tx.amount)
+  }
 
   Array.from(monthlyInvested.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -64,10 +93,20 @@ export function buildHistoricalChartData(
         ? invested + (invested / totalInvested) * totalGains
         : invested
 
+      // Expected value at this month = each prior contribution grown at the
+      // monthly expected rate for the number of months it has been invested.
+      const here = monthIndexOfKey(monthKey)
+      let expected = 0
+      for (const [contribIdx, amount] of contributionsByMonth) {
+        if (contribIdx > here) continue
+        expected += amount * (1 + monthlyRate) ** (here - contribIdx)
+      }
+
       data.push({
         month: monthLabel,
         invested: Math.round(invested),
         value: Math.round(proportionalValue),
+        expectedValue: Math.round(expected),
         isHistorical: true,
       })
     })
@@ -173,7 +212,11 @@ export function buildCombinedChartData(
 ): ChartDataPoint[] {
   if (sipTransfers.length === 0) return []
 
-  const historicalData = buildHistoricalChartData(sipTransfers, effectiveCurrentValue)
+  const historicalData = buildHistoricalChartData(
+    sipTransfers,
+    effectiveCurrentValue,
+    expectedReturn,
+  )
 
   if (historicalData.length === 0) return historicalData
 

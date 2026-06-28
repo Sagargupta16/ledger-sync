@@ -2,7 +2,7 @@
  * Shared UI primitives for the Settings page sections.
  */
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { sectionVariants } from './styles'
@@ -33,6 +33,7 @@ export function Section({
   defaultCollapsed?: boolean
 }>) {
   const [expanded, setExpanded] = useState(!defaultCollapsed)
+  const panelId = useId()
 
   return (
     <motion.div
@@ -45,6 +46,8 @@ export function Section({
       <button
         type="button"
         onClick={() => setExpanded((p) => !p)}
+        aria-expanded={expanded}
+        aria-controls={panelId}
         className="flex items-center gap-3 w-full px-6 py-5 text-left hover:bg-white/5 transition-colors"
       >
         <div className="p-2 rounded-xl bg-primary/10">
@@ -63,6 +66,7 @@ export function Section({
       <AnimatePresence initial={false}>
         {expanded && (
           <motion.div
+            id={panelId}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}

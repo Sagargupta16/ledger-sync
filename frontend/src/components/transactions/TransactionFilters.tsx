@@ -84,26 +84,32 @@ export default function TransactionFilters({ onFilterChange, categories, account
   }, [onFilterChange])
 
   const hasActiveFilters = Object.values(filters).some((v) => v !== undefined && v !== '') || searchQuery !== ''
+  // Count only the advanced (non-query) filters so the badge tells the user
+  // what's still applied while the panel is collapsed. The search query is
+  // already visible in the input above, so it's excluded.
+  const advancedFilterCount = Object.entries(filters).filter(
+    ([key, value]) => key !== 'query' && value !== undefined && value !== '',
+  ).length
 
   return (
     <div className="space-y-4">
       {/* Search Bar */}
       <div className="bg-white/[0.04] border border-border rounded-xl p-4">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[12rem]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" aria-hidden="true" />
             <input
               type="text"
               placeholder="Search transactions by note, category, or account..."
               value={searchQuery}
               onChange={(e) => handleFilterChange('query', e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-transparent border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
+              className="w-full pl-10 pr-4 py-2.5 bg-transparent border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
               aria-label="Search transactions"
             />
           </div>
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-150 ${showAdvanced
+            className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg transition-colors duration-150 ${showAdvanced
                 ? 'bg-white/[0.08] text-white'
                 : 'text-muted-foreground hover:text-white hover:bg-white/[0.06]'
               }`}
@@ -113,11 +119,19 @@ export default function TransactionFilters({ onFilterChange, categories, account
           >
             <Filter className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">Filters</span>
+            {!showAdvanced && advancedFilterCount > 0 && (
+              <span
+                className="ml-0.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-app-blue/20 text-app-blue text-xs font-semibold tabular-nums"
+                aria-label={`${advancedFilterCount} active filters`}
+              >
+                {advancedFilterCount}
+              </span>
+            )}
           </button>
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-app-red hover:text-app-red hover:bg-white/[0.06] transition-colors duration-150"
+              className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg text-app-red hover:text-app-red hover:bg-white/[0.06] transition-colors duration-150"
               aria-label="Clear all filters"
             >
               <X className="w-4 h-4" aria-hidden="true" />
@@ -135,7 +149,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-white/[0.04] border border-border rounded-xl p-6 space-y-4 overflow-hidden"
+            className="bg-white/[0.04] border border-border rounded-xl p-4 sm:p-6 space-y-4 overflow-hidden"
             role="region"
             aria-label="Advanced filters"
           >
@@ -152,7 +166,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
                   id="filter-type"
                   value={filters.type || ''}
                   onChange={(e) => handleFilterChange('type', e.target.value)}
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
+                  className="w-full px-3 py-2.5 min-h-[44px] bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                   aria-label="Filter by transaction type"
                 >
                   <option value="" className="bg-background text-white">All Types</option>
@@ -171,7 +185,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
                   id="filter-category"
                   value={filters.category || ''}
                   onChange={(e) => handleFilterChange('category', e.target.value)}
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
+                  className="w-full px-3 py-2.5 min-h-[44px] bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 >
                   <option value="" className="bg-background text-white">All Categories</option>
                   {categories.map((category) => (
@@ -189,7 +203,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
                   id="filter-account"
                   value={filters.account || ''}
                   onChange={(e) => handleFilterChange('account', e.target.value)}
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
+                  className="w-full px-3 py-2.5 min-h-[44px] bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 >
                   <option value="" className="bg-background text-white">All Accounts</option>
                   {accounts.map((account) => (
@@ -211,7 +225,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
                   type="date"
                   value={filters.start_date || ''}
                   onChange={(e) => handleFilterChange('start_date', e.target.value)}
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
+                  className="w-full px-3 py-2.5 min-h-[44px] bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 />
               </div>
 
@@ -226,7 +240,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
                   type="date"
                   value={filters.end_date || ''}
                   onChange={(e) => handleFilterChange('end_date', e.target.value)}
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
+                  className="w-full px-3 py-2.5 min-h-[44px] bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 />
               </div>
 
@@ -240,7 +254,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
                   placeholder="0"
                   value={filters.min_amount || ''}
                   onChange={(e) => handleFilterChange('min_amount', e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
+                  className="w-full px-3 py-2.5 min-h-[44px] bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 />
               </div>
 
@@ -254,7 +268,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
                   placeholder="∞"
                   value={filters.max_amount || ''}
                   onChange={(e) => handleFilterChange('max_amount', e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
+                  className="w-full px-3 py-2.5 min-h-[44px] bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-white"
                 />
               </div>
             </div>

@@ -1,25 +1,26 @@
-import { motion } from 'framer-motion'
-
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
+import { ProgressBar } from '@/components/shared'
 
 /** A single budget-rule card (Needs/Wants/Savings) with a target progress bar. */
-export function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, isOverBudget, accentColor, bgClass, iconBgClass, textClass, delay }: Readonly<{
+export function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, target, targetPercent, isOverBudget, accentColor, bgClass, iconBgClass, textClass }: Readonly<{
   title: string
   subtitle: string
   icon: React.ComponentType<{ className?: string }>
   value: number
   percent: number
   target: string
+  /** Numeric goal (% of income) -- drives the target tick on the bar. */
+  targetPercent: number
   isOverBudget: boolean
   accentColor: string
   bgClass: string
   iconBgClass: string
   textClass: string
-  delay: number
 }>) {
   const barColor = isOverBudget ? SEMANTIC_COLORS.expense : accentColor
   const statusColorClass = isOverBudget ? 'text-app-red' : 'text-app-green'
+  const deltaPts = percent - targetPercent
 
   return (
     <div className={`p-4 rounded-lg ${bgClass}`}>
@@ -42,16 +43,25 @@ export function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, ta
             {formatPercent(percent)}
           </span>
         </div>
-        <div className="h-2 bg-surface-dropdown rounded-full overflow-hidden">
-          <motion.div
-            className="h-full rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.min(percent, 100)}%` }}
-            transition={{ duration: 0.8, ease: 'easeOut', delay }}
-            style={{ backgroundColor: barColor }}
-          />
-        </div>
-        <p className="text-xs text-text-tertiary">Target: {target} of income</p>
+        {/* Bar shows the actual share against a tick at the target -- so each
+            card answers "are you above or below goal?" on its own (the donut no
+            longer carries the target ring). */}
+        <ProgressBar
+          value={percent}
+          max={100}
+          target={targetPercent}
+          color={barColor}
+          height={8}
+          ariaLabel={`${title} is ${percent.toFixed(0)} percent of income against a ${targetPercent} percent target`}
+        />
+        <p className="text-xs text-text-tertiary">
+          Target: {target} of income
+          {Number.isFinite(deltaPts) && Math.abs(deltaPts) >= 0.5 && (
+            <span className={statusColorClass}>
+              {' '}&middot; {deltaPts > 0 ? '+' : ''}{deltaPts.toFixed(0)} pts vs target
+            </span>
+          )}
+        </p>
       </div>
     </div>
   )

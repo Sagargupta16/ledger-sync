@@ -3,7 +3,8 @@ import { TrendingUp, TrendingDown, Equal, Upload, Lightbulb } from 'lucide-react
 import { rawColors } from '@/constants/colors'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
-import { PageHeader } from '@/components/ui'
+import LoadingSkeleton, { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
+import { PageContainer, PageHeader } from '@/components/ui'
 import { useComparisonData } from './useComparisonData'
 import { PeriodSelector } from './components/PeriodSelector'
 import { KpiCard } from './components/KpiCard'
@@ -28,20 +29,16 @@ export default function ComparisonPage() {
 
   if (isLoading) {
     return (
-      <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
-        <div className="h-10 w-72 bg-white/5 rounded-xl animate-pulse" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-          {['income', 'expenses', 'savings', 'rate'].map((name) => (
-            <div key={`skel-${name}`} className="h-48 bg-white/5 rounded-2xl animate-pulse" />
-          ))}
-        </div>
-      </div>
+      <PageContainer>
+        <LoadingSkeleton className="h-10 w-72" />
+        <CardGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2" />
+      </PageContainer>
     )
   }
 
   if (transactions.length === 0) {
     return (
-      <div className="p-4 md:p-8">
+      <PageContainer>
         <EmptyState
           title="No transactions yet"
           description="Upload your Excel data to start comparing periods."
@@ -49,14 +46,14 @@ export default function ComparisonPage() {
           actionLabel="Upload Data"
           actionHref="/upload"
         />
-      </div>
+      </PageContainer>
     )
   }
 
   const overviewMax = Math.max(periodA.income, periodB.income, periodA.expense, periodB.expense, 1)
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
+    <PageContainer>
       {/* Header */}
       <PageHeader
         title="Period Comparison"
@@ -69,7 +66,7 @@ export default function ComparisonPage() {
                 role="tab"
                 aria-selected={mode === val}
                 onClick={() => setMode(val)}
-                className={`relative px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`relative px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-lg text-sm font-medium transition-colors ${
                   mode === val ? 'text-white' : 'text-muted-foreground hover:text-white hover:bg-white/10'
                 }`}
                 whileTap={{ scale: 0.97 }}
@@ -123,7 +120,7 @@ export default function ComparisonPage() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5"
         >
           <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} />
           <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} invertChange />
@@ -168,7 +165,7 @@ export default function ComparisonPage() {
       {/* Quick Stats */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass rounded-2xl border border-border p-4 md:p-6">
         <h2 className="text-lg font-semibold mb-4">Quick Stats</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <QuickStat label="Transactions" valueA={periodA.transactions} valueB={periodB.transactions} labelA={periodA.label} labelB={periodB.label} />
           <QuickStat label="Avg Daily Spend" valueA={periodA.expense / periodA.days} valueB={periodB.expense / periodB.days} labelA={periodA.label} labelB={periodB.label} isCurrency />
           <QuickStat label="Categories Used" valueA={Object.keys(periodA.categories).length} valueB={Object.keys(periodB.categories).length} labelA={periodA.label} labelB={periodB.label} />
@@ -193,6 +190,6 @@ export default function ComparisonPage() {
           </div>
         </motion.div>
       )}
-    </div>
+    </PageContainer>
   )
 }

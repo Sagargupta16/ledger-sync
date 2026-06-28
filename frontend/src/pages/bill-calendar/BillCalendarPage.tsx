@@ -6,20 +6,20 @@ import {
   DollarSign,
   Hash,
   Clock,
+  X,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
+import { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useBillCalendar } from './useBillCalendar'
 import { formatMonthYear, formatShortDate, isSameDay } from './billUtils'
 import { DAY_NAMES } from './types'
 import SummaryCard from '@/components/shared/SummaryCard'
 import BillDetailItem from './components/BillDetailItem'
 import DayCell from './components/DayCell'
-
-const LOADING_PLACEHOLDER = '...'
 
 export default function BillCalendarPage() {
   const {
@@ -40,13 +40,19 @@ export default function BillCalendarPage() {
     isCurrentViewToday,
   } = useBillCalendar()
 
-  const nextBillValue = (() => {
-    if (isLoading) return LOADING_PLACEHOLDER
-    if (summary.nextBill) {
-      return `${summary.nextBill.name} - ${formatCurrency(summary.nextBill.amount)}`
-    }
-    return 'None upcoming'
+  // The countdown is the headline; the bill name + amount becomes the context
+  // line. Leads with "what's the urgency" rather than "which bill".
+  const nextBill = summary.nextBill
+  const daysUntil = summary.nextBillDaysUntil
+  const nextBillPrimary = (() => {
+    if (!nextBill || daysUntil === null) return 'None upcoming'
+    if (daysUntil <= 0) return 'Due today'
+    if (daysUntil === 1) return 'Due tomorrow'
+    return `In ${daysUntil} days`
   })()
+  const nextBillContext = nextBill
+    ? `${nextBill.name} -- ${formatCurrency(nextBill.amount)}`
+    : 'Next Upcoming Bill'
 
   return (
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
@@ -56,35 +62,46 @@ export default function BillCalendarPage() {
           subtitle="Upcoming expected payments in a monthly calendar view"
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <SummaryCard
-            icon={DollarSign}
-            label="Total Due This Month"
-            value={isLoading ? LOADING_PLACEHOLDER : formatCurrency(summary.totalDue)}
-            colorClass="text-app-red"
-            bgClass="bg-app-red/20"
-            shadowClass="shadow-app-red/30"
-            delay={0.1}
-          />
-          <SummaryCard
-            icon={Hash}
-            label="Bills This Month"
-            value={isLoading ? LOADING_PLACEHOLDER : String(summary.billCount)}
-            colorClass="text-app-blue"
-            bgClass="bg-app-blue/20"
-            shadowClass="shadow-app-blue/30"
-            delay={0.2}
-          />
-          <SummaryCard
-            icon={Clock}
-            label="Next Upcoming Bill"
-            value={nextBillValue}
-            colorClass="text-app-orange"
-            bgClass="bg-app-orange/20"
-            shadowClass="shadow-app-orange/30"
-            delay={0.3}
-          />
-        </div>
+        {isLoading ? (
+          <CardGridSkeleton count={3} cols="grid-cols-1 sm:grid-cols-3" />
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5">
+            <SummaryCard
+              icon={DollarSign}
+              label="Total Due This Month"
+              value={formatCurrency(summary.totalDue)}
+              colorClass="text-app-red"
+              bgClass="bg-app-red/20"
+              shadowClass="shadow-app-red/30"
+              delay={0.1}
+              compact
+            />
+            <SummaryCard
+              icon={Hash}
+              label="Bills This Month"
+              value={String(summary.billCount)}
+              colorClass="text-app-blue"
+              bgClass="bg-app-blue/20"
+              shadowClass="shadow-app-blue/30"
+              delay={0.2}
+              compact
+            />
+            {/* Next-bill card spans full width on phone so it never sits
+                lopsided alone in the 2-column row. */}
+            <div className="col-span-2 sm:col-span-1">
+              <SummaryCard
+                icon={Clock}
+                label={nextBillContext}
+                value={nextBillPrimary}
+                colorClass="text-app-orange"
+                bgClass="bg-app-orange/20"
+                shadowClass="shadow-app-orange/30"
+                delay={0.3}
+                compact
+              />
+            </div>
+          </div>
+        )}
 
         <motion.div
           className="glass rounded-2xl border border-border p-4 sm:p-6"
@@ -94,7 +111,7 @@ export default function BillCalendarPage() {
             <button
               type="button"
               onClick={goToPrevMonth}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
+              className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2 rounded-lg hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
               aria-label="Previous month"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -108,7 +125,7 @@ export default function BillCalendarPage() {
                 <button
                   type="button"
                   onClick={goToToday}
-                  className="text-xs px-2.5 py-1 rounded-md bg-app-blue/15 text-app-blue hover:bg-app-blue/25 transition-colors font-medium"
+                  className="text-xs px-3 py-2 sm:py-1 min-h-11 sm:min-h-0 rounded-md bg-app-blue/15 text-app-blue hover:bg-app-blue/25 transition-colors font-medium"
                 >
                   Today
                 </button>
@@ -118,7 +135,7 @@ export default function BillCalendarPage() {
             <button
               type="button"
               onClick={goToNextMonth}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
+              className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2 rounded-lg hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
               aria-label="Next month"
             >
               <ChevronRight className="w-5 h-5" />
@@ -191,6 +208,7 @@ export default function BillCalendarPage() {
                       isSelected={isSelected}
                       isCurrentMonth={cell.isCurrentMonth}
                       bills={bills}
+                      maxBillAmount={summary.maxBillAmount}
                       onClick={() => {
                         if (cell.isCurrentMonth) {
                           setSelectedDay(selectedDay === cell.day ? null : cell.day)
@@ -217,6 +235,13 @@ export default function BillCalendarPage() {
                   />
                   <span>Detected</span>
                 </div>
+                <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+                  <span className="flex items-end gap-0.5" aria-hidden="true">
+                    <span className="w-1 h-1 rounded-full bg-text-tertiary" />
+                    <span className="w-2 h-2 rounded-full bg-text-tertiary" />
+                  </span>
+                  <span>Bigger dot = larger amount</span>
+                </div>
               </div>
             </>
           )}
@@ -226,21 +251,34 @@ export default function BillCalendarPage() {
           {selectedDay !== null && (
             <motion.div
               key={`detail-${selectedDay}`}
+              role="region"
+              aria-live="polite"
+              aria-label={`Bills for ${formatShortDate(viewYear, viewMonth, selectedDay)}`}
               initial={{ opacity: 0, y: 20, height: 0 }}
               animate={{ opacity: 1, y: 0, height: 'auto' }}
               exit={{ opacity: 0, y: -10, height: 0 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="glass rounded-2xl border border-border p-6 overflow-hidden"
+              className="glass rounded-2xl border border-border p-4 sm:p-6 overflow-hidden"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-semibold text-white">
                   Bills for {formatShortDate(viewYear, viewMonth, selectedDay)}
                 </h3>
-                {selectedDayBills.length > 0 && (
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-app-blue/15 text-app-blue font-medium">
-                    {selectedDayBills.length} bill{selectedDayBills.length === 1 ? '' : 's'}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {selectedDayBills.length > 0 && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-app-blue/15 text-app-blue font-medium">
+                      {selectedDayBills.length} bill{selectedDayBills.length === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDay(null)}
+                    aria-label="Close day details"
+                    className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {selectedDayBills.length === 0 ? (

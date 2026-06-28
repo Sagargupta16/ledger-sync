@@ -1,8 +1,16 @@
-import { type ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react'
+import { type Column, type ColumnDef } from '@tanstack/react-table'
+import { ArrowDown, ArrowUp, ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react'
 
 import type { Transaction } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/formatters'
+
+/** Direction-aware sort icon for a sortable column header. */
+function sortIcon(column: Column<Transaction, unknown>) {
+  const sorted = column.getIsSorted()
+  if (sorted === 'asc') return <ArrowUp className="w-4 h-4" aria-hidden="true" />
+  if (sorted === 'desc') return <ArrowDown className="w-4 h-4" aria-hidden="true" />
+  return <ArrowUpDown className="w-4 h-4 opacity-60" aria-hidden="true" />
+}
 
 export const transactionColumns: ColumnDef<Transaction>[] = [
   {
@@ -13,7 +21,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
         className="flex items-center gap-2 text-text-tertiary hover:text-white transition-colors duration-150"
       >
         Date
-        <ArrowUpDown className="w-4 h-4" />
+        {sortIcon(column)}
       </button>
     ),
     cell: ({ row }) => (
@@ -23,11 +31,12 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
   {
     accessorKey: 'type',
     header: 'Type',
+    enableSorting: false,
     cell: ({ row }) => {
       const type = row.original.type
       const typeIcon = (() => {
         if (type === 'Income') return <TrendingUp className="w-4 h-4 text-app-green" />
-        if (type === 'Transfer') return <span className="text-app-blue">→</span>
+        if (type === 'Transfer') return <span className="text-app-teal">→</span>
         return <TrendingDown className="w-4 h-4 text-app-red" />
       })()
       return (
@@ -41,6 +50,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
   {
     accessorKey: 'category',
     header: 'Category',
+    enableSorting: false,
     cell: ({ row }) => (
       <div className="space-y-0.5">
         <div className="text-sm font-medium text-muted-foreground">{row.original.category}</div>
@@ -53,6 +63,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
   {
     accessorKey: 'account',
     header: 'Account',
+    enableSorting: false,
     cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.account}</span>,
   },
   {
@@ -63,7 +74,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
         className="flex items-center gap-2 text-text-tertiary hover:text-white transition-colors duration-150"
       >
         Amount
-        <ArrowUpDown className="w-4 h-4" />
+        {sortIcon(column)}
       </button>
     ),
     cell: ({ row }) => {
@@ -95,6 +106,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
   {
     accessorKey: 'note',
     header: 'Note',
+    enableSorting: false,
     cell: ({ row }) => (
       <span className="text-sm text-text-tertiary truncate max-w-[120px] lg:max-w-[200px] block">
         {row.original.note || '-'}
