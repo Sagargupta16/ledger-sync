@@ -193,7 +193,7 @@ export default function NotificationCenter() {
                 )}
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors"
+                  className="inline-flex items-center justify-center min-w-6 min-h-6 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors"
                   aria-label="Close notifications"
                 >
                   <X size={14} />

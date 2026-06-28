@@ -27,7 +27,7 @@ export function DemoBanner() {
         </button>
         <button
           onClick={() => { exitDemoMode(queryClient, navigate); setDismissed(true) }}
-          className="p-1 rounded-md text-foreground/40 hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors"
+          className="inline-flex items-center justify-center min-w-6 min-h-6 p-1 rounded-md text-foreground/40 hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors"
           aria-label="Exit demo"
         >
           <X className="w-3.5 h-3.5" />

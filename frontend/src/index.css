@@ -389,6 +389,22 @@ body {
   height: 100%;
 }
 
+/* ===== FOCUS NOT OBSCURED (WCAG 2.2 SC 2.4.11) =====
+   The scroll container has a sticky PageHeader at the top and (on phones) a
+   fixed MobileTabBar at the bottom. When a keyboard user tabs to an element
+   near an edge, the browser scrolls it just into view -- where the sticky
+   header or tab bar can cover it. scroll-padding reserves room on both edges so
+   a focused control is never hidden behind the chrome. Bottom inset only on
+   phone (<lg), where the tab bar exists, plus its safe-area. */
+#main-content {
+  scroll-padding-top: 5rem;
+}
+@media (max-width: 1023px) {
+  #main-content {
+    scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* ===== THEME CROSS-FADE ===== */
 /* Added to <html> only during a theme switch (removed after ~400ms by the
    theme lib). Gives EVERY element one uniform color/background/border/fill
