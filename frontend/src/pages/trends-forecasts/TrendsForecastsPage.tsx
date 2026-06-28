@@ -31,9 +31,11 @@ import {
   shouldAnimate,
   ACTIVE_DOT,
   referenceLine,
+  PageContainer,
 } from '@/components/ui'
 import { CashFlowForecast } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
+import ErrorState from '@/components/shared/ErrorState'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
@@ -47,6 +49,7 @@ export default function TrendsForecastsPage() {
   const {
     savingsGoalPercent,
     isLoading,
+    isError,
     timeFilterProps,
     metrics,
     dailySavingsData,
@@ -59,16 +62,30 @@ export default function TrendsForecastsPage() {
     setActiveLabel,
   } = useTrendsForecasts()
 
+  if (isError && !isLoading) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title="Trends & Forecasts"
+          subtitle="Analyze patterns and predict future trends"
+        />
+        <ErrorState
+          variant="card"
+          message="We couldn't load your trends data. Please try again."
+        />
+      </PageContainer>
+    )
+  }
+
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+    <PageContainer>
         <PageHeader
           title="Trends & Forecasts"
           subtitle="Analyze patterns and predict future trends"
           action={<AnalyticsTimeFilter {...timeFilterProps} />}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
           <TrendCard
             metrics={metrics.spending}
             icon={CreditCard}
@@ -318,7 +335,6 @@ export default function TrendsForecastsPage() {
         <MonthlyBreakdownTable isLoading={isLoading} chartData={recentChartData} />
 
         <CashFlowForecast />
-      </div>
-    </div>
+    </PageContainer>
   )
 }

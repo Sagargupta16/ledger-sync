@@ -63,7 +63,7 @@ export default function TrendCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+      className="glass rounded-2xl border border-border p-4 sm:p-6"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -75,7 +75,7 @@ export default function TrendCard({
             {isLoading ? (
               <LoadingSkeleton className="h-7 w-28 mt-1" />
             ) : (
-              <p className={`text-xl sm:text-2xl font-bold ${valueClassName}`}>
+              <p className={`text-kpi-value font-bold ${valueClassName}`}>
                 {formatCurrency(metrics.current)}
               </p>
             )}

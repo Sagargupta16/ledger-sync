@@ -14,9 +14,11 @@ import {
   shouldAnimate,
   BAR_RADIUS,
   ACTIVE_DOT,
+  PageContainer,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import ErrorState from '@/components/shared/ErrorState'
 import TaxSummaryCards from '@/components/analytics/TaxSummaryCards'
 import TaxSlabBreakdown from '@/components/analytics/TaxSlabBreakdown'
 import TaxSummaryGrid from '@/components/analytics/TaxSummaryGrid'
@@ -33,6 +35,7 @@ import TdsScheduleChart from './components/TdsScheduleChart'
 export default function TaxPlanningPage() {
   const {
     isLoading,
+    isError,
     preferredRegime,
     salaryIsNetOfTds,
     regimeOverride,
@@ -69,8 +72,7 @@ export default function TaxPlanningPage() {
   } = useTaxPlanning()
 
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+    <PageContainer>
         <PageHeader
           title="Income Tax"
           subtitle={`Estimate your tax liability — ${regimeLabel}`}
@@ -97,7 +99,14 @@ export default function TaxPlanningPage() {
           variants={staggerContainer}
           className="space-y-6 md:space-y-8"
         >
-          {fyList.length === 0 && !isLoading ? (
+          {isError && !isLoading ? (
+            <motion.div variants={fadeUpItem}>
+              <ErrorState
+                variant="card"
+                message="We couldn't load your transactions for tax planning. Please try again."
+              />
+            </motion.div>
+          ) : fyList.length === 0 && !isLoading ? (
             <motion.div variants={fadeUpItem}>
               <ChartEmptyState
                 height={300}
@@ -425,7 +434,6 @@ export default function TaxPlanningPage() {
             </>
           )}
         </motion.div>
-      </div>
-    </div>
+    </PageContainer>
   )
 }

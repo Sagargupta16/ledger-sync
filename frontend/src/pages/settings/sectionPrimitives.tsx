@@ -101,7 +101,9 @@ export function Toggle({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+      // Track stays 24x44px visually; a ::before pseudo expands the tap target
+      // to the 44px min on touch without changing the switch's proportions.
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] ${
         checked ? 'bg-primary' : 'bg-[var(--overlay-6)]'
       }`}
     >

@@ -2,35 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  LayoutDashboard,
-  Upload,
-  Receipt,
-  TrendingUp,
-  Landmark,
-  PiggyBank,
-  BarChart3,
-  LineChart,
-  Menu,
-  X,
-  ArrowRightLeft,
-  Wallet,
-  CircleDollarSign,
-  Coins,
-  Target,
-  LogOut,
-  GitCompareArrows,
-  CalendarDays,
-  Wallet2,
-  AlertTriangle,
-  Goal,
-  CreditCard,
-  Search,
-  Settings2,
-  ChevronDown,
-  Flame,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Menu, X, LogOut, Search } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
 import { cn } from '@/lib/cn'
@@ -46,123 +18,13 @@ import SidebarSection from './SidebarSection'
 import SidebarItem from './SidebarItem'
 import CurrencySwitcher from './CurrencySwitcher'
 import ThemeToggle from './ThemeToggle'
-
-// ─── Navigation config ──────────────────────────────────────────────────────
-
-export interface NavItem {
-  path: string
-  label: string
-  icon: LucideIcon
-}
-
-interface NavSection {
-  title: string
-  items: NavItem[]
-}
-
-const dashboardItem: NavItem = {
-  path: ROUTES.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard,
-}
-
-const navigationSections: NavSection[] = [
-  {
-    title: 'Analytics',
-    items: [
-      { path: ROUTES.SPENDING_ANALYSIS, label: 'Expense Analysis', icon: BarChart3 },
-      { path: ROUTES.INCOME_ANALYSIS, label: 'Income Analysis', icon: CircleDollarSign },
-      { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Cash Flow', icon: ArrowRightLeft },
-      { path: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows },
-      { path: ROUTES.YEAR_IN_REVIEW, label: 'Year in Review', icon: CalendarDays },
-    ],
-  },
-  {
-    title: 'Net Worth',
-    items: [
-      { path: ROUTES.NET_WORTH, label: 'Net Worth Tracker', icon: Wallet },
-      { path: ROUTES.TRENDS_FORECASTS, label: 'Trends & Forecasts', icon: LineChart },
-    ],
-  },
-  {
-    title: 'Investments',
-    items: [
-      { path: ROUTES.INVESTMENT_ANALYTICS, label: 'Investment Analytics', icon: TrendingUp },
-      { path: ROUTES.MUTUAL_FUND_PROJECTION, label: 'Projections', icon: Target },
-      { path: ROUTES.RETURNS_ANALYSIS, label: 'Returns Analysis', icon: Coins },
-    ],
-  },
-  {
-    title: 'Transactions',
-    items: [
-      { path: ROUTES.TRANSACTIONS, label: 'Transactions', icon: Receipt },
-    ],
-  },
-  {
-    title: 'Tracking',
-    items: [
-      { path: ROUTES.SUBSCRIPTIONS, label: 'Recurring', icon: CreditCard },
-      { path: ROUTES.BILL_CALENDAR, label: 'Bill Calendar', icon: CalendarDays },
-    ],
-  },
-  {
-    title: 'Planning',
-    items: [
-      { path: ROUTES.BUDGETS, label: 'Budget Manager', icon: Wallet2 },
-      { path: ROUTES.GOALS, label: 'Financial Goals', icon: Goal },
-      { path: ROUTES.FIRE_CALCULATOR, label: 'FIRE Calculator', icon: Flame },
-      { path: ROUTES.ANOMALIES, label: 'Anomaly Review', icon: AlertTriangle },
-    ],
-  },
-  {
-    title: 'Tax',
-    items: [
-      { path: ROUTES.TAX_PLANNING, label: 'Income Tax', icon: Landmark },
-      { path: ROUTES.GST_ANALYSIS, label: 'Indirect Tax (GST)', icon: Receipt },
-    ],
-  },
-]
-
-const utilityItems: NavItem[] = [
-  { path: ROUTES.UPLOAD, label: 'Upload & Sync', icon: Upload },
-  { path: ROUTES.SETTINGS, label: 'Settings', icon: Settings2 },
-]
-
-// Alert-level badge routes (shown with red variant)
-const ALERT_BADGE_ROUTES: Set<string> = new Set([ROUTES.ANOMALIES, ROUTES.BUDGETS])
-
-// ─── Sub-components ─────────────────────────────────────────────────────────
-
-function BrandHeader({
-  user,
-  onOpenProfile,
-}: Readonly<{
-  user: { full_name?: string | null; email: string } | null
-  onOpenProfile: () => void
-}>) {
-  return (
-    <button
-      type="button"
-      onClick={onOpenProfile}
-      className="w-full flex items-center gap-3 px-4 py-4 border-b border-border hover:bg-[var(--overlay-2)] transition-colors duration-150 group/brand"
-    >
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-app-blue/15">
-        <PiggyBank className="w-5 h-5 text-app-blue" />
-      </div>
-      <div className="flex-1 min-w-0 text-left">
-        <p className="text-[15px] font-semibold text-foreground truncate leading-tight">
-          Ledger Sync
-        </p>
-        <p className="text-xs text-text-tertiary truncate leading-tight mt-0.5">
-          {user?.email || 'Financial Dashboard'}
-        </p>
-      </div>
-      <ChevronDown
-        size={16}
-        className="text-text-quaternary flex-shrink-0 group-hover/brand:text-muted-foreground transition-colors duration-150"
-      />
-    </button>
-  )
-}
-
+import BrandHeader from './BrandHeader'
+import {
+  dashboardItem,
+  navigationSections,
+  utilityItems,
+  ALERT_BADGE_ROUTES,
+} from './navConfig'
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -359,7 +221,7 @@ export default function Sidebar() {
         <button
           type="button"
           aria-label="Close sidebar"
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden appearance-none border-none p-0 m-0 cursor-default w-full"
+          className="fixed inset-0 bg-[var(--modal-backdrop)] backdrop-blur-sm z-30 lg:hidden appearance-none border-none p-0 m-0 cursor-default w-full"
           onClick={() => setIsMobileOpen(false)}
           onKeyDown={(e) => e.key === 'Escape' && setIsMobileOpen(false)}
         />

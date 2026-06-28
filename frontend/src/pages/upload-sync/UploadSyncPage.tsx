@@ -317,7 +317,7 @@ export default function UploadSyncPage() {
             <button
               onClick={handleForceReupload}
               disabled={isBusy}
-              className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] bg-app-yellow text-black rounded-lg hover:bg-app-yellow/90 transition-colors font-medium disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] bg-app-yellow text-on-warning rounded-lg hover:bg-app-yellow/90 transition-colors font-medium disabled:opacity-50"
             >
               <RefreshCw className={cn('w-4 h-4', isBusy && 'animate-spin')} aria-hidden="true" />
               Force Reupload

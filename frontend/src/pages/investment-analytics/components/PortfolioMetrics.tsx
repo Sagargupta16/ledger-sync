@@ -80,8 +80,8 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
           >
             <Target className="w-6 h-6 text-app-orange" />
           </div>
-          <h3 className="text-sm font-medium mb-1 text-text-secondary">Monthly Target</h3>
-          <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground">
+          <h3 className="text-kpi-label font-medium mb-1 text-muted-foreground">Monthly Target</h3>
+          <p className="text-kpi-value font-bold text-foreground">
             {formatCurrency(monthlyInvestmentTarget)}
           </p>
           <div className="mt-3 space-y-1.5">

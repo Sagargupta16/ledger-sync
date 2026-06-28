@@ -10,7 +10,7 @@
  *   />
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
@@ -79,11 +79,12 @@ export default function StandardPieChart({
   maxSlices = 8,
   ariaLabel,
 }: StandardPieChartProps) {
-  const positive = data.filter((d) => d.value > 0)
   // Cap slice count: keep the largest (maxSlices - 1) and fold the rest into a
   // single muted "Other" slice, so a 15-30 category pie stays legible and the
-  // 12-color palette never collides on adjacent wedges.
-  const filteredData = (() => {
+  // 12-color palette never collides on adjacent wedges. Memoized so the sort +
+  // reduce only re-run when the data or cap changes, not on every hover.
+  const filteredData = useMemo(() => {
+    const positive = data.filter((d) => d.value > 0)
     if (maxSlices <= 0 || positive.length <= maxSlices) return positive
     const sorted = [...positive].sort((a, b) => b.value - a.value)
     const head = sorted.slice(0, maxSlices - 1)
@@ -91,7 +92,7 @@ export default function StandardPieChart({
     return otherValue > 0
       ? [...head, { name: 'Other', value: otherValue, color: SEMANTIC_COLORS.muted }]
       : head
-  })()
+  }, [data, maxSlices])
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   if (filteredData.length === 0) {

@@ -12,7 +12,11 @@ interface CalendarCell {
 }
 
 export function useBillCalendar() {
-  const { data: recurringTransactions, isLoading } = useRecurringTransactions({ active_only: true })
+  const {
+    data: recurringTransactions,
+    isLoading,
+    isError,
+  } = useRecurringTransactions({ active_only: true })
 
   const now = useMemo(() => new Date(), [])
   const [viewYear, setViewYear] = useState(() => now.getFullYear())
@@ -139,6 +143,7 @@ export function useBillCalendar() {
     summary,
     selectedDayBills,
     isLoading,
+    isError,
     hasAnyData,
     isCurrentViewToday,
   }

@@ -16,9 +16,9 @@ import {
 } from './investmentUtils'
 
 export function useInvestmentAnalytics() {
-  const { isLoading: balancesLoading } = useAccountBalances()
-  const { data: transactions = [] } = useTransactions()
-  const { data: preferences, isLoading: preferencesLoading } = usePreferences()
+  const { isLoading: balancesLoading, isError: balancesError } = useAccountBalances()
+  const { data: transactions = [], isError: transactionsError } = useTransactions()
+  const { data: preferences, isLoading: preferencesLoading, isError: preferencesError } = usePreferences()
 
   const investmentMappings = useMemo(
     () => preferences?.investment_account_mappings || {},
@@ -27,6 +27,7 @@ export function useInvestmentAnalytics() {
   const investmentAccounts = useMemo(() => Object.keys(investmentMappings), [investmentMappings])
 
   const isLoading = balancesLoading || preferencesLoading
+  const isError = balancesError || transactionsError || preferencesError
 
   const accountToCategory = useMemo(() => {
     const mapping: Record<string, InvestmentCategory> = {}
@@ -274,6 +275,7 @@ export function useInvestmentAnalytics() {
 
   return {
     isLoading,
+    isError,
     investmentAccounts,
     totalInvestmentValue,
     portfolioXIRR,

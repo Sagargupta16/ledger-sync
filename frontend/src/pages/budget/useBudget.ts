@@ -14,9 +14,12 @@ import { buildStatus } from './budgetUtils'
 import type { BudgetPeriod, BudgetRow, ViewMode } from './types'
 
 export function useBudget() {
-  const { data: transactions = [] } = useTransactions()
-  const { data: categoryData } = useCategoryBreakdown({ transaction_type: 'expense' })
-  const { data: preferences } = usePreferences()
+  const { data: transactions = [], isError: transactionsError } = useTransactions()
+  const { data: categoryData, isError: categoryError } = useCategoryBreakdown({
+    transaction_type: 'expense',
+  })
+  const { data: preferences, isError: preferencesError } = usePreferences()
+  const isError = transactionsError || categoryError || preferencesError
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
   const alertThreshold = preferences?.default_budget_alert_threshold ?? 80
 
@@ -256,6 +259,7 @@ export function useBudget() {
   )
 
   return {
+    isError,
     alertThreshold,
     fixedExpenseCategories,
     categoryMomentum,

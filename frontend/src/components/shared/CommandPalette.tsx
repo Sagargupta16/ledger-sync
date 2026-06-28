@@ -172,7 +172,7 @@ export default function CommandPalette() {
           transition={{ duration: 0.15, ease: 'easeOut' }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-[var(--modal-backdrop)] backdrop-blur-sm"
             onClick={close}
             aria-hidden="true"
           />

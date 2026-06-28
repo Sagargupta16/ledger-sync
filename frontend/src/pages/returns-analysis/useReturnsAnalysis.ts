@@ -15,14 +15,15 @@ import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { calculateCAGR, computeInvestmentMetrics, groupTransactionsByMonth } from './returnsAnalysisUtils'
 
 export function useReturnsAnalysis() {
-  const { data: allTransactions = [], isLoading: transactionsLoading } = useTransactions()
+  const { data: allTransactions = [], isLoading: transactionsLoading, isError: transactionsError } = useTransactions()
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
   const dateParams = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
-  const { data: balanceData, isLoading: balancesLoading } = useAccountBalances(dateParams)
-  const { data: aggregationData, isLoading: aggregationLoading } = useMonthlyAggregation(dateParams)
+  const { data: balanceData, isLoading: balancesLoading, isError: balancesError } = useAccountBalances(dateParams)
+  const { data: aggregationData, isLoading: aggregationLoading, isError: aggregationError } = useMonthlyAggregation(dateParams)
   // Include the transactions query: the P&L metrics derive from `transactions`,
   // so omitting it flashed zeros as if loaded before transactions arrived.
   const isLoading = transactionsLoading || balancesLoading || aggregationLoading
+  const isError = transactionsError || balancesError || aggregationError
 
   const transactions = useMemo(() => {
     const startDate = dateRange.start_date
@@ -81,6 +82,7 @@ export function useReturnsAnalysis() {
 
   return {
     isLoading,
+    isError,
     timeFilterProps,
     investmentAccounts,
     dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss,

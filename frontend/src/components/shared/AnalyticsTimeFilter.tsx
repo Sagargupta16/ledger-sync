@@ -184,10 +184,10 @@ export default function AnalyticsTimeFilter({
   const showNavigation = viewMode !== 'all_time'
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-4">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
       {/* Period Navigation — LEFT of the mode selector */}
       {showNavigation && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center sm:justify-start gap-2">
           <motion.button
             onClick={handlePrevious}
             disabled={!canGoPrev}
@@ -218,15 +218,16 @@ export default function AnalyticsTimeFilter({
         </div>
       )}
 
-      {/* View Mode Selector */}
-      <div className="flex items-center gap-1 p-1 bg-[var(--overlay-2)] rounded-lg" role="tablist" aria-label="Time range">
+      {/* View Mode Selector. Full-width on phone so the 4 tabs flex evenly and
+          never overflow under ~400px; auto-width inline pill from sm+. */}
+      <div className="flex items-center gap-1 p-1 bg-[var(--overlay-2)] rounded-lg w-full sm:w-auto" role="tablist" aria-label="Time range">
         {filteredViewModes.map((mode) => (
           <motion.button
             key={mode.value}
             role="tab"
             aria-selected={viewMode === mode.value}
             onClick={() => onViewModeChange(mode.value)}
-            className={`relative px-3 py-2.5 sm:py-1.5 rounded-md text-sm transition-colors duration-150 ease-out ${
+            className={`relative flex-1 sm:flex-none px-2 sm:px-3 py-2.5 sm:py-1.5 rounded-md text-sm transition-colors duration-150 ease-out ${
               viewMode === mode.value
                 ? 'text-foreground font-medium'
                 : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-2)]'

@@ -54,7 +54,7 @@ export default function ExcludedAccountsSubsection({
                   onClick={() => toggleExcludedAccount(account)}
                   className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${
                     isExcluded
-                      ? 'bg-app-yellow text-black'
+                      ? 'bg-app-yellow text-on-warning'
                       : 'bg-[var(--overlay-2)] border border-border'
                   }`}
                 >

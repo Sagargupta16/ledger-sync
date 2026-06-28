@@ -1,4 +1,4 @@
-import { TrendingUp } from 'lucide-react'
+import { AlertTriangle, TrendingUp } from 'lucide-react'
 
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
@@ -13,6 +13,23 @@ import { useInvestmentAnalytics } from './useInvestmentAnalytics'
 
 export default function InvestmentAnalyticsPage() {
   const m = useInvestmentAnalytics()
+
+  if (m.isError) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title="Investment Analytics"
+          subtitle="Monitor your investment portfolio performance"
+        />
+        <EmptyState
+          icon={AlertTriangle}
+          title="Could not load investment analytics"
+          description="We hit an error fetching your balances and preferences. Check your connection and try again."
+          variant="card"
+        />
+      </PageContainer>
+    )
+  }
 
   if (m.isLoading) return <PageSkeleton />
 

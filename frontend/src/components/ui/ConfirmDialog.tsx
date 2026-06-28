@@ -44,8 +44,8 @@ export default function ConfirmDialog({
 
   const confirmColors =
     variant === 'danger'
-      ? 'bg-app-red/90 hover:bg-app-red text-white'
-      : 'bg-app-orange/90 hover:bg-app-orange text-foreground'
+      ? 'bg-app-red/90 hover:bg-app-red text-on-accent'
+      : 'bg-app-orange/90 hover:bg-app-orange text-on-accent'
 
   return (
     <AnimatePresence>
@@ -54,7 +54,7 @@ export default function ConfirmDialog({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-[var(--modal-backdrop)] backdrop-blur-sm flex items-center justify-center p-4"
           onClick={handleClose}
         >
           <motion.div

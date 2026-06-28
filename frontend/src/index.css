@@ -19,7 +19,6 @@
   --color-destructive: var(--color-app-red);
   --color-destructive-foreground: #ffffff;
   --color-border: var(--color-border-subtle);
-  --color-border-strong: var(--color-border-medium);
   --color-input: var(--color-surface-3);
   --color-ring: var(--color-app-blue);
   --radius: 1rem;
@@ -122,6 +121,19 @@
      blue. Carried as a full rgba so box-shadow can use it directly. */
   --focus-ring: rgba(74, 158, 255, 0.5);
   --focus-ring-soft: rgba(74, 158, 255, 0.12);
+  /* Text/icon color that sits ON a solid accent fill (blue/red/green buttons,
+     warning chips). Stays near-white in BOTH themes -- a solid accent is dark
+     enough for white text on light too -- so "white-on-accent" has a name
+     instead of a literal text-white scattered around. Use `text-on-accent`. */
+  --color-on-accent: #ffffff;
+  /* Text/icon ON a light accent fill (yellow/amber warning chips + buttons).
+     Near-black in BOTH themes -- white-on-yellow fails contrast, so this is the
+     deliberate dark-on-light warning pair, named instead of a literal text-black.
+     Use `text-on-warning`. */
+  --color-on-warning: #1a1c1f;
+  /* Dialog/drawer scrim. A dark wash in BOTH themes (a focused modal dims the
+     page behind it regardless of theme). Replaces scattered bg-black/60. */
+  --modal-backdrop: rgba(0, 0, 0, 0.6);
 
   /* ===== OVERLAY + HAIRLINE LADDER (theme-aware) =====
      The app used dozens of `bg-white/N` (raised surfaces, hovers) and
@@ -295,6 +307,11 @@
   /* Focus ring uses the darkened light-theme blue (#2563eb) for AA contrast. */
   --focus-ring: rgba(37, 99, 235, 0.55);
   --focus-ring-soft: rgba(37, 99, 235, 0.15);
+  /* On-accent text stays white -- light-theme accents (blue #2563eb, red
+     #e23b3b, etc.) are dark enough for AA white text. Modal scrim a touch
+     lighter so the light page doesn't go pitch-black behind a dialog. */
+  --color-on-accent: #ffffff;
+  --modal-backdrop: rgba(17, 24, 39, 0.45);
 
   /* Overlay + hairline ladder flipped to dark-alpha so "raised surface" and
      "hairline border" read correctly on a light background. */

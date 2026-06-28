@@ -34,9 +34,11 @@ import {
   DataTable,
   type DataTableColumn,
   Spinner,
+  PageContainer,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import ErrorState from '@/components/shared/ErrorState'
 import { ProgressBar } from '@/components/shared'
 
 // Slab colors (matching GST slab identity). Covers both the legacy slabs
@@ -157,7 +159,7 @@ function FYNavigator({
 }
 
 export default function GSTAnalysisPage() {
-  const { data: transactions, isLoading } = useTransactions()
+  const { data: transactions, isLoading, isError } = useTransactions()
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month ?? FY_START_MONTH
 
@@ -193,7 +195,7 @@ export default function GSTAnalysisPage() {
   }, [gstData])
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <PageContainer className="space-y-6">
       <PageHeader
         title="Indirect Tax (GST)"
         subtitle="Estimated GST paid on your expenses"
@@ -224,14 +226,21 @@ export default function GSTAnalysisPage() {
 
       {isLoading && <Spinner label="Loading GST analysis" className="py-20" />}
 
-      {!isLoading && !hasData && (
+      {!isLoading && isError && (
+        <ErrorState
+          variant="card"
+          message="We couldn't load your transactions for GST analysis. Please try again."
+        />
+      )}
+
+      {!isLoading && !isError && !hasData && (
         <ChartEmptyState message="No expense data found for this fiscal year" />
       )}
 
       {!isLoading && hasData && gstData && (
         <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
           {/* Summary Cards */}
-          <motion.div variants={fadeUpItem} className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+          <motion.div variants={fadeUpItem} className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
             <SummaryCard
               icon={<Receipt className="w-6 h-6 text-app-red" />}
               iconBg="bg-app-red/20"
@@ -384,7 +393,7 @@ export default function GSTAnalysisPage() {
           </motion.div>
         </motion.div>
       )}
-    </div>
+    </PageContainer>
   )
 }
 
@@ -409,7 +418,7 @@ function SummaryCard({
         <div className={`p-2.5 sm:p-3 rounded-xl ${iconBg}`}>{icon}</div>
         <div className="min-w-0 flex-1">
           <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-xl sm:text-2xl font-bold truncate">{value}</p>
+          <p className="text-kpi-value font-bold truncate">{value}</p>
           <p className="text-xs text-muted-foreground mt-1 truncate">{subtitle}</p>
         </div>
       </div>

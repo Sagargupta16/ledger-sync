@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Save, RotateCcw } from 'lucide-react'
-import PageHeader from '@/components/ui/PageHeader'
+import { PageContainer, PageHeader } from '@/components/ui'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useSettingsState } from './useSettingsState'
 import AccountClassificationsSection from './sections/AccountClassificationsSection'
@@ -44,24 +44,21 @@ export default function SettingsPage() {
   // Loading skeleton
   if (s.isLoading) {
     return (
-      <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-        <div className="max-w-5xl mx-auto space-y-4">
-          {['skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4'].map((id) => (
-            <div
-              key={id}
-              className="glass rounded-2xl border border-border h-24 animate-pulse opacity-30"
-            />
-          ))}
-        </div>
-      </div>
+      <PageContainer maxWidth="5xl" className="space-y-4">
+        {['skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4'].map((id) => (
+          <div
+            key={id}
+            className="glass rounded-2xl border border-border h-24 animate-pulse opacity-30"
+          />
+        ))}
+      </PageContainer>
     )
   }
 
   let sectionIndex = 0
 
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-5xl mx-auto space-y-5">
+    <PageContainer maxWidth="5xl" className="space-y-5">
         {/* Page Header */}
         <PageHeader
           title="Settings"
@@ -201,7 +198,6 @@ export default function SettingsPage() {
           variant="warning"
           onConfirm={s.handleReset}
         />
-      </div>
-    </div>
+    </PageContainer>
   )
 }

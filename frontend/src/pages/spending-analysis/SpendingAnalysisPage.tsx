@@ -26,7 +26,7 @@ import {
   CohortSpendingAnalysis,
 } from '@/components/analytics'
 import {
-  chartTooltipProps, PageHeader, ChartContainer, shouldAnimate,
+  chartTooltipProps, PageContainer, PageHeader, ChartContainer, shouldAnimate,
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl,
   referenceLine, currencyTooltipFormatter,
 } from '@/components/ui'
@@ -52,8 +52,7 @@ export default function SpendingAnalysisPage() {
   if (isLoading) return <PageSkeleton />
 
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+    <PageContainer>
         <PageHeader
           title="Expense Analysis"
           subtitle="Track and analyze your spending patterns"
@@ -306,8 +305,6 @@ export default function SpendingAnalysisPage() {
         <motion.div {...SCROLL_FADE_UP}>
           <CohortSpendingAnalysis />
         </motion.div>
-
-      </div>
-    </div>
+    </PageContainer>
   )
 }

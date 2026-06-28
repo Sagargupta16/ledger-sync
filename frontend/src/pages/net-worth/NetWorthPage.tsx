@@ -6,7 +6,8 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import MetricCard from '@/components/shared/MetricCard'
 import Sparkline from '@/components/shared/Sparkline'
 import { rawColors } from '@/constants/colors'
-import { PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader } from '@/components/ui'
+import ErrorState from '@/components/shared/ErrorState'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import MilestonesTable from './components/MilestonesTable'
@@ -21,9 +22,20 @@ export default function NetWorthPage() {
   // computed in the hook; clamps the assets-zero edge so we never divide by 0.
   const leveragePct = m.totalAssets > 0 ? (m.totalLiabilities / m.totalAssets) * 100 : 0
 
+  if (m.isError && !m.isLoading) {
+    return (
+      <PageContainer className="space-y-6">
+        <PageHeader title="Net Worth" subtitle="Track your total assets and liabilities" />
+        <ErrorState
+          variant="card"
+          message="We couldn't load your net worth data. Please try again."
+        />
+      </PageContainer>
+    )
+  }
+
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <PageContainer className="space-y-6">
         <PageHeader
           title="Net Worth"
           subtitle="Track your total assets and liabilities"
@@ -166,7 +178,6 @@ export default function NetWorthPage() {
         </motion.div>
 
         <CreditCardHealth />
-      </div>
-    </div>
+    </PageContainer>
   )
 }

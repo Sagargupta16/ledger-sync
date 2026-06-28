@@ -18,10 +18,11 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { calculationsApi } from '@/services/api/calculations'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
-import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl, referenceLine, currencyTooltipFormatter } from '@/components/ui'
+import { chartTooltipProps, PageHeader, ChartContainer, GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate, areaGradient, areaGradientUrl, referenceLine, currencyTooltipFormatter, PageContainer } from '@/components/ui'
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { formatMonthKey } from '@/lib/dateUtils'
 import EmptyState from '@/components/shared/EmptyState'
+import ErrorState from '@/components/shared/ErrorState'
 import { FilterBanner } from '@/components/shared/FilterBanner'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import CategoryBreakdown from '@/components/analytics/CategoryBreakdown'
@@ -57,7 +58,7 @@ export default function IncomeAnalysisPage() {
   // All income stats computed server-side (date range + optional category +
   // the user's non-taxable list for cashback matching).
   const cashbackCategories = preferences?.non_taxable_income_categories ?? []
-  const { data: income, isLoading } = useQuery({
+  const { data: income, isLoading, isError } = useQuery({
     queryKey: [
       'income-analysis',
       dateRange.start_date,
@@ -130,13 +131,24 @@ export default function IncomeAnalysisPage() {
 
   if (isLoading) return <PageSkeleton />
 
+  if (isError) {
+    return (
+      <PageContainer className="space-y-6">
+        <PageHeader title="Income Analysis" subtitle="Track your income sources and trends" />
+        <ErrorState
+          variant="card"
+          message="We couldn't load your income analysis. Please try again."
+        />
+      </PageContainer>
+    )
+  }
+
   let growthColor: 'green' | 'red' | 'blue' = 'blue'
   if (growthRate > 0) growthColor = 'green'
   else if (growthRate < 0) growthColor = 'red'
 
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <PageContainer className="space-y-6">
         <PageHeader
           title="Income Analysis"
           subtitle="Track your income sources and trends"
@@ -349,7 +361,6 @@ export default function IncomeAnalysisPage() {
           emptyActionLabel="Upload Data"
           emptyActionHref="/upload"
         />
-      </div>
-    </div>
+    </PageContainer>
   )
 }

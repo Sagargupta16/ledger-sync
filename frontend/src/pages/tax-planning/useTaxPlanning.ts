@@ -29,7 +29,7 @@ import {
 import type { TaxRegimeOverride } from './types'
 
 export function useTaxPlanning() {
-  const { data: allTransactions = [], isLoading } = useTransactions()
+  const { data: allTransactions = [], isLoading, isError } = useTransactions()
   const { data: preferences } = usePreferences()
   const [selectedFY, setSelectedFY] = useState<string>('')
   const [showProjection, setShowProjection] = useState(false)
@@ -399,6 +399,7 @@ export function useTaxPlanning() {
 
   return {
     isLoading,
+    isError,
     preferredRegime,
     salaryIsNetOfTds,
     regimeOverride,

@@ -83,7 +83,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
             exit={{ opacity: 0 }}
             onClick={onClose}
             aria-hidden="true"
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-[var(--modal-backdrop)] backdrop-blur-sm z-50"
           />
 
           {/* Modal */}
