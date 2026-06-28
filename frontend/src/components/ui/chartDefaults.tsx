@@ -235,14 +235,15 @@ function renderBrushTraveller({
   width: number
   height: number
 }) {
-  // Center a fixed-width grip within whatever travellerWidth was allotted, so
-  // the handle stays a comfortable pill regardless of the configured width.
-  const gripW = Math.max(width, 8)
+  // Center a comfortable fixed-width grip within whatever travellerWidth was
+  // allotted, so the handle stays a chunky pill regardless of the config.
+  const gripW = Math.max(width, 16)
   const cx = x + width / 2
   const gripX = cx - gripW / 2
-  const lineGap = 2.5
-  const lineTop = y + height / 2 - 4
-  const lineBottom = y + height / 2 + 4
+  const lineGap = 3
+  const lineHalf = Math.min(7, height / 2 - 5)
+  const lineTop = y + height / 2 - lineHalf
+  const lineBottom = y + height / 2 + lineHalf
   return (
     <g>
       {/* Handle body: rounded pill in the app blue */}
@@ -251,15 +252,15 @@ function renderBrushTraveller({
         y={y}
         width={gripW}
         height={height}
-        rx={4}
-        ry={4}
+        rx={5}
+        ry={5}
         fill={rawColors.app.blue}
         stroke={rawColors.app.blueVibrant}
-        strokeWidth={1}
+        strokeWidth={1.5}
       />
       {/* Two grip lines so it reads as a draggable handle */}
-      <line x1={cx - lineGap} y1={lineTop} x2={cx - lineGap} y2={lineBottom} stroke="rgba(255,255,255,0.85)" strokeWidth={1} strokeLinecap="round" />
-      <line x1={cx + lineGap} y1={lineTop} x2={cx + lineGap} y2={lineBottom} stroke="rgba(255,255,255,0.85)" strokeWidth={1} strokeLinecap="round" />
+      <line x1={cx - lineGap} y1={lineTop} x2={cx - lineGap} y2={lineBottom} stroke="rgba(255,255,255,0.9)" strokeWidth={1.5} strokeLinecap="round" />
+      <line x1={cx + lineGap} y1={lineTop} x2={cx + lineGap} y2={lineBottom} stroke="rgba(255,255,255,0.9)" strokeWidth={1.5} strokeLinecap="round" />
     </g>
   )
 }
@@ -280,7 +281,7 @@ function renderBrushTraveller({
  */
 export const BRUSH_DEFAULTS = {
   height: 34,
-  travellerWidth: 12,
+  travellerWidth: 16,
   traveller: (props: { x: number; y: number; width: number; height: number }) =>
     renderBrushTraveller(props),
   // Hairline frame around the overview strip; the traveller carries the accent.
