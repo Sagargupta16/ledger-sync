@@ -44,7 +44,7 @@ import InsightRow from '@/pages/year-in-review/components/InsightRow'
 import DayOfWeekChart, { type DayCell } from '@/pages/year-in-review/components/DayOfWeekChart'
 import { useYearInReview } from './useYearInReview'
 import { DAYS, heatmapColors, modeAccent } from './types'
-import { getStreakColor, getStreakDotColor } from './heatmapUtils'
+import { getStreakColor } from './heatmapUtils'
 import MobileMonthlySummary from './components/MobileMonthlySummary'
 import HeatmapWeeks from './components/HeatmapWeeks'
 import HeatmapDayDetail from './components/HeatmapDayDetail'
@@ -444,25 +444,25 @@ export default function YearInReviewPage() {
           {stats.maxStreak > 0 && (
             <div className="pt-3 mt-3 border-t border-border">
               <p className="text-xs text-text-tertiary mb-2">No-Spend Streak Record</p>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-0.5">
-                  {Array.from({ length: Math.min(stats.maxStreak, 30) }, (_, i) => (
-                    <div
-                      key={`streak-${i}`}
-                      className="w-2 h-2 rounded-full"
-                      style={{
-                        backgroundColor: getStreakDotColor(i),
-                        opacity: 0.5 + (i / Math.min(stats.maxStreak, 30)) * 0.5,
-                      }}
-                    />
-                  ))}
-                </div>
+              <div className="flex items-baseline gap-2">
                 <span
-                  className="text-sm font-bold"
+                  className="text-2xl font-bold tabular-nums"
                   style={{ color: getStreakColor(stats.maxStreak) }}
                 >
-                  {stats.maxStreak} days
+                  {stats.maxStreak}
                 </span>
+                <span className="text-sm text-text-tertiary">days in a row</span>
+              </div>
+              {/* Single accent bar -- streak length relative to a 30-day mark
+                  (replaces 30 identical dots that redundantly encoded one number). */}
+              <div className="mt-2 h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${Math.min(100, (stats.maxStreak / 30) * 100)}%`,
+                    backgroundColor: getStreakColor(stats.maxStreak),
+                  }}
+                />
               </div>
             </div>
           )}

@@ -1,17 +1,17 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Banknote, Receipt, Activity } from 'lucide-react'
 import {
-  AreaChart, Area, XAxis, YAxis,
+  XAxis, YAxis,
   CartesianGrid, Tooltip, Line, ReferenceLine,
-  BarChart, Bar, Cell, Brush,
+  BarChart, Bar, Cell, Brush, ComposedChart,
 } from 'recharts'
 
-import { rawColors, hexToRgba } from '@/constants/colors'
+import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import {
   PageHeader, ChartContainer,
   BRUSH_DEFAULTS,
-  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl,
+  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
   shouldAnimate, ACTIVE_DOT, chartTooltipProps,
 } from '@/components/ui'
 import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE } from '@/components/ui/ChartTooltip'
@@ -81,17 +81,13 @@ export default function ReturnsAnalysisPage() {
     dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss,
     totalIncome, totalExpenses,
     estimatedCAGR, roi,
-    monthlyComboData, monthlyReturns,
+    monthlyComboData,
   } = useReturnsAnalysis()
 
   // Account names on the Holdings y-axis need room to read, but a fixed 140px
   // width eats the plot area on phones -- shrink it on mobile.
   const { breakpoint } = useChartDimensions()
   const holdingsAxisWidth = breakpoint === 'mobile' ? 84 : 140
-
-  // Hoisted out of the heatmap render loop -- the divisor is constant across
-  // tiles, so recomputing the max per tile was wasted work.
-  const heatmapMaxAbs = Math.max(...monthlyReturns.map((r) => Math.abs(r.net)), 1)
 
   return (
     <div className="min-h-dvh p-4 md:p-6 lg:p-8">
@@ -161,43 +157,33 @@ export default function ReturnsAnalysisPage() {
               height={360}
               ariaLabel="Combo chart of monthly investment net profit or loss with a cumulative growth line."
             >
-              <AreaChart
-                data={monthlyComboData.map(d => ({
-                  ...d,
-                  pos: Math.max(d.net, 0),
-                  neg: Math.min(d.net, 0),
-                }))}
+              <ComposedChart
+                data={monthlyComboData}
                 margin={{ top: 8, right: 12, bottom: 8, left: 4 }}
               >
-                <defs>
-                  {areaGradient('gain', rawColors.app.green, 0.35, 0.02)}
-                  {areaGradient('loss', rawColors.app.red, 0.35, 0.02)}
-                </defs>
                 <CartesianGrid {...GRID_DEFAULTS} />
                 <XAxis {...xAxisDefaults(monthlyComboData.length)} dataKey="month" />
                 <YAxis {...yAxisDefaults()} />
                 <Tooltip content={ComboTooltip as never} cursor={chartTooltipProps.cursor} />
                 <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
-                {/* Green area above zero */}
-                <Area
-                  type="monotone" dataKey="pos" name="net"
-                  stroke={rawColors.app.green} strokeWidth={2}
-                  fill={areaGradientUrl('gain')} fillOpacity={1}
-                  dot={monthlyComboData.length === 1 ? { r: 3, fill: rawColors.app.green } : false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.green }}
+                {/* Single signed bar per month -- green above zero, red below.
+                    A bar's baseline-anchored length encodes the monthly net far
+                    more accurately than a split area fill did. */}
+                <Bar
+                  dataKey="net"
+                  name="net"
+                  radius={[3, 3, 0, 0]}
                   isAnimationActive={shouldAnimate(monthlyComboData.length)}
-                  animationDuration={600} animationEasing="ease-out"
-                  connectNulls
-                />
-                {/* Red area below zero */}
-                <Area
-                  type="monotone" dataKey="neg" name="net"
-                  stroke={rawColors.app.red} strokeWidth={2}
-                  fill={areaGradientUrl('loss')} fillOpacity={1}
-                  dot={monthlyComboData.length === 1 ? { r: 3, fill: rawColors.app.red } : false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.red }}
-                  isAnimationActive={shouldAnimate(monthlyComboData.length)}
-                  animationDuration={600} animationEasing="ease-out"
-                  connectNulls
-                />
+                  animationDuration={600}
+                  animationEasing="ease-out"
+                >
+                  {monthlyComboData.map((d) => (
+                    <Cell
+                      key={d.month}
+                      fill={d.net >= 0 ? rawColors.app.green : rawColors.app.red}
+                    />
+                  ))}
+                </Bar>
                 {/* Cumulative line overlay */}
                 <Line
                   type="monotone" dataKey="cumulative" name="Cumulative"
@@ -218,73 +204,10 @@ export default function ReturnsAnalysisPage() {
                     )}
                   />
                 )}
-              </AreaChart>
+              </ComposedChart>
             </ChartContainer>
           )}
         </motion.div>
-
-        {/* ── Monthly Returns Heatmap Strip ── */}
-        {monthlyReturns.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass rounded-2xl p-6"
-          >
-            <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-              <p className="text-sm font-medium text-white">Monthly Performance</p>
-              {/* Colour-scale legend: a profit/loss key so the tile shading reads
-                  beyond colour alone, plus a low-to-high intensity ramp. */}
-              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className="w-3 h-3 rounded-sm"
-                    style={{ backgroundColor: hexToRgba(rawColors.app.green, 0.45) }}
-                  />
-                  Profit
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className="w-3 h-3 rounded-sm"
-                    style={{ backgroundColor: hexToRgba(rawColors.app.red, 0.45) }}
-                  />
-                  Loss
-                </span>
-                <span className="hidden sm:inline">Low</span>
-                <span
-                  className="hidden sm:block w-16 h-3 rounded-sm"
-                  style={{
-                    background: `linear-gradient(to right, ${hexToRgba(rawColors.app.green, 0.12)}, ${hexToRgba(rawColors.app.green, 0.58)})`,
-                  }}
-                />
-                <span className="hidden sm:inline">High</span>
-              </div>
-            </div>
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
-              {monthlyReturns.map((m) => {
-                const intensity = Math.min(Math.abs(m.net) / heatmapMaxAbs, 1)
-                const token = m.net >= 0 ? rawColors.app.green : rawColors.app.red
-                const bg = hexToRgba(token, intensity * 0.5 + 0.08)
-                const sign = m.net >= 0 ? '+' : ''
-                return (
-                  <div
-                    key={m.month}
-                    role="img"
-                    aria-label={`${m.month}: ${m.net >= 0 ? 'profit' : 'loss'} of ${formatCurrency(Math.abs(m.net))}`}
-                    className="flex-1 min-w-[56px] rounded-lg p-2.5 text-center transition-colors hover:ring-1 hover:ring-white/10"
-                    style={{ backgroundColor: bg }}
-                    title={`${m.month}: ${formatCurrency(m.net)}`}
-                  >
-                    <p className="text-[10px] text-muted-foreground mb-1">{m.month}</p>
-                    <p className={`text-xs font-bold ${m.net >= 0 ? 'text-app-green' : 'text-app-red'}`}>
-                      {sign}{formatCurrencyShort(m.net)}
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
-          </motion.div>
-        )}
 
         {/* ── P&L Breakdown: Income vs Expenses ── */}
         {investmentAccounts.length > 0 && (

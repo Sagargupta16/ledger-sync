@@ -11,7 +11,9 @@ import { computeFIRE, computeRetirementCorpus } from '@/lib/fireCalculator'
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
 import StandardAreaChart from '@/components/analytics/StandardAreaChart'
+import StandardBarChart from '@/components/analytics/StandardBarChart'
 import { PageHeader, currencyTooltipFormatter } from '@/components/ui'
+import { formatCurrencyShort } from '@/lib/formatters'
 
 function SliderInput({ id, label, value, min, max, step, unit, valueText, onChange }: Readonly<{
   id: string; label: string; value: number; min: number; max: number; step: number; unit: string
@@ -163,34 +165,45 @@ export default function FIRECalculatorPage() {
               <MetricCard title="Savings Rate" value={`${fireResult.currentSavingsRate.toFixed(1)}%`} icon={Flame} color="green" subtitle={savingsRateSubtitle(fireResult.currentSavingsRate)} />
             </motion.div>
 
-            {/* FIRE Variants */}
+            {/* FIRE Variants -- one shared INR axis so the tiers are directly
+                comparable (Fat = 2x Standard, Lean < Standard) at a glance,
+                instead of four isolated number tiles. */}
             <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-6">
               <h3 className="text-lg font-semibold mb-4">FIRE Variants</h3>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl bg-app-green/5 border border-app-green/20">
-                  <p className="text-xs text-muted-foreground mb-1">Lean FIRE</p>
-                  <p className="text-xl font-bold text-app-green">{formatCurrency(fireResult.leanFIRE)}</p>
-                  <p className="text-xs text-text-tertiary mt-1">Essential expenses only (60%)</p>
-                </div>
-                <div className="p-4 rounded-xl bg-app-teal/5 border border-app-teal/20">
-                  <p className="text-xs text-muted-foreground mb-1">Barista FIRE</p>
-                  <p className="text-xl font-bold text-app-teal">{formatCurrency(fireResult.baristaFIRE)}</p>
-                  <p className="text-xs text-text-tertiary mt-1">
-                    {baristaMonthlyIncome > 0
-                      ? `With ${formatCurrency(baristaMonthlyIncome)}/mo part-time`
-                      : 'Set part-time income below'}
-                  </p>
-                </div>
-                <div className="p-4 rounded-xl bg-app-blue/5 border border-app-blue/20">
-                  <p className="text-xs text-muted-foreground mb-1">Standard FIRE</p>
-                  <p className="text-xl font-bold text-app-blue">{formatCurrency(fireResult.fireNumber)}</p>
-                  <p className="text-xs text-text-tertiary mt-1">Current lifestyle maintained</p>
-                </div>
-                <div className="p-4 rounded-xl bg-app-purple/5 border border-app-purple/20">
-                  <p className="text-xs text-muted-foreground mb-1">Fat FIRE</p>
-                  <p className="text-xl font-bold text-app-purple">{formatCurrency(fireResult.fatFIRE)}</p>
-                  <p className="text-xs text-text-tertiary mt-1">2x lifestyle with buffer</p>
-                </div>
+              <StandardBarChart
+                data={[
+                  { tier: 'Lean', corpus: fireResult.leanFIRE, color: rawColors.app.green },
+                  { tier: 'Barista', corpus: fireResult.baristaFIRE, color: rawColors.app.teal },
+                  { tier: 'Standard', corpus: fireResult.fireNumber, color: rawColors.app.blue },
+                  { tier: 'Fat', corpus: fireResult.fatFIRE, color: rawColors.app.purple },
+                ]}
+                layout="vertical"
+                yCategoryKey="tier"
+                dataKey="tier"
+                yWidth={72}
+                height={200}
+                bars={[
+                  {
+                    key: 'corpus',
+                    color: rawColors.app.blue,
+                    getCellColor: (row) => (row as { color: string }).color,
+                  },
+                ]}
+                showLegend={false}
+                tooltipFormatter={(v) => formatCurrency(v)}
+                xTickFormatter={(v) => formatCurrencyShort(v as number)}
+                ariaLabel="Horizontal bar chart comparing the corpus needed for Lean, Barista, Standard and Fat FIRE"
+              />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-3 text-xs text-text-tertiary">
+                <p><span className="text-app-green font-medium">Lean</span> · essentials only (60%)</p>
+                <p>
+                  <span className="text-app-teal font-medium">Barista</span> ·{' '}
+                  {baristaMonthlyIncome > 0
+                    ? `${formatCurrencyShort(baristaMonthlyIncome)}/mo part-time`
+                    : 'set part-time income below'}
+                </p>
+                <p><span className="text-app-blue font-medium">Standard</span> · current lifestyle</p>
+                <p><span className="text-app-purple font-medium">Fat</span> · 2x with buffer</p>
               </div>
             </motion.div>
 

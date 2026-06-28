@@ -160,19 +160,34 @@ export default function TransactionsPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-8 sm:gap-10">
-              <div>
-                <p className="text-sm text-muted-foreground">Income</p>
-                <p className="text-xl font-semibold tabular-nums text-app-green">{typeCounts.income.toLocaleString('en-IN')}</p>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-8 sm:gap-10">
+                <div>
+                  <p className="text-sm text-muted-foreground">Income</p>
+                  <p className="text-xl font-semibold tabular-nums text-app-green">{typeCounts.income.toLocaleString('en-IN')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Expense</p>
+                  <p className="text-xl font-semibold tabular-nums text-app-red">{typeCounts.expense.toLocaleString('en-IN')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Transfer</p>
+                  <p className="text-xl font-semibold tabular-nums text-app-teal">{typeCounts.transfer.toLocaleString('en-IN')}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Expense</p>
-                <p className="text-xl font-semibold tabular-nums text-app-red">{typeCounts.expense.toLocaleString('en-IN')}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Transfer</p>
-                <p className="text-xl font-semibold tabular-nums text-app-teal">{typeCounts.transfer.toLocaleString('en-IN')}</p>
-              </div>
+              {/* Type mix as a 100% stacked bar -- the proportional split the
+                  three counts above imply, without a separate chart. */}
+              {typeCounts.income + typeCounts.expense + typeCounts.transfer > 0 && (
+                <div
+                  className="flex h-1.5 w-full min-w-40 overflow-hidden rounded-full"
+                  role="img"
+                  aria-label={`Transaction type mix: ${typeCounts.income} income, ${typeCounts.expense} expense, ${typeCounts.transfer} transfer`}
+                >
+                  <div className="bg-app-green" style={{ width: `${(typeCounts.income / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
+                  <div className="bg-app-red" style={{ width: `${(typeCounts.expense / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
+                  <div className="bg-app-teal" style={{ width: `${(typeCounts.transfer / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
+                </div>
+              )}
             </div>
           </div>
         </motion.div>

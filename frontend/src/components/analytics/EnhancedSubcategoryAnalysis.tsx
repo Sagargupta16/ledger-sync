@@ -37,7 +37,8 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
   const [selectedCategory, setSelectedCategory] = useState<string>(
     categoryFilter ?? 'Food & Dining',
   )
-  const [cumulative, setCumulative] = useState(true)
+  // Per-period by default so spend timing is visible (cumulative hides it).
+  const [cumulative, setCumulative] = useState(false)
   const [granularityOverride, setGranularityOverride] = useState<Granularity | 'auto'>('auto')
 
   // Category dropdown list from the (date-scoped) category breakdown rollup.
@@ -105,10 +106,21 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
       groupedData[period][subcategory] += row.amount
     })
 
-    const subcategoryNames = new Set<string>()
+    // Cap to the top 6 subcategories by total spend, folding the rest into a
+    // single "Other" series. Without a cap a busy category renders 15+ lines
+    // (spaghetti); 6 + Other stays legible.
+    const SUBCAT_TOP_N = 6
+    const totalsBySubcat = new Map<string, number>()
     Object.values(groupedData).forEach((periodData) => {
-      Object.keys(periodData).forEach((subcat) => subcategoryNames.add(subcat))
+      Object.entries(periodData).forEach(([subcat, amount]) => {
+        totalsBySubcat.set(subcat, (totalsBySubcat.get(subcat) ?? 0) + amount)
+      })
     })
+    const rankedSubcats = [...totalsBySubcat.entries()].sort((a, b) => b[1] - a[1])
+    const topSubcats = rankedSubcats.slice(0, SUBCAT_TOP_N).map(([name]) => name)
+    const hasOther = rankedSubcats.length > SUBCAT_TOP_N
+    const topSet = new Set(topSubcats)
+    const subcategoryNames = hasOther ? [...topSubcats, 'Other'] : topSubcats
 
     const allPeriods = Object.keys(groupedData).sort((a, b) => a.localeCompare(b))
 
@@ -117,15 +129,15 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
         period,
         displayPeriod: formatBucketLabel(period, gran),
       }
-      Array.from(subcategoryNames).forEach((subcat) => {
-        entry[subcat] = groupedData[period]?.[subcat] || 0
+      for (const name of subcategoryNames) entry[name] = 0
+      Object.entries(groupedData[period] ?? {}).forEach(([subcat, amount]) => {
+        const bucket = topSet.has(subcat) ? subcat : 'Other'
+        entry[bucket] = (entry[bucket] as number) + amount
       })
       return entry
     })
 
-    const finalData = cumulative
-      ? calculateCumulativeData(data, Array.from(subcategoryNames))
-      : data
+    const finalData = cumulative ? calculateCumulativeData(data, subcategoryNames) : data
 
     return {
       chartData: finalData,

@@ -10,17 +10,13 @@ import {
   Cell,
   LabelList,
   Line,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import StandardBarChart from '@/components/analytics/StandardBarChart'
 import {
   BAR_RADIUS,
   ChartContainer,
@@ -34,7 +30,7 @@ import {
   yAxisDefaults,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
-import { CHART_SURFACE, CHART_TEXT } from '@/constants/chartColors'
+import { CHART_TEXT } from '@/constants/chartColors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { formatCurrencyShort } from '@/lib/formatters'
 
@@ -44,10 +40,10 @@ import type { BudgetRow } from '../types'
 interface BudgetChartsProps {
   chartData: Array<{ name: string; Budget: number; Spent: number; status: BudgetRow['status'] }>
   burndownData: Array<{ day: number; ideal: number; actual: number | undefined }>
-  radarData: Array<{ category: string; usage: number; fullMark: number }>
+  usageData: Array<{ category: string; usage: number; status: BudgetRow['status'] }>
 }
 
-export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<BudgetChartsProps>) {
+export function BudgetCharts({ chartData, burndownData, usageData }: Readonly<BudgetChartsProps>) {
   const dims = useChartDimensions()
   const navigate = useNavigate()
 
@@ -129,7 +125,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
         </div>
       </motion.div>
 
-      {(burndownData.length > 0 || radarData.length > 0) && (
+      {(burndownData.length > 0 || usageData.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {burndownData.length > 0 && (
             <motion.div
@@ -211,7 +207,7 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
             </motion.div>
           )}
 
-          {radarData.length >= 3 && (
+          {usageData.length >= 3 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -219,42 +215,33 @@ export function BudgetCharts({ chartData, burndownData, radarData }: Readonly<Bu
               className="glass rounded-2xl border border-border p-6"
             >
               <div className="mb-4">
-                <h2 className="text-lg font-semibold">Category Usage Radar</h2>
+                <h2 className="text-lg font-semibold">Budget Utilization</h2>
                 <p className="text-xs text-muted-foreground">
-                  Budget utilization (%) across all categories
+                  Percent of budget used per category (highest first) -- the dashed line marks 100%
                 </p>
               </div>
-              <div className="h-64 flex items-center justify-center">
-                <ChartContainer ariaLabel="Radar chart showing budget utilization percentage across the top categories">
-                  <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                    <PolarGrid stroke={CHART_SURFACE.polarGrid} strokeDasharray="3 3" />
-                    <PolarAngleAxis
-                      dataKey="category"
-                      tick={{ fill: CHART_TEXT.subtle, fontSize: 10 }}
-                    />
-                    <PolarRadiusAxis
-                      angle={30}
-                      domain={[0, Math.max(100, ...radarData.map((d) => d.usage))]}
-                      tick={{ fill: CHART_TEXT.dim, fontSize: 9 }}
-                      axisLine={false}
-                    />
-                    <Radar
-                      dataKey="usage"
-                      stroke={rawColors.app.blue}
-                      fill={rawColors.app.blue}
-                      fillOpacity={0.15}
-                      strokeWidth={2}
-                      dot={{ r: 3, fill: rawColors.app.blue }}
-                      isAnimationActive={shouldAnimate(radarData.length)}
-                      animationDuration={600}
-                      animationEasing="ease-out"
-                    />
-                    <Tooltip
-                      {...chartTooltipProps}
-                      formatter={(v) => (typeof v === 'number' ? `${v}%` : '')}
-                    />
-                  </RadarChart>
-                </ChartContainer>
+              <div className="h-64">
+                <StandardBarChart
+                  data={usageData}
+                  layout="vertical"
+                  yCategoryKey="category"
+                  yWidth={96}
+                  dataKey="category"
+                  height={256}
+                  bars={[
+                    {
+                      key: 'usage',
+                      color: rawColors.app.blue,
+                      getCellColor: (row) =>
+                        STATUS_CONFIG[(row as { status: BudgetRow['status'] }).status].color,
+                    },
+                  ]}
+                  showLegend={false}
+                  tooltipFormatter={(v) => `${v}%`}
+                  xTickFormatter={(v) => `${v}%`}
+                  referenceLines={[{ x: 100, label: '100%', color: CHART_TEXT.subtle }]}
+                  ariaLabel="Horizontal bar chart of budget utilization percentage per category, sorted highest first, with a reference line at 100 percent"
+                />
               </div>
             </motion.div>
           )}

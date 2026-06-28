@@ -146,7 +146,7 @@ export default function BudgetPage() {
             <BudgetCharts
               chartData={m.chartData}
               burndownData={m.burndownData}
-              radarData={m.radarData}
+              usageData={m.usageData}
             />
 
             <div className="space-y-3">

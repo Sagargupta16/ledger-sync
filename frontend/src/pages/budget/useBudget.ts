@@ -203,16 +203,14 @@ export function useBudget() {
     }))
   }, [filteredRows, transactions, currentMonthKey, monthProgress])
 
-  const radarData = useMemo(() => {
-    // Cap at the top 8 (rows are sorted by utilization desc) like the bar chart
-    // -- a radar with 15-25 spokes overlaps its axis labels into illegibility.
+  const usageData = useMemo(() => {
+    // Top 8 by utilization (rows are sorted desc). Rendered as a sorted
+    // horizontal bar -- length encodes utilization far more readably than radar
+    // spokes, and full category names fit on the y-axis.
     return filteredRows.slice(0, 8).map((r) => ({
-      category:
-        (r.subcategory || r.category).length > 10
-          ? (r.subcategory || r.category).slice(0, 10) + '…'
-          : r.subcategory || r.category,
+      category: r.subcategory || r.category,
       usage: Math.round(r.percentage),
-      fullMark: 100,
+      status: r.status,
     }))
   }, [filteredRows])
 
@@ -285,7 +283,7 @@ export function useBudget() {
     summary,
     chartData,
     burndownData,
-    radarData,
+    usageData,
     monthProgress,
     availableCategories,
     handleAdd,

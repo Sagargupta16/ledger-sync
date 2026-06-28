@@ -122,6 +122,30 @@ export default function AnomalyReviewPage() {
         </motion.div>
       </motion.div>
 
+      {/* Severity mix as a 100% stacked strip -- the proportional split the
+          three count cards imply, without a separate chart. */}
+      {summary.high + summary.medium + summary.low > 0 && (
+        <div
+          className="flex h-1.5 w-full overflow-hidden rounded-full"
+          role="img"
+          aria-label={`Severity mix: ${summary.high} high, ${summary.medium} medium, ${summary.low} low`}
+        >
+          {([
+            ['high', summary.high],
+            ['medium', summary.medium],
+            ['low', summary.low],
+          ] as const).map(([sev, count]) => (
+            <div
+              key={sev}
+              style={{
+                width: `${(count / (summary.high + summary.medium + summary.low)) * 100}%`,
+                backgroundColor: SEVERITY_STYLES[sev].iconColor,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Filters */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

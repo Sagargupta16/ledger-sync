@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { Store } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'
-import StandardPieChart from '@/components/analytics/StandardPieChart'
 import { CHART_COLORS } from '@/constants/chartColors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -106,12 +105,11 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
 
   const totalSpentAtTopMerchants = merchantData.reduce((sum, m) => sum + m.totalSpent, 0)
 
-  // Pie chart data
-  const pieData = merchantData.slice(0, 8).map((m, i) => ({
-    name: m.name,
-    value: viewMode === 'amount' ? m.totalSpent : m.transactionCount,
-    color: COLORS[i % COLORS.length],
-  }))
+  // Largest value (by active mode) for the per-row proportional bar width.
+  const maxMetric = merchantData.reduce(
+    (max, m) => Math.max(max, viewMode === 'amount' ? m.totalSpent : m.transactionCount),
+    0,
+  )
 
   if (isLoading) {
     return <ChartSkeleton height="h-80" />
@@ -162,49 +160,43 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
       {merchantData.length === 0 ? (
         <ChartEmptyState message="No merchant data available. Transaction notes help identify merchants." />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Pie Chart */}
-          <div
-            role="img"
-            aria-label={`Donut chart of your top merchants by ${viewMode === 'amount' ? 'total amount spent' : 'visit frequency'}`}
-          >
-            <StandardPieChart
-              data={pieData}
-              height={256}
-              innerRadius={60}
-              outerRadius={80}
-              showLegend={false}
-              tooltipFormatter={(value) =>
-                viewMode === 'amount' ? formatCurrency(value) : `${value} visits`
-              }
-            />
-          </div>
-
-          {/* Merchant List */}
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {merchantData.map((merchant, index) => (
+        // A ranked list with an inline proportional bar per row reads merchant
+        // magnitudes more accurately than a >7-slice donut did -- and it keeps
+        // the rich per-merchant detail (visits, avg) the donut couldn't show.
+        // No separate chart, so nothing is duplicated.
+        <div className="space-y-2">
+          {merchantData.map((merchant, index) => {
+            const metric = viewMode === 'amount' ? merchant.totalSpent : merchant.transactionCount
+            const barWidth = maxMetric > 0 ? (metric / maxMetric) * 100 : 0
+            return (
               <div
                 key={merchant.name}
-                className="flex items-center gap-3 p-3 rounded-xl bg-background/30 hover:bg-background/50 transition-colors"
+                className="relative flex items-center gap-3 p-3 rounded-xl bg-background/30 hover:bg-background/50 transition-colors overflow-hidden"
               >
+                {/* Proportional bar behind the row content */}
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+                  aria-hidden
+                  className="absolute inset-y-0 left-0 rounded-xl opacity-15"
+                  style={{ width: `${barWidth}%`, backgroundColor: COLORS[index % COLORS.length] }}
+                />
+                <div
+                  className="relative w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0"
                   style={COLOR_STYLES[index % COLOR_STYLES.length]}
                 >
                   {index + 1}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="relative flex-1 min-w-0">
                   <p className="font-medium truncate">{merchant.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {merchant.transactionCount} visits • Avg {formatCurrency(merchant.avgTransaction)}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold">{formatCurrency(merchant.totalSpent)}</p>
+                <div className="relative text-right shrink-0">
+                  <p className="font-semibold tabular-nums">{formatCurrency(merchant.totalSpent)}</p>
                 </div>
               </div>
-            ))}
-          </div>
+            )
+          })}
         </div>
       )}
 

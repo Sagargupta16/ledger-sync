@@ -23,7 +23,9 @@ interface MultiCategoryTimeAnalysisProps {
 }
 
 export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTimeAnalysisProps) {
-  const [cumulative, setCumulative] = useState(true)
+  // Default to per-period (non-cumulative) so the chart shows WHEN spending
+  // happened; cumulative fans upward and hides the timing. Toggle still available.
+  const [cumulative, setCumulative] = useState(false)
   const [granularityOverride, setGranularityOverride] = useState<Granularity | 'auto'>('auto')
 
   // Daily per-category sums, aggregated server-side (date-range applied in SQL).

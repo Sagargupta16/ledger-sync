@@ -42,13 +42,6 @@ export function getStreakColor(maxStreak: number): string {
   return rawColors.app.green
 }
 
-/** Get streak dot color based on position in the streak */
-export function getStreakDotColor(index: number): string {
-  if (index < 7) return rawColors.app.green
-  if (index < 14) return rawColors.app.blue
-  return rawColors.app.purple
-}
-
 /** Aggregate per-day expense/income totals from transactions within a date range. */
 export function aggregateDayTotals(
   transactions: { date: string; type: string; amount: number }[],
