@@ -68,7 +68,7 @@ export default function CurrencySwitcher() {
           'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors',
           isConverted
             ? 'bg-app-blue/15 text-app-blue hover:bg-app-blue/25'
-            : 'text-text-tertiary hover:text-white hover:bg-white/[0.06]',
+            : 'text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)]',
         )}
         title={`Display currency: ${displayCurrency}`}
         aria-label={`Change display currency (currently ${displayCurrency})`}
@@ -91,7 +91,7 @@ export default function CurrencySwitcher() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-xl bg-zinc-900 border border-border shadow-xl z-50">
+        <div className="absolute bottom-full left-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-xl bg-surface-dropdown border border-border shadow-xl z-50">
           {currencyList.map((meta) => (
             <button
               key={meta.code}
@@ -100,8 +100,8 @@ export default function CurrencySwitcher() {
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors',
                 meta.code === displayCurrency
-                  ? 'bg-app-blue/15 text-white'
-                  : 'text-muted-foreground hover:bg-white/[0.06] hover:text-white',
+                  ? 'bg-app-blue/15 text-foreground'
+                  : 'text-muted-foreground hover:bg-[var(--overlay-3)] hover:text-foreground',
               )}
             >
               <span className="w-6 text-center font-medium text-xs">{meta.symbol}</span>

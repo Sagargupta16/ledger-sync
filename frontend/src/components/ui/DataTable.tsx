@@ -221,12 +221,12 @@ export default function DataTable<T>({
                   <button
                     type="button"
                     onClick={() => toggleSort(col.key)}
-                    className={`inline-flex items-center gap-1 ${justifyForAlign[col.align ?? 'left']} w-full hover:text-white select-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40 rounded`}
+                    className={`inline-flex items-center gap-1 ${justifyForAlign[col.align ?? 'left']} w-full hover:text-foreground select-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40 rounded`}
                   >
                     {col.header}
                     <span
                       aria-hidden
-                      className={isActive ? 'text-white' : 'text-text-quaternary'}
+                      className={isActive ? 'text-foreground' : 'text-text-quaternary'}
                     >
                       {arrow}
                     </span>
@@ -240,7 +240,7 @@ export default function DataTable<T>({
           {sortedRows.map((row, i) => {
             const key = rowKey(row, i)
             const rowCls = rowClassName?.(row, i) ?? ''
-            const baseRowCls = `border-b border-border hover:bg-white/5 transition-colors ${rowCls}`.trim()
+            const baseRowCls = `border-b border-border hover:bg-[var(--overlay-2)] transition-colors ${rowCls}`.trim()
 
             if (shouldAnimate) {
               return (

@@ -91,16 +91,16 @@ export default function MetricCard({
   if (isLoading) {
     return (
       <div className="p-4 glass rounded-2xl">
-        <div className="h-3 bg-white/[0.06] animate-pulse rounded w-1/2 mb-3" />
-        <div className="h-6 bg-white/[0.06] animate-pulse rounded w-3/4" />
+        <div className="h-3 bg-[var(--overlay-3)] animate-pulse rounded w-1/2 mb-3" />
+        <div className="h-6 bg-[var(--overlay-3)] animate-pulse rounded w-3/4" />
       </div>
     )
   }
 
   const isInteractive = Boolean(href || onClick)
   const interactiveClasses = isInteractive
-    ? 'cursor-pointer hover:border-white/[0.15] hover:bg-white/[0.06] transition-all duration-150 group'
-    : 'transition-colors duration-150 ease-out hover:border-white/[0.08]'
+    ? 'cursor-pointer hover:border-[var(--hairline-4)] hover:bg-[var(--overlay-3)] transition-all duration-150 group'
+    : 'transition-colors duration-150 ease-out hover:border-[var(--hairline-2)]'
 
   const cardContent = (
     <motion.div
@@ -144,7 +144,7 @@ export default function MetricCard({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
             title={String(value)}
-            className={`${hero ? 'text-kpi-hero' : 'text-kpi-value'} font-bold text-white leading-tight truncate`}
+            className={`${hero ? 'text-kpi-hero' : 'text-kpi-value'} font-bold text-foreground leading-tight truncate`}
           >
             <AnimatedValue value={value} />
           </motion.p>

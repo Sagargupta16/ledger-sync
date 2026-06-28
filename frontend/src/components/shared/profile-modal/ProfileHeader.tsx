@@ -25,9 +25,9 @@ export function ProfileHeader(props: Readonly<ProfileHeaderProps>) {
         type="button"
         onClick={onClose}
         aria-label="Close"
-        className="absolute top-4 right-4 w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-transparent hover:bg-white/[0.06] flex items-center justify-center transition-colors duration-150 ease-out"
+        className="absolute top-4 right-4 w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-transparent hover:bg-[var(--overlay-3)] flex items-center justify-center transition-colors duration-150 ease-out"
       >
-        <X size={16} className="text-text-tertiary hover:text-white" />
+        <X size={16} className="text-text-tertiary hover:text-foreground" />
       </button>
 
       <div className="flex items-center gap-4">
@@ -38,14 +38,14 @@ export function ProfileHeader(props: Readonly<ProfileHeaderProps>) {
             boxShadow: `0 8px 24px ${rawColors.app.purple}40`,
           }}
         >
-          <span className="text-white font-bold text-xl">{initials}</span>
+          <span className="text-foreground font-bold text-xl">{initials}</span>
         </div>
 
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold text-white truncate">{displayName}</h2>
+          <h2 className="text-lg font-semibold text-foreground truncate">{displayName}</h2>
           <p className="text-sm text-muted-foreground truncate">{email}</p>
           <div className="flex items-center gap-2 mt-1.5">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-xs text-muted-foreground">
               <Shield size={10} />
               {providerLabel}
             </span>

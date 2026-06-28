@@ -74,14 +74,14 @@ export default function ChatPanel({
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-2 h-2 rounded-full bg-app-green animate-pulse shrink-0" />
-          <span className="text-sm font-medium text-white">AI Assistant</span>
+          <span className="text-sm font-medium text-foreground">AI Assistant</span>
           <UsageBadge />
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={onClear}
-            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
+            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-[var(--overlay-5)] text-muted-foreground hover:text-foreground transition-colors"
             title="Clear chat"
             aria-label="Clear chat"
           >
@@ -90,7 +90,7 @@ export default function ChatPanel({
           <button
             type="button"
             onClick={onMinimize}
-            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
+            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-[var(--overlay-5)] text-muted-foreground hover:text-foreground transition-colors"
             title="Minimize"
             aria-label="Minimize chat"
           >
@@ -109,7 +109,7 @@ export default function ChatPanel({
                   key={q}
                   type="button"
                   onClick={() => onSend(q)}
-                  className="block w-full text-left text-xs text-primary/80 hover:text-primary px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                  className="block w-full text-left text-xs text-primary/80 hover:text-primary px-3 py-1.5 rounded-lg hover:bg-[var(--overlay-2)] transition-colors"
                 >
                   {q}
                 </button>
@@ -139,7 +139,7 @@ export default function ChatPanel({
             placeholder="Ask about your finances..."
             aria-label="Ask about your finances"
             rows={1}
-            className="flex-1 resize-none bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+            className="flex-1 resize-none bg-[var(--overlay-2)] border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           />
           {isStreaming ? (
             <button

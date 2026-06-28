@@ -198,13 +198,13 @@ export default function BudgetTracker() {
                       <span className="font-bold">{formatPercent(budget.percentage)}</span>
                       <button
                         onClick={() => setEditingCategory(budget.category)}
-                        className="p-1 rounded hover:bg-white/10"
+                        className="p-1 rounded hover:bg-[var(--overlay-5)]"
                       >
                         <Edit2 className="w-3 h-3" />
                       </button>
                       <button
                         onClick={() => removeBudget(budget.category)}
-                        className="p-1 rounded hover:bg-white/10 text-app-red"
+                        className="p-1 rounded hover:bg-[var(--overlay-5)] text-app-red"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>

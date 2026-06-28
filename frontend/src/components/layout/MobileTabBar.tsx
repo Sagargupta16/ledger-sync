@@ -41,7 +41,7 @@ export default function MobileTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0a0a0c]/95 backdrop-blur-lg border-t border-border"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-surface-nav backdrop-blur-lg border-t border-border"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <ul className="flex items-stretch justify-around px-1 pt-1.5">
@@ -54,7 +54,7 @@ export default function MobileTabBar() {
                   'relative flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-colors',
                   // min-height hits Apple's 44x44 guidance comfortably
                   'min-h-[52px]',
-                  isActive ? 'text-white' : 'text-text-tertiary hover:text-white',
+                  isActive ? 'text-foreground' : 'text-text-tertiary hover:text-foreground',
                 )
               }
             >
@@ -63,7 +63,7 @@ export default function MobileTabBar() {
                   {isActive && (
                     <motion.span
                       layoutId="mobile-tab-pill"
-                      className="absolute inset-x-2 inset-y-1 rounded-xl bg-white/[0.08]"
+                      className="absolute inset-x-2 inset-y-1 rounded-xl bg-[var(--overlay-4)]"
                       transition={{ type: 'spring', stiffness: 520, damping: 40 }}
                     />
                   )}
@@ -75,7 +75,7 @@ export default function MobileTabBar() {
                   <span
                     className={cn(
                       'relative z-[1] text-[10px] font-medium leading-none',
-                      isActive && 'text-white',
+                      isActive && 'text-foreground',
                     )}
                   >
                     {tab.label}

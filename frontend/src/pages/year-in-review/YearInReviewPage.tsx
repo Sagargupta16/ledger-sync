@@ -133,8 +133,8 @@ export default function YearInReviewPage() {
                   onClick={() => setMode(val)}
                   className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     mode === val
-                      ? 'text-white'
-                      : 'text-muted-foreground hover:text-white hover:bg-white/10'
+                      ? 'text-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
                   }`}
                   whileTap={{ scale: 0.97 }}
                 >
@@ -495,7 +495,7 @@ export default function YearInReviewPage() {
               </div>
               {/* Single accent bar -- streak length relative to a 30-day mark
                   (replaces 30 identical dots that redundantly encoded one number). */}
-              <div className="mt-2 h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+              <div className="mt-2 h-1.5 w-full rounded-full bg-[var(--overlay-3)] overflow-hidden">
                 <div
                   className="h-full rounded-full"
                   style={{

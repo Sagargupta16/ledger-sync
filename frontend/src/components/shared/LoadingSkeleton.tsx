@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
  */
 export default function LoadingSkeleton({ className = '' }: Readonly<{ className?: string }>) {
   return (
-    <div aria-hidden className={`animate-pulse bg-white/[0.04] rounded-lg ${className}`} />
+    <div aria-hidden className={`animate-pulse bg-[var(--overlay-2)] rounded-lg ${className}`} />
   )
 }
 
@@ -94,7 +94,7 @@ export function PageSkeleton() {
 export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
   return (
     <SkeletonStatus className="glass rounded-2xl overflow-hidden">
-      <div className="bg-white/[0.04] p-4 border-b border-border">
+      <div className="bg-[var(--overlay-2)] p-4 border-b border-border">
         <div className="flex gap-4">
           <LoadingSkeleton className="h-4 w-24" />
           <LoadingSkeleton className="h-4 w-32" />
@@ -102,7 +102,7 @@ export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
           <LoadingSkeleton className="h-4 flex-1" />
         </div>
       </div>
-      <div className="divide-y divide-white/5">
+      <div className="divide-y divide-[var(--hairline-1)]">
         {Array.from({ length: rows }, (_, i) => `table-row-${i + 1}`).map((rowKey) => (
           <div key={rowKey} className="p-4 flex gap-4">
             <LoadingSkeleton className="h-4 w-24" />

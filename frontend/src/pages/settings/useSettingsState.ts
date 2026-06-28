@@ -14,7 +14,7 @@ import { DEFAULT_GROWTH_ASSUMPTIONS } from '@/types/salary'
 import type { LocalPrefs, LocalPrefKey } from './types'
 import { ACCOUNT_TYPES } from './types'
 import {
-  getDefaultClassifications, getDefaultIncomeClassifications, getDefaultInvestmentMappings, normalizeArray, getStoredWidgets, getStoredTheme, buildInitialLocalPrefs,
+  getDefaultClassifications, getDefaultIncomeClassifications, getDefaultInvestmentMappings, normalizeArray, getStoredWidgets, buildInitialLocalPrefs,
 } from './helpers'
 
 export function useSettingsState() {
@@ -35,7 +35,6 @@ export function useSettingsState() {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
   const [dragType, setDragType] = useState<'account' | null>(null)
-  const [theme, setTheme] = useState<'dark' | 'system'>(getStoredTheme)
   const [visibleWidgets, setVisibleWidgets] = useState<string[]>(getStoredWidgets)
   const [localSalaryStructure, setLocalSalaryStructure] = useState<Record<string, SalaryComponents>>({})
   const [localRsuGrants, setLocalRsuGrants] = useState<RsuGrant[]>([])
@@ -271,7 +270,7 @@ export function useSettingsState() {
     localPrefs, hasChanges, isSaving, showResetConfirm, setShowResetConfirm,
     classifications, setClassifications, setHasChanges,
     draggedItem, setDraggedItem, dragType, setDragType,
-    theme, setTheme, visibleWidgets, setVisibleWidgets,
+    visibleWidgets, setVisibleWidgets,
     accounts, allExpenseCategories, allIncomeCategories,
     investmentAccounts, creditCardAccounts, accountsByCategory,
     unclassifiedAccounts, excludedAccounts, fixedCategories,

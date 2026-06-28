@@ -99,9 +99,9 @@ function HealthMetricCard({ metric }: Readonly<{ metric: HealthMetric }>) {
   const color = TIER_COLORS[metric.status] ?? rawColors.app.red
 
   return (
-    <div className="p-2.5 rounded-lg border border-border bg-white/[0.02]">
+    <div className="p-2.5 rounded-lg border border-border bg-[var(--overlay-1)]">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium text-white truncate">{metric.name}</span>
+        <span className="text-xs font-medium text-foreground truncate">{metric.name}</span>
         <span className="text-xs font-bold" style={{ color }}>{Math.round(metric.score)}</span>
       </div>
       <div className="h-1 bg-muted/30 rounded-full overflow-hidden mb-1.5">

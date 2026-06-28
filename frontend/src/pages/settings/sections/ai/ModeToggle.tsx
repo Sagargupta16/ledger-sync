@@ -67,12 +67,12 @@ function ModeCard(props: Readonly<ModeCardProps>) {
       className={`text-left border rounded-xl p-3 transition-colors ${
         selected
           ? 'border-primary bg-primary/5'
-          : 'border-border bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+          : 'border-border bg-[var(--overlay-1)] hover:border-[var(--hairline-5)] hover:bg-[var(--overlay-2)]'
       } disabled:opacity-50 disabled:cursor-wait`}
     >
       <div className="flex items-center gap-2">
         <span className={selected ? 'text-primary' : 'text-muted-foreground'}>{icon}</span>
-        <span className="text-sm font-medium text-white">{title}</span>
+        <span className="text-sm font-medium text-foreground">{title}</span>
         {selected && <CheckCircle className="w-3.5 h-3.5 text-primary ml-auto" />}
       </div>
       <p className="text-xs text-muted-foreground mt-1 ml-6">{subtitle}</p>
@@ -100,9 +100,9 @@ export function AppModePanel({
   usage,
 }: Readonly<{ usage: UsageResponse | undefined }>) {
   return (
-    <div className="border border-border rounded-xl p-4 space-y-2 bg-white/[0.02]">
+    <div className="border border-border rounded-xl p-4 space-y-2 bg-[var(--overlay-1)]">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-white">Today's usage</span>
+        <span className="text-sm font-medium text-foreground">Today's usage</span>
         <AppMessageBadge usage={usage} />
       </div>
       <FieldHint>

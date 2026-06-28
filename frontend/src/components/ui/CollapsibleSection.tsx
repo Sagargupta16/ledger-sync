@@ -28,15 +28,15 @@ export default function CollapsibleSection({
   const [expanded, setExpanded] = useState<boolean>(defaultExpanded)
 
   return (
-    <div className="bg-white/[0.04] rounded-2xl border border-border">
+    <div className="bg-[var(--overlay-2)] rounded-2xl border border-border">
       {/* Header button */}
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex items-center gap-3 w-full px-6 py-4 text-left hover:bg-white/[0.06] transition-colors duration-150 rounded-2xl"
+        className="flex items-center gap-3 w-full px-6 py-4 text-left hover:bg-[var(--overlay-3)] transition-colors duration-150 rounded-2xl"
       >
         <Icon className="w-5 h-5 text-muted-foreground shrink-0" />
-        <span className="text-base font-semibold text-white flex-1">{title}</span>
+        <span className="text-base font-semibold text-foreground flex-1">{title}</span>
         {badge !== undefined && (
           <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-app-blue/15 text-app-blue">
             {badge}

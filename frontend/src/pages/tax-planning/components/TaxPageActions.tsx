@@ -39,8 +39,8 @@ export default function TaxPageActions({
             onClick={() => setRegimeOverride('new')}
             className={`px-3 py-2.5 sm:py-1.5 text-sm font-medium transition-colors ${
               isNewRegime
-                ? 'bg-primary text-white'
-                : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                ? 'bg-primary text-foreground'
+                : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
             }`}
           >
             New Regime
@@ -50,8 +50,8 @@ export default function TaxPageActions({
             onClick={() => setRegimeOverride('old')}
             className={`px-3 py-2.5 sm:py-1.5 text-sm font-medium transition-colors ${
               isNewRegime
-                ? 'bg-white/5 text-muted-foreground hover:bg-white/10'
-                : 'bg-primary text-white'
+                ? 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
+                : 'bg-primary text-foreground'
             }`}
           >
             Old Regime
@@ -65,8 +65,8 @@ export default function TaxPageActions({
           type="button"
           className={`px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             showProjection
-              ? 'bg-primary text-white shadow-lg shadow-primary/50'
-              : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
+              ? 'bg-primary text-foreground shadow-lg shadow-primary/50'
+              : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)] border border-border'
           }`}
         >
           {showProjection ? 'Showing Projection' : 'Project from Salary'}
@@ -77,21 +77,21 @@ export default function TaxPageActions({
         <motion.button
           onClick={goToPreviousFY}
           disabled={!canGoBack}
-          className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          className="p-2 rounded-lg glass-thin hover:bg-[var(--overlay-5)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           whileTap={canGoBack ? { scale: 0.95 } : undefined}
           aria-label="Previous FY"
         >
           <ChevronLeft className="w-4 h-4" />
         </motion.button>
 
-        <span className="text-white font-medium min-w-28 text-center">
+        <span className="text-foreground font-medium min-w-28 text-center">
           {selectedFY || 'Select FY'}
         </span>
 
         <motion.button
           onClick={goToNextFY}
           disabled={!canGoForward}
-          className="p-2 rounded-lg glass-thin hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          className="p-2 rounded-lg glass-thin hover:bg-[var(--overlay-5)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           whileTap={canGoForward ? { scale: 0.95 } : undefined}
           aria-label="Next FY"
         >

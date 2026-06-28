@@ -64,7 +64,7 @@ export default function MobileFlowView({
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Total Income
         </p>
-        <p className="text-2xl font-bold text-white mt-1 break-all">
+        <p className="text-2xl font-bold text-foreground mt-1 break-all">
           {formatCurrency(totalIncome)}
         </p>
       </motion.div>
@@ -134,7 +134,7 @@ function Section({
   children: React.ReactNode
 }>) {
   return (
-    <div className="rounded-2xl border border-border bg-white/[0.02] p-4">
+    <div className="rounded-2xl border border-border bg-[var(--overlay-1)] p-4">
       <div className="flex items-baseline justify-between mb-3">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           {title}
@@ -170,11 +170,11 @@ function FlowRow({
       transition={{ delay, duration: 0.25 }}
     >
       <div className="flex items-baseline justify-between gap-2 mb-1">
-        <span className="text-sm text-white truncate flex-1 min-w-0">{label}</span>
+        <span className="text-sm text-foreground truncate flex-1 min-w-0">{label}</span>
         <span className="text-xs text-text-tertiary shrink-0">{formatPercent(percent * 100)}</span>
       </div>
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+        <div className="flex-1 h-2 rounded-full bg-[var(--overlay-2)] overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${Math.max(barWidth * 100, 2)}%` }}
@@ -183,7 +183,7 @@ function FlowRow({
             style={{ background: color }}
           />
         </div>
-        <span className="text-xs font-medium text-white shrink-0 tabular-nums break-all">
+        <span className="text-xs font-medium text-foreground shrink-0 tabular-nums break-all">
           {formatCurrency(amount)}
         </span>
       </div>
@@ -203,14 +203,14 @@ function SplitShareBar({
   const expenseWidth = total > 0 ? (expenseShare / total) * 100 : 100
 
   return (
-    <div className="rounded-2xl border border-border bg-white/[0.02] p-4">
+    <div className="rounded-2xl border border-border bg-[var(--overlay-1)] p-4">
       <div className="flex items-baseline justify-between mb-2">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Where each rupee goes
         </h4>
         <span className="text-xs text-text-tertiary">share of income</span>
       </div>
-      <div className="flex h-3 w-full rounded-full overflow-hidden bg-white/5">
+      <div className="flex h-3 w-full rounded-full overflow-hidden bg-[var(--overlay-2)]">
         {savingsWidth > 0 && (
           <motion.div
             initial={{ width: 0 }}
@@ -272,7 +272,7 @@ function SplitCard({
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color }}>
         {label}
       </p>
-      <p className="text-lg font-bold text-white mt-1 break-all">{formatCurrency(amount)}</p>
+      <p className="text-lg font-bold text-foreground mt-1 break-all">{formatCurrency(amount)}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{formatPercent(percent * 100)}</p>
     </div>
   )

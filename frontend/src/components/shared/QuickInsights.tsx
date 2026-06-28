@@ -46,14 +46,14 @@ function InsightCard({ item }: Readonly<{ item: InsightDescriptor }>) {
   return (
     <motion.div
       variants={fadeUpItem}
-      className="flex items-center gap-3 p-3 bg-white/[0.04] border border-border rounded-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-150"
+      className="flex items-center gap-3 p-3 bg-[var(--overlay-2)] border border-border rounded-xl hover:bg-[var(--overlay-2)] hover:border-[var(--hairline-3)] transition-all duration-150"
     >
       <div className={`p-2 ${item.bg} rounded-lg shrink-0`}>
         <item.icon className={`w-4 h-4 ${item.color}`} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[11px] text-muted-foreground">{item.title}</p>
-        <p className="text-sm font-semibold text-white truncate">{item.value}</p>
+        <p className="text-sm font-semibold text-foreground truncate">{item.value}</p>
         {item.subtitle && <p className="text-[11px] text-text-tertiary truncate">{item.subtitle}</p>}
       </div>
     </motion.div>

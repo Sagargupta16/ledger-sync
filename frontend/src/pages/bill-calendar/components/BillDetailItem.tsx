@@ -16,7 +16,7 @@ export default function BillDetailItem({ bill }: Readonly<Props>) {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className="flex items-center justify-between gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/[0.04] transition-colors"
+      className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[var(--overlay-2)] hover:bg-[var(--overlay-2)] transition-colors"
     >
       <div className="flex items-center gap-3 min-w-0">
         <div
@@ -25,7 +25,7 @@ export default function BillDetailItem({ bill }: Readonly<Props>) {
         />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-white truncate">{bill.name}</p>
+            <p className="text-sm font-medium text-foreground truncate">{bill.name}</p>
             <SourceBadge source={bill.source} />
           </div>
           <p className="text-xs text-muted-foreground">

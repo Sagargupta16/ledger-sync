@@ -166,10 +166,10 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-white">Enhanced Subcategory Analysis</h3>
+          <h3 className="text-xl font-semibold text-foreground">Enhanced Subcategory Analysis</h3>
           <button
             onClick={handleExport}
-            className="p-2.5 min-h-11 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-foreground transition-colors"
+            className="p-2.5 min-h-11 bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] border border-border rounded-lg text-foreground transition-colors"
             type="button"
             title="Export chart"
             aria-label="Export chart as CSV"

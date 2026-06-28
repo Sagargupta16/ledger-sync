@@ -17,17 +17,17 @@ export function DemoBanner() {
     <>
       <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 text-sm rounded-xl bg-black/80 border border-app-blue/30 backdrop-blur-md shadow-lg shadow-black/30">
         <Eye className="w-4 h-4 text-app-blue flex-shrink-0" />
-        <span className="text-white/80 whitespace-nowrap">Sample data</span>
+        <span className="text-foreground/80 whitespace-nowrap">Sample data</span>
         <button
           onClick={() => setShowAuth(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-white bg-app-blue/30 hover:bg-app-blue/50 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-foreground bg-app-blue/30 hover:bg-app-blue/50 transition-colors whitespace-nowrap"
         >
           <LogIn className="w-3 h-3" />
           Sign up
         </button>
         <button
           onClick={() => { exitDemoMode(queryClient, navigate); setDismissed(true) }}
-          className="p-1 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+          className="p-1 rounded-md text-foreground/40 hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors"
           aria-label="Exit demo"
         >
           <X className="w-3.5 h-3.5" />

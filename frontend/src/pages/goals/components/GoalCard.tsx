@@ -70,13 +70,13 @@ export default function GoalCard({
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h4 className="text-lg font-semibold text-white truncate">{goal.name}</h4>
+            <h4 className="text-lg font-semibold text-foreground truncate">{goal.name}</h4>
             <div className="flex items-center gap-1 flex-shrink-0">
               <button
                 onClick={onStartEditDetails}
                 title="Edit goal"
                 aria-label="Edit goal"
-                className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors"
+                className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors"
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
@@ -99,7 +99,7 @@ export default function GoalCard({
         </div>
         <div className="relative flex items-center justify-center flex-shrink-0 ml-3">
           <CircularProgress progress={progressPct} color={color} />
-          <span className="absolute text-sm font-bold text-white">{Math.round(progressPct)}%</span>
+          <span className="absolute text-sm font-bold text-foreground">{Math.round(progressPct)}%</span>
         </div>
       </div>
 
@@ -107,7 +107,7 @@ export default function GoalCard({
       <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-5">
         <div className="min-w-0">
           <p className="text-xs text-text-tertiary">Target</p>
-          <p className="text-sm font-medium text-white break-all">{formatCurrency(goal.target_amount)}</p>
+          <p className="text-sm font-medium text-foreground break-all">{formatCurrency(goal.target_amount)}</p>
         </div>
         <div className="min-w-0">
           <p className="text-xs text-text-tertiary">Allocated</p>
@@ -153,7 +153,7 @@ export default function GoalCard({
       <div className="flex items-center justify-between mt-4">
         <button
           onClick={onStartEdit}
-          className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-colors bg-white/5 border border-border hover:bg-white/10 text-text-secondary hover:text-white"
+          className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-colors bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-5)] text-text-secondary hover:text-foreground"
         >
           <Pencil className="w-3.5 h-3.5" /> Update Progress
         </button>

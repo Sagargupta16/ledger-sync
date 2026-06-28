@@ -105,7 +105,7 @@ export default function AnomalyReviewPage() {
         action={
           <Link
             to={ROUTES.SETTINGS}
-            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-white/[0.02] hover:bg-white/[0.05] text-muted-foreground hover:text-white transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-[var(--overlay-1)] hover:bg-[var(--overlay-2)] text-muted-foreground hover:text-foreground transition-colors"
             title="Tune sensitivity, threshold, and which anomaly types are active"
           >
             <Settings2 className="w-3.5 h-3.5" />
@@ -236,7 +236,7 @@ export default function AnomalyReviewPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-white">
+                        <span className="text-sm font-medium text-foreground">
                           {ANOMALY_TYPE_LABELS[anomaly.anomaly_type]}
                         </span>
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border ${severity.bg} ${severity.text} ${severity.border}`}>
@@ -298,7 +298,7 @@ export default function AnomalyReviewPage() {
                           target={Math.abs(anomaly.expected_value)}
                           ariaLabel={`Actual ${formatCurrency(anomaly.actual_value)}`}
                         />
-                        <span className="text-xs text-white font-medium tabular-nums text-right">
+                        <span className="text-xs text-foreground font-medium tabular-nums text-right">
                           {formatCurrency(anomaly.actual_value)}
                         </span>
                       </div>
@@ -336,7 +336,7 @@ export default function AnomalyReviewPage() {
                           setExpandedNoteId(isExpanded ? null : anomaly.id)
                           setNoteText('')
                         }}
-                        className="flex items-center gap-1 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-white/5 text-muted-foreground border border-border hover:bg-white/10 transition-colors"
+                        className="flex items-center gap-1 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-[var(--overlay-2)] text-muted-foreground border border-border hover:bg-[var(--overlay-5)] transition-colors"
                       >
                         {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         Add Note

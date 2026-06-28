@@ -53,7 +53,7 @@ function IconBubble({ selectedFile, isDragActive, compact }: Readonly<IconBubble
   return (
     <div className={cn(
       'rounded-full transition-colors duration-150',
-      hasHighlight ? 'bg-white/[0.08]' : 'bg-white/[0.04]',
+      hasHighlight ? 'bg-[var(--overlay-4)]' : 'bg-[var(--overlay-2)]',
       compact ? 'p-2' : 'p-4'
     )}>
       {selectedFile ? (
@@ -69,7 +69,7 @@ function FileSelectedView({ selectedFile, compact, isUploading, onClear }: Reado
   return (
     <div className={compact ? 'flex-1 text-left' : 'space-y-2'}>
       <div className={cn(
-        'flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-lg',
+        'flex items-center gap-2 bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg',
         compact ? 'px-2 py-1' : 'px-4 py-2'
       )}>
         <FileSpreadsheet className={cn('text-muted-foreground', compact ? 'w-4 h-4' : 'w-5 h-5')} />
@@ -168,10 +168,10 @@ export default function DropZone({ onFileSelect, isUploading, compact }: Readonl
         {...getRootProps()}
         className={cn(
           'relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-150 ease-out',
-          'hover:border-white/[0.15] hover:bg-white/[0.02]',
+          'hover:border-[var(--hairline-4)] hover:bg-[var(--overlay-1)]',
           isDragActive && 'border-app-blue/50 bg-app-blue/5 scale-[1.01]',
           isUploading && 'opacity-50 cursor-not-allowed',
-          selectedFile ? 'border-white/[0.15] bg-white/[0.02]' : 'border-white/[0.10]',
+          selectedFile ? 'border-[var(--hairline-4)] bg-[var(--overlay-1)]' : 'border-[var(--hairline-3)]',
           compact ? 'p-4' : 'p-12 rounded-2xl'
         )}
       >

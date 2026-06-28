@@ -61,7 +61,7 @@ function buildGSTCategoryColumns(maxSpending: number): DataTableColumn<GSTCatego
     mobilePrimary: true,
     cell: (cat) => (
       <>
-        <span className="font-medium text-white">{cat.category}</span>
+        <span className="font-medium text-foreground">{cat.category}</span>
         {cat.parentCategory !== cat.category && (
           <span className="text-xs text-muted-foreground ml-2">{cat.parentCategory}</span>
         )}
@@ -138,7 +138,7 @@ function FYNavigator({
         onClick={() => idx < fys.length - 1 && onSelect(fys[idx + 1])}
         disabled={idx >= fys.length - 1}
         aria-label="Previous fiscal year"
-        className="p-2.5 sm:p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
+        className="p-2.5 sm:p-1.5 rounded-lg border border-border hover:bg-[var(--overlay-3)] disabled:opacity-30 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
@@ -148,7 +148,7 @@ function FYNavigator({
         onClick={() => idx > 0 && onSelect(fys[idx - 1])}
         disabled={idx <= 0}
         aria-label="Next fiscal year"
-        className="p-2.5 sm:p-1.5 rounded-lg border border-border hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
+        className="p-2.5 sm:p-1.5 rounded-lg border border-border hover:bg-[var(--overlay-3)] disabled:opacity-30 transition-colors"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
@@ -214,7 +214,7 @@ export default function GSTAnalysisPage() {
       <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-app-orange/5 border border-app-orange/20 text-sm text-muted-foreground">
         <Info className="w-4 h-4 mt-0.5 text-app-orange shrink-0" />
         <span>
-          <strong className="text-white">Approximate figures only.</strong>{' '}
+          <strong className="text-foreground">Approximate figures only.</strong>{' '}
           GST isn't line-itemed in bank statements, so we apply typical slab
           rates per category (restaurants 5%, electronics 18%, etc.) to your
           inclusive-of-tax spend. Use this for lifestyle-scale awareness of
@@ -297,13 +297,13 @@ export default function GSTAnalysisPage() {
                   return (
                     <div
                       key={s.slab}
-                      className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg bg-white/[0.04] border border-border"
+                      className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg bg-[var(--overlay-2)] border border-border"
                     >
                       <div
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: SLAB_COLORS[s.slab] }}
                       />
-                      <span className="font-medium text-white">{s.slab}%</span>
+                      <span className="font-medium text-foreground">{s.slab}%</span>
                       <span className="tabular-nums text-app-indigo">
                         {formatCurrencyCompact(s.gstAmount)}
                       </span>
@@ -369,8 +369,8 @@ export default function GSTAnalysisPage() {
               ariaLabel="GST estimated per category"
               mobileCards
             />
-            <div className="border-t border-border bg-white/[0.02] px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">
-              <span className="font-semibold text-white">Total</span>
+            <div className="border-t border-border bg-[var(--overlay-1)] px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">
+              <span className="font-semibold text-foreground">Total</span>
               <span className="flex items-center gap-4 tabular-nums">
                 <span className="font-semibold">{formatCurrencyCompact(gstData.totalSpending)}</span>
                 <span className="font-semibold text-muted-foreground">

@@ -16,7 +16,7 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
   {
     key: 'month',
     header: 'Month',
-    cell: (row) => <span className="font-medium text-white">{row.month}</span>,
+    cell: (row) => <span className="font-medium text-foreground">{row.month}</span>,
   },
   {
     key: 'income',
@@ -65,7 +65,7 @@ export default function MonthlyBreakdownTable({ isLoading, chartData }: Readonly
       transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
       className="glass rounded-2xl border border-border p-4 md:p-6"
     >
-      <h3 className="text-lg font-semibold text-white mb-4">Month-on-Month Breakdown</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-4">Month-on-Month Breakdown</h3>
       {isLoading && <div className="text-center py-8 text-muted-foreground">Loading data...</div>}
       {!isLoading && chartData.length > 0 && (
         <DataTable<MonthlyTrendRow>

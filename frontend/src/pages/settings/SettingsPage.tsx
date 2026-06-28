@@ -76,7 +76,7 @@ export default function SettingsPage() {
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={() => s.setShowResetConfirm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--overlay-5)] text-foreground rounded-lg hover:bg-[var(--overlay-6)] transition-colors text-sm"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span className="hidden sm:inline">Reset</span>
@@ -85,7 +85,7 @@ export default function SettingsPage() {
                 whileTap={{ scale: 0.97 }}
                 onClick={s.handleSave}
                 disabled={!s.hasChanges || s.isSaving}
-                className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-primary to-secondary text-foreground rounded-lg hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
               >
                 <Save className="w-4 h-4" />
                 <span>{s.isSaving ? 'Saving...' : 'Save'}</span>
@@ -162,8 +162,6 @@ export default function SettingsPage() {
           <DisplayPreferencesSection
             index={sectionIndex++}
             localPrefs={s.localPrefs}
-            theme={s.theme}
-            setTheme={s.setTheme}
             updateLocalPref={s.updateLocalPref}
           />
         )}

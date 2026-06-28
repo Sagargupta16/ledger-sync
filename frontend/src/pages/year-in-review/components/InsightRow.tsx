@@ -15,7 +15,7 @@ export default function InsightRow({ icon: Icon, label, value, subtitle, color }
       <div className="flex-1 min-w-0">
         <p className="text-xs text-text-tertiary">{label}</p>
         <div className="flex items-baseline gap-1.5">
-          <p className="text-sm font-semibold text-white">{value}</p>
+          <p className="text-sm font-semibold text-foreground">{value}</p>
           {subtitle && <p className="text-xs text-text-tertiary">{subtitle}</p>}
         </div>
       </div>

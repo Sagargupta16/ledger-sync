@@ -192,7 +192,7 @@ export default function IncomeAnalysisPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.55 }}
         >
-          <h3 className="text-lg font-semibold text-white mb-4">Income by Category</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Income by Category</h3>
           {incomeTypeChartData.length > 0 ? (
             <div className="flex flex-col lg:flex-row items-center gap-4 md:gap-6 lg:gap-8">
               <div className="w-64" role="img" aria-label="Donut chart breaking down total income by source category.">
@@ -214,7 +214,7 @@ export default function IncomeAnalysisPage() {
                   return (
                     <div
                       key={item.name}
-                      className="p-4 rounded-lg bg-surface-dropdown/30 hover:bg-white/[0.04] transition-colors"
+                      className="p-4 rounded-lg bg-surface-dropdown/30 hover:bg-[var(--overlay-2)] transition-colors"
                     >
                       <div className="flex items-center gap-3 mb-2">
                         <div
@@ -226,7 +226,7 @@ export default function IncomeAnalysisPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: item.color }} />
-                            <p className="font-medium text-white">{item.name}</p>
+                            <p className="font-medium text-foreground">{item.name}</p>
                           </div>
                           <p className="text-xs text-muted-foreground">{percentage}% of income</p>
                         </div>
@@ -261,7 +261,7 @@ export default function IncomeAnalysisPage() {
             <div className="flex items-center gap-3">
               <TrendingUp className="w-5 h-5 text-app-green" />
               <div>
-                <h3 className="text-lg font-semibold text-white">Income Trend</h3>
+                <h3 className="text-lg font-semibold text-foreground">Income Trend</h3>
                 <p className="text-sm text-text-tertiary">Monthly income with 3-month rolling average</p>
               </div>
             </div>

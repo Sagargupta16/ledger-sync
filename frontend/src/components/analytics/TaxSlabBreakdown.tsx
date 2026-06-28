@@ -78,16 +78,16 @@ export default function TaxSlabBreakdown({
                   key={`${slab.lower}-${slab.upper}`}
                   className={`border-b border-border ${isApplicable ? 'bg-primary/5' : ''}`}
                 >
-                  <td className="hidden sm:table-cell py-3 px-4 text-white">
+                  <td className="hidden sm:table-cell py-3 px-4 text-foreground">
                     {formatCurrency(slab.lower)}
                   </td>
-                  <td className="py-3 px-4 text-white">
+                  <td className="py-3 px-4 text-foreground">
                     {slab.upper === Infinity ? 'Above' : formatCurrency(slab.upper)}
                     <span className="sm:hidden block text-xs text-muted-foreground">
                       from {formatCurrency(slab.lower)}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right text-white font-semibold">
+                  <td className="py-3 px-4 text-right text-foreground font-semibold">
                     {slab.rate.toFixed(2)}%
                   </td>
                   <td className="py-3 px-4 text-right font-bold text-primary">
@@ -97,10 +97,10 @@ export default function TaxSlabBreakdown({
               )
             })}
             <tr className="border-t border-border">
-              <td colSpan={3} className="py-3 px-4 text-right font-semibold text-white">
+              <td colSpan={3} className="py-3 px-4 text-right font-semibold text-foreground">
                 Tax on Base:
               </td>
-              <td className="py-3 px-4 text-right font-bold text-white">
+              <td className="py-3 px-4 text-right font-bold text-foreground">
                 {formatCurrency(baseTax)}
               </td>
             </tr>
@@ -141,7 +141,7 @@ export default function TaxSlabBreakdown({
               </td>
             </tr>
             <tr className="border-t-2 border-primary/30">
-              <td colSpan={3} className="py-4 px-4 text-right text-lg font-bold text-white">
+              <td colSpan={3} className="py-4 px-4 text-right text-lg font-bold text-foreground">
                 {isProjecting ? 'Total Estimated Tax:' : 'Total Tax Already Paid:'}
               </td>
               <td className="py-4 px-4 text-right text-2xl font-bold text-primary">

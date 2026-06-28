@@ -37,13 +37,13 @@ export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
   const expectedRest = totalTds - paidSoFar
 
   return (
-    <div className="rounded-2xl border border-border bg-white/[0.02] p-4 sm:p-6">
+    <div className="rounded-2xl border border-border bg-[var(--overlay-1)] p-4 sm:p-6">
       <div className="flex items-start gap-3 mb-4">
         <div className="p-2 rounded-lg bg-app-blue/10">
           <Receipt className="w-4 h-4 text-app-blue" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-white">Tax Deducted</h3>
+          <h3 className="text-base font-semibold text-foreground">Tax Deducted</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Deducted so far (solid) and expected for the rest of the year (faded),
             month by month. Bonus / RSU months spike with the extra tax on that income.

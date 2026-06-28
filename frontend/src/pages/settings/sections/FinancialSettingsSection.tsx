@@ -60,7 +60,7 @@ export default function FinancialSettingsSection({
               step="1"
               value={localPrefs.savings_goal_percent ?? 20}
               onChange={(e) => updateLocalPref('savings_goal_percent', Number(e.target.value))}
-              className="flex-1 h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+              className="flex-1 h-2 bg-[var(--overlay-5)] rounded-full appearance-none cursor-pointer accent-primary"
             />
             <input
               id="savings-goal"
@@ -76,7 +76,7 @@ export default function FinancialSettingsSection({
                   Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0,
                 )
               }}
-              className="w-16 px-2 py-2 bg-white/5 border border-border rounded-lg text-white text-sm text-center focus:border-primary focus:outline-none"
+              className="w-16 px-2 py-2 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm text-center focus:border-primary focus:outline-none"
             />
           </div>
         </div>
@@ -137,8 +137,8 @@ export default function FinancialSettingsSection({
                 key={regime}
                 className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors border text-sm ${
                   (localPrefs.preferred_tax_regime ?? 'new') === regime
-                    ? 'bg-primary/15 border-primary text-white font-medium'
-                    : 'bg-white/5 border-border text-muted-foreground hover:text-white'
+                    ? 'bg-primary/15 border-primary text-foreground font-medium'
+                    : 'bg-[var(--overlay-2)] border-border text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <input

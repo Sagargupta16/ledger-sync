@@ -87,6 +87,46 @@
   --glow-opacity: 0.10;
   --glow-opacity-strong: 0.18;
 
+  /* ===== GLASS SYSTEM (theme-aware) ===== */
+  /* Dark defaults. The light theme ([data-theme="light"]) overrides these so
+     the whole glass/shadow/scrollbar system flips without per-component edits.
+     `--glass-edge` is the top-edge highlight, `--glass-shadow-*` the depth. */
+  --app-bg: #000000;
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-hover: rgba(255, 255, 255, 0.10);
+  --glass-border-strong: rgba(255, 255, 255, 0.08);
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+  --glass-shadow-strong: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
+  --glass-shadow-ultra: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+  --glow-strength: 0.05;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.10);
+  --skeleton-base: rgba(255, 255, 255, 0.04);
+  --skeleton-highlight: rgba(255, 255, 255, 0.08);
+  --divider-color: rgba(255, 255, 255, 0.1);
+  --header-bg: rgba(0, 0, 0, 0.8);
+  --sidebar-bg: rgba(17, 17, 19, 0.95);
+
+  /* ===== OVERLAY + HAIRLINE LADDER (theme-aware) =====
+     The app used dozens of `bg-white/N` (raised surfaces, hovers) and
+     `border-white/N` (hairlines) -- literally white, so invisible on a light
+     background. These tokens replace them: white-alpha in dark, dark-alpha in
+     light, so a "subtle raised surface" stays subtle in BOTH themes. The sed
+     sweep maps each old opacity to the nearest rung here. */
+  --overlay-1: rgba(255, 255, 255, 0.02);
+  --overlay-2: rgba(255, 255, 255, 0.04);
+  --overlay-3: rgba(255, 255, 255, 0.06);
+  --overlay-4: rgba(255, 255, 255, 0.08);
+  --overlay-5: rgba(255, 255, 255, 0.10);
+  --overlay-6: rgba(255, 255, 255, 0.20);
+  --overlay-7: rgba(255, 255, 255, 0.40);
+  --overlay-8: rgba(255, 255, 255, 0.70);
+  --hairline-1: rgba(255, 255, 255, 0.04);
+  --hairline-2: rgba(255, 255, 255, 0.08);
+  --hairline-3: rgba(255, 255, 255, 0.10);
+  --hairline-4: rgba(255, 255, 255, 0.15);
+  --hairline-5: rgba(255, 255, 255, 0.20);
+
   /* ===== Z-INDEX SCALE ===== */
   --z-base: 0;
   --z-dropdown: 10;
@@ -113,6 +153,112 @@
   --text-kpi-hero:  1.5rem;      /* 24px - reserved for hero KPIs (Tax Summary cards) */
 }
 
+/* ===== LIGHT THEME ===== */
+/* Premium whitish look: warm off-white surfaces (not stark #fff), hairline
+   cool-grey borders, near-black text, soft layered shadows for depth, and a
+   light frosted glass. Set via `data-theme="light"` on <html> by ThemeProvider.
+   Only tokens are overridden -- components reference tokens, so they all flip. */
+[data-theme='light'] {
+  /* Warm off-white page background (LAB so the warmth is perceptually even) --
+     not a stark cold #fff. Surfaces step up toward pure white so cards lift
+     off the page. */
+  --color-background: lab(96.5592% 0.829041 5.29304);
+  --color-foreground: #1a1c1f;
+  --color-card: var(--color-surface-1);
+  --color-card-foreground: #1a1c1f;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #1a1c1f;
+  --color-primary-foreground: #ffffff;
+  --color-secondary-foreground: #ffffff;
+  --color-muted: var(--color-surface-3);
+  --color-muted-foreground: #5b6068;
+  --color-accent: var(--color-surface-4);
+  --color-accent-foreground: #1a1c1f;
+  --color-input: #ffffff;
+
+  /* Surfaces: cards are pure-white over the warm page bg; muted/raised tiers
+     pick up the warm grey LAB tones. */
+  --color-surface-1: #ffffff;
+  --color-surface-2: #ffffff;
+  --color-surface-3: lab(93.0706% 1.80045 7.44903);
+  --color-surface-4: lab(89.6005% 1.30284 6.78052);
+  --color-surface-hover: lab(93.0706% 1.80045 7.44903);
+  --color-surface-nav: lab(98.5% 0.4 2.6);
+  --color-surface-thin: lab(96% 0.8 5);
+  --color-surface-tooltip: #ffffff;
+  --color-surface-dropdown: #ffffff;
+
+  /* Borders: hairline cool grey (dark-on-light, the inverse of the dark theme) */
+  --color-border-subtle: rgba(17, 24, 39, 0.08);
+  --color-border-medium: rgba(17, 24, 39, 0.12);
+  --color-border-strong: rgba(17, 24, 39, 0.18);
+
+  /* Accent palette: darken a few that are too pale on white for AA contrast */
+  --color-app-blue: #2563eb;
+  --color-app-blue-vibrant: #1d4ed8;
+  --color-app-green: #15a34a;
+  --color-app-green-vibrant: #16a34a;
+  --color-app-red: #e23b3b;
+  --color-app-red-vibrant: #dc2626;
+  --color-app-orange: #ea8a00;
+  --color-app-orange-vibrant: #d97706;
+  --color-app-yellow: #ca9a04;
+  --color-app-yellow-vibrant: #b8860b;
+  --color-app-teal: #0e9bc4;
+  --color-app-teal-vibrant: #0891b2;
+  --color-app-purple: #7c5cf0;
+  --color-app-purple-vibrant: #7c3aed;
+  --color-app-pink: #e85d8a;
+  --color-app-pink-vibrant: #db2777;
+  --color-app-indigo: #5b63d6;
+  --color-app-indigo-vibrant: #4f46e5;
+
+  /* Text: near-black down to a soft grey */
+  --color-text-primary: #1a1c1f;
+  --color-text-secondary: #5b6068;
+  --color-text-tertiary: #767b84;
+  --color-text-quaternary: #a2a8b2;
+
+  --color-disabled: rgba(0, 0, 0, 0.08);
+  --color-disabled-foreground: rgba(0, 0, 0, 0.35);
+
+  /* Glass system flipped for light: white frost, dark-grey hairline edges,
+     soft realistic shadows (premium card feel), brighter glow wash. */
+  --app-bg: lab(96.5592% 0.829041 5.29304);
+  --glass-border: rgba(17, 24, 39, 0.07);
+  --glass-border-hover: rgba(17, 24, 39, 0.14);
+  --glass-border-strong: rgba(17, 24, 39, 0.10);
+  --glass-edge: rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px -2px rgba(17, 24, 39, 0.08);
+  --glass-shadow-strong: 0 2px 4px rgba(17, 24, 39, 0.05), 0 8px 24px -4px rgba(17, 24, 39, 0.12);
+  --glass-shadow-ultra: 0 4px 8px rgba(17, 24, 39, 0.06), 0 20px 40px -10px rgba(17, 24, 39, 0.16);
+  --glow-strength: 0.08;
+  --scrollbar-thumb: rgba(17, 24, 39, 0.18);
+  --skeleton-base: rgba(17, 24, 39, 0.05);
+  --skeleton-highlight: rgba(17, 24, 39, 0.10);
+  --divider-color: rgba(17, 24, 39, 0.08);
+  --header-bg: lab(96.5592% 0.829041 5.29304 / 0.85);
+  /* Light sidebar: a hair softer/warmer than pure white so it reads as a
+     distinct rail against the white content cards. */
+  --sidebar-bg: lab(98.5% 0.4 2.6 / 0.95);
+
+  /* Overlay + hairline ladder flipped to dark-alpha so "raised surface" and
+     "hairline border" read correctly on a light background. */
+  --overlay-1: rgba(17, 24, 39, 0.02);
+  --overlay-2: rgba(17, 24, 39, 0.035);
+  --overlay-3: rgba(17, 24, 39, 0.05);
+  --overlay-4: rgba(17, 24, 39, 0.07);
+  --overlay-5: rgba(17, 24, 39, 0.09);
+  --overlay-6: rgba(17, 24, 39, 0.14);
+  --overlay-7: rgba(17, 24, 39, 0.22);
+  --overlay-8: rgba(17, 24, 39, 0.45);
+  --hairline-1: rgba(17, 24, 39, 0.05);
+  --hairline-2: rgba(17, 24, 39, 0.08);
+  --hairline-3: rgba(17, 24, 39, 0.10);
+  --hairline-4: rgba(17, 24, 39, 0.14);
+  --hairline-5: rgba(17, 24, 39, 0.18);
+}
+
 * {
   border-color: var(--color-border);
 }
@@ -122,7 +268,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.10) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   /* Needed so child elements using `h-dvh` / `100dvh` have a reference
      height and so mobile browsers render a consistent full-height layout. */
   height: 100%;
@@ -132,9 +278,10 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100%;
-  background: #000000;
+  background: var(--app-bg);
   background-attachment: fixed;
   color: var(--color-foreground);
+  transition: background-color 250ms ease, color 250ms ease;
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
   overflow-x: hidden;
   /* Prevent iOS from rubber-banding the whole body behind the app shell --
@@ -160,71 +307,74 @@ body {
   background: var(--color-surface-1);
   backdrop-filter: blur(10px) saturate(140%);
   -webkit-backdrop-filter: blur(10px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
 .glass:hover {
-  border-color: rgba(255, 255, 255, 0.10);
+  border-color: var(--glass-border-hover);
 }
 
 .glass-strong {
   background: var(--color-surface-2);
   backdrop-filter: blur(14px) saturate(150%);
   -webkit-backdrop-filter: blur(14px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border-strong);
+  box-shadow: var(--glass-shadow-strong);
 }
 
 .glass-strong:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--glass-border-hover);
 }
 
 .glass-ultra {
   background: var(--color-surface-nav);
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-top-color: rgba(255, 255, 255, 0.08);
-  border-left-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-edge);
+  border-left-color: var(--glass-edge);
+  box-shadow: var(--glass-shadow-ultra);
 }
 
 .glass-thin {
   background: var(--color-surface-thin);
   backdrop-filter: blur(8px) saturate(130%);
   -webkit-backdrop-filter: blur(8px) saturate(130%);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
 }
 
 /* ===== CONTEXTUAL GLOW — Financial card accents ===== */
 
+/* Contextual glows layer the financial-accent wash ON TOP of the glass card
+   shadow, so the card keeps its depth in both themes. `--glow-strength` lifts
+   the wash slightly on light where a faint tint reads weaker. */
 .glow-income {
-  box-shadow: 0 0 30px rgba(48, 209, 88, 0.05);
+  box-shadow: var(--glass-shadow), 0 0 30px rgba(48, 209, 88, var(--glow-strength));
 }
 
 .glow-expense {
-  box-shadow: 0 0 30px rgba(255, 87, 87, 0.05);
+  box-shadow: var(--glass-shadow), 0 0 30px rgba(255, 87, 87, var(--glow-strength));
 }
 
 .glow-savings {
-  box-shadow: 0 0 30px rgba(167, 139, 250, 0.05);
+  box-shadow: var(--glass-shadow), 0 0 30px rgba(167, 139, 250, var(--glow-strength));
 }
 
 .glow-transfer {
-  box-shadow: 0 0 30px rgba(90, 200, 245, 0.05);
+  box-shadow: var(--glass-shadow), 0 0 30px rgba(90, 200, 245, var(--glow-strength));
 }
 
 .glow-investment {
-  box-shadow: 0 0 30px rgba(74, 158, 255, 0.05);
+  box-shadow: var(--glass-shadow), 0 0 30px rgba(74, 158, 255, var(--glow-strength));
 }
 
 .glow-error {
-  box-shadow: 0 0 30px rgba(255, 87, 87, 0.07);
+  box-shadow: var(--glass-shadow), 0 0 30px rgba(255, 87, 87, calc(var(--glow-strength) + 0.02));
 }
 
 .glow-warning {
-  box-shadow: 0 0 30px rgba(255, 159, 10, 0.07);
+  box-shadow: var(--glass-shadow), 0 0 30px rgba(255, 159, 10, calc(var(--glow-strength) + 0.02));
 }
 
 /* ===== SCROLLBAR ===== */
@@ -239,12 +389,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.10);
+  background: var(--scrollbar-thumb);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--color-border-strong);
 }
 
 .scrollbar-none {
@@ -363,7 +513,7 @@ body {
 /* ===== COMPONENT PATTERNS ===== */
 
 .skeleton {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.03) 100%);
+  background: linear-gradient(90deg, var(--skeleton-base) 0%, var(--skeleton-highlight) 50%, var(--skeleton-base) 100%);
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
   border-radius: 0.5rem;
@@ -371,7 +521,7 @@ body {
 
 .divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, var(--divider-color), transparent);
 }
 
 .hover-glow {

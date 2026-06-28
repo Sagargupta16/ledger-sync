@@ -38,7 +38,7 @@ function SliderInput({ id, label, value, min, max, step, unit, valueText, onChan
           value={value}
           aria-valuetext={valueText ?? `${value}${unit}`}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-app-blue cursor-pointer"
+          className="w-full h-1.5 rounded-full appearance-none bg-[var(--overlay-5)] accent-app-blue cursor-pointer"
         />
       </div>
     </div>
@@ -121,7 +121,7 @@ export default function FIRECalculatorPage() {
                   aria-selected={activeTab === 'fire'}
                   aria-controls="fire-panel"
                   onClick={() => setActiveTab('fire')}
-                  className={`px-4 py-2.5 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'fire' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+                  className={`px-4 py-2.5 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'fire' ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   <Flame className="w-4 h-4 inline mr-1.5" />FIRE
                 </button>
@@ -131,7 +131,7 @@ export default function FIRECalculatorPage() {
                   aria-selected={activeTab === 'retirement'}
                   aria-controls="retirement-panel"
                   onClick={() => setActiveTab('retirement')}
-                  className={`px-4 py-2.5 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'retirement' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
+                  className={`px-4 py-2.5 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'retirement' ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   <Calculator className="w-4 h-4 inline mr-1.5" />Retirement
                 </button>

@@ -20,7 +20,7 @@ export default function CreditCardLimitsSubsection({
 }: Readonly<Props>) {
   return (
     <div className="pt-4 border-t border-border space-y-3">
-      <h3 className="text-sm font-medium text-white flex items-center gap-2">
+      <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
         <CreditCard className="w-4 h-4 text-primary" />
         Credit Card Limits
       </h3>
@@ -32,7 +32,7 @@ export default function CreditCardLimitsSubsection({
         <div className="space-y-2">
           {creditCardAccounts.map((card) => (
             <div key={card} className="flex items-center gap-3">
-              <span className="text-sm text-white min-w-0 flex-1 truncate" title={card}>
+              <span className="text-sm text-foreground min-w-0 flex-1 truncate" title={card}>
                 {card.replace(' Credit Card', '')}
               </span>
               <div className="flex items-center gap-2 shrink-0">
@@ -51,7 +51,7 @@ export default function CreditCardLimitsSubsection({
                       [card]: Number.isFinite(n) ? Math.max(0, n) : 0,
                     })
                   }}
-                  className="w-32 px-2 py-1.5 bg-white/5 border border-border rounded-lg text-white text-sm focus:border-primary focus:outline-none"
+                  className="w-32 px-2 py-1.5 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm focus:border-primary focus:outline-none"
                 />
               </div>
             </div>

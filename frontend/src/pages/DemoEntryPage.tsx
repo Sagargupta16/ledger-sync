@@ -32,7 +32,7 @@ export default function DemoEntryPage() {
   }, [isAuthenticated, queryClient, navigate])
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-black" aria-label="Entering demo mode">
+    <div className="min-h-dvh flex items-center justify-center bg-background" aria-label="Entering demo mode">
       <div className="flex flex-col items-center gap-3">
         <div className="w-8 h-8 border-2 border-app-blue/30 border-t-app-blue rounded-full animate-spin" />
         <span className="text-sm text-muted-foreground">Loading demo...</span>

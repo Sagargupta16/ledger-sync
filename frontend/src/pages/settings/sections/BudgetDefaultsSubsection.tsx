@@ -18,7 +18,7 @@ export default function BudgetDefaultsSubsection({
 }: Readonly<Props>) {
   return (
     <div className="pt-3 border-t border-border">
-      <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+      <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
         <PiggyBank className="w-4 h-4 text-primary" />
         Budget Defaults
       </h3>
@@ -44,7 +44,7 @@ export default function BudgetDefaultsSubsection({
             checked={localPrefs.auto_create_budgets}
             onChange={(val) => updateLocalPref('auto_create_budgets', val)}
           />
-          <label htmlFor="auto-create-budgets" className="text-sm text-white cursor-pointer">
+          <label htmlFor="auto-create-budgets" className="text-sm text-foreground cursor-pointer">
             Auto-create budgets
           </label>
         </div>
@@ -54,7 +54,7 @@ export default function BudgetDefaultsSubsection({
             checked={localPrefs.budget_rollover_enabled}
             onChange={(val) => updateLocalPref('budget_rollover_enabled', val)}
           />
-          <label htmlFor="budget-rollover-enabled" className="text-sm text-white cursor-pointer">
+          <label htmlFor="budget-rollover-enabled" className="text-sm text-foreground cursor-pointer">
             Budget rollover
           </label>
         </div>

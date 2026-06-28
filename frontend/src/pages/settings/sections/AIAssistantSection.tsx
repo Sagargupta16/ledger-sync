@@ -258,7 +258,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
                     type="button"
                     onClick={handleTest}
                     disabled={!apiKey || testStatus === 'testing'}
-                    className="px-4 py-2 text-sm bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors disabled:opacity-40"
+                    className="px-4 py-2 text-sm bg-[var(--overlay-5)] text-foreground rounded-lg hover:bg-[var(--overlay-6)] transition-colors disabled:opacity-40"
                   >
                     {testStatus === 'testing' ? 'Testing...' : 'Test Connection'}
                   </button>
@@ -267,7 +267,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
                   type="button"
                   onClick={handleSave}
                   disabled={!canSave || saveMutation.isPending}
-                  className="px-4 py-2 text-sm bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg disabled:opacity-40 font-medium"
+                  className="px-4 py-2 text-sm bg-gradient-to-r from-primary to-secondary text-foreground rounded-lg hover:shadow-lg disabled:opacity-40 font-medium"
                 >
                   {saveMutation.isPending ? 'Saving...' : 'Save'}
                 </button>

@@ -222,7 +222,7 @@ function DefaultSparkline({
       {/* Tooltip */}
       {showTooltip && hoverPoint && (
         <div
-          className="absolute -top-8 px-2 py-1 bg-surface-tooltip text-white text-caption font-medium rounded shadow-lg pointer-events-none whitespace-nowrap border border-border"
+          className="absolute -top-8 px-2 py-1 bg-surface-tooltip text-foreground text-caption font-medium rounded shadow-lg pointer-events-none whitespace-nowrap border border-border"
           style={{
             left: `${(hoverPoint.x / width) * 100}%`,
             transform: 'translateX(-50%)',

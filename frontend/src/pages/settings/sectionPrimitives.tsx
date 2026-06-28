@@ -48,13 +48,13 @@ export function Section({
         onClick={() => setExpanded((p) => !p)}
         aria-expanded={expanded}
         aria-controls={panelId}
-        className="flex items-center gap-3 w-full px-6 py-5 text-left hover:bg-white/5 transition-colors"
+        className="flex items-center gap-3 w-full px-6 py-5 text-left hover:bg-[var(--overlay-2)] transition-colors"
       >
         <div className="p-2 rounded-xl bg-primary/10">
           <Icon className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-semibold text-white">{title}</h2>
+          <h2 className="text-base font-semibold text-foreground">{title}</h2>
           {description && (
             <p className="text-xs text-muted-foreground mt-0.5 truncate">{description}</p>
           )}
@@ -102,7 +102,7 @@ export function Toggle({
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-        checked ? 'bg-primary' : 'bg-white/20'
+        checked ? 'bg-primary' : 'bg-[var(--overlay-6)]'
       }`}
     >
       <span

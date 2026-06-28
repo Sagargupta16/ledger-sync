@@ -107,7 +107,7 @@ function MoreTile({ item }: Readonly<{ item: MoreItem }>) {
       to={item.to}
       className="flex flex-col items-center justify-center gap-2 p-3 rounded-2xl glass border border-border active:scale-95 transition-transform"
     >
-      <div className="w-11 h-11 rounded-xl bg-white/[0.04] flex items-center justify-center">
+      <div className="w-11 h-11 rounded-xl bg-[var(--overlay-2)] flex items-center justify-center">
         <item.icon className={`w-5 h-5 ${item.color}`} />
       </div>
       <span className="text-xs text-center text-foreground leading-tight">

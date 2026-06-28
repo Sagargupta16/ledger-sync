@@ -139,7 +139,7 @@ export default function DashboardPage() {
                     key={item.name}
                     type="button"
                     onClick={() => navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(item.name)}`)}
-                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-white/[0.04] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-green/40"
+                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-[var(--overlay-2)] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-green/40"
                   >
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="w-3 h-3 rounded-full shrink-0" style={incomeColorStyles[i]} />
@@ -196,7 +196,7 @@ export default function DashboardPage() {
                     key={item.name}
                     type="button"
                     onClick={() => navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(item.name)}`)}
-                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-white/[0.04] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-red/40"
+                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-[var(--overlay-2)] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-red/40"
                   >
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="w-3 h-3 rounded-full shrink-0" style={expenseColorStyles[i]} />

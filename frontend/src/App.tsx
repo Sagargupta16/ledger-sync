@@ -14,6 +14,7 @@ import { ChunkErrorBoundary } from '@/components/shared/ChunkErrorBoundary'
 import { PreferencesProvider } from '@/components/shared/PreferencesProvider'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { useAuthStore } from '@/store/authStore'
+import { useThemeStore } from '@/store/themeStore'
 import { useAuthInit } from '@/hooks/api/useAuth'
 
 // Eagerly loaded — core pages the user hits immediately
@@ -123,17 +124,37 @@ function NotFoundPage() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-4">
       <div className="text-center space-y-4">
-        <h1 className="text-6xl font-bold text-white">404</h1>
+        <h1 className="text-6xl font-bold text-foreground">404</h1>
         <p className="text-xl text-muted-foreground">Page not found</p>
         <Link
           to={ROUTES.DASHBOARD}
-          className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-colors"
+          className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-foreground rounded-lg hover:shadow-lg transition-colors"
         >
           Go to Dashboard
         </Link>
       </div>
     </div>
   )
+}
+
+// Keeps the resolved theme in sync when the OS color-scheme changes while the
+// user is in 'system' mode. The initial theme is already applied pre-paint by
+// the inline script in index.html; this re-applies on store mount (covering a
+// localStorage value the inline script also read) and watches OS changes.
+function ThemeWatcher() {
+  const mode = useThemeStore((s) => s.mode)
+  const syncResolved = useThemeStore((s) => s.syncResolved)
+
+  useEffect(() => {
+    syncResolved()
+    if (mode !== 'system') return
+    const mq = globalThis.matchMedia('(prefers-color-scheme: light)')
+    const onChange = () => syncResolved()
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [mode, syncResolved])
+
+  return null
 }
 
 // Auth initializer component
@@ -160,7 +181,7 @@ function LandingPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-dvh flex items-center justify-center bg-black" aria-label="Authenticating">
+      <div className="min-h-dvh flex items-center justify-center bg-background" aria-label="Authenticating">
         <Spinner />
       </div>
     )
@@ -186,6 +207,7 @@ const TOASTER_OPTIONS = {
 function App() {
   return (
     <ErrorBoundary>
+      <ThemeWatcher />
       {/* reducedMotion="user" keeps motion full for everyone EXCEPT users whose
           OS requests reduced motion (WCAG 2.3.3) — library-level, so individual
           components don't each need a prefers-reduced-motion gate. */}

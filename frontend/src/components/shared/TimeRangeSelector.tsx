@@ -11,7 +11,7 @@ const ranges: TimeRange[] = ['1M', '3M', '6M', '1Y', 'ALL']
 
 export default function TimeRangeSelector({ value, onChange }: Readonly<TimeRangeSelectorProps>) {
   return (
-    <div className="flex gap-1 p-1 bg-white/[0.04] rounded-lg" role="tablist" aria-label="Time range selector">
+    <div className="flex gap-1 p-1 bg-[var(--overlay-2)] rounded-lg" role="tablist" aria-label="Time range selector">
       {ranges.map((range) => (
         <motion.button
           key={range}
@@ -20,15 +20,15 @@ export default function TimeRangeSelector({ value, onChange }: Readonly<TimeRang
           onClick={() => onChange(range)}
           className={`relative px-4 py-2 rounded-md text-sm transition-colors duration-150 ease-out ${
             value === range
-              ? 'text-white font-medium'
-              : 'text-muted-foreground hover:text-white hover:bg-white/[0.04]'
+              ? 'text-foreground font-medium'
+              : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-2)]'
           }`}
           whileTap={{ scale: 0.97 }}
         >
           {value === range && (
             <motion.div
               layoutId="activeTab"
-              className="absolute inset-0 bg-white/[0.10] rounded-md"
+              className="absolute inset-0 bg-[var(--overlay-5)] rounded-md"
               initial={false}
               transition={{ type: 'spring', stiffness: 500, damping: 35 }}
             />

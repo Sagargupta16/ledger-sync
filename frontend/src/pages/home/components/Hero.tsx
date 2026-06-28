@@ -87,7 +87,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
           >
             <button
               onClick={onGetStarted}
-              className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
+              className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-foreground transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
               style={{
                 background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
                 boxShadow: `0 10px 30px ${rawColors.app.blue}50`,
@@ -100,7 +100,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
             {!isAuthenticated && (
               <button
                 onClick={onTryDemo}
-                className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-white transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
+                className="group flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-foreground transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
               >
                 <Eye className="w-5 h-5" />
                 Try Demo
@@ -109,7 +109,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
             )}
             <a
               href="#features"
-              className="group flex items-center gap-2 px-6 py-4 min-h-[44px] rounded-2xl font-medium text-muted-foreground hover:text-white hover:bg-white/[0.06] transition-[color,background-color,transform] duration-300 hover:scale-105"
+              className="group flex items-center gap-2 px-6 py-4 min-h-[44px] rounded-2xl font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)] transition-[color,background-color,transform] duration-300 hover:scale-105"
             >
               Learn More
             </a>
@@ -128,7 +128,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.5 + index * 0.05 }}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-border"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--overlay-2)] border border-border"
             >
               <CheckCircle2 className="w-4 h-4" style={{ color: rawColors.app.green }} />
               <span className="text-sm text-foreground">{item}</span>

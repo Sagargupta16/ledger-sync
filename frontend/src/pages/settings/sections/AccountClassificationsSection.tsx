@@ -59,10 +59,10 @@ export default function AccountClassificationsSection({
                   onDragStart={() => onDragStart(name)}
                   onDragEnd={onDragEnd}
                   whileHover={{ scale: 1.03 }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-border rounded-full cursor-move hover:bg-white/20 transition-colors min-w-0 flex-1"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--overlay-5)] border border-border rounded-full cursor-move hover:bg-[var(--overlay-6)] transition-colors min-w-0 flex-1"
                 >
-                  <GripVertical className="w-3 h-3 text-white/40 shrink-0" />
-                  <span className="text-sm text-white truncate">{name}</span>
+                  <GripVertical className="w-3 h-3 text-foreground/40 shrink-0" />
+                  <span className="text-sm text-foreground truncate">{name}</span>
                   {!balancesLoading && (
                     <span className="text-xs text-muted-foreground font-mono ml-auto pl-1 shrink-0">
                       {formatCurrency(Math.abs(balanceData?.accounts[name]?.balance || 0))}
@@ -75,7 +75,7 @@ export default function AccountClassificationsSection({
                   onChange={(e) => {
                     if (e.target.value) onAssignAccount(name, e.target.value)
                   }}
-                  className="shrink-0 w-36 px-2 py-2 min-h-[44px] bg-white/5 border border-border rounded-lg text-white text-xs focus:border-primary focus:outline-none"
+                  className="shrink-0 w-36 px-2 py-2 min-h-[44px] bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-xs focus:border-primary focus:outline-none"
                 >
                   <option value="" className="bg-background">
                     Classify as...
@@ -103,14 +103,14 @@ export default function AccountClassificationsSection({
             className={`rounded-xl border-2 border-dashed p-3 transition-all min-h-[140px] ${
               dragType === 'account'
                 ? 'border-primary/50 bg-primary/5'
-                : 'border-border bg-white/[0.02]'
+                : 'border-border bg-[var(--overlay-1)]'
             }`}
           >
             <div
               className={`bg-gradient-to-r ${CATEGORY_COLORS[category] || 'from-muted-foreground to-text-tertiary'} rounded-lg px-3 py-1.5 mb-2`}
             >
-              <h4 className="text-xs font-semibold text-white">{category}</h4>
-              <p className="text-[10px] text-white/70">
+              <h4 className="text-xs font-semibold text-foreground">{category}</h4>
+              <p className="text-[10px] text-foreground/70">
                 {accountsByCategory[category]?.length || 0}{' '}accounts
               </p>
             </div>
@@ -122,10 +122,10 @@ export default function AccountClassificationsSection({
                   onDragStart={() => onDragStart(name)}
                   onDragEnd={onDragEnd}
                   whileHover={{ scale: 1.03 }}
-                  className="flex items-center gap-1 px-2.5 py-1 bg-white/10 border border-border rounded-full cursor-move hover:bg-white/20 transition-colors"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-[var(--overlay-5)] border border-border rounded-full cursor-move hover:bg-[var(--overlay-6)] transition-colors"
                 >
-                  <GripVertical className="w-2.5 h-2.5 text-white/30" />
-                  <span className="text-xs text-white truncate max-w-[120px]">{name}</span>
+                  <GripVertical className="w-2.5 h-2.5 text-foreground/30" />
+                  <span className="text-xs text-foreground truncate max-w-[120px]">{name}</span>
                 </motion.div>
               ))}
               {(!accountsByCategory[category] || accountsByCategory[category].length === 0) && (

@@ -13,9 +13,9 @@ function getStatusColor(status: 'good' | 'warning' | 'poor'): string {
 function RatioCard({ ratio }: Readonly<{ ratio: CFPRatio }>) {
   const color = getStatusColor(ratio.status)
   return (
-    <div className="p-3 rounded-xl border border-border bg-white/[0.02]">
+    <div className="p-3 rounded-xl border border-border bg-[var(--overlay-1)]">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-white">{ratio.name}</span>
+        <span className="text-sm font-medium text-foreground">{ratio.name}</span>
         <span className="text-sm font-bold" style={{ color }}>{ratio.formattedValue}</span>
       </div>
       <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden mb-2">

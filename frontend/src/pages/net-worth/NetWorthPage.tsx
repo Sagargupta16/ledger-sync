@@ -104,7 +104,7 @@ export default function NetWorthPage() {
         >
           <div className="flex items-center gap-3 mb-4">
             <Target className="w-5 h-5 text-app-blue" />
-            <h3 className="text-lg font-semibold text-white">Net Worth Milestones</h3>
+            <h3 className="text-lg font-semibold text-foreground">Net Worth Milestones</h3>
           </div>
           <MilestonesTable
             rows={m.milestoneRows}
@@ -120,7 +120,7 @@ export default function NetWorthPage() {
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="glass rounded-2xl border border-border p-4 md:p-6"
         >
-          <h3 className="text-lg font-semibold text-white mb-4">Assets (Positive Balances)</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Assets (Positive Balances)</h3>
           <AccountCategoryTable
             accounts={m.accounts}
             filterFn={(b) => b > 0}
@@ -145,7 +145,7 @@ export default function NetWorthPage() {
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="glass rounded-2xl border border-border p-4 md:p-6"
         >
-          <h3 className="text-lg font-semibold text-white mb-4">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Liabilities (Negative Balances)
           </h3>
           <AccountCategoryTable

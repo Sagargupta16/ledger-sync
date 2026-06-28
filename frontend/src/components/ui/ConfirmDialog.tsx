@@ -44,8 +44,8 @@ export default function ConfirmDialog({
 
   const confirmColors =
     variant === 'danger'
-      ? 'bg-app-red/90 hover:bg-app-red text-white'
-      : 'bg-app-orange/90 hover:bg-app-orange text-white'
+      ? 'bg-app-red/90 hover:bg-app-red text-foreground'
+      : 'bg-app-orange/90 hover:bg-app-orange text-foreground'
 
   return (
     <AnimatePresence>
@@ -66,16 +66,16 @@ export default function ConfirmDialog({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="bg-[#1a1a1c] rounded-2xl border border-white/[0.08] p-6 max-w-md w-full shadow-2xl"
+            className="bg-surface-dropdown rounded-2xl border border-[var(--hairline-2)] p-6 max-w-md w-full shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="confirm-dialog-title" className="text-lg font-semibold text-white mb-2">{title}</h3>
+            <h3 id="confirm-dialog-title" className="text-lg font-semibold text-foreground mb-2">{title}</h3>
             <p id="confirm-dialog-desc" className="text-sm text-muted-foreground mb-6">{description}</p>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 bg-white/[0.06] border border-white/[0.08] text-white rounded-lg hover:bg-white/[0.10] transition-colors duration-150 ease-out text-sm"
+                className="px-4 py-2 bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-foreground rounded-lg hover:bg-[var(--overlay-5)] transition-colors duration-150 ease-out text-sm"
               >
                 {cancelLabel}
               </button>

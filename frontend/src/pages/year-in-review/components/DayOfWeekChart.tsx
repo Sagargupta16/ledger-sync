@@ -106,16 +106,16 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
             <p className="text-[10px] uppercase tracking-widest text-text-quaternary font-semibold">
               Biggest Day
             </p>
-            <p className="text-sm font-semibold text-white mt-0.5">
+            <p className="text-sm font-semibold text-foreground mt-0.5">
               <span className="text-app-red">{insights.topDay}</span>
               <span className="text-text-tertiary text-xs font-normal"> · {formatCurrencyShort(insights.topAmount)}/day</span>
             </p>
           </div>
-          <div className="px-3 py-2 rounded-lg bg-white/[0.04] border border-border">
+          <div className="px-3 py-2 rounded-lg bg-[var(--overlay-2)] border border-border">
             <p className="text-[10px] uppercase tracking-widest text-text-quaternary font-semibold">
               Weekend vs Weekday
             </p>
-            <p className="text-sm font-semibold text-white mt-0.5">
+            <p className="text-sm font-semibold text-foreground mt-0.5">
               {insights.weekendDelta >= 0 ? '+' : ''}
               {(insights.weekendDelta * 100).toFixed(0)}%
               <span className="text-text-tertiary text-xs font-normal"> on weekends</span>

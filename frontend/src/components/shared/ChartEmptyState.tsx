@@ -18,7 +18,7 @@ export default function ChartEmptyState({
       className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border"
       style={{ height }}
     >
-      <div className="p-3 rounded-xl bg-white/[0.04]">
+      <div className="p-3 rounded-xl bg-[var(--overlay-2)]">
         <BarChart3 className="w-6 h-6 text-text-tertiary" />
       </div>
       <p className="text-sm text-text-tertiary">{message}</p>

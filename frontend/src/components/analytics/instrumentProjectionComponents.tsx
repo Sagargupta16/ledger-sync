@@ -30,7 +30,7 @@ export function SliderInput({
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <label htmlFor={id} className="text-xs text-text-secondary">{label}</label>
-        <span className="text-sm font-medium text-white">
+        <span className="text-sm font-medium text-foreground">
           {prefix}{value.toLocaleString('en-IN')}{suffix}
         </span>
       </div>
@@ -42,7 +42,7 @@ export function SliderInput({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-app-blue cursor-pointer"
+        className="w-full h-1.5 rounded-full appearance-none bg-[var(--overlay-5)] accent-app-blue cursor-pointer"
       />
     </div>
   )

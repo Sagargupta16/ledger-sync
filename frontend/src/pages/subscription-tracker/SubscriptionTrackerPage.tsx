@@ -93,7 +93,7 @@ function AddRecurringForm({
       className="overflow-hidden"
     >
       <div className="glass rounded-2xl border border-app-blue/30 p-6 space-y-4">
-        <p className="text-sm font-medium text-white">Add Recurring Transaction</p>
+        <p className="text-sm font-medium text-foreground">Add Recurring Transaction</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div className="sm:col-span-2 lg:col-span-1">
             <label htmlFor="add-name" className="text-xs text-text-tertiary block mb-1">Name</label>
@@ -135,7 +135,7 @@ function AddRecurringForm({
             <Check className="w-3.5 h-3.5" /> Add
           </button>
           <button type="button" onClick={onCancel}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-muted-foreground bg-white/5 hover:bg-white/10 transition-colors">
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-muted-foreground bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] transition-colors">
             <X className="w-3.5 h-3.5" /> Cancel
           </button>
         </div>
@@ -196,7 +196,7 @@ function RecurringCard({
           <button type="button" onClick={saveEdit} className="flex items-center gap-1 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-sm font-medium bg-app-blue/20 text-app-blue hover:bg-app-blue/30 transition-colors">
             <Check className="w-3.5 h-3.5" /> Save
           </button>
-          <button type="button" onClick={() => setEditing(false)} className="flex items-center gap-1 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-sm text-muted-foreground bg-white/5 hover:bg-white/10 transition-colors">
+          <button type="button" onClick={() => setEditing(false)} className="flex items-center gap-1 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-sm text-muted-foreground bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] transition-colors">
             <X className="w-3.5 h-3.5" /> Cancel
           </button>
         </div>
@@ -206,14 +206,14 @@ function RecurringCard({
 
   return (
     <div className={`glass rounded-2xl border p-4 transition-colors duration-200 ${
-      item.is_active ? 'border-border hover:border-white/20' : 'border-white/5 opacity-50'
+      item.is_active ? 'border-border hover:border-[var(--hairline-5)]' : 'border-[var(--hairline-1)] opacity-50'
     }`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className={`w-2 h-8 rounded-full shrink-0 ${isIncome ? 'bg-app-green' : 'bg-app-red'}`} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-medium text-white truncate">{item.name}</h3>
+              <h3 className="font-medium text-foreground truncate">{item.name}</h3>
               <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${isIncome ? 'bg-app-green/10 text-app-green' : 'bg-app-red/10 text-app-red'}`}>
                 {item.type}
               </span>
@@ -221,7 +221,7 @@ function RecurringCard({
                 {capitalize(item.frequency)}
               </span>
               {!item.is_active && (
-                <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-white/10 text-text-tertiary">
+                <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--overlay-5)] text-text-tertiary">
                   Paused
                 </span>
               )}
@@ -250,13 +250,13 @@ function RecurringCard({
           </div>
           <div className="flex items-center gap-0.5">
             <button type="button" onClick={() => { setEditName(item.name); setEditFreq(item.frequency ?? 'monthly'); setEditAmt(String(Math.abs(item.expected_amount))); setEditing(true) }}
-              title="Edit" aria-label="Edit recurring item" className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-white hover:bg-white/10 transition-colors">
+              title="Edit" aria-label="Edit recurring item" className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors">
               <Pencil className="w-3.5 h-3.5" />
             </button>
             <button type="button" onClick={() => onUpdate({ is_active: !item.is_active })}
               title={item.is_active ? 'Deactivate' : 'Activate'}
               aria-label={item.is_active ? 'Pause recurring item' : 'Activate recurring item'}
-              className={`flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg transition-colors ${item.is_active ? 'text-app-green hover:bg-app-green/10' : 'text-text-tertiary hover:bg-white/10'}`}>
+              className={`flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg transition-colors ${item.is_active ? 'text-app-green hover:bg-app-green/10' : 'text-text-tertiary hover:bg-[var(--overlay-5)]'}`}>
               {item.is_active ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
             </button>
             <button type="button" onClick={onDelete}
@@ -357,7 +357,7 @@ export default function SubscriptionTrackerPage() {
           subtitle="Track your regular income and expenses for projected cash flow"
           action={
             <button type="button" onClick={() => { setSuggestion(undefined); setShowForm(true) }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-app-blue hover:bg-app-blue/80 transition-colors">
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-foreground bg-app-blue hover:bg-app-blue/80 transition-colors">
               <Plus className="w-4 h-4" /> Add Recurring
             </button>
           }
@@ -404,13 +404,13 @@ export default function SubscriptionTrackerPage() {
         {!isLoading && active.length > 0 && summary.monthlyExpense + summary.monthlyIncome > 0 && (
           <div className="glass rounded-2xl border border-border p-4 space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-white">Recurring mix</span>
+              <span className="font-medium text-foreground">Recurring mix</span>
               {summary.monthlyIncome > 0 && (
                 <span className="text-text-tertiary">
                   Fixed expenses use{' '}
                   <span
                     className={
-                      summary.monthlyExpense > summary.monthlyIncome ? 'text-app-red' : 'text-white'
+                      summary.monthlyExpense > summary.monthlyIncome ? 'text-app-red' : 'text-foreground'
                     }
                   >
                     {Math.round((summary.monthlyExpense / summary.monthlyIncome) * 100)}%
@@ -419,7 +419,7 @@ export default function SubscriptionTrackerPage() {
                 </span>
               )}
             </div>
-            <div className="flex h-3 w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="flex h-3 w-full overflow-hidden rounded-full bg-[var(--overlay-3)]">
               <div
                 className="h-full bg-app-green transition-[width] duration-500"
                 style={{
@@ -449,7 +449,7 @@ export default function SubscriptionTrackerPage() {
         {/* Suggestions */}
         {!showForm && confirmed.length === 0 && !isLoading && (
           <div className="glass rounded-2xl border border-border p-6 space-y-3">
-            <p className="text-sm font-medium text-white">Quick Add -- common recurring transactions</p>
+            <p className="text-sm font-medium text-foreground">Quick Add -- common recurring transactions</p>
             <div className="flex flex-wrap gap-2">
               {SUGGESTIONS.map((s) => (
                 <button key={s.name} type="button" onClick={() => openWithSuggestion(s)}
@@ -471,7 +471,7 @@ export default function SubscriptionTrackerPage() {
             <span className="text-xs text-text-tertiary">Quick add:</span>
             {SUGGESTIONS.slice(0, 8).map((s) => (
               <button key={s.name} type="button" onClick={() => openWithSuggestion(s)}
-                className="px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground bg-white/5 hover:bg-white/10 hover:text-white transition-colors">
+                className="px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] hover:text-foreground transition-colors">
                 + {s.name}
               </button>
             ))}
@@ -492,7 +492,7 @@ export default function SubscriptionTrackerPage() {
         {/* Active list */}
         {!isLoading && active.length > 0 && (
           <div className="space-y-3">
-            <p className="text-sm font-medium text-white">Active ({active.length})</p>
+            <p className="text-sm font-medium text-foreground">Active ({active.length})</p>
             {active.map((item) => (
               <motion.div key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
                 <RecurringCard
@@ -537,7 +537,7 @@ export default function SubscriptionTrackerPage() {
         {isLoading && (
           <div className="space-y-3">
             {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="h-20 rounded-xl bg-white/5 animate-pulse" />
+              <div key={i} className="h-20 rounded-xl bg-[var(--overlay-2)] animate-pulse" />
             ))}
           </div>
         )}

@@ -8,7 +8,7 @@ function ChatMessageComponent({ message }: Readonly<{ message: ChatMessageType }
     <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : ''}`}>
       <div
         className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
-          isUser ? 'bg-primary/20' : 'bg-white/10'
+          isUser ? 'bg-primary/20' : 'bg-[var(--overlay-5)]'
         }`}
       >
         {isUser ? (
@@ -20,15 +20,15 @@ function ChatMessageComponent({ message }: Readonly<{ message: ChatMessageType }
       <div
         className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
           isUser
-            ? 'bg-primary/15 text-white rounded-br-md'
-            : 'bg-white/[0.06] text-foreground rounded-bl-md'
+            ? 'bg-primary/15 text-foreground rounded-br-md'
+            : 'bg-[var(--overlay-3)] text-foreground rounded-bl-md'
         }`}
       >
         {message.content || (
           <span className="inline-flex gap-1">
-            <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" />
-            <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:0.15s]" />
-            <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:0.3s]" />
+            <span className="w-1.5 h-1.5 bg-[var(--overlay-7)] rounded-full animate-bounce" />
+            <span className="w-1.5 h-1.5 bg-[var(--overlay-7)] rounded-full animate-bounce [animation-delay:0.15s]" />
+            <span className="w-1.5 h-1.5 bg-[var(--overlay-7)] rounded-full animate-bounce [animation-delay:0.3s]" />
           </span>
         )}
       </div>

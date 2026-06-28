@@ -51,22 +51,22 @@ export default function AccountClassifier() {
         <h3 className="text-lg font-semibold">Account Configuration</h3>
       </div>
 
-      <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-border overflow-hidden">
+      <div className="bg-[var(--overlay-2)] backdrop-blur-sm rounded-xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
           <thead>
-            <tr className="bg-white/5 border-b border-border">
+            <tr className="bg-[var(--overlay-2)] border-b border-border">
               <th className="p-4 font-medium">Account Name</th>
               {CLASSIFIER_TYPES.map(({ type, label }) => (
                 <th key={type} className="p-4 font-medium text-center w-32">{label}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-[var(--hairline-1)]">
             {accounts.map((account) => {
               const types = accountTypes[account] || []
               return (
-                <tr key={account} className="hover:bg-white/10 transition-colors">
+                <tr key={account} className="hover:bg-[var(--overlay-5)] transition-colors">
                   <td className="p-4 font-medium">{account}</td>
                   {CLASSIFIER_TYPES.map(({ type, activeColor, hoverColor }) => (
                     <td key={type} className="p-4 text-center">
@@ -78,7 +78,7 @@ export default function AccountClassifier() {
                           types.includes(type) ? activeColor : hoverColor
                         }`}
                       >
-                        {types.includes(type) && <Check className="w-3 h-3 text-white" />}
+                        {types.includes(type) && <Check className="w-3 h-3 text-foreground" />}
                       </button>
                     </td>
                   ))}

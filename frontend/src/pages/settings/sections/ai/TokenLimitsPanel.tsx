@@ -88,7 +88,7 @@ export function TokenLimitsPanel(props: Readonly<TokenLimitsPanelProps>) {
         type="button"
         onClick={onSave}
         disabled={saving}
-        className="px-3 py-1.5 text-xs bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors disabled:opacity-40"
+        className="px-3 py-1.5 text-xs bg-[var(--overlay-5)] text-foreground rounded-lg hover:bg-[var(--overlay-6)] transition-colors disabled:opacity-40"
       >
         {saving ? 'Saving limits...' : 'Save limits'}
       </button>

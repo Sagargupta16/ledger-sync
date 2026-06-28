@@ -48,7 +48,7 @@ export function FeaturesSection() {
               Features
             </span>
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4">
             Everything You Need
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -73,7 +73,7 @@ export function FeaturesSection() {
                 <feature.icon className="w-6 h-6" style={{ color: feature.color }} />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white mb-1">{feature.title}</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-1">{feature.title}</h3>
                 <p className="text-sm text-muted-foreground">{feature.description}</p>
               </div>
             </motion.div>

@@ -45,6 +45,7 @@ import { exitDemoMode } from '@/lib/demo'
 import SidebarSection from './SidebarSection'
 import SidebarItem from './SidebarItem'
 import CurrencySwitcher from './CurrencySwitcher'
+import ThemeToggle from './ThemeToggle'
 
 // ─── Navigation config ──────────────────────────────────────────────────────
 
@@ -141,13 +142,13 @@ function BrandHeader({
     <button
       type="button"
       onClick={onOpenProfile}
-      className="w-full flex items-center gap-3 px-4 py-4 border-b border-border hover:bg-white/[0.04] transition-colors duration-150 group/brand"
+      className="w-full flex items-center gap-3 px-4 py-4 border-b border-border hover:bg-[var(--overlay-2)] transition-colors duration-150 group/brand"
     >
       <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-app-blue/15">
         <PiggyBank className="w-5 h-5 text-app-blue" />
       </div>
       <div className="flex-1 min-w-0 text-left">
-        <p className="text-[15px] font-semibold text-white truncate leading-tight">
+        <p className="text-[15px] font-semibold text-foreground truncate leading-tight">
           Ledger Sync
         </p>
         <p className="text-xs text-text-tertiary truncate leading-tight mt-0.5">
@@ -225,7 +226,7 @@ export default function Sidebar() {
           Left offset also respects safe-area-inset-left for landscape on notched devices. */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed z-50 w-11 h-11 flex items-center justify-center rounded-xl bg-zinc-900/90 border border-white/[0.08] backdrop-blur-sm active:scale-95 transition-transform"
+        className="lg:hidden fixed z-50 w-11 h-11 flex items-center justify-center rounded-xl bg-surface-dropdown/90 border border-[var(--hairline-2)] backdrop-blur-sm active:scale-95 transition-transform"
         style={{
           top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
           left: 'calc(env(safe-area-inset-left, 0px) + 1rem)',
@@ -233,8 +234,8 @@ export default function Sidebar() {
         aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
       >
         {isMobileOpen
-          ? <X size={20} className="text-white" />
-          : <Menu size={20} className="text-white" />}
+          ? <X size={20} className="text-foreground" />
+          : <Menu size={20} className="text-foreground" />}
       </button>
 
       {/* Sidebar -- h-dvh so the nav tracks the real viewport height
@@ -242,7 +243,7 @@ export default function Sidebar() {
       <aside
         className={cn(
           'fixed lg:sticky top-0 h-dvh w-64 z-40',
-          'bg-[#111113]/95 backdrop-blur-sm',
+          'bg-[var(--sidebar-bg)] backdrop-blur-sm',
           'border-r border-border',
           'transition-transform duration-200 ease-out',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
@@ -261,12 +262,12 @@ export default function Sidebar() {
           <div className="px-3 py-2 border-b border-border">
             <button
               onClick={openSearch}
-              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-text-tertiary hover:text-white transition-colors duration-150 text-sm"
+              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg bg-[var(--overlay-2)] hover:bg-[var(--overlay-4)] text-text-tertiary hover:text-foreground transition-colors duration-150 text-sm"
               title="Search (⌘K)"
             >
               <Search size={15} className="flex-shrink-0" />
               <span className="flex-1 text-left">Search...</span>
-              <kbd className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-text-quaternary font-medium">
+              <kbd className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-text-quaternary font-medium">
                 ⌘K
               </kbd>
             </button>
@@ -312,13 +313,14 @@ export default function Sidebar() {
           >
             <div className="flex items-center justify-center gap-1">
               <CurrencySwitcher />
+              <ThemeToggle />
               <NotificationCenter />
               {utilityItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
                   onClick={closeMobile}
-                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-white hover:bg-white/[0.06] transition-colors duration-150"
+                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] transition-colors duration-150"
                   title={item.label}
                   aria-label={item.label}
                 >

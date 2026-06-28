@@ -33,9 +33,9 @@ export default function TaxSummaryGrid({
       transition={{ delay: 0.6 }}
       className="glass rounded-2xl border border-border p-6"
     >
-      <h3 className="text-lg font-semibold text-white mb-6">Tax Summary for {selectedFY}</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-6">Tax Summary for {selectedFY}</h3>
       <div className={`grid grid-cols-1 ${isProjecting ? '' : 'sm:grid-cols-2'} gap-4`}>
-        <div className="p-4 bg-white/5 rounded-lg border border-border">
+        <div className="p-4 bg-[var(--overlay-2)] rounded-lg border border-border">
           <p className="text-sm text-muted-foreground mb-2">Effective Tax Rate</p>
           <p className="text-2xl font-bold text-primary">{formatPercent(effectiveTaxRate)}</p>
           {/* Qualitative bands frame whether the rate is light/moderate/heavy
@@ -60,7 +60,7 @@ export default function TaxSummaryGrid({
           </p>
         </div>
         {!isProjecting && (
-          <div className="p-4 bg-white/5 rounded-lg border border-border">
+          <div className="p-4 bg-[var(--overlay-2)] rounded-lg border border-border">
             <p className="text-sm text-muted-foreground mb-2">Net Savings</p>
             <p className="text-2xl font-bold text-app-purple">{formatCurrency(netSavings)}</p>
             {/* Savings rate = kept / earned. Bands echo the common 20% / 30%

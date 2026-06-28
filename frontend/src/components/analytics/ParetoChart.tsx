@@ -116,7 +116,7 @@ export default function ParetoChart({
           <TrendingDown className="w-5 h-5 text-app-orange" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-white">Pareto Analysis</h3>
+          <h3 className="text-lg font-semibold text-foreground">Pareto Analysis</h3>
           <p className="text-xs text-text-tertiary">
             {data.length === 0
               ? `Which categories make up ${threshold}% of your spend`

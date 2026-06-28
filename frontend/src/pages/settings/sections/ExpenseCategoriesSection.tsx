@@ -81,9 +81,9 @@ export default function ExpenseCategoriesSection({
               return (
                 <div
                   key={cat}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[var(--overlay-2)] transition-colors"
                 >
-                  <span className="text-sm text-white flex-1 truncate">{cat}</span>
+                  <span className="text-sm text-foreground flex-1 truncate">{cat}</span>
                   <div className="flex items-center gap-1 shrink-0 -my-2.5">
                     <button
                       type="button"
@@ -97,7 +97,7 @@ export default function ExpenseCategoriesSection({
                         className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
                           isEssential
                             ? 'bg-app-green/25 text-app-green border border-app-green/50'
-                            : 'bg-white/5 text-white/30 border border-border hover:border-app-green/30 hover:text-app-green/60'
+                            : 'bg-[var(--overlay-2)] text-foreground/30 border border-border hover:border-app-green/30 hover:text-app-green/60'
                         }`}
                       >
                         E
@@ -115,7 +115,7 @@ export default function ExpenseCategoriesSection({
                         className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
                           isFixed
                             ? 'bg-app-orange/25 text-app-orange border border-app-orange/50'
-                            : 'bg-white/5 text-white/30 border border-border hover:border-app-orange/30 hover:text-app-orange/60'
+                            : 'bg-[var(--overlay-2)] text-foreground/30 border border-border hover:border-app-orange/30 hover:text-app-orange/60'
                         }`}
                       >
                         F

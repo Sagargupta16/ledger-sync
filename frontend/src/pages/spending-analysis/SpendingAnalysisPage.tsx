@@ -93,7 +93,7 @@ export default function SpendingAnalysisPage() {
           className="glass p-4 sm:p-6 rounded-xl border border-border"
           {...SCROLL_FADE_UP}
         >
-          <h3 className="text-lg font-semibold text-white mb-4">{needsTarget}/{wantsTarget}/{savingsTarget} Budget Rule Analysis</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">{needsTarget}/{wantsTarget}/{savingsTarget} Budget Rule Analysis</h3>
           {spendingChartData.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
               {/* Actual Needs/Wants/Savings split. The target ring was dropped --
@@ -215,7 +215,7 @@ export default function SpendingAnalysisPage() {
             <div className="flex items-center gap-3">
               <TrendingDown className="w-5 h-5 text-app-red" />
               <div>
-                <h3 className="text-lg font-semibold text-white">Expense Trend</h3>
+                <h3 className="text-lg font-semibold text-foreground">Expense Trend</h3>
                 <p className="text-sm text-text-tertiary">Monthly spending with 3-month rolling average</p>
               </div>
             </div>

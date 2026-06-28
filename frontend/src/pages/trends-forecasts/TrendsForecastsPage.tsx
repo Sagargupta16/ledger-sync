@@ -98,7 +98,7 @@ export default function TrendsForecastsPage() {
             isPositiveGood={true}
             delay={0.4}
             isLoading={isLoading}
-            valueClassName={metrics.savings.current >= 0 ? 'text-white' : 'text-app-red'}
+            valueClassName={metrics.savings.current >= 0 ? 'text-foreground' : 'text-app-red'}
             averageClassName={metrics.savings.average >= 0 ? 'text-foreground' : 'text-app-red'}
             secondStatLabel="Best Month"
             secondStatClassName="text-app-green"
@@ -115,7 +115,7 @@ export default function TrendsForecastsPage() {
           <div className="flex items-center gap-3 mb-6">
             <LineChart className="w-5 h-5 text-app-blue" />
             <div>
-              <h3 className="text-lg font-semibold text-white">Income & Expense Trends</h3>
+              <h3 className="text-lg font-semibold text-foreground">Income & Expense Trends</h3>
               <p className="text-sm text-text-tertiary">
                 Monthly breakdown with 3-month rolling averages
               </p>
@@ -155,7 +155,7 @@ export default function TrendsForecastsPage() {
                 <div key={id} className="glass-thin rounded-xl border border-border p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-                    <span className="text-sm font-medium text-white">{label}</span>
+                    <span className="text-sm font-medium text-foreground">{label}</span>
                   </div>
                   <ChartContainer
                     height={180}
@@ -250,7 +250,7 @@ export default function TrendsForecastsPage() {
         >
           <div className="flex items-center gap-3 mb-6">
             <PiggyBank className="w-5 h-5 text-app-purple" />
-            <h3 className="text-lg font-semibold text-white">Savings Rate Trend</h3>
+            <h3 className="text-lg font-semibold text-foreground">Savings Rate Trend</h3>
             <span className="text-sm text-text-tertiary">(% of income saved each month)</span>
           </div>
           {isLoading && <ChartSkeleton height="h-64" />}

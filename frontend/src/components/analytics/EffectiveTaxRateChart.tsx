@@ -258,7 +258,7 @@ export default function EffectiveTaxRateChart({
                 className={`px-2.5 py-1 text-xs font-medium transition-colors ${
                   maxIncome === value
                     ? 'bg-app-orange/20 text-app-orange'
-                    : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                    : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
                 }`}
               >
                 {label}

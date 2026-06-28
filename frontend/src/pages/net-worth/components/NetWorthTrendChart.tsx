@@ -80,7 +80,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <BarChart3 className="w-5 h-5 text-app-blue" />
-          <h3 className="text-lg font-semibold text-white">Net Worth Trend</h3>
+          <h3 className="text-lg font-semibold text-foreground">Net Worth Trend</h3>
         </div>
         <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Net worth chart view options">
           <button
@@ -94,8 +94,8 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
             }
             className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
               showProjection
-                ? 'bg-app-blue/20 text-white border border-app-blue/40'
-                : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
+                ? 'bg-app-blue/20 text-foreground border border-app-blue/40'
+                : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)] border border-border'
             } disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             <Sparkles className="w-4 h-4" aria-hidden />
@@ -108,8 +108,8 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
             title={stackedAllowed ? undefined : 'Stacked view is unavailable while net worth is negative in this range'}
             className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
               effectiveStacked
-                ? 'bg-primary text-white'
-                : 'bg-white/5 text-muted-foreground hover:bg-white/10 border border-border'
+                ? 'bg-primary text-foreground'
+                : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)] border border-border'
             }`}
           >
             {effectiveStacked ? (

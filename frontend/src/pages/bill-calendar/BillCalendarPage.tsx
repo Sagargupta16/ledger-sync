@@ -111,14 +111,14 @@ export default function BillCalendarPage() {
             <button
               type="button"
               onClick={goToPrevMonth}
-              className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2 rounded-lg hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
+              className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2 rounded-lg hover:bg-[var(--overlay-5)] transition-colors text-muted-foreground hover:text-foreground"
               aria-label="Previous month"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold text-white">
+              <h2 className="text-lg font-semibold text-foreground">
                 {formatMonthYear(viewYear, viewMonth)}
               </h2>
               {!isCurrentViewToday && (
@@ -135,7 +135,7 @@ export default function BillCalendarPage() {
             <button
               type="button"
               onClick={goToNextMonth}
-              className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2 rounded-lg hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
+              className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2 rounded-lg hover:bg-[var(--overlay-5)] transition-colors text-muted-foreground hover:text-foreground"
               aria-label="Next month"
             >
               <ChevronRight className="w-5 h-5" />
@@ -159,7 +159,7 @@ export default function BillCalendarPage() {
                   {Array.from({ length: 7 }, (_, j) => `${rowId}-col-${j}`).map((cellId) => (
                     <div
                       key={cellId}
-                      className="min-h-[60px] sm:min-h-[72px] rounded-xl bg-white/5 animate-pulse"
+                      className="min-h-[60px] sm:min-h-[72px] rounded-xl bg-[var(--overlay-2)] animate-pulse"
                     />
                   ))}
                 </div>
@@ -261,7 +261,7 @@ export default function BillCalendarPage() {
               className="glass rounded-2xl border border-border p-4 sm:p-6 overflow-hidden"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold text-white">
+                <h3 className="text-base font-semibold text-foreground">
                   Bills for {formatShortDate(viewYear, viewMonth, selectedDay)}
                 </h3>
                 <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ export default function BillCalendarPage() {
                     type="button"
                     onClick={() => setSelectedDay(null)}
                     aria-label="Close day details"
-                    className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
+                    className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -292,7 +292,7 @@ export default function BillCalendarPage() {
                   ))}
                   <div className="flex items-center justify-between pt-3 mt-3 border-t border-border">
                     <span className="text-sm text-muted-foreground">Total for this day</span>
-                    <span className="text-sm font-bold text-white">
+                    <span className="text-sm font-bold text-foreground">
                       {formatCurrency(
                         selectedDayBills.reduce((sum, b) => sum + b.amount, 0),
                       )}

@@ -180,7 +180,7 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
                   style={{ width: `${barWidth}%`, backgroundColor: COLORS[index % COLORS.length] }}
                 />
                 <div
-                  className="relative w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0"
+                  className="relative w-8 h-8 rounded-lg flex items-center justify-center text-foreground font-bold text-sm shrink-0"
                   style={COLOR_STYLES[index % COLOR_STYLES.length]}
                 >
                   {index + 1}

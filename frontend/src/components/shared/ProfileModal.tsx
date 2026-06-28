@@ -140,7 +140,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.15, ease: 'easeOut' }}
-        className="max-w-lg w-full bg-[#1a1a1c] rounded-2xl border border-white/[0.08] p-0 overflow-hidden shadow-2xl"
+        className="max-w-lg w-full bg-surface-dropdown rounded-2xl border border-[var(--hairline-2)] p-0 overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <ProfileHeader

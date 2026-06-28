@@ -34,8 +34,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full bg-white/[0.04] px-4 py-3 rounded-lg',
-            'border border-white/[0.08] text-white placeholder:text-text-quaternary',
+            'w-full bg-[var(--overlay-2)] px-4 py-3 rounded-lg',
+            'border border-[var(--hairline-2)] text-foreground placeholder:text-text-quaternary',
             'transition-all duration-150 ease-out',
             'focus:border-app-blue/50 focus:outline-none focus:ring-1 focus:ring-app-blue/20',
             'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -86,8 +86,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         ref={ref}
         id={selectId}
         className={cn(
-          'w-full bg-white/[0.04] px-4 py-3 rounded-lg',
-          'border border-white/[0.08] text-white',
+          'w-full bg-[var(--overlay-2)] px-4 py-3 rounded-lg',
+          'border border-[var(--hairline-2)] text-foreground',
           'transition-all duration-150 ease-out',
           'focus:border-app-blue/50 focus:outline-none focus:ring-1 focus:ring-app-blue/20',
           'disabled:opacity-50 disabled:cursor-not-allowed',

@@ -45,8 +45,8 @@ export default function BudgetPage() {
                     onClick={() => m.setViewMode(val)}
                     className={`relative px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       m.viewMode === val
-                        ? 'text-white'
-                        : 'text-muted-foreground hover:text-white hover:bg-white/10'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
                     }`}
                     whileTap={{ scale: 0.97 }}
                   >
@@ -66,7 +66,7 @@ export default function BudgetPage() {
               <motion.button
                 onClick={() => m.setIsAdding(true)}
                 whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-medium text-white transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-medium text-foreground transition-colors"
                 style={{
                   background: `linear-gradient(135deg, ${rawColors.app.green}, ${rawColors.app.teal})`,
                 }}
@@ -188,7 +188,7 @@ export default function BudgetPage() {
             </p>
             <button
               onClick={() => m.setIsAdding(true)}
-              className="px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-colors"
+              className="px-5 py-2.5 rounded-xl text-sm font-medium text-foreground transition-colors"
               style={{ backgroundColor: rawColors.app.green }}
             >
               <Plus className="w-4 h-4 inline mr-1.5" /> Create Your First Budget

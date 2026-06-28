@@ -51,7 +51,7 @@ export default function TrendCard({
   isPositiveGood,
   delay,
   isLoading,
-  valueClassName = 'text-white',
+  valueClassName = 'text-foreground',
   averageClassName = 'text-foreground',
   secondStatLabel = 'Peak',
   secondStatClassName = 'text-foreground',
