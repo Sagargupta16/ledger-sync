@@ -68,6 +68,12 @@ export function applyTheme(resolved: 'dark' | 'light', skipTransition = false): 
 
   root.setAttribute('data-theme', resolved)
 
+  // Keep the mobile browser chrome (theme-color / color-scheme) tracking the
+  // active theme on a live toggle, mirroring the pre-paint script in index.html.
+  const bar = resolved === 'light' ? '#f6f3ee' : '#000000'
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bar)
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', resolved)
+
   // Re-resolve the chart color tokens (Recharts/SVG read concrete values, not
   // var()) so charts repaint with the active theme's palette. Runs after the
   // data-theme switch so getComputedStyle sees the new token values.

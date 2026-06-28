@@ -30,6 +30,7 @@ export interface SalaryStructureSectionProps {
   updateRsuGrants: (grants: RsuGrant[]) => void
   localGrowthAssumptions: GrowthAssumptions
   updateGrowthAssumptions: (assumptions: GrowthAssumptions) => void
+  defaultCollapsed?: boolean
 }
 
 export default function SalaryStructureSection({
@@ -40,6 +41,7 @@ export default function SalaryStructureSection({
   updateRsuGrants,
   localGrowthAssumptions,
   updateGrowthAssumptions,
+  defaultCollapsed = true,
 }: Readonly<SalaryStructureSectionProps>) {
   const fyKeys = useMemo(
     () =>
@@ -231,6 +233,7 @@ export default function SalaryStructureSection({
       icon={Banknote}
       title="Income & Salary Structure"
       description="Salary breakdown, RSU grants, and growth projections"
+      defaultCollapsed={defaultCollapsed}
     >
       <SalaryFieldsGrid
         fyKeys={fyKeys}

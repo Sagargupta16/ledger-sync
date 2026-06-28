@@ -14,6 +14,7 @@ interface Props {
   localPrefs: LocalPrefs
   fixedCategories: string[]
   updateLocalPref: <K extends LocalPrefKey>(key: K, value: LocalPrefs[K]) => void
+  defaultCollapsed?: boolean
 }
 
 export default function ExpenseCategoriesSection({
@@ -22,6 +23,7 @@ export default function ExpenseCategoriesSection({
   localPrefs,
   fixedCategories,
   updateLocalPref,
+  defaultCollapsed = true,
 }: Readonly<Props>) {
   const toggleEssentialCategory = (cat: string) => {
     const isEssential = localPrefs.essential_categories.includes(cat)
@@ -48,6 +50,7 @@ export default function ExpenseCategoriesSection({
       icon={Tags}
       title="Expense Categories"
       description="Toggle categories as essential or fixed monthly expenses"
+      defaultCollapsed={defaultCollapsed}
     >
       {allExpenseCategories.length === 0 ? (
         <EmptyState

@@ -82,6 +82,24 @@ export function Section({
 }
 
 // ---------------------------------------------------------------------------
+// Group heading
+// ---------------------------------------------------------------------------
+
+/**
+ * Lightweight label above a cluster of related sections. Gives the Settings
+ * page information scent so the 11 sections read as a few task-based groups
+ * instead of one flat list. Matches the overline group-header style used on
+ * the More page.
+ */
+export function GroupHeader({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <h2 className="text-overline uppercase tracking-wider text-text-tertiary font-semibold px-1 pt-2 first:pt-0">
+      {children}
+    </h2>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Toggle switch
 // ---------------------------------------------------------------------------
 

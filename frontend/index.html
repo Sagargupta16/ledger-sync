@@ -19,6 +19,15 @@
             ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
             : m;
           document.documentElement.setAttribute('data-theme', resolved);
+          // Keep the mobile browser chrome (address bar / status bar) in step
+          // with the theme so it doesn't render black behind the warm light UI.
+          var bar = resolved === 'light' ? '#f6f3ee' : '#000000';
+          var setMeta = function (name, content) {
+            var el = document.querySelector('meta[name="' + name + '"]');
+            if (el) el.setAttribute('content', content);
+          };
+          setMeta('theme-color', bar);
+          setMeta('color-scheme', resolved);
         } catch (e) {
           document.documentElement.setAttribute('data-theme', 'dark');
         }

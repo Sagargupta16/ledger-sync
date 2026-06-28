@@ -1,14 +1,17 @@
 import { useState, useMemo } from 'react'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Info, Check, X, ChevronDown, ChevronUp, Settings2 } from 'lucide-react'
+import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Info, Check, X, ChevronDown, ChevronUp, Settings2, Save, SlidersHorizontal } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { PageHeader, StatCard } from '@/components/ui'
+import { PageHeader, StatCard, CollapsibleSection } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { useAnomalies, useReviewAnomaly } from '@/hooks/api/useAnalyticsV2'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
+import { usePreferences, useUpdateAnomalySettings } from '@/hooks/api/usePreferences'
+import type { LocalPrefs, LocalPrefKey } from '@/pages/settings/types'
+import AnomalyDetectionSubsection from '@/pages/settings/sections/AnomalyDetectionSubsection'
 import { formatCurrency, formatPercent, formatDate } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
@@ -45,6 +48,78 @@ const SEVERITY_STYLES: Record<Anomaly['severity'], { bg: string; text: string; b
 }
 
 const DETECTED_AT_OPTS: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
+
+/**
+ * Contextual Anomaly Detection panel. Reuses the Settings
+ * `AnomalyDetectionSubsection` as-is and saves the same fields via the
+ * dedicated anomaly-settings preferences endpoint. The Settings page keeps its
+ * own copy.
+ */
+function AnomalyDetectionPanel() {
+  const { data: preferences } = usePreferences()
+  const updateAnomalySettings = useUpdateAnomalySettings()
+  const { guardDemoAction } = useDemoGuard()
+
+  const [edits, setEdits] = useState<
+    Partial<
+      Pick<
+        LocalPrefs,
+        'anomaly_expense_threshold' | 'anomaly_types_enabled' | 'auto_dismiss_recurring_anomalies'
+      >
+    >
+  >({})
+  const [hasChanges, setHasChanges] = useState(false)
+
+  const localPrefs = useMemo<LocalPrefs | null>(
+    () => (preferences ? ({ ...preferences, ...edits } as unknown as LocalPrefs) : null),
+    [preferences, edits],
+  )
+
+  const updateLocalPref = <K extends LocalPrefKey>(key: K, value: LocalPrefs[K]) => {
+    setEdits((prev) => ({ ...prev, [key]: value }))
+    setHasChanges(true)
+  }
+
+  const handleSave = async () => {
+    if (!localPrefs || guardDemoAction('Saving anomaly settings')) return
+    try {
+      await updateAnomalySettings.mutateAsync({
+        anomaly_expense_threshold: localPrefs.anomaly_expense_threshold,
+        anomaly_types_enabled: localPrefs.anomaly_types_enabled,
+        auto_dismiss_recurring_anomalies: localPrefs.auto_dismiss_recurring_anomalies,
+      })
+      setHasChanges(false)
+      setEdits({})
+      toast.success('Anomaly settings saved')
+    } catch {
+      toast.error('Failed to save anomaly settings')
+    }
+  }
+
+  if (!localPrefs) return null
+
+  return (
+    <CollapsibleSection title="Anomaly Detection" icon={SlidersHorizontal} defaultExpanded={false}>
+      <AnomalyDetectionSubsection localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
+      <div className="flex items-center justify-end gap-3 pt-4">
+        {hasChanges && (
+          <span className="text-sm text-app-yellow flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-app-yellow animate-pulse" /> Unsaved
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!hasChanges || updateAnomalySettings.isPending}
+          className="flex items-center gap-2 px-4 py-2.5 sm:py-2 min-h-11 rounded-lg bg-gradient-to-r from-primary to-secondary text-on-accent text-sm font-medium transition-all hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Save className="w-4 h-4" />
+          {updateAnomalySettings.isPending ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </CollapsibleSection>
+  )
+}
 
 export default function AnomalyReviewPage() {
   const [typeFilter, setTypeFilter] = useState<string>('')
@@ -114,6 +189,8 @@ export default function AnomalyReviewPage() {
           </Link>
         }
       />
+
+      <AnomalyDetectionPanel />
 
       {/* Summary Cards */}
       <motion.div

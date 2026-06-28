@@ -24,6 +24,7 @@ const pageTransition = {
 // Route → browser tab title
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/overview': 'Overview',
   '/transactions': 'Transactions',
   '/subscriptions': 'Subscriptions',
   '/bill-calendar': 'Bill Calendar',
@@ -75,7 +76,7 @@ export default function AppLayout() {
       <a
         href="#main-content"
         aria-label="Skip to main content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-app-blue focus:text-white focus:rounded-xl focus:text-sm focus:font-medium focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-app-blue focus:text-on-accent focus:rounded-xl focus:text-sm focus:font-medium focus:shadow-lg"
       >
         Skip to main content
       </a>

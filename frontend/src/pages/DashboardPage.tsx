@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 
 import { motion } from 'framer-motion'
-import { Wallet, CreditCard } from 'lucide-react'
+import { Wallet, CreditCard, Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 
@@ -80,6 +80,24 @@ export default function DashboardPage() {
   const expenseHiddenCount = Math.max(0, expenseChartData.length - LEGEND_CAP)
 
   if (isLoading) return <PageSkeleton />
+
+  // First-run: no transactions at all. Show a single full-page prompt to upload
+  // instead of a grid of empty widgets.
+  if (!filteredTransactions?.length) {
+    return (
+      <PageContainer>
+        <PageHeader title="Dashboard" subtitle="Your financial overview at a glance" />
+        <EmptyState
+          icon={Upload}
+          title="No transactions yet"
+          description="Upload a bank statement to unlock your spending breakdowns, insights, and health score."
+          actionLabel="Upload Data"
+          actionHref={ROUTES.UPLOAD}
+          variant="card"
+        />
+      </PageContainer>
+    )
+  }
 
   return (
     <PageContainer>

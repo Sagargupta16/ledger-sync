@@ -43,7 +43,7 @@ export default function DayCell({
   const todayBorderClass = isToday && !isSelected ? 'ring-2 ring-app-blue/50' : ''
 
   const dayNumberClass = (() => {
-    if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-app-blue text-white'
+    if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-app-blue text-on-accent'
     if (isSelected) return 'text-app-blue'
     if (isCurrentMonth) return 'text-foreground'
     return 'text-text-quaternary'

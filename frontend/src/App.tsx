@@ -47,6 +47,7 @@ const pageImports = {
   BillCalendarPage: () => import('@/pages/bill-calendar/BillCalendarPage'),
   FIRECalculatorPage: () => import('@/pages/FIRECalculatorPage'),
   MorePage: () => import('@/pages/MorePage'),
+  OverviewPage: () => import('@/pages/OverviewPage'),
 }
 
 const UploadSyncPage = lazy(pageImports.UploadSyncPage)
@@ -71,6 +72,7 @@ const SubscriptionTrackerPage = lazy(pageImports.SubscriptionTrackerPage)
 const BillCalendarPage = lazy(pageImports.BillCalendarPage)
 const FIRECalculatorPage = lazy(pageImports.FIRECalculatorPage)
 const MorePage = lazy(pageImports.MorePage)
+const OverviewPage = lazy(pageImports.OverviewPage)
 
 /**
  * Prefetch all lazy page chunks in the background after initial load.
@@ -128,7 +130,7 @@ function NotFoundPage() {
         <p className="text-xl text-muted-foreground">Page not found</p>
         <Link
           to={ROUTES.DASHBOARD}
-          className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-colors"
+          className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-on-accent rounded-lg hover:shadow-lg transition-colors"
         >
           Go to Dashboard
         </Link>
@@ -237,6 +239,7 @@ function App() {
                   >
                     <Route path="home" element={<HomePage />} />
                     <Route path={toRelativePath(ROUTES.DASHBOARD)} element={<DashboardPage />} />
+                    <Route path={toRelativePath(ROUTES.OVERVIEW)} element={<OverviewPage />} />
                     <Route path={toRelativePath(ROUTES.UPLOAD)} element={<UploadSyncPage />} />
                     <Route path={toRelativePath(ROUTES.SETTINGS)} element={<SettingsPage />} />
                     <Route path={toRelativePath(ROUTES.TRANSACTIONS)} element={<TransactionsPage />} />

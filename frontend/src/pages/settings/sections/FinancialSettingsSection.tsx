@@ -16,12 +16,14 @@ interface Props {
   index: number
   localPrefs: LocalPrefs
   updateLocalPref: <K extends LocalPrefKey>(key: K, value: LocalPrefs[K]) => void
+  defaultCollapsed?: boolean
 }
 
 export default function FinancialSettingsSection({
   index,
   localPrefs,
   updateLocalPref,
+  defaultCollapsed = true,
 }: Readonly<Props>) {
   return (
     <Section
@@ -29,6 +31,7 @@ export default function FinancialSettingsSection({
       icon={Target}
       title="Financial Settings"
       description="Savings goals, investment targets, tax regime, and spending rules"
+      defaultCollapsed={defaultCollapsed}
     >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Fiscal Year */}

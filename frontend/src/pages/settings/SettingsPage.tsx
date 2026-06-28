@@ -3,17 +3,18 @@ import { Save, RotateCcw } from 'lucide-react'
 import { PageContainer, PageHeader } from '@/components/ui'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useSettingsState } from './useSettingsState'
-import AccountClassificationsSection from './sections/AccountClassificationsSection'
-import InvestmentMappingsSection from './sections/InvestmentMappingsSection'
-import ExpenseCategoriesSection from './sections/ExpenseCategoriesSection'
-import IncomeClassificationSection from './sections/IncomeClassificationSection'
-import SalaryStructureSection from './sections/SalaryStructureSection'
-import FinancialSettingsSection from './sections/FinancialSettingsSection'
+import { GroupHeader } from './sectionPrimitives'
 import DisplayPreferencesSection from './sections/DisplayPreferencesSection'
 import NotificationsSection from './sections/NotificationsSection'
-import AIAssistantSection from './sections/AIAssistantSection'
-import AdvancedSection from './sections/AdvancedSection'
 import DashboardWidgetsSection from './sections/DashboardWidgetsSection'
+import AIAssistantSection from './sections/AIAssistantSection'
+import FinancialSettingsSection from './sections/FinancialSettingsSection'
+import SalaryStructureSection from './sections/SalaryStructureSection'
+import AccountClassificationsSection from './sections/AccountClassificationsSection'
+import ExpenseCategoriesSection from './sections/ExpenseCategoriesSection'
+import IncomeClassificationSection from './sections/IncomeClassificationSection'
+import InvestmentMappingsSection from './sections/InvestmentMappingsSection'
+import AdvancedSection from './sections/AdvancedSection'
 
 export default function SettingsPage() {
   const s = useSettingsState()
@@ -82,7 +83,7 @@ export default function SettingsPage() {
                 whileTap={{ scale: 0.97 }}
                 onClick={s.handleSave}
                 disabled={!s.hasChanges || s.isSaving}
-                className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-primary to-secondary text-on-accent rounded-lg hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
               >
                 <Save className="w-4 h-4" />
                 <span>{s.isSaving ? 'Saving...' : 'Save'}</span>
@@ -90,6 +91,32 @@ export default function SettingsPage() {
             </div>
           }
         />
+
+        {/* Group: Money Setup -- essential first-run config, expanded by default */}
+        <GroupHeader>Money Setup</GroupHeader>
+
+        {s.localPrefs && (
+          <FinancialSettingsSection
+            index={sectionIndex++}
+            localPrefs={s.localPrefs}
+            updateLocalPref={s.updateLocalPref}
+            defaultCollapsed={false}
+          />
+        )}
+
+        <SalaryStructureSection
+          index={sectionIndex++}
+          localSalaryStructure={s.localSalaryStructure}
+          updateSalaryStructure={s.updateSalaryStructure}
+          localRsuGrants={s.localRsuGrants}
+          updateRsuGrants={s.updateRsuGrants}
+          localGrowthAssumptions={s.localGrowthAssumptions}
+          updateGrowthAssumptions={s.updateGrowthAssumptions}
+          defaultCollapsed={false}
+        />
+
+        {/* Group: Categories & Classification -- essential first-run config, expanded by default */}
+        <GroupHeader>Categories &amp; Classification</GroupHeader>
 
         <AccountClassificationsSection
           index={sectionIndex++}
@@ -102,17 +129,8 @@ export default function SettingsPage() {
           onDragEnd={handleDragEnd}
           onDropOnCategory={handleDropOnCategory}
           onAssignAccount={handleAssignAccount}
+          defaultCollapsed={false}
         />
-
-        {s.localPrefs && (
-          <InvestmentMappingsSection
-            index={sectionIndex++}
-            investmentAccounts={s.investmentAccounts}
-            unmappedInvestmentAccounts={s.unmappedInvestmentAccounts}
-            localPrefs={s.localPrefs}
-            updateLocalPref={s.updateLocalPref}
-          />
-        )}
 
         {s.localPrefs && (
           <ExpenseCategoriesSection
@@ -121,6 +139,7 @@ export default function SettingsPage() {
             localPrefs={s.localPrefs}
             fixedCategories={s.fixedCategories}
             updateLocalPref={s.updateLocalPref}
+            defaultCollapsed={false}
           />
         )}
 
@@ -132,28 +151,22 @@ export default function SettingsPage() {
             unclassifiedIncomeItems={s.unclassifiedIncomeItems}
             setLocalPrefs={s.setLocalPrefs}
             setHasChanges={s.setHasChanges}
+            defaultCollapsed={false}
           />
         )}
 
-        <SalaryStructureSection
-          index={sectionIndex++}
-          localSalaryStructure={s.localSalaryStructure}
-          updateSalaryStructure={s.updateSalaryStructure}
-          localRsuGrants={s.localRsuGrants}
-          updateRsuGrants={s.updateRsuGrants}
-          localGrowthAssumptions={s.localGrowthAssumptions}
-          updateGrowthAssumptions={s.updateGrowthAssumptions}
-        />
-
-        <AIAssistantSection index={sectionIndex++} />
-
         {s.localPrefs && (
-          <FinancialSettingsSection
+          <InvestmentMappingsSection
             index={sectionIndex++}
+            investmentAccounts={s.investmentAccounts}
+            unmappedInvestmentAccounts={s.unmappedInvestmentAccounts}
             localPrefs={s.localPrefs}
             updateLocalPref={s.updateLocalPref}
           />
         )}
+
+        {/* Group: Profile & Display -- personalization, collapsed by default */}
+        <GroupHeader>Profile &amp; Display</GroupHeader>
 
         {s.localPrefs && (
           <DisplayPreferencesSection
@@ -171,9 +184,20 @@ export default function SettingsPage() {
           />
         )}
 
+        <DashboardWidgetsSection
+          index={sectionIndex++}
+          visibleWidgets={s.visibleWidgets}
+          setVisibleWidgets={s.setVisibleWidgets}
+        />
+
+        <AIAssistantSection index={sectionIndex++} />
+
+        {/* Group: Advanced -- rare/power-user config, collapsed by default */}
+        <GroupHeader>Advanced</GroupHeader>
+
         {s.localPrefs && (
           <AdvancedSection
-            index={sectionIndex++}
+            index={sectionIndex}
             localPrefs={s.localPrefs}
             accounts={s.accounts}
             creditCardAccounts={s.creditCardAccounts}
@@ -181,12 +205,6 @@ export default function SettingsPage() {
             updateLocalPref={s.updateLocalPref}
           />
         )}
-
-        <DashboardWidgetsSection
-          index={sectionIndex}
-          visibleWidgets={s.visibleWidgets}
-          setVisibleWidgets={s.setVisibleWidgets}
-        />
 
         <ConfirmDialog
           open={s.showResetConfirm}

@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
 import { cn } from '@/lib/cn'
+import { useBudgets, useAnomalies } from '@/hooks/api/useAnalyticsV2'
 
 interface TabItem {
   to: string
@@ -38,6 +39,15 @@ const TABS: readonly TabItem[] = [
  * shared-element animation between tabs).
  */
 export default function MobileTabBar() {
+  // Surface the same alert counts the desktop sidebar badges (unreviewed
+  // anomalies + over-budget categories) on the "More" tab, so time-sensitive
+  // items aren't invisible behind the grid on phones.
+  const { data: anomalies = [] } = useAnomalies({ include_reviewed: false })
+  const { data: budgets = [] } = useBudgets({ active_only: true })
+  const moreAlertCount =
+    anomalies.filter((a) => !a.is_dismissed && !a.is_reviewed).length +
+    budgets.filter((b) => b.usage_pct >= b.alert_threshold).length
+
   return (
     <nav
       aria-label="Primary"
@@ -45,7 +55,9 @@ export default function MobileTabBar() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <ul className="flex items-stretch justify-around px-1 pt-1.5">
-        {TABS.map((tab) => (
+        {TABS.map((tab) => {
+          const badge = tab.to === ROUTES.MORE ? moreAlertCount : 0
+          return (
           <li key={tab.to} className="flex-1">
             <NavLink
               to={tab.to}
@@ -67,11 +79,20 @@ export default function MobileTabBar() {
                       transition={{ type: 'spring', stiffness: 520, damping: 40 }}
                     />
                   )}
-                  <tab.icon
-                    size={22}
-                    className="relative z-[1]"
-                    strokeWidth={isActive ? 2.4 : 2}
-                  />
+                  <span className="relative z-[1]">
+                    <tab.icon
+                      size={22}
+                      strokeWidth={isActive ? 2.4 : 2}
+                    />
+                    {badge > 0 && (
+                      <span
+                        className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-app-red text-on-accent text-[10px] font-semibold leading-4 text-center"
+                        aria-label={`${badge} items need attention`}
+                      >
+                        {badge > 9 ? '9+' : badge}
+                      </span>
+                    )}
+                  </span>
                   <span
                     className={cn(
                       'relative z-[1] text-[10px] sm:text-[11px] font-medium leading-none',
@@ -84,7 +105,8 @@ export default function MobileTabBar() {
               )}
             </NavLink>
           </li>
-        ))}
+          )
+        })}
       </ul>
     </nav>
   )

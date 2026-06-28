@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Landmark,
   Receipt,
+  Compass,
   LogOut,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -44,7 +45,17 @@ interface MoreSection {
 // have a mental model don't have to relearn it. Colors are finance-semantic
 // (income=green, expense=red, investment=blue, savings=purple, etc.) so the
 // grid is scannable at a glance.
+// Grouping mirrors the desktop sidebar exactly so the mental model is shared
+// across viewports: Overview standalone, then Analytics, Wealth (Net Worth +
+// Investments merged), Commitments, Planning, Tax, and a Data section that now
+// includes Transactions (was missing on mobile -- desktop/mobile parity fix).
 const SECTIONS: readonly MoreSection[] = [
+  {
+    title: 'Overview',
+    items: [
+      { to: ROUTES.OVERVIEW, label: 'Overview', icon: Compass, color: 'text-app-blue' },
+    ],
+  },
   {
     title: 'Analytics',
     items: [
@@ -55,22 +66,17 @@ const SECTIONS: readonly MoreSection[] = [
     ],
   },
   {
-    title: 'Net Worth',
+    title: 'Wealth',
     items: [
       { to: ROUTES.NET_WORTH, label: 'Net Worth', icon: Wallet, color: 'text-app-indigo' },
       { to: ROUTES.TRENDS_FORECASTS, label: 'Forecasts', icon: LineChart, color: 'text-app-teal' },
-    ],
-  },
-  {
-    title: 'Investments',
-    items: [
-      { to: ROUTES.INVESTMENT_ANALYTICS, label: 'Analytics', icon: TrendingUp, color: 'text-app-blue' },
+      { to: ROUTES.INVESTMENT_ANALYTICS, label: 'Investments', icon: TrendingUp, color: 'text-app-blue' },
       { to: ROUTES.MUTUAL_FUND_PROJECTION, label: 'Projections', icon: Target, color: 'text-app-purple' },
       { to: ROUTES.RETURNS_ANALYSIS, label: 'Returns', icon: Coins, color: 'text-app-yellow' },
     ],
   },
   {
-    title: 'Tracking',
+    title: 'Commitments',
     items: [
       { to: ROUTES.SUBSCRIPTIONS, label: 'Recurring', icon: CreditCard, color: 'text-app-teal' },
       { to: ROUTES.BILL_CALENDAR, label: 'Bill Calendar', icon: CalendarDays, color: 'text-app-orange' },
@@ -95,6 +101,7 @@ const SECTIONS: readonly MoreSection[] = [
   {
     title: 'Data',
     items: [
+      { to: ROUTES.TRANSACTIONS, label: 'Transactions', icon: Receipt, color: 'text-app-blue' },
       { to: ROUTES.UPLOAD, label: 'Upload', icon: Upload, color: 'text-app-blue' },
       { to: ROUTES.SETTINGS, label: 'Settings', icon: Settings2, color: 'text-text-secondary' },
     ],

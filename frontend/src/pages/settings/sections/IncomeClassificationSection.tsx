@@ -16,6 +16,7 @@ interface Props {
   unclassifiedIncomeItems: string[]
   setLocalPrefs: Dispatch<SetStateAction<LocalPrefs | null>>
   setHasChanges: (v: boolean) => void
+  defaultCollapsed?: boolean
 }
 
 function getClassification(
@@ -38,6 +39,7 @@ export default function IncomeClassificationSection({
   unclassifiedIncomeItems,
   setLocalPrefs,
   setHasChanges,
+  defaultCollapsed = true,
 }: Readonly<Props>) {
   const handleClassify = (item: string, newType: IncomeClassificationType | 'unclassified') => {
     const updated = { ...localPrefs }
@@ -59,6 +61,7 @@ export default function IncomeClassificationSection({
       icon={DollarSign}
       title="Income Classification"
       description="Classify income subcategories by type for tax and analytics"
+      defaultCollapsed={defaultCollapsed}
     >
       {Object.keys(allIncomeCategories).length === 0 ? (
         <EmptyState

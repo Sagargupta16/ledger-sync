@@ -9,6 +9,7 @@ export const ROUTES = {
   HOME: '/',
   DEMO: '/demo',
   DASHBOARD: '/dashboard',
+  OVERVIEW: '/overview',
 
   // Data Management
   UPLOAD: '/upload',

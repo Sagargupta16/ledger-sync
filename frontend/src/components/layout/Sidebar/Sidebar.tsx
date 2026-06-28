@@ -21,6 +21,7 @@ import ThemeToggle from './ThemeToggle'
 import BrandHeader from './BrandHeader'
 import {
   dashboardItem,
+  overviewItem,
   navigationSections,
   utilityItems,
   ALERT_BADGE_ROUTES,
@@ -140,12 +141,18 @@ export default function Sidebar() {
             aria-label="Main navigation"
             className="flex-1 min-h-0 overflow-y-auto scrollbar-none py-1"
           >
-            {/* Dashboard — standalone */}
-            <div className="px-2 pt-2">
+            {/* Dashboard + Overview — standalone top-level entries */}
+            <div className="px-2 pt-2 space-y-0.5">
               <SidebarItem
                 to={dashboardItem.path}
                 icon={dashboardItem.icon}
                 label={dashboardItem.label}
+                onNavigate={closeMobile}
+              />
+              <SidebarItem
+                to={overviewItem.path}
+                icon={overviewItem.icon}
+                label={overviewItem.label}
                 onNavigate={closeMobile}
               />
             </div>

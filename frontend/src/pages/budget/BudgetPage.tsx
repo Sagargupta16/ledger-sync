@@ -17,6 +17,7 @@ import { formatCurrency } from '@/lib/formatters'
 import StatCard from '@/pages/year-in-review/components/StatCard'
 
 import { AddBudgetForm } from './components/AddBudgetForm'
+import BudgetDefaultsPanel from './components/BudgetDefaultsPanel'
 import { BudgetCharts } from './components/BudgetCharts'
 import { BudgetRowItem } from './components/BudgetRowItem'
 import { useBudget } from './useBudget'
@@ -93,6 +94,8 @@ export default function BudgetPage() {
           </div>
         }
       />
+
+      <BudgetDefaultsPanel />
 
       {m.summary.count > 0 && (
         <motion.div

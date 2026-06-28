@@ -19,6 +19,7 @@ interface Props {
   onDragEnd: () => void
   onDropOnCategory: (category: string) => void
   onAssignAccount: (account: string, category: string) => void
+  defaultCollapsed?: boolean
 }
 
 export default function AccountClassificationsSection({
@@ -32,6 +33,7 @@ export default function AccountClassificationsSection({
   onDragEnd,
   onDropOnCategory,
   onAssignAccount,
+  defaultCollapsed = true,
 }: Readonly<Props>) {
   const handleDragOver = (e: React.DragEvent) => e.preventDefault()
 
@@ -41,6 +43,7 @@ export default function AccountClassificationsSection({
       icon={Wallet}
       title="Account Classifications"
       description="Drag accounts between categories to classify them"
+      defaultCollapsed={defaultCollapsed}
     >
       {/* Unassigned accounts highlight */}
       {unclassifiedAccounts.length > 0 && (

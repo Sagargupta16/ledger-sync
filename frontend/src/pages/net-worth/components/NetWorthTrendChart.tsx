@@ -108,7 +108,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
             title={stackedAllowed ? undefined : 'Stacked view is unavailable while net worth is negative in this range'}
             className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
               effectiveStacked
-                ? 'bg-primary text-white'
+                ? 'bg-primary text-on-accent'
                 : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)] border border-border'
             }`}
           >

@@ -64,7 +64,7 @@ export default function AnomalyDetectionSubsection({
                     aria-pressed={isEnabled}
                     className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${
                       isEnabled
-                        ? 'bg-primary text-white'
+                        ? 'bg-primary text-on-accent'
                         : 'bg-[var(--overlay-2)] border border-border'
                     }`}
                   >

@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Receipt, Percent, BarChart3, Info } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Receipt, Percent, BarChart3, Info, Landmark } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import {
   BarChart,
   Bar,
@@ -14,6 +15,7 @@ import {
   Cell,
 } from 'recharts'
 
+import { ROUTES } from '@/constants'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -200,13 +202,23 @@ export default function GSTAnalysisPage() {
         title="Indirect Tax (GST)"
         subtitle="Estimated GST paid on your expenses"
         action={
-          allFYs.length > 0 && (
-            <FYNavigator
-              fys={allFYs}
-              selectedFY={effectiveFY}
-              onSelect={setSelectedFY}
-            />
-          )
+          <div className="flex items-center gap-3 flex-wrap">
+            {allFYs.length > 0 && (
+              <FYNavigator
+                fys={allFYs}
+                selectedFY={effectiveFY}
+                onSelect={setSelectedFY}
+              />
+            )}
+            <Link
+              to={ROUTES.TAX_PLANNING}
+              className="inline-flex items-center gap-2 px-3 py-2.5 sm:py-1.5 text-sm font-medium rounded-lg border border-border bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+              title="View Income Tax planning"
+            >
+              <Landmark className="w-4 h-4" />
+              <span>View Income Tax</span>
+            </Link>
+          </div>
         }
       />
 

@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion'
 import { ChevronRight, TrendingUp, Lightbulb, Receipt, ListTree } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { ROUTES } from '@/constants'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { formatCurrency } from '@/lib/formatters'
 import {
@@ -77,20 +79,30 @@ export default function TaxPlanningPage() {
           title="Income Tax"
           subtitle={`Estimate your tax liability — ${regimeLabel}`}
           action={
-            <TaxPageActions
-              isNewRegime={isNewRegime}
-              setRegimeOverride={setRegimeOverride}
-              newRegimeAvailable={newRegimeAvailable}
-              isCurrentFY={isCurrentFY}
-              showProjection={showProjection}
-              setShowProjection={setShowProjection}
-              selectedFY={effectiveFY}
-              canGoBack={canGoBack}
-              canGoForward={canGoForward}
-              goToPreviousFY={goToPreviousFY}
-              goToNextFY={goToNextFY}
-              hasSalaryData={hasSalaryData}
-            />
+            <div className="flex items-center gap-3 flex-wrap">
+              <TaxPageActions
+                isNewRegime={isNewRegime}
+                setRegimeOverride={setRegimeOverride}
+                newRegimeAvailable={newRegimeAvailable}
+                isCurrentFY={isCurrentFY}
+                showProjection={showProjection}
+                setShowProjection={setShowProjection}
+                selectedFY={effectiveFY}
+                canGoBack={canGoBack}
+                canGoForward={canGoForward}
+                goToPreviousFY={goToPreviousFY}
+                goToNextFY={goToNextFY}
+                hasSalaryData={hasSalaryData}
+              />
+              <Link
+                to={ROUTES.GST_ANALYSIS}
+                className="inline-flex items-center gap-2 px-3 py-2.5 sm:py-1.5 text-sm font-medium rounded-lg border border-border bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+                title="View Indirect Tax (GST) analysis"
+              >
+                <Receipt className="w-4 h-4" />
+                <span>View GST</span>
+              </Link>
+            </div>
           }
         />
         <motion.div
