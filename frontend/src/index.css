@@ -281,7 +281,6 @@ body {
   background: var(--app-bg);
   background-attachment: fixed;
   color: var(--color-foreground);
-  transition: background-color 250ms ease, color 250ms ease;
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
   overflow-x: hidden;
   /* Prevent iOS from rubber-banding the whole body behind the app shell --
@@ -291,6 +290,35 @@ body {
 
 #root {
   height: 100%;
+}
+
+/* ===== THEME CROSS-FADE ===== */
+/* Added to <html> only during a theme switch (removed after ~400ms by the
+   theme lib). Gives EVERY element one uniform color/background/border/fill
+   transition so the whole UI cross-fades in sync, instead of cards, body, and
+   borders each easing at their own speed. transform/opacity are deliberately
+   excluded so layout/motion animations (active-tab pill, hovers) aren't
+   dragged into the theme tween. Respect prefers-reduced-motion. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    color 300ms ease,
+    fill 300ms ease,
+    stroke 300ms ease,
+    box-shadow 300ms ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-transition,
+  .theme-transition *,
+  .theme-transition *::before,
+  .theme-transition *::after {
+    transition: none !important;
+  }
 }
 
 /* ===== GLASS / SURFACE SYSTEM ===== */

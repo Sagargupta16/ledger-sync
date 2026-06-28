@@ -35,10 +35,36 @@ export function resolveTheme(mode: ThemeMode): 'dark' | 'light' {
   return mode
 }
 
-/** Apply a resolved theme to the document root. */
-export function applyTheme(resolved: 'dark' | 'light'): void {
+// Tracks the pending removal of the `theme-transition` class so rapid toggles
+// don't leave it on (or fight each other).
+let transitionTimer: ReturnType<typeof setTimeout> | undefined
+
+/**
+ * Apply a resolved theme to the document root.
+ *
+ * When the theme actually CHANGES, add a short-lived `theme-transition` class
+ * that gives every element one uniform color/background/border transition, so
+ * the whole UI cross-fades in sync instead of different parts (cards, body,
+ * borders) easing at their own speeds. The class is removed after the window
+ * so normal hover/focus transitions keep their own (faster) timings.
+ *
+ * `skipTransition` (used for the very first apply on load) avoids animating the
+ * initial paint.
+ */
+export function applyTheme(resolved: 'dark' | 'light', skipTransition = false): void {
   if (typeof document === 'undefined') return
-  document.documentElement.setAttribute('data-theme', resolved)
+  const root = document.documentElement
+  const changed = root.getAttribute('data-theme') !== resolved
+
+  if (changed && !skipTransition) {
+    root.classList.add('theme-transition')
+    if (transitionTimer) clearTimeout(transitionTimer)
+    transitionTimer = setTimeout(() => {
+      root.classList.remove('theme-transition')
+    }, 400)
+  }
+
+  root.setAttribute('data-theme', resolved)
 }
 
 /** Persist the mode and apply it immediately. Returns the resolved theme. */
