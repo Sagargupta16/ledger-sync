@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react'
 
 import { motion } from 'framer-motion'
 
+import { useIsMobile } from '@/hooks/useIsMobile'
+
 type Align = 'left' | 'right' | 'center'
 type SortDir = 'asc' | 'desc'
 
@@ -25,6 +27,17 @@ export interface DataTableColumn<T> {
   readonly cell: (row: T, index: number) => ReactNode
   /** Per-row className override for this column (e.g. color based on sign of the value). */
   readonly cellClassName?: (row: T, index: number) => string
+  /**
+   * Label shown beside this column's value in the mobile card-stack layout
+   * (when `mobileCards` is on). Defaults to the `header` if it's a string.
+   * Set to `''` to render the value with no label (e.g. a primary name row).
+   */
+  readonly mobileLabel?: string
+  /**
+   * In mobile card mode, treat this column as the card's title row (rendered
+   * full-width at the top, no label). Use for the primary identifying column.
+   */
+  readonly mobilePrimary?: boolean
 }
 
 export interface DataTableProps<T> {
@@ -41,6 +54,12 @@ export interface DataTableProps<T> {
   readonly stickyHeader?: boolean
   /** Max height (e.g. `max-h-96`) for a scrollable body. */
   readonly maxHeightClass?: string
+  /**
+   * Below the `sm` breakpoint (640px), render each row as a stacked label/value
+   * card instead of a horizontally-scrolling table. Far more readable on phones
+   * for wide tables. Columns use `mobileLabel` / `mobilePrimary` to lay out.
+   */
+  readonly mobileCards?: boolean
 }
 
 const ALIGN_CLASS: Record<Align, string> = {
@@ -86,7 +105,9 @@ export default function DataTable<T>({
   ariaLabel,
   stickyHeader = false,
   maxHeightClass,
+  mobileCards = false,
 }: DataTableProps<T>) {
+  const isMobile = useIsMobile()
   const [sortKey, setSortKey] = useState<string | null>(initialSort?.key ?? null)
   const [sortDir, setSortDir] = useState<SortDir>(initialSort?.dir ?? 'desc')
 
@@ -120,6 +141,44 @@ export default function DataTable<T>({
   }
 
   const shouldAnimate = animateRows && sortedRows.length <= 200
+
+  // Mobile card-stack: each row becomes a stacked label/value card so wide
+  // tables don't force horizontal scrolling on phones. One column may be the
+  // card title (mobilePrimary); the rest render as label/value rows.
+  if (mobileCards && isMobile) {
+    const labelFor = (col: DataTableColumn<T>) =>
+      col.mobileLabel ?? (typeof col.header === 'string' ? col.header : '')
+    return (
+      <div className="space-y-2" aria-label={ariaLabel}>
+        {sortedRows.map((row, i) => {
+          const primary = columns.find((c) => c.mobilePrimary)
+          const rest = columns.filter((c) => !c.mobilePrimary)
+          return (
+            <div
+              key={rowKey(row, i)}
+              className={`glass rounded-xl border border-border p-3 ${rowClassName?.(row, i) ?? ''}`.trim()}
+            >
+              {primary && (
+                <div className={`mb-2 font-medium ${primary.cellClassName?.(row, i) ?? ''}`.trim()}>
+                  {primary.cell(row, i)}
+                </div>
+              )}
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                {rest.map((col) => (
+                  <div key={col.key} className="flex items-baseline justify-between gap-2 min-w-0">
+                    <dt className="text-xs text-text-tertiary shrink-0">{labelFor(col)}</dt>
+                    <dd className={`text-sm text-right min-w-0 truncate ${col.cellClassName?.(row, i) ?? ''}`.trim()}>
+                      {col.cell(row, i)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
   const scrollClass = [
     'overflow-x-auto data-table-scroll',

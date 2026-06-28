@@ -58,6 +58,7 @@ function buildGSTCategoryColumns(maxSpending: number): DataTableColumn<GSTCatego
     key: 'category',
     header: 'Category',
     sortType: 'text',
+    mobilePrimary: true,
     cell: (cat) => (
       <>
         <span className="font-medium text-white">{cat.category}</span>
@@ -365,6 +366,7 @@ export default function GSTAnalysisPage() {
               rowKey={(cat) => cat.category}
               initialSort={{ key: 'gstAmount', dir: 'desc' }}
               ariaLabel="GST estimated per category"
+              mobileCards
             />
             <div className="border-t border-border bg-white/[0.02] px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">
               <span className="font-semibold text-white">Total</span>
