@@ -231,3 +231,7 @@ test-results/
 *.local.png
 /*.jpeg
 /*.png
+
+# AI assistant local files
+MEMORY.md
+.claude/

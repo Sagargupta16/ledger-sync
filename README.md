@@ -1,7 +1,7 @@
 # Ledger Sync — Your Personal Finance Dashboard
 
 **See where every rupee goes — and ask why.**
-Import bank statements, get instant analytics, then chat with your finances using GPT-4 / Claude. Self-hosted, multi-currency, zero subscriptions.
+Import bank statements, get instant analytics, then chat with your finances using your favorite LLM (OpenAI, Anthropic, Bedrock). Self-hosted, multi-currency, zero subscriptions.
 
 [![Version](https://img.shields.io/github/package-json/v/Sagargupta16/ledger-sync?filename=frontend%2Fpackage.json&label=version&color=brightgreen&cacheSeconds=86400)](CHANGELOG.md)
 [![CI](https://github.com/Sagargupta16/ledger-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/Sagargupta16/ledger-sync/actions/workflows/ci.yml)
