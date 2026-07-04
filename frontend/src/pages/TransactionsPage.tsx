@@ -6,7 +6,7 @@ import { Download, Receipt } from 'lucide-react'
 import type { SortingState } from '@tanstack/react-table'
 import { toast } from 'sonner'
 
-import { PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader } from '@/components/ui'
 import TransactionTable from '@/components/transactions/TransactionTable'
 import TransactionFilters, { type FilterValues } from '@/components/transactions/TransactionFilters'
 import Pagination from '@/components/transactions/Pagination'
@@ -119,8 +119,7 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <PageContainer>
         {/* Header */}
         <PageHeader
           title="Transactions"
@@ -221,7 +220,6 @@ export default function TransactionsPage() {
             />
           </motion.div>
         )}
-      </div>
-    </div>
+    </PageContainer>
   )
 }

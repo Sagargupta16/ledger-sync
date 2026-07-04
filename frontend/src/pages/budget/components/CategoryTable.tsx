@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 
 import { ChevronRight, PiggyBank, ShoppingBag, Target } from 'lucide-react'
 
+import { Money } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
 import type { SpendingBucket, SpendingRuleCategoryRow } from '@/services/api/analyticsV2'
 
@@ -151,9 +152,7 @@ function BucketColumn({ bucket, rows, months }: ColProps) {
           <span className="text-xs text-muted-foreground">({rows.length})</span>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-sm font-semibold text-foreground tabular-nums whitespace-nowrap">
-            {formatCurrency(bucketAvg)}
-          </div>
+          <Money value={bucketAvg} bold className="text-sm" />
           <div className="text-[10px] leading-tight text-muted-foreground">/ mo avg</div>
         </div>
       </div>
@@ -260,14 +259,10 @@ function CategoryRow({ row, isOther, expanded, onToggle }: RowProps) {
       </div>
 
       {/* Amount: fixed width, whitespace-nowrap, tabular-nums, right-aligned.
-          THIS is the single most important line -- never truncates the number. */}
-      <span
-        className={`shrink-0 w-24 text-right text-sm font-medium tabular-nums whitespace-nowrap ${
-          isOther ? 'text-muted-foreground' : 'text-foreground'
-        }`}
-      >
-        {formatCurrency(row.avg_monthly)}
-      </span>
+          THIS is the single most important line -- never truncates the number.
+          Codified into the shared <Money> primitive so future callers can't
+          drop `whitespace-nowrap` and re-hit the "₹12,91" truncation bug. */}
+      <Money value={row.avg_monthly} width="md" className="text-sm" muted={isOther} />
     </div>
   )
 

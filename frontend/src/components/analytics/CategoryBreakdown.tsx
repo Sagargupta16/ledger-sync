@@ -9,6 +9,7 @@ import { CHART_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import Sparkline from '@/components/shared/Sparkline'
+import { Money } from '@/components/ui'
 
 import { averagePerActiveMonth, buildCategories, trailingMonthKeys } from './categoryBreakdownUtils'
 
@@ -196,9 +197,8 @@ export default function CategoryBreakdown({
                   <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                     {cat.percent.toFixed(1)}%
                   </span>
-                  <span className="text-sm font-semibold text-foreground tabular-nums shrink-0 w-20 sm:w-28 text-right">
-                    {formatCurrency(cat.total)}
-                  </span>
+                  <Money value={cat.total} width="lg" bold className="text-sm" />
+
 
                   {/* Expand chevron */}
                   {hasSubcategories && (
@@ -281,9 +281,7 @@ export default function CategoryBreakdown({
                           <span className="text-xs text-text-tertiary tabular-nums shrink-0 w-10 text-right">
                             {sub.percent.toFixed(0)}%
                           </span>
-                          <span className="text-xs font-medium text-foreground tabular-nums shrink-0 w-18 sm:w-24 text-right">
-                            {formatCurrency(sub.amount)}
-                          </span>
+                          <Money value={sub.amount} width="md" className="text-xs" />
                         </div>
                       ))}
                     </div>

@@ -6,7 +6,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { PageHeader, ConfirmDialog } from '@/components/ui'
+import { PageContainer, PageHeader, ConfirmDialog } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
 import EmptyState from '@/components/shared/EmptyState'
 import { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -102,8 +102,7 @@ export default function SubscriptionTrackerPage() {
   }
 
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <PageContainer>
         <PageHeader
           title="Recurring"
           subtitle="Track your regular income and expenses for projected cash flow"
@@ -293,7 +292,6 @@ export default function SubscriptionTrackerPage() {
             ))}
           </div>
         )}
-      </div>
 
       <ConfirmDialog
         open={deleteTarget !== null}
@@ -304,6 +302,6 @@ export default function SubscriptionTrackerPage() {
         variant="danger"
         onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget.id, deleteTarget.name) }}
       />
-    </div>
+    </PageContainer>
   )
 }

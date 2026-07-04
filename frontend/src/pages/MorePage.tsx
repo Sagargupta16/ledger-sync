@@ -25,7 +25,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
-import { PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader } from '@/components/ui'
 import { useLogout } from '@/hooks/api/useAuth'
 
 interface MoreItem {
@@ -133,8 +133,7 @@ export default function MorePage() {
   }
 
   return (
-    <div className="min-h-dvh p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <PageContainer>
         <PageHeader title="More" subtitle="Everything else" />
 
         {SECTIONS.map((section, sIdx) => (
@@ -165,7 +164,6 @@ export default function MorePage() {
           <LogOut className="w-4 h-4" />
           <span className="text-sm font-medium">Sign out</span>
         </button>
-      </div>
-    </div>
+    </PageContainer>
   )
 }

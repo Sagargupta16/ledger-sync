@@ -180,7 +180,9 @@ export default function CommandPalette() {
           <motion.div
             className="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl bg-surface-dropdown/95 backdrop-blur-lg border border-[var(--hairline-2)] flex flex-col max-h-[80vh]"
             style={{
-              boxShadow: `0 25px 60px rgba(0, 0, 0, 0.5), 0 0 80px ${rawColors.app.blue}10`,
+              // Base modal depth from the shared token so light theme inverts;
+              // the ambient blue glow stays app-palette-driven.
+              boxShadow: `var(--glass-shadow-ultra), 0 0 80px ${rawColors.app.blue}10`,
             }}
             variants={panelVariants}
             initial="hidden"
