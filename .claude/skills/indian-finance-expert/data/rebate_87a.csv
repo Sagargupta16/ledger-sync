@@ -1,7 +1,0 @@
-fy_start,regime,income_ceiling_inr,rebate_max_inr,notes
-2025,new,1200000,60000,FY 2025-26: rebate up to 60k if taxable income <= 12L
-2025,old,500000,12500,FY 2025-26: rebate up to 12.5k if taxable income <= 5L
-2024,new,700000,25000,FY 2024-25: rebate up to 25k if taxable income <= 7L
-2024,old,500000,12500,FY 2024-25: same old regime cap
-2023,new,700000,25000,FY 2023-24: same as FY24-25
-2023,old,500000,12500,FY 2023-24: same old regime cap

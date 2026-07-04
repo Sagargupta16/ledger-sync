@@ -1,8 +1,0 @@
-form,name,who_uses_it,disqualifiers
-ITR-1,Sahaj,"Resident, salary + 1 house property + interest income, total income <= 50L, no capital gains","Capital gains, foreign income, more than 1 house property, business/professional income"
-ITR-2,,"Capital gains, foreign income/assets, more than 1 house property, agri income > 5k, total income > 50L (no business)",Business or professional income
-ITR-3,,Business or professional income (presumptive 44AD/44ADA/44AE OR full books),
-ITR-4,Sugam,Presumptive 44AD/44ADA/44AE small business or professional with total income <= 50L,Capital gains; foreign income; more than 1 house property
-ITR-5,,Firms / LLPs / AOPs / BOIs,
-ITR-6,,Companies (not 11-exempt charities),
-ITR-7,,"Trusts, political parties, charities (Section 11/13)",

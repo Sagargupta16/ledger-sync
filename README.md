@@ -1,7 +1,7 @@
 # Ledger Sync — Your Personal Finance Dashboard
 
 **See where every rupee goes — and ask why.**
-Import bank statements, get instant analytics, then chat with your finances using GPT-4 / Claude. Self-hosted, multi-currency, zero subscriptions.
+Import bank statements, get instant analytics, then chat with your finances using your favorite LLM (OpenAI, Anthropic, Bedrock). Self-hosted, multi-currency, zero subscriptions.
 
 [![Version](https://img.shields.io/github/package-json/v/Sagargupta16/ledger-sync?filename=frontend%2Fpackage.json&label=version&color=brightgreen&cacheSeconds=86400)](CHANGELOG.md)
 [![CI](https://github.com/Sagargupta16/ledger-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/Sagargupta16/ledger-sync/actions/workflows/ci.yml)
@@ -203,7 +203,7 @@ npx -y @mermaid-js/mermaid-cli -i docs/images/<name>.mmd -o docs/images/<name>.s
 
 ## Pages
 
-Every page focuses on a specific question you'd ask about your money. For the **detailed data catalog** — what each page shows, where the numbers come from, and what decisions it helps you make — see **[docs/PAGES.md](docs/PAGES.md)**.
+Every page focuses on a specific question you'd ask about your money. The **[Complete Handbook](docs/HANDBOOK.md)** walks through every page card-by-card — what each metric, chart, and setting shows, with the exact formula and data source for each. For the shorter **data catalog** version, see **[docs/PAGES.md](docs/PAGES.md)**.
 
 | Page | Answers |
 | --- | --- |
