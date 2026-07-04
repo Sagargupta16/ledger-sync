@@ -46,6 +46,7 @@ def get_current_user(
 
     token = credentials.credentials
 
+    # First-pass decode to get user_id so we can look up the current token_version.
     token_data = verify_token(token, token_type="access")
     if token_data is None or token_data.user_id is None:
         raise credentials_exception
@@ -53,6 +54,11 @@ def get_current_user(
     user = session.execute(select(User).where(User.id == token_data.user_id)).scalar_one_or_none()
 
     if user is None:
+        raise credentials_exception
+
+    # Second-pass verification: reject tokens whose baked-in tv doesn't match the
+    # user's current token_version (bumped on logout / reset / delete).
+    if verify_token(token, token_type="access", expected_tv=user.token_version) is None:
         raise credentials_exception
 
     if not user.is_active:

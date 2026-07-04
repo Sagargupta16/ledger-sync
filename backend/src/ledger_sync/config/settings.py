@@ -54,6 +54,14 @@ class Settings(BaseSettings):
     # BYOK ciphertexts, and vice versa. Must be >= 32 chars in production.
     encryption_key: str = ""
 
+    # JWT strict token_version mode.
+    # During rollout, tokens issued before token_version was baked into JWTs
+    # still work (treated as tv=0). Flipping this to true on/after day 8 makes
+    # `verify_token` reject any token that lacks a `tv` claim. Refresh TTL is
+    # 7 days, so day 8 guarantees any surviving pre-migration refresh token
+    # is already expired.
+    jwt_strict_tv: bool = False
+
     # Upload limits
     max_upload_size_bytes: int = MAX_UPLOAD_SIZE_BYTES
 

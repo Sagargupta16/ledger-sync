@@ -59,6 +59,13 @@ class User(Base):
     auth_provider: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     auth_provider_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    # Session revocation counter. Baked into every JWT payload as `tv`.
+    # Bumped on logout / account reset / delete to invalidate all outstanding
+    # tokens for this user in a single write, without a per-token blocklist.
+    token_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: datetime.now(UTC)

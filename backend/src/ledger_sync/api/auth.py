@@ -63,18 +63,14 @@ def get_me(current_user: CurrentUser, auth_service: AuthServiceDep) -> UserRespo
 
 
 @router.post("/logout")
-def logout(current_user: CurrentUser) -> MessageResponse:
-    """Logout current user.
+def logout(current_user: CurrentUser, auth_service: AuthServiceDep) -> MessageResponse:
+    """Logout current user, invalidating all outstanding tokens server-side.
 
-    The frontend clears its stored tokens; we don't maintain a server-side
-    revocation list. The access token remains technically valid until its
-    natural expiry (30 min by default). The refresh token is single-use
-    in the sense that the frontend discards it on logout, but if it were
-    captured beforehand it would still work until expiry.
-
-    Use account/reset or account delete to invalidate sessions in a way
-    that actually clears server-side state.
+    Bumps the user's ``token_version`` so both the access token in hand and
+    any leaked refresh tokens immediately fail JWT verification. The frontend
+    also clears its stored tokens on receipt of this response.
     """
+    auth_service.logout(current_user)
     return MessageResponse(message="Successfully logged out")
 
 

@@ -35,6 +35,7 @@ class TokenPayload(BaseModel):
     email: str
     exp: datetime
     type: str  # "access" or "refresh"
+    tv: int | None = None  # token_version, None on pre-2026-07 tokens (soft-accept)
 
 
 class RefreshTokenRequest(BaseModel):
