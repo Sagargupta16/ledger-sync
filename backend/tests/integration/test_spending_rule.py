@@ -221,6 +221,92 @@ def test_generic_transfer_relabelled_to_instrument_name(rule_client):
     assert "Mutual Fund Investment" in savings_cats
 
 
+def test_same_category_different_subs_collapse_into_one_row(rule_client):
+    """A user with Food & Dining / {Cafeteria, Delivery, Groceries} should
+    see ONE Food & Dining row on the /budgets page, with top_subs listing
+    the sub-breakdown. Previously the page had 3 separate rows dominating
+    the Needs column.
+    """
+    client, session, user = rule_client
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 1, tzinfo=UTC),
+        amount=1000,
+        category="Food & Dining",
+        subcategory="Office Cafeteria",
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 2, tzinfo=UTC),
+        amount=600,
+        category="Food & Dining",
+        subcategory="Delivery Apps",
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 3, tzinfo=UTC),
+        amount=300,
+        category="Food & Dining",
+        subcategory="Groceries",
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 5, tzinfo=UTC),
+        amount=100000,
+        category="Salary",
+        txn_type=TransactionType.INCOME,
+    )
+    session.commit()
+
+    body = client.get("/api/analytics/v2/spending-rule").json()
+    fd_rows = [c for c in body["categories"] if c["category"] == "Food & Dining"]
+    assert len(fd_rows) == 1, "Food & Dining subs must collapse into one row"
+
+    row = fd_rows[0]
+    assert row["total_amount"] == 1900
+    assert row["txn_count"] == 3
+    # top_subs sorted by amount desc: Cafeteria 1000, Delivery 600, Groceries 300
+    top_names = [s["name"] for s in row["top_subs"]]
+    assert top_names == ["Office Cafeteria", "Delivery Apps", "Groceries"]
+    assert row["top_subs"][0]["amount"] == 1000
+    # subcategory field is now always None (backward-compat placeholder).
+    assert row["subcategory"] is None
+
+
+def test_top_subs_capped_at_three(rule_client):
+    """A category with >3 subs shows only the top 3 in top_subs, but the
+    total row still aggregates all of them."""
+    client, session, user = rule_client
+    for amt, sub in [(500, "A"), (400, "B"), (300, "C"), (200, "D"), (100, "E")]:
+        _add_txn(
+            session,
+            user.id,
+            date=datetime(2026, 6, 1, tzinfo=UTC),
+            amount=amt,
+            category="Miscellaneous",
+            subcategory=sub,
+        )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 5, tzinfo=UTC),
+        amount=10000,
+        category="Salary",
+        txn_type=TransactionType.INCOME,
+    )
+    session.commit()
+
+    body = client.get("/api/analytics/v2/spending-rule").json()
+    misc = next(c for c in body["categories"] if c["category"] == "Miscellaneous")
+    assert misc["total_amount"] == 1500  # all five summed
+    assert len(misc["top_subs"]) == 3  # capped
+    assert [s["name"] for s in misc["top_subs"]] == ["A", "B", "C"]
+
+
 def test_transfer_relabel_fallback_when_dest_unknown(rule_client):
     """Destination account doesn't match any known instrument -- fall back
     to 'Investment' instead of leaving 'Transfer'."""

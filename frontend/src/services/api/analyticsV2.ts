@@ -442,14 +442,25 @@ export const analyticsV2Service = {
 
 export type SpendingBucket = 'needs' | 'wants' | 'savings'
 
+export interface SpendingRuleSubRow {
+  /** Subcategory label (e.g. "Office Cafeteria"), or "(no subcategory)" when null. */
+  name: string
+  amount: number
+}
+
 export interface SpendingRuleCategoryRow {
   category: string
+  /** Backward-compat placeholder; always null under the category-grouped shape.
+   *  Per-sub detail lives in `top_subs` (up to 3, sorted by amount desc). */
   subcategory: string | null
   bucket: SpendingBucket
   total_amount: number
   avg_monthly: number
   txn_count: number
   months_seen: number
+  /** Top 3 subcategories by amount within this category. Empty for categories
+   *  whose only sub is null (e.g. relabeled TRANSFER rows). */
+  top_subs: readonly SpendingRuleSubRow[]
 }
 
 export interface SpendingRuleBucket {

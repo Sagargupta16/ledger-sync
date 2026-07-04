@@ -71,6 +71,8 @@ function buildBucketRows(
     avg_monthly: tailTotal / Math.max(months, 1),
     txn_count: tailTxns,
     months_seen: tailMonths,
+    top_subs: [],  // The rolled-up categories become "top_subs" of the Other row conceptually,
+    // but rendering handles that separately via _rollup / expand UI.
     _isOther: true,
     _rollup: tail,
   }
@@ -161,8 +163,19 @@ function BucketColumn({ bucket, rows, months, incomeTotal }: ColProps) {
           ) : (
             <div className="min-w-0">
               <div className="font-medium text-foreground truncate">{row.category}</div>
-              {row.subcategory && (
-                <div className="text-xs text-muted-foreground truncate">{row.subcategory}</div>
+              {row.top_subs && row.top_subs.length > 0 && (
+                <div
+                  className="text-[11px] leading-tight text-muted-foreground truncate mt-0.5"
+                  title={row.top_subs
+                    .map((s) => `${s.name} ${formatCurrency(s.amount)}`)
+                    .join('  ·  ')}
+                >
+                  {row.top_subs
+                    .filter((s) => s.name !== '(no subcategory)')
+                    .slice(0, 3)
+                    .map((s) => s.name)
+                    .join(' · ') || null}
+                </div>
               )}
             </div>
           ),

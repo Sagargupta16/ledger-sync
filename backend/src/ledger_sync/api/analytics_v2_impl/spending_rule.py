@@ -35,7 +35,7 @@ account-level breakdown.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Any
@@ -171,9 +171,13 @@ def _prettify_savings_label(
             new_sub = None if sub_lower in _GENERIC_TRANSFER_LABELS else subcategory
             return pretty, new_sub
 
-    # Generic label but destination account didn't match any known instrument
-    # -- best effort: relabel as "Investment" so it doesn't say "Transfer".
-    return "Investment", subcategory
+    # Generic label but destination account didn't match any known instrument.
+    # Fall back to the raw category rather than a bogus "Investment" label --
+    # things like `Cashback Shared` or `Security Deposits` are not investments,
+    # and a wrong label is worse than the raw one. Callers won't see this branch
+    # in practice because non-investment destinations get filtered out one step
+    # earlier by the wallet-to-wallet skip; this is a safety net for edge cases.
+    return category, subcategory
 
 
 # Default set of investment-account patterns for the Savings bucket. Matched
@@ -206,28 +210,48 @@ _DEFAULT_INVESTMENT_ACCOUNTS: frozenset[str] = frozenset(
 )
 
 
+_TOP_SUBS_PER_ROW = 3
+
+
 @dataclass
 class _CategoryRow:
     category: str
-    subcategory: str | None
     bucket: str  # "needs" | "wants" | "savings"
     total_amount: Decimal
     txn_count: int
-    months_seen: set[str]  # YYYY-MM keys
+    months_seen: set[str] = field(default_factory=set)  # YYYY-MM keys
+    # Subcategory rollup: {sub_label: total_amount}. Used to surface the
+    # top-3 subs inline under the category row on the /budgets page so a user
+    # with 7 Food & Dining subs still sees the breakdown without cluttering
+    # the primary table with 7 separate Food & Dining rows.
+    subs: dict[str, Decimal] = field(default_factory=dict)
+
+    def add(self, amount: Decimal, subcategory: str | None, month_key: str) -> None:
+        self.total_amount += amount
+        self.txn_count += 1
+        self.months_seen.add(month_key)
+        # NULL subcategory rolls up under a synthetic label so the top-subs
+        # array can still surface it (e.g. TRANSFER rows always have sub=NULL).
+        sub_key = subcategory or "(no subcategory)"
+        self.subs[sub_key] = self.subs.get(sub_key, Decimal(0)) + amount
 
     def to_dict(self, months_in_range: int) -> dict[str, Any]:
-        # Monthly average is total / months_in_range (the user's period,
-        # not the count of months seen) -- otherwise a category that appeared
-        # once in a 12-month window looks like a huge monthly bill.
+        # Monthly average = total / months_in_period (not months-seen) --
+        # otherwise a category with one December bill in a 12-month window
+        # looks like a huge monthly outflow.
         avg_monthly = float(self.total_amount) / max(months_in_range, 1)
+        top_subs = sorted(self.subs.items(), key=lambda kv: kv[1], reverse=True)[:_TOP_SUBS_PER_ROW]
         return {
             "category": self.category,
-            "subcategory": self.subcategory,
+            # Kept for backward compatibility with the FE type; always None
+            # under the new grouping. The real per-sub detail lives in `top_subs`.
+            "subcategory": None,
             "bucket": self.bucket,
             "total_amount": float(self.total_amount),
             "avg_monthly": avg_monthly,
             "txn_count": self.txn_count,
             "months_seen": len(self.months_seen),
+            "top_subs": [{"name": name, "amount": float(amount)} for name, amount in top_subs],
         }
 
 
@@ -382,7 +406,12 @@ def get_spending_rule_breakdown(
         "wants": Decimal(0),
         "savings": Decimal(0),
     }
-    category_rows: dict[tuple[str, str, str], _CategoryRow] = {}
+    # Group by (category, bucket). Subcategories roll up under their category
+    # row (see _CategoryRow.subs) so the /budgets page shows one row per
+    # category with the top-3 subs listed inline underneath -- otherwise a
+    # user with 7 Food & Dining subs got 7 separate rows dominating the Needs
+    # column and drowning out other real categories.
+    category_rows: dict[tuple[str, str], _CategoryRow] = {}
 
     for t in txns:
         amt = t.amount
@@ -416,30 +445,27 @@ def get_spending_rule_breakdown(
 
         bucket_totals[bucket] += amt
 
-        # Category row aggregation. For Savings-bucket rows whose category
-        # is a generic "Transfer" label, prettify the display name from the
-        # destination account (PPF/EPF/SIP/etc). Only the display label
-        # changes; DB rows and analytics elsewhere are untouched.
+        # Prettify generic "Transfer" labels for Savings rows. The prettifier
+        # returns the ORIGINAL category on unknown destinations (see
+        # _prettify_savings_label docstring) so we never see the literal
+        # "Investment" fallback on non-investment destinations.
         display_category, display_sub = (
             _prettify_savings_label(t.category, t.subcategory, t.to_account)
             if bucket == "savings"
             else (t.category, t.subcategory)
         )
-        key = (display_category, display_sub or "", bucket)
+
+        key = (display_category, bucket)
         row = category_rows.get(key)
         if row is None:
             row = _CategoryRow(
                 category=display_category,
-                subcategory=display_sub,
                 bucket=bucket,
                 total_amount=Decimal(0),
                 txn_count=0,
-                months_seen=set(),
             )
             category_rows[key] = row
-        row.total_amount += amt
-        row.txn_count += 1
-        row.months_seen.add(month_key)
+        row.add(amt, display_sub, month_key)
 
     # Warren definition of savings for the header card.
     savings_amount = income_total - expense_total
