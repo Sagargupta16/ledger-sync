@@ -424,4 +424,57 @@ export const analyticsV2Service = {
     const response = await apiClient.post('/api/analytics/v2/goals', data)
     return response.data
   },
+
+  // 50/30/20 budget-rule aggregation
+  async getSpendingRule(params?: {
+    start_date?: string
+    end_date?: string
+  }): Promise<SpendingRuleResponse> {
+    const response = await apiClient.get<SpendingRuleResponse>(
+      '/api/analytics/v2/spending-rule',
+      { params },
+    )
+    return response.data
+  },
+}
+
+// ─── 50/30/20 budget-rule types ────────────────────────────────────────────
+
+export type SpendingBucket = 'needs' | 'wants' | 'savings'
+
+export interface SpendingRuleCategoryRow {
+  category: string
+  subcategory: string | null
+  bucket: SpendingBucket
+  total_amount: number
+  avg_monthly: number
+  txn_count: number
+  months_seen: number
+}
+
+export interface SpendingRuleBucket {
+  amount: number
+  pct_of_income: number
+  /** Signed: positive = on the good side of target
+   *  (under-cap for Needs/Wants, over-floor for Savings). */
+  score_delta: number
+}
+
+export interface SpendingRuleResponse {
+  period: {
+    start: string
+    end: string
+    months: number
+  }
+  income_total: number
+  expense_total: number
+  /** Warren-style: income - expenses. Header card uses this. */
+  savings_amount: number
+  targets: {
+    needs: number
+    wants: number
+    savings: number
+  }
+  buckets: Record<SpendingBucket, SpendingRuleBucket>
+  categories: SpendingRuleCategoryRow[]
 }
