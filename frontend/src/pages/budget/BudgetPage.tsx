@@ -7,6 +7,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader } from '@/components/ui'
 import { fadeUpItem, staggerContainer } from '@/constants/animations'
+import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { useSpendingRule } from '@/hooks/api/useAnalyticsV2'
 import type { SpendingBucket, SpendingRuleResponse } from '@/services/api/analyticsV2'
 import { formatCurrency } from '@/lib/formatters'
@@ -30,7 +31,14 @@ import { toPeriodRange } from './budgetUtils'
  */
 export default function BudgetPage() {
   const [period, setPeriod] = useState<PresetPeriod>('last_12_months')
-  const range = useMemo(() => toPeriodRange(period), [period])
+  const [customStart, setCustomStart] = useState<string>('')
+  const [customEnd, setCustomEnd] = useState<string>('')
+  const { minDate, maxDate } = useDataDateRange()
+
+  const range = useMemo(
+    () => toPeriodRange(period, { customStart, customEnd, minDate, maxDate }),
+    [period, customStart, customEnd, minDate, maxDate],
+  )
 
   const { data, isLoading, isError } = useSpendingRule({
     start_date: range.start,
@@ -59,7 +67,20 @@ export default function BudgetPage() {
       <PageHeader
         title="50/30/20 Budget Rule"
         subtitle="Actual split of your income across Needs, Wants, and Savings"
-        action={<PeriodPicker value={period} onChange={setPeriod} />}
+        action={
+          <PeriodPicker
+            value={period}
+            onChange={setPeriod}
+            customStart={customStart}
+            customEnd={customEnd}
+            onCustomChange={(s, e) => {
+              setCustomStart(s)
+              setCustomEnd(e)
+            }}
+            minDate={minDate}
+            maxDate={maxDate}
+          />
+        }
       />
 
       {isLoading || !data ? (
