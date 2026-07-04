@@ -13,9 +13,14 @@ from sqlalchemy import delete
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.db.models import FYSummary, Transaction, TransactionType
 
-# Match "tax"/"taxes" as a whole word so notes like "Taxi" or "Syntax" don't
-# get counted as tax paid.
-_TAX_NOTE_RE = re.compile(r"\btax(es)?\b", re.IGNORECASE)
+# Match Indian tax-related notes as whole words. Original regex was `\btax(es)?\b`
+# which missed the actual tax vocabulary users write in bank statements: GST,
+# TDS, cess, surcharge, and "advance tax" / "self assessment" (which can appear
+# with a space or hyphen). Word boundaries still keep "Taxi" and "Syntax" out.
+_TAX_NOTE_RE = re.compile(
+    r"\b(tax(es)?|tds|gst|cess|surcharge|advance[\s-]?tax|self[\s-]?assessment)\b",
+    re.IGNORECASE,
+)
 
 
 class FYSummariesMixin(AnalyticsEngineBase):
