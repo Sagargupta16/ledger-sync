@@ -34,7 +34,7 @@ export const aiConfigService = {
   },
 
   async getKey(): Promise<string> {
-    const response = await apiClient.get<{ api_key: string }>('/api/preferences/ai-config/key')
+    const response = await apiClient.get<{ api_key: string }>('/api/preferences/ai-config/key/reveal')
     return response.data.api_key
   },
 

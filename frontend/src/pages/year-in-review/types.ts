@@ -18,27 +18,34 @@ export const MONTHS_SHORT = [
   'Dec',
 ]
 
+/**
+ * Heatmap stops built from the APP palette (not tailwind-slate). Alpha suffix
+ * as 8-bit hex: 33 = 20%, 66 = 40%, A6 = 65%, E6 = 90%. Using the raw hex
+ * (rawColors.app.*) lets light-theme AA-adjusted values flow through
+ * automatically -- the previous literal `rgba(239,68,68,...)` etc. bypassed
+ * theme flip entirely.
+ */
 export const heatmapColors: Record<HeatmapMode, string[]> = {
   expense: [
     rawColors.chart.grid,
-    'rgba(239,68,68,0.20)',
-    'rgba(239,68,68,0.40)',
-    'rgba(239,68,68,0.65)',
-    'rgba(239,68,68,0.90)',
+    `${rawColors.app.red}33`,
+    `${rawColors.app.red}66`,
+    `${rawColors.app.red}A6`,
+    `${rawColors.app.red}E6`,
   ],
   income: [
     rawColors.chart.grid,
-    'rgba(34,197,94,0.20)',
-    'rgba(34,197,94,0.40)',
-    'rgba(34,197,94,0.65)',
-    'rgba(34,197,94,0.90)',
+    `${rawColors.app.green}33`,
+    `${rawColors.app.green}66`,
+    `${rawColors.app.green}A6`,
+    `${rawColors.app.green}E6`,
   ],
   net: [
     rawColors.chart.grid,
-    'rgba(59,130,246,0.20)',
-    'rgba(59,130,246,0.40)',
-    'rgba(59,130,246,0.65)',
-    'rgba(59,130,246,0.90)',
+    `${rawColors.app.blue}33`,
+    `${rawColors.app.blue}66`,
+    `${rawColors.app.blue}A6`,
+    `${rawColors.app.blue}E6`,
   ],
 }
 

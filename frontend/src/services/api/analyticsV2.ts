@@ -424,4 +424,68 @@ export const analyticsV2Service = {
     const response = await apiClient.post('/api/analytics/v2/goals', data)
     return response.data
   },
+
+  // 50/30/20 budget-rule aggregation
+  async getSpendingRule(params?: {
+    start_date?: string
+    end_date?: string
+  }): Promise<SpendingRuleResponse> {
+    const response = await apiClient.get<SpendingRuleResponse>(
+      '/api/analytics/v2/spending-rule',
+      { params },
+    )
+    return response.data
+  },
+}
+
+// ─── 50/30/20 budget-rule types ────────────────────────────────────────────
+
+export type SpendingBucket = 'needs' | 'wants' | 'savings'
+
+export interface SpendingRuleSubRow {
+  /** Subcategory label (e.g. "Office Cafeteria"), or "(no subcategory)" when null. */
+  name: string
+  amount: number
+}
+
+export interface SpendingRuleCategoryRow {
+  category: string
+  /** Backward-compat placeholder; always null under the category-grouped shape.
+   *  Per-sub detail lives in `top_subs` (up to 3, sorted by amount desc). */
+  subcategory: string | null
+  bucket: SpendingBucket
+  total_amount: number
+  avg_monthly: number
+  txn_count: number
+  months_seen: number
+  /** Top 3 subcategories by amount within this category. Empty for categories
+   *  whose only sub is null (e.g. relabeled TRANSFER rows). */
+  top_subs: readonly SpendingRuleSubRow[]
+}
+
+export interface SpendingRuleBucket {
+  amount: number
+  pct_of_income: number
+  /** Signed: positive = on the good side of target
+   *  (under-cap for Needs/Wants, over-floor for Savings). */
+  score_delta: number
+}
+
+export interface SpendingRuleResponse {
+  period: {
+    start: string
+    end: string
+    months: number
+  }
+  income_total: number
+  expense_total: number
+  /** Warren-style: income - expenses. Header card uses this. */
+  savings_amount: number
+  targets: {
+    needs: number
+    wants: number
+    savings: number
+  }
+  buckets: Record<SpendingBucket, SpendingRuleBucket>
+  categories: SpendingRuleCategoryRow[]
 }

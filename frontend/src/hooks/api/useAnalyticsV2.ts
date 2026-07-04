@@ -23,6 +23,7 @@ import type {
   MonthlySummary,
   NetWorthSnapshot,
   RecurringTransaction,
+  SpendingRuleResponse,
   TransferFlow,
 } from '@/services/api/analyticsV2'
 
@@ -50,6 +51,8 @@ export const analyticsV2Keys = {
     [...analyticsV2Keys.all, 'budgets', filters?.active_only] as const,
   goals: (filters?: { goal_type?: string; include_achieved?: boolean }) =>
     [...analyticsV2Keys.all, 'goals', filters?.goal_type, filters?.include_achieved] as const,
+  spendingRule: (filters?: { start_date?: string; end_date?: string }) =>
+    [...analyticsV2Keys.all, 'spending-rule', filters?.start_date, filters?.end_date] as const,
 }
 
 // Daily Summaries
@@ -292,6 +295,18 @@ export function useCreateGoal() {
   })
 }
 
+// 50/30/20 spending-rule aggregation. Cached per date-range params. Unlike
+// the other v2 endpoints, this one is a live query rather than a rollup read,
+// so it re-runs against current preferences -- fine because it's cheap and
+// runs only when the user visits /budgets.
+export function useSpendingRule(params?: { start_date?: string; end_date?: string }) {
+  return useQuery<SpendingRuleResponse, Error>({
+    queryKey: analyticsV2Keys.spendingRule(params),
+    queryFn: () => analyticsV2Service.getSpendingRule(params),
+    staleTime: STABLE_STALE_TIME,
+  })
+}
+
 // Re-export types for convenience
 export type {
   Anomaly,
@@ -305,5 +320,8 @@ export type {
   MonthlySummary,
   NetWorthSnapshot,
   RecurringTransaction,
+  SpendingRuleBucket,
+  SpendingRuleCategoryRow,
+  SpendingRuleResponse,
   TransferFlow,
 } from '@/services/api/analyticsV2'

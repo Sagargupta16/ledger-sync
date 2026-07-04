@@ -3,7 +3,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { useDailySummaries } from '@/hooks/api/useAnalyticsV2'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
-import { getCurrentFY, getCurrentMonth, getCurrentYear, toLocalDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { getCurrentFY, getCurrentMonth, getCurrentYear, MONTHS_PER_YEAR, toLocalDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import type { DayCell } from './components/DayOfWeekChart'
 import {
   accumulateStats,
@@ -100,23 +100,37 @@ export function useYearInReview() {
     }
   }, [grid])
 
-  const monthlyBarData = useMemo(
-    () =>
-      MONTHS_SHORT.map((m, i) => {
-        const spending = stats.monthlyExpense[i]
-        const earning = stats.monthlyIncome[i]
-        return {
-          name: m,
-          Spending: spending,
-          Earning: earning,
-          // Net cash flow per month (positive = saved, negative = overspent).
-          // Used to drive the overlay line on the Monthly Breakdown chart so
-          // savings months stand out without the user doing the math.
-          Net: earning - spending,
-        }
-      }),
-    [stats],
-  )
+  const monthlyBarData = useMemo(() => {
+    const now = new Date()
+    const nowYear = now.getFullYear()
+    const nowMonth = now.getMonth()
+    let cutoff = MONTHS_PER_YEAR
+    if (isFYMode) {
+      const fyStartYear = selectedYear
+      const fyEndYear = selectedYear + 1
+      const isCurrentFY =
+        (nowYear === fyStartYear && nowMonth >= fiscalYearStartMonth - 1) ||
+        (nowYear === fyEndYear && nowMonth < fiscalYearStartMonth - 1)
+      if (isCurrentFY) {
+        cutoff = ((nowMonth - (fiscalYearStartMonth - 1) + MONTHS_PER_YEAR) % MONTHS_PER_YEAR) + 1
+      }
+    } else if (selectedYear === nowYear) {
+      cutoff = nowMonth + 1
+    }
+    return MONTHS_SHORT.slice(0, cutoff).map((m, i) => {
+      const spending = stats.monthlyExpense[i]
+      const earning = stats.monthlyIncome[i]
+      return {
+        name: m,
+        Spending: spending,
+        Earning: earning,
+        // Net cash flow per month (positive = saved, negative = overspent).
+        // Used to drive the overlay line on the Monthly Breakdown chart so
+        // savings months stand out without the user doing the math.
+        Net: earning - spending,
+      }
+    })
+  }, [stats, isFYMode, selectedYear, fiscalYearStartMonth])
 
   return {
     transactions,

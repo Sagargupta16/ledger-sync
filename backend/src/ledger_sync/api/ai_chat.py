@@ -43,7 +43,7 @@ from ledger_sync.api.ai_usage import (
     record_usage,
 )
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.api.rate_limit import limiter
+from ledger_sync.api.rate_limit import limiter, user_limiter
 from ledger_sync.config.settings import settings
 from ledger_sync.db.models import UserPreferences
 
@@ -188,7 +188,11 @@ def _from_bedrock_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         503: {"description": "Bedrock is not configured on the server"},
     },
 )
-@limiter.limit("30/minute")
+# Two-layer rate limit. Per-user (30/min) is the primary throttle; IP-keyed
+# (60/min) protects the auth path against unauthenticated floods and gives a
+# safety net when a token is missing/malformed.
+@user_limiter.limit("30/minute")
+@limiter.limit("60/minute")
 def bedrock_chat_proxy(
     request: Request,  # slowapi requires a `request: Request` parameter  # noqa: ARG001
     current_user: CurrentUser,

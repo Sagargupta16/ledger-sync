@@ -12,7 +12,7 @@ import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
 import StandardAreaChart from '@/components/analytics/StandardAreaChart'
 import StandardBarChart from '@/components/analytics/StandardBarChart'
-import { PageHeader, currencyTooltipFormatter } from '@/components/ui'
+import { PageContainer, PageHeader, currencyTooltipFormatter } from '@/components/ui'
 import { formatCurrencyShort } from '@/lib/formatters'
 
 function SliderInput({ id, label, value, min, max, step, unit, valueText, onChange }: Readonly<{
@@ -106,8 +106,7 @@ export default function FIRECalculatorPage() {
   if (isLoading) return <PageSkeleton />
 
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+    <PageContainer>
         <PageHeader
           title="FIRE Calculator"
           subtitle="Plan your financial independence using your actual spending data"
@@ -286,7 +285,6 @@ export default function FIRECalculatorPage() {
           </div>
         )}
       </motion.div>
-      </div>
-    </div>
+    </PageContainer>
   )
 }

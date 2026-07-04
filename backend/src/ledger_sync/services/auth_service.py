@@ -86,7 +86,20 @@ class AuthService:
                 detail="User not found or inactive",
             )
 
-        return create_tokens(user.id, user.email)
+        # Re-verify with the user's current token_version so a bumped tv
+        # (from logout/reset) invalidates outstanding refresh tokens too --
+        # the initial verify_token above didn't have expected_tv wired.
+        if (
+            verify_token(refresh_token, token_type="refresh", expected_tv=user.token_version)
+            is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token has been revoked",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        return create_tokens(user.id, user.email, user.token_version)
 
     def oauth_login_or_register(
         self,
@@ -172,7 +185,18 @@ class AuthService:
             self.session.commit()
             logger.info("New OAuth user registered: user_id=%s via %s", user.id, provider)
 
-        return create_tokens(user.id, user.email)
+        return create_tokens(user.id, user.email, user.token_version)
+
+    def logout(self, user: User) -> None:
+        """Invalidate all outstanding tokens for this user.
+
+        Bumps ``token_version`` so any JWT carrying the previous ``tv`` fails
+        the check in ``get_current_user`` / ``refresh_tokens``. One integer
+        write does what a per-token blocklist would need N rows for.
+        """
+        user.token_version += 1
+        self.session.commit()
+        logger.info("Logout: bumped token_version for user_id=%s", user.id)
 
     def get_user_response(self, user: User) -> UserResponse:
         """Convert User model to response schema.
@@ -311,6 +335,12 @@ class AuthService:
             # Create fresh default preferences
             preferences = UserPreferences(user_id=user_id)
             self.session.add(preferences)
+
+        # Bump token_version on any reset -- the user's data was materially
+        # changed, so any outstanding session should be forced through refresh
+        # (and refresh will fail, forcing re-login) rather than serving stale
+        # cached responses from before the reset.
+        user.token_version += 1
 
         self.session.commit()
         mode = "transactions" if transactions_only else "full"

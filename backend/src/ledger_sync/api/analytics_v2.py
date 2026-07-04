@@ -16,6 +16,7 @@ from sqlalchemy import text
 from ledger_sync.api.analytics_v2_impl import (
     networth_misc_router,
     recurring_router,
+    spending_rule_router,
     summaries_router,
 )
 from ledger_sync.api.deps import CurrentUser
@@ -27,6 +28,7 @@ router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
 # Mount the split sub-routers under the same prefix.
 router.include_router(summaries_router)
 router.include_router(recurring_router)
+router.include_router(spending_rule_router)
 router.include_router(networth_misc_router)
 
 

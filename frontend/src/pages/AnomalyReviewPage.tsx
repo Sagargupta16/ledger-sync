@@ -5,7 +5,7 @@ import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Inf
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { PageHeader, StatCard, CollapsibleSection } from '@/components/ui'
+import { PageContainer, PageHeader, StatCard, CollapsibleSection } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { useAnomalies, useReviewAnomaly } from '@/hooks/api/useAnalyticsV2'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
@@ -173,8 +173,7 @@ export default function AnomalyReviewPage() {
   }
 
   return (
-    <div className="min-h-dvh p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+    <PageContainer>
       <PageHeader
         title="Anomaly Review"
         subtitle="Review and manage detected financial anomalies"
@@ -442,7 +441,6 @@ export default function AnomalyReviewPage() {
           })}
         </div>
       )}
-      </div>
-    </div>
+    </PageContainer>
   )
 }

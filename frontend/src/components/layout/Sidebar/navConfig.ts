@@ -91,7 +91,7 @@ export const navigationSections: NavSection[] = [
   {
     title: 'Planning',
     items: [
-      { path: ROUTES.BUDGETS, label: 'Budget Manager', icon: Wallet2 },
+      { path: ROUTES.BUDGETS, label: 'Budget Rule', icon: Wallet2 },
       { path: ROUTES.GOALS, label: 'Financial Goals', icon: Goal },
       { path: ROUTES.FIRE_CALCULATOR, label: 'FIRE Calculator', icon: Flame },
       { path: ROUTES.ANOMALIES, label: 'Anomaly Review', icon: AlertTriangle },

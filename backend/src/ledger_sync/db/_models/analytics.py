@@ -38,7 +38,9 @@ class DailySummary(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes summary to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Date identification
     date: Mapped[str] = mapped_column(String(10), nullable=False)  # YYYY-MM-DD
@@ -71,7 +73,9 @@ class MonthlySummary(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes summary to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Period identification
     year: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -133,7 +137,9 @@ class CategoryTrend(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes trend to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Period and category
     period_key: Mapped[str] = mapped_column(String(7), nullable=False, index=True)  # YYYY-MM
@@ -172,7 +178,9 @@ class TransferFlow(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes flow to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Flow identification
     from_account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -209,7 +217,9 @@ class MerchantIntelligence(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes merchant data to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Merchant identification (extracted from notes)
     merchant_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -247,7 +257,9 @@ class FYSummary(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes FY summary to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # FY identification (e.g., "FY2024-25" for Apr 2024 - Mar 2025)
     fiscal_year: Mapped[str] = mapped_column(String(15), nullable=False, index=True)
@@ -307,7 +319,9 @@ class CohortSpending(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # 'day_of_week' | 'day_of_month' | 'month_of_year'
     dimension: Mapped[str] = mapped_column(String(20), nullable=False)

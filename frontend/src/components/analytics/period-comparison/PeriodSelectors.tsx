@@ -49,7 +49,7 @@ export function PeriodSelectors(props: Readonly<PeriodSelectorsProps>) {
           className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
           style={{
             backgroundColor: compareMode === 'months' ? rawColors.app.blue : 'transparent',
-            color: compareMode === 'months' ? '#fff' : rawColors.text.secondary,
+            color: compareMode === 'months' ? rawColors.onAccent : rawColors.text.secondary,
           }}
         >
           Monthly
@@ -62,7 +62,7 @@ export function PeriodSelectors(props: Readonly<PeriodSelectorsProps>) {
           className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
           style={{
             backgroundColor: compareMode === 'years' ? rawColors.app.blue : 'transparent',
-            color: compareMode === 'years' ? '#fff' : rawColors.text.secondary,
+            color: compareMode === 'years' ? rawColors.onAccent : rawColors.text.secondary,
           }}
         >
           Yearly

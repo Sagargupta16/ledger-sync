@@ -129,6 +129,11 @@ function buildRawColors() {
       tertiary:   r('--color-text-tertiary',   '#7c7c80'),
       quaternary: r('--color-text-quaternary', '#48484a'),
     },
+    // Foreground for accent-colored surfaces (blue/green pill fills, primary
+    // buttons). Kept as a dedicated token so it stays white even in light
+    // theme -- the accent background is bright enough that white text has
+    // AA contrast in both themes.
+    onAccent: r('--color-on-accent', '#ffffff'),
     // Chart-only neutrals/surfaces. CSS var() can't be used in SVG presentation
     // attributes, so these resolve the --chart-* tokens to concrete strings for
     // Recharts. Fallbacks are the historical dark values so SSR/no-DOM is safe.

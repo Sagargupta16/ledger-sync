@@ -199,9 +199,17 @@ def get_ai_key(
     if not prefs.ai_api_key_encrypted:
         raise HTTPException(status_code=404, detail="No AI key configured")
     try:
-        decrypted = decrypt_api_key(prefs.ai_api_key_encrypted)
+        decrypted, needs_reencrypt = decrypt_api_key(prefs.ai_api_key_encrypted)
     except DecryptionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # In-band ciphertext upgrade: legacy v1 blobs get transparently rewritten
+    # as v2 (HKDF + separate encryption_key) on next read. See encryption.py
+    # docstring for the rollout plan.
+    if needs_reencrypt:
+        prefs.ai_api_key_encrypted = encrypt_api_key(decrypted)
+        session.commit()
+
     response.headers["Cache-Control"] = "no-store, no-cache, private, max-age=0"
     response.headers["Pragma"] = "no-cache"
     return {"api_key": decrypted}

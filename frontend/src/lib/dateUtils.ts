@@ -187,27 +187,65 @@ export const getAnalyticsDateRange = ({
     case 'all_time':
       return { start_date: null, end_date: null }
     case 'yearly':
-      return {
+      return capEndDateAtToday({
         start_date: `${currentYear}-01-01`,
         end_date: `${currentYear}-12-31`
-      }
+      })
     case 'fy': {
       const fyRange = getFYDateRange(currentFY, fiscalYearStartMonth)
-      return {
+      return capEndDateAtToday({
         start_date: fyRange.start,
         end_date: fyRange.end
-      }
+      })
     }
     case 'monthly': {
       const year = Number.parseInt(currentMonth.substring(0, 4))
       const month = Number.parseInt(currentMonth.substring(5, 7))
       const lastDay = new Date(year, month, 0).getDate()
-      return {
+      return capEndDateAtToday({
         start_date: `${currentMonth}-01`,
         end_date: `${currentMonth}-${lastDay}`
-      }
+      })
     }
     default:
       return { start_date: null, end_date: null }
   }
+}
+
+/**
+ * Cap `end_date` at today (local `YYYY-MM-DD`) so future-dated ranges (a monthly
+ * or FY window whose end lies past "now") don't drag divisor math (avg/day)
+ * into the future. Null `end_date` (all-time) is preserved.
+ *
+ * ISO `YYYY-MM-DD` compares lexicographically, so no Date parsing needed.
+ * Immutable: returns the input untouched when no cap is required.
+ */
+export const capEndDateAtToday = <T extends { start_date: string | null; end_date: string | null }>(
+  range: T
+): T => {
+  const today = toLocalDateKey(new Date())
+  if (range.end_date && range.end_date > today) return { ...range, end_date: today }
+  return range
+}
+
+/**
+ * Drop rows whose date key sits in the future relative to today. Generic over
+ * row shape and key granularity:
+ *   - month-keyed (`YYYY-MM`) rows are kept when `row[key] <= current YYYY-MM`
+ *   - day-keyed (`YYYY-MM-DD`) rows are kept when `row[key] <= today`
+ *
+ * String comparison is lexicographic-safe for both formats. Accepts `Date`
+ * values by normalising them via `toLocalDateKey` and comparing against today
+ * as a full `YYYY-MM-DD`.
+ */
+export const capSeriesToToday = <T>(rows: readonly T[], key: keyof T): T[] => {
+  const today = toLocalDateKey(new Date())
+  const currentMonth = today.slice(0, 7)
+  return rows.filter((row) => {
+    const raw = row[key]
+    if (raw instanceof Date) return toLocalDateKey(raw) <= today
+    if (typeof raw !== 'string') return true
+    const cutoff = raw.length === 7 ? currentMonth : today
+    return raw <= cutoff
+  })
 }

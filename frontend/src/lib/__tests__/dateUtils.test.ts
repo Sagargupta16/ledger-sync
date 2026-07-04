@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import { formatMonthKey, toLocalDateKey } from '../dateUtils'
+import { capEndDateAtToday, capSeriesToToday, formatMonthKey, toLocalDateKey } from '../dateUtils'
 
 /**
  * These guard the timezone-stable date helpers. The bug class they replace:
@@ -47,5 +47,83 @@ describe('formatMonthKey', () => {
 
   it('returns the input unchanged for an unparseable key', () => {
     expect(formatMonthKey('not-a-date')).toBe('not-a-date')
+  })
+})
+
+describe('capEndDateAtToday', () => {
+  const today = toLocalDateKey(new Date())
+  const yesterday = toLocalDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000))
+  const tomorrow = toLocalDateKey(new Date(Date.now() + 24 * 60 * 60 * 1000))
+
+  it('caps a future end_date at today', () => {
+    const result = capEndDateAtToday({ start_date: '2026-01-01', end_date: tomorrow })
+    expect(result.end_date).toBe(today)
+    expect(result.start_date).toBe('2026-01-01')
+  })
+
+  it('leaves past end_date untouched', () => {
+    const range = { start_date: '2020-01-01', end_date: yesterday }
+    expect(capEndDateAtToday(range)).toBe(range)
+  })
+
+  it('preserves null end_date (all_time)', () => {
+    const range = { start_date: null, end_date: null }
+    expect(capEndDateAtToday(range)).toBe(range)
+  })
+
+  it('does not mutate the input when capping', () => {
+    const range = { start_date: '2026-01-01', end_date: '2999-12-31' }
+    capEndDateAtToday(range)
+    expect(range.end_date).toBe('2999-12-31')
+  })
+})
+
+describe('capSeriesToToday', () => {
+  const today = toLocalDateKey(new Date())
+  const currentMonth = today.slice(0, 7)
+
+  it('drops future day-keyed rows and keeps today', () => {
+    const rows = [
+      { date: '2020-01-01', v: 1 },
+      { date: today, v: 2 },
+      { date: '2999-12-31', v: 3 }
+    ]
+    expect(capSeriesToToday(rows, 'date')).toEqual([
+      { date: '2020-01-01', v: 1 },
+      { date: today, v: 2 }
+    ])
+  })
+
+  it('drops future month-keyed rows and keeps current month', () => {
+    const rows = [
+      { month: '2020-06', v: 1 },
+      { month: currentMonth, v: 2 },
+      { month: '2999-12', v: 3 }
+    ]
+    expect(capSeriesToToday(rows, 'month')).toEqual([
+      { month: '2020-06', v: 1 },
+      { month: currentMonth, v: 2 }
+    ])
+  })
+
+  it('handles Date-valued keys', () => {
+    const rows = [
+      { d: new Date(2020, 0, 1), v: 1 },
+      { d: new Date(2999, 11, 31), v: 2 }
+    ]
+    expect(capSeriesToToday(rows, 'd')).toEqual([rows[0]])
+  })
+
+  it('returns empty array unchanged', () => {
+    expect(capSeriesToToday([] as Array<{ date: string }>, 'date')).toEqual([])
+  })
+
+  it('preserves original order (does not sort)', () => {
+    const rows = [
+      { date: '2022-05-01', v: 1 },
+      { date: '2020-01-01', v: 2 },
+      { date: today, v: 3 }
+    ]
+    expect(capSeriesToToday(rows, 'date').map((r) => r.v)).toEqual([1, 2, 3])
   })
 })

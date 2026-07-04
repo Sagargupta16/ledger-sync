@@ -21,6 +21,25 @@ function resolveDemoData(url: string, params: Record<string, unknown>, txs: Tran
   if (url.includes('/calculations/account-balances')) return generateDemoAccountBalances(txs)
   if (url.includes('/calculations/category-breakdown')) return generateDemoCategoryBreakdown(txs, params)
   if (url.includes('/analytics/kpis')) return generateDemoKPIs(txs)
+  // Spending-rule returns a distinct shape from the other v2 endpoints; the
+  // /budgets page reads data.period.start etc, so the generic {data: []}
+  // stub below would blow up when the page renders. Return a zero-state
+  // response instead -- demo users see the empty-history layout, not a crash.
+  if (url.includes('/analytics/v2/spending-rule')) {
+    return {
+      period: { start: new Date().toISOString(), end: new Date().toISOString(), months: 1 },
+      income_total: 0,
+      expense_total: 0,
+      savings_amount: 0,
+      targets: { needs: 50, wants: 30, savings: 20 },
+      buckets: {
+        needs: { amount: 0, pct_of_income: 0, score_delta: 0 },
+        wants: { amount: 0, pct_of_income: 0, score_delta: 0 },
+        savings: { amount: 0, pct_of_income: 0, score_delta: 0 },
+      },
+      categories: [],
+    }
+  }
   if (url.includes('/analytics/v2/')) return { data: [], count: 0 }
   if (url.includes('/analytics/overview')) return generateDemoOverview(txs)
   if (url.includes('/analytics/behavior')) return generateDemoBehavior(txs)

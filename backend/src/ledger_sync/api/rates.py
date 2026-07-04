@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException
 
 from ledger_sync.api.deps import CurrentUser
 
-router = APIRouter(prefix="/rates", tags=["rates"])
+router = APIRouter(prefix="/api/rates", tags=["rates"])
 
 _CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "instrument_rates.json"
 

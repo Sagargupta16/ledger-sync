@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from ledger_sync.api.deps import CurrentUser
 from ledger_sync.utils.logging import logger
 
-router = APIRouter(prefix="/stock-price", tags=["stock-price"])
+router = APIRouter(prefix="/api/stock-price", tags=["stock-price"])
 
 _YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 
