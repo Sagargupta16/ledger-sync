@@ -6,6 +6,41 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## Unreleased -- `feat/comprehensive-hardening` (PR #202)
+
+Comprehensive hardening wave landing on the branch: security tightening (BYOK key split + HKDF, refresh-token rotation, per-user rate limits, DB-level cascade), the anomaly-detection rewrite, the 50/30/20 Budget Rule page, and a design-system consistency pass that trims data past today across every historical chart and codifies the money-cell pattern.
+
+### Added
+
+- **50/30/20 Budget Rule page (`/budget`).** Replaces the old category-CRUD `/budgets`. Three side-by-side bucket cards (Needs / Wants / Savings) show target vs actual with a delta score; the breakdown table caps each bucket at top-10 categories with an "Other (N more)" rollup that expands inline. Period picker covers 1yr, 2yr, 5yr, All-time, Custom. Backend endpoint `POST /api/analytics/v2/spending-rule` classifies categories via word-boundary regex (fixes Education-not-in-Needs bug), unions user overrides with defaults (fixes first-override-drops-defaults bug), and relabels compound `Transfer: Bank: X -> Y: Z` rows to instrument names (Stocks, Mutual Funds, PPF, etc.).
+- **`<Money>` primitive** (`frontend/src/components/ui/Money.tsx`). Codifies the canonical amount-cell rule set: `shrink-0 text-right tabular-nums whitespace-nowrap font-medium` plus `sm|md|lg|xl` width presets so flex parents can't compress the amount. Prevents the `₹12,91` truncation bug that occurred inside 33%-wide columns. Barrel-exported from `@/components/ui`; migrated `CategoryTable`, `CategoryBreakdown` (both top-level and subcategory rows).
+- **`capEndDateAtToday()` and `capSeriesToToday<T>()`** in `frontend/src/lib/dateUtils.ts`. Historical time-series charts across the app no longer render a flat-zero tail past today. `capEndDateAtToday()` is applied inside `getAnalyticsDateRange()` so it cascades through `useAnalyticsTimeFilter`, `useDashboardMetrics`, and every analytics query hook without per-caller edits. `capSeriesToToday<T>(rows, key)` is generic on row shape with ISO-string comparison for use with in-memory month or day series. Projection pages (FIRE, tax-planning multi-year, retirement forecasting) intentionally build their own future ranges and are untouched.
+- **Anomaly detection rewrite** (`api/analytics/anomalies.py`). Median + MAD (Median Absolute Deviation) with a rolling per-category baseline; robust to skew and single-transaction outliers.
+- **DB-level `ON DELETE CASCADE`** on every `user_id` foreign key. Migration `20260704_1100_add_ondelete_cascade_user_fks.py` handles both PostgreSQL (`ALTER TABLE ... DROP CONSTRAINT / ADD CONSTRAINT`) and SQLite (`batch_alter_table(recreate="always", naming_convention=...)` with FK-name reflection to avoid the duplicate-FK trap that happens when `create_foreign_key` runs without an explicit `drop_constraint` in the same batch).
+
+### Changed
+
+- **`PageContainer` migration** for 5 pages (Anomaly, FIRE, Transactions, More, SubscriptionTracker). Hand-rolled `min-h-dvh p-4 md:p-6 lg:p-8` + `max-w-7xl mx-auto space-y-6` scaffolds replaced with the shared primitive.
+- **Palette drift fixes.** `year-in-review/types.ts` heatmap band colors moved from slate-tinted rgba to `${rawColors.app.red}<alpha>` template literals (theme-aware). New `rawColors.onAccent` token replaces raw `'#fff'` in `PeriodSelectors`. `CommandPalette` inline shadow moved to the shared `var(--glass-shadow-ultra)` token + app-blue ambient glow.
+- **Year-in-review Monthly Breakdown** now slices `MONTHS_SHORT` at today's month for the current calendar/fiscal year (no more empty bars for future months). FY wrap handled via `((nowMonth - (fyStart - 1) + 12) % 12) + 1`.
+- **CI on Python 3.13 everywhere**, added job timeouts.
+
+### Fixed
+
+- Cascade migration created duplicate FKs on SQLite (drop + create in same batch = REPLACE, but pure `create_foreign_key` alone APPENDS).
+- Frontend crash `Cannot read properties of undefined (reading 'start')` on the budget page in demo mode -- demo axios adapter's catch-all `/analytics/v2/*` returned the wrong shape for spending-rule.
+- SonarCloud MAJOR bug: identical ternary branches in a `capForBar` variable that always resolved to `target`.
+- Substring false positives in investment-account classifier (`'rd'` matched inside `"weird broker xyz"`); replaced exact-match with word-boundary regex.
+- Failed main deploy on 2026-07-03 (transient GitHub Pages API error); rerun succeeded.
+
+### Security
+
+- **Split BYOK encryption key from JWT secret.** Uses HKDF for v2 keys with per-ciphertext salt; JWT rotation no longer invalidates stored API keys.
+- **Refresh-token rotation via `User.token_version`.** Logout / password reset increments the version claim; old refresh tokens fail verification server-side.
+- **Per-authenticated-user rate limits** on `/api/upload` and `/api/ai/bedrock/chat` (was IP-keyed).
+
+---
+
 ## 2.19.0 - 2026-06-28
 
 A premium **light theme**, a world-class UI/UX elevation pass, and an information-architecture restructure. Adds a Light/Dark/System toggle and makes the entire app render flawlessly in both themes, driven by live design-system research (Radix Colors, Material 3, Apple HIG), a 14-lens UI audit, and a 5-lens IA audit. Frontend-only -- no API, schema, or backend changes. Dark theme is preserved byte-for-byte.
