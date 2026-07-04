@@ -20,6 +20,7 @@ jobs:
   # fails the build on lint/type/test errors.
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend

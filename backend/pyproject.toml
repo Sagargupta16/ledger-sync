@@ -4,7 +4,7 @@ version = "2.17.0"
 description = "Personal finance dashboard backend -- Excel import, financial analytics, multi-currency exchange rates"
 authors = [{ name = "Sagar Gupta" }]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "sqlalchemy>=2.0.51",
     "alembic>=1.18.4",
@@ -94,7 +94,7 @@ select = ["E", "F", "I", "N", "W", "UP"]
 "src/ledger_sync/core/analytics_engine.py" = ["PERF401"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
