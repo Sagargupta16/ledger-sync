@@ -34,7 +34,9 @@ class Transaction(Base):
     transaction_id: Mapped[str] = mapped_column(String(64), primary_key=True)
 
     # User foreign key - links transaction to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Core transaction fields
     date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -126,7 +128,9 @@ class ImportLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - links import to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     file_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     file_name: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -158,7 +162,9 @@ class AccountClassification(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # User foreign key - scopes classification to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Account name and classification
     account_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)

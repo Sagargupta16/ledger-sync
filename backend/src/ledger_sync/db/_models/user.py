@@ -161,7 +161,11 @@ class UserPreferences(Base):
 
     # User foreign key - links preferences to owner
     user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(USER_FK), nullable=False, unique=True, index=True
+        Integer,
+        ForeignKey(USER_FK, ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
     )
 
     # Relationship back to user

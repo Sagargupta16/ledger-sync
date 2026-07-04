@@ -27,7 +27,9 @@ class AIUsageLog(Base):
     __tablename__ = "ai_usage_log"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # When the call completed (server clock; self-reported calls use this too)
     timestamp: Mapped[datetime] = mapped_column(

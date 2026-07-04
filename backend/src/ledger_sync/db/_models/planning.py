@@ -41,7 +41,9 @@ class RecurringTransaction(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes pattern to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Pattern identification
     pattern_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -95,7 +97,9 @@ class ScheduledTransaction(Base):
     __tablename__ = "scheduled_transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # What
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -146,17 +150,20 @@ class Anomaly(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes anomaly to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Anomaly details
     anomaly_type: Mapped[AnomalyType] = mapped_column(Enum(AnomalyType), nullable=False, index=True)
     severity: Mapped[str] = mapped_column(String(20), nullable=False)  # low, medium, high, critical
     description: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Related transaction (if applicable)
+    # Related transaction (if applicable). Cascade on delete: hard-deleting a
+    # transaction should not leave orphaned anomalies pointing at nothing.
     transaction_id: Mapped[str | None] = mapped_column(
         String(64),
-        ForeignKey("transactions.transaction_id"),
+        ForeignKey("transactions.transaction_id", ondelete="CASCADE"),
         nullable=True,
     )
 
@@ -201,7 +208,9 @@ class Budget(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes budget to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Budget scope
     category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -253,7 +262,9 @@ class FinancialGoal(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes goal to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Goal details
     name: Mapped[str] = mapped_column(String(255), nullable=False)

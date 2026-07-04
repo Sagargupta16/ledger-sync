@@ -30,7 +30,9 @@ class TaxRecord(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes tax record to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Financial year (e.g., "2022-23", "2023-24")
     financial_year: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -107,7 +109,9 @@ class NetWorthSnapshot(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # User foreign key - scopes snapshot to owner
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(USER_FK), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Snapshot date (typically end of month or upload date)
     snapshot_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
