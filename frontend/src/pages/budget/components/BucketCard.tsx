@@ -70,7 +70,6 @@ export function BucketCard({
   // Floor-kind card fills from 0 -> target and stops (savings above 100% is
   // still 100% full visually; the score-delta line shows the surplus).
   const progressPct = kind === 'cap' ? pctOfIncome : Math.min(pctOfIncome, target)
-  const capForBar = kind === 'cap' ? target : target
   const isOverCap = kind === 'cap' && pctOfIncome > target
 
   const targetLabel =
@@ -120,7 +119,7 @@ export function BucketCard({
         </div>
         <ProgressBar
           value={progressPct}
-          max={Math.max(capForBar, pctOfIncome, 1)}
+          max={Math.max(target, pctOfIncome, 1)}
           color={PROGRESS_TINTS[bucket]}
           height={8}
           target={target}
