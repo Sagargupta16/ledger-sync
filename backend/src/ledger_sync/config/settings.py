@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 30  # 30 minutes (industry standard)
     jwt_refresh_token_expire_days: int = 7
 
+    # At-rest encryption key for BYOK AI API keys.
+    # If unset, encryption.py falls back to jwt_secret_key (legacy behavior, deprecated).
+    # Splitting these lets us rotate the JWT secret without invalidating stored
+    # BYOK ciphertexts, and vice versa. Must be >= 32 chars in production.
+    encryption_key: str = ""
+
     # Upload limits
     max_upload_size_bytes: int = MAX_UPLOAD_SIZE_BYTES
 
@@ -142,6 +148,10 @@ class Settings(BaseSettings):
         # JWT secret should be sufficiently long
         if self.jwt_secret_key and len(self.jwt_secret_key) < 32:
             issues.append("CRITICAL: jwt_secret_key must be at least 32 characters")
+
+        # Encryption key length check (only enforce if user opted in by setting one)
+        if self.encryption_key and len(self.encryption_key) < 32:
+            issues.append("CRITICAL: encryption_key must be at least 32 characters")
 
         if self.environment in ("staging", "production"):
             # SQLite not suitable for multi-user production
