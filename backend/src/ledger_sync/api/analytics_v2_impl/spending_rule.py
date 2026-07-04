@@ -35,6 +35,7 @@ account-level breakdown.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -107,42 +108,68 @@ _DEFAULT_NEEDS: frozenset[str] = frozenset(
     )
 )
 
-# Display-side rename for Savings-bucket rows whose category is a generic
-# "Transfer" bookkeeping label. Users think of these as investments, not
-# transfers -- the money went somewhere. Ordered from most specific to most
-# generic; the first pattern that matches the ``to_account`` wins.
+
+# Display-side rename for Savings-bucket rows whose category is a "Transfer:"
+# bookkeeping label. Users think of these as investments, not transfers --
+# the money went somewhere. Ordered from most specific to most generic; the
+# first pattern that matches the ``to_account`` wins.
 #
 # The DB row is untouched; this only affects what the /budgets page shows.
+# Labels are short instrument names (Stocks, Mutual Funds, PPF) so the /budgets
+# page rows fit inside the narrow side-by-side columns without truncation.
 _TRANSFER_RELABEL_BY_ACCOUNT: tuple[tuple[str, str], ...] = (
-    ("ppf", "PPF Contribution"),
-    ("epf", "EPF Contribution"),
-    ("nps", "NPS Contribution"),
-    ("ssy", "Sukanya Samriddhi"),
-    ("elss", "ELSS Investment"),
-    ("mutual fund", "Mutual Fund Investment"),
-    ("mf", "Mutual Fund Investment"),
-    ("sip", "SIP Investment"),
-    ("stocks", "Stocks Investment"),
-    ("equity", "Equity Investment"),
-    ("shares", "Stocks Investment"),
-    ("groww", "Mutual Fund Investment"),
-    ("zerodha", "Stocks Investment"),
-    ("kite", "Stocks Investment"),
-    ("upstox", "Stocks Investment"),
-    ("kuvera", "Mutual Fund Investment"),
-    ("coin", "Mutual Fund Investment"),
+    # Multi-word patterns first (more specific).
+    ("fd/bonds", "FD / Bonds"),
+    ("mutual funds", "Mutual Funds"),
+    ("mutual fund", "Mutual Funds"),
     ("recurring deposit", "Recurring Deposit"),
-    ("rd", "Recurring Deposit"),
     ("fixed deposit", "Fixed Deposit"),
+    ("sukanya samriddhi", "Sukanya Samriddhi"),
+    # Single-word patterns (matched at word boundaries to avoid substring
+    # false positives like "rd" inside "weird" / "board").
+    ("ppf", "PPF"),
+    ("epf", "EPF"),
+    ("nps", "NPS"),
+    ("ssy", "Sukanya Samriddhi"),
+    ("elss", "ELSS"),
+    ("mf", "Mutual Funds"),
+    ("sip", "SIP"),
+    ("stocks", "Stocks"),
+    ("equity", "Stocks"),
+    ("shares", "Stocks"),
+    ("groww", "Mutual Funds"),
+    ("zerodha", "Stocks"),
+    ("kite", "Stocks"),
+    ("upstox", "Stocks"),
+    ("kuvera", "Mutual Funds"),
+    ("indmoney", "Stocks"),
+    ("coin", "Mutual Funds"),
+    ("rd", "Recurring Deposit"),
     ("fd", "Fixed Deposit"),
 )
 
-# Generic category labels that trigger the rename. If the user's Excel has
-# category="Transfer" or subcategory="Transfer to Investment", swap for the
-# clearer instrument name based on the destination account.
+
 _GENERIC_TRANSFER_LABELS: frozenset[str] = frozenset(
     s.lower() for s in ("transfer", "transfer out", "transfer to", "movement", "internal transfer")
 )
+
+
+def _is_transfer_category(cat_lower: str) -> bool:
+    """True if the category is a generic bookkeeping Transfer label.
+
+    Covers both the plain single-word form ('transfer', 'transfer to') AND
+    the multi-part 'Transfer: <from> → <to>' pattern that ledger-sync's
+    default Excel template uses. Matching by prefix + colon avoids
+    accidentally catching a category literally named 'transferable' or a
+    user's actual investment category.
+    """
+    if not cat_lower:
+        return True
+    if cat_lower in _GENERIC_TRANSFER_LABELS:
+        return True
+    # "transfer:" (colon suffix) or "transfer: <anything>" -- the ledger-sync
+    # Excel template writes rows as "Transfer: Bank: HDFC → Stocks: Groww".
+    return cat_lower.startswith("transfer:")
 
 
 def _prettify_savings_label(
@@ -153,30 +180,31 @@ def _prettify_savings_label(
     """Return (category, subcategory) with generic 'Transfer' labels swapped
     for the instrument name inferred from the destination account.
 
-    Only fires for Savings-bucket rows; leaves everything else alone.
+    Only fires for Savings-bucket rows; leaves everything else alone. Handles
+    both the plain 'Transfer' category AND the ledger-sync default template's
+    'Transfer: <from> → <to>' compound form.
     """
     cat_lower = (category or "").lower().strip()
-    is_generic = cat_lower in _GENERIC_TRANSFER_LABELS or cat_lower == ""
-
-    if not is_generic or not to_account:
+    if not _is_transfer_category(cat_lower) or not to_account:
         return category, subcategory
 
     to_lower = to_account.lower()
     for pattern, pretty in _TRANSFER_RELABEL_BY_ACCOUNT:
-        if pattern in to_lower:
+        # Word-boundary match so 'rd' doesn't match 'weird broker' and
+        # 'mf' doesn't match 'management firm'. Multi-word patterns like
+        # 'mutual funds' fit \b...\b naturally on space boundaries.
+        if re.search(rf"\b{re.escape(pattern)}\b", to_lower):
             # Keep the original subcategory only if it's not also a generic
-            # transfer label -- otherwise the row reads "PPF Contribution /
-            # Transfer" which is exactly what we're trying to fix.
+            # transfer label -- otherwise the row reads "PPF / Transfer" which
+            # is exactly what we're trying to fix.
             sub_lower = (subcategory or "").lower().strip()
-            new_sub = None if sub_lower in _GENERIC_TRANSFER_LABELS else subcategory
+            new_sub = None if _is_transfer_category(sub_lower) else subcategory
             return pretty, new_sub
 
-    # Generic label but destination account didn't match any known instrument.
-    # Fall back to the raw category rather than a bogus "Investment" label --
-    # things like `Cashback Shared` or `Security Deposits` are not investments,
-    # and a wrong label is worse than the raw one. Callers won't see this branch
-    # in practice because non-investment destinations get filtered out one step
-    # earlier by the wallet-to-wallet skip; this is a safety net for edge cases.
+    # Transfer-flavored category but destination didn't match any known
+    # instrument (e.g. 'Cashback Shared', 'Security Deposits'). Return the raw
+    # category rather than a bogus label -- these get filtered out one step
+    # earlier by the wallet-to-wallet skip in practice; this is a safety net.
     return category, subcategory
 
 
@@ -270,6 +298,21 @@ def _months_between(start: datetime, end: datetime) -> int:
     return max(months, 1)
 
 
+def _matches_investment_pattern(text_lower: str, patterns: set[str]) -> bool:
+    """True if any pattern appears at a word boundary in text_lower.
+
+    Word-boundary matching stops short patterns like 'rd' / 'mf' from
+    accidentally matching inside 'weird broker' / 'wealth management fund'.
+    Multi-word patterns like 'recurring deposit' still match verbatim.
+    """
+    for pattern in patterns:
+        # Escape + wrap in \b. re.search caches the compiled pattern under
+        # the hood; per-call cost is negligible given txn volumes.
+        if re.search(rf"\b{re.escape(pattern)}\b", text_lower):
+            return True
+    return False
+
+
 def _classify_category(
     category: str,
     subcategory: str | None,
@@ -289,15 +332,13 @@ def _classify_category(
 
     # 1. Transfer to an investment account = savings, regardless of category.
     if txn_type == TransactionType.TRANSFER and to_account:
-        to_lower = to_account.lower()
-        if any(pattern in to_lower for pattern in investment_accounts_set):
+        if _matches_investment_pattern(to_account.lower(), investment_accounts_set):
             return "savings"
 
     # 2. Expense on an investment account also counts as savings (SIP debit
-    # from bank account with to_account matching a broker/fund).
+    # from bank account with account matching a broker/fund).
     if txn_type == TransactionType.EXPENSE and account:
-        acc_lower = account.lower()
-        if any(pattern in acc_lower for pattern in investment_accounts_set):
+        if _matches_investment_pattern(account.lower(), investment_accounts_set):
             return "savings"
 
     # 3. Category-based needs classification.

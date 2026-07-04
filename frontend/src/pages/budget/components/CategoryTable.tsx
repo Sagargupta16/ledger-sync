@@ -246,6 +246,12 @@ function BucketColumn({ bucket, rows, months, incomeTotal }: ColProps) {
         </div>
       ) : (
         <>
+          {/* clip-x kills horizontal scroll in the three side-by-side columns.
+              DataTable defaults to overflow-x-auto because most consumers want
+              scrolling for wide tables; here we WANT truncation so long labels
+              like "Transfer: Bank: HDFC → Stocks: Groww" (which are relabeled
+              to "Stocks" on the backend anyway) stay inside the column. */}
+        <div className="[&_.data-table-scroll]:overflow-x-hidden">
           <DataTable
             rows={visible as SpendingRuleCategoryRow[]}
             columns={columns as readonly DataTableColumn<SpendingRuleCategoryRow>[]}
@@ -259,6 +265,7 @@ function BucketColumn({ bucket, rows, months, incomeTotal }: ColProps) {
             mobileCards
             stickyHeader={false}
           />
+        </div>
 
           {/* Expanded "Other" rollup contents -- inline list below the table */}
           {expandedOther && rows.length > TOP_N && (

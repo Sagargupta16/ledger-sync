@@ -177,8 +177,8 @@ def test_transfer_to_ppf_classified_as_savings(rule_client):
 
 def test_generic_transfer_relabelled_to_instrument_name(rule_client):
     """When the user's Excel has category='Transfer' (generic), the /budgets
-    page should show 'PPF Contribution' / 'SIP Investment' / etc based on the
-    destination account, not the literal word 'Transfer'.
+    page should show 'PPF' / 'Mutual Funds' / etc based on the destination
+    account, not the literal word 'Transfer'.
     """
     client, session, user = rule_client
     _add_txn(
@@ -217,8 +217,73 @@ def test_generic_transfer_relabelled_to_instrument_name(rule_client):
     savings_cats = [c["category"] for c in body["categories"] if c["bucket"] == "savings"]
     # Both rows should now show as instrument names, not "Transfer".
     assert "Transfer" not in savings_cats
-    assert "PPF Contribution" in savings_cats
-    assert "Mutual Fund Investment" in savings_cats
+    assert "PPF" in savings_cats
+    assert "Mutual Funds" in savings_cats
+
+
+def test_ledger_sync_template_transfer_pattern_relabelled(rule_client):
+    """The ledger-sync default Excel template stores TRANSFER rows as
+    ``category = "Transfer: <from> → <to>"``. That's NOT a generic single-word
+    label -- it's the compound form. The prettifier must catch this pattern
+    (colon-prefix) and relabel from the ``to_account`` field.
+
+    Regression test for the /budgets Savings column reading like:
+      Transfer: Bank: HDFC → Stocks: Groww  ₹48,000
+      Transfer: Bank: SBI  → Mutual Funds: Groww  ₹35,000
+    ...when it should read:
+      Stocks       ₹48,000
+      Mutual Funds ₹35,000
+    """
+    client, session, user = rule_client
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 1, tzinfo=UTC),
+        amount=48000,
+        category="Transfer: Bank: HDFC → Stocks: Groww",
+        subcategory=None,
+        txn_type=TransactionType.TRANSFER,
+        account="Bank: HDFC",
+        to_account="Stocks: Groww",
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 5, tzinfo=UTC),
+        amount=35000,
+        category="Transfer: Bank: SBI → Mutual Funds: Groww",
+        txn_type=TransactionType.TRANSFER,
+        account="Bank: SBI",
+        to_account="Mutual Funds: Groww",
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 8, tzinfo=UTC),
+        amount=6000,
+        category="Transfer: Bank: HDFC → PPF",
+        txn_type=TransactionType.TRANSFER,
+        account="Bank: HDFC",
+        to_account="PPF",
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 10, tzinfo=UTC),
+        amount=200000,
+        category="Salary",
+        txn_type=TransactionType.INCOME,
+    )
+    session.commit()
+
+    body = client.get("/api/analytics/v2/spending-rule").json()
+    savings_cats = sorted({c["category"] for c in body["categories"] if c["bucket"] == "savings"})
+    # No literal 'Transfer:' anywhere in the savings column.
+    assert not any(c.lower().startswith("transfer") for c in savings_cats), savings_cats
+    # Instrument labels present, using the short forms.
+    assert "Stocks" in savings_cats
+    assert "Mutual Funds" in savings_cats
+    assert "PPF" in savings_cats
 
 
 def test_same_category_different_subs_collapse_into_one_row(rule_client):
