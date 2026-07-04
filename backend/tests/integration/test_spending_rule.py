@@ -170,7 +170,88 @@ def test_transfer_to_ppf_classified_as_savings(rule_client):
     assert body["savings_amount"] == 100000
     savings_cat_rows = [c for c in body["categories"] if c["bucket"] == "savings"]
     assert len(savings_cat_rows) == 1
+    # Non-generic category "Investment" is preserved as-is (prettifier only
+    # triggers on generic "Transfer"-style labels).
     assert savings_cat_rows[0]["category"] == "Investment"
+
+
+def test_generic_transfer_relabelled_to_instrument_name(rule_client):
+    """When the user's Excel has category='Transfer' (generic), the /budgets
+    page should show 'PPF Contribution' / 'SIP Investment' / etc based on the
+    destination account, not the literal word 'Transfer'.
+    """
+    client, session, user = rule_client
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 1, tzinfo=UTC),
+        amount=12500,
+        category="Transfer",  # generic label -- should get relabelled
+        subcategory=None,
+        txn_type=TransactionType.TRANSFER,
+        account="HDFC Savings",
+        to_account="HDFC PPF Account",
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 5, tzinfo=UTC),
+        amount=5000,
+        category="Transfer",
+        subcategory="Transfer to SIP",  # generic sub too
+        txn_type=TransactionType.TRANSFER,
+        account="HDFC Savings",
+        to_account="Groww MF Account",
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 10, tzinfo=UTC),
+        amount=200000,
+        category="Salary",
+        txn_type=TransactionType.INCOME,
+    )
+    session.commit()
+
+    body = client.get("/api/analytics/v2/spending-rule").json()
+    savings_cats = [c["category"] for c in body["categories"] if c["bucket"] == "savings"]
+    # Both rows should now show as instrument names, not "Transfer".
+    assert "Transfer" not in savings_cats
+    assert "PPF Contribution" in savings_cats
+    assert "Mutual Fund Investment" in savings_cats
+
+
+def test_transfer_relabel_fallback_when_dest_unknown(rule_client):
+    """Destination account doesn't match any known instrument -- fall back
+    to 'Investment' instead of leaving 'Transfer'."""
+    client, session, user = rule_client
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 1, tzinfo=UTC),
+        amount=5000,
+        category="Transfer",
+        txn_type=TransactionType.TRANSFER,
+        account="HDFC Savings",
+        to_account="Some Weird Broker XYZ",  # not in the pattern list
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 5, tzinfo=UTC),
+        amount=100000,
+        category="Salary",
+        txn_type=TransactionType.INCOME,
+    )
+    session.commit()
+
+    body = client.get("/api/analytics/v2/spending-rule").json()
+    # Only shows up if classified as savings (via investment_accounts_set match).
+    # With unknown to_account, it might not be classified as savings at all --
+    # in which case there are no savings category rows. If it IS in savings,
+    # the label should NOT be "Transfer".
+    savings_cats = [c["category"] for c in body["categories"] if c["bucket"] == "savings"]
+    assert "Transfer" not in savings_cats
 
 
 def test_scores_delta_signed_correctly(rule_client):

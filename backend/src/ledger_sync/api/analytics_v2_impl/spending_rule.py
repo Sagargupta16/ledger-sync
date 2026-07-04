@@ -107,6 +107,75 @@ _DEFAULT_NEEDS: frozenset[str] = frozenset(
     )
 )
 
+# Display-side rename for Savings-bucket rows whose category is a generic
+# "Transfer" bookkeeping label. Users think of these as investments, not
+# transfers -- the money went somewhere. Ordered from most specific to most
+# generic; the first pattern that matches the ``to_account`` wins.
+#
+# The DB row is untouched; this only affects what the /budgets page shows.
+_TRANSFER_RELABEL_BY_ACCOUNT: tuple[tuple[str, str], ...] = (
+    ("ppf", "PPF Contribution"),
+    ("epf", "EPF Contribution"),
+    ("nps", "NPS Contribution"),
+    ("ssy", "Sukanya Samriddhi"),
+    ("elss", "ELSS Investment"),
+    ("mutual fund", "Mutual Fund Investment"),
+    ("mf", "Mutual Fund Investment"),
+    ("sip", "SIP Investment"),
+    ("stocks", "Stocks Investment"),
+    ("equity", "Equity Investment"),
+    ("shares", "Stocks Investment"),
+    ("groww", "Mutual Fund Investment"),
+    ("zerodha", "Stocks Investment"),
+    ("kite", "Stocks Investment"),
+    ("upstox", "Stocks Investment"),
+    ("kuvera", "Mutual Fund Investment"),
+    ("coin", "Mutual Fund Investment"),
+    ("recurring deposit", "Recurring Deposit"),
+    ("rd", "Recurring Deposit"),
+    ("fixed deposit", "Fixed Deposit"),
+    ("fd", "Fixed Deposit"),
+)
+
+# Generic category labels that trigger the rename. If the user's Excel has
+# category="Transfer" or subcategory="Transfer to Investment", swap for the
+# clearer instrument name based on the destination account.
+_GENERIC_TRANSFER_LABELS: frozenset[str] = frozenset(
+    s.lower() for s in ("transfer", "transfer out", "transfer to", "movement", "internal transfer")
+)
+
+
+def _prettify_savings_label(
+    category: str,
+    subcategory: str | None,
+    to_account: str | None,
+) -> tuple[str, str | None]:
+    """Return (category, subcategory) with generic 'Transfer' labels swapped
+    for the instrument name inferred from the destination account.
+
+    Only fires for Savings-bucket rows; leaves everything else alone.
+    """
+    cat_lower = (category or "").lower().strip()
+    is_generic = cat_lower in _GENERIC_TRANSFER_LABELS or cat_lower == ""
+
+    if not is_generic or not to_account:
+        return category, subcategory
+
+    to_lower = to_account.lower()
+    for pattern, pretty in _TRANSFER_RELABEL_BY_ACCOUNT:
+        if pattern in to_lower:
+            # Keep the original subcategory only if it's not also a generic
+            # transfer label -- otherwise the row reads "PPF Contribution /
+            # Transfer" which is exactly what we're trying to fix.
+            sub_lower = (subcategory or "").lower().strip()
+            new_sub = None if sub_lower in _GENERIC_TRANSFER_LABELS else subcategory
+            return pretty, new_sub
+
+    # Generic label but destination account didn't match any known instrument
+    # -- best effort: relabel as "Investment" so it doesn't say "Transfer".
+    return "Investment", subcategory
+
+
 # Default set of investment-account patterns for the Savings bucket. Matched
 # case-insensitively as substrings against the ``account`` / ``to_account``
 # field -- e.g. "Groww MF", "HDFC PPF Account", "NPS Tier 1" all match.
@@ -347,13 +416,21 @@ def get_spending_rule_breakdown(
 
         bucket_totals[bucket] += amt
 
-        # Category row aggregation.
-        key = (t.category, t.subcategory or "", bucket)
+        # Category row aggregation. For Savings-bucket rows whose category
+        # is a generic "Transfer" label, prettify the display name from the
+        # destination account (PPF/EPF/SIP/etc). Only the display label
+        # changes; DB rows and analytics elsewhere are untouched.
+        display_category, display_sub = (
+            _prettify_savings_label(t.category, t.subcategory, t.to_account)
+            if bucket == "savings"
+            else (t.category, t.subcategory)
+        )
+        key = (display_category, display_sub or "", bucket)
         row = category_rows.get(key)
         if row is None:
             row = _CategoryRow(
-                category=t.category,
-                subcategory=t.subcategory,
+                category=display_category,
+                subcategory=display_sub,
                 bucket=bucket,
                 total_amount=Decimal(0),
                 txn_count=0,
