@@ -78,5 +78,6 @@ def test_malformed_ciphertext_raises_decryption_error():
 
 def test_truncated_ciphertext_raises_decryption_error():
     """A base64-valid but too-short blob is caught, not a mystery IndexError."""
+    truncated = base64.b64encode(b"\x02" + b"\x00" * 5).decode()
     with pytest.raises(DecryptionError):
-        decrypt_api_key(base64.b64encode(b"\x02" + b"\x00" * 5).decode())
+        decrypt_api_key(truncated)

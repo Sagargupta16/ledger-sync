@@ -35,7 +35,8 @@ def rule_client():
         poolclass=StaticPool,
     )
     Base.metadata.create_all(engine)
-    TestSession = sessionmaker(bind=engine)  # noqa: N806 -- sessionmaker returns a class, PascalCase is idiomatic
+    # sessionmaker returns a class, PascalCase is idiomatic
+    TestSession = sessionmaker(bind=engine)  # noqa: N806
     session = TestSession()
 
     user = User(email="rule@example.com", is_active=True, is_verified=True, hashed_password="")

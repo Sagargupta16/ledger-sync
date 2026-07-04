@@ -166,7 +166,7 @@ export function PeriodPicker({
 
               <div className="space-y-4">
                 <label className="block text-xs font-medium text-muted-foreground">
-                  From
+                  <span className="block">From</span>
                   <input
                     type="date"
                     value={customStart}
@@ -177,7 +177,7 @@ export function PeriodPicker({
                   />
                 </label>
                 <label className="block text-xs font-medium text-muted-foreground">
-                  To
+                  <span className="block">To</span>
                   <input
                     type="date"
                     value={customEnd}

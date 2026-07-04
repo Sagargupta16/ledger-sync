@@ -75,9 +75,11 @@ export function BucketCard({
   const targetLabel =
     kind === 'cap' ? `Target: ≤${target}% of income` : `Target: ≥${target}% of income`
 
-  const deltaLabel = scoreDelta === 0
-    ? 'on target'
-    : `${scoreDelta > 0 ? '+' : ''}${scoreDelta.toFixed(0)} pts vs target`
+  const deltaSign = scoreDelta > 0 ? '+' : ''
+  const deltaLabel =
+    scoreDelta === 0
+      ? 'on target'
+      : `${deltaSign}${scoreDelta.toFixed(0)} pts vs target`
 
   return (
     <motion.div

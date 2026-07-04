@@ -83,30 +83,37 @@ export default function BudgetPage() {
         }
       />
 
-      {isLoading || !data ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <LoadingSkeleton className="h-52" />
-            <LoadingSkeleton className="h-52" />
-            <LoadingSkeleton className="h-52" />
-          </div>
-          <LoadingSkeleton className="h-96" />
-        </div>
-      ) : !data.period || !data.buckets ? (
-        // Defensive: some upstream (demo adapter, cached wrong shape, etc.)
-        // could feed us an object without the expected keys. Fail soft rather
-        // than crash the whole page.
-        <EmptyState
-          icon={AlertTriangle}
-          title="Unexpected response shape"
-          description="The budget rule endpoint returned data in an unexpected format. Try refreshing the page."
-          variant="card"
-        />
-      ) : (
-        <BudgetRuleContent data={data} />
-      )}
+      {renderBody(isLoading, data)}
     </PageContainer>
   )
+}
+
+function renderBody(isLoading: boolean, data: SpendingRuleResponse | undefined) {
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <LoadingSkeleton className="h-52" />
+          <LoadingSkeleton className="h-52" />
+          <LoadingSkeleton className="h-52" />
+        </div>
+        <LoadingSkeleton className="h-96" />
+      </div>
+    )
+  }
+  // Defensive: some upstream (demo adapter, cached wrong shape, etc.) could
+  // feed us an object without the expected keys. Fail soft rather than crash.
+  if (!data.period || !data.buckets) {
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Unexpected response shape"
+        description="The budget rule endpoint returned data in an unexpected format. Try refreshing the page."
+        variant="card"
+      />
+    )
+  }
+  return <BudgetRuleContent data={data} />
 }
 
 function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
@@ -200,11 +207,7 @@ function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
 
       {/* Category breakdown table */}
       <motion.div variants={fadeUpItem}>
-        <CategoryTable
-          rows={data.categories}
-          incomeTotal={data.income_total}
-          months={data.period.months}
-        />
+        <CategoryTable rows={data.categories} months={data.period.months} />
       </motion.div>
     </motion.div>
   )

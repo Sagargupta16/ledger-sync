@@ -121,6 +121,33 @@ def upgrade() -> None:
         _upgrade_postgres()
 
 
+_NAMING_CONVENTION = {
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+}
+
+
+def _reflect_current_fk_names(bind, table: str) -> dict[tuple[str, str], str]:
+    """Return a `{(local_col, referred_table): constraint_name}` map for one table.
+
+    Named FKs keep their explicit name; anonymous ones get the synthesized name
+    from the naming_convention. Anonymous unnamed FKs are skipped.
+    """
+    from sqlalchemy import MetaData
+
+    md = MetaData(naming_convention=_NAMING_CONVENTION)
+    md.reflect(bind=bind, only=[table])
+    current = md.tables[table]
+
+    names: dict[tuple[str, str], str] = {}
+    for fkc in current.foreign_key_constraints:
+        if not fkc.name:
+            continue
+        local_col = next(iter(fkc.column_keys), None)
+        if local_col:
+            names[(local_col, fkc.referred_table.name)] = fkc.name
+    return names
+
+
 def _upgrade_sqlite() -> None:
     """SQLite: reflect actual current FK name per table (which varies --
     some are named by earlier migrations, some are anonymous and get a
@@ -128,44 +155,21 @@ def _upgrade_sqlite() -> None:
     name, then create the new CASCADE FK in the same batch. All in one
     batch = alembic recreates the table with the new FK set.
     """
-    # naming_convention synthesizes a name for anonymous FKs during
-    # reflection. Named FKs (created by earlier migrations) keep their
-    # explicit name; anonymous ones get fk_<table>_<column>_<referent>.
-    naming_convention = {
-        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    }
-
     # Group targets by table so tables with multiple FKs to rewrite
     # (anomalies -> users AND anomalies -> transactions) do one batch.
     by_table: dict[str, list[tuple[str, str, str, str]]] = {}
     for table, column, ref_table, ref_col, new_name in _FKS_TO_CASCADE:
         by_table.setdefault(table, []).append((column, ref_table, ref_col, new_name))
 
-    from sqlalchemy import MetaData
-
     bind = op.get_bind()
 
     for table, fk_specs in by_table.items():
-        # Reflect the table under the naming_convention so anonymous FKs
-        # get their synthesized name; already-named FKs keep theirs.
-        md = MetaData(naming_convention=naming_convention)
-        md.reflect(bind=bind, only=[table])
-        current = md.tables[table]
-
-        # Build a map: (local_col, referred_table) -> current constraint name
-        current_fk_names: dict[tuple[str, str], str] = {}
-        for fkc in current.foreign_key_constraints:
-            if not fkc.name:
-                continue
-            local_col = next(iter(fkc.column_keys), None)
-            ref_tbl = fkc.referred_table.name
-            if local_col:
-                current_fk_names[(local_col, ref_tbl)] = fkc.name
+        current_fk_names = _reflect_current_fk_names(bind, table)
 
         with op.batch_alter_table(
             table,
             recreate="always",
-            naming_convention=naming_convention,
+            naming_convention=_NAMING_CONVENTION,
         ) as batch_op:
             for column, ref_table, _ref_col, _new_name in fk_specs:
                 existing_name = current_fk_names.get((column, ref_table))

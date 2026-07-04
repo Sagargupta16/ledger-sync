@@ -8,7 +8,6 @@ import type { SpendingBucket, SpendingRuleCategoryRow } from '@/services/api/ana
 
 interface Props {
   readonly rows: readonly SpendingRuleCategoryRow[]
-  readonly incomeTotal: number
   readonly months: number
 }
 
@@ -81,7 +80,7 @@ function buildBucketRows(
  * That's the canonical pattern here. Rows are already sorted by amount desc
  * from the backend so no sort-header UI is needed.
  */
-export function CategoryTable({ rows, incomeTotal, months }: Props) {
+export function CategoryTable({ rows, months }: Props) {
   const bucketData = useMemo(() => {
     const buckets: Record<SpendingBucket, SpendingRuleCategoryRow[]> = {
       needs: [],
@@ -99,12 +98,6 @@ export function CategoryTable({ rows, incomeTotal, months }: Props) {
       </div>
     )
   }
-
-  // `incomeTotal` used to drive a % column that was dropped -- YNAB / Monarch /
-  // Copilot all render category rows without % of income; the bucket header
-  // cards already show the ratio. Keeping the prop on this component to
-  // preserve the call-site contract.
-  void incomeTotal
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

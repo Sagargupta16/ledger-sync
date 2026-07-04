@@ -117,11 +117,13 @@ _DEFAULT_NEEDS: frozenset[str] = frozenset(
 # The DB row is untouched; this only affects what the /budgets page shows.
 # Labels are short instrument names (Stocks, Mutual Funds, PPF) so the /budgets
 # page rows fit inside the narrow side-by-side columns without truncation.
+_MUTUAL_FUNDS_LABEL = "Mutual Funds"
+
 _TRANSFER_RELABEL_BY_ACCOUNT: tuple[tuple[str, str], ...] = (
     # Multi-word patterns first (more specific).
     ("fd/bonds", "FD / Bonds"),
-    ("mutual funds", "Mutual Funds"),
-    ("mutual fund", "Mutual Funds"),
+    ("mutual funds", _MUTUAL_FUNDS_LABEL),
+    ("mutual fund", _MUTUAL_FUNDS_LABEL),
     ("recurring deposit", "Recurring Deposit"),
     ("fixed deposit", "Fixed Deposit"),
     ("sukanya samriddhi", "Sukanya Samriddhi"),
@@ -132,18 +134,18 @@ _TRANSFER_RELABEL_BY_ACCOUNT: tuple[tuple[str, str], ...] = (
     ("nps", "NPS"),
     ("ssy", "Sukanya Samriddhi"),
     ("elss", "ELSS"),
-    ("mf", "Mutual Funds"),
+    ("mf", _MUTUAL_FUNDS_LABEL),
     ("sip", "SIP"),
     ("stocks", "Stocks"),
     ("equity", "Stocks"),
     ("shares", "Stocks"),
-    ("groww", "Mutual Funds"),
+    ("groww", _MUTUAL_FUNDS_LABEL),
     ("zerodha", "Stocks"),
     ("kite", "Stocks"),
     ("upstox", "Stocks"),
-    ("kuvera", "Mutual Funds"),
+    ("kuvera", _MUTUAL_FUNDS_LABEL),
     ("indmoney", "Stocks"),
-    ("coin", "Mutual Funds"),
+    ("coin", _MUTUAL_FUNDS_LABEL),
     ("rd", "Recurring Deposit"),
     ("fd", "Fixed Deposit"),
 )
@@ -355,6 +357,80 @@ def _classify_category(
     return "wants"
 
 
+def _aggregate_txns(
+    txns: list[Transaction],
+    *,
+    essential_set: set[str],
+    investment_accounts_set: set[str],
+) -> tuple[Decimal, Decimal, dict[str, Decimal], dict[tuple[str, str], _CategoryRow]]:
+    """Fold transactions into income/expense totals + per-bucket totals + category rows.
+
+    Extracted from the endpoint handler to keep its cognitive complexity under
+    SonarCloud's threshold. See docstring on ``get_spending_rule_breakdown``
+    for the semantics -- this is a pure aggregation over the pre-filtered rows.
+    """
+    income_total = Decimal(0)
+    expense_total = Decimal(0)
+    bucket_totals: dict[str, Decimal] = {
+        "needs": Decimal(0),
+        "wants": Decimal(0),
+        "savings": Decimal(0),
+    }
+    # Group by (category, bucket). Subcategories roll up under their category
+    # row (see _CategoryRow.subs) so the /budgets page shows one row per
+    # category with top-3 subs inline -- else a user with 7 Food & Dining
+    # subs got 7 separate rows dominating Needs and drowning other categories.
+    category_rows: dict[tuple[str, str], _CategoryRow] = {}
+
+    for t in txns:
+        amt = t.amount
+        month_key = t.date.strftime("%Y-%m")
+
+        if t.type == TransactionType.INCOME:
+            income_total += amt
+            continue
+
+        bucket = _classify_category(
+            category=t.category,
+            subcategory=t.subcategory,
+            txn_type=t.type,
+            account=t.account or "",
+            to_account=t.to_account,
+            essential_set=essential_set,
+            investment_accounts_set=investment_accounts_set,
+        )
+
+        # TRANSFER rows outside "savings" (wallet-to-wallet) are skipped --
+        # they inflate both sides otherwise.
+        if t.type == TransactionType.TRANSFER and bucket != "savings":
+            continue
+
+        if t.type == TransactionType.EXPENSE:
+            expense_total += amt
+
+        bucket_totals[bucket] += amt
+
+        display_category, display_sub = (
+            _prettify_savings_label(t.category, t.subcategory, t.to_account)
+            if bucket == "savings"
+            else (t.category, t.subcategory)
+        )
+
+        key = (display_category, bucket)
+        row = category_rows.get(key)
+        if row is None:
+            row = _CategoryRow(
+                category=display_category,
+                bucket=bucket,
+                total_amount=Decimal(0),
+                txn_count=0,
+            )
+            category_rows[key] = row
+        row.add(amt, display_sub, month_key)
+
+    return income_total, expense_total, bucket_totals, category_rows
+
+
 @router.get(
     "/spending-rule",
     responses={422: {"description": "Invalid date range"}},
@@ -449,74 +525,11 @@ def get_spending_rule_breakdown(
         .all()
     )
 
-    # ─── aggregate ──────────────────────────────────────────────────────────
-    income_total = Decimal(0)
-    expense_total = Decimal(0)
-    bucket_totals: dict[str, Decimal] = {
-        "needs": Decimal(0),
-        "wants": Decimal(0),
-        "savings": Decimal(0),
-    }
-    # Group by (category, bucket). Subcategories roll up under their category
-    # row (see _CategoryRow.subs) so the /budgets page shows one row per
-    # category with the top-3 subs listed inline underneath -- otherwise a
-    # user with 7 Food & Dining subs got 7 separate rows dominating the Needs
-    # column and drowning out other real categories.
-    category_rows: dict[tuple[str, str], _CategoryRow] = {}
-
-    for t in txns:
-        amt = t.amount
-        month_key = t.date.strftime("%Y-%m")
-
-        if t.type == TransactionType.INCOME:
-            income_total += amt
-            continue  # income doesn't appear in category rows below
-
-        # For EXPENSE + TRANSFER: classify + accumulate.
-        bucket = _classify_category(
-            category=t.category,
-            subcategory=t.subcategory,
-            txn_type=t.type,
-            account=t.account or "",
-            to_account=t.to_account,
-            essential_set=essential_set,
-            investment_accounts_set=investment_accounts_set,
-        )
-
-        # TRANSFER rows that hit "savings" go in the savings bucket total, and
-        # TRANSFER rows that don't (wallet-to-wallet moves between two of your
-        # own non-investment accounts) are skipped entirely -- they inflate
-        # both sides otherwise.
-        if t.type == TransactionType.TRANSFER and bucket != "savings":
-            continue
-
-        # Expenses always count toward expense_total for the Warren savings calc.
-        if t.type == TransactionType.EXPENSE:
-            expense_total += amt
-
-        bucket_totals[bucket] += amt
-
-        # Prettify generic "Transfer" labels for Savings rows. The prettifier
-        # returns the ORIGINAL category on unknown destinations (see
-        # _prettify_savings_label docstring) so we never see the literal
-        # "Investment" fallback on non-investment destinations.
-        display_category, display_sub = (
-            _prettify_savings_label(t.category, t.subcategory, t.to_account)
-            if bucket == "savings"
-            else (t.category, t.subcategory)
-        )
-
-        key = (display_category, bucket)
-        row = category_rows.get(key)
-        if row is None:
-            row = _CategoryRow(
-                category=display_category,
-                bucket=bucket,
-                total_amount=Decimal(0),
-                txn_count=0,
-            )
-            category_rows[key] = row
-        row.add(amt, display_sub, month_key)
+    income_total, expense_total, bucket_totals, category_rows = _aggregate_txns(
+        txns,
+        essential_set=essential_set,
+        investment_accounts_set=investment_accounts_set,
+    )
 
     # Warren definition of savings for the header card.
     savings_amount = income_total - expense_total

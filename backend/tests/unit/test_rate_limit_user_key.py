@@ -7,8 +7,15 @@ from unittest.mock import MagicMock
 from ledger_sync.api.rate_limit import _user_key_func
 from ledger_sync.core.auth.tokens import create_tokens
 
+# Synthetic test IPs -- never leave the test suite. Documented for reviewers so
+# Sonar's S1313 hardcoded-IP checks understand these aren't leaked prod IPs.
+_DEFAULT_FAKE_IP = "1.2.3.4"  # NOSONAR
+_FAKE_IP_NO_AUTH = "10.0.0.5"  # NOSONAR
+_FAKE_IP_MALFORMED_JWT = "10.0.0.6"  # NOSONAR
+_FAKE_IP_NON_BEARER = "10.0.0.7"  # NOSONAR
 
-def _fake_request(headers: dict[str, str], client_host: str = "1.2.3.4") -> MagicMock:
+
+def _fake_request(headers: dict[str, str], client_host: str = _DEFAULT_FAKE_IP) -> MagicMock:
     req = MagicMock()
     req.headers = headers
     req.client = MagicMock(host=client_host)
@@ -23,28 +30,28 @@ def test_user_key_func_returns_sub_from_bearer_token():
 
 
 def test_user_key_func_falls_back_to_ip_without_token():
-    req = _fake_request(headers={}, client_host="10.0.0.5")
+    req = _fake_request(headers={}, client_host=_FAKE_IP_NO_AUTH)
 
-    assert _user_key_func(req) == "10.0.0.5"
+    assert _user_key_func(req) == _FAKE_IP_NO_AUTH
 
 
 def test_user_key_func_falls_back_to_ip_with_malformed_token():
     req = _fake_request(
         {"authorization": "Bearer not.a.valid.jwt"},
-        client_host="10.0.0.6",
+        client_host=_FAKE_IP_MALFORMED_JWT,
     )
 
-    assert _user_key_func(req) == "10.0.0.6"
+    assert _user_key_func(req) == _FAKE_IP_MALFORMED_JWT
 
 
 def test_user_key_func_falls_back_to_ip_with_non_bearer_scheme():
     """Basic Auth or any other scheme should not be parsed as a JWT."""
     req = _fake_request(
         {"authorization": "Basic dXNlcjpwYXNz"},
-        client_host="10.0.0.7",
+        client_host=_FAKE_IP_NON_BEARER,
     )
 
-    assert _user_key_func(req) == "10.0.0.7"
+    assert _user_key_func(req) == _FAKE_IP_NON_BEARER
 
 
 def test_user_key_func_case_insensitive_bearer_prefix():

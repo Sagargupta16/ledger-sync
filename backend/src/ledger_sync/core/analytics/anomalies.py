@@ -190,19 +190,10 @@ class AnomaliesMixin(AnalyticsEngineBase):
 
         for month in monthly_expenses:
             total = float(month.total)
-            if use_iqr:
-                if iqr_fence is None or total <= iqr_fence:
-                    continue
-                deviation_pct = ((total - med) / med) * 100
-                severity = "high" if total > med * 2.5 else "medium"  # noqa: PLR2004
-            else:
-                m_z = _MZ_CONSTANT * (total - med) / mad
-                if m_z <= z_cutoff:
-                    continue
-                deviation_pct = ((total - med) / med) * 100
-                # Grade by how far past the cutoff we are, not raw deviation.
-                severity = "high" if m_z >= z_cutoff * 1.5 else "medium"  # noqa: PLR2004
-
+            severity = self._grade_month(total, med, mad, z_cutoff, use_iqr, iqr_fence)
+            if severity is None:
+                continue
+            deviation_pct = ((total - med) / med) * 100
             anomalies.append(
                 {
                     "type": AnomalyType.HIGH_EXPENSE,
@@ -217,6 +208,26 @@ class AnomaliesMixin(AnalyticsEngineBase):
                     "deviation_pct": deviation_pct,
                 },
             )
+
+    @staticmethod
+    def _grade_month(
+        total: float,
+        med: float,
+        mad: float,
+        z_cutoff: float,
+        use_iqr: bool,
+        iqr_fence: float | None,
+    ) -> str | None:
+        """Return "high" / "medium" if the month is anomalous, else None."""
+        if use_iqr:
+            if iqr_fence is None or total <= iqr_fence:
+                return None
+            return "high" if total > med * 2.5 else "medium"  # noqa: PLR2004
+        m_z = _MZ_CONSTANT * (total - med) / mad
+        if m_z <= z_cutoff:
+            return None
+        # Grade by how far past the cutoff we are, not raw deviation.
+        return "high" if m_z >= z_cutoff * 1.5 else "medium"  # noqa: PLR2004
 
     # ─── large-transaction detector (rolling window) ───────────────────────
 
