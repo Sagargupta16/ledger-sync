@@ -453,8 +453,11 @@ def test_monthly_average_uses_period_length(rule_client):
     assert 19_500 < rent_row["avg_monthly"] < 20_500
 
 
-def test_user_essentials_override_defaults(rule_client):
-    """User's essential_categories overrides built-in Indian defaults."""
+def test_user_essentials_add_to_defaults(rule_client):
+    """User's essential_categories ADD to the built-in Indian defaults --
+    they don't replace them. A user who tags 'Vacation' as essential should
+    NOT silently lose Rent / Groceries / Education from Needs (which was
+    the historical broken behavior)."""
     client, session, user = rule_client
     prefs = session.query(UserPreferences).filter_by(user_id=user.id).one()
     prefs.essential_categories = '["Vacation"]'
@@ -467,8 +470,52 @@ def test_user_essentials_override_defaults(rule_client):
     session.commit()
 
     body = client.get("/api/analytics/v2/spending-rule").json()
-    assert body["buckets"]["needs"]["amount"] == 15000
-    assert body["buckets"]["wants"]["amount"] == 25000
+    # Both Rent (default) AND Vacation (user override) count as Needs.
+    assert body["buckets"]["needs"]["amount"] == 40000
+    assert body["buckets"]["wants"]["amount"] == 0
+
+
+def test_compound_category_matches_default_needs_via_word_boundary(rule_client):
+    """A category labelled 'Education & Learning' should still be classified
+    as Needs -- the default set has 'education' as a keyword, and matching
+    is now word-boundary based, not exact-string.
+
+    Regression test for the 'Education showing up in Wants' bug: previously
+    the classifier did `cat_lower in essential_set` which required exact
+    string match, so any compound label like 'Health & Insurance' or
+    'Home Loan / EMI' missed the default keywords they contained.
+    """
+    client, session, user = rule_client
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 1, tzinfo=UTC),
+        amount=5000,
+        category="Education & Learning",
+        subcategory="College Fees",
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 3, tzinfo=UTC),
+        amount=3000,
+        category="Health & Insurance",
+        subcategory=None,
+    )
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 10, tzinfo=UTC),
+        amount=100000,
+        category="Salary",
+        txn_type=TransactionType.INCOME,
+    )
+    session.commit()
+
+    body = client.get("/api/analytics/v2/spending-rule").json()
+    # Both compound labels should land in Needs, not Wants.
+    assert body["buckets"]["needs"]["amount"] == 8000
+    assert body["buckets"]["wants"]["amount"] == 0
 
 
 def test_response_shape_matches_frontend_contract(rule_client):

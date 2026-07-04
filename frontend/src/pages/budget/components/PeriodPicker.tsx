@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Calendar } from 'lucide-react'
-
-import { rawColors } from '@/constants/colors'
 
 /**
  * Value model:
@@ -43,6 +41,15 @@ interface Props {
   readonly maxDate?: string
 }
 
+/**
+ * Preset pill bar + "Custom" trigger that opens a full-screen dialog.
+ *
+ * The dialog pattern (fixed inset-0 z-50 with backdrop-blur + bg-surface-dropdown
+ * panel) mirrors ConfirmDialog / AuthModal / ProfileModal / CommandPalette --
+ * the app's canonical overlay shape. Previous version rendered the popover
+ * inline inside the sticky header, which pushed the flex layout wide and got
+ * clipped by page content.
+ */
 export function PeriodPicker({
   value,
   onChange,
@@ -53,146 +60,159 @@ export function PeriodPicker({
   maxDate,
 }: Props) {
   const [showCustom, setShowCustom] = useState(false)
-  const popoverRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
+  const handleClose = useCallback(() => setShowCustom(false), [])
 
-  // Close on outside click / Escape. Standard controlled-popover hygiene.
   useEffect(() => {
     if (!showCustom) return
-    const onClick = (e: MouseEvent) => {
-      const t = e.target as Node
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(t) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(t)
-      ) {
-        setShowCustom(false)
-      }
-    }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowCustom(false)
+      if (e.key === 'Escape') handleClose()
     }
-    document.addEventListener('mousedown', onClick)
     document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onClick)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [showCustom])
+    return () => document.removeEventListener('keydown', onKey)
+  }, [showCustom, handleClose])
 
   const minAttr = minDate ? minDate.slice(0, 10) : undefined
   const maxAttr = maxDate ? maxDate.slice(0, 10) : undefined
+  const canApply = customStart && customEnd && customStart <= customEnd
 
   return (
-    <div className="relative flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist" aria-label="Select period">
-      {OPTIONS.map(([v, label]) => (
+    <>
+      <div
+        className="flex items-center gap-1 p-1 glass-thin rounded-xl"
+        role="tablist"
+        aria-label="Select period"
+      >
+        {OPTIONS.map(([v, label]) => (
+          <motion.button
+            key={v}
+            role="tab"
+            aria-selected={value === v}
+            onClick={() => onChange(v)}
+            className={`relative px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              value === v
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
+            }`}
+            whileTap={{ scale: 0.97 }}
+          >
+            {value === v && (
+              <motion.div
+                layoutId="budgetPeriodTab"
+                className="absolute inset-0 rounded-lg bg-[var(--overlay-5)]"
+                initial={false}
+                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+              />
+            )}
+            <span className="relative z-10">{label}</span>
+          </motion.button>
+        ))}
+
         <motion.button
-          key={v}
           role="tab"
-          aria-selected={value === v}
-          onClick={() => onChange(v)}
-          className={`relative px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors ${
-            value === v
+          aria-selected={value === 'custom'}
+          aria-haspopup="dialog"
+          aria-expanded={showCustom}
+          onClick={() => setShowCustom(true)}
+          className={`relative px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+            value === 'custom'
               ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
           }`}
           whileTap={{ scale: 0.97 }}
         >
-          {value === v && (
+          {value === 'custom' && (
             <motion.div
               layoutId="budgetPeriodTab"
-              className="absolute inset-0 rounded-lg"
-              style={{ backgroundColor: rawColors.app.green }}
+              className="absolute inset-0 rounded-lg bg-[var(--overlay-5)]"
               initial={false}
               transition={{ type: 'spring', stiffness: 500, damping: 35 }}
             />
           )}
-          <span className="relative z-10">{label}</span>
+          <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden="true" />
+          <span className="relative z-10">Custom</span>
         </motion.button>
-      ))}
+      </div>
 
-      {/* Custom range trigger + popover */}
-      <motion.button
-        ref={triggerRef}
-        role="tab"
-        aria-selected={value === 'custom'}
-        aria-haspopup="dialog"
-        aria-expanded={showCustom}
-        onClick={() => setShowCustom((s) => !s)}
-        className={`relative px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-          value === 'custom'
-            ? 'text-foreground'
-            : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
-        }`}
-        whileTap={{ scale: 0.97 }}
-      >
-        {value === 'custom' && (
+      <AnimatePresence>
+        {showCustom && (
           <motion.div
-            layoutId="budgetPeriodTab"
-            className="absolute inset-0 rounded-lg"
-            style={{ backgroundColor: rawColors.app.green }}
-            initial={false}
-            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-          />
-        )}
-        <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden="true" />
-        <span className="relative z-10">Custom</span>
-      </motion.button>
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-[var(--modal-backdrop)] backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleClose}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="custom-range-title"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="bg-surface-dropdown rounded-2xl border border-[var(--hairline-2)] p-6 max-w-md w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3
+                id="custom-range-title"
+                className="text-lg font-semibold text-foreground mb-1"
+              >
+                Custom date range
+              </h3>
+              <p className="text-sm text-muted-foreground mb-5">
+                Pick any start and end date. Bounds are set from your earliest
+                and latest transactions.
+              </p>
 
-      {showCustom && (
-        <div
-          ref={popoverRef}
-          role="dialog"
-          aria-label="Custom date range"
-          className="absolute right-0 top-full mt-2 z-20 glass-card rounded-xl p-4 min-w-[280px] shadow-lg"
-        >
-          <div className="space-y-3">
-            <label className="block text-xs font-medium text-muted-foreground">
-              From
-              <input
-                type="date"
-                value={customStart}
-                min={minAttr}
-                max={customEnd || maxAttr}
-                onChange={(e) => onCustomChange(e.target.value, customEnd)}
-                className="mt-1 block w-full px-3 py-2 rounded-lg bg-[var(--overlay-5)] text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-app-green"
-              />
-            </label>
-            <label className="block text-xs font-medium text-muted-foreground">
-              To
-              <input
-                type="date"
-                value={customEnd}
-                min={customStart || minAttr}
-                max={maxAttr}
-                onChange={(e) => onCustomChange(customStart, e.target.value)}
-                className="mt-1 block w-full px-3 py-2 rounded-lg bg-[var(--overlay-5)] text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-app-green"
-              />
-            </label>
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                onClick={() => setShowCustom(false)}
-                className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  if (customStart && customEnd) {
+              <div className="space-y-4">
+                <label className="block text-xs font-medium text-muted-foreground">
+                  From
+                  <input
+                    type="date"
+                    value={customStart}
+                    min={minAttr}
+                    max={customEnd || maxAttr}
+                    onChange={(e) => onCustomChange(e.target.value, customEnd)}
+                    className="mt-1.5 block w-full px-3 py-2 rounded-lg bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue"
+                  />
+                </label>
+                <label className="block text-xs font-medium text-muted-foreground">
+                  To
+                  <input
+                    type="date"
+                    value={customEnd}
+                    min={customStart || minAttr}
+                    max={maxAttr}
+                    onChange={(e) => onCustomChange(customStart, e.target.value)}
+                    className="mt-1.5 block w-full px-3 py-2 rounded-lg bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue"
+                  />
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="px-4 py-2 bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-foreground rounded-lg hover:bg-[var(--overlay-5)] transition-colors duration-150 ease-out text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!canApply}
+                  onClick={() => {
                     onChange('custom')
-                    setShowCustom(false)
-                  }
-                }}
-                disabled={!customStart || !customEnd}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-app-green/20 text-app-green hover:bg-app-green/30 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+                    handleClose()
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-app-blue/90 hover:bg-app-blue text-on-accent transition-colors duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Apply
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }

@@ -83,12 +83,12 @@ export function BucketCard({
     <motion.div
       whileHover={{ y: -2 }}
       transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-      className="glass-card rounded-2xl p-5 flex flex-col gap-3"
+      className="h-full glass rounded-2xl border border-border p-5 flex flex-col gap-3"
       aria-label={`${title} bucket, ${pctOfIncome.toFixed(1)} percent of income, ${deltaLabel}`}
     >
       {/* Top row: icon + title + description */}
       <div className="flex items-start gap-3">
-        <div className="p-2 rounded-lg bg-[var(--overlay-5)]" aria-hidden="true">
+        <div className="p-2 rounded-lg bg-[var(--overlay-3)]" aria-hidden="true">
           <Icon className="w-5 h-5 text-foreground" />
         </div>
         <div className="min-w-0">
@@ -100,8 +100,8 @@ export function BucketCard({
         </div>
       </div>
 
-      {/* Big amount */}
-      <div className="text-3xl font-semibold tabular-nums text-foreground">
+      {/* Big amount -- KPI hero scale, matches MetricCard hero */}
+      <div className="text-2xl font-semibold tabular-nums text-foreground">
         {formatCurrency(amount)}
       </div>
 
@@ -128,7 +128,7 @@ export function BucketCard({
       </div>
 
       {/* Footer: target + delta */}
-      <div className="text-xs text-muted-foreground pt-1 border-t border-[var(--overlay-5)]">
+      <div className="text-xs text-muted-foreground pt-1 border-t border-border">
         {targetLabel} · <span className={STATUS_COLORS[status]}>{deltaLabel}</span>
       </div>
     </motion.div>

@@ -97,7 +97,7 @@ export function CategoryTable({ rows, incomeTotal, months }: Props) {
 
   if (rows.length === 0) {
     return (
-      <div className="glass-card rounded-2xl p-8 text-center text-muted-foreground">
+      <div className="glass rounded-2xl border border-border p-8 text-center text-muted-foreground">
         No transactions in this period.
       </div>
     )
@@ -220,11 +220,11 @@ function BucketColumn({ bucket, rows, months, incomeTotal }: ColProps) {
 
   return (
     <section
-      className="glass-card rounded-2xl overflow-hidden flex flex-col"
+      className="h-full glass rounded-2xl border border-border overflow-hidden flex flex-col"
       aria-label={`${meta.label} category breakdown`}
     >
       {/* Column header */}
-      <div className="flex items-baseline justify-between gap-3 px-4 py-3 border-b border-[var(--overlay-5)]">
+      <div className="flex items-baseline justify-between gap-3 px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
           <Icon className={`w-4.5 h-4.5 shrink-0 ${meta.tintClass}`} aria-hidden="true" />
           <h3 className="text-sm font-semibold text-foreground">{meta.label}</h3>
@@ -246,12 +246,6 @@ function BucketColumn({ bucket, rows, months, incomeTotal }: ColProps) {
         </div>
       ) : (
         <>
-          {/* clip-x kills horizontal scroll in the three side-by-side columns.
-              DataTable defaults to overflow-x-auto because most consumers want
-              scrolling for wide tables; here we WANT truncation so long labels
-              like "Transfer: Bank: HDFC → Stocks: Groww" (which are relabeled
-              to "Stocks" on the backend anyway) stay inside the column. */}
-        <div className="[&_.data-table-scroll]:overflow-x-hidden">
           <DataTable
             rows={visible as SpendingRuleCategoryRow[]}
             columns={columns as readonly DataTableColumn<SpendingRuleCategoryRow>[]}
@@ -265,12 +259,11 @@ function BucketColumn({ bucket, rows, months, incomeTotal }: ColProps) {
             mobileCards
             stickyHeader={false}
           />
-        </div>
 
           {/* Expanded "Other" rollup contents -- inline list below the table */}
           {expandedOther && rows.length > TOP_N && (
             <div
-              className="border-t border-[var(--overlay-5)] px-4 py-3 space-y-2"
+              className="border-t border-border px-4 py-3 space-y-2"
               aria-label="Other categories detail"
             >
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">

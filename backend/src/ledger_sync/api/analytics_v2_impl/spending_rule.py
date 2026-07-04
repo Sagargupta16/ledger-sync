@@ -341,8 +341,14 @@ def _classify_category(
         if _matches_investment_pattern(account.lower(), investment_accounts_set):
             return "savings"
 
-    # 3. Category-based needs classification.
-    if cat_lower in essential_set or sub_lower in essential_set:
+    # 3. Category-based needs classification. Word-boundary matching so a
+    # category like "Education & Learning" matches the singular default
+    # keyword "education" -- exact-string matching would miss compound labels
+    # ("Health & Insurance", "Home Loan / EMI", "Food & Dining") which is
+    # exactly the shape most Excel templates use.
+    if _matches_investment_pattern(cat_lower, essential_set):
+        return "needs"
+    if sub_lower and _matches_investment_pattern(sub_lower, essential_set):
         return "needs"
 
     # 4. Everything else = wants (the residual bucket).
@@ -405,7 +411,11 @@ def get_spending_rule_breakdown(
     user_essentials = _parse_json_pref(prefs.essential_categories if prefs else None, [])
     user_inv_mappings = _parse_json_pref(prefs.investment_account_mappings if prefs else None, {})
 
-    essential_set: set[str] = {s.lower() for s in user_essentials if s} or set(_DEFAULT_NEEDS)
+    # User overrides ADD to the built-in Indian defaults rather than
+    # replacing them. Previously an empty override reverted to defaults,
+    # but a user adding "Charity" would silently LOSE all defaults including
+    # Education / Housing / Groceries -- a nasty override-drops-defaults foot-gun.
+    essential_set: set[str] = set(_DEFAULT_NEEDS) | {s.lower() for s in user_essentials if s}
     # investment_account_mappings is {"account_pattern": "type"} -- we only
     # need the patterns.
     investment_accounts_set: set[str] = {p.lower() for p in user_inv_mappings.keys() if p} or set(
