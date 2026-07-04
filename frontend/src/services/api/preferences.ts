@@ -241,7 +241,7 @@ export const preferencesService = {
 
   async getStockPrice(symbol: string): Promise<{ symbol: string; price: number; currency: string }> {
     const response = await apiClient.get<{ symbol: string; price: number; currency: string }>(
-      `/stock-price/${encodeURIComponent(symbol)}`,
+      `/api/stock-price/${encodeURIComponent(symbol)}`,
     )
     return response.data
   },
@@ -253,7 +253,7 @@ export const preferencesService = {
     stale?: boolean
     fallback?: boolean
   }> {
-    const response = await apiClient.get('/exchange-rates', { params: { base } })
+    const response = await apiClient.get('/api/exchange-rates', { params: { base } })
     return response.data
   },
 }

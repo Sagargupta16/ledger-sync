@@ -1074,7 +1074,7 @@ Stores AI provider configuration with the key encrypted at rest.
 
 ### Get Decrypted API Key
 
-**GET** `/api/preferences/ai-config/key`
+**GET** `/api/preferences/ai-config/key/reveal`
 
 Returns the decrypted API key for use in browser-direct streaming calls (OpenAI, Anthropic). The frontend calls this on each chat send; the key is never cached in localStorage.
 

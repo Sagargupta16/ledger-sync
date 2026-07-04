@@ -18,7 +18,7 @@ from ledger_sync.api.deps import CurrentUser
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/exchange-rates", tags=["exchange-rates"])
+router = APIRouter(prefix="/api/exchange-rates", tags=["exchange-rates"])
 
 _CACHE_TTL = 86400  # 24 hours in seconds
 _FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest"
