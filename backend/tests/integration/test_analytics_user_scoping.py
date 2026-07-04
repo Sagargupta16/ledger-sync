@@ -84,7 +84,7 @@ def test_detect_high_expense_months_is_zero_safe(analytics_db: Session) -> None:
     engine = AnalyticsEngine(analytics_db, user_id=user.id)
     anomalies: list[dict] = []
     # Must not raise; must simply produce no anomalies.
-    engine._detect_high_expense_months(anomalies, threshold_multiplier=2.0)
+    engine._detect_high_expense_months(anomalies, z_cutoff=3.5)
     assert anomalies == []
 
 
@@ -100,7 +100,7 @@ def test_detect_high_expense_months_scopes_by_user(analytics_db: Session) -> Non
 
     engine_b = AnalyticsEngine(analytics_db, user_id=user_b.id)
     anomalies_b: list[dict] = []
-    engine_b._detect_high_expense_months(anomalies_b, threshold_multiplier=2.0)
+    engine_b._detect_high_expense_months(anomalies_b, z_cutoff=3.5)
     assert anomalies_b == [], "User B should see no anomalies despite A's outlier"
 
 
@@ -110,7 +110,7 @@ def test_detect_high_expense_months_flags_true_outlier(analytics_db: Session) ->
 
     engine = AnalyticsEngine(analytics_db, user_id=user.id)
     anomalies: list[dict] = []
-    engine._detect_high_expense_months(anomalies, threshold_multiplier=2.0)
+    engine._detect_high_expense_months(anomalies, z_cutoff=3.5)
     assert len(anomalies) == 1
     assert anomalies[0]["period_key"] == "2024-06"
 
