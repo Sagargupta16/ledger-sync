@@ -71,6 +71,16 @@ export default function BudgetPage() {
           </div>
           <LoadingSkeleton className="h-96" />
         </div>
+      ) : !data.period || !data.buckets ? (
+        // Defensive: some upstream (demo adapter, cached wrong shape, etc.)
+        // could feed us an object without the expected keys. Fail soft rather
+        // than crash the whole page.
+        <EmptyState
+          icon={AlertTriangle}
+          title="Unexpected response shape"
+          description="The budget rule endpoint returned data in an unexpected format. Try refreshing the page."
+          variant="card"
+        />
       ) : (
         <BudgetRuleContent data={data} />
       )}
