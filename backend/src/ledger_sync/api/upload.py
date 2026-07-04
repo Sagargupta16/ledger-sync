@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy.exc import OperationalError
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.api.rate_limit import limiter
+from ledger_sync.api.rate_limit import limiter, user_limiter
 from ledger_sync.core.analytics import AnalyticsEngine
 from ledger_sync.core.sync_engine import SyncEngine
 from ledger_sync.ingest.normalizer import NormalizationError
@@ -23,10 +23,10 @@ from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="", tags=["upload"])
 
-# Rate limit uploads. A single user doing normal statement imports won't
-# come close to this; it exists to cap an abusive client that might try to
-# replay / brute force uploads. Keyed by remote address, not user, so an
-# unauthenticated flood is also throttled.
+# Rate limit uploads. Two decorators stack -- whichever trips first returns
+# 429. IP-keyed (5x higher) catches unauthenticated floods before they reach
+# the auth dep; user-keyed protects each account behind CGNAT / carrier NAT
+# where dozens of real users share one egress.
 
 
 @router.post(
@@ -39,7 +39,8 @@ router = APIRouter(prefix="", tags=["upload"])
         500: {"description": "Processing failed"},
     },
 )
-@limiter.limit("10/minute")
+@user_limiter.limit("10/minute")
+@limiter.limit("50/minute")
 async def upload_transactions(
     request: Request,  # required by slowapi  # noqa: ARG001
     payload: TransactionUploadRequest,
