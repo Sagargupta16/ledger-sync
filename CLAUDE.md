@@ -8,10 +8,6 @@
 >
 > Read those first. The guidance below only adds **repo-specific context** -- it does not override anything in the root.
 
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
 Ledger Sync is a self-hosted personal finance dashboard that turns Excel bank statements into 24 pages of analytics -- spending breakdowns, investment tracking, tax planning, cash flow visualization, AI-powered chat, and more. Supports multi-currency display with live exchange rates. Monorepo: Python FastAPI backend + React TypeScript frontend.
@@ -94,7 +90,7 @@ Layered architecture:
 
 ### Frontend (`frontend/src/`)
 
-- **`pages/`** - 25 page components (24 feature pages + `MorePage` for phone grid nav), all lazy-loaded via `React.lazy` for code splitting. Pages import directly (no barrel re-export). **Structure convention**: multi-file pages use kebab-case directories (`bill-calendar/`, `year-in-review/`, `tax-planning/`, `trends-forecasts/`, `comparison/`, `goals/`, `income-expense-flow/`, `settings/`, `subscription-tracker/`) -- each containing `PageName.tsx` + `use<Page>.ts` + `types.ts` + `*utils.ts` + `components/` subfolder. Single-file pages use PascalCase (`DashboardPage.tsx`, `BudgetPage.tsx`, etc.). Settings uses `sections/` (instead of `components/`) because "section" is the domain term. `settings/sectionPrimitives.tsx` provides shared Section/FieldLabel/FieldHint primitives. See [`docs/HANDBOOK.md`](docs/HANDBOOK.md) for the full card-by-card walkthrough of every page + setting (formula + data source per metric), or [`docs/PAGES.md`](docs/PAGES.md) for the shorter data-focused catalog.
+- **`pages/`** - 25 page components (24 feature pages + `MorePage` for phone grid nav), all lazy-loaded via `React.lazy` for code splitting. Pages import directly (no barrel re-export). **Structure convention**: multi-file pages use kebab-case directories (`bill-calendar/`, `year-in-review/`, `tax-planning/`, `trends-forecasts/`, `comparison/`, `goals/`, `income-expense-flow/`, `settings/`, `subscription-tracker/`, `budget/`) -- each containing `PageName.tsx` + `use<Page>.ts` + `types.ts` + `*utils.ts` + `components/` subfolder. Single-file pages use PascalCase (`DashboardPage.tsx`, `TransactionsPage.tsx`, etc.). Settings uses `sections/` (instead of `components/`) because "section" is the domain term. `settings/sectionPrimitives.tsx` provides shared Section/FieldLabel/FieldHint primitives. See [`docs/HANDBOOK.md`](docs/HANDBOOK.md) for the full card-by-card walkthrough of every page + setting (formula + data source per metric), or [`docs/PAGES.md`](docs/PAGES.md) for the shorter data-focused catalog.
 - **`components/`** - Organized by domain: `analytics/` (chart components including `CategoryBreakdown` for shared category treemaps), `chat/` (ChatWidget, ChatPanel, ChatMessage, useChat hook for AI chatbot), `layout/` (AppLayout, Sidebar with ProfileModal), `shared/` (reusable components like MetricCard, ProgressBar, Sparkline, AnalyticsTimeFilter, ProtectedRoute, ProfileModal, ChunkErrorBoundary, EmptyState, LoadingSkeleton, QuickInsights), `transactions/`, `upload/`, `ui/` (base primitives including ChartContainer, PageContainer, PageHeader, Spinner, DataTable, ConfirmDialog, CollapsibleSection, Money, plus chartDefaults helpers `referenceLine`/`currencyTooltipFormatter`).
 - **`hooks/`** - Custom React hooks. `useAnalyticsTimeFilter` encapsulates time-filter state (view mode, date range, FY) shared across all analytics pages. `useChartDimensions` provides responsive chart sizing. `hooks/api/` contains TanStack Query hooks for API calls, configured with `staleTime: Infinity` and `gcTime: 1 hour`.
 - **`services/api/`** - Axios-based API client. Axios interceptor auto-attaches JWT `Authorization` header. `aiConfig.ts` handles AI provider configuration CRUD.
@@ -120,7 +116,7 @@ Layered architecture:
   - **`app_bedrock` (default)** -- new users get a working chatbot with zero setup. Server uses its own Bedrock bearer token (`LEDGER_SYNC_BEDROCK_API_KEY`) and a fixed cheap model (Haiku 4.5). Rate-limited to `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` messages/day (default 10) per user to keep the shared-key cost predictable. Hitting the cap returns a 429 with a "switch to BYOK" pointer.
   - **`byok`** -- user configures provider (OpenAI/Anthropic/Bedrock), model, and API key in Settings > AI Assistant. Per-user daily/monthly token limits configurable.
   - **Transport**: OpenAI and Anthropic go browser-direct (both support CORS; Anthropic needs `anthropic-dangerous-direct-browser-access: true`). Bedrock goes through `/api/ai/bedrock/chat` because it needs SigV4 auth and doesn't support CORS. **All three are now non-streaming** -- `boto3.client('bedrock-runtime').converse()` returns a full JSON response, then re-emitted as a plain JSON body from FastAPI. Streaming was dropped when tool-calling was added because parsing `tool_use` events out of SSE was fragile; non-streaming with a 2-5s wait keeps the tool loop simple.
-  - **Tool calling (v2.5+)**: The bot has 15 read-only tools in `backend/src/ledger_sync/api/ai_tools.py` -- `list_accounts`, `search_transactions`, `get_monthly_summary`, `list_categories`, `get_category_spending`, `get_net_worth`, `list_recurring`, `list_goals`, `list_recent_months`, `get_fy_summary`, `list_budgets`, `get_savings_rate`, `get_top_merchants`, `get_transfer_flows`, `get_investment_holdings`. Same schema works across all three providers. Frontend tool loop in `useChat`: send -> receive `tool_use` -> execute tools in parallel -> append `tool_result` -> resend -> repeat until `end_turn` or 6-round limit. Every tool is user-scoped via `CurrentUser`; the LLM cannot see another user's data.
+  - **Tool calling (v2.5+)**: The bot has 15 read-only tools registered in `backend/src/ledger_sync/api/ai_tools_impl/` (registry pattern; `ai_tools.py` is the thin router) -- `list_accounts`, `search_transactions`, `get_monthly_summary`, `list_categories`, `get_category_spending`, `get_net_worth`, `list_recurring`, `list_goals`, `list_recent_months`, `get_fy_summary`, `list_budgets`, `get_cash_flow`, `get_tax_summary`, `get_preferences_summary`, `list_anomalies`. Same schema works across all three providers. Frontend tool loop in `useChat`: send -> receive `tool_use` -> execute tools in parallel -> append `tool_result` -> resend -> repeat until `end_turn` or 6-round limit. Every tool is user-scoped via `CurrentUser`; the LLM cannot see another user's data.
   - **System prompt shrunk to ~10 lines** (preferences, today's date, anti-hallucination nudge). No more "context stuffing" -- the bot reaches for tools instead of making up plausible numbers.
   - **Usage logging**: every LLM round-trip is logged to `ai_usage_log` (provider, model, input/output tokens, estimated USD, tool rounds). `GET /api/ai/usage` returns today / MTD / all-time rollups.
 - **PWA**: App is installable on mobile/desktop. Config lives in `frontend/vite.config.ts` (`VitePWA` plugin). Manifest uses relative `start_url`/`scope` so it works under the `/ledger-sync/` GH Pages base path. Service worker precaches the app shell only -- **never** caches `/api/*` (enforced via `navigateFallbackDenylist`) so financial data is always fresh. Icons are generated from `frontend/public/pwa-icon-source.svg` via `pnpm run generate:icons`; `pwa-assets.config.ts` overrides `minimal-2023`'s apple transform to `padding: 0` + transparent background so the gradient paints corner-to-corner and iOS applies its own squircle mask. Do NOT pass `--preset` on the generator CLI -- it overrides the config file. `registerType: 'autoUpdate'` + `clientsClaim` means updates propagate within one app restart.
@@ -146,9 +142,7 @@ Three services, all free tier:
 
 ### CI Pipeline (`.github/workflows/ci.yml`)
 
-Single job: `uv sync` + `pnpm install` -> lint -> type-check -> test -> build
-
-Runs on push/PR to main. Python 3.12, Node 22, pnpm 10, uv (latest).
+Three jobs on push/PR to main: `frontend` (shared-workflows `node-ci.yml`, working-directory frontend), `backend` (inline: uv sync --all-extras --group dev, ruff check + format --check, mypy, pytest on Python 3.13 -- inline because the shared python-ci swallows failures with `|| true`), and `security` (shared-workflows `security-scan.yml`).
 
 ## Code Quality Rules
 
@@ -160,40 +154,7 @@ Runs on push/PR to main. Python 3.12, Node 22, pnpm 10, uv (latest).
 
 ## Project Skills
 
-Repo-specific skills live in [`.claude/skills/<name>/SKILL.md`](.claude/skills/). Two flavors:
-
-**Atlas skills** (`user-invocable: false`) -- codebase mental models, auto-load by `paths:` scope. They give Claude background knowledge on demand without taking context space upfront. Index in [MEMORY.md](MEMORY.md).
-
-| Atlas | Auto-loads when... |
-| --- | --- |
-| `backend-atlas` | Editing any backend Python file |
-| `frontend-atlas` | Editing any frontend TS/TSX file |
-| `data-flow-atlas` | Always available (no path scope) |
-| `domain-atlas` | Editing tax/FY/currency/instrument code |
-| `deployment-atlas` | Editing workflows, vercel.json, settings |
-| `indian-finance-expert` | Editing tax/investment/savings code -- domain-expert reference |
-
-**Frontend craft skills** (`user-invocable: false`) -- practice/best-practice guides grounded in current library docs + this repo's actual fixed bugs. Auto-load by `paths:` when editing frontend code.
-
-| Craft skill | Auto-loads when... |
-| --- | --- |
-| `query-states` | Editing pages/hooks/components -- loading/empty/error states + undefined-data guards (TanStack Query v5) |
-| `accessible-ui` | Editing components/pages -- ARIA names, modal semantics, label association, contrast |
-| `recharts-viz` | Editing analytics/chart components -- ResponsiveContainer, token colors, NaN/empty guards |
-| `react-patterns` | Editing any frontend TS/TSX -- useEffectEvent, stable keys, stale-state, lazy/Suspense, hooks lint |
-| `design-system-ui` | Editing components/pages/CSS -- design tokens, mobile-first + 44px touch, h-dvh, banned AI-slop patterns |
-| `ui-patterns-reference` | Editing components/pages/CSS -- cross-system principles (shadcn/Radix/Material/Primer/Nielsen/Refactoring UI): hierarchy, semantic tokens, tables, forms, heuristics |
-
-**Task skills** (user-invocable, also auto-trigger on phrasing) -- recipes for recurring work. Consolidated to broad workflows rather than one skill per layer.
-
-| Task skill | Trigger when... |
-| --- | --- |
-| `add-feature` | **Full-stack feature** -- backend endpoint + Pydantic schema + frontend service + hook + page/component |
-| `new-ai-tool` | Adding a tool the AI chatbot can call (the only single-file workflow that stays standalone) |
-| `new-migration` | Touching anything in `db/_models/` (DB schema change with the empty-downgrade convention) |
-| `schema-drift-check` | Pydantic schema or response shape changed (catch silent TS drift before PR) |
-| `release-changelog` | Cutting a release / version bump |
-| `debug-finance` | Wrong number / missing data / unexpected analytics |
+The repo-specific skill set (atlas/craft/task skills under `.claude/skills/`) was untracked and removed from the working tree on 2026-07-03 (commit 594f102, "untrack AI assistant local files"). It no longer exists locally -- recover from git history at `594f102^` if ever needed. Until restored, workspace-level and user-level skills cover this repo.
 
 ## New Feature Patterns
 
