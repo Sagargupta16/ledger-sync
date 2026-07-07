@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { PageContainer, PageHeader } from '@/components/ui'
 import TransactionTable from '@/components/transactions/TransactionTable'
 import TransactionFilters, { type FilterValues } from '@/components/transactions/TransactionFilters'
+import SavedViewsMenu from '@/components/transactions/SavedViewsMenu'
 import Pagination from '@/components/transactions/Pagination'
 import { useTransactionFacets } from '@/hooks/api/useTransactions'
 import { transactionsService, type TransactionFilters as ServiceFilters } from '@/services/api/transactions'
@@ -28,6 +29,7 @@ function buildServerFilters(
     category: filters.category || undefined,
     account: filters.account || undefined,
     type: filters.type || undefined,
+    tag: filters.tag || undefined,
     min_amount: filters.min_amount,
     max_amount: filters.max_amount,
     start_date: filters.start_date || undefined,
@@ -45,6 +47,9 @@ export default function TransactionsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }])
   const [isExporting, setIsExporting] = useState(false)
+  // Bumped on each saved-view apply to remount TransactionFilters, which
+  // re-seeds its internal state from initialValues.
+  const [filtersVersion, setFiltersVersion] = useState(0)
 
   // Build server-side filter params from current UI state
   const serverFilters = useMemo(
@@ -81,6 +86,12 @@ export default function TransactionsPage() {
   const handleFilterChange = (newFilters: FilterValues) => {
     setFilters(newFilters)
     setCurrentPage(1) // Reset to first page when filters change
+  }
+
+  const handleApplyView = (viewFilters: FilterValues) => {
+    setFilters(viewFilters)
+    setCurrentPage(1)
+    setFiltersVersion((v) => v + 1)
   }
 
   const handlePageChange = (page: number) => {
@@ -195,7 +206,15 @@ export default function TransactionsPage() {
 
         {/* Filters */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <TransactionFilters onFilterChange={handleFilterChange} categories={categories} accounts={accounts} />
+          <TransactionFilters
+            key={filtersVersion}
+            onFilterChange={handleFilterChange}
+            categories={categories}
+            accounts={accounts}
+            initialValues={filters}
+            tagOptions={facets?.tags ?? []}
+            savedViewsSlot={<SavedViewsMenu currentFilters={filters} onApply={handleApplyView} />}
+          />
         </motion.div>
 
         {/* Table */}
@@ -205,6 +224,7 @@ export default function TransactionsPage() {
             isLoading={isLoading}
             sorting={sorting}
             onSortingChange={setSorting}
+            availableTags={facets?.tags?.map((t) => t.name) ?? []}
           />
         </motion.div>
 

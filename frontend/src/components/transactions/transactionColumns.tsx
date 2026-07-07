@@ -4,6 +4,14 @@ import { ArrowDown, ArrowUp, ArrowUpDown, TrendingUp, TrendingDown } from 'lucid
 import type { Transaction } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 
+import TagChips from './TagChips'
+import TagEditor from './TagEditor'
+
+/** Table meta threaded from TransactionTable (facet tag names for TagEditor). */
+export interface TransactionTableMeta {
+  availableTags: string[]
+}
+
 /** Direction-aware sort icon for a sortable column header. */
 function sortIcon(column: Column<Transaction, unknown>) {
   const sorted = column.getIsSorted()
@@ -56,6 +64,9 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
         <div className="text-sm font-medium text-muted-foreground">{row.original.category}</div>
         {row.original.subcategory && (
           <div className="text-xs text-text-tertiary">{row.original.subcategory}</div>
+        )}
+        {row.original.tags && row.original.tags.length > 0 && (
+          <TagChips tags={row.original.tags} />
         )}
       </div>
     ),
@@ -112,5 +123,20 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
         {row.original.note || '-'}
       </span>
     ),
+  },
+  {
+    id: 'actions',
+    header: '',
+    enableSorting: false,
+    cell: ({ row, table }) => {
+      const meta = table.options.meta as TransactionTableMeta | undefined
+      return (
+        <TagEditor
+          transactionId={row.original.id}
+          tags={row.original.tags ?? []}
+          availableTags={meta?.availableTags ?? []}
+        />
+      )
+    },
   },
 ]

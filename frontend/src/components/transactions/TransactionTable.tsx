@@ -16,13 +16,17 @@ import { formatCurrency, formatDate } from '@/lib/formatters'
 import { getSemanticTextClass } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 
-import { transactionColumns } from './transactionColumns'
+import TagChips from './TagChips'
+import TagEditor from './TagEditor'
+import { transactionColumns, type TransactionTableMeta } from './transactionColumns'
 
 interface TransactionTableProps {
   transactions: Transaction[]
   isLoading?: boolean
   sorting: SortingState
   onSortingChange: (sorting: SortingState) => void
+  /** Facet tag names, offered as checkable options in the TagEditor popover. */
+  availableTags?: string[]
 }
 
 function getAmountColor(type: string): string {
@@ -35,7 +39,8 @@ function getAmountPrefix(type: string): string {
   return '-'
 }
 
-export default function TransactionTable({ transactions, isLoading, sorting, onSortingChange }: Readonly<TransactionTableProps>) {
+export default function TransactionTable({ transactions, isLoading, sorting, onSortingChange, availableTags = [] }: Readonly<TransactionTableProps>) {
+  const tableMeta: TransactionTableMeta = { availableTags }
 
   // Wrapper to handle TanStack Table's updater pattern
   const handleSortingChange = useCallback((updaterOrValue: Updater<SortingState>) => {
@@ -57,6 +62,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     },
     onSortingChange: handleSortingChange,
     manualSorting: true,
+    meta: tableMeta,
   })
 
   if (isLoading) {
@@ -67,7 +73,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
           <table className="w-full">
             <thead className="bg-[var(--overlay-2)] border-b border-[var(--hairline-1)] sticky top-0 z-10">
               <tr>
-                {Array.from({ length: 6 }, (_, i) => (
+                {Array.from({ length: 7 }, (_, i) => (
                   <th key={`skeleton-header-${i}`} className="px-6 py-3 text-left">
                     <div className="h-4 skeleton w-20" />
                   </th>
@@ -77,7 +83,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
             <tbody>
               {Array.from({ length: 10 }, (_, i) => (
                 <tr key={`skeleton-row-${i}`} className="border-b border-[var(--hairline-1)]">
-                  {Array.from({ length: 6 }, (_, j) => (
+                  {Array.from({ length: 7 }, (_, j) => (
                     <td key={`skeleton-cell-${i}-${j}`} className="px-6 py-4">
                       <div className="h-4 skeleton w-full" />
                     </td>
@@ -232,10 +238,18 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                               <span className="text-xs text-text-tertiary" title={tx.subcategory}>/ {tx.subcategory}</span>
                             )}
                           </div>
-                          <span className={`text-sm font-semibold ${amountColor}`}>
-                            {prefix}{formatCurrency(Math.abs(tx.amount))}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className={`text-sm font-semibold ${amountColor}`}>
+                              {prefix}{formatCurrency(Math.abs(tx.amount))}
+                            </span>
+                            <TagEditor transactionId={tx.id} tags={tx.tags ?? []} availableTags={availableTags} />
+                          </div>
                         </div>
+                        {tx.tags && tx.tags.length > 0 && (
+                          <div className="mb-1.5">
+                            <TagChips tags={tx.tags} />
+                          </div>
+                        )}
                         <div className="flex items-center justify-between text-xs text-text-tertiary">
                           <span className="text-muted-foreground">{tx.account}</span>
                           {tx.note && <span className="truncate max-w-[150px]">{tx.note}</span>}
