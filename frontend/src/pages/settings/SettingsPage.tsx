@@ -13,6 +13,7 @@ import SalaryStructureSection from './sections/SalaryStructureSection'
 import AccountClassificationsSection from './sections/AccountClassificationsSection'
 import ExpenseCategoriesSection from './sections/ExpenseCategoriesSection'
 import IncomeClassificationSection from './sections/IncomeClassificationSection'
+import CategorizationRulesSection from './sections/CategorizationRulesSection'
 import InvestmentMappingsSection from './sections/InvestmentMappingsSection'
 import AdvancedSection from './sections/AdvancedSection'
 
@@ -154,6 +155,16 @@ export default function SettingsPage() {
             defaultCollapsed={false}
           />
         )}
+
+        <CategorizationRulesSection
+          index={sectionIndex++}
+          rules={s.rules}
+          onAddRule={s.addRule}
+          onRemoveRule={s.removeRule}
+          onUpdateRule={s.updateRule}
+          onApplyRules={s.handleApplyRules}
+          applying={s.applyingRules}
+        />
 
         {s.localPrefs && (
           <InvestmentMappingsSection

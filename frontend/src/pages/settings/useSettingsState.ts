@@ -3,15 +3,17 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAccountBalances, useMasterCategories } from '@/hooks/api/useAnalytics'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
+import { categorizationRulesService, type CategorizationRuleInput } from '@/services/api/categorizationRules'
 import { preferencesService } from '@/services/api/preferences'
 import { usePreferences, useUpdatePreferences, useResetPreferences } from '@/hooks/api/usePreferences'
 import { toast } from 'sonner'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import type { SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/salary'
 import { DEFAULT_GROWTH_ASSUMPTIONS } from '@/types/salary'
-import type { LocalPrefs, LocalPrefKey } from './types'
+import type { LocalPrefs, LocalPrefKey, LocalRule } from './types'
 import { ACCOUNT_TYPES } from './types'
 import {
   getDefaultClassifications, getDefaultIncomeClassifications, getDefaultInvestmentMappings, normalizeArray, getStoredWidgets, buildInitialLocalPrefs,
@@ -39,6 +41,9 @@ export function useSettingsState() {
   const [localSalaryStructure, setLocalSalaryStructure] = useState<Record<string, SalaryComponents>>({})
   const [localRsuGrants, setLocalRsuGrants] = useState<RsuGrant[]>([])
   const [localGrowthAssumptions, setLocalGrowthAssumptions] = useState<GrowthAssumptions>({ ...DEFAULT_GROWTH_ASSUMPTIONS })
+  const [rules, setRules] = useState<LocalRule[]>([])
+  const [applyingRules, setApplyingRules] = useState(false)
+  const queryClient = useQueryClient()
 
   // Derived data
   const accounts = useMemo(() => {
@@ -200,6 +205,84 @@ export function useSettingsState() {
     return () => { cancelled = true }
   }, [accounts, balanceData])
 
+  // Load categorization rules
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const data = await categorizationRulesService.getRules()
+        if (cancelled) return
+        setRules(
+          data.map((r) => ({
+            localId: String(r.id),
+            id: r.id,
+            match_field: r.match_field,
+            pattern: r.pattern,
+            category: r.category,
+            subcategory: r.subcategory,
+            is_active: r.is_active,
+          })),
+        )
+      } catch {
+        if (!cancelled) toast.error('Failed to load categorization rules')
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  // Categorization rule handlers
+  const addRule = useCallback(() => {
+    setRules((prev) => [
+      ...prev,
+      {
+        localId: crypto.randomUUID(),
+        match_field: 'note',
+        pattern: '',
+        category: '',
+        subcategory: '',
+        is_active: true,
+      },
+    ])
+    setHasChanges(true)
+  }, [])
+
+  const removeRule = useCallback((localId: string) => {
+    setRules((prev) => prev.filter((r) => r.localId !== localId))
+    setHasChanges(true)
+  }, [])
+
+  const updateRule = useCallback(
+    (localId: string, field: keyof LocalRule, value: string | boolean) => {
+      setRules((prev) =>
+        prev.map((r) => (r.localId === localId ? ({ ...r, [field]: value } as LocalRule) : r)),
+      )
+      setHasChanges(true)
+    },
+    [],
+  )
+
+  const handleApplyRules = useCallback(async () => {
+    if (guardDemoAction('Applying rules')) return
+    setApplyingRules(true)
+    try {
+      const res = await categorizationRulesService.applyRules()
+      toast.success(`Updated ${res.updated} of ${res.matched} matching transactions`)
+      // Retro apply changes categories AND transaction ids, so everything
+      // that reads transactions or baked-in analytics must refetch.
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions-page'] })
+      queryClient.invalidateQueries({ queryKey: ['transaction-facets'] })
+      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
+      queryClient.invalidateQueries({ queryKey: ['calculations'] })
+    } catch {
+      toast.error('Failed to apply rules')
+    } finally {
+      setApplyingRules(false)
+    }
+  }, [guardDemoAction, queryClient])
+
   // Core updater
   const updateLocalPref = useCallback(
     <K extends LocalPrefKey>(key: K, value: LocalPrefs[K]) => {
@@ -242,6 +325,55 @@ export function useSettingsState() {
         preferencesService.updateRsuGrants({ rsu_grants: localRsuGrants }),
         preferencesService.updateGrowthAssumptions({ growth_assumptions: localGrowthAssumptions }),
       ])
+
+      // Sync categorization rules: diff local rows against the server list.
+      const serverRules = await categorizationRulesService.getRules()
+      const serverById = new Map(serverRules.map((r) => [r.id, r]))
+      const localIds = new Set(rules.filter((r) => r.id !== undefined).map((r) => r.id))
+      const ruleOps: Promise<unknown>[] = []
+      rules.forEach((rule, idx) => {
+        if (!rule.pattern.trim() || !rule.category.trim()) return
+        const input: CategorizationRuleInput = {
+          match_field: rule.match_field,
+          pattern: rule.pattern,
+          category: rule.category,
+          subcategory: rule.subcategory || null,
+          is_active: rule.is_active,
+          sort_order: idx,
+        }
+        if (rule.id === undefined) {
+          ruleOps.push(categorizationRulesService.createRule(input))
+          return
+        }
+        const server = serverById.get(rule.id)
+        const changed =
+          !server ||
+          server.match_field !== rule.match_field ||
+          server.pattern !== rule.pattern ||
+          server.category !== rule.category ||
+          server.subcategory !== rule.subcategory ||
+          server.is_active !== rule.is_active ||
+          server.sort_order !== idx
+        if (changed) ruleOps.push(categorizationRulesService.updateRule(rule.id, input))
+      })
+      for (const server of serverRules) {
+        if (!localIds.has(server.id)) ruleOps.push(categorizationRulesService.deleteRule(server.id))
+      }
+      await Promise.all(ruleOps)
+      // Refresh local rules so new rows pick up their server ids
+      const refreshed = await categorizationRulesService.getRules()
+      setRules(
+        refreshed.map((r) => ({
+          localId: String(r.id),
+          id: r.id,
+          match_field: r.match_field,
+          pattern: r.pattern,
+          category: r.category,
+          subcategory: r.subcategory,
+          is_active: r.is_active,
+        })),
+      )
+
       setHasChanges(false)
       toast.success('Settings saved successfully')
     } catch {
@@ -249,7 +381,7 @@ export function useSettingsState() {
     } finally {
       setIsSaving(false)
     }
-  }, [classifications, localPrefs, updatePreferences, guardDemoAction, localSalaryStructure, localRsuGrants, localGrowthAssumptions])
+  }, [classifications, localPrefs, updatePreferences, guardDemoAction, localSalaryStructure, localRsuGrants, localGrowthAssumptions, rules])
 
   const handleReset = useCallback(async () => {
     if (guardDemoAction('Resetting settings')) return
@@ -279,5 +411,6 @@ export function useSettingsState() {
     localSalaryStructure, updateSalaryStructure,
     localRsuGrants, updateRsuGrants,
     localGrowthAssumptions, updateGrowthAssumptions,
+    rules, addRule, removeRule, updateRule, handleApplyRules, applyingRules,
   }
 }

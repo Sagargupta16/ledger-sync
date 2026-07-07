@@ -31,6 +31,11 @@ from ledger_sync.db._models.investments import (
     NetWorthSnapshot,
     TaxRecord,
 )
+from ledger_sync.db._models.organization import (
+    CategorizationRule,
+    SavedFilterView,
+    TransactionTag,
+)
 from ledger_sync.db._models.planning import (
     Anomaly,
     Budget,
@@ -56,6 +61,7 @@ __all__ = [
     "AnomalyType",
     "AuditLog",
     "Budget",
+    "CategorizationRule",
     "CategoryTrend",
     "CohortSpending",
     "ColumnMappingLog",
@@ -70,9 +76,11 @@ __all__ = [
     "NetWorthSnapshot",
     "RecurrenceFrequency",
     "RecurringTransaction",
+    "SavedFilterView",
     "ScheduledTransaction",
     "TaxRecord",
     "Transaction",
+    "TransactionTag",
     "TransactionType",
     "TransferFlow",
     "User",

@@ -1,12 +1,21 @@
-import { useState, useCallback, useEffect, useEffectEvent, useRef } from 'react'
+import { useState, useCallback, useEffect, useEffectEvent, useRef, type ReactNode } from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePreferencesStore } from '@/store/preferencesStore'
+import type { TagFacet } from '@/services/api/transactions'
 
 interface TransactionFiltersProps {
   onFilterChange: (filters: FilterValues) => void
   categories: string[]
   accounts: string[]
+  /**
+   * Seeds the internal filter state on mount. The parent re-seeds by
+   * remounting this component via a `key` change (saved-view apply).
+   */
+  initialValues?: FilterValues
+  tagOptions?: TagFacet[]
+  /** Rendered in the search-bar row between the input and the Filters toggle. */
+  savedViewsSlot?: ReactNode
 }
 
 export interface FilterValues {
@@ -14,6 +23,7 @@ export interface FilterValues {
   category?: string
   account?: string
   type?: string
+  tag?: string
   start_date?: string
   end_date?: string
   min_amount?: number
@@ -34,9 +44,16 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
-export default function TransactionFilters({ onFilterChange, categories, accounts }: Readonly<TransactionFiltersProps>) {
-  const [filters, setFilters] = useState<FilterValues>({})
-  const [searchQuery, setSearchQuery] = useState('')
+export default function TransactionFilters({
+  onFilterChange,
+  categories,
+  accounts,
+  initialValues,
+  tagOptions = [],
+  savedViewsSlot,
+}: Readonly<TransactionFiltersProps>) {
+  const [filters, setFilters] = useState<FilterValues>(initialValues ?? {})
+  const [searchQuery, setSearchQuery] = useState(initialValues?.query ?? '')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const isFirstRender = useRef(true)
   const currencySymbol = usePreferencesStore((state) => state.displayPreferences.currencySymbol)
@@ -107,6 +124,7 @@ export default function TransactionFilters({ onFilterChange, categories, account
               aria-label="Search transactions"
             />
           </div>
+          {savedViewsSlot}
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
             className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg transition-colors duration-150 ${showAdvanced
@@ -209,6 +227,25 @@ export default function TransactionFilters({ onFilterChange, categories, account
                   {accounts.map((account) => (
                     <option key={account} value={account} className="bg-background text-foreground">
                       {account}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tag Filter */}
+              <div className="space-y-2">
+                <label htmlFor="filter-tag" className="text-sm font-medium text-muted-foreground">Tag</label>
+                <select
+                  id="filter-tag"
+                  value={filters.tag || ''}
+                  onChange={(e) => handleFilterChange('tag', e.target.value)}
+                  className="w-full px-3 py-2.5 min-h-[44px] bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-foreground"
+                  aria-label="Filter by tag"
+                >
+                  <option value="" className="bg-background text-foreground">All tags</option>
+                  {tagOptions.map((tag) => (
+                    <option key={tag.name} value={tag.name} className="bg-background text-foreground">
+                      {tag.name} ({tag.count})
                     </option>
                   ))}
                 </select>

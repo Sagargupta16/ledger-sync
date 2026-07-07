@@ -29,6 +29,23 @@ export const CATEGORY_COLORS: Record<string, string> = {
   'Other Wallets': 'from-app-indigo to-app-blue',
 }
 
+// Categorization rule match fields
+export const MATCH_FIELDS = [
+  { value: 'note', label: 'Note' },
+  { value: 'account', label: 'Account' },
+] as const
+
+// Editable local copy of a categorization rule (id absent until created)
+export interface LocalRule {
+  localId: string
+  id?: number
+  match_field: 'note' | 'account'
+  pattern: string
+  category: string
+  subcategory: string
+  is_active: boolean
+}
+
 // Month names for fiscal year dropdown
 export const MONTHS = [
   { value: 1, label: 'January' },

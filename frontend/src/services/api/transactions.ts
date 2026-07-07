@@ -8,6 +8,7 @@ export interface TransactionFilters {
   subcategory?: string
   account?: string
   type?: string
+  tag?: string
   min_amount?: number
   max_amount?: number
   start_date?: string
@@ -26,9 +27,15 @@ export interface PaginatedResponse<T> {
   has_more: boolean
 }
 
+export interface TagFacet {
+  name: string
+  count: number
+}
+
 export interface TransactionFacets {
   categories: string[]
   accounts: string[]
+  tags: TagFacet[]
   income_count: number
   expense_count: number
   transfer_count: number
@@ -81,6 +88,20 @@ export const transactionsService = {
     const response = await apiClient.get<PaginatedResponse<Transaction>>('/api/transactions/search', {
       params: { ...rest, sort_by: sort, limit: rest.limit || 100 },
     })
+    return response.data
+  },
+
+  /**
+   * Replace the full tag list on a transaction. Empty array clears all tags.
+   */
+  updateTransactionTags: async (
+    transactionId: string,
+    tags: string[],
+  ): Promise<{ transaction_id: string; tags: string[] }> => {
+    const response = await apiClient.put<{ transaction_id: string; tags: string[] }>(
+      `/api/transactions/${transactionId}/tags`,
+      { tags },
+    )
     return response.data
   },
 

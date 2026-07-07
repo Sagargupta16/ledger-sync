@@ -41,6 +41,8 @@ export interface Transaction {
   source_file?: string
   last_seen_at?: string
   is_transfer?: boolean
+  /** Optional: /all omits real values and demo fixtures may lack it */
+  tags?: string[]
 }
 
 export interface TransactionsResponse {
