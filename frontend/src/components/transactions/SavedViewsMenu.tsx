@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 
 import { Bookmark, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useSavedViews, useSaveView, useDeleteView } from '@/hooks/api/useSavedViews'
+import { useDismissable } from '@/hooks/useDismissable'
 
 import type { FilterValues } from './TransactionFilters'
 
@@ -25,22 +26,7 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
   const saveView = useSaveView()
   const deleteView = useDeleteView()
 
-  // Close on outside click / Escape
-  useEffect(() => {
-    if (!open) return
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleKey)
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleKey)
-    }
-  }, [open])
+  useDismissable(open, ref, () => setOpen(false))
 
   const handleSave = () => {
     const trimmed = name.trim()

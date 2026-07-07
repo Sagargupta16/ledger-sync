@@ -4,7 +4,7 @@ import '@testing-library/jest-dom'
 // --localstorage-file is passed, and it shadows jsdom's implementation. The
 // zustand persist middleware then crashes on setItem. Restore a working
 // in-memory Storage when the global is missing or unusable.
-if (typeof globalThis.localStorage === 'undefined' || globalThis.localStorage === undefined) {
+if (globalThis.localStorage === undefined) {
   const store = new Map<string, string>()
   const memoryStorage: Storage = {
     get length() {

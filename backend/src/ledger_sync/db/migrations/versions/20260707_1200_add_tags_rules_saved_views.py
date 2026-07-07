@@ -37,6 +37,10 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+# All three tables scope rows to a user with the same CASCADE FK target.
+_USERS_ID = "users.id"
+
+
 def upgrade() -> None:
     op.create_table(
         "categorization_rules",
@@ -50,7 +54,7 @@ def upgrade() -> None:
         sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], [_USERS_ID], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -64,7 +68,7 @@ def upgrade() -> None:
         sa.Column("transaction_id", sa.String(length=64), nullable=False),
         sa.Column("tag", sa.String(length=100), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], [_USERS_ID], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
             ["transaction_id"], ["transactions.transaction_id"], ondelete="CASCADE"
         ),
@@ -91,7 +95,7 @@ def upgrade() -> None:
         sa.Column("filters", sa.Text(), nullable=False, server_default="{}"),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], [_USERS_ID], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(

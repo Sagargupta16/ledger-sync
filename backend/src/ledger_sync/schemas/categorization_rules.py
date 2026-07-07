@@ -32,33 +32,12 @@ class CategorizationRuleCreateRequest(BaseModel):
     sort_order: int = Field(0, ge=0, description="Evaluation order (lower runs first)")
 
 
-class CategorizationRuleUpdateRequest(BaseModel):
-    """Request schema for fully replacing a categorization rule (not a partial PATCH)."""
+class CategorizationRuleUpdateRequest(CategorizationRuleCreateRequest):
+    """Request schema for fully replacing a categorization rule (not a partial PATCH).
 
-    match_field: str = Field(
-        "note",
-        pattern="^(note|account)$",
-        description="Transaction field the pattern is matched against",
-    )
-    pattern: str = Field(
-        ...,
-        min_length=1,
-        max_length=255,
-        description="Case-insensitive substring to match",
-    )
-    category: str = Field(
-        ...,
-        min_length=1,
-        max_length=255,
-        description="Category to set on match",
-    )
-    subcategory: str | None = Field(
-        None,
-        max_length=255,
-        description="Subcategory to set on match (null clears it)",
-    )
-    is_active: bool = Field(True, description="Whether the rule participates in matching")
-    sort_order: int = Field(0, ge=0, description="Evaluation order (lower runs first)")
+    Same fields and validation as create -- PUT is a full replace, so the
+    contract is identical by design.
+    """
 
 
 class CategorizationRuleResponse(BaseModel):

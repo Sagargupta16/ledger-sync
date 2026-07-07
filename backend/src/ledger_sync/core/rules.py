@@ -81,6 +81,95 @@ def apply_rules_to_row(rules: list[CategorizationRule], normalized_row: dict[str
     return False
 
 
+def _rehash_with_collision_handling(
+    hasher: TransactionHasher,
+    row: Transaction,
+    rule: CategorizationRule,
+    user_id: int,
+    live_ids: set[str],
+) -> str:
+    """Recompute the dedup hash with the rule's category/subcategory.
+
+    Bumps occurrence until the id is unique among the user's live ids
+    (including ids already assigned earlier in this pass), mirroring
+    ``Reconciler.reconcile_batch`` Phase 1.
+    """
+    old_id = row.transaction_id
+    occurrence = 0
+    while True:
+        new_id = hasher.generate_transaction_id(
+            date=row.date,
+            amount=row.amount,
+            account=row.account,
+            note=row.note,
+            category=rule.category,
+            subcategory=rule.subcategory,
+            tx_type=row.type.value,
+            user_id=user_id,
+            occurrence=occurrence,
+        )
+        if new_id == old_id or new_id not in live_ids:
+            return new_id
+        occurrence += 1
+
+
+def _move_transaction_id(
+    session: Session,
+    row: Transaction,
+    rule: CategorizationRule,
+    user_id: int,
+    new_id: str,
+) -> None:
+    """Rewrite *row*'s PK to *new_id*, carrying its tags and anomalies along.
+
+    A direct UPDATE of the child FK column would violate the constraint on
+    Postgres in either order (the new parent id doesn't exist yet / the old
+    one still has children), so: collect -> delete -> flush the parent PK
+    change -> re-insert against the new id. Anomalies (nullable FK) are
+    detached before the PK moves and re-pointed after.
+    """
+    old_id = row.transaction_id
+    tag_values = [
+        tag_row[0]
+        for tag_row in session.execute(
+            select(TransactionTag.tag).where(
+                TransactionTag.user_id == user_id,
+                TransactionTag.transaction_id == old_id,
+            )
+        ).all()
+    ]
+    if tag_values:
+        session.execute(
+            delete(TransactionTag).where(
+                TransactionTag.user_id == user_id,
+                TransactionTag.transaction_id == old_id,
+            )
+        )
+    anomaly_ids = [
+        anomaly_row[0]
+        for anomaly_row in session.execute(
+            select(Anomaly.id).where(
+                Anomaly.user_id == user_id,
+                Anomaly.transaction_id == old_id,
+            )
+        ).all()
+    ]
+    if anomaly_ids:
+        session.execute(
+            update(Anomaly).where(Anomaly.id.in_(anomaly_ids)).values(transaction_id=None)
+        )
+    row.transaction_id = new_id
+    row.category = rule.category
+    row.subcategory = rule.subcategory
+    session.flush()
+    for tag in tag_values:
+        session.add(TransactionTag(user_id=user_id, transaction_id=new_id, tag=tag))
+    if anomaly_ids:
+        session.execute(
+            update(Anomaly).where(Anomaly.id.in_(anomaly_ids)).values(transaction_id=new_id)
+        )
+
+
 def apply_rules_retroactively(session: Session, user_id: int) -> tuple[int, int]:
     """Apply all active rules to the user's live non-transfer transactions.
 
@@ -126,74 +215,11 @@ def apply_rules_retroactively(session: Session, user_id: int) -> tuple[int, int]
         if row.category == rule.category and row.subcategory == rule.subcategory:
             continue
 
-        # Recompute the dedup hash with the new category/subcategory,
-        # bumping occurrence until the id is unique among the user's live
-        # ids (including ids already assigned earlier in this pass).
         old_id = row.transaction_id
-        occurrence = 0
-        while True:
-            new_id = hasher.generate_transaction_id(
-                date=row.date,
-                amount=row.amount,
-                account=row.account,
-                note=row.note,
-                category=rule.category,
-                subcategory=rule.subcategory,
-                tx_type=row.type.value,
-                user_id=user_id,
-                occurrence=occurrence,
-            )
-            if new_id == old_id or new_id not in live_ids:
-                break
-            occurrence += 1
+        new_id = _rehash_with_collision_handling(hasher, row, rule, user_id, live_ids)
 
         if new_id != old_id:
-            # Migrate tags to the new id. A direct UPDATE of the child FK
-            # column would violate the constraint on Postgres in either
-            # order (the new parent id doesn't exist yet / the old one
-            # still has children), so: collect -> delete -> flush the
-            # parent PK change -> re-insert against the new id.
-            tag_values = [
-                tag_row[0]
-                for tag_row in session.execute(
-                    select(TransactionTag.tag).where(
-                        TransactionTag.user_id == user_id,
-                        TransactionTag.transaction_id == old_id,
-                    )
-                ).all()
-            ]
-            if tag_values:
-                session.execute(
-                    delete(TransactionTag).where(
-                        TransactionTag.user_id == user_id,
-                        TransactionTag.transaction_id == old_id,
-                    )
-                )
-            # Anomalies also FK the transaction PK (nullable): detach them
-            # before the PK moves, re-point them after.
-            anomaly_ids = [
-                anomaly_row[0]
-                for anomaly_row in session.execute(
-                    select(Anomaly.id).where(
-                        Anomaly.user_id == user_id,
-                        Anomaly.transaction_id == old_id,
-                    )
-                ).all()
-            ]
-            if anomaly_ids:
-                session.execute(
-                    update(Anomaly).where(Anomaly.id.in_(anomaly_ids)).values(transaction_id=None)
-                )
-            row.transaction_id = new_id
-            row.category = rule.category
-            row.subcategory = rule.subcategory
-            session.flush()
-            for tag in tag_values:
-                session.add(TransactionTag(user_id=user_id, transaction_id=new_id, tag=tag))
-            if anomaly_ids:
-                session.execute(
-                    update(Anomaly).where(Anomaly.id.in_(anomaly_ids)).values(transaction_id=new_id)
-                )
+            _move_transaction_id(session, row, rule, user_id, new_id)
             live_ids.discard(old_id)
             live_ids.add(new_id)
         else:

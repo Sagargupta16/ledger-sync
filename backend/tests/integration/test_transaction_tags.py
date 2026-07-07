@@ -14,15 +14,9 @@ from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
 
-from ledger_sync.api.deps import get_current_user
-from ledger_sync.api.main import app
-from ledger_sync.db.base import Base
-from ledger_sync.db.models import Transaction, TransactionType, User, UserPreferences
-from ledger_sync.db.session import get_session
+from ledger_sync.db.models import Transaction, TransactionType, UserPreferences
 
 FACET_KEYS = {
     "categories",
@@ -36,39 +30,9 @@ FACET_KEYS = {
 
 
 @pytest.fixture
-def tags_client():
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    TestSession = sessionmaker(bind=engine)  # noqa: N806
-    session = TestSession()
-
-    user_a = User(email="a@example.com", is_active=True, is_verified=True, hashed_password="")
-    user_b = User(email="b@example.com", is_active=True, is_verified=True, hashed_password="")
-    session.add_all([user_a, user_b])
-    session.flush()
-    session.add(UserPreferences(user_id=user_a.id, essential_categories="[]"))
-    session.commit()
-
-    current = {"user": user_a}
-
-    def override_get_session():
-        yield session
-
-    def override_get_current_user():
-        return current["user"]
-
-    app.dependency_overrides[get_session] = override_get_session
-    app.dependency_overrides[get_current_user] = override_get_current_user
-
-    client = TestClient(app)
-    yield client, session, user_a, user_b, current
-
-    app.dependency_overrides.clear()
-    session.close()
+def tags_client(two_user_client):
+    """Alias for the shared two-user HTTP fixture (see tests/conftest.py)."""
+    return two_user_client
 
 
 def _seed_txn(

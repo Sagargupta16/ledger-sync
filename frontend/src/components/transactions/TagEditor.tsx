@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 
 import { Tag, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useUpdateTransactionTags } from '@/hooks/api/useTags'
+import { useDismissable } from '@/hooks/useDismissable'
 
 const MAX_TAGS = 10
 const MAX_TAG_LENGTH = 50
@@ -33,22 +34,8 @@ export default function TagEditor({ transactionId, tags, availableTags }: Readon
     setOpen(true)
   }
 
-  // Close on outside click / Escape (discards draft)
-  useEffect(() => {
-    if (!open) return
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleKey)
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleKey)
-    }
-  }, [open])
+  // Closing by outside click / Escape discards the draft
+  useDismissable(open, ref, () => setOpen(false))
 
   const toggleTag = (tag: string) => {
     setDraft((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
