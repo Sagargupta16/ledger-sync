@@ -25,6 +25,7 @@ from ledger_sync.api.analytics import router as analytics_router
 from ledger_sync.api.analytics_v2 import router as analytics_v2_router
 from ledger_sync.api.auth import router as auth_router
 from ledger_sync.api.calculations import router as calculations_router
+from ledger_sync.api.categorization_rules import router as categorization_rules_router
 from ledger_sync.api.exchange_rates import router as exchange_rates_router
 from ledger_sync.api.meta import router as meta_router
 from ledger_sync.api.oauth import router as oauth_router
@@ -32,6 +33,7 @@ from ledger_sync.api.preferences import router as preferences_router
 from ledger_sync.api.rate_limit import limiter
 from ledger_sync.api.rates import router as rates_router
 from ledger_sync.api.reports import router as reports_router
+from ledger_sync.api.saved_views import router as saved_views_router
 from ledger_sync.api.stock_price import router as stock_price_router
 from ledger_sync.api.transactions import router as transactions_router
 from ledger_sync.api.upload import router as upload_router
@@ -260,8 +262,10 @@ app.include_router(analytics_v2_router)
 app.include_router(calculations_router)
 app.include_router(meta_router)
 app.include_router(account_classifications_router)
+app.include_router(categorization_rules_router)
 app.include_router(preferences_router)
 app.include_router(reports_router)
+app.include_router(saved_views_router)
 app.include_router(transactions_router)
 app.include_router(upload_router)
 app.include_router(exchange_rates_router)

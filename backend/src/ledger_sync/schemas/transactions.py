@@ -38,6 +38,7 @@ class TransactionResponse(BaseModel):
     source_file: str
     last_seen_at: str
     is_transfer: bool
+    tags: list[str] = Field(default_factory=list)
 
 
 class TransactionsListResponse(BaseModel):
@@ -48,6 +49,13 @@ class TransactionsListResponse(BaseModel):
     limit: int
     offset: int
     has_more: bool
+
+
+class TagFacet(BaseModel):
+    """Single tag facet entry: tag name plus live-transaction usage count."""
+
+    name: str
+    count: int
 
 
 class TransactionFacetsResponse(BaseModel):
@@ -61,6 +69,7 @@ class TransactionFacetsResponse(BaseModel):
 
     categories: list[str]
     accounts: list[str]
+    tags: list[TagFacet] = Field(default_factory=list)
     income_count: int
     expense_count: int
     transfer_count: int
@@ -87,3 +96,13 @@ class TransactionCreateRequest(BaseModel):
     note: str | None = Field(None, description="Optional note or description")
     from_account: str | None = Field(None, description="Source account (for transfers)")
     to_account: str | None = Field(None, description="Destination account (for transfers)")
+
+
+class TransactionTagsUpdateRequest(BaseModel):
+    """Request schema for replacing a transaction's tag list.
+
+    Full replacement: an empty list clears all tags. The router
+    additionally validates each tag trimmed to 1-50 chars.
+    """
+
+    tags: list[str] = Field(..., max_length=10, description="Full replacement tag list")

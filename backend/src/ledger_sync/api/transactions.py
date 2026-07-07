@@ -8,7 +8,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
-from sqlalchemy import func, literal, or_
+from sqlalchemy import delete, exists, func, literal, or_
 from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
@@ -17,13 +17,15 @@ from ledger_sync.core.query_helpers import (
     apply_excluded_accounts_filter,
     excluded_accounts_for,
 )
-from ledger_sync.db.models import Transaction, TransactionType, User
+from ledger_sync.db.models import Transaction, TransactionTag, TransactionType, User
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.schemas.transactions import (
+    TagFacet,
     TransactionCreateRequest,
     TransactionFacetsResponse,
     TransactionResponse,
     TransactionsListResponse,
+    TransactionTagsUpdateRequest,
 )
 
 _TxQuery = SAQuery[Transaction]
@@ -71,6 +73,7 @@ class SearchFilters(BaseModel):
     max_amount: Annotated[float | None, Query(description="Maximum amount")] = None
     start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None
     end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None
+    tag: Annotated[str | None, Query(max_length=100, description="Filter by exact tag")] = None
 
 
 def _apply_search_filters(
@@ -173,7 +176,54 @@ def _apply_sorting(
     return tx_query.order_by(sort_column.asc())
 
 
-def _to_transaction_response(tx: Transaction) -> TransactionResponse:
+def _apply_tag_filter(tx_query: _TxQuery, user_id: int, tag: str | None) -> _TxQuery:
+    """Filter to transactions carrying *tag* via an EXISTS subquery.
+
+    Exact string match, DB-agnostic. No-op when *tag* is unset.
+    """
+    if not tag:
+        return tx_query
+    return tx_query.filter(
+        exists().where(
+            (TransactionTag.user_id == user_id)
+            & (TransactionTag.transaction_id == Transaction.transaction_id)
+            & (TransactionTag.tag == tag)
+        )
+    )
+
+
+def _tags_for_transactions(
+    db: Session,
+    user_id: int,
+    transaction_ids: list[str],
+) -> dict[str, list[str]]:
+    """Batch-fetch tags for a page of transactions in one query.
+
+    Returns a ``{transaction_id: [tags...]}`` map with each tag list
+    sorted alphabetically. Missing ids simply have no entry.
+    """
+    if not transaction_ids:
+        return {}
+    rows = (
+        db.query(TransactionTag.transaction_id, TransactionTag.tag)
+        .filter(
+            TransactionTag.user_id == user_id,
+            TransactionTag.transaction_id.in_(transaction_ids),
+        )
+        .all()
+    )
+    tags_map: dict[str, list[str]] = {}
+    for txn_id, tag in rows:
+        tags_map.setdefault(txn_id, []).append(tag)
+    for tag_list in tags_map.values():
+        tag_list.sort()
+    return tags_map
+
+
+def _to_transaction_response(
+    tx: Transaction,
+    tags: list[str] | None = None,
+) -> TransactionResponse:
     """Convert a Transaction model to a TransactionResponse."""
     return TransactionResponse(
         id=tx.transaction_id,
@@ -190,6 +240,7 @@ def _to_transaction_response(tx: Transaction) -> TransactionResponse:
         source_file=tx.source_file,
         last_seen_at=tx.last_seen_at.isoformat(),
         is_transfer=tx.type.value == "Transfer",
+        tags=tags or [],
     )
 
 
@@ -261,8 +312,12 @@ async def get_transactions(
     # Apply sorting and pagination
     transactions = query.order_by(Transaction.date.desc()).offset(offset).limit(limit).all()
 
+    tags_map = _tags_for_transactions(
+        db, current_user.id, [tx.transaction_id for tx in transactions]
+    )
+
     return TransactionsListResponse(
-        data=[_to_transaction_response(tx) for tx in transactions],
+        data=[_to_transaction_response(tx, tags_map.get(tx.transaction_id)) for tx in transactions],
         total=total,
         limit=limit,
         offset=offset,
@@ -319,9 +374,28 @@ async def get_transaction_facets(
     expense = counts.get(TransactionType.EXPENSE, 0)
     transfer = counts.get(TransactionType.TRANSFER, 0)
 
+    # Tag facets: distinct tags with live-transaction counts. Joins to
+    # transactions so soft-deleted rows drop out, and honours the same
+    # excluded-accounts preference as the other facets.
+    tag_query = (
+        db.query(TransactionTag.tag, func.count())
+        .join(Transaction, Transaction.transaction_id == TransactionTag.transaction_id)
+        .filter(
+            TransactionTag.user_id == current_user.id,
+            Transaction.is_deleted.is_(False),
+        )
+    )
+    tag_query = apply_excluded_accounts_filter(tag_query, excluded_accounts_for(current_user))
+    tag_rows = tag_query.group_by(TransactionTag.tag).all()
+    tag_facets = [
+        TagFacet(name=name, count=count)
+        for name, count in sorted(tag_rows, key=lambda r: (-r[1], r[0]))
+    ]
+
     return TransactionFacetsResponse(
         categories=sorted(categories, key=lambda s: s.lower()),
         accounts=sorted(accounts, key=lambda s: s.lower()),
+        tags=tag_facets,
         income_count=income,
         expense_count=expense,
         transfer_count=transfer,
@@ -365,6 +439,7 @@ async def search_transactions(
 
     # Apply all search filters
     tx_query = _apply_search_filters(tx_query, filters)
+    tx_query = _apply_tag_filter(tx_query, current_user.id, filters.tag)
 
     # Get total count before pagination
     total = tx_query.count()
@@ -373,8 +448,15 @@ async def search_transactions(
     tx_query = _apply_sorting(tx_query, sort_by, sort_order)
     transactions = tx_query.offset(offset).limit(limit).all()
 
+    tags_map = _tags_for_transactions(
+        db, current_user.id, [tx.transaction_id for tx in transactions]
+    )
+
     return {
-        "data": [_to_transaction_response(tx).model_dump() for tx in transactions],
+        "data": [
+            _to_transaction_response(tx, tags_map.get(tx.transaction_id)).model_dump()
+            for tx in transactions
+        ],
         "total": total,
         "limit": limit,
         "offset": offset,
@@ -535,3 +617,87 @@ async def create_transaction(
     db.refresh(transaction)
 
     return _to_transaction_response(transaction)
+
+
+# --- Transaction Tags Endpoint ---
+
+
+@router.put(
+    "/api/transactions/{transaction_id}/tags",
+    responses={
+        404: {"description": "Transaction not found"},
+        422: {"description": "Validation error"},
+    },
+)
+async def set_transaction_tags(
+    transaction_id: str,
+    payload: TransactionTagsUpdateRequest,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> dict[str, Any]:
+    """Replace the full tag list of a transaction.
+
+    Replace-all semantics: an empty list clears every tag. Tags are
+    trimmed, empties dropped, exact duplicates removed (order preserved).
+    Tags are case-sensitive and do NOT feed the dedup hash, so setting
+    them never changes the transaction_id.
+
+    Args:
+        transaction_id: 64-char transaction id
+        payload: Full replacement tag list
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        The normalized stored tag list, in stored order
+
+    Raises:
+        HTTPException: 404 when the transaction doesn't exist for this
+            user (or is soft-deleted); 422 on tag length/count violations
+
+    """
+    transaction = (
+        db.query(Transaction)
+        .filter(
+            Transaction.transaction_id == transaction_id,
+            Transaction.user_id == current_user.id,
+            Transaction.is_deleted.is_(False),
+        )
+        .first()
+    )
+    if transaction is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    # Normalize: trim, drop empties, reject overlong, dedupe preserving order.
+    tags: list[str] = []
+    for raw in payload.tags:
+        tag = raw.strip()
+        if not tag:
+            continue
+        if len(tag) > 50:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Tag exceeds 50 characters: {tag[:50]}...",
+            )
+        if tag not in tags:
+            tags.append(tag)
+    if len(tags) > 10:
+        raise HTTPException(status_code=422, detail="A transaction can have at most 10 tags")
+
+    db.execute(
+        delete(TransactionTag).where(
+            TransactionTag.user_id == current_user.id,
+            TransactionTag.transaction_id == transaction_id,
+        )
+    )
+    for tag in tags:
+        db.add(
+            TransactionTag(
+                user_id=current_user.id,
+                transaction_id=transaction_id,
+                tag=tag,
+            )
+        )
+    db.commit()
+
+    return {"transaction_id": transaction_id, "tags": tags}

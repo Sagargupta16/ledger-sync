@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ledger_sync.core import rules
 from ledger_sync.core.analytics_engine import AnalyticsEngine
 from ledger_sync.core.reconciler import Reconciler, ReconciliationStats
 from ledger_sync.db.models import ImportLog
@@ -74,6 +75,16 @@ class SyncEngine:
         Shared tail of both import paths: splits rows by transfer flag,
         reconciles each batch, accumulates stats, and writes the ImportLog.
         """
+        # Apply the user's categorization rules BEFORE any hashing: category
+        # and subcategory feed the SHA-256 transaction_id, so mutating rows
+        # here keeps re-uploads deterministic (same raw row + same rules =
+        # same hash = dedup skip). apply_rules_to_row skips transfer rows.
+        if self.user_id is not None:
+            active_rules = rules.load_active_rules(self.session, self.user_id)
+            if active_rules:
+                for row in normalized_rows:
+                    rules.apply_rules_to_row(active_rules, row)
+
         transactions = [r for r in normalized_rows if not r.get("is_transfer", False)]
         transfers = [r for r in normalized_rows if r.get("is_transfer", False)]
         logger.info("Found %d transactions and %d transfers", len(transactions), len(transfers))

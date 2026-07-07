@@ -21,6 +21,11 @@ from ledger_sync.db.base import Base
 
 if TYPE_CHECKING:
     from ledger_sync.db._models.ai_usage import AIUsageLog
+    from ledger_sync.db._models.organization import (
+        CategorizationRule,
+        SavedFilterView,
+        TransactionTag,
+    )
     from ledger_sync.db._models.planning import (
         Anomaly,
         Budget,
@@ -131,6 +136,27 @@ class User(Base):
     )
     audit_logs: Mapped["list[AuditLog]"] = relationship(
         "AuditLog",
+        back_populates="user",
+        lazy="select",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
+        passive_deletes=True,
+    )
+    categorization_rules: Mapped["list[CategorizationRule]"] = relationship(
+        "CategorizationRule",
+        back_populates="user",
+        lazy="select",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
+        passive_deletes=True,
+    )
+    transaction_tags: Mapped["list[TransactionTag]"] = relationship(
+        "TransactionTag",
+        back_populates="user",
+        lazy="select",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
+        passive_deletes=True,
+    )
+    saved_filter_views: Mapped["list[SavedFilterView]"] = relationship(
+        "SavedFilterView",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
