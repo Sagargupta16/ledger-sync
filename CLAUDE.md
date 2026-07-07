@@ -101,7 +101,7 @@ Layered architecture:
 - **`store/`** - Zustand stores: `authStore` (JWT tokens with persist middleware), `accountStore`, `budgetStore`, `investmentAccountStore`, `preferencesStore`.
 - **`types/`** - Shared TypeScript type definitions. `salary.ts` defines `SalaryComponents`, `RsuGrant`, `GrowthAssumptions`, and `ProjectedFYBreakdown` interfaces.
 - **`constants/`** - Colors, animations, chart configuration tokens. `columns.ts` defines flexible column name mappings (`COLUMN_MAPPINGS`), required columns, and valid transaction types for the client-side file parser.
-- **`lib/`** - Utility functions: formatters, date utils, tax calculator, export helpers. `fileParser.ts` handles client-side Excel/CSV parsing (lazy-loads SheetJS, computes SHA-256 hash via `crypto.subtle`, maps columns, validates rows). `projectionCalculator.ts` provides pure functions (`projectFiscalYear`, `projectMultipleYears`, `getRsuVestingsByFY`) for multi-year salary/tax projections with full TDD test coverage in `__tests__/projectionCalculator.test.ts`. `chatAdapters.ts` provides streaming request builders and SSE parsers for OpenAI/Anthropic/Bedrock. `chatContext.ts` builds a compressed financial context prompt from existing V2 analytics endpoints. `tax-config/` holds per-FY tax rules (slabs, surcharge, 87A rebate, standard deduction, cess, professional tax) with `getTaxConfig(fyStartYear)` lookup — adding a new Budget is a one-file edit with newest-first fallback for unknown FYs.
+- **`lib/`** - Utility functions: formatters, date utils, tax calculator, export helpers. `fileParser.ts` handles client-side Excel/CSV parsing (lazy-loads SheetJS, computes SHA-256 hash via `crypto.subtle`, maps columns, validates rows). `projectionCalculator.ts` provides pure functions (`projectFiscalYear`, `projectMultipleYears`, `getRsuVestingsByFY`) for multi-year salary/tax projections with full TDD test coverage in `__tests__/projectionCalculator.test.ts`. `chatAdapters.ts` provides streaming request builders and SSE parsers for OpenAI/Anthropic/Bedrock. `chatContext.ts` builds a compressed financial context prompt from existing V2 analytics endpoints. `tax-config/` holds per-FY tax rules (slabs, surcharge, 87A rebate, standard deduction, cess, professional tax) with `getTaxConfig(fyStartYear)` lookup -- adding a new Budget is a one-file edit with newest-first fallback for unknown FYs.
 
 ### Key Patterns
 
@@ -115,7 +115,7 @@ Layered architecture:
 - **Database**: SQLite for development (`./ledger_sync.db`), Neon PostgreSQL 17 in production (Singapore region, free tier, 0.5 GB). Schema managed by Alembic migrations. Database auto-initializes on app startup via `init_db()`. SQLite connections apply performance PRAGMAs (WAL mode, 64MB cache, NORMAL sync). PostgreSQL pool is env-configurable via `LEDGER_SYNC_DB_*` settings (pool_size, max_overflow, pool_recycle_seconds, connect_timeout_seconds, statement_timeout_seconds, idle_transaction_timeout_seconds; defaults sized for Neon free tier: 5/3/300/10/30/60). Compatible with Neon's PgBouncer pooler.
 - **Database-agnostic SQL**: SQLite uses `strftime()`, PostgreSQL uses `to_char()`. Always use `query_helpers.py` helpers (`fmt_year_month`, `fmt_year`, `fmt_month`, `fmt_date`) instead of `func.strftime()` directly -- raw SQLite SQL will break production.
 - **DB URL normalization**: `session.py` auto-converts `postgresql://` and `postgresql+psycopg2://` to `postgresql+psycopg://` (psycopg v3 driver).
-- **Security**: Rate limiting (slowapi) on `/api/auth/refresh`, OAuth callbacks, `/api/upload`, and `/api/ai/bedrock/chat` — IP-keyed, applied via `@limiter.limit()` with a globally registered 429 handler. Security headers (CSP, HSTS, X-Frame-Options), query timeouts. SheetJS installed from CDN (`cdn.sheetjs.com/xlsx-0.20.3`) to avoid npm registry vulnerabilities. OAuth secrets stored server-side only; frontend never sees provider tokens. AI API keys encrypted at rest with AES-256-GCM (PBKDF2-derived key from JWT secret, per-ciphertext random 128-bit salt).
+- **Security**: Rate limiting (slowapi) on `/api/auth/refresh`, OAuth callbacks, `/api/upload`, and `/api/ai/bedrock/chat` -- IP-keyed, applied via `@limiter.limit()` with a globally registered 429 handler. Security headers (CSP, HSTS, X-Frame-Options), query timeouts. SheetJS installed from CDN (`cdn.sheetjs.com/xlsx-0.20.3`) to avoid npm registry vulnerabilities. OAuth secrets stored server-side only; frontend never sees provider tokens. AI API keys encrypted at rest with AES-256-GCM (PBKDF2-derived key from JWT secret, per-ciphertext random 128-bit salt).
 - **AI Chatbot (app_bedrock + BYOK, tool-calling)**: Two modes stored in `user_preferences.ai_mode`:
   - **`app_bedrock` (default)** -- new users get a working chatbot with zero setup. Server uses its own Bedrock bearer token (`LEDGER_SYNC_BEDROCK_API_KEY`) and a fixed cheap model (Haiku 4.5). Rate-limited to `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` messages/day (default 10) per user to keep the shared-key cost predictable. Hitting the cap returns a 429 with a "switch to BYOK" pointer.
   - **`byok`** -- user configures provider (OpenAI/Anthropic/Bedrock), model, and API key in Settings > AI Assistant. Per-user daily/monthly token limits configurable.
@@ -162,7 +162,7 @@ Runs on push/PR to main. Python 3.12, Node 22, pnpm 10, uv (latest).
 
 Repo-specific skills live in [`.claude/skills/<name>/SKILL.md`](.claude/skills/). Two flavors:
 
-**Atlas skills** (`user-invocable: false`) — codebase mental models, auto-load by `paths:` scope. They give Claude background knowledge on demand without taking context space upfront. Index in [MEMORY.md](MEMORY.md).
+**Atlas skills** (`user-invocable: false`) -- codebase mental models, auto-load by `paths:` scope. They give Claude background knowledge on demand without taking context space upfront. Index in [MEMORY.md](MEMORY.md).
 
 | Atlas | Auto-loads when... |
 | --- | --- |
@@ -171,24 +171,24 @@ Repo-specific skills live in [`.claude/skills/<name>/SKILL.md`](.claude/skills/)
 | `data-flow-atlas` | Always available (no path scope) |
 | `domain-atlas` | Editing tax/FY/currency/instrument code |
 | `deployment-atlas` | Editing workflows, vercel.json, settings |
-| `indian-finance-expert` | Editing tax/investment/savings code — domain-expert reference |
+| `indian-finance-expert` | Editing tax/investment/savings code -- domain-expert reference |
 
-**Frontend craft skills** (`user-invocable: false`) — practice/best-practice guides grounded in current library docs + this repo's actual fixed bugs. Auto-load by `paths:` when editing frontend code.
+**Frontend craft skills** (`user-invocable: false`) -- practice/best-practice guides grounded in current library docs + this repo's actual fixed bugs. Auto-load by `paths:` when editing frontend code.
 
 | Craft skill | Auto-loads when... |
 | --- | --- |
-| `query-states` | Editing pages/hooks/components — loading/empty/error states + undefined-data guards (TanStack Query v5) |
-| `accessible-ui` | Editing components/pages — ARIA names, modal semantics, label association, contrast |
-| `recharts-viz` | Editing analytics/chart components — ResponsiveContainer, token colors, NaN/empty guards |
-| `react-patterns` | Editing any frontend TS/TSX — useEffectEvent, stable keys, stale-state, lazy/Suspense, hooks lint |
-| `design-system-ui` | Editing components/pages/CSS — design tokens, mobile-first + 44px touch, h-dvh, banned AI-slop patterns |
-| `ui-patterns-reference` | Editing components/pages/CSS — cross-system principles (shadcn/Radix/Material/Primer/Nielsen/Refactoring UI): hierarchy, semantic tokens, tables, forms, heuristics |
+| `query-states` | Editing pages/hooks/components -- loading/empty/error states + undefined-data guards (TanStack Query v5) |
+| `accessible-ui` | Editing components/pages -- ARIA names, modal semantics, label association, contrast |
+| `recharts-viz` | Editing analytics/chart components -- ResponsiveContainer, token colors, NaN/empty guards |
+| `react-patterns` | Editing any frontend TS/TSX -- useEffectEvent, stable keys, stale-state, lazy/Suspense, hooks lint |
+| `design-system-ui` | Editing components/pages/CSS -- design tokens, mobile-first + 44px touch, h-dvh, banned AI-slop patterns |
+| `ui-patterns-reference` | Editing components/pages/CSS -- cross-system principles (shadcn/Radix/Material/Primer/Nielsen/Refactoring UI): hierarchy, semantic tokens, tables, forms, heuristics |
 
-**Task skills** (user-invocable, also auto-trigger on phrasing) — recipes for recurring work. Consolidated to broad workflows rather than one skill per layer.
+**Task skills** (user-invocable, also auto-trigger on phrasing) -- recipes for recurring work. Consolidated to broad workflows rather than one skill per layer.
 
 | Task skill | Trigger when... |
 | --- | --- |
-| `add-feature` | **Full-stack feature** — backend endpoint + Pydantic schema + frontend service + hook + page/component |
+| `add-feature` | **Full-stack feature** -- backend endpoint + Pydantic schema + frontend service + hook + page/component |
 | `new-ai-tool` | Adding a tool the AI chatbot can call (the only single-file workflow that stays standalone) |
 | `new-migration` | Touching anything in `db/_models/` (DB schema change with the empty-downgrade convention) |
 | `schema-drift-check` | Pydantic schema or response shape changed (catch silent TS drift before PR) |
