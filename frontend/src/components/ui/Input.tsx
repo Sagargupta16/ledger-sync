@@ -20,7 +20,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-muted-foreground">
+        <label htmlFor={inputId} className="block text-sm font-medium text-text-secondary">
           {label}
         </label>
       )}
@@ -34,13 +34,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full bg-[var(--overlay-2)] px-4 py-3 rounded-lg',
+            'ledger-control w-full rounded-lg px-4 py-3',
             'border border-[var(--hairline-2)] text-foreground placeholder:text-text-quaternary',
             'transition-all duration-150 ease-out',
-            'focus:border-app-blue/50 focus:outline-none focus:ring-1 focus:ring-app-blue/20',
+            'focus:outline-none',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             icon && 'pl-10',
-            error && 'border-app-red/50 focus:border-app-red/50 focus:ring-app-red/20',
+            error && 'border-app-red/50 focus:border-app-red/50 focus:shadow-[0_0_0_1px_rgba(255,87,87,0.55),0_0_0_4px_rgba(255,87,87,0.14)]',
             className
           )}
           aria-invalid={error ? 'true' : undefined}
@@ -78,7 +78,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={selectId} className="block text-sm font-medium text-muted-foreground">
+        <label htmlFor={selectId} className="block text-sm font-medium text-text-secondary">
           {label}
         </label>
       )}
@@ -86,12 +86,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         ref={ref}
         id={selectId}
         className={cn(
-          'w-full bg-[var(--overlay-2)] px-4 py-3 rounded-lg',
+          'ledger-control w-full rounded-lg px-4 py-3',
           'border border-[var(--hairline-2)] text-foreground',
           'transition-all duration-150 ease-out',
-          'focus:border-app-blue/50 focus:outline-none focus:ring-1 focus:ring-app-blue/20',
+          'focus:outline-none',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          error && 'border-app-red/50 focus:border-app-red/50 focus:ring-app-red/20',
+          error && 'border-app-red/50 focus:border-app-red/50 focus:shadow-[0_0_0_1px_rgba(255,87,87,0.55),0_0_0_4px_rgba(255,87,87,0.14)]',
           className
         )}
         aria-invalid={error ? 'true' : undefined}

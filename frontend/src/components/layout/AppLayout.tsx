@@ -69,7 +69,7 @@ export default function AppLayout() {
   }, [location.pathname])
 
   return (
-    <div className="flex h-dvh bg-background relative overflow-hidden">
+    <div className="ledger-workspace relative flex h-dvh overflow-hidden bg-background">
       {isDemoMode && <DemoBanner />}
 
       {/* Skip to main content link for keyboard users */}
@@ -81,21 +81,7 @@ export default function AppLayout() {
         Skip to main content
       </a>
 
-      {/* Static gradient orbs — kept subtle so they read as ambient depth, not
-          a glowing "AI dark theme" wash. Roughly half the previous intensity,
-          and the green corner orb is dialed back furthest since it bled most. */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        aria-hidden="true"
-        style={{
-          background: [
-            'radial-gradient(600px circle at -10% -20%, rgba(94,92,230,0.10), transparent 70%)',
-            'radial-gradient(500px circle at 110% 60%, rgba(10,132,255,0.08), transparent 70%)',
-            'radial-gradient(400px circle at 50% 30%, rgba(191,90,242,0.05), transparent 70%)',
-            'radial-gradient(450px circle at 20% 110%, rgba(48,209,88,0.05), transparent 70%)',
-          ].join(', '),
-        }}
-      />
+      <div className="ledger-workspace-bg fixed inset-0 pointer-events-none" aria-hidden="true" />
 
       <Sidebar />
       {/*

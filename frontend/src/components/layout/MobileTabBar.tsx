@@ -51,10 +51,10 @@ export default function MobileTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-surface-nav backdrop-blur-lg border-t border-border"
+      className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--hairline-2)] bg-[var(--sidebar-bg)] shadow-[0_-12px_30px_-24px_rgba(0,0,0,0.75)] backdrop-blur-lg lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
-      <ul className="flex items-stretch justify-around px-1 pt-1.5">
+      <ul className="flex items-stretch justify-around px-2 pt-1.5">
         {TABS.map((tab) => {
           const badge = tab.to === ROUTES.MORE ? moreAlertCount : 0
           return (
@@ -63,7 +63,7 @@ export default function MobileTabBar() {
               to={tab.to}
               className={({ isActive }) =>
                 cn(
-                  'relative flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-colors',
+                  'relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
                   // min-height hits Apple's 44x44 guidance comfortably
                   'min-h-[52px]',
                   isActive ? 'text-foreground' : 'text-text-tertiary hover:text-foreground',
@@ -75,8 +75,8 @@ export default function MobileTabBar() {
                   {isActive && (
                     <motion.span
                       layoutId="mobile-tab-pill"
-                      className="absolute inset-x-2 inset-y-1 rounded-xl bg-[var(--overlay-4)]"
-                      transition={{ type: 'spring', stiffness: 520, damping: 40 }}
+                      className="absolute inset-x-1.5 inset-y-1 rounded-xl border border-[var(--hairline-2)] bg-[var(--ledger-control-bg)] shadow-[var(--ledger-control-shadow)]"
+                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                     />
                   )}
                   <span className="relative z-[1]">
@@ -86,7 +86,7 @@ export default function MobileTabBar() {
                     />
                     {badge > 0 && (
                       <span
-                        className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-app-red text-on-accent text-[10px] font-semibold leading-4 text-center"
+                        className="absolute -right-2 -top-1.5 h-4 min-w-[16px] rounded-full bg-app-red px-1 text-center text-[10px] font-semibold leading-4 text-on-accent tabular-nums"
                         aria-label={`${badge} items need attention`}
                       >
                         {badge > 9 ? '9+' : badge}

@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
  */
 export default function LoadingSkeleton({ className = '' }: Readonly<{ className?: string }>) {
   return (
-    <div aria-hidden className={`animate-pulse bg-[var(--overlay-2)] rounded-lg ${className}`} />
+    <div aria-hidden className={`skeleton-surface rounded-lg ${className}`} />
   )
 }
 

@@ -99,7 +99,7 @@ export default function MetricCard({
 
   const isInteractive = Boolean(href || onClick)
   const interactiveClasses = isInteractive
-    ? 'cursor-pointer hover:border-[var(--hairline-4)] hover:bg-[var(--overlay-3)] transition-all duration-150 group'
+    ? 'group cursor-pointer transition-all duration-150 hover:border-[var(--hairline-4)] hover:bg-[var(--overlay-3)]'
     : 'transition-colors duration-150 ease-out hover:border-[var(--hairline-2)]'
 
   const cardContent = (
@@ -108,7 +108,7 @@ export default function MetricCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
       whileHover={isInteractive ? { y: -2 } : undefined}
-      className={`relative p-4 glass rounded-2xl overflow-hidden ${interactiveClasses}`}
+      className={`relative overflow-hidden rounded-2xl border border-[var(--glass-border)] p-4 glass ${interactiveClasses}`}
     >
       {/* Sparkline as background */}
       {trend && (
@@ -127,14 +127,14 @@ export default function MetricCard({
 
       {/* Content */}
       <div className="relative z-10">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="mb-2 flex items-center gap-2">
           <div
-            className="p-2 rounded-xl"
+            className="rounded-xl border border-[var(--hairline-2)] p-2"
             style={{ background: colors.bg }}
           >
             <Icon className="w-4 h-4" style={{ color: colors.text }} />
           </div>
-          <h3 className="text-kpi-label font-medium text-muted-foreground">{title}</h3>
+          <h3 className="min-w-0 truncate text-kpi-label font-medium text-muted-foreground">{title}</h3>
         </div>
 
         <output className="block" aria-live="polite">
@@ -144,7 +144,7 @@ export default function MetricCard({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
             title={String(value)}
-            className={`${hero ? 'text-kpi-hero' : 'text-kpi-value'} font-bold text-foreground leading-tight break-words`}
+            className={`ledger-figure ${hero ? 'text-kpi-hero' : 'text-kpi-value'} font-bold leading-tight text-foreground break-words`}
           >
             <AnimatedValue value={value} />
           </motion.p>

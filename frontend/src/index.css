@@ -78,6 +78,17 @@
   --color-text-tertiary: #7c7c80;
   --color-text-quaternary: #48484a;
 
+  /* ===== LEDGER INTERFACE TOKENS ===== */
+  --ledger-control-bg: rgba(12, 14, 18, 0.42);
+  --ledger-control-bg-hover: rgba(32, 36, 42, 0.58);
+  --ledger-control-border: rgba(255, 255, 255, 0.10);
+  --ledger-control-border-hover: rgba(255, 255, 255, 0.16);
+  --ledger-control-edge: rgba(255, 255, 255, 0.08);
+  --ledger-control-shadow: inset 0 1px 0 var(--ledger-control-edge);
+  --ledger-focus-shadow: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--focus-ring-soft);
+  --ledger-grid-line: rgba(255, 255, 255, 0.025);
+  --ledger-grid-band: rgba(74, 158, 255, 0.035);
+
   /* ===== DISABLED STATE ===== */
   --color-disabled: rgba(99, 99, 102, 0.3);
   --color-disabled-foreground: rgba(142, 142, 147, 0.5);
@@ -275,6 +286,16 @@
   --color-text-tertiary: #767b84;
   --color-text-quaternary: #a2a8b2;
 
+  --ledger-control-bg: rgba(255, 255, 255, 0.74);
+  --ledger-control-bg-hover: rgba(255, 255, 255, 0.94);
+  --ledger-control-border: rgba(17, 24, 39, 0.10);
+  --ledger-control-border-hover: rgba(17, 24, 39, 0.16);
+  --ledger-control-edge: rgba(255, 255, 255, 0.95);
+  --ledger-control-shadow: inset 0 1px 0 var(--ledger-control-edge), 0 1px 2px rgba(17, 24, 39, 0.04);
+  --ledger-focus-shadow: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--focus-ring-soft);
+  --ledger-grid-line: rgba(17, 24, 39, 0.035);
+  --ledger-grid-band: rgba(37, 99, 235, 0.035);
+
   --color-disabled: rgba(0, 0, 0, 0.08);
   --color-disabled-foreground: rgba(0, 0, 0, 0.35);
 
@@ -387,6 +408,20 @@ body {
 
 #root {
   height: 100%;
+}
+
+.ledger-workspace {
+  isolation: isolate;
+}
+
+.ledger-workspace-bg {
+  background:
+    linear-gradient(90deg, var(--ledger-grid-line) 1px, transparent 1px),
+    linear-gradient(180deg, var(--ledger-grid-line) 1px, transparent 1px),
+    linear-gradient(180deg, var(--ledger-grid-band), transparent 32rem);
+  background-size: 48px 48px, 48px 48px, 100% 100%;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.22) 55%, transparent 100%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.22) 55%, transparent 100%);
 }
 
 /* ===== FOCUS NOT OBSCURED (WCAG 2.2 SC 2.4.11) =====
@@ -556,6 +591,25 @@ body {
   75% { opacity: 0.32; transform: scale(1.01); }
 }
 
+@keyframes skeleton-sweep {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+.skeleton-surface {
+  background:
+    linear-gradient(90deg, transparent 0%, var(--skeleton-highlight) 45%, transparent 90%),
+    var(--skeleton-base);
+  background-size: 220% 100%, 100% 100%;
+  animation: skeleton-sweep 1.35s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-surface {
+    animation: none;
+  }
+}
+
 @keyframes float {
 
   0%,
@@ -695,7 +749,8 @@ body {
   font-size: clamp(1.5rem, 2.5vw, 2.25rem);
   font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
+  text-wrap: balance;
 }
 
 .text-section-title {
@@ -708,7 +763,34 @@ body {
   font-size: clamp(1.25rem, 2vw, 2rem);
   font-weight: 700;
   line-height: 1.1;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+
+.ledger-figure,
+.text-kpi-value,
+.text-kpi-hero,
+output {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+
+.ledger-control {
+  background: var(--ledger-control-bg);
+  border-color: var(--ledger-control-border);
+  box-shadow: var(--ledger-control-shadow);
+}
+
+.ledger-control:hover {
+  background: var(--ledger-control-bg-hover);
+  border-color: var(--ledger-control-border-hover);
+}
+
+.ledger-control:focus,
+.ledger-control:focus-visible {
+  border-color: var(--focus-ring);
+  box-shadow: var(--ledger-focus-shadow);
 }
 
 /* ===== FORM ELEMENTS ===== */

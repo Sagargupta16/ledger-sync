@@ -48,14 +48,14 @@ export default function ErrorState({
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex items-center gap-3 px-4 py-3 bg-error/10 border border-error/20 rounded-lg"
+        className="flex items-center gap-3 rounded-lg border border-error/20 bg-error/10 px-4 py-3 shadow-[var(--ledger-control-shadow)]"
       >
         <AlertCircle className="w-5 h-5 text-error shrink-0" />
         <p className="text-sm text-error flex-1">{displayMessage}</p>
         {onRetry && (
           <button
             onClick={onRetry}
-            className="shrink-0 text-sm text-error hover:opacity-80 underline underline-offset-2 transition-opacity duration-150"
+            className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-error transition-colors duration-150 hover:bg-error/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-error/40"
             aria-label="Retry"
           >
             Retry
@@ -75,7 +75,7 @@ export default function ErrorState({
     >
       {/* Icon */}
       <div
-        className={`rounded-xl bg-error/10 border border-error/20 flex items-center justify-center mb-4 ${
+        className={`mb-4 flex items-center justify-center rounded-xl border border-error/20 bg-error/10 ${
           isCompact ? 'w-12 h-12' : 'w-16 h-16'
         }`}
       >
@@ -84,7 +84,7 @@ export default function ErrorState({
 
       {/* Title */}
       <h3
-        className={`font-medium text-foreground mb-1 ${
+        className={`mb-1 font-semibold text-foreground ${
           isCompact ? 'text-sm' : 'text-base'
         }`}
       >
@@ -93,7 +93,7 @@ export default function ErrorState({
 
       {/* Message */}
       <p
-        className={`text-text-tertiary max-w-xs ${
+        className={`max-w-xs text-text-tertiary ${
           isCompact ? 'text-xs' : 'text-sm'
         }`}
       >
@@ -104,7 +104,7 @@ export default function ErrorState({
       {onRetry && (
         <button
           onClick={onRetry}
-          className={`mt-4 inline-flex items-center gap-2 px-4 py-2 bg-error/10 text-error rounded-lg hover:bg-error/20 transition-colors duration-150 ${
+          className={`mt-4 inline-flex items-center gap-2 rounded-lg border border-error/20 bg-error/10 px-4 py-2 font-medium text-error transition-colors duration-150 hover:bg-error/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-error/40 ${
             isCompact ? 'text-xs' : 'text-sm'
           }`}
           aria-label="Retry loading"
@@ -118,7 +118,7 @@ export default function ErrorState({
 
   if (isCard) {
     return (
-      <div className="glass rounded-2xl border border-error/20">
+      <div className="glass rounded-2xl border border-error/20 shadow-[var(--glass-shadow)]">
         {content}
       </div>
     )

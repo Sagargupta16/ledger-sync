@@ -13,15 +13,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-app-blue text-primary-foreground hover:bg-app-blue active:scale-[0.98]',
+    'border border-app-blue/40 bg-app-blue text-primary-foreground shadow-[var(--ledger-control-shadow)] hover:bg-app-blue-vibrant hover:border-app-blue/60 active:scale-[0.98]',
   secondary:
-    'bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-foreground hover:bg-[var(--overlay-5)] hover:text-foreground active:scale-[0.98]',
+    'ledger-control border text-foreground hover:text-foreground active:scale-[0.98]',
   ghost:
-    'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)] active:scale-[0.98]',
+    'text-muted-foreground hover:text-foreground hover:bg-[var(--ledger-control-bg-hover)] active:scale-[0.98]',
   danger:
-    'bg-app-red/90 text-destructive-foreground hover:bg-app-red active:scale-[0.98]',
+    'border border-app-red/40 bg-app-red/90 text-destructive-foreground shadow-[var(--ledger-control-shadow)] hover:bg-app-red hover:border-app-red/60 active:scale-[0.98]',
   outline:
-    'border border-[var(--hairline-3)] text-foreground hover:bg-[var(--overlay-3)] hover:text-foreground active:scale-[0.98]',
+    'ledger-control border text-foreground hover:text-foreground active:scale-[0.98]',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -43,8 +43,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       ref={ref}
       disabled={disabled || isLoading}
       className={cn(
-        'inline-flex items-center justify-center font-medium transition-all duration-150 ease-out',
-        'disabled:opacity-50 disabled:pointer-events-none',
+        'inline-flex min-h-9 items-center justify-center whitespace-nowrap font-medium transition-all duration-150 ease-out',
+        'disabled:pointer-events-none disabled:opacity-50',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         variantClasses[variant],
         sizeClasses[size],
