@@ -44,7 +44,7 @@ from ledger_sync.utils.logging import logger, setup_logging
 
 _MiddlewareCallNext = Callable[[Request], Awaitable[Response]]
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "2.22.0"
 
 # Initialize logging at the configured level (LEDGER_SYNC_LOG_LEVEL, default INFO)
 setup_logging(settings.log_level)
