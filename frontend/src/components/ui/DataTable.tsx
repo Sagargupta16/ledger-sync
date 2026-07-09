@@ -66,7 +66,7 @@ const ALIGN_CLASS: Record<Align, string> = {
   left: 'text-left',
   // `tabular-nums` keeps digit glyphs a uniform width so currency columns
   // line up vertically when rows have different decimal widths.
-  right: 'text-right tabular-nums',
+  right: 'text-right ledger-figure',
   center: 'text-center',
 }
 
@@ -156,7 +156,7 @@ export default function DataTable<T>({
           return (
             <div
               key={rowKey(row, i)}
-              className={`glass rounded-xl border border-border p-3 ${rowClassName?.(row, i) ?? ''}`.trim()}
+              className={`glass rounded-xl border border-[var(--glass-border)] p-3 shadow-[var(--glass-shadow)] ${rowClassName?.(row, i) ?? ''}`.trim()}
             >
               {primary && (
                 <div className={`mb-2 font-medium ${primary.cellClassName?.(row, i) ?? ''}`.trim()}>
@@ -166,8 +166,8 @@ export default function DataTable<T>({
               <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                 {rest.map((col) => (
                   <div key={col.key} className="flex items-baseline justify-between gap-2 min-w-0">
-                    <dt className="text-xs text-text-tertiary shrink-0">{labelFor(col)}</dt>
-                    <dd className={`text-sm text-right min-w-0 truncate ${col.cellClassName?.(row, i) ?? ''}`.trim()}>
+                    <dt className="shrink-0 text-xs font-medium text-text-tertiary">{labelFor(col)}</dt>
+                    <dd className={`ledger-figure min-w-0 truncate text-right text-sm ${col.cellClassName?.(row, i) ?? ''}`.trim()}>
                       {col.cell(row, i)}
                     </dd>
                   </div>
@@ -195,11 +195,11 @@ export default function DataTable<T>({
     <div className={scrollClass}>
       <table className="w-full" aria-label={ariaLabel}>
         <thead className={theadClass}>
-          <tr className="border-b border-border">
+          <tr className="border-b border-[var(--hairline-2)]">
             {columns.map((col) => {
               const alignClass = ALIGN_CLASS[col.align ?? 'left']
               const widthClass = col.widthClass ?? ''
-              const baseClass = `py-3 px-4 text-sm font-semibold text-muted-foreground ${alignClass} ${widthClass}`
+              const baseClass = `px-4 py-2.5 text-xs font-semibold text-text-tertiary ${alignClass} ${widthClass}`
 
               if (col.sortable !== true) {
                 return (
@@ -221,7 +221,7 @@ export default function DataTable<T>({
                   <button
                     type="button"
                     onClick={() => toggleSort(col.key)}
-                    className={`inline-flex items-center gap-1 ${justifyForAlign[col.align ?? 'left']} w-full hover:text-foreground select-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40 rounded`}
+                    className={`inline-flex w-full select-none items-center gap-1 rounded ${justifyForAlign[col.align ?? 'left']} transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}
                   >
                     {col.header}
                     <span
@@ -240,7 +240,7 @@ export default function DataTable<T>({
           {sortedRows.map((row, i) => {
             const key = rowKey(row, i)
             const rowCls = rowClassName?.(row, i) ?? ''
-            const baseRowCls = `border-b border-border hover:bg-[var(--overlay-2)] transition-colors ${rowCls}`.trim()
+            const baseRowCls = `border-b border-[var(--hairline-1)] transition-colors hover:bg-[var(--overlay-2)] last:border-b-0 ${rowCls}`.trim()
 
             if (shouldAnimate) {
               return (
@@ -254,7 +254,7 @@ export default function DataTable<T>({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`py-3 px-4 ${ALIGN_CLASS[col.align ?? 'left']} ${col.cellClassName?.(row, i) ?? ''}`.trim()}
+                      className={`px-4 py-2.5 text-sm ${ALIGN_CLASS[col.align ?? 'left']} ${col.cellClassName?.(row, i) ?? ''}`.trim()}
                     >
                       {col.cell(row, i)}
                     </td>
@@ -268,7 +268,7 @@ export default function DataTable<T>({
                 {columns.map((col) => (
                   <td
                     key={col.key}
-                    className={`py-3 px-4 ${ALIGN_CLASS[col.align ?? 'left']} ${col.cellClassName?.(row, i) ?? ''}`.trim()}
+                    className={`px-4 py-2.5 text-sm ${ALIGN_CLASS[col.align ?? 'left']} ${col.cellClassName?.(row, i) ?? ''}`.trim()}
                   >
                     {col.cell(row, i)}
                   </td>

@@ -4,7 +4,7 @@
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.13+
 - Node.js 22+ (with pnpm)
 - Git
 - VS Code (recommended)
@@ -80,7 +80,7 @@ pnpm run dev
 backend/
 ├── src/ledger_sync/
 │   ├── api/              # FastAPI routers (one file per resource)
-│   │   ├── ai_chat.py    # Bedrock streaming proxy
+│   │   ├── ai_chat.py    # Bedrock Converse proxy
 │   │   ├── analytics.py, analytics_v2.py
 │   │   ├── preferences.py  # incl. AI config endpoints
 │   │   └── ...

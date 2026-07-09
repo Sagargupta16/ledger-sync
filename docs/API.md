@@ -1070,13 +1070,13 @@ Stores AI provider configuration with the key encrypted at rest.
 }
 ```
 
-`provider` must be one of `openai`, `anthropic`, `bedrock`. For Bedrock, set `region` (e.g. `"us-east-1"`); `api_key` is still stored but Bedrock calls currently use the server's AWS credential chain via boto3.
+`provider` must be one of `openai`, `anthropic`, `bedrock`. Saving provider-specific config switches the user to BYOK mode. For Bedrock, set `region` (e.g. `"us-east-1"`); calls still go through the backend proxy because Bedrock requires signed server-side auth.
 
 ### Get Decrypted API Key
 
-**GET** `/api/preferences/ai-config/key/reveal`
+**GET** `/api/preferences/ai-config/key`
 
-Returns the decrypted API key for use in browser-direct streaming calls (OpenAI, Anthropic). The frontend calls this on each chat send; the key is never cached in localStorage.
+Returns the decrypted API key for browser-direct OpenAI and Anthropic calls. The frontend calls this on each chat send; the key is never cached in localStorage.
 
 **Response:**
 
@@ -1087,7 +1087,7 @@ Returns the decrypted API key for use in browser-direct streaming calls (OpenAI,
 **Error Responses:**
 
 - `404` if no key is configured
-- `400` with detail `"Cannot decrypt API key -- the server secret likely changed..."` if the JWT secret rotated since the key was saved (user must re-enter their key in Settings)
+- `400` if the encrypted key cannot be decrypted because the encryption secret changed (user must re-enter their key in Settings)
 
 ### Delete AI Config
 
@@ -1095,11 +1095,11 @@ Returns the decrypted API key for use in browser-direct streaming calls (OpenAI,
 
 Clears the stored provider, model, and encrypted key. Returns `{"status": "deleted"}`.
 
-### Bedrock Streaming Proxy
+### Bedrock Chat Proxy
 
 **POST** `/api/ai/bedrock/chat`
 
-Streams a Bedrock converse-stream response as Server-Sent Events. Required because Bedrock needs SigV4 authentication and doesn't support CORS for browser-direct calls. Uses `boto3.client('bedrock-runtime').converse_stream()` server-side.
+Calls Bedrock Converse server-side and returns the full assistant response as JSON. Required because Bedrock needs signed server-side authentication and doesn't support CORS for browser-direct calls. Uses `boto3.client('bedrock-runtime').converse()` server-side.
 
 **Request Body:**
 
@@ -1113,19 +1113,18 @@ Streams a Bedrock converse-stream response as Server-Sent Events. Required becau
 }
 ```
 
-**Response:** `text/event-stream` (SSE). Each event is either a token or an error:
+**Response:** JSON with text and optional tool-use blocks:
 
+```json
+{
+  "blocks": [
+    { "type": "text", "text": "Based on your latest data..." }
+  ],
+  "stop_reason": "end_turn"
+}
 ```
-data: {"token": "Based"}
 
-data: {"token": " on"}
-
-data: {"token": " your"}
-
-data: [DONE]
-```
-
-Errors are sent as `data: {"error": "..."}` followed by `data: [DONE]`.
+Errors return normal HTTP error responses with a JSON `detail` field.
 
 ---
 

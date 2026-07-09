@@ -42,7 +42,7 @@ function ActionButton({ actionLabel, actionHref, onAction, isCompact }: Readonly
   isCompact: boolean
 }>) {
   const sizeClass = getSizeClass(isCompact, 'text-xs', 'text-sm')
-  const baseClass = `inline-flex items-center gap-2 px-4 py-2 bg-app-blue text-primary-foreground rounded-lg font-medium hover:bg-app-blue active:scale-[0.98] transition-colors duration-150 ${sizeClass}`
+  const baseClass = `inline-flex items-center gap-2 rounded-lg border border-app-blue/40 bg-app-blue px-4 py-2 font-medium text-primary-foreground shadow-[var(--ledger-control-shadow)] transition-colors duration-150 hover:border-app-blue/60 hover:bg-app-blue-vibrant active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sizeClass}`
 
   if (actionHref) {
     return (
@@ -80,7 +80,7 @@ export default function EmptyState({
           <div
             role="img"
             aria-label="Empty chart placeholder"
-            className="flex items-end gap-1 h-24 border-l border-b border-border pl-2 pb-1"
+            className="flex h-24 items-end gap-1 border-b border-l border-[var(--hairline-2)] pb-1 pl-2"
           >
             {[40, 65, 30, 80, 55, 45, 70, 35, 60, 50].map((h) => (
               <div
@@ -93,10 +93,10 @@ export default function EmptyState({
         </div>
         <div className="flex flex-col items-center gap-2">
           {Icon && <Icon className="w-8 h-8 text-text-tertiary" />}
-          <h3 className="text-base font-medium text-foreground">{title}</h3>
+          <h3 className="text-base font-semibold text-foreground">{title}</h3>
           {description && <p className="text-sm text-text-tertiary max-w-sm">{description}</p>}
           {actionLabel && actionHref && (
-            <a href={actionHref} className="mt-2 text-sm text-app-blue hover:text-app-blue transition-colors duration-150">{actionLabel}</a>
+            <a href={actionHref} className="mt-2 text-sm font-medium text-app-blue transition-colors duration-150 hover:text-app-blue-vibrant">{actionLabel}</a>
           )}
         </div>
       </div>
@@ -111,7 +111,7 @@ export default function EmptyState({
     >
       {/* Icon */}
       <div
-        className={`rounded-xl bg-[var(--overlay-3)] flex items-center justify-center mb-4 ${
+        className={`mb-4 flex items-center justify-center rounded-xl border border-[var(--hairline-2)] bg-[var(--overlay-3)] ${
           getSizeClass(isCompact, 'w-12 h-12', 'w-16 h-16')
         }`}
       >
@@ -119,13 +119,13 @@ export default function EmptyState({
       </div>
 
       {/* Title */}
-      <h3 className={`font-medium text-foreground mb-1 ${getSizeClass(isCompact, 'text-sm', 'text-base')}`}>
+      <h3 className={`mb-1 font-semibold text-foreground ${getSizeClass(isCompact, 'text-sm', 'text-base')}`}>
         {title}
       </h3>
 
       {/* Description */}
       {description && (
-        <p className={`text-text-tertiary max-w-xs ${getSizeClass(isCompact, 'text-xs', 'text-sm')}`}>
+        <p className={`max-w-xs text-text-tertiary ${getSizeClass(isCompact, 'text-xs', 'text-sm')}`}>
           {description}
         </p>
       )}
@@ -146,7 +146,7 @@ export default function EmptyState({
 
   if (variant === 'card') {
     return (
-      <div className="glass rounded-2xl">
+      <div className="glass rounded-2xl border border-[var(--glass-border)]">
         {content}
       </div>
     )

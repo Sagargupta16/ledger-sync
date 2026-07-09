@@ -25,7 +25,7 @@ Ledger Sync is a self-hosted personal finance dashboard built as a full-stack ap
   - `analytics_v2.py` - Pre-aggregated analytics endpoints (reads from summary tables for speed)
   - `calculations.py` - Financial calculation endpoints
   - `preferences.py` - User preferences CRUD (includes AI config endpoints: `PUT/GET/DELETE /api/preferences/ai-config`)
-  - `ai_chat.py` - Bedrock streaming proxy (`POST /api/ai/bedrock/chat`). Required because Bedrock needs SigV4 auth and doesn't support CORS for browser-direct calls. Uses `boto3.client('bedrock-runtime').converse_stream()` and re-streams as SSE
+  - `ai_chat.py` - Bedrock Converse proxy (`POST /api/ai/bedrock/chat`). Required because Bedrock needs signed server-side auth and doesn't support CORS for browser-direct calls. Uses `boto3.client('bedrock-runtime').converse()` and returns JSON.
   - `exchange_rates.py` - Exchange rate proxy with 24h cache (frankfurter.dev)
   - `stock_price.py` - Yahoo Finance proxy for RSU grant stock prices
   - `deps.py` - JWT authentication dependency (`get_current_user`)
@@ -47,7 +47,7 @@ Ledger Sync is a self-hosted personal finance dashboard built as a full-stack ap
   - `insights.py` - Smart financial insight generation
   - `query_helpers.py` - Shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`, `excluded_accounts_for`) used by both `calculations.py` and `analytics.py` to eliminate duplicated CASE/SUM patterns. `build_transaction_query` applies the user's `excluded_accounts` preference by default (override via `apply_excluded_accounts=False` for diagnostic queries) so all three transaction-query code paths (analytics engine, transactions API, on-the-fly calculations) stay consistent
   - `time_filter.py` - Time range filtering logic
-  - `encryption.py` - AES-256-GCM encrypt/decrypt for AI API keys. Uses PBKDF2-HMAC-SHA256 to derive an encryption key from the JWT secret, with a per-ciphertext random 128-bit salt. Output format: base64(salt[16] || nonce[12] || ciphertext). `DecryptionError` raised on tag mismatch so callers can prompt for re-entry.
+  - `encryption.py` - AES-256-GCM encrypt/decrypt for AI API keys. Current writes use a v2 ciphertext format with HKDF-SHA256 derived from `LEDGER_SYNC_ENCRYPTION_KEY` and a per-ciphertext random 128-bit salt. Legacy v1 ciphertexts derived from the JWT secret via PBKDF2 remain readable and are re-encrypted on reveal. `DecryptionError` is raised on tag mismatch so callers can prompt for re-entry.
   - `auth/` - JWT token creation and verification
 
 #### 3. **Data Access Layer** (`src/ledger_sync/db/`)
@@ -199,7 +199,7 @@ NET Investment = Transfer-In amounts - Transfer-Out amounts
     - `StandardBarChart` - Reusable bar chart wrapper with consistent theming and defaults
     - `StandardAreaChart` - Reusable area chart wrapper with gradient fills and consistent styling
     - `StandardPieChart` - Reusable pie/donut chart wrapper with legend defaults
-  - `chat/` - AI chatbot widget (`ChatWidget`, `ChatPanel`, `ChatMessage`, `useChat` hook). Floating bottom-right button expands into a glass-morphism panel; streams responses token-by-token via provider adapters
+  - `chat/` - AI chatbot widget (`ChatWidget`, `ChatPanel`, `ChatMessage`, `useChat` hook). Floating bottom-right button expands into a glass-morphism panel; provider adapters return full JSON replies so the tool loop can stay request-per-turn.
   - `layout/` - Layout components (AppLayout, Sidebar)
   - `shared/` - Shared components (EmptyState, AnalyticsTimeFilter, MetricCard)
   - `transactions/` - Transaction table components
@@ -411,10 +411,10 @@ GET    /api/meta/*                      - Metadata endpoints
 
 4. **AI API Key Encryption**
    - User-provided AI provider API keys (OpenAI, Anthropic, Bedrock) are encrypted at rest with AES-256-GCM
-   - Encryption key derived from `LEDGER_SYNC_JWT_SECRET_KEY` via PBKDF2-HMAC-SHA256 (100,000 iterations)
+   - Current v2 keys derive from `LEDGER_SYNC_ENCRYPTION_KEY` with HKDF-SHA256; legacy v1 keys derived from `LEDGER_SYNC_JWT_SECRET_KEY` with PBKDF2-HMAC-SHA256 remain readable during rollout
    - Each ciphertext uses a fresh random 128-bit salt stored alongside nonce and ciphertext
-   - Decryption errors (tag mismatch) raise `DecryptionError`, prompting the user to re-enter their key (happens if JWT secret rotates between saving and using)
-   - OpenAI/Anthropic streaming calls go browser-direct to the provider; Bedrock goes through backend proxy because it requires SigV4 auth and has no CORS headers
+   - Decryption errors (tag mismatch) raise `DecryptionError`, prompting the user to re-enter their key if the encryption secret changed
+   - OpenAI and Anthropic calls go browser-direct; Bedrock goes through the backend proxy because it requires signed server-side auth and has no CORS headers
 
 ## Scalability Considerations
 

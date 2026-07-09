@@ -89,7 +89,7 @@ export default function Sidebar() {
           Left offset also respects safe-area-inset-left for landscape on notched devices. */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed z-50 w-11 h-11 flex items-center justify-center rounded-xl bg-surface-dropdown/90 border border-[var(--hairline-2)] backdrop-blur-sm active:scale-95 transition-transform"
+        className="ledger-control fixed z-50 flex h-11 w-11 items-center justify-center rounded-xl border backdrop-blur-sm transition-transform active:scale-95 lg:hidden"
         style={{
           top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
           left: 'calc(env(safe-area-inset-left, 0px) + 1rem)',
@@ -107,7 +107,7 @@ export default function Sidebar() {
         className={cn(
           'fixed lg:sticky top-0 h-dvh w-64 z-40',
           'bg-[var(--sidebar-bg)] backdrop-blur-sm',
-          'border-r border-border',
+          'border-r border-[var(--hairline-2)] shadow-[8px_0_24px_-22px_rgba(0,0,0,0.7)]',
           'transition-transform duration-200 ease-out',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
@@ -122,15 +122,15 @@ export default function Sidebar() {
           />
 
           {/* Search */}
-          <div className="px-3 py-2 border-b border-border">
+          <div className="border-b border-[var(--hairline-2)] px-3 py-2">
             <button
               onClick={openSearch}
-              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg bg-[var(--overlay-2)] hover:bg-[var(--overlay-4)] text-text-tertiary hover:text-foreground transition-colors duration-150 text-sm"
+              className="ledger-control flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-sm text-text-tertiary transition-colors duration-150 hover:text-foreground"
               title="Search (⌘K)"
             >
               <Search size={15} className="flex-shrink-0" />
               <span className="flex-1 text-left">Search...</span>
-              <kbd className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-text-quaternary font-medium">
+              <kbd className="hidden rounded border border-[var(--hairline-2)] bg-[var(--overlay-3)] px-1.5 py-0.5 text-[10px] font-medium text-text-quaternary sm:inline">
                 ⌘K
               </kbd>
             </button>
@@ -177,7 +177,7 @@ export default function Sidebar() {
 
           {/* Bottom icon bar -- extra bottom padding on iOS to clear the home-indicator. */}
           <div
-            className="border-t border-border px-3 py-2.5"
+            className="border-t border-[var(--hairline-2)] px-3 py-2.5"
             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.625rem)' }}
           >
             <div className="flex items-center justify-center gap-1">
@@ -189,7 +189,7 @@ export default function Sidebar() {
                   key={item.path}
                   to={item.path}
                   onClick={closeMobile}
-                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] transition-colors duration-150"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-text-tertiary transition-colors duration-150 hover:bg-[var(--ledger-control-bg-hover)] hover:text-foreground lg:h-9 lg:w-9"
                   title={item.label}
                   aria-label={item.label}
                 >
@@ -200,7 +200,7 @@ export default function Sidebar() {
                 <button
                   type="button"
                   onClick={() => exitDemoMode(queryClient, navigate)}
-                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors duration-150"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-text-tertiary transition-colors duration-150 hover:bg-app-red/10 hover:text-app-red lg:h-9 lg:w-9"
                   title="Exit Demo"
                   aria-label="Exit Demo"
                 >
@@ -211,7 +211,7 @@ export default function Sidebar() {
                   type="button"
                   onClick={handleLogout}
                   disabled={logout.isPending}
-                  className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors duration-150 disabled:opacity-50"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-text-tertiary transition-colors duration-150 hover:bg-app-red/10 hover:text-app-red disabled:opacity-50 lg:h-9 lg:w-9"
                   title="Sign out"
                   aria-label="Sign out"
                 >

@@ -26,10 +26,10 @@ export default function SidebarItem({
       onClick={onNavigate}
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-3 px-3 py-2 text-sm rounded-lg relative',
+          'relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm',
           'transition-all duration-150 ease-out',
           isActive
-            ? 'bg-[var(--overlay-4)] text-foreground font-medium'
+            ? 'bg-[var(--overlay-4)] text-foreground font-medium shadow-[inset_0_0_0_1px_var(--hairline-2)]'
             : 'text-muted-foreground hover:bg-[var(--overlay-2)] hover:text-foreground',
         )
       }
@@ -38,7 +38,7 @@ export default function SidebarItem({
         <>
           {/* Subtle left accent bar */}
           {isActive && (
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 rounded-full bg-app-blue" />
+            <div className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full bg-app-blue" />
           )}
           <Icon
             size={18}
@@ -51,7 +51,7 @@ export default function SidebarItem({
           {badge !== undefined && badge > 0 && (
             <span
               className={cn(
-                'px-1.5 py-0.5 min-w-[20px] text-center text-[11px] font-semibold rounded-md flex-shrink-0',
+              'min-w-[20px] flex-shrink-0 rounded-md px-1.5 py-0.5 text-center text-[11px] font-semibold tabular-nums',
                 badgeVariant === 'alert'
                   ? 'bg-app-red/15 text-app-red'
                   : 'bg-[var(--overlay-4)] text-muted-foreground',

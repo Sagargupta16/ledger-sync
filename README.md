@@ -99,7 +99,7 @@ Mint shut down. YNAB costs $14.99/mo and doesn't understand Indian bank statemen
 
 - Node 20+
 - [pnpm 10](https://pnpm.io/installation)
-- Python 3.11+
+- Python 3.13+
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ### Installation
@@ -157,7 +157,7 @@ For a tour without signing up, visit `/demo`.
 | Layer            | Technology                                                                     |
 | ---------------- | ------------------------------------------------------------------------------ |
 | **Frontend**     | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, Recharts 3, Framer Motion 12   |
-| **Backend**      | Python 3.11+, FastAPI, SQLAlchemy 2, Alembic                                   |
+| **Backend**      | Python 3.13+, FastAPI, SQLAlchemy 2, Alembic                                   |
 | **Database**     | SQLite (dev), Neon PostgreSQL 17 (prod)                                        |
 | **State**        | TanStack Query 5, Zustand 5                                                    |
 | **Deployment**   | GitHub Pages (frontend), Vercel (backend), Neon (database)                     |

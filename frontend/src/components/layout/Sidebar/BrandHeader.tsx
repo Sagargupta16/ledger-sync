@@ -11,9 +11,9 @@ export default function BrandHeader({
     <button
       type="button"
       onClick={onOpenProfile}
-      className="w-full flex items-center gap-3 px-4 py-4 border-b border-border hover:bg-[var(--overlay-2)] transition-colors duration-150 group/brand"
+      className="group/brand flex w-full items-center gap-3 border-b border-[var(--hairline-2)] px-4 py-4 transition-colors duration-150 hover:bg-[var(--overlay-2)]"
     >
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-app-blue/15">
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-app-blue/20 bg-app-blue/15">
         <PiggyBank className="w-5 h-5 text-app-blue" />
       </div>
       <div className="flex-1 min-w-0 text-left">
