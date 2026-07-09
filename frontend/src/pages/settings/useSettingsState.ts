@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import type { SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/salary'
 import { DEFAULT_GROWTH_ASSUMPTIONS } from '@/types/salary'
+import { sortVestings } from '@/lib/rsuVesting'
 import type { LocalPrefs, LocalPrefKey, LocalRule } from './types'
 import { ACCOUNT_TYPES } from './types'
 import {
@@ -134,7 +135,13 @@ export function useSettingsState() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- seeding editable local copy from server preferences once
     setLocalPrefs(buildInitialLocalPrefs(preferences as unknown as Record<string, unknown>) as unknown as LocalPrefs)
     if (preferences.salary_structure) setLocalSalaryStructure(preferences.salary_structure)
-    if (preferences.rsu_grants) setLocalRsuGrants(preferences.rsu_grants)
+    if (preferences.rsu_grants) {
+      // Grants saved before vesting sort-on-blur existed may hold rows in
+      // insertion order; normalize chronologically on load.
+      setLocalRsuGrants(
+        preferences.rsu_grants.map((g) => ({ ...g, vestings: sortVestings(g.vestings) })),
+      )
+    }
     if (preferences.growth_assumptions) {
       setLocalGrowthAssumptions({ ...DEFAULT_GROWTH_ASSUMPTIONS, ...preferences.growth_assumptions })
     }

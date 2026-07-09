@@ -41,8 +41,10 @@ describe('getRsuVestingsByFY', () => {
     expect(result['2027-28'].value).toBe(3000)
   })
 
-  it('applies stock appreciation', () => {
-    const result = getRsuVestingsByFY([testGrant], 4, 10, 2025)
+  it('applies stock appreciation to upcoming vestings', () => {
+    // Pin "today" before every vesting so all rows stay projections --
+    // vested rows intentionally never get appreciation applied.
+    const result = getRsuVestingsByFY([testGrant], 4, 10, 2025, '2025-04-01')
     expect(result['2025-26'].value).toBe(2500)
     expect(result['2026-27'].value).toBeCloseTo(25 * 110, 0)
     expect(result['2027-28'].value).toBeCloseTo(30 * 121, 0)
@@ -51,6 +53,29 @@ describe('getRsuVestingsByFY', () => {
   it('returns empty for no grants', () => {
     const result = getRsuVestingsByFY([], 4, 0)
     expect(Object.keys(result)).toHaveLength(0)
+  })
+
+  it('values vested rows at the locked vest-date price, without appreciation', () => {
+    const vestedGrant: RsuGrant = {
+      id: 'g-vested',
+      stock_name: 'AMZN',
+      stock_price: 200,
+      grant_date: null,
+      notes: null,
+      vestings: [
+        { date: '2025-08-15', quantity: 6, price_at_vest: 150 }, // vested, locked
+        { date: '2026-02-15', quantity: 23 }, // vested, no locked price
+        { date: '2026-08-15', quantity: 18 }, // upcoming
+      ],
+    }
+    // Fixed "today" between the second and third vesting; appreciation 10%/yr
+    // from base FY 2025.
+    const result = getRsuVestingsByFY([vestedGrant], 4, 10, 2025, '2026-07-09')
+    // FY 2025-26 holds both vested rows: locked 150 and fallback current 200,
+    // neither appreciated.
+    expect(result['2025-26'].value).toBe(6 * 150 + 23 * 200)
+    // FY 2026-27 upcoming row: current price appreciated one year.
+    expect(result['2026-27'].value).toBeCloseTo(18 * 220, 5)
   })
 
   it('formats FY strings correctly across the year-2100 boundary (regression test)', () => {

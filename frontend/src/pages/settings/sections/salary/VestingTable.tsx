@@ -1,0 +1,150 @@
+import { X } from 'lucide-react'
+
+import { formatCurrency } from '@/lib/formatters'
+import type { RsuGrant, RsuVesting } from '@/types/salary'
+
+import { inputClass } from '../../styles'
+import { dateToFY } from './fyHelpers'
+import { isVested, vestingPrice } from '@/lib/rsuVesting'
+
+export interface VestingTableProps {
+  grant: RsuGrant
+  today: string
+  onUpdateVesting: (grantId: string, vestIdx: number, patch: Partial<RsuVesting>) => void
+  onRemoveVesting: (grantId: string, vestIdx: number) => void
+  onSortVestings: (grantId: string) => void
+}
+
+interface IndexedVesting {
+  vesting: RsuVesting
+  /** Index into the grant's state array -- edit handlers are index-based. */
+  stateIdx: number
+}
+
+function GroupDividerRow({ label, count }: Readonly<{ label: string; count: number }>) {
+  return (
+    <tr>
+      <td colSpan={5} className="pt-3 pb-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {label} ({count})
+        </span>
+      </td>
+    </tr>
+  )
+}
+
+function VestingRow({
+  grant,
+  entry,
+  today,
+  vested,
+  onUpdateVesting,
+  onRemoveVesting,
+  onSortVestings,
+}: Readonly<
+  Pick<VestingTableProps, 'grant' | 'today' | 'onUpdateVesting' | 'onRemoveVesting' | 'onSortVestings'> & {
+    entry: IndexedVesting
+    vested: boolean
+  }
+>) {
+  const { vesting: v, stateIdx } = entry
+  const price = vestingPrice(grant, v, today)
+  const estValue = v.quantity * price
+  const fy = v.date ? dateToFY(v.date) : ''
+  const usesVestPrice = vested && v.price_at_vest != null && v.price_at_vest > 0
+
+  return (
+    <tr className={`border-b border-border/50 ${vested ? 'opacity-75' : ''}`}>
+      <td className="py-2 pr-3">
+        <input
+          type="date"
+          value={v.date}
+          onChange={(e) => onUpdateVesting(grant.id, stateIdx, { date: e.target.value })}
+          onBlur={() => onSortVestings(grant.id)}
+          className={`${inputClass} max-w-[160px]`}
+        />
+      </td>
+      <td className="py-2 pr-3">
+        <input
+          type="number"
+          inputMode="decimal"
+          min="0"
+          value={v.quantity || ''}
+          onChange={(e) =>
+            onUpdateVesting(grant.id, stateIdx, {
+              quantity: e.target.value === '' ? 0 : Number(e.target.value),
+            })
+          }
+          placeholder="0"
+          className={`${inputClass} max-w-[100px]`}
+        />
+      </td>
+      <td
+        className="py-2 pr-3 text-muted-foreground"
+        title={
+          usesVestPrice
+            ? `Valued at vest-date price ${formatCurrency(price)}`
+            : 'Valued at current price'
+        }
+      >
+        {estValue > 0 ? formatCurrency(estValue) : '--'}
+      </td>
+      <td className="py-2 pr-3 text-muted-foreground">{fy ? `FY ${fy}` : '--'}</td>
+      <td className="py-2">
+        <button
+          type="button"
+          onClick={() => onRemoveVesting(grant.id, stateIdx)}
+          className="p-1 rounded text-app-red hover:bg-app-red/10 transition-colors"
+          title="Remove vesting"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </td>
+    </tr>
+  )
+}
+
+/** Vesting schedule table for one grant, grouped into Vested / Upcoming. */
+export function VestingTable(props: Readonly<VestingTableProps>) {
+  const { grant, today } = props
+
+  const indexed: IndexedVesting[] = grant.vestings.map((vesting, stateIdx) => ({
+    vesting,
+    stateIdx,
+  }))
+  const vestedRows = indexed.filter((e) => isVested(e.vesting, today))
+  const upcomingRows = indexed.filter((e) => !isVested(e.vesting, today))
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-xs text-muted-foreground border-b border-border">
+            <th className="text-left py-2 pr-3 font-medium">Date</th>
+            <th className="text-left py-2 pr-3 font-medium">Qty</th>
+            <th className="text-left py-2 pr-3 font-medium">Est. Value</th>
+            <th className="text-left py-2 pr-3 font-medium">FY</th>
+            <th className="py-2 w-8" />
+          </tr>
+        </thead>
+        <tbody>
+          {vestedRows.length > 0 && <GroupDividerRow label="Vested" count={vestedRows.length} />}
+          {vestedRows.map((entry) => (
+            <VestingRow key={`${grant.id}-vesting-${entry.stateIdx}`} {...props} entry={entry} vested />
+          ))}
+          {upcomingRows.length > 0 && (
+            <GroupDividerRow label="Upcoming" count={upcomingRows.length} />
+          )}
+          {upcomingRows.map((entry) => (
+            <VestingRow
+              key={`${grant.id}-vesting-${entry.stateIdx}`}
+              {...props}
+              entry={entry}
+              vested={false}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}

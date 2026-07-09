@@ -13,6 +13,8 @@ export interface SalaryComponents {
 export interface RsuVesting {
   date: string // YYYY-MM-DD
   quantity: number
+  /** Stock price on the vest date (display currency). Set once a vesting is in the past. */
+  price_at_vest?: number | null
 }
 
 /** An RSU grant with its vesting schedule. */

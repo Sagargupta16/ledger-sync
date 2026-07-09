@@ -239,10 +239,18 @@ export const preferencesService = {
   updateRsuGrants: createSectionUpdater<RsuGrantsConfig>('rsu-grants'),
   updateGrowthAssumptions: createSectionUpdater<GrowthAssumptionsConfig>('growth-assumptions'),
 
-  async getStockPrice(symbol: string): Promise<{ symbol: string; price: number; currency: string }> {
-    const response = await apiClient.get<{ symbol: string; price: number; currency: string }>(
-      `/api/stock-price/${encodeURIComponent(symbol)}`,
-    )
+  async getStockPrice(
+    symbol: string,
+    onDate?: string,
+  ): Promise<{ symbol: string; price: number; currency: string; as_of: string | null }> {
+    const response = await apiClient.get<{
+      symbol: string
+      price: number
+      currency: string
+      as_of: string | null
+    }>(`/api/stock-price/${encodeURIComponent(symbol)}`, {
+      params: onDate ? { on_date: onDate } : undefined,
+    })
     return response.data
   },
 
