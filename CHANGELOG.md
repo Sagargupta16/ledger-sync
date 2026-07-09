@@ -6,7 +6,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## Unreleased -- `feat/comprehensive-hardening` (PR #202)
+## 2.22.0 - 2026-07-09
+
+RSU vesting schedule overhaul: vested vs upcoming grouping with vest-date valuation.
+
+### Added
+
+- **Vested / Upcoming grouping in RSU Grants** (Settings > Income & Salary Structure). Each grant's vesting table is split into a dimmed "Vested" section (date <= today) and an "Upcoming" section, both sorted chronologically. Rows re-sort on date-input blur (not per keystroke, so rows don't jump under the cursor), and grants saved before this change are normalized on load. The summary line now splits into "Vested: N shares (value)" and "Upcoming: N shares (value)" instead of one combined total.
+- **Vest-date price locking (`price_at_vest`).** Once a vesting date passes, the historical close for that date is fetched once and stored on the vesting, so realized RSU income stops drifting with the current stock price. Falls back to the grant's current price when the lookup fails (delisted ticker, upstream hiccup); editing a vested row's date clears the locked price so it re-fetches. Backend: `GET /api/stock-price/{symbol}?on_date=YYYY-MM-DD` returns the close on that date (or the nearest prior trading day within a week, covering weekends/market holidays) plus an `as_of` field; `RsuVesting` schema gains optional `price_at_vest`.
+- **`lib/rsuVesting.ts`** -- single source of truth for `isVested` / `sortVestings` / `vestingPrice` / `splitRsuTotals`, shared by the settings UI, the multi-year tax projection (`projectionCalculator.ts`), and the TDS schedule (`tdsScheduleCalculator.ts`).
+
+### Changed
+
+- **Projection math treats vested rows as realized income**: `getRsuVestingsByFY` values them at the locked vest-date price and never applies the stock-appreciation assumption to them; upcoming vestings keep the projection behavior (current price grown by appreciation %/yr).
+- **RSU grant state handlers extracted** from `SalaryStructureSection.tsx` into a `useRsuGrants` hook; per-grant vesting table extracted into `VestingTable.tsx`.
+
+## 2.21.0 - 2026-07-07
+
+Rule-based auto-categorization, transaction tags, and saved filter views (PR #203). Backend: categorization rules engine with retroactive apply, transaction tags, saved views CRUD. Frontend: tag chips + filtering on Transactions, saved-views menu, rules settings UI.
+
+## 2.20.0 - 2026-07-04 -- was `Unreleased` (PR #202)
 
 Comprehensive hardening wave landing on the branch: security tightening (BYOK key split + HKDF, refresh-token rotation, per-user rate limits, DB-level cascade), the anomaly-detection rewrite, the 50/30/20 Budget Rule page, and a design-system consistency pass that trims data past today across every historical chart and codifies the money-cell pattern.
 

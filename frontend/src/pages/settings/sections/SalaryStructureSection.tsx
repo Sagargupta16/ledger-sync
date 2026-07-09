@@ -6,14 +6,8 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { Banknote } from 'lucide-react'
 
-import { preferencesService } from '@/services/api/preferences'
 import { selectDisplayCurrency, usePreferencesStore } from '@/store/preferencesStore'
-import type {
-  GrowthAssumptions,
-  RsuGrant,
-  RsuVesting,
-  SalaryComponents,
-} from '@/types/salary'
+import type { GrowthAssumptions, RsuGrant, SalaryComponents } from '@/types/salary'
 import { DEFAULT_SALARY_COMPONENTS } from '@/types/salary'
 
 import { Section } from '../sectionPrimitives'
@@ -21,6 +15,7 @@ import { GrowthAssumptionsForm } from './salary/GrowthAssumptionsForm'
 import { RsuGrants } from './salary/RsuGrants'
 import { SalaryFieldsGrid } from './salary/SalaryFieldsGrid'
 import { currentFYLabel, nextFY, parseBareStartYear } from './salary/fyHelpers'
+import { useRsuGrants } from './salary/useRsuGrants'
 
 export interface SalaryStructureSectionProps {
   index: number
@@ -115,101 +110,18 @@ export default function SalaryStructureSection({
     )
   }, [currentSalary])
 
-  const addGrant = useCallback(() => {
-    const grant: RsuGrant = {
-      id: crypto.randomUUID(),
-      stock_name: '',
-      stock_price: 0,
-      grant_date: null,
-      notes: null,
-      vestings: [],
-    }
-    updateRsuGrants([...localRsuGrants, grant])
-  }, [localRsuGrants, updateRsuGrants])
-
-  const removeGrant = useCallback(
-    (id: string) => updateRsuGrants(localRsuGrants.filter((g) => g.id !== id)),
-    [localRsuGrants, updateRsuGrants],
-  )
-
-  const updateGrant = useCallback(
-    (id: string, patch: Partial<RsuGrant>) => {
-      updateRsuGrants(localRsuGrants.map((g) => (g.id === id ? { ...g, ...patch } : g)))
-    },
-    [localRsuGrants, updateRsuGrants],
-  )
-
-  const addVesting = useCallback(
-    (grantId: string) => {
-      updateGrant(grantId, {
-        vestings: [
-          ...(localRsuGrants.find((g) => g.id === grantId)?.vestings ?? []),
-          { date: '', quantity: 0 },
-        ],
-      })
-    },
-    [localRsuGrants, updateGrant],
-  )
-
-  const updateVesting = useCallback(
-    (grantId: string, vestIdx: number, patch: Partial<RsuVesting>) => {
-      const grant = localRsuGrants.find((g) => g.id === grantId)
-      if (!grant) return
-      const vestings = grant.vestings.map((v, i) => (i === vestIdx ? { ...v, ...patch } : v))
-      updateGrant(grantId, { vestings })
-    },
-    [localRsuGrants, updateGrant],
-  )
-
-  const removeVesting = useCallback(
-    (grantId: string, vestIdx: number) => {
-      const grant = localRsuGrants.find((g) => g.id === grantId)
-      if (!grant) return
-      updateGrant(grantId, { vestings: grant.vestings.filter((_, i) => i !== vestIdx) })
-    },
-    [localRsuGrants, updateGrant],
-  )
-
-  const [fetchingPriceFor, setFetchingPriceFor] = useState<string | null>(null)
   const displayCurrency = usePreferencesStore(selectDisplayCurrency)
-
-  const fetchStockPrice = useCallback(
-    async (grant: RsuGrant) => {
-      if (!grant.stock_name.trim()) return
-      setFetchingPriceFor(grant.id)
-      try {
-        const result = await preferencesService.getStockPrice(grant.stock_name.trim())
-        let price = result.price
-
-        if (result.currency && result.currency !== displayCurrency) {
-          const rates = await preferencesService.getExchangeRates(result.currency)
-          const rate = rates.rates[displayCurrency]
-          if (rate) {
-            price = Math.round(price * rate * 100) / 100
-          }
-        }
-
-        updateGrant(grant.id, { stock_price: price })
-      } catch {
-        /* user can still enter manually */
-      } finally {
-        setFetchingPriceFor(null)
-      }
-    },
-    [updateGrant, displayCurrency],
-  )
-
-  const rsuTotals = useMemo(() => {
-    let shares = 0
-    let value = 0
-    for (const g of localRsuGrants) {
-      for (const v of g.vestings) {
-        shares += v.quantity
-        value += v.quantity * g.stock_price
-      }
-    }
-    return { shares, value }
-  }, [localRsuGrants])
+  const {
+    fetchingPriceFor,
+    addGrant,
+    removeGrant,
+    updateGrant,
+    addVesting,
+    updateVesting,
+    removeVesting,
+    sortGrantVestings,
+    fetchStockPrice,
+  } = useRsuGrants(localRsuGrants, updateRsuGrants, displayCurrency)
 
   const updateGrowth = useCallback(
     (field: keyof GrowthAssumptions, raw: string | boolean) => {
@@ -252,13 +164,13 @@ export default function SalaryStructureSection({
       <RsuGrants
         grants={localRsuGrants}
         fetchingPriceFor={fetchingPriceFor}
-        rsuTotals={rsuTotals}
         onAddGrant={addGrant}
         onRemoveGrant={removeGrant}
         onUpdateGrant={updateGrant}
         onAddVesting={addVesting}
         onUpdateVesting={updateVesting}
         onRemoveVesting={removeVesting}
+        onSortVestings={sortGrantVestings}
         onFetchStockPrice={fetchStockPrice}
       />
 

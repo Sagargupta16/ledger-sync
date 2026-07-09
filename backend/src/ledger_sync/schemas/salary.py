@@ -31,6 +31,11 @@ class RsuVesting(BaseModel):
 
     date: date
     quantity: int = Field(gt=0)
+    price_at_vest: Decimal | None = Field(
+        default=None,
+        gt=0,
+        description="Stock price on the vest date, locked in once the vesting has passed.",
+    )
 
 
 class RsuGrant(BaseModel):

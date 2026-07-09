@@ -1,22 +1,23 @@
-import { Loader2, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react'
 
 import { formatCurrency } from '@/lib/formatters'
 import type { RsuGrant, RsuVesting } from '@/types/salary'
 
 import { FieldLabel } from '../../sectionPrimitives'
 import { inputClass } from '../../styles'
-import { dateToFY } from './fyHelpers'
+import { splitRsuTotals, todayKey } from '@/lib/rsuVesting'
+import { VestingTable } from './VestingTable'
 
 interface RsuGrantsProps {
   grants: RsuGrant[]
   fetchingPriceFor: string | null
-  rsuTotals: { shares: number; value: number }
   onAddGrant: () => void
   onRemoveGrant: (id: string) => void
   onUpdateGrant: (id: string, patch: Partial<RsuGrant>) => void
   onAddVesting: (grantId: string) => void
   onUpdateVesting: (grantId: string, vestIdx: number, patch: Partial<RsuVesting>) => void
   onRemoveVesting: (grantId: string, vestIdx: number) => void
+  onSortVestings: (grantId: string) => void
   onFetchStockPrice: (grant: RsuGrant) => void
 }
 
@@ -24,15 +25,19 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
   const {
     grants,
     fetchingPriceFor,
-    rsuTotals,
     onAddGrant,
     onRemoveGrant,
     onUpdateGrant,
     onAddVesting,
     onUpdateVesting,
     onRemoveVesting,
+    onSortVestings,
     onFetchStockPrice,
   } = props
+
+  const today = todayKey()
+  const totals = splitRsuTotals(grants, today)
+  const hasAnyShares = totals.vested.shares + totals.upcoming.shares > 0
 
   return (
     <div className="space-y-4">
@@ -115,9 +120,7 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
                   id={`grant-notes-${grant.id}`}
                   type="text"
                   value={grant.notes ?? ''}
-                  onChange={(e) =>
-                    onUpdateGrant(grant.id, { notes: e.target.value || null })
-                  }
+                  onChange={(e) => onUpdateGrant(grant.id, { notes: e.target.value || null })}
                   placeholder="Optional"
                   className={inputClass}
                 />
@@ -134,73 +137,13 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
           </div>
 
           {grant.vestings.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-muted-foreground border-b border-border">
-                    <th className="text-left py-2 pr-3 font-medium">Date</th>
-                    <th className="text-left py-2 pr-3 font-medium">Qty</th>
-                    <th className="text-left py-2 pr-3 font-medium">Est. Value</th>
-                    <th className="text-left py-2 pr-3 font-medium">FY</th>
-                    <th className="py-2 w-8" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {grant.vestings.map((v, vi) => {
-                    const estValue = v.quantity * grant.stock_price
-                    const fy = v.date ? dateToFY(v.date) : ''
-                    return (
-                      <tr
-                        key={`${grant.id}-${v.date}-${vi}`}
-                        className="border-b border-border/50"
-                      >
-                        <td className="py-2 pr-3">
-                          <input
-                            type="date"
-                            value={v.date}
-                            onChange={(e) =>
-                              onUpdateVesting(grant.id, vi, { date: e.target.value })
-                            }
-                            className={`${inputClass} max-w-[160px]`}
-                          />
-                        </td>
-                        <td className="py-2 pr-3">
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            min="0"
-                            value={v.quantity || ''}
-                            onChange={(e) =>
-                              onUpdateVesting(grant.id, vi, {
-                                quantity: e.target.value === '' ? 0 : Number(e.target.value),
-                              })
-                            }
-                            placeholder="0"
-                            className={`${inputClass} max-w-[100px]`}
-                          />
-                        </td>
-                        <td className="py-2 pr-3 text-muted-foreground">
-                          {estValue > 0 ? formatCurrency(estValue) : '--'}
-                        </td>
-                        <td className="py-2 pr-3 text-muted-foreground">
-                          {fy ? `FY ${fy}` : '--'}
-                        </td>
-                        <td className="py-2">
-                          <button
-                            type="button"
-                            onClick={() => onRemoveVesting(grant.id, vi)}
-                            className="p-1 rounded text-app-red hover:bg-app-red/10 transition-colors"
-                            title="Remove vesting"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <VestingTable
+              grant={grant}
+              today={today}
+              onUpdateVesting={onUpdateVesting}
+              onRemoveVesting={onRemoveVesting}
+              onSortVestings={onSortVestings}
+            />
           )}
 
           <button
@@ -214,15 +157,31 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
         </div>
       ))}
 
-      {grants.length > 0 && rsuTotals.shares > 0 && (
-        <div className="flex items-center gap-6 text-sm text-muted-foreground pt-1">
+      {grants.length > 0 && hasAnyShares && (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-muted-foreground pt-1">
           <span>
-            Total shares:{' '}
-            <span className="text-foreground font-medium">{rsuTotals.shares.toLocaleString()}</span>
+            Vested:{' '}
+            <span className="text-foreground font-medium">
+              {totals.vested.shares.toLocaleString()} shares
+            </span>
+            {totals.vested.value > 0 && (
+              <span className="text-app-green font-medium">
+                {' '}
+                ({formatCurrency(totals.vested.value)})
+              </span>
+            )}
           </span>
           <span>
-            Total value:{' '}
-            <span className="text-foreground font-medium">{formatCurrency(rsuTotals.value)}</span>
+            Upcoming:{' '}
+            <span className="text-foreground font-medium">
+              {totals.upcoming.shares.toLocaleString()} shares
+            </span>
+            {totals.upcoming.value > 0 && (
+              <span className="text-foreground font-medium">
+                {' '}
+                ({formatCurrency(totals.upcoming.value)})
+              </span>
+            )}
           </span>
         </div>
       )}

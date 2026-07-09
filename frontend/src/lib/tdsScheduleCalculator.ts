@@ -26,6 +26,7 @@
 
 import { calculateTax, type TaxSlab } from '@/lib/taxCalculator'
 import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
+import { vestingPrice } from '@/lib/rsuVesting'
 import type { RsuGrant } from '@/types/salary'
 
 /** Month labels in fiscal-year order, starting from the FY start month. */
@@ -98,7 +99,8 @@ export function rsuExtrasByFyMonth(
       const vestingFyStart = m >= fyStartMonth ? y : y - 1
       if (vestingFyStart !== fyStartYear) continue
       const idx = (m - fyStartMonth + MONTHS_PER_YEAR) % MONTHS_PER_YEAR
-      out[idx] = (out[idx] ?? 0) + v.quantity * (Number(grant.stock_price) || 0)
+      // Vested rows use the locked vest-date price; upcoming use current.
+      out[idx] = (out[idx] ?? 0) + v.quantity * vestingPrice(grant, v)
     }
   }
   return out

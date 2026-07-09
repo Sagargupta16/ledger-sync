@@ -11,6 +11,7 @@ import {
   getTaxSlabs,
 } from '@/lib/taxCalculator'
 import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
+import { isVested, todayKey, vestingPrice } from '@/lib/rsuVesting'
 import type {
   GrowthAssumptions,
   ProjectedFYBreakdown,
@@ -71,12 +72,19 @@ interface RsuFYData {
   details: Array<{ stock_name: string; shares: number; value: number }>
 }
 
-/** Group RSU vestings by fiscal year with optional stock appreciation. */
+/** Group RSU vestings by fiscal year with optional stock appreciation.
+ *
+ * Vested rows (date <= today) are realized income: they use the locked
+ * vest-date price when available and never get appreciation applied.
+ * Upcoming rows are projections: current price grown by the appreciation
+ * assumption for the years between the base FY and the vesting FY.
+ */
 export function getRsuVestingsByFY(
   grants: RsuGrant[],
   fyStartMonth: number,
   stockAppreciationPct: number,
   baseStartYear?: number,
+  today: string = todayKey(),
 ): Record<string, RsuFYData> {
   const result: Record<string, RsuFYData> = {}
 
@@ -84,13 +92,14 @@ export function getRsuVestingsByFY(
     for (const vesting of grant.vestings) {
       const fy = dateToFY(vesting.date, fyStartMonth)
       const fyStart = parseFYStart(fy)
+      const vested = isVested(vesting, today)
       const yearsFromBase =
-        baseStartYear === undefined ? 0 : fyStart - baseStartYear
+        baseStartYear === undefined || vested ? 0 : fyStart - baseStartYear
       const appreciationFactor = Math.pow(
         1 + stockAppreciationPct / 100,
         Math.max(0, yearsFromBase),
       )
-      const adjustedPrice = N(grant.stock_price) * appreciationFactor
+      const adjustedPrice = vestingPrice(grant, vesting, today) * appreciationFactor
       const vestingValue = vesting.quantity * adjustedPrice
 
       if (!result[fy]) {
