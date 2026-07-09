@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -63,7 +64,7 @@ def test_latest_price() -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["symbol"] == "AMZN"
-    assert body["price"] == 231.44
+    assert body["price"] == pytest.approx(231.44)
     assert body["as_of"] is None
 
 
@@ -75,7 +76,7 @@ def test_historical_price_exact_day() -> None:
 
     assert resp.status_code == 200
     body = resp.json()
-    assert body["price"] == 102.5
+    assert body["price"] == pytest.approx(102.5)
     assert body["as_of"] == "2025-08-15"
 
 
@@ -86,7 +87,7 @@ def test_historical_price_weekend_falls_back_to_prior_close() -> None:
 
     assert resp.status_code == 200
     body = resp.json()
-    assert body["price"] == 102.5
+    assert body["price"] == pytest.approx(102.5)
     assert body["as_of"] == "2025-08-15"
 
 
@@ -95,7 +96,7 @@ def test_historical_price_skips_null_closes() -> None:
     resp = TestClient(app).get("/api/stock-price/AMZN", params={"on_date": "2025-08-15"})
 
     assert resp.status_code == 200
-    assert resp.json()["price"] == 101.0
+    assert resp.json()["price"] == pytest.approx(101.0)
     assert resp.json()["as_of"] == "2025-08-14"
 
 

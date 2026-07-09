@@ -81,8 +81,10 @@ class TestRsuGrant:
         assert vesting.price_at_vest == Decimal("21500.75")
 
     def test_vesting_price_at_vest_rejects_zero(self):
+        vest_date = date(2025, 8, 15)
+        zero = Decimal("0")
         with pytest.raises(ValidationError):
-            RsuVesting(date=date(2025, 8, 15), quantity=6, price_at_vest=Decimal("0"))
+            RsuVesting(date=vest_date, quantity=6, price_at_vest=zero)
 
     def test_stock_price_must_be_positive(self):
         with pytest.raises(ValidationError):

@@ -5,6 +5,17 @@ import type { RsuGrant, RsuVesting } from '@/types/salary'
 
 import { isVested, sortVestings, todayKey } from '@/lib/rsuVesting'
 
+/** Merge fetched vest-date prices (keyed `grantId|date`) into the grants. */
+function applyVestPrices(grants: RsuGrant[], fetched: Map<string, number>): RsuGrant[] {
+  const withPrice = (grantId: string, v: RsuVesting): RsuVesting => {
+    const price = fetched.get(`${grantId}|${v.date}`)
+    return price !== undefined && (v.price_at_vest == null || v.price_at_vest <= 0)
+      ? { ...v, price_at_vest: price }
+      : v
+  }
+  return grants.map((g) => ({ ...g, vestings: g.vestings.map((v) => withPrice(g.id, v)) }))
+}
+
 /**
  * RSU grant/vesting state handlers for the salary structure section.
  *
@@ -151,17 +162,7 @@ export function useRsuGrants(
         }
       }
       if (cancelled || fetched.size === 0) return
-      updateRsuGrants(
-        localRsuGrants.map((g) => ({
-          ...g,
-          vestings: g.vestings.map((v) => {
-            const price = fetched.get(`${g.id}|${v.date}`)
-            return price !== undefined && (v.price_at_vest == null || v.price_at_vest <= 0)
-              ? { ...v, price_at_vest: price }
-              : v
-          }),
-        })),
-      )
+      updateRsuGrants(applyVestPrices(localRsuGrants, fetched))
     }
     run()
     return () => {

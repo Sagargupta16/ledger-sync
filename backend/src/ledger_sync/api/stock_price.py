@@ -7,7 +7,7 @@ in vest-date prices for RSU vestings).
 """
 
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
@@ -64,13 +64,15 @@ async def get_stock_price(
     symbol: str,
     request: Request,
     _current_user: CurrentUser,
-    on_date: date | None = Query(
-        default=None,
-        description=(
-            "Return the closing price on this date "
-            "(or the nearest prior trading day) instead of the latest price."
+    on_date: Annotated[
+        date | None,
+        Query(
+            description=(
+                "Return the closing price on this date "
+                "(or the nearest prior trading day) instead of the latest price."
+            ),
         ),
-    ),
+    ] = None,
 ) -> StockPriceResponse:
     """Fetch a stock price for a ticker symbol via Yahoo Finance.
 
