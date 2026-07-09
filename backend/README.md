@@ -1,6 +1,6 @@
 # Ledger Sync -- Backend
 
-FastAPI backend powering the Ledger Sync personal finance dashboard. Handles Excel import, transaction reconciliation, financial analytics, exchange rate proxying, user preferences, AI assistant configuration with encrypted key storage, and Bedrock streaming proxy.
+FastAPI backend powering the Ledger Sync personal finance dashboard. Handles Excel import, transaction reconciliation, financial analytics, exchange rate proxying, user preferences, AI assistant configuration with encrypted key storage, and the Bedrock Converse proxy.
 
 ## Features
 
@@ -11,13 +11,13 @@ FastAPI backend powering the Ledger Sync personal finance dashboard. Handles Exc
 - SQLite (dev) / PostgreSQL (prod) with SQLAlchemy ORM
 - Alembic database migrations
 - AI assistant config with AES-256-GCM encrypted API keys (PBKDF2 + per-ciphertext random salt)
-- Bedrock streaming proxy via boto3 (SigV4 auth + EventStream parsing)
+- Bedrock Converse proxy via boto3 (SigV4 or Bedrock API-key auth, JSON response)
 
 ## Tech Stack
 
 | Component  | Technology     |
 | ---------- | -------------- |
-| Language   | Python 3.11+   |
+| Language   | Python 3.13+   |
 | Framework  | FastAPI        |
 | ORM        | SQLAlchemy 2.0 |
 | Database   | SQLite (dev) / PostgreSQL (prod) |
@@ -55,7 +55,7 @@ backend/
 │   │   ├── analytics_v2.py  # Pre-aggregated analytics
 │   │   ├── calculations.py  # Financial calculation endpoints
 │   │   ├── preferences.py   # User preferences (incl. AI config)
-│   │   ├── ai_chat.py       # Bedrock streaming proxy
+│   │   ├── ai_chat.py       # Bedrock Converse proxy
 │   │   ├── account_classifications.py
 │   │   ├── exchange_rates.py, stock_price.py
 │   │   └── meta.py, reports.py, transactions.py, upload.py

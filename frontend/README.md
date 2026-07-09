@@ -1,12 +1,12 @@
 # Ledger Sync Frontend
 
-Modern financial analytics dashboard built with React 19, TypeScript 5.9, and Vite 7.
+Modern financial analytics dashboard built with React 19, TypeScript 6, and Vite 8.
 
 ## Tech Stack
 
 - **React 19** - UI framework
-- **TypeScript 5.9** - Type safety
-- **Vite 7** - Fast build tool and dev server
+- **TypeScript 6** - Type safety
+- **Vite 8** - Fast build tool and dev server
 - **Tailwind CSS 4** - Utility-first styling
 - **TanStack Query 5** - Server state management and caching
 - **Zustand 5** - Lightweight global state management
@@ -69,13 +69,14 @@ src/
 
 ## Key Features
 
-### AI Chatbot (BYOK)
+### AI Chatbot (App Mode + BYOK)
 
 - Floating widget in bottom-right; click to expand into a glass-morphism chat panel
 - User configures OpenAI / Anthropic / AWS Bedrock in Settings > AI Assistant
 - API keys encrypted server-side with AES-256-GCM (PBKDF2 + per-ciphertext random salt)
 - Financial context (monthly summaries, categories, recurring bills, net worth, goals) compressed into ~2-4K token system prompt and cached 5 minutes client-side
-- OpenAI/Anthropic calls stream browser-direct; Bedrock streams through backend proxy (SigV4 + CORS constraints)
+- All providers use non-streaming JSON responses so tool-calling can run one request per turn
+- Bedrock calls go through the backend proxy because Bedrock requires signed server-side auth and has no browser CORS support
 
 ### Demo Mode
 

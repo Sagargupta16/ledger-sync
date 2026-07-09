@@ -33,19 +33,6 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zustand": "^5.0.14"
   },
-  "pnpm": {
-    "overrides": {
-      "undici": ">=7.24.0 <8",
-      "follow-redirects": ">=1.15.12",
-      "serialize-javascript": ">=7.0.5",
-      "esbuild": ">=0.28.1",
-      "form-data": ">=4.0.6"
-    },
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp"
-    ]
-  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.3.1",

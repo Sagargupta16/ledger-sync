@@ -6,7 +6,7 @@ Wave 1 research fanned out six specialist agents; this plan is the distilled act
 
 ## Wave 0 -- shipped in `0b9d950`
 
-- FE `/api/preferences/ai-config/key` -> `/api/preferences/ai-config/key/reveal` (matched to BE).
+- FE AI key retrieval route corrected to match the BE `/api/preferences/ai-config/key` endpoint.
 - BE `rates.py` prefix `/rates` -> `/api/rates`.
 - BE `exchange_rates.py` prefix `/exchange-rates` -> `/api/exchange-rates` (also picks up `no-store` cache middleware).
 - BE `stock_price.py` prefix `/stock-price` -> `/api/stock-price` (same reason).

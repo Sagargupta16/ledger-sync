@@ -68,14 +68,16 @@ Vercel auto-detects `uv.lock` and uses `uv` to install dependencies (falls back 
 |----------|----------|-------|
 | `LEDGER_SYNC_DATABASE_URL` | Yes | Neon pooler connection string (`postgresql://...?sslmode=require`). Do NOT include `channel_binding=require`. |
 | `LEDGER_SYNC_JWT_SECRET_KEY` | Yes | Generate with `openssl rand -hex 32` (min 32 chars) |
+| `LEDGER_SYNC_ENCRYPTION_KEY` | Yes | Separate random key for BYOK API-key encryption (min 32 chars) |
 | `LEDGER_SYNC_GOOGLE_CLIENT_ID` | For Google login | Google OAuth client ID |
 | `LEDGER_SYNC_GOOGLE_CLIENT_SECRET` | For Google login | Google OAuth client secret |
 | `LEDGER_SYNC_GITHUB_CLIENT_ID` | For GitHub login | GitHub OAuth client ID (create a **separate** prod app) |
 | `LEDGER_SYNC_GITHUB_CLIENT_SECRET` | For GitHub login | GitHub OAuth client secret |
+| `LEDGER_SYNC_BEDROCK_API_KEY` | For app AI mode | Bedrock API key bridged to `AWS_BEARER_TOKEN_BEDROCK` at startup |
 | `LEDGER_SYNC_FRONTEND_URL` | Yes | `https://sagargupta.online/ledger-sync` |
 | `LEDGER_SYNC_CORS_ORIGINS` | Yes | JSON array of allowed origins |
 | `LEDGER_SYNC_ENVIRONMENT` | Yes | `production` |
-| `PYTHON_VERSION` | Yes | `3.12` |
+| `PYTHON_VERSION` | Yes | `3.13` |
 
 The Neon integration also injects `NEON_DATABASE_URL`, `NEON_PGHOST`, and other `NEON_*` variables automatically.
 
@@ -187,6 +189,7 @@ git push origin main
 |----------|----------|---------|-------------|
 | `LEDGER_SYNC_DATABASE_URL` | Yes | `sqlite:///./ledger_sync.db` | Database connection string |
 | `LEDGER_SYNC_JWT_SECRET_KEY` | Yes (prod) | dev default | JWT signing secret (min 32 chars) |
+| `LEDGER_SYNC_ENCRYPTION_KEY` | Yes (prod) | JWT secret fallback | Dedicated key for BYOK API-key encryption |
 | `LEDGER_SYNC_ENVIRONMENT` | No | `development` | `development`, `staging`, or `production` |
 | `LEDGER_SYNC_CORS_ORIGINS` | No | See settings.py | JSON array of allowed origins |
 | `LEDGER_SYNC_FRONTEND_URL` | Yes (prod) | `http://localhost:5173` | Frontend base URL for OAuth redirects |
@@ -194,8 +197,11 @@ git push origin main
 | `LEDGER_SYNC_GOOGLE_CLIENT_SECRET` | No | - | Google OAuth client secret |
 | `LEDGER_SYNC_GITHUB_CLIENT_ID` | No | - | GitHub OAuth client ID |
 | `LEDGER_SYNC_GITHUB_CLIENT_SECRET` | No | - | GitHub OAuth client secret |
+| `LEDGER_SYNC_BEDROCK_API_KEY` | For app AI mode | - | Bedrock API key for server-side Converse calls |
+| `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` | No | `10` | Per-user daily app-mode chat cap |
+| `LEDGER_SYNC_AI_MAX_TOOL_ROUNDS` | No | `6` | Max tool-calling rounds per chat message |
 | `LEDGER_SYNC_LOG_LEVEL` | No | `INFO` | Python log level |
-| `PYTHON_VERSION` | Yes (Vercel) | - | Python version (e.g., `3.12`) |
+| `PYTHON_VERSION` | Yes (Vercel) | - | Python version (e.g., `3.13`) |
 
 ### Frontend (GitHub Actions)
 
@@ -249,7 +255,7 @@ git push origin main
 For an always-on deployment without cold starts:
 
 1. Get a VPS (DigitalOcean, Linode, Oracle Cloud free tier)
-2. Install Python 3.11+, Node.js 22+, Nginx
+2. Install Python 3.13+, Node.js 22+, Nginx
 3. Clone the repo, install dependencies
 4. Create a systemd service for the backend
 5. Build the frontend and serve with Nginx
