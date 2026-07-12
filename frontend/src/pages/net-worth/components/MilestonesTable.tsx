@@ -153,7 +153,7 @@ export default function MilestonesTable({
       <EmptyState
         icon={TrendingUp}
         title="No milestones yet"
-        description="Your first milestone (₹1L net worth) will appear here once you reach it."
+        description="Your first milestone (₹5L net worth) will appear here once you reach it."
         variant="compact"
       />
     )
@@ -178,16 +178,15 @@ export default function MilestonesTable({
           )}
         </span>
         <span className="text-muted-foreground">
-          Stable:{' '}
-          <span className="text-app-green font-semibold">
-            {stableCount} / {rows.length}
-          </span>
+          Reached:{' '}
+          <span className="text-foreground font-semibold">{reachedCount}</span>
         </span>
         <span className="text-muted-foreground">
-          Reached:{' '}
-          <span className="text-foreground font-semibold">
-            {reachedCount} / {rows.length}
-          </span>
+          Stable:{' '}
+          <span className="text-app-green font-semibold">{stableCount}</span>
+          {reachedCount > 0 && (
+            <span className="text-xs text-text-tertiary"> of {reachedCount} reached</span>
+          )}
         </span>
       </div>
 
