@@ -40,11 +40,15 @@ export interface MilestoneRow extends Milestone {
   stableSince: string | null
 }
 
-/** Format a rupee amount as a short Indian milestone label: ₹5L, ₹1.5Cr, ₹10Cr. */
+/** Format a rupee amount as a short Indian milestone label: ₹50k, ₹5L, ₹1.5Cr. */
 export function formatMilestoneLabel(value: number): string {
   if (value >= 10_000_000) {
     const cr = value / 10_000_000
     return `₹${Number.isInteger(cr) ? cr : Number(cr.toFixed(1))}Cr`
+  }
+  // Below ₹1L, thousands read more naturally than a fractional lakh (₹50k, not ₹0.5L).
+  if (value < 100_000) {
+    return `₹${Math.round(value / 1_000)}k`
   }
   const lakh = value / 100_000
   return `₹${Number.isInteger(lakh) ? lakh : Number(lakh.toFixed(1))}L`
@@ -53,9 +57,10 @@ export function formatMilestoneLabel(value: number): string {
 /**
  * Tiered milestone thresholds for an Indian-rupee net-worth context.
  *
- * Step size widens as the values grow so the near-term list stays granular
- * (where a saver actually crosses thresholds) without exploding into hundreds
- * of rows at the top:
+ * Early rungs are close together so a new saver sees frequent wins, then the
+ * step widens as values grow -- granular where thresholds are actually crossed,
+ * without exploding into hundreds of rows at the top:
+ *   - first rungs  : ₹50k, ₹1L, ₹2L (early-saver wins)
  *   - up to ₹1Cr   : every ₹5L   (₹5L, ₹10L, ... ₹95L, ₹1Cr)
  *   - ₹1Cr - ₹5Cr  : every ₹25L
  *   - ₹5Cr and up  : every ₹1Cr
@@ -64,7 +69,7 @@ export function formatMilestoneLabel(value: number): string {
  * next few upcoming) so the far-future rows never render as noise.
  */
 function generateMilestones(): Milestone[] {
-  const values: number[] = []
+  const values: number[] = [50_000, 100_000, 200_000] // early-saver rungs
   for (let v = 500_000; v < 10_000_000; v += 500_000) values.push(v) // ₹5L step to <₹1Cr
   for (let v = 10_000_000; v < 50_000_000; v += 2_500_000) values.push(v) // ₹25L step ₹1Cr-₹5Cr
   for (let v = 50_000_000; v <= 100_000_000; v += 10_000_000) values.push(v) // ₹1Cr step to ₹10Cr
