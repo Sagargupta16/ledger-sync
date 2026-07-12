@@ -7,11 +7,10 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 
 import {
-  computeMonthlyGrowthRate,
-  computeMonthlyGrowthStats,
+  buildMilestoneRows,
+  computeLinearGrowthStats,
   downsampleToMonthly,
-  projectNetWorthCompoundBand,
-  buildMilestoneRowsCompound,
+  projectNetWorthLinearBand,
   type NetWorthPoint,
 } from './netWorthProjection'
 import {
@@ -146,27 +145,27 @@ export function useNetWorth() {
     [chartSeries],
   )
 
-  const monthlyGrowthRate = useMemo(() => computeMonthlyGrowthRate(chartSeries, 12), [chartSeries])
-
-  const monthlyGrowthLogSigma = useMemo(
-    () => computeMonthlyGrowthStats(chartSeries, 12).logSigma,
-    [chartSeries],
-  )
+  // Linear (average monthly delta) growth model. The series is cumulative
+  // cash flow (book value, no market prices), so a compound/geometric fit
+  // would treat savings as an asset return and blow up long-horizon
+  // projections -- see computeAvgMonthlyGrowth docs.
+  const growthStats = useMemo(() => computeLinearGrowthStats(chartSeries, 12), [chartSeries])
+  const monthlyGrowth = growthStats.growth
 
   const milestoneRows = useMemo(
-    () => buildMilestoneRowsCompound(fullSeries, anchor, monthlyGrowthRate),
-    [fullSeries, anchor, monthlyGrowthRate],
+    () => buildMilestoneRows(fullSeries, anchor, monthlyGrowth),
+    [fullSeries, anchor, monthlyGrowth],
   )
 
   const chartData = useMemo(() => {
-    if (!showProjection || monthlyGrowthRate <= 0 || anchor === null) {
+    if (!showProjection || monthlyGrowth <= 0 || anchor === null) {
       return filteredNetWorthData
     }
     const monthlyHistorical = downsampleToMonthly(chartSeries)
-    const band = projectNetWorthCompoundBand(
+    const band = projectNetWorthLinearBand(
       anchor,
-      monthlyGrowthRate,
-      monthlyGrowthLogSigma,
+      monthlyGrowth,
+      growthStats.sigma,
       60,
     )
 
@@ -195,7 +194,7 @@ export function useNetWorth() {
       })),
     ]
     return [...historicalPoints, ...projectedPoints]
-  }, [showProjection, anchor, monthlyGrowthRate, monthlyGrowthLogSigma, chartSeries, filteredNetWorthData])
+  }, [showProjection, anchor, monthlyGrowth, growthStats.sigma, chartSeries, filteredNetWorthData])
 
   const currentNetWorth = anchor?.netWorth ?? 0
 
@@ -261,7 +260,7 @@ export function useNetWorth() {
     setShowStacked,
     showProjection,
     setShowProjection,
-    monthlyGrowthRate,
+    monthlyGrowth,
     anchor,
     milestoneRows,
     currentNetWorth,

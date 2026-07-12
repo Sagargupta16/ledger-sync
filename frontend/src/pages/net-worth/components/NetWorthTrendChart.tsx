@@ -34,7 +34,8 @@ interface NetWorthTrendChartProps {
   setShowStacked: (v: boolean) => void
   showProjection: boolean
   setShowProjection: (v: boolean) => void
-  monthlyGrowthRate: number
+  /** Average monthly net-worth change in rupees (linear model over cash flows). */
+  monthlyGrowth: number
   anchor: NetWorthPoint | null
   /**
    * Upcoming milestones to draw as horizontal threshold lines so users see
@@ -56,7 +57,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
     setShowStacked,
     showProjection,
     setShowProjection,
-    monthlyGrowthRate,
+    monthlyGrowth,
     anchor,
     milestoneRows,
   } = props
@@ -85,12 +86,12 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
         <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Net worth chart view options">
           <button
             onClick={() => setShowProjection(!showProjection)}
-            disabled={monthlyGrowthRate <= 0}
+            disabled={monthlyGrowth <= 0}
             aria-pressed={showProjection}
             title={
-              monthlyGrowthRate <= 0
+              monthlyGrowth <= 0
                 ? 'Need positive monthly growth to project'
-                : `Project forward at ${(monthlyGrowthRate * 100).toFixed(2)} %/month compound (~${(((1 + monthlyGrowthRate) ** 12 - 1) * 100).toFixed(1)} % annualized)`
+                : `Project forward at your average monthly saving (book value; market gains not tracked)`
             }
             className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
               showProjection
@@ -138,7 +139,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
           )
         }
         const anchorDateIso = anchor?.date ?? new Date().toISOString().substring(0, 10)
-        const showProjectionLine = showProjection && monthlyGrowthRate > 0
+        const showProjectionLine = showProjection && monthlyGrowth > 0
         return (
           <ChartContainer
             height={320}
@@ -269,7 +270,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                     <>
                       {/* 1-stddev confidence band, drawn before the median line so the
                           line renders on top. The band widens as sqrt(time) under the
-                          GBM model. Empty during historical points (null tuple). */}
+                          random-walk-with-drift model. Empty on historical points. */}
                       <Area
                         type="monotone"
                         dataKey="projectionBand"

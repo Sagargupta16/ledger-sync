@@ -99,7 +99,7 @@ export default function NetWorthPage() {
           setShowStacked={m.setShowStacked}
           showProjection={m.showProjection}
           setShowProjection={m.setShowProjection}
-          monthlyGrowthRate={m.monthlyGrowthRate}
+          monthlyGrowth={m.monthlyGrowth}
           anchor={m.anchor}
           milestoneRows={m.milestoneRows}
         />
@@ -121,7 +121,7 @@ export default function NetWorthPage() {
           <MilestonesTable
             rows={m.milestoneRows}
             currentNetWorth={m.currentNetWorth}
-            monthlyGrowthRate={m.monthlyGrowthRate}
+            monthlyGrowth={m.monthlyGrowth}
           />
         </motion.div>
 
