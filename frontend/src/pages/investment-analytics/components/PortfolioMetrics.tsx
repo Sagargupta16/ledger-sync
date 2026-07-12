@@ -59,10 +59,13 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
         color={netInvestmentPL >= 0 ? 'green' : 'red'}
         isLoading={isLoading}
       />
+      {/* "Cashflow XIRR": terminal value is book value (contributions net of
+          withdrawals) -- no market-price feed exists, so this measures the
+          cash-in/cash-out rate, not market performance. Label accordingly. */}
       <MetricCard
-        title="Portfolio XIRR"
+        title="Cashflow XIRR"
         value={xirrValue}
-        subtitle={portfolioXIRR === 0 ? 'Needs dated flows' : 'Annualized, all flows'}
+        subtitle={portfolioXIRR === 0 ? 'Needs dated flows' : 'Annualized, book value'}
         icon={LineChart}
         color={portfolioXIRR >= 0 ? 'green' : 'red'}
         isLoading={isLoading}
