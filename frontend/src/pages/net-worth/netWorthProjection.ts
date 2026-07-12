@@ -40,21 +40,45 @@ export interface MilestoneRow extends Milestone {
   stableSince: string | null
 }
 
+/** Format a rupee amount as a short Indian milestone label: ₹5L, ₹1.5Cr, ₹10Cr. */
+export function formatMilestoneLabel(value: number): string {
+  if (value >= 10_000_000) {
+    const cr = value / 10_000_000
+    return `₹${Number.isInteger(cr) ? cr : Number(cr.toFixed(1))}Cr`
+  }
+  const lakh = value / 100_000
+  return `₹${Number.isInteger(lakh) ? lakh : Number(lakh.toFixed(1))}L`
+}
+
 /**
- * Default milestones for an Indian-rupee net-worth context.
- * Hand-picked round numbers; could be preference-driven later.
+ * Tiered milestone thresholds for an Indian-rupee net-worth context.
+ *
+ * Step size widens as the values grow so the near-term list stays granular
+ * (where a saver actually crosses thresholds) without exploding into hundreds
+ * of rows at the top:
+ *   - up to ₹1Cr   : every ₹5L   (₹5L, ₹10L, ... ₹95L, ₹1Cr)
+ *   - ₹1Cr - ₹5Cr  : every ₹25L
+ *   - ₹5Cr and up  : every ₹1Cr
+ *
+ * The full ladder runs to ₹10Cr; callers window it (achieved history + the
+ * next few upcoming) so the far-future rows never render as noise.
  */
-export const DEFAULT_MILESTONES: readonly Milestone[] = [
-  { value: 100_000, label: '₹1L' },
-  { value: 500_000, label: '₹5L' },
-  { value: 1_000_000, label: '₹10L' },
-  { value: 2_500_000, label: '₹25L' },
-  { value: 5_000_000, label: '₹50L' },
-  { value: 10_000_000, label: '₹1Cr' },
-  { value: 25_000_000, label: '₹2.5Cr' },
-  { value: 50_000_000, label: '₹5Cr' },
-  { value: 100_000_000, label: '₹10Cr' },
-] as const
+function generateMilestones(): Milestone[] {
+  const values: number[] = []
+  for (let v = 500_000; v < 10_000_000; v += 500_000) values.push(v) // ₹5L step to <₹1Cr
+  for (let v = 10_000_000; v < 50_000_000; v += 2_500_000) values.push(v) // ₹25L step ₹1Cr-₹5Cr
+  for (let v = 50_000_000; v <= 100_000_000; v += 10_000_000) values.push(v) // ₹1Cr step to ₹10Cr
+  return values.map((value) => ({ value, label: formatMilestoneLabel(value) }))
+}
+
+export const DEFAULT_MILESTONES: readonly Milestone[] = generateMilestones()
+
+/**
+ * Default number of upcoming milestones to surface. Achieved milestones are
+ * always kept (they're history); only the FUTURE list is capped so the table
+ * doesn't show a "₹10Cr in 72 years" row.
+ */
+export const DEFAULT_UPCOMING_WINDOW = 6
 
 /**
  * Compute average monthly net-worth change over the last ``lookbackMonths``.
@@ -313,25 +337,32 @@ function buildUpcomingRow(
  * Build a SINGLE unified list of milestones with status + date + distance,
  * consistent with the anchor + growth rate used by the chart overlay.
  *
- * - achieved: rows whose value was ever crossed by the series.
+ * - achieved: rows whose value was ever crossed by the series (ALL kept -- they
+ *   are history).
  * - upcoming: rows whose value is above the anchor's net worth. ETA is
- *   anchor.date + (value - anchor.netWorth) / monthlyGrowth months.
- *   Omitted from the upcoming set when growth <= 0.
+ *   anchor.date + (value - anchor.netWorth) / monthlyGrowth months. Omitted
+ *   from the upcoming set when growth <= 0. Capped to ``upcomingWindow`` so the
+ *   table shows the next few reachable targets, not a "₹10Cr in 72 years" row.
  */
 export function buildMilestoneRows(
   series: readonly NetWorthPoint[],
   anchor: NetWorthPoint | null,
   monthlyGrowth: number,
   milestones: readonly Milestone[] = DEFAULT_MILESTONES,
+  upcomingWindow: number = DEFAULT_UPCOMING_WINDOW,
 ): MilestoneRow[] {
   if (series.length === 0 || anchor === null) {
-    return milestones.map((m) => ({
-      ...m,
-      status: 'upcoming',
-      date: null,
-      distance: null,
-      stableSince: null,
-    }))
+    // No history yet: show the first ``upcomingWindow`` targets as a preview.
+    return [...milestones]
+      .sort((a, b) => a.value - b.value)
+      .slice(0, Math.max(0, upcomingWindow))
+      .map((m) => ({
+        ...m,
+        status: 'upcoming',
+        date: null,
+        distance: null,
+        stableSince: null,
+      }))
   }
 
   const achievedDate = scanAchievements(series, milestones)
@@ -347,7 +378,7 @@ export function buildMilestoneRows(
       )
       return {
         ...m,
-        status: 'achieved',
+        status: 'achieved' as const,
         date: dateStr,
         distance: daysFromStart,
         stableSince: findStableSince(sorted, m.value, dateStr),
@@ -356,6 +387,14 @@ export function buildMilestoneRows(
     return buildUpcomingRow(m, anchor, monthlyGrowth)
   })
 
-  // Sort by value so the table reads low-to-high regardless of status.
-  return rows.sort((a, b) => a.value - b.value)
+  // Keep ALL achieved rows (history); cap the upcoming rows to the nearest
+  // ``upcomingWindow`` so far-future thresholds don't clutter the table.
+  const achieved = rows.filter((r) => r.status === 'achieved')
+  const upcoming = rows
+    .filter((r) => r.status === 'upcoming')
+    .sort((a, b) => a.value - b.value)
+    .slice(0, Math.max(0, upcomingWindow))
+
+  // Sort the combined set by value so the table reads low-to-high.
+  return [...achieved, ...upcoming].sort((a, b) => a.value - b.value)
 }
