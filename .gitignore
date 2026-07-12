@@ -236,3 +236,6 @@ test-results/
 # AI assistant local files
 MEMORY.md
 .claude/
+
+# graphify knowledge graph artifacts
+graphify-out/

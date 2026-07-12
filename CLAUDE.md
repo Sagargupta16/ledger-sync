@@ -210,3 +210,8 @@ The repo-specific skill set (atlas/craft/task skills under `.claude/skills/`) wa
 - Lazy load all pages with `React.lazy` + `Suspense`.
 - Memoize expensive computations with `useMemo`. Use `useCallback` for handlers passed as props.
 - Use TanStack Query for API calls. Never raw `useEffect` + `fetch`.
+
+## Knowledge Graph (graphify)
+
+- `graphify-out/` holds a prebuilt code graph (gitignored). For architecture/relationship questions ("what calls X", "trace Y to the DB", impact of a change), query it before grepping: `graphify query "<question>"`, `graphify path "A" "B"`, `graphify explain "X"`, `graphify affected "X"`.
+- After large refactors run `graphify update .` (local AST, no LLM) to refresh it. If `graphify-out/` is missing, fall back to normal search -- don't rebuild unasked.
