@@ -57,53 +57,17 @@ export const DEFAULT_MILESTONES: readonly Milestone[] = [
 ] as const
 
 /**
- * Compute the monthly COMPOUND growth rate over the last `lookbackMonths`
- * (as a decimal -- 0.01 means 1 % per month).
- *
- * Uses the geometric mean of month-end net worth over the window:
- *     r = (end / start)^(1 / n) - 1
- *
- * Returns 0 when:
- *   - fewer than 2 month-end points in the window
- *   - start net worth <= 0 (compound growth is undefined from zero / negative)
- *   - end net worth <= 0
- *
- * This is the correct model for an investing/saving user because savings + asset
- * growth both compound. The earlier linear model (`computeAvgMonthlyGrowth`)
- * dramatically underestimates time-to-target for users with returns -- a ₹50L
- * portfolio growing at 12 % annualized reaches ₹1Cr in ~6 years by compound,
- * but ~17 years by linear extrapolation of the recent monthly delta.
- */
-export function computeMonthlyGrowthRate(
-  series: readonly NetWorthPoint[],
-  lookbackMonths = 12,
-): number {
-  if (series.length < 2) return 0
-  const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
-
-  const monthlyLast: Record<string, number> = {}
-  for (const point of sorted) {
-    monthlyLast[point.date.substring(0, 7)] = point.netWorth
-  }
-
-  const months = Object.keys(monthlyLast).sort((a, b) => a.localeCompare(b))
-  if (months.length < 2) return 0
-
-  const windowMonths = months.slice(-Math.max(2, lookbackMonths + 1))
-  const lastMonth = windowMonths.at(-1)
-  if (lastMonth === undefined) return 0
-  const start = monthlyLast[windowMonths[0]]
-  const end = monthlyLast[lastMonth]
-  const spanMonths = windowMonths.length - 1
-
-  if (start <= 0 || end <= 0 || spanMonths <= 0) return 0
-
-  return (end / start) ** (1 / spanMonths) - 1
-}
-
-/**
  * Compute average monthly net-worth change over the last ``lookbackMonths``.
  * Returns 0 if there's not enough data.
+ *
+ * This LINEAR model is deliberate: the net-worth series is built from
+ * cumulative cash flows (income - expense), i.e. BOOK VALUE -- there is no
+ * market-price feed. A flow-accumulation series grows by roughly "what you
+ * save each month", not exponentially, so extrapolating it with a compound
+ * rate treats savings as an asset return and explodes (a real-data audit
+ * measured a geometric fit projecting ₹28 Cr in 5 years where the linear
+ * trend gives ~₹0.9 Cr). If a market-value feed ever lands, a compound model
+ * belongs on THAT series -- not on this one.
  */
 export function computeAvgMonthlyGrowth(
   series: readonly NetWorthPoint[],
@@ -154,10 +118,6 @@ export function downsampleToMonthly(
  * Project future monthly net-worth points from ``anchor`` at a constant
  * ABSOLUTE monthly delta (linear extrapolation).
  *
- * Kept for backwards compatibility. Prefer `projectNetWorthCompound` for any
- * new consumer -- linear underestimates time-to-target for users with
- * compound return (equity / MF / PPF / EPF).
- *
  * The anchor's own ``date`` is not included in the output; the first projected
  * point is one month after the anchor.
  */
@@ -182,58 +142,22 @@ export function projectNetWorth(
 }
 
 /**
- * Project future monthly net-worth points from ``anchor`` at a constant
- * COMPOUND monthly rate (geometric growth).
+ * Compute the average monthly net-worth change AND the standard deviation of
+ * the individual monthly deltas over the last ``lookbackMonths``.
  *
- * `monthlyRate` is a decimal (0.01 = 1 % per month). Typical realistic values:
- *   - 0.005-0.015 for a saver-investor in INR assets (6-20 % annual)
- *   - > 0.02 rarely sustainable; clamp at the call site if desired
+ * - ``growth``: same value ``computeAvgMonthlyGrowth`` returns. Rupees/month.
+ * - ``sigma``: sample stddev (n-1 denominator) of the monthly deltas. Used by
+ *   ``projectNetWorthLinearBand`` to widen the band as sqrt(time) -- the
+ *   correct scaling when each month adds an independent savings delta.
  *
- * Unlike the linear `projectNetWorth`, this reflects the actual compounding
- * behaviour of equity / MF / PPF / EPF holdings. For a user with monthly
- * savings contributions *and* market returns, both effects fold into the
- * observed monthly rate -- the geometric-mean lookback captures the blended
- * historical growth directly.
+ * Returns ``{growth: 0, sigma: 0}`` when fewer than 3 month-end points are
+ * available (need at least 2 monthly deltas to have any variance).
  */
-export function projectNetWorthCompound(
-  anchor: NetWorthPoint,
-  monthlyRate: number,
-  horizonMonths = 60,
-): NetWorthPoint[] {
-  if (horizonMonths <= 0) return []
-  const points: NetWorthPoint[] = []
-  const start = new Date(anchor.date)
-  start.setUTCHours(0, 0, 0, 0)
-  for (let i = 1; i <= horizonMonths; i++) {
-    const d = new Date(start)
-    d.setUTCMonth(d.getUTCMonth() + i)
-    points.push({
-      date: d.toISOString().substring(0, 10),
-      netWorth: anchor.netWorth * (1 + monthlyRate) ** i,
-    })
-  }
-  return points
-}
-
-/**
- * Compute the geometric monthly growth rate AND the standard deviation of
- * its log-returns over the last ``lookbackMonths`` of month-end net worth.
- *
- * - ``rate``: same value ``computeMonthlyGrowthRate`` returns. Decimal.
- * - ``logSigma``: stddev of ln(1 + r_i) for the individual monthly growth
- *   rates r_i in the window. Used by ``projectNetWorthCompoundBand`` to
- *   model uncertainty under a geometric Brownian motion (GBM) projection.
- *
- * Returns ``{rate: 0, logSigma: 0}`` when fewer than 3 month-end points are
- * available (need at least 2 monthly rates to have any variance), or when
- * any month-end value is non-positive (compound growth undefined). Sample
- * standard deviation (n-1 denominator) is used.
- */
-export function computeMonthlyGrowthStats(
+export function computeLinearGrowthStats(
   series: readonly NetWorthPoint[],
   lookbackMonths = 12,
-): { rate: number; logSigma: number } {
-  if (series.length < 3) return { rate: 0, logSigma: 0 }
+): { growth: number; sigma: number } {
+  if (series.length < 3) return { growth: 0, sigma: 0 }
   const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
 
   const monthlyLast: Record<string, number> = {}
@@ -242,36 +166,19 @@ export function computeMonthlyGrowthStats(
   }
 
   const months = Object.keys(monthlyLast).sort((a, b) => a.localeCompare(b))
-  if (months.length < 3) return { rate: 0, logSigma: 0 }
+  if (months.length < 3) return { growth: 0, sigma: 0 }
 
   const windowMonths = months.slice(-Math.max(3, lookbackMonths + 1))
-  const lastMonth = windowMonths.at(-1)
-  if (lastMonth === undefined) return { rate: 0, logSigma: 0 }
-  const start = monthlyLast[windowMonths[0]]
-  const end = monthlyLast[lastMonth]
-  const spanMonths = windowMonths.length - 1
-
-  if (start <= 0 || end <= 0 || spanMonths <= 0) return { rate: 0, logSigma: 0 }
-
-  // Geometric-mean monthly rate (matches computeMonthlyGrowthRate).
-  const rate = (end / start) ** (1 / spanMonths) - 1
-
-  // Per-month log-returns over the same window.
-  const logReturns: number[] = []
+  const deltas: number[] = []
   for (let i = 1; i < windowMonths.length; i++) {
-    const prev = monthlyLast[windowMonths[i - 1]]
-    const curr = monthlyLast[windowMonths[i]]
-    if (prev <= 0 || curr <= 0) return { rate: 0, logSigma: 0 }
-    logReturns.push(Math.log(curr / prev))
+    deltas.push(monthlyLast[windowMonths[i]] - monthlyLast[windowMonths[i - 1]])
   }
-  if (logReturns.length < 2) return { rate, logSigma: 0 }
+  if (deltas.length < 2) return { growth: 0, sigma: 0 }
 
-  const meanLog = logReturns.reduce((sum, x) => sum + x, 0) / logReturns.length
+  const growth = deltas.reduce((sum, d) => sum + d, 0) / deltas.length
   const variance =
-    logReturns.reduce((sum, x) => sum + (x - meanLog) ** 2, 0) / (logReturns.length - 1)
-  const logSigma = Math.sqrt(variance)
-
-  return { rate, logSigma }
+    deltas.reduce((sum, d) => sum + (d - growth) ** 2, 0) / (deltas.length - 1)
+  return { growth, sigma: Math.sqrt(variance) }
 }
 
 /** A single projected point with a 1-stddev confidence band. */
@@ -283,46 +190,41 @@ export interface NetWorthProjectionBandPoint {
 }
 
 /**
- * Project future monthly net worth with a 1-sigma confidence band under
- * a geometric Brownian motion model.
+ * Project future monthly net worth with a 1-sigma confidence band under a
+ * random-walk-with-drift model (linear trend, additive noise).
  *
  * For month ``n`` after the anchor:
- *   mean  = anchor * (1 + monthlyRate)^n
- *   upper = anchor * exp(n * ln(1 + monthlyRate) + logSigma * sqrt(n))
- *   lower = anchor * exp(n * ln(1 + monthlyRate) - logSigma * sqrt(n))
+ *   mean  = anchor + monthlyGrowth * n
+ *   upper = mean + sigma * sqrt(n)
+ *   lower = mean - sigma * sqrt(n)
  *
  * The sqrt(n) scaling is the correct uncertainty-grows-with-time behaviour
- * for compounding returns: roughly 68 % of plausible trajectories fall
- * within the band, and the band widens further out (the projection is
- * confident next month, less confident in 5 years).
+ * when each month contributes an independent delta: roughly 68 % of plausible
+ * trajectories fall within the band, and the band widens further out (the
+ * projection is confident next month, less confident in 5 years).
  *
- * When ``logSigma <= 0`` the band collapses to the mean (visually a single
- * line, same as ``projectNetWorthCompound``).
+ * When ``sigma <= 0`` the band collapses to the mean (visually a single line).
  */
-export function projectNetWorthCompoundBand(
+export function projectNetWorthLinearBand(
   anchor: NetWorthPoint,
-  monthlyRate: number,
-  logSigma: number,
+  monthlyGrowth: number,
+  sigma: number,
   horizonMonths = 60,
 ): NetWorthProjectionBandPoint[] {
   if (horizonMonths <= 0) return []
   const points: NetWorthProjectionBandPoint[] = []
   const start = new Date(anchor.date)
   start.setUTCHours(0, 0, 0, 0)
-  const lnGrowth = Math.log(1 + monthlyRate)
   for (let i = 1; i <= horizonMonths; i++) {
     const d = new Date(start)
     d.setUTCMonth(d.getUTCMonth() + i)
-    const mean = anchor.netWorth * (1 + monthlyRate) ** i
-    const drift = lnGrowth * i
-    const halfBand = logSigma > 0 ? logSigma * Math.sqrt(i) : 0
-    const upper = anchor.netWorth * Math.exp(drift + halfBand)
-    const lower = anchor.netWorth * Math.exp(drift - halfBand)
+    const mean = anchor.netWorth + monthlyGrowth * i
+    const halfBand = sigma > 0 ? sigma * Math.sqrt(i) : 0
     points.push({
       date: d.toISOString().substring(0, 10),
       mean,
-      upper,
-      lower,
+      upper: mean + halfBand,
+      lower: mean - halfBand,
     })
   }
   return points
@@ -387,24 +289,6 @@ function findStableSince(
   return null
 }
 
-/**
- * Compute how many months from `anchor` until compound growth at `monthlyRate`
- * reaches `target`. Solves `anchor * (1 + r)^n = target` for n:
- *     n = ln(target / anchor) / ln(1 + r)
- *
- * Returns `null` when growth is non-positive or the target is already met.
- */
-function monthsToTargetCompound(
-  anchorValue: number,
-  target: number,
-  monthlyRate: number,
-): number | null {
-  if (target <= anchorValue) return null
-  if (anchorValue <= 0) return null
-  if (monthlyRate <= 0) return null
-  return Math.log(target / anchorValue) / Math.log(1 + monthlyRate)
-}
-
 function buildUpcomingRow(
   m: Milestone,
   anchor: NetWorthPoint,
@@ -414,26 +298,6 @@ function buildUpcomingRow(
     return { ...m, status: 'upcoming', date: null, distance: null, stableSince: null }
   }
   const monthsAway = (m.value - anchor.netWorth) / monthlyGrowth
-  const eta = new Date(anchor.date)
-  eta.setUTCDate(eta.getUTCDate() + Math.round(monthsAway * 30.44))
-  return {
-    ...m,
-    status: 'upcoming',
-    date: eta.toISOString().substring(0, 10),
-    distance: Math.round(monthsAway * 10) / 10,
-    stableSince: null,
-  }
-}
-
-function buildUpcomingRowCompound(
-  m: Milestone,
-  anchor: NetWorthPoint,
-  monthlyRate: number,
-): MilestoneRow {
-  const monthsAway = monthsToTargetCompound(anchor.netWorth, m.value, monthlyRate)
-  if (monthsAway === null) {
-    return { ...m, status: 'upcoming', date: null, distance: null, stableSince: null }
-  }
   const eta = new Date(anchor.date)
   eta.setUTCDate(eta.getUTCDate() + Math.round(monthsAway * 30.44))
   return {
@@ -493,53 +357,5 @@ export function buildMilestoneRows(
   })
 
   // Sort by value so the table reads low-to-high regardless of status.
-  return rows.sort((a, b) => a.value - b.value)
-}
-
-/**
- * Compound-growth equivalent of `buildMilestoneRows`.
- *
- * `monthlyRate` is a decimal (0.01 = 1 % per month). Historic "achieved" rows
- * are identical to the linear version -- only the ETA for upcoming rows is
- * computed using compound growth instead of a fixed monthly delta.
- */
-export function buildMilestoneRowsCompound(
-  series: readonly NetWorthPoint[],
-  anchor: NetWorthPoint | null,
-  monthlyRate: number,
-  milestones: readonly Milestone[] = DEFAULT_MILESTONES,
-): MilestoneRow[] {
-  if (series.length === 0 || anchor === null) {
-    return milestones.map((m) => ({
-      ...m,
-      status: 'upcoming',
-      date: null,
-      distance: null,
-      stableSince: null,
-    }))
-  }
-
-  const achievedDate = scanAchievements(series, milestones)
-  const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
-  const startDate = new Date(sorted[0].date)
-
-  const rows: MilestoneRow[] = milestones.map((m) => {
-    const dateStr = achievedDate.get(m.value)
-    if (dateStr !== undefined) {
-      const daysFromStart = Math.max(
-        0,
-        Math.round((new Date(dateStr).getTime() - startDate.getTime()) / 86_400_000),
-      )
-      return {
-        ...m,
-        status: 'achieved',
-        date: dateStr,
-        distance: daysFromStart,
-        stableSince: findStableSince(sorted, m.value, dateStr),
-      }
-    }
-    return buildUpcomingRowCompound(m, anchor, monthlyRate)
-  })
-
   return rows.sort((a, b) => a.value - b.value)
 }

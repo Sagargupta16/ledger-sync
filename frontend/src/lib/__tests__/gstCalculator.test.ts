@@ -235,6 +235,35 @@ describe('computeGSTAnalysis', () => {
     const furniture = result.categoryBreakdown.find((c) => c.category === 'Furniture')!
     expect(furniture.gstRate).toBe(18)
   })
+
+  it('category spanning the 2025-09-22 cutover sums per-transaction GST, not one collapsed rate', () => {
+    // Luxury: 28% before the cutover, 40% after. FY 2025-26 spans both.
+    const preAmount = 1280 // inclusive of 28% -> GST = 1280*28/128 = 280
+    const postAmount = 1400 // inclusive of 40% -> GST = 1400*40/140 = 400
+    const txns: Transaction[] = [
+      expense({ id: '1', date: '2025-06-15', category: 'Luxury', amount: preAmount }),
+      expense({ id: '2', date: '2025-12-15', category: 'Luxury', amount: postAmount }),
+    ]
+    const result = computeGSTAnalysis(txns, 'FY 2025-26', 4)
+    const luxury = result.categoryBreakdown.find((c) => c.category === 'Luxury')!
+    // Exact per-transaction sum: 280 + 400 = 680. The old collapsed-rate path
+    // rated the whole 2680 at one slab (28% -> 586.25 or 40% -> 765.71).
+    expect(luxury.gstAmount).toBeCloseTo(680, 6)
+    expect(result.totalGST).toBeCloseTo(680, 6)
+    // Effective blended rate: 100*680/(2680-680) = 34%.
+    expect(luxury.gstRate).toBeCloseTo(34, 1)
+  })
+
+  it('single-table category still reports its exact slab rate', () => {
+    const txns: Transaction[] = [
+      expense({ id: '1', date: '2025-12-01', category: 'Luxury', amount: 1400 }),
+      expense({ id: '2', date: '2026-01-01', category: 'Luxury', amount: 2800 }),
+    ]
+    const result = computeGSTAnalysis(txns, 'FY 2025-26', 4)
+    const luxury = result.categoryBreakdown.find((c) => c.category === 'Luxury')!
+    expect(luxury.gstRate).toBe(40) // snapped back to the integer slab
+    expect(luxury.gstAmount).toBeCloseTo((1400 * 40) / 140 + (2800 * 40) / 140, 6)
+  })
 })
 
 describe('getExpenseFYs', () => {

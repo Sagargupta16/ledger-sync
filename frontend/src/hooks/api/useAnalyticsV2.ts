@@ -27,7 +27,10 @@ import type {
   TransferFlow,
 } from '@/services/api/analyticsV2'
 
-// Query keys — filter properties spread directly to avoid object reference mismatches
+// Query keys — filter properties spread directly to avoid object reference mismatches.
+// EVERY param the queryFn sends must appear in the key: staleTime is Infinity,
+// so a param missing from the key means two callers with different values
+// silently share one cache entry (first mount wins).
 export const analyticsV2Keys = {
   all: ['analyticsV2'] as const,
   dailySummaries: (filters?: { start_date?: string; end_date?: string; limit?: number }) =>
@@ -35,18 +38,22 @@ export const analyticsV2Keys = {
   cohortSpending: () => [...analyticsV2Keys.all, 'cohort-spending'] as const,
   investmentHoldings: (filters?: { active_only?: boolean }) =>
     [...analyticsV2Keys.all, 'investment-holdings', filters?.active_only] as const,
-  monthlySummaries: () => [...analyticsV2Keys.all, 'monthly-summaries'] as const,
-  categoryTrends: (filters?: { category?: string; subcategory?: string }) =>
-    [...analyticsV2Keys.all, 'category-trends', filters?.category, filters?.subcategory] as const,
-  transferFlows: () => [...analyticsV2Keys.all, 'transfer-flows'] as const,
-  recurringTransactions: (filters?: { active_only?: boolean; min_confidence?: number }) =>
-    [...analyticsV2Keys.all, 'recurring-transactions', filters?.active_only, filters?.min_confidence] as const,
-  merchantIntelligence: (filters?: { min_transactions?: number; recurring_only?: boolean }) =>
-    [...analyticsV2Keys.all, 'merchant-intelligence', filters?.min_transactions, filters?.recurring_only] as const,
-  netWorth: () => [...analyticsV2Keys.all, 'net-worth'] as const,
-  fySummaries: () => [...analyticsV2Keys.all, 'fy-summaries'] as const,
-  anomalies: (filters?: { type?: string; severity?: string; include_reviewed?: boolean }) =>
-    [...analyticsV2Keys.all, 'anomalies', filters?.type, filters?.severity, filters?.include_reviewed] as const,
+  monthlySummaries: (filters?: { limit?: number; offset?: number }) =>
+    [...analyticsV2Keys.all, 'monthly-summaries', filters?.limit, filters?.offset] as const,
+  categoryTrends: (filters?: { category?: string; subcategory?: string; limit?: number; offset?: number }) =>
+    [...analyticsV2Keys.all, 'category-trends', filters?.category, filters?.subcategory, filters?.limit, filters?.offset] as const,
+  transferFlows: (filters?: { limit?: number; offset?: number }) =>
+    [...analyticsV2Keys.all, 'transfer-flows', filters?.limit, filters?.offset] as const,
+  recurringTransactions: (filters?: { active_only?: boolean; min_confidence?: number; limit?: number; offset?: number }) =>
+    [...analyticsV2Keys.all, 'recurring-transactions', filters?.active_only, filters?.min_confidence, filters?.limit, filters?.offset] as const,
+  merchantIntelligence: (filters?: { min_transactions?: number; recurring_only?: boolean; limit?: number; offset?: number }) =>
+    [...analyticsV2Keys.all, 'merchant-intelligence', filters?.min_transactions, filters?.recurring_only, filters?.limit, filters?.offset] as const,
+  netWorth: (filters?: { limit?: number; offset?: number }) =>
+    [...analyticsV2Keys.all, 'net-worth', filters?.limit, filters?.offset] as const,
+  fySummaries: (filters?: { limit?: number; offset?: number }) =>
+    [...analyticsV2Keys.all, 'fy-summaries', filters?.limit, filters?.offset] as const,
+  anomalies: (filters?: { type?: string; severity?: string; include_reviewed?: boolean; limit?: number; offset?: number }) =>
+    [...analyticsV2Keys.all, 'anomalies', filters?.type, filters?.severity, filters?.include_reviewed, filters?.limit, filters?.offset] as const,
   budgets: (filters?: { active_only?: boolean }) =>
     [...analyticsV2Keys.all, 'budgets', filters?.active_only] as const,
   goals: (filters?: { goal_type?: string; include_achieved?: boolean }) =>
@@ -85,7 +92,7 @@ export function useInvestmentHoldings(params?: { active_only?: boolean }) {
 // Monthly Summaries
 export function useMonthlySummaries(params?: { limit?: number; offset?: number }) {
   return useQuery<MonthlySummary[], Error>({
-    queryKey: analyticsV2Keys.monthlySummaries(),
+    queryKey: analyticsV2Keys.monthlySummaries(params),
     queryFn: () => analyticsV2Service.getMonthlySummaries(params),
     staleTime: STABLE_STALE_TIME,
   })
@@ -99,7 +106,7 @@ export function useCategoryTrends(params?: {
   offset?: number
 }) {
   return useQuery<CategoryTrend[], Error>({
-    queryKey: analyticsV2Keys.categoryTrends({ category: params?.category, subcategory: params?.subcategory }),
+    queryKey: analyticsV2Keys.categoryTrends(params),
     queryFn: () => analyticsV2Service.getCategoryTrends(params),
     staleTime: STABLE_STALE_TIME,
   })
@@ -108,7 +115,7 @@ export function useCategoryTrends(params?: {
 // Transfer Flows
 export function useTransferFlows(params?: { limit?: number; offset?: number }) {
   return useQuery<TransferFlow[], Error>({
-    queryKey: analyticsV2Keys.transferFlows(),
+    queryKey: analyticsV2Keys.transferFlows(params),
     queryFn: () => analyticsV2Service.getTransferFlows(params),
     staleTime: STABLE_STALE_TIME,
   })
@@ -122,10 +129,7 @@ export function useRecurringTransactions(params?: {
   offset?: number
 }) {
   return useQuery<RecurringTransaction[], Error>({
-    queryKey: analyticsV2Keys.recurringTransactions({
-      active_only: params?.active_only,
-      min_confidence: params?.min_confidence,
-    }),
+    queryKey: analyticsV2Keys.recurringTransactions(params),
     queryFn: () => analyticsV2Service.getRecurringTransactions(params),
     staleTime: STABLE_STALE_TIME,
   })
@@ -186,10 +190,7 @@ export function useMerchantIntelligence(params?: {
   offset?: number
 }) {
   return useQuery<MerchantIntelligence[], Error>({
-    queryKey: analyticsV2Keys.merchantIntelligence({
-      min_transactions: params?.min_transactions,
-      recurring_only: params?.recurring_only,
-    }),
+    queryKey: analyticsV2Keys.merchantIntelligence(params),
     queryFn: () => analyticsV2Service.getMerchantIntelligence(params),
     staleTime: STABLE_STALE_TIME,
   })
@@ -198,7 +199,7 @@ export function useMerchantIntelligence(params?: {
 // Net Worth Snapshots
 export function useNetWorthSnapshots(params?: { limit?: number; offset?: number }) {
   return useQuery<NetWorthSnapshot[], Error>({
-    queryKey: analyticsV2Keys.netWorth(),
+    queryKey: analyticsV2Keys.netWorth(params),
     queryFn: () => analyticsV2Service.getNetWorthSnapshots(params),
     staleTime: STABLE_STALE_TIME,
   })
@@ -207,7 +208,7 @@ export function useNetWorthSnapshots(params?: { limit?: number; offset?: number 
 // Fiscal Year Summaries
 export function useFYSummaries(params?: { limit?: number; offset?: number }) {
   return useQuery<FYSummary[], Error>({
-    queryKey: analyticsV2Keys.fySummaries(),
+    queryKey: analyticsV2Keys.fySummaries(params),
     queryFn: () => analyticsV2Service.getFYSummaries(params),
     staleTime: STABLE_STALE_TIME,
   })
@@ -222,11 +223,7 @@ export function useAnomalies(params?: {
   offset?: number
 }) {
   return useQuery<Anomaly[], Error>({
-    queryKey: analyticsV2Keys.anomalies({
-      type: params?.type,
-      severity: params?.severity,
-      include_reviewed: params?.include_reviewed,
-    }),
+    queryKey: analyticsV2Keys.anomalies(params),
     queryFn: () => analyticsV2Service.getAnomalies(params),
     staleTime: STABLE_STALE_TIME,
   })

@@ -3,15 +3,12 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_MILESTONES,
   buildMilestoneRows,
-  buildMilestoneRowsCompound,
   computeAvgMonthlyGrowth,
-  computeMonthlyGrowthRate,
-  computeMonthlyGrowthStats,
+  computeLinearGrowthStats,
   downsampleToMonthly,
   type MilestoneRow,
   projectNetWorth,
-  projectNetWorthCompound,
-  projectNetWorthCompoundBand,
+  projectNetWorthLinearBand,
 } from '../netWorthProjection'
 
 function requireRow(rows: readonly MilestoneRow[], label: string): MilestoneRow {
@@ -220,204 +217,114 @@ describe('projectNetWorth', () => {
     expect(pts[1].date).toBe('2024-03-01')
     expect(pts[2].date).toBe('2024-04-01')
   })
-})
 
-describe('computeMonthlyGrowthRate (compound, geometric mean)', () => {
-  it('returns 0 with fewer than two monthly data points', () => {
-    expect(computeMonthlyGrowthRate([])).toBe(0)
-    expect(computeMonthlyGrowthRate([{ date: '2024-01-01', netWorth: 100 }])).toBe(0)
-  })
-
-  it('returns 0 when start value is non-positive', () => {
-    expect(
-      computeMonthlyGrowthRate([
-        { date: '2024-01-31', netWorth: 0 },
-        { date: '2024-02-29', netWorth: 100_000 },
-      ]),
-    ).toBe(0)
-    expect(
-      computeMonthlyGrowthRate([
-        { date: '2024-01-31', netWorth: -5_000 },
-        { date: '2024-02-29', netWorth: 100_000 },
-      ]),
-    ).toBe(0)
-  })
-
-  it('recovers a known monthly rate over a synthetic series', () => {
-    // 100_000 -> 161_051 over 12 months is exactly 4%/month compound
-    // (1.04^12 = ~1.60103... so close enough; we use an explicit generator)
-    const series: Array<{ date: string; netWorth: number }> = []
-    let v = 100_000
-    for (let m = 0; m <= 12; m++) {
-      const month = String(m + 1).padStart(2, '0')
-      const endOfMonth = m < 9 ? `2024-${month}-28` : `2025-${String(m - 11).padStart(2, '0')}-28`
-      series.push({ date: m < 12 ? `2024-${month}-28` : endOfMonth, netWorth: v })
-      v *= 1.04
-    }
-    const rate = computeMonthlyGrowthRate(series, 12)
-    expect(rate).toBeCloseTo(0.04, 4)
-  })
-
-  it('rate of 0 when net worth is flat', () => {
-    const series = [
-      { date: '2024-01-31', netWorth: 500_000 },
-      { date: '2024-02-29', netWorth: 500_000 },
-      { date: '2024-03-31', netWorth: 500_000 },
-    ]
-    expect(computeMonthlyGrowthRate(series)).toBe(0)
-  })
-})
-
-describe('projectNetWorthCompound', () => {
-  it('returns empty for zero horizon', () => {
-    expect(
-      projectNetWorthCompound({ date: '2024-01-01', netWorth: 100_000 }, 0.01, 0),
-    ).toEqual([])
-  })
-
-  it('grows geometrically at the given rate', () => {
-    const pts = projectNetWorthCompound({ date: '2024-01-01', netWorth: 100_000 }, 0.05, 3)
-    expect(pts).toHaveLength(3)
-    expect(pts[0].netWorth).toBeCloseTo(105_000, 0)
-    expect(pts[1].netWorth).toBeCloseTo(110_250, 0)
-    expect(pts[2].netWorth).toBeCloseTo(115_762.5, 0)
-    expect(pts[0].date).toBe('2024-02-01')
-    expect(pts[2].date).toBe('2024-04-01')
-  })
-
-  it('outpaces linear projection for longer horizons (the actual user-facing win)', () => {
+  it('does not compound: a cumulative-flow series grows linearly, not geometrically', () => {
+    // Regression guard for the ₹28 Cr bug: the projection must be linear in
+    // the anchor value, not exponential. 60 months at 50k/mo from 50L is 80L,
+    // NOT 50L * rate^60.
     const anchor = { date: '2024-01-01', netWorth: 5_000_000 }
-    const monthlyRate = 0.01 // ~12.68%/year
-    // Equivalent ABSOLUTE gain at anchor for linear comparison
-    const monthlyAbsolute = anchor.netWorth * monthlyRate // ₹50k/month at anchor
-    const linearPt = projectNetWorth(anchor, monthlyAbsolute, 60).at(-1)!
-    const compoundPt = projectNetWorthCompound(anchor, monthlyRate, 60).at(-1)!
-    // Linear says 5M + 50k*60 = 8M. Compound says 5M * 1.01^60 = ~9.08M.
-    // Compound must be meaningfully larger so our milestone ETAs are sooner.
-    expect(compoundPt.netWorth).toBeGreaterThan(linearPt.netWorth * 1.1)
+    const pts = projectNetWorth(anchor, 50_000, 60)
+    expect(pts.at(-1)!.netWorth).toBe(5_000_000 + 50_000 * 60) // exactly 8M
   })
 })
 
-describe('computeMonthlyGrowthStats', () => {
+describe('computeLinearGrowthStats', () => {
   it('returns zeros when there is too little data', () => {
-    expect(computeMonthlyGrowthStats([])).toEqual({ rate: 0, logSigma: 0 })
-    expect(computeMonthlyGrowthStats([{ date: '2024-01-31', netWorth: 100 }])).toEqual({
-      rate: 0,
-      logSigma: 0,
+    expect(computeLinearGrowthStats([])).toEqual({ growth: 0, sigma: 0 })
+    expect(computeLinearGrowthStats([{ date: '2024-01-31', netWorth: 100 }])).toEqual({
+      growth: 0,
+      sigma: 0,
     })
     expect(
-      computeMonthlyGrowthStats([
+      computeLinearGrowthStats([
         { date: '2024-01-31', netWorth: 100 },
         { date: '2024-02-29', netWorth: 110 },
       ]),
-    ).toEqual({ rate: 0, logSigma: 0 })
+    ).toEqual({ growth: 0, sigma: 0 })
   })
 
-  it('returns logSigma=0 when the series grows at a constant rate', () => {
-    // 1% per month exactly, no variance.
-    const series: Array<{ date: string; netWorth: number }> = []
-    let v = 100_000
-    for (let m = 0; m <= 6; m++) {
-      const month = String(m + 1).padStart(2, '0')
-      series.push({ date: `2024-${month}-28`, netWorth: v })
-      v *= 1.01
-    }
-    const stats = computeMonthlyGrowthStats(series)
-    expect(stats.rate).toBeCloseTo(0.01, 4)
-    expect(stats.logSigma).toBeCloseTo(0, 6)
-  })
-
-  it('captures variance when monthly returns vary', () => {
-    // Alternating 0% and 2% per month -> mean ~1%/mo, non-zero sigma.
+  it('returns sigma=0 when the series grows by a constant delta', () => {
     const series = [
       { date: '2024-01-28', netWorth: 100_000 },
-      { date: '2024-02-28', netWorth: 100_000 }, // +0%
-      { date: '2024-03-28', netWorth: 102_000 }, // +2%
-      { date: '2024-04-28', netWorth: 102_000 }, // +0%
-      { date: '2024-05-28', netWorth: 104_040 }, // +2%
-      { date: '2024-06-28', netWorth: 104_040 }, // +0%
-      { date: '2024-07-28', netWorth: 106_120.8 }, // +2%
+      { date: '2024-02-28', netWorth: 120_000 },
+      { date: '2024-03-28', netWorth: 140_000 },
+      { date: '2024-04-28', netWorth: 160_000 },
     ]
-    const stats = computeMonthlyGrowthStats(series)
-    // Geometric mean ~1%/mo (alternating 0% and 2%).
-    expect(stats.rate).toBeGreaterThan(0.005)
-    expect(stats.rate).toBeLessThan(0.015)
-    // Sigma should be roughly half the spread of |0% - 2%| in log space ≈ 0.0099.
-    expect(stats.logSigma).toBeGreaterThan(0.005)
-    expect(stats.logSigma).toBeLessThan(0.02)
+    const stats = computeLinearGrowthStats(series)
+    expect(stats.growth).toBe(20_000)
+    expect(stats.sigma).toBe(0)
+  })
+
+  it('captures variance when monthly deltas vary', () => {
+    // Alternating +10k and +30k deltas -> mean 20k, sample stddev ~11.55k.
+    const series = [
+      { date: '2024-01-28', netWorth: 100_000 },
+      { date: '2024-02-28', netWorth: 110_000 }, // +10k
+      { date: '2024-03-28', netWorth: 140_000 }, // +30k
+      { date: '2024-04-28', netWorth: 150_000 }, // +10k
+      { date: '2024-05-28', netWorth: 180_000 }, // +30k
+    ]
+    const stats = computeLinearGrowthStats(series)
+    expect(stats.growth).toBe(20_000)
+    expect(stats.sigma).toBeGreaterThan(10_000)
+    expect(stats.sigma).toBeLessThan(13_000)
+  })
+
+  it('handles negative and zero net worth (no positivity requirement)', () => {
+    // Unlike a geometric rate, the linear model is defined for users who are
+    // currently in debt or recovering from negative net worth.
+    const series = [
+      { date: '2024-01-28', netWorth: -50_000 },
+      { date: '2024-02-28', netWorth: -20_000 }, // +30k
+      { date: '2024-03-28', netWorth: 0 }, // +20k
+      { date: '2024-04-28', netWorth: 25_000 }, // +25k
+    ]
+    const stats = computeLinearGrowthStats(series)
+    expect(stats.growth).toBe(25_000)
+    expect(stats.sigma).toBeGreaterThan(0)
   })
 })
 
-describe('projectNetWorthCompoundBand', () => {
+describe('projectNetWorthLinearBand', () => {
   const anchor = { date: '2024-01-01', netWorth: 1_000_000 }
 
   it('returns empty for non-positive horizon', () => {
-    expect(projectNetWorthCompoundBand(anchor, 0.01, 0.005, 0)).toEqual([])
+    expect(projectNetWorthLinearBand(anchor, 10_000, 5_000, 0)).toEqual([])
   })
 
-  it('collapses upper/lower to mean when logSigma is zero', () => {
-    const pts = projectNetWorthCompoundBand(anchor, 0.01, 0, 12)
+  it('collapses upper/lower to mean when sigma is zero', () => {
+    const pts = projectNetWorthLinearBand(anchor, 10_000, 0, 12)
     expect(pts).toHaveLength(12)
     for (const p of pts) {
-      expect(p.upper).toBeCloseTo(p.mean, 4)
-      expect(p.lower).toBeCloseTo(p.mean, 4)
+      expect(p.upper).toBe(p.mean)
+      expect(p.lower).toBe(p.mean)
     }
-    // Final mean = anchor * 1.01^12 ≈ 1,126,825
-    expect(pts.at(-1)!.mean).toBeCloseTo(1_126_825, 0)
+    // Final mean = anchor + 12 * 10k = 1,120,000
+    expect(pts.at(-1)!.mean).toBe(1_120_000)
   })
 
-  it('upper > mean > lower at every point when logSigma is positive', () => {
-    const pts = projectNetWorthCompoundBand(anchor, 0.01, 0.02, 24)
+  it('upper > mean > lower at every point when sigma is positive', () => {
+    const pts = projectNetWorthLinearBand(anchor, 10_000, 5_000, 24)
     for (const p of pts) {
       expect(p.upper).toBeGreaterThan(p.mean)
       expect(p.lower).toBeLessThan(p.mean)
-      expect(p.lower).toBeGreaterThan(0)
     }
   })
 
-  it('band width grows with sqrt(time) under GBM', () => {
-    // log(upper) - log(lower) = 2 * sigma * sqrt(n) — should scale ~sqrt of time.
-    const pts = projectNetWorthCompoundBand(anchor, 0.01, 0.02, 36)
-    const widthAtMonth1 = Math.log(pts[0].upper) - Math.log(pts[0].lower)
-    const widthAtMonth36 = Math.log(pts[35].upper) - Math.log(pts[35].lower)
-    // sqrt(36) / sqrt(1) = 6 ; allow some slack for rounding.
-    const ratio = widthAtMonth36 / widthAtMonth1
-    expect(ratio).toBeGreaterThan(5.5)
-    expect(ratio).toBeLessThan(6.5)
-  })
-})
-
-describe('buildMilestoneRowsCompound', () => {
-  it('returns all-upcoming with nulls for empty series', () => {
-    const rows = buildMilestoneRowsCompound([], null, 0.01)
-    expect(rows).toHaveLength(DEFAULT_MILESTONES.length)
-    expect(rows.every((r) => r.status === 'upcoming' && r.date === null)).toBe(true)
+  it('band width grows with sqrt(time)', () => {
+    // upper - lower = 2 * sigma * sqrt(n) -- should scale as sqrt of time.
+    const pts = projectNetWorthLinearBand(anchor, 10_000, 5_000, 36)
+    const widthAtMonth1 = pts[0].upper - pts[0].lower
+    const widthAtMonth36 = pts[35].upper - pts[35].lower
+    // sqrt(36) / sqrt(1) = 6
+    expect(widthAtMonth36 / widthAtMonth1).toBeCloseTo(6, 6)
   })
 
-  it('sets upcoming ETA using log-based solver for positive rate', () => {
-    const series = [
-      { date: '2024-01-31', netWorth: 500_000 },
-      { date: '2024-02-29', netWorth: 515_000 }, // ~3%/month-ish
-    ]
-    const anchor = series.at(-1)
-    if (!anchor) throw new Error('anchor required')
-    const rows = buildMilestoneRowsCompound(series, anchor, 0.03)
-
-    const row10L = requireRow(rows, '₹10L')
-    expect(row10L.status).toBe('upcoming')
-    // ln(1_000_000 / 515_000) / ln(1.03) ≈ 22.5 months
-    expect(row10L.distance).toBeGreaterThan(20)
-    expect(row10L.distance).toBeLessThan(25)
-  })
-
-  it('marks all upcoming dates as null when rate is non-positive', () => {
-    const series = [
-      { date: '2024-01-31', netWorth: 500_000 },
-      { date: '2024-02-29', netWorth: 500_000 },
-    ]
-    const rows = buildMilestoneRowsCompound(series, series[1], 0)
-    const upcomingRows = rows.filter((r) => r.status === 'upcoming')
-    expect(upcomingRows.every((r) => r.date === null && r.distance === null)).toBe(true)
+  it('mean follows the linear trend exactly', () => {
+    const pts = projectNetWorthLinearBand(anchor, 25_000, 10_000, 6)
+    pts.forEach((p, idx) => {
+      expect(p.mean).toBe(anchor.netWorth + 25_000 * (idx + 1))
+    })
   })
 })
 

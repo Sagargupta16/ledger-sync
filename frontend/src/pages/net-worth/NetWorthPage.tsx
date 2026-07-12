@@ -25,7 +25,7 @@ export default function NetWorthPage() {
   if (m.isError && !m.isLoading) {
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Net Worth" subtitle="Track your total assets and liabilities" />
+        <PageHeader title="Net Worth" subtitle="Assets and liabilities from your transactions (book value, not live market prices)" />
         <ErrorState
           variant="card"
           message="We couldn't load your net worth data. Please try again."
@@ -38,7 +38,7 @@ export default function NetWorthPage() {
     <PageContainer className="space-y-6">
         <PageHeader
           title="Net Worth"
-          subtitle="Track your total assets and liabilities"
+          subtitle="Assets and liabilities from your transactions (book value, not live market prices)"
           action={<AnalyticsTimeFilter {...m.timeFilterProps} />}
         />
 
@@ -99,7 +99,7 @@ export default function NetWorthPage() {
           setShowStacked={m.setShowStacked}
           showProjection={m.showProjection}
           setShowProjection={m.setShowProjection}
-          monthlyGrowthRate={m.monthlyGrowthRate}
+          monthlyGrowth={m.monthlyGrowth}
           anchor={m.anchor}
           milestoneRows={m.milestoneRows}
         />
@@ -121,7 +121,7 @@ export default function NetWorthPage() {
           <MilestonesTable
             rows={m.milestoneRows}
             currentNetWorth={m.currentNetWorth}
-            monthlyGrowthRate={m.monthlyGrowthRate}
+            monthlyGrowth={m.monthlyGrowth}
           />
         </motion.div>
 

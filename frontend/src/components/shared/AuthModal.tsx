@@ -49,28 +49,45 @@ function buildAuthorizeUrl(provider: OAuthProviderConfig): string {
 }
 
 export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
-  // null = not yet fetched, [] = fetched but empty
-  const [oauthProviders, setOauthProviders] = useState<OAuthProviderConfig[] | null>(null)
+  // 'loading' -> providers[] on success. 'failed' when the request errored:
+  // a cold serverless backend or network blip must NOT render the "not
+  // configured" message (that copy is for a truly empty provider list), so
+  // failures get their own retry state instead of collapsing to [].
+  const [providersState, setProvidersState] = useState<
+    { status: 'loading' | 'failed' } | { status: 'loaded'; providers: OAuthProviderConfig[] }
+  >({ status: 'loading' })
+  const [retryToken, setRetryToken] = useState(0)
+
+  const retry = () => {
+    setProvidersState({ status: 'loading' })
+    setRetryToken((t) => t + 1)
+  }
 
   // Fetch available OAuth providers when modal opens
   useEffect(() => {
     if (!isOpen) return
     let cancelled = false
     authApi.getOAuthProviders()
-      .then((providers) => { if (!cancelled) setOauthProviders(providers) })
-      .catch(() => { if (!cancelled) setOauthProviders([]) })
+      .then((providers) => {
+        if (!cancelled) setProvidersState({ status: 'loaded', providers })
+      })
+      .catch(() => {
+        if (!cancelled) setProvidersState({ status: 'failed' })
+      })
     return () => { cancelled = true }
-  }, [isOpen])
+  }, [isOpen, retryToken])
 
   const handleOAuthLogin = (provider: OAuthProviderConfig) => {
     // Navigate to provider's authorize URL — will redirect back to /auth/callback/:provider
     globalThis.location.assign(buildAuthorizeUrl(provider))
   }
 
-  const isLoadingProviders = oauthProviders === null
-  const googleProvider = oauthProviders?.find(p => p.provider === 'google')
-  const githubProvider = oauthProviders?.find(p => p.provider === 'github')
-  const hasOAuth = (oauthProviders?.length ?? 0) > 0
+  const isLoadingProviders = providersState.status === 'loading'
+  const loadFailed = providersState.status === 'failed'
+  const oauthProviders = providersState.status === 'loaded' ? providersState.providers : []
+  const googleProvider = oauthProviders.find(p => p.provider === 'google')
+  const githubProvider = oauthProviders.find(p => p.provider === 'github')
+  const hasOAuth = oauthProviders.length > 0
 
   return (
     <AnimatePresence>
@@ -152,6 +169,25 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                           Continue with GitHub
                         </button>
                       )}
+                    </div>
+                  )
+                }
+                if (loadFailed) {
+                  return (
+                    <div className="text-center py-4">
+                      <p className="text-muted-foreground text-sm">
+                        Couldn&apos;t reach the sign-in service.
+                      </p>
+                      <p className="text-text-tertiary text-xs mt-1">
+                        The server may be waking up -- this usually takes a few seconds.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={retry}
+                        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-app-blue bg-app-blue/10 hover:bg-app-blue/20 transition-colors duration-150"
+                      >
+                        Try again
+                      </button>
                     </div>
                   )
                 }

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Wallet, CreditCard, Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -15,10 +16,15 @@ import { FinancialHealthScore } from '@/components/analytics'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { PageContainer, PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
+import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
+import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { toMonthlyAmount } from '@/pages/subscription-tracker/helpers'
+
+/** Account types whose balances count as spendable for runway math. */
+const LIQUID_CLASSIFICATIONS = new Set(['Cash', 'Bank Accounts', 'Other Wallets'])
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -31,7 +37,7 @@ export default function DashboardPage() {
     currentFY, setCurrentFY,
     fiscalYearStartMonth,
     dataDateRange, dateRange,
-    filteredTotals, filteredTransactions, isLoading,
+    filteredTransactions, isLoading,
     incomeBreakdown, cashbacksTotal,
     incomeChartData, incomeColorStyles,
     expenseChartData, expenseColorStyles,
@@ -54,18 +60,33 @@ export default function DashboardPage() {
     () => filteredTransactions?.length ? computeAgeOfMoney(filteredTransactions) : null,
     [filteredTransactions],
   )
+  // Days of Buffering runs on LIQUID balances only (cash / bank / wallets).
+  // Feeding lifetime income-minus-expense here counted investments (PPF, MF,
+  // stocks) as spendable and inflated the runway (~754 days vs the real
+  // cash position on audit data). Balances come from account_balances and
+  // are filtered by the user's account classifications.
+  const { data: balanceData } = useAccountBalances()
+  const { data: accountClassifications } = useQuery({
+    queryKey: ['account-classifications'],
+    queryFn: () => accountClassificationsService.getAllClassifications(),
+    staleTime: Infinity,
+  })
   const daysOfBuffering = useMemo(() => {
-    if (!filteredTransactions?.length || !filteredTotals) return null
-    // Coerce to Number: totals can arrive as strings (backend Decimal serialized
-    // as a string), and `string - number` / Math.abs(string) yields NaN, which
-    // rendered "NaN days". Number() of a numeric string is safe; non-numeric
-    // falls through to the null guard below.
-    const income = Number(filteredTotals.total_income ?? 0)
-    const expenses = Number(filteredTotals.total_expenses ?? 0)
-    if (!Number.isFinite(income) || !Number.isFinite(expenses)) return null
-    const liquidBalance = income - Math.abs(expenses)
+    if (!filteredTransactions?.length || !balanceData?.accounts || !accountClassifications) {
+      return null
+    }
+    let liquidBalance = 0
+    for (const [name, acc] of Object.entries(balanceData.accounts)) {
+      const cls = accountClassifications[name]
+      // Unclassified accounts are excluded rather than guessed -- counting an
+      // unlabeled brokerage as cash would silently re-inflate the runway.
+      if (cls && LIQUID_CLASSIFICATIONS.has(cls)) {
+        const bal = Number(acc.balance)
+        if (Number.isFinite(bal)) liquidBalance += bal
+      }
+    }
     return computeDaysOfBuffering(liquidBalance, filteredTransactions)
-  }, [filteredTransactions, filteredTotals])
+  }, [filteredTransactions, balanceData, accountClassifications])
 
   const incomeTotal = useMemo(() => incomeChartData.reduce((sum, d) => sum + d.value, 0), [incomeChartData])
   const expenseTotal = useMemo(() => expenseChartData.reduce((sum, d) => sum + d.value, 0), [expenseChartData])
