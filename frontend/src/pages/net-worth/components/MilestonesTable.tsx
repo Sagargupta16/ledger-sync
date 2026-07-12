@@ -153,7 +153,7 @@ export default function MilestonesTable({
       <EmptyState
         icon={TrendingUp}
         title="No milestones yet"
-        description="Your first milestone (₹5L net worth) will appear here once you reach it."
+        description="Your first milestone (₹50k net worth) will appear here once you reach it."
         variant="compact"
       />
     )

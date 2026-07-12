@@ -34,9 +34,10 @@ describe('buildMilestoneRows', () => {
     // No history -> show the first N targets, not the whole ladder.
     expect(rows).toHaveLength(DEFAULT_UPCOMING_WINDOW)
     expect(rows.every((r) => r.status === 'upcoming' && r.date === null)).toBe(true)
-    // Ladder starts at ₹5L and steps by ₹5L in the lakhs range.
-    expect(rows[0].value).toBe(500_000)
-    expect(rows[1].value).toBe(1_000_000)
+    // Ladder starts with early-saver rungs: ₹50k, ₹1L, ₹2L.
+    expect(rows[0].value).toBe(50_000)
+    expect(rows[1].value).toBe(100_000)
+    expect(rows[2].value).toBe(200_000)
   })
 
   it('labels crossings as achieved with dates', () => {
@@ -91,8 +92,9 @@ describe('buildMilestoneRows', () => {
   })
 
   it('keeps ALL achieved rows but caps upcoming to the window', () => {
-    // Anchor at ₹22L (like the real dashboard): many achieved (₹5/10/15/20L),
-    // and a long upcoming ladder that must be trimmed.
+    // Anchor at ₹22L (like the real dashboard): the ₹1L opening point already
+    // clears the ₹50k/₹1L early rungs, and ₹2L/₹5L/₹10L/₹15L/₹20L are crossed
+    // on the way to ₹22L -- all retained -- with a long upcoming ladder trimmed.
     const series = [
       { date: '2022-01-01', netWorth: 100_000 },
       { date: '2026-01-01', netWorth: 2_200_000 },
@@ -101,8 +103,10 @@ describe('buildMilestoneRows', () => {
     const rows = buildMilestoneRows(series, anchor, 113_000)
     const achieved = rows.filter((r) => r.status === 'achieved')
     const upcoming = rows.filter((r) => r.status === 'upcoming')
-    // ₹5L, ₹10L, ₹15L, ₹20L all crossed -> 4 achieved, all retained.
-    expect(achieved.map((r) => r.value)).toEqual([500_000, 1_000_000, 1_500_000, 2_000_000])
+    // Early rungs + ₹5L steps up to ₹20L, all crossed and retained.
+    expect(achieved.map((r) => r.value)).toEqual([
+      50_000, 100_000, 200_000, 500_000, 1_000_000, 1_500_000, 2_000_000,
+    ])
     // Upcoming trimmed to the window (would otherwise run to ₹10Cr).
     expect(upcoming).toHaveLength(DEFAULT_UPCOMING_WINDOW)
     // First upcoming is the next ₹5L step above ₹22L -> ₹25L.
@@ -212,7 +216,10 @@ describe('buildMilestoneRows', () => {
 })
 
 describe('formatMilestoneLabel', () => {
-  it('formats lakhs and crores with clean rounding', () => {
+  it('formats thousands, lakhs and crores with clean rounding', () => {
+    expect(formatMilestoneLabel(50_000)).toBe('₹50k')
+    expect(formatMilestoneLabel(100_000)).toBe('₹1L')
+    expect(formatMilestoneLabel(200_000)).toBe('₹2L')
     expect(formatMilestoneLabel(500_000)).toBe('₹5L')
     expect(formatMilestoneLabel(2_500_000)).toBe('₹25L')
     expect(formatMilestoneLabel(10_000_000)).toBe('₹1Cr')
@@ -222,8 +229,10 @@ describe('formatMilestoneLabel', () => {
 })
 
 describe('DEFAULT_MILESTONES ladder', () => {
-  it('steps by ₹5L in the lakhs range, widening higher up', () => {
+  it('opens with early rungs, steps by ₹5L in the lakhs range, widens higher up', () => {
     const values = DEFAULT_MILESTONES.map((m) => m.value)
+    // Early-saver rungs.
+    expect(values.slice(0, 3)).toEqual([50_000, 100_000, 200_000])
     // Fine steps below ₹1Cr.
     expect(values).toContain(500_000)
     expect(values).toContain(2_500_000) // ₹25L
@@ -231,6 +240,9 @@ describe('DEFAULT_MILESTONES ladder', () => {
     // Coarser above.
     expect(values).toContain(10_000_000) // ₹1Cr
     expect(values).toContain(100_000_000) // ₹10Cr caps the ladder
+    // No ₹3L/₹4L gap-fillers -- jumps straight from ₹2L to ₹5L.
+    expect(values).not.toContain(300_000)
+    expect(values).not.toContain(400_000)
     // Strictly ascending, no dupes.
     expect(values).toEqual([...new Set(values)].sort((a, b) => a - b))
   })
