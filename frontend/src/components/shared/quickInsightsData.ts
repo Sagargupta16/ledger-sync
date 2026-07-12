@@ -307,7 +307,7 @@ export function buildQuickInsights(
     items.push({ icon: icons.Hourglass, color: 'text-app-indigo', bg: 'bg-app-indigo/10', title: 'Age of Money', value: `${p.ageOfMoney} days`, subtitle: ageOfMoneyLabel(p.ageOfMoney) })
   }
   if (p.daysOfBuffering != null) {
-    items.push({ icon: icons.ShieldCheck, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Days of Buffering', value: `${p.daysOfBuffering} days`, subtitle: 'At current spending rate' })
+    items.push({ icon: icons.ShieldCheck, color: 'text-app-teal', bg: 'bg-app-teal/10', title: 'Days of Buffering', value: `${p.daysOfBuffering} days`, subtitle: 'Liquid accounts at current spending' })
   }
   if (p.fixedCommitmentsMonthly > 0) {
     items.push(

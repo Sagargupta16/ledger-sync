@@ -40,6 +40,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
       <MetricCard
         title="Total Investment Value"
         value={formatCurrency(totalInvestmentValue)}
+        subtitle="Net contributions (book value)"
         icon={TrendingUp}
         color="green"
         isLoading={isLoading}
