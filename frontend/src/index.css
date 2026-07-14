@@ -38,6 +38,10 @@
   --color-border-subtle: rgba(255, 255, 255, 0.08);
   --color-border-medium: rgba(255, 255, 255, 0.12);
   --color-border-strong: rgba(255, 255, 255, 0.2);
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.5rem;
+  --shadow-2xl: var(--glass-shadow-strong);
 
   /* ===== APP COLOR PALETTE ===== */
   --color-app-blue: #4a9eff;
@@ -778,7 +782,6 @@ output {
 }
 
 .ledger-panel {
-  overflow: hidden;
   border: 1px solid var(--glass-border);
   border-radius: 0.5rem;
   background: var(--color-surface-1);
@@ -835,22 +838,6 @@ output {
     transparent 1px,
     transparent 6px
   );
-}
-
-.rounded-2xl {
-  border-radius: 0.5rem !important;
-}
-
-.rounded-3xl {
-  border-radius: 0.5rem !important;
-}
-
-.rounded-xl {
-  border-radius: 0.5rem !important;
-}
-
-.shadow-2xl {
-  box-shadow: var(--glass-shadow-strong) !important;
 }
 
 @media (min-width: 768px) {
