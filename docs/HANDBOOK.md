@@ -86,7 +86,7 @@ Public landing page introducing Ledger Sync to authenticated and unauthenticated
   - **Get Started Free / Go to Dashboard button** — Conditional: "Get Started Free" for unauthenticated users (opens AuthModal); "Go to Dashboard" for authenticated users (navigates to `/dashboard`)
   - **Try Demo button** — Unauthenticated only; invokes `enterDemoMode()` which seeds demo data into TanStack Query cache, sets fake auth tokens, hydrates preferences store with demo preferences (fiscal year April-March, demo user profile), and navigates to `/dashboard`
   - **Learn More button** — Anchor link to `#features` section (FeaturesSection below)
-  - **Highlight badges** (6 cards) — Static feature callouts: "Works with Money Manager Pro exports," "Smart duplicate detection," "Secure, private data storage," "India-focused tax calculations," "Beautiful dark-mode UI," "Multi-account support" — each with green CheckCircle2 icon
+  - **Highlight badges** (6 cards) — Static feature callouts: "Works with Money Manager Pro exports," "Smart duplicate detection," "Secure, private data storage," "India-focused tax calculations," "Light and dark themes," "Multi-account support" — each with green CheckCircle2 icon
 
 **"What is Ledger Sync?" section** — Two-column layout:
   - Left side: feature descriptions (3 cards):
@@ -1685,7 +1685,7 @@ Centralized configuration page for financial preferences, account classification
 
    - **Earning Start Date** (date input + checkbox) — Date picker with a checkbox "Use as analytics start". If enabled and a date is set, analytics are filtered to start from that date. Shows confirmation text in green: "Analytics from [formatted date]". *computed:* `earning_start_date` (ISO date string or null), `use_earning_start_date` (boolean). Checkbox disabled if no date entered.
 
-   - **Appearance** (radio group) — Two options: Dark, System (Auto). Toggle saves to `localStorage['ledger-sync-theme']`. Yellow hint below system option: "Light theme coming soon. Currently defaults to dark."
+   - **Appearance** (radio group) — Three options: Light, Dark, System (Auto). The selected mode is saved to `localStorage['ledger-sync-theme']`; Light is the default for new users.
 
 **Financial Settings** (multi-field section with subsections) — Savings, tax, budget, and spending rule configuration.
 

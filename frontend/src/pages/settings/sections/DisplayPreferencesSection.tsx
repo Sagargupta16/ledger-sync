@@ -111,7 +111,7 @@ export default function DisplayPreferencesSection({
               onChange={(e) => updateLocalPref('earning_start_date', e.target.value || null)}
               className={`${selectClass} w-auto`}
             />
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-10">
               <input
                 type="checkbox"
                 checked={localPrefs.use_earning_start_date}
@@ -140,7 +140,7 @@ export default function DisplayPreferencesSection({
             {THEME_OPTIONS.map(({ value, label, Icon }) => (
               <label
                 key={value}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg cursor-pointer transition-colors border text-sm ${
+                className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors sm:min-h-10 ${
                   themeMode === value
                     ? 'bg-primary/15 border-primary text-foreground font-medium'
                     : 'bg-surface-hover border-border text-muted-foreground hover:text-foreground'

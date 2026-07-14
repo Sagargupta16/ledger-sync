@@ -132,7 +132,7 @@ export default function ReturnsAnalysisPage() {
             </div>
             <div className="min-w-0">
               <p className="text-sm text-text-tertiary">Net Investment P&L</p>
-              <p className={`ledger-figure truncate text-3xl sm:text-4xl font-bold ${netProfitLoss >= 0 ? 'text-app-green' : 'text-app-red'}`}>
+              <p className={`ledger-figure truncate text-[1.75rem] font-bold sm:text-4xl ${netProfitLoss >= 0 ? 'text-app-green' : 'text-app-red'}`}>
                 {netProfitLoss >= 0 ? '+' : ''}{formatCurrency(netProfitLoss)}
               </p>
             </div>

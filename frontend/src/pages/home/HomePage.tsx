@@ -2,13 +2,11 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
 import { ArrowRight, Eye, Heart, PiggyBank, Upload } from 'lucide-react'
 
 import ThemeToggle from '@/components/layout/Sidebar/ThemeToggle'
-import { AuthModal, LoginButton } from '@/components/shared/AuthModal'
+import { AuthModal } from '@/components/shared/AuthModal'
 import { ROUTES } from '@/constants'
-import { rawColors } from '@/constants/colors'
 import { enterDemoMode } from '@/lib/demo'
 import { useAuthStore } from '@/store/authStore'
 
@@ -18,7 +16,7 @@ import { WhatIsSection } from './components/WhatIsSection'
 
 export default function HomePage() {
   const [showAuthModal, setShowAuthModal] = useState(false)
-  const { isAuthenticated, user } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -33,52 +31,53 @@ export default function HomePage() {
   const handleTryDemo = () => enterDemoMode(queryClient, navigate)
 
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="min-h-dvh bg-background text-foreground">
       <header
-        className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-[var(--header-bg)] border-b border-border"
+        className="sticky top-0 z-40 border-b border-border bg-[var(--header-bg)]"
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
           paddingRight: 'env(safe-area-inset-right, 0px)',
         }}
       >
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div
-              className="p-2 rounded-xl transition-transform group-hover:scale-105"
-              style={{
-                background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
-              }}
-            >
-              <PiggyBank className="w-6 h-6 text-foreground" />
+        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="group flex min-h-11 items-center gap-3">
+            <div className="flex size-8 items-center justify-center rounded-md bg-foreground text-background">
+              <PiggyBank className="size-4.5" aria-hidden="true" />
             </div>
-            <span className="text-xl font-bold text-foreground">Ledger Sync</span>
+            <div>
+              <span className="block text-sm font-semibold leading-none">Ledger Sync</span>
+              <span className="mt-1 hidden text-[11px] leading-none text-muted-foreground sm:block">
+                Personal finance workspace
+              </span>
+            </div>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <ThemeToggle />
             {isAuthenticated ? (
               <Link
                 to={ROUTES.DASHBOARD}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-primary-foreground transition-colors hover:scale-105"
-                style={{
-                  background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
-                }}
+                className="inline-flex min-h-11 items-center gap-2 rounded-md bg-foreground px-3.5 text-sm font-medium text-background transition-opacity hover:opacity-85 sm:px-4"
               >
-                <span>Hi, {user?.full_name?.split(' ')[0] || 'there'}!</span>
-                <ArrowRight className="w-4 h-4" />
+                <span className="hidden sm:inline">Open workspace</span>
+                <span className="sm:hidden">Open</span>
+                <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
             ) : (
-              <LoginButton onClick={() => setShowAuthModal(true)} />
+              <button
+                type="button"
+                onClick={() => setShowAuthModal(true)}
+                className="inline-flex min-h-11 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-85"
+              >
+                Sign in
+              </button>
             )}
           </div>
         </div>
       </header>
 
-      <main
-        className="flex-1"
-        style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top, 0px))' }}
-      >
+      <main>
         <Hero
           isAuthenticated={isAuthenticated}
           onGetStarted={handleGetStarted}
@@ -87,55 +86,53 @@ export default function HomePage() {
         <WhatIsSection />
         <FeaturesSection />
 
-        <section className="py-20 border-t border-border">
-          <div className="max-w-4xl mx-auto px-6 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4">
-                Ready to Take Control?
-              </h2>
-              <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-                Start tracking your finances today. It's free, private, and takes just a minute
-                to get started.
+        <section className="border-t border-border bg-[var(--color-surface-2)] py-14 sm:py-18">
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8">
+            <div className="max-w-2xl">
+              <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">
+                Your data, one clear view
               </p>
-              <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4">
+              <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">
+                Ready to take control?
+              </h2>
+              <p className="mt-3 max-w-xl text-base leading-7 text-muted-foreground">
+                Start tracking your finances today. It is free, private, and takes just a minute
+                to set up.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleGetStarted}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-85"
+              >
+                <Upload className="size-4" aria-hidden="true" />
+                {isAuthenticated ? 'Upload your data' : 'Create free account'}
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </button>
+              {!isAuthenticated && (
                 <button
-                  onClick={handleGetStarted}
-                  className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-on-accent transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[0_15px_40px_rgba(74,158,255,0.4)]"
-                  style={{
-                    background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
-                    boxShadow: `0 10px 30px ${rawColors.app.blue}50`,
-                  }}
+                  type="button"
+                  onClick={handleTryDemo}
+                  className="ledger-control inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-5 text-sm font-medium text-foreground transition-colors"
                 >
-                  <Upload className="w-5 h-5" />
-                  {isAuthenticated ? 'Upload Your Data' : 'Create Free Account'}
-                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                  <Eye className="size-4" aria-hidden="true" />
+                  Explore demo
                 </button>
-                {!isAuthenticated && (
-                  <button
-                    onClick={handleTryDemo}
-                    className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-foreground transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 glass-strong border border-border-strong"
-                  >
-                    <Eye className="w-5 h-5" />
-                    Try Demo
-                  </button>
-                )}
-              </div>
-            </motion.div>
+              )}
+            </div>
           </div>
         </section>
 
         <footer
-          className="py-8 border-t border-border"
+          className="border-t border-border py-8"
           style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
         >
-          <div className="max-w-6xl mx-auto px-6 text-center">
+          <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
             <p className="inline-flex items-center justify-center gap-1.5 text-sm text-text-tertiary">
               Made with
-              <Heart className="w-4 h-4 text-app-red fill-app-red" aria-label="love" />
+              <Heart className="size-4 fill-app-red text-app-red" aria-label="love" />
               for better financial management
             </p>
           </div>

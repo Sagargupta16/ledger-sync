@@ -421,7 +421,7 @@ export function useMyData(timeRange?: string) {
 
 ```typescript
 // src/services/api/myApi.ts
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export interface MyDataResponse {
   data: MyData[];
@@ -637,11 +637,9 @@ LEDGER_SYNC_GITHUB_CLIENT_SECRET=your-github-client-secret
 LEDGER_SYNC_FRONTEND_URL=http://localhost:5173
 ```
 
-**frontend/.env**
-
-```
-VITE_API_BASE_URL=http://localhost:8000
-```
+No `frontend/.env` file is needed locally. Vite proxies same-origin `/api`
+requests to `http://localhost:8000`. Set `VITE_API_BASE_URL` only for a
+production frontend whose API is hosted on a different origin.
 
 ### OAuth Setup (Required for Login)
 

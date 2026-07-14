@@ -47,6 +47,14 @@ export default function ChatWidget() {
     return () => globalThis.removeEventListener('keydown', handleKey)
   }, [isOpen])
 
+  useEffect(() => {
+    const handleOpen = () => {
+      if (isConfigured) setIsOpen(true)
+    }
+    document.addEventListener('open-ai-assistant', handleOpen)
+    return () => document.removeEventListener('open-ai-assistant', handleOpen)
+  }, [isConfigured])
+
   if (!accessToken || isDemoMode) return null
 
   return (
@@ -79,11 +87,11 @@ export default function ChatWidget() {
         whileTap={{ scale: 0.95 }}
         onClick={handleToggle}
         title={isConfigured ? 'AI Assistant' : 'Configure AI key in Settings'}
-        aria-label={isConfigured ? 'Open AI Assistant' : 'AI Assistant — configure API key in Settings'}
+        aria-label={isConfigured ? 'Open AI Assistant' : 'AI Assistant -- configure API key in Settings'}
         aria-expanded={isOpen}
-        className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${
+        className={`flex size-11 items-center justify-center rounded-lg border shadow-sm transition-colors lg:hidden ${
           isConfigured
-            ? 'bg-gradient-to-br from-primary to-secondary text-on-accent hover:shadow-primary/25'
+            ? 'border-foreground bg-foreground text-background'
             : 'bg-[var(--overlay-5)] text-muted-foreground cursor-not-allowed'
         }`}
       >

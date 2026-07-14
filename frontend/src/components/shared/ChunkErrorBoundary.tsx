@@ -44,7 +44,7 @@ export class ChunkErrorBoundary extends Component<Props, State> {
             </p>
             <button
               onClick={() => globalThis.location.reload()}
-              className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-on-accent rounded-lg hover:shadow-lg transition-colors"
+              className="inline-block rounded-md border border-foreground bg-foreground px-6 py-3 text-background transition-colors hover:bg-foreground/90"
             >
               Reload
             </button>

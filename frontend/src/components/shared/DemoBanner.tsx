@@ -15,19 +15,19 @@ export function DemoBanner() {
 
   return (
     <>
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 text-sm rounded-xl bg-surface-dropdown/90 border border-app-blue/30 backdrop-blur-md shadow-lg">
-        <Eye className="w-4 h-4 text-app-blue flex-shrink-0" />
-        <span className="text-foreground/80 whitespace-nowrap">Sample data</span>
+      <div className="fixed left-1/2 top-1 z-50 flex min-h-12 max-w-[calc(100vw-4.5rem)] -translate-x-1/2 items-center gap-1.5 rounded-md border border-[var(--hairline-2)] bg-surface-dropdown px-2 py-1 text-sm shadow-[var(--glass-shadow)] sm:top-2 sm:max-w-none sm:gap-2 sm:px-2.5">
+        <Eye className="h-4 w-4 flex-shrink-0 text-app-blue" />
+        <span className="whitespace-nowrap text-foreground/80">Sample data</span>
         <button
           onClick={() => setShowAuth(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-foreground bg-app-blue/30 hover:bg-app-blue/50 transition-colors whitespace-nowrap"
+          className="flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-md border border-foreground bg-foreground px-2.5 py-1 text-xs font-medium text-background transition-colors hover:bg-foreground/90 sm:min-h-8"
         >
           <LogIn className="w-3 h-3" />
           Sign up
         </button>
         <button
           onClick={() => { exitDemoMode(queryClient, navigate); setDismissed(true) }}
-          className="inline-flex items-center justify-center min-w-6 min-h-6 p-1 rounded-md text-foreground/40 hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors"
+          className="inline-flex size-11 items-center justify-center rounded-md p-1 text-foreground/40 transition-colors hover:bg-[var(--overlay-5)] hover:text-foreground sm:size-8"
           aria-label="Exit demo"
         >
           <X className="w-3.5 h-3.5" />

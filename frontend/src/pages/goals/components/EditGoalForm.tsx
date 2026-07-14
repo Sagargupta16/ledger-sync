@@ -5,7 +5,6 @@ import { Save, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
-import { rawColors } from '@/constants/colors'
 
 export default function EditGoalForm({
   goal,
@@ -84,8 +83,7 @@ export default function EditGoalForm({
         <div className="flex gap-2">
           <button
             onClick={handleSave}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-lg text-xs font-medium text-on-accent transition-colors hover:opacity-90"
-            style={{ background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})` }}
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-foreground bg-foreground px-3 py-2 text-xs font-medium text-background transition-colors hover:bg-foreground/90 sm:min-h-0"
           >
             <Save className="w-3.5 h-3.5" /> Save Changes
           </button>

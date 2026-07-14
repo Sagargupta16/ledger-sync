@@ -267,7 +267,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
                   type="button"
                   onClick={handleSave}
                   disabled={!canSave || saveMutation.isPending}
-                  className="px-4 py-2 text-sm bg-gradient-to-r from-primary to-secondary text-on-accent rounded-lg hover:shadow-lg disabled:opacity-40 font-medium"
+                  className="rounded-md border border-foreground bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
                 >
                   {saveMutation.isPending ? 'Saving...' : 'Save'}
                 </button>

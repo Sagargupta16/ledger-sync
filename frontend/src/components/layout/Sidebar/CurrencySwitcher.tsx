@@ -94,7 +94,7 @@ export default function CurrencySwitcher() {
         <div
           role="listbox"
           aria-label="Display currency"
-          className="absolute bottom-full left-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-xl bg-surface-dropdown border border-border shadow-xl z-50"
+          className="absolute bottom-full left-0 z-50 mb-2 max-h-72 w-56 overflow-y-auto rounded-lg border border-border bg-surface-dropdown shadow-[var(--glass-shadow-strong)]"
         >
           {currencyList.map((meta) => (
             <button

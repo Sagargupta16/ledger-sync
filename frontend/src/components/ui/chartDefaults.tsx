@@ -128,15 +128,15 @@ export const ACTIVE_DOT = {
 
 /**
  * Semantic reference-line variants. Charts kept hand-rolling `<ReferenceLine>`
- * with drifting opacities (0.15–0.45) and ad-hoc label styling; this maps the
+ * with drifting opacities (0.15-0.45) and ad-hoc label styling; this maps the
  * intent to one consistent treatment.
  *
- * - `peak`  — highest value marker (subtle dashed)
- * - `avg`   — average / mean line (subtle dashed)
- * - `target`— a neutral budget/threshold line (stronger so it reads as a line to clear)
- * - `goal`  — a positive savings/goal line; rendered green so it carries the
+ * - `peak`  -- highest value marker (subtle dashed)
+ * - `avg`   -- average / mean line (subtle dashed)
+ * - `target`-- a neutral budget/threshold line (stronger so it reads as a line to clear)
+ * - `goal`  -- a positive savings/goal line; rendered green so it carries the
  *             same "this is good to be above" semantic as the income palette
- * - `zero`  — break-even baseline at y=0 (solid-ish, strong)
+ * - `zero`  -- break-even baseline at y=0 (solid-ish, strong)
  */
 type ReferenceLineVariant = 'peak' | 'avg' | 'target' | 'goal' | 'zero'
 
@@ -166,7 +166,7 @@ interface ReferenceLineOptions {
  *
  * Returns the element directly so call-sites read as
  * `{referenceLine({ y: peak, label: \`Peak: ${...}\`, variant: 'peak' })}`.
- * Pass a stable `key` via the wrapping array index isn't needed — Recharts
+ * Pass a stable `key` via the wrapping array index isn't needed -- Recharts
  * children inside a chart don't require keys, but we set one from the inputs
  * to be safe when several are rendered together.
  */
@@ -240,12 +240,24 @@ function renderBrushTraveller({
   const gripW = Math.max(width, 16)
   const cx = x + width / 2
   const gripX = cx - gripW / 2
+  const targetW = Math.max(width, 44)
+  const targetH = Math.max(height, 44)
+  const targetX = cx - targetW / 2
+  const targetY = y + height / 2 - targetH / 2
   const lineGap = 3
   const lineHalf = Math.min(7, height / 2 - 5)
   const lineTop = y + height / 2 - lineHalf
   const lineBottom = y + height / 2 + lineHalf
   return (
     <g>
+      <rect
+        x={targetX}
+        y={targetY}
+        width={targetW}
+        height={targetH}
+        fill="transparent"
+        pointerEvents="all"
+      />
       {/* Handle body: rounded pill in the app blue */}
       <rect
         x={gripX}

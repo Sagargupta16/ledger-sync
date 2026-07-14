@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 
-import { motion } from 'framer-motion'
 import {
   ShoppingBag, TrendingUp, TrendingDown, Zap, Gift, Receipt,
   Flame, ArrowLeftRight, Landmark, Calendar, BarChart3,
@@ -10,7 +9,6 @@ import {
 
 import { useCategoryBreakdown, useTotals, useQuickInsights } from '@/hooks/api/useAnalytics'
 import { formatCurrency } from '@/lib/formatters'
-import { staggerContainer, fadeUpItem } from '@/constants/animations'
 
 import LoadingSkeleton from './LoadingSkeleton'
 import {
@@ -44,19 +42,16 @@ interface QuickInsightsProps {
 
 function InsightCard({ item }: Readonly<{ item: InsightDescriptor }>) {
   return (
-    <motion.div
-      variants={fadeUpItem}
-      className="flex items-center gap-3 p-3 bg-[var(--overlay-2)] border border-border rounded-xl hover:bg-[var(--overlay-2)] hover:border-[var(--hairline-3)] transition-all duration-150"
-    >
-      <div className={`p-2 ${item.bg} rounded-lg shrink-0`}>
-        <item.icon className={`w-4 h-4 ${item.color}`} />
+    <div className="ledger-cell flex min-h-20 items-center gap-3 p-3 transition-colors duration-150 hover:bg-[var(--overlay-1)]">
+      <div className={`flex size-7 shrink-0 items-center justify-center rounded-md ${item.bg}`}>
+        <item.icon className={`size-3.5 ${item.color}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-muted-foreground">{item.title}</p>
-        <p className="text-sm font-semibold text-foreground truncate" title={item.value}>{item.value}</p>
+        <p className="truncate text-[11px] text-muted-foreground">{item.title}</p>
+        <p className="ledger-figure truncate text-xs font-semibold text-foreground sm:text-sm" title={item.value}>{item.value}</p>
         {item.subtitle && <p className="text-[11px] text-text-tertiary truncate" title={item.subtitle}>{item.subtitle}</p>}
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -208,11 +203,11 @@ export default function QuickInsights({
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="space-y-4">
+        <div className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 7 }, (_, i) => <LoadingSkeleton key={`s-${i}`} className="h-16 w-full" />)}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => <LoadingSkeleton key={`f-${i}`} className="h-16 w-full" />)}
         </div>
       </div>
@@ -220,24 +215,18 @@ export default function QuickInsights({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Quick Insights */}
-      <motion.div
-        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
-        variants={staggerContainer} initial="hidden" animate="visible"
-      >
+      <div className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {filterByVisibility(quickInsights, visibleKeys).map((item) => <InsightCard key={item.title} item={item} />)}
-      </motion.div>
+      </div>
 
       {/* Fun Facts */}
       <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">Fun Facts</h3>
-        <motion.div
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
-          variants={staggerContainer} initial="hidden" animate="visible"
-        >
+        <h3 className="mb-2 text-xs font-medium text-muted-foreground">Behavior signals</h3>
+        <div className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {filterByVisibility(funFacts, visibleKeys).map((item) => <InsightCard key={item.title} item={item} />)}
-        </motion.div>
+        </div>
       </div>
     </div>
   )

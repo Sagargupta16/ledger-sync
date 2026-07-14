@@ -34,7 +34,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           ref={ref}
           id={inputId}
           className={cn(
-            'ledger-control w-full rounded-lg px-4 py-3',
+            'ledger-control min-h-11 w-full rounded-md px-3 py-2 sm:min-h-10',
             'border border-[var(--hairline-2)] text-foreground placeholder:text-text-quaternary',
             'transition-all duration-150 ease-out',
             'focus:outline-none',
@@ -86,7 +86,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         ref={ref}
         id={selectId}
         className={cn(
-          'ledger-control w-full rounded-lg px-4 py-3',
+          'ledger-control min-h-11 w-full rounded-md px-3 py-2 sm:min-h-10',
           'border border-[var(--hairline-2)] text-foreground',
           'transition-all duration-150 ease-out',
           'focus:outline-none',

@@ -1,124 +1,108 @@
-import { motion } from 'framer-motion'
 import { Calculator, FileSpreadsheet, Wallet } from 'lucide-react'
 
-import { rawColors } from '@/constants/colors'
+const WORKFLOWS = [
+  {
+    icon: FileSpreadsheet,
+    title: 'Excel import',
+    description:
+      'Upload Money Manager Pro exports. Smart duplicate detection prevents double entries.',
+    iconClass: 'bg-[var(--overlay-3)] text-app-blue',
+  },
+  {
+    icon: Calculator,
+    title: 'Smart analytics',
+    description:
+      'Review 50/30/20 budgets, spending trends, income patterns, and investment returns.',
+    iconClass: 'bg-[var(--overlay-3)] text-income',
+  },
+  {
+    icon: Wallet,
+    title: 'India-focused planning',
+    description:
+      'Work with April-March fiscal years, INR formatting, and India-specific tax tools.',
+    iconClass: 'bg-[var(--overlay-3)] text-app-orange',
+  },
+]
+
+const SNAPSHOT_METRICS = [
+  { label: 'Income', value: 'INR 1,25,000' },
+  { label: 'Expenses', value: 'INR 68,500' },
+  { label: 'Savings', value: 'INR 56,500' },
+  { label: 'Investments', value: 'INR 12,40,000' },
+]
 
 export function WhatIsSection() {
   return (
-    <section className="py-20 border-t border-border">
-      <div className="max-w-6xl mx-auto px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="grid md:grid-cols-2 gap-12 items-center"
-        >
+    <section className="border-b border-border py-16 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-12 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-20">
           <div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-6">
+            <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">
+              One reliable ledger
+            </p>
+            <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">
               What is Ledger Sync?
             </h2>
-            <p className="text-muted-foreground mb-6 leading-relaxed">
-              Ledger Sync is a powerful personal finance management tool designed for the Indian
-              market. It seamlessly imports your transaction data from Money Manager Pro Excel
-              exports and provides comprehensive analytics.
+            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
+              Ledger Sync is a personal finance management tool designed for the Indian market.
+              It imports Money Manager Pro transaction data and turns it into structured,
+              decision-ready analytics.
             </p>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div
-                  className="p-2 rounded-lg flex-shrink-0"
-                  style={{ background: `${rawColors.app.blue}20` }}
-                >
-                  <FileSpreadsheet className="w-5 h-5" style={{ color: rawColors.app.blue }} />
+
+            <div className="mt-8 divide-y divide-border border-y border-border">
+              {WORKFLOWS.map((workflow) => (
+                <div key={workflow.title} className="flex gap-4 py-5">
+                  <div
+                    className={`flex size-9 shrink-0 items-center justify-center rounded-md ${workflow.iconClass}`}
+                  >
+                    <workflow.icon className="size-4.5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">{workflow.title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      {workflow.description}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-foreground mb-1">Excel Import</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Upload your Money Manager Pro exports. Smart duplicate detection ensures no
-                    double entries.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div
-                  className="p-2 rounded-lg flex-shrink-0"
-                  style={{ background: `${rawColors.app.green}20` }}
-                >
-                  <Calculator className="w-5 h-5" style={{ color: rawColors.app.green }} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground mb-1">Smart Analytics</h3>
-                  <p className="text-sm text-muted-foreground">
-                    50/30/20 budget analysis, spending trends, income patterns, and investment
-                    returns.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div
-                  className="p-2 rounded-lg flex-shrink-0"
-                  style={{ background: `${rawColors.app.orange}20` }}
-                >
-                  <Wallet className="w-5 h-5" style={{ color: rawColors.app.orange }} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground mb-1">India-Focused</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Fiscal year (April-March) support, INR formatting, and India-specific tax
-                    planning tools.
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
-          <div className="relative">
-            <div className="glass rounded-3xl border border-border p-4 md:p-8">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Net Worth</div>
-                    <div className="text-2xl sm:text-3xl font-bold text-foreground">₹24,85,000</div>
-                  </div>
-                  <div
-                    className="px-3 py-1 rounded-full text-sm"
-                    style={{
-                      background: `${rawColors.app.green}20`,
-                      color: rawColors.app.green,
-                    }}
-                  >
-                    +12.4%
-                  </div>
+          <div className="self-center">
+            <div className="ledger-panel">
+              <div className="flex items-end justify-between gap-4 border-b border-border p-5 sm:p-6">
+                <div>
+                  <p className="text-sm text-muted-foreground">Net worth</p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground sm:text-3xl">
+                    INR 24,85,000
+                  </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="bg-[var(--overlay-2)] rounded-xl p-4">
-                    <div className="text-xs text-muted-foreground">Income</div>
-                    <div className="text-lg font-semibold text-foreground">₹1,25,000</div>
-                  </div>
-                  <div className="bg-[var(--overlay-2)] rounded-xl p-4">
-                    <div className="text-xs text-muted-foreground">Expenses</div>
-                    <div className="text-lg font-semibold text-foreground">₹68,500</div>
-                  </div>
-                  <div className="bg-[var(--overlay-2)] rounded-xl p-4">
-                    <div className="text-xs text-muted-foreground">Savings</div>
-                    <div className="text-lg font-semibold text-foreground">₹56,500</div>
-                  </div>
-                  <div className="bg-[var(--overlay-2)] rounded-xl p-4">
-                    <div className="text-xs text-muted-foreground">Investments</div>
-                    <div className="text-lg font-semibold text-foreground">₹12,40,000</div>
-                  </div>
+                <div className="rounded-md bg-[var(--overlay-3)] px-2.5 py-1 text-sm font-medium text-income">
+                  +12.4%
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 bg-[var(--ledger-grid-line)]">
+                {SNAPSHOT_METRICS.map((metric) => (
+                  <div
+                    key={metric.label}
+                    className="ledger-cell border-b border-r border-border p-4 even:border-r-0 sm:p-5 [&:nth-child(n+3)]:border-b-0"
+                  >
+                    <p className="text-xs text-muted-foreground">{metric.label}</p>
+                    <p className="mt-1 text-base font-semibold tabular-nums text-foreground sm:text-lg">
+                      {metric.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-4 text-xs text-muted-foreground sm:px-6">
+                <span>Latest synced snapshot</span>
+                <span>Duplicate-safe import</span>
+              </div>
             </div>
-            <div
-              className="absolute -top-4 -right-4 w-24 h-24 rounded-full blur-2xl opacity-50"
-              style={{ background: rawColors.app.blue }}
-            />
-            <div
-              className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full blur-2xl opacity-40"
-              style={{ background: rawColors.app.purple }}
-            />
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   )

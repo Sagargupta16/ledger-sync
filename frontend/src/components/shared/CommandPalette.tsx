@@ -172,18 +172,13 @@ export default function CommandPalette() {
           transition={{ duration: 0.15, ease: 'easeOut' }}
         >
           <motion.div
-            className="absolute inset-0 bg-[var(--modal-backdrop)] backdrop-blur-sm"
+            className="absolute inset-0 bg-[var(--modal-backdrop)]"
             onClick={close}
             aria-hidden="true"
           />
 
           <motion.div
-            className="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl bg-surface-dropdown/95 backdrop-blur-lg border border-[var(--hairline-2)] flex flex-col max-h-[80vh]"
-            style={{
-              // Base modal depth from the shared token so light theme inverts;
-              // the ambient blue glow stays app-palette-driven.
-              boxShadow: `var(--glass-shadow-ultra), 0 0 80px ${rawColors.app.blue}10`,
-            }}
+            className="relative flex max-h-[80vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown shadow-[var(--glass-shadow-strong)]"
             variants={panelVariants}
             initial="hidden"
             animate="visible"

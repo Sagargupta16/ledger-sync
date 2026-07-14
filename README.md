@@ -134,11 +134,9 @@ LEDGER_SYNC_GITHUB_CLIENT_ID=...
 LEDGER_SYNC_GITHUB_CLIENT_SECRET=...
 ```
 
-Frontend env:
-
-```env
-VITE_API_BASE_URL=http://localhost:8000
-```
+No frontend environment variable is needed locally. Vite proxies same-origin
+`/api` requests to `http://localhost:8000`. Set `VITE_API_BASE_URL` only when a
+production frontend uses a separate API host.
 
 For OAuth setup (Google + GitHub) and production deployment, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 

@@ -77,7 +77,7 @@ export default function TagEditor({ transactionId, tags, availableTags }: Readon
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-64 rounded-xl bg-surface-dropdown border border-border shadow-xl z-50 p-3 space-y-3">
+        <div className="absolute right-0 top-full z-50 mt-1 w-64 space-y-3 rounded-lg border border-border bg-surface-dropdown p-3 shadow-[var(--glass-shadow-strong)]">
           {options.length > 0 ? (
             <ul className="space-y-0.5 max-h-48 overflow-y-auto">
               {options.map((tag) => (

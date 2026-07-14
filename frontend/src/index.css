@@ -21,7 +21,7 @@
   --color-border: var(--color-border-subtle);
   --color-input: var(--color-surface-3);
   --color-ring: var(--color-app-blue);
-  --radius: 1rem;
+  --radius: 0.5rem;
 
   /* ===== SURFACE TOKENS ===== */
   --color-surface-1: rgba(28, 28, 30, 0.6);
@@ -229,86 +229,86 @@
   /* Warm off-white page background (LAB so the warmth is perceptually even) --
      not a stark cold #fff. Surfaces step up toward pure white so cards lift
      off the page. */
-  --color-background: lab(96.5592% 0.829041 5.29304);
-  --color-foreground: #1a1c1f;
+  --color-background: #f7f7f5;
+  --color-foreground: #171918;
   --color-card: var(--color-surface-1);
-  --color-card-foreground: #1a1c1f;
+  --color-card-foreground: #171918;
   --color-popover: #ffffff;
-  --color-popover-foreground: #1a1c1f;
+  --color-popover-foreground: #171918;
   --color-primary-foreground: #ffffff;
   --color-secondary-foreground: #ffffff;
   --color-muted: var(--color-surface-3);
-  --color-muted-foreground: #5b6068;
+  --color-muted-foreground: #626862;
   --color-accent: var(--color-surface-4);
-  --color-accent-foreground: #1a1c1f;
-  --color-input: #ffffff;
+  --color-accent-foreground: #171918;
+  --color-input: #f5f6f3;
 
   /* Surfaces: cards are pure-white over the warm page bg; muted/raised tiers
      pick up the warm grey LAB tones. */
   --color-surface-1: #ffffff;
-  --color-surface-2: #ffffff;
-  --color-surface-3: lab(93.0706% 1.80045 7.44903);
-  --color-surface-4: lab(89.6005% 1.30284 6.78052);
-  --color-surface-hover: lab(93.0706% 1.80045 7.44903);
-  --color-surface-nav: lab(98.5% 0.4 2.6);
-  --color-surface-thin: lab(96% 0.8 5);
+  --color-surface-2: #fbfbfa;
+  --color-surface-3: #f1f2ef;
+  --color-surface-4: #e8eae6;
+  --color-surface-hover: #f3f4f1;
+  --color-surface-nav: #fbfbfa;
+  --color-surface-thin: #f6f6f4;
   --color-surface-tooltip: #ffffff;
   --color-surface-dropdown: #ffffff;
 
   /* Borders: hairline cool grey (dark-on-light, the inverse of the dark theme) */
-  --color-border-subtle: rgba(17, 24, 39, 0.08);
-  --color-border-medium: rgba(17, 24, 39, 0.12);
-  --color-border-strong: rgba(17, 24, 39, 0.18);
+  --color-border-subtle: rgba(23, 25, 24, 0.09);
+  --color-border-medium: rgba(23, 25, 24, 0.14);
+  --color-border-strong: rgba(23, 25, 24, 0.2);
 
   /* Accent palette: darken a few that are too pale on white for AA contrast */
   --color-app-blue: #2563eb;
   --color-app-blue-vibrant: #1d4ed8;
-  --color-app-green: #15a34a;
-  --color-app-green-vibrant: #16a34a;
-  --color-app-red: #e23b3b;
-  --color-app-red-vibrant: #dc2626;
-  --color-app-orange: #ea8a00;
-  --color-app-orange-vibrant: #d97706;
+  --color-app-green: #158a50;
+  --color-app-green-vibrant: #117744;
+  --color-app-red: #d64b4b;
+  --color-app-red-vibrant: #c53f3f;
+  --color-app-orange: #c47a19;
+  --color-app-orange-vibrant: #ad6812;
   --color-app-yellow: #ca9a04;
   --color-app-yellow-vibrant: #b8860b;
-  --color-app-teal: #0e9bc4;
-  --color-app-teal-vibrant: #0891b2;
-  --color-app-purple: #7c5cf0;
-  --color-app-purple-vibrant: #7c3aed;
+  --color-app-teal: #128da4;
+  --color-app-teal-vibrant: #0e768b;
+  --color-app-purple: #6f5ac7;
+  --color-app-purple-vibrant: #5f48b5;
   --color-app-pink: #e85d8a;
   --color-app-pink-vibrant: #db2777;
   --color-app-indigo: #5b63d6;
   --color-app-indigo-vibrant: #4f46e5;
 
   /* Text: near-black down to a soft grey */
-  --color-text-primary: #1a1c1f;
-  --color-text-secondary: #5b6068;
-  --color-text-tertiary: #767b84;
-  --color-text-quaternary: #a2a8b2;
+  --color-text-primary: #171918;
+  --color-text-secondary: #4f554f;
+  --color-text-tertiary: #5d635d;
+  --color-text-quaternary: #696f69;
 
-  --ledger-control-bg: rgba(255, 255, 255, 0.74);
-  --ledger-control-bg-hover: rgba(255, 255, 255, 0.94);
-  --ledger-control-border: rgba(17, 24, 39, 0.10);
-  --ledger-control-border-hover: rgba(17, 24, 39, 0.16);
-  --ledger-control-edge: rgba(255, 255, 255, 0.95);
-  --ledger-control-shadow: inset 0 1px 0 var(--ledger-control-edge), 0 1px 2px rgba(17, 24, 39, 0.04);
+  --ledger-control-bg: #f7f8f5;
+  --ledger-control-bg-hover: #ffffff;
+  --ledger-control-border: rgba(23, 25, 24, 0.11);
+  --ledger-control-border-hover: rgba(23, 25, 24, 0.2);
+  --ledger-control-edge: rgba(255, 255, 255, 0.9);
+  --ledger-control-shadow: 0 1px 1px rgba(23, 25, 24, 0.03);
   --ledger-focus-shadow: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--focus-ring-soft);
-  --ledger-grid-line: rgba(17, 24, 39, 0.035);
-  --ledger-grid-band: rgba(37, 99, 235, 0.035);
+  --ledger-grid-line: rgba(23, 25, 24, 0.055);
+  --ledger-grid-band: rgba(21, 138, 80, 0.025);
 
   --color-disabled: rgba(0, 0, 0, 0.08);
   --color-disabled-foreground: rgba(0, 0, 0, 0.35);
 
   /* Glass system flipped for light: white frost, dark-grey hairline edges,
      soft realistic shadows (premium card feel), brighter glow wash. */
-  --app-bg: lab(96.5592% 0.829041 5.29304);
-  --glass-border: rgba(17, 24, 39, 0.07);
-  --glass-border-hover: rgba(17, 24, 39, 0.14);
-  --glass-border-strong: rgba(17, 24, 39, 0.10);
+  --app-bg: #f7f7f5;
+  --glass-border: rgba(23, 25, 24, 0.09);
+  --glass-border-hover: rgba(23, 25, 24, 0.16);
+  --glass-border-strong: rgba(23, 25, 24, 0.12);
   --glass-edge: rgba(255, 255, 255, 0.9);
-  --glass-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px -2px rgba(17, 24, 39, 0.08);
-  --glass-shadow-strong: 0 2px 4px rgba(17, 24, 39, 0.05), 0 8px 24px -4px rgba(17, 24, 39, 0.12);
-  --glass-shadow-ultra: 0 4px 8px rgba(17, 24, 39, 0.06), 0 20px 40px -10px rgba(17, 24, 39, 0.16);
+  --glass-shadow: 0 1px 2px rgba(23, 25, 24, 0.035);
+  --glass-shadow-strong: 0 4px 12px rgba(23, 25, 24, 0.08);
+  --glass-shadow-ultra: 0 12px 32px rgba(23, 25, 24, 0.12);
   /* In light, glow cards DO get a soft drop shadow for premium depth. */
   --glow-base-shadow: var(--glass-shadow);
   --glow-strength: 0.08;
@@ -321,10 +321,10 @@
   --skeleton-base: rgba(17, 24, 39, 0.05);
   --skeleton-highlight: rgba(17, 24, 39, 0.10);
   --divider-color: rgba(17, 24, 39, 0.08);
-  --header-bg: lab(96.5592% 0.829041 5.29304 / 0.85);
+  --header-bg: rgba(251, 251, 250, 0.96);
   /* Light sidebar: a hair softer/warmer than pure white so it reads as a
      distinct rail against the white content cards. */
-  --sidebar-bg: lab(98.5% 0.4 2.6 / 0.95);
+  --sidebar-bg: #fbfbfa;
   /* Focus ring uses the darkened light-theme blue (#2563eb) for AA contrast. */
   --focus-ring: rgba(37, 99, 235, 0.55);
   --focus-ring-soft: rgba(37, 99, 235, 0.15);
@@ -399,7 +399,7 @@ body {
   background: var(--app-bg);
   background-attachment: fixed;
   color: var(--color-foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   overflow-x: hidden;
   /* Prevent iOS from rubber-banding the whole body behind the app shell --
      scrollable regions handle their own overscroll. */
@@ -415,13 +415,7 @@ body {
 }
 
 .ledger-workspace-bg {
-  background:
-    linear-gradient(90deg, var(--ledger-grid-line) 1px, transparent 1px),
-    linear-gradient(180deg, var(--ledger-grid-line) 1px, transparent 1px),
-    linear-gradient(180deg, var(--ledger-grid-band), transparent 32rem);
-  background-size: 48px 48px, 48px 48px, 100% 100%;
-  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.22) 55%, transparent 100%);
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.22) 55%, transparent 100%);
+  background: var(--color-background);
 }
 
 /* ===== FOCUS NOT OBSCURED (WCAG 2.2 SC 2.4.11) =====
@@ -432,7 +426,7 @@ body {
    a focused control is never hidden behind the chrome. Bottom inset only on
    phone (<lg), where the tab bar exists, plus its safe-area. */
 #main-content {
-  scroll-padding-top: 5rem;
+  scroll-padding-top: 1.5rem;
 }
 @media (max-width: 1023px) {
   #main-content {
@@ -452,12 +446,12 @@ body {
 .theme-transition *::before,
 .theme-transition *::after {
   transition:
-    background-color 300ms ease,
-    border-color 300ms ease,
-    color 300ms ease,
-    fill 300ms ease,
-    stroke 300ms ease,
-    box-shadow 300ms ease !important;
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    fill 150ms ease,
+    stroke 150ms ease,
+    box-shadow 150ms ease !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -476,13 +470,11 @@ body {
 .glass-strong,
 .glass-ultra,
 .glass-thin {
-  transition: border-color 200ms ease, box-shadow 300ms ease;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .glass {
   background: var(--color-surface-1);
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
@@ -493,8 +485,6 @@ body {
 
 .glass-strong {
   background: var(--color-surface-2);
-  backdrop-filter: blur(14px) saturate(150%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
   border: 1px solid var(--glass-border-strong);
   box-shadow: var(--glass-shadow-strong);
 }
@@ -505,52 +495,46 @@ body {
 
 .glass-ultra {
   background: var(--color-surface-nav);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
   border: 1px solid var(--glass-border-ultra);
-  border-top-color: var(--glass-edge);
-  border-left-color: var(--glass-edge);
   box-shadow: var(--glass-shadow-ultra);
 }
 
 .glass-thin {
   background: var(--color-surface-thin);
-  backdrop-filter: blur(8px) saturate(130%);
-  -webkit-backdrop-filter: blur(8px) saturate(130%);
   border: 1px solid var(--glass-border-thin);
 }
 
-/* ===== CONTEXTUAL GLOW — Financial card accents ===== */
+/* ===== CONTEXTUAL GLOW -- Financial card accents ===== */
 
 /* Contextual glows layer the financial-accent wash ON TOP of the glass card
    shadow, so the card keeps its depth in both themes. `--glow-strength` lifts
    the wash slightly on light where a faint tint reads weaker. */
 .glow-income {
-  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(48, 209, 88, var(--glow-strength));
+  box-shadow: var(--glass-shadow);
 }
 
 .glow-expense {
-  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(255, 87, 87, var(--glow-strength));
+  box-shadow: var(--glass-shadow);
 }
 
 .glow-savings {
-  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(167, 139, 250, var(--glow-strength));
+  box-shadow: var(--glass-shadow);
 }
 
 .glow-transfer {
-  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(90, 200, 245, var(--glow-strength));
+  box-shadow: var(--glass-shadow);
 }
 
 .glow-investment {
-  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(74, 158, 255, var(--glow-strength));
+  box-shadow: var(--glass-shadow);
 }
 
 .glow-error {
-  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(255, 87, 87, calc(var(--glow-strength) + 0.02));
+  box-shadow: var(--glass-shadow);
 }
 
 .glow-warning {
-  box-shadow: var(--glow-base-shadow), 0 0 30px rgba(255, 159, 10, calc(var(--glow-strength) + 0.02));
+  box-shadow: var(--glass-shadow);
 }
 
 /* ===== SCROLLBAR ===== */
@@ -665,7 +649,7 @@ body {
 }
 
 .animate-fade-up {
-  animation: fade-up 0.35s ease-out both;
+  animation: fade-up 0.2s ease-out both;
 }
 
 /* ===== REDUCED MOTION =====
@@ -727,7 +711,7 @@ body {
   content: '';
   position: absolute;
   inset: -1px;
-  background: linear-gradient(135deg, rgba(10, 132, 255, 0.3), rgba(191, 90, 242, 0.3));
+  background: transparent;
   border-radius: inherit;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -746,22 +730,22 @@ body {
 /* ===== RESPONSIVE TYPOGRAPHY ===== */
 
 .text-page-title {
-  font-size: clamp(1.5rem, 2.5vw, 2.25rem);
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.25;
   letter-spacing: 0;
   text-wrap: balance;
 }
 
 .text-section-title {
-  font-size: clamp(1.125rem, 1.5vw, 1.5rem);
+  font-size: 1.125rem;
   font-weight: 600;
   line-height: 1.3;
 }
 
 .text-stat-value {
-  font-size: clamp(1.25rem, 2vw, 2rem);
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 650;
   line-height: 1.1;
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
@@ -793,12 +777,92 @@ output {
   box-shadow: var(--ledger-focus-shadow);
 }
 
+.ledger-panel {
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface-1);
+  box-shadow: var(--glass-shadow);
+}
+
+.metric-card {
+  container-type: inline-size;
+}
+
+.metric-value {
+  font-size: 1.25rem;
+}
+
+.metric-value-hero {
+  font-size: 1.5rem;
+}
+
+@container (max-width: 180px) {
+  .metric-value,
+  .metric-value-hero {
+    font-size: 1rem;
+  }
+}
+
+@container (max-width: 125px) {
+  .metric-value,
+  .metric-value-hero {
+    font-size: 0.875rem;
+  }
+}
+
+.ledger-band {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.5rem;
+  background: var(--ledger-grid-line);
+  gap: 1px;
+}
+
+.ledger-cell {
+  min-width: 0;
+  background: var(--color-surface-1);
+}
+
+.ledger-ruler {
+  height: 8px;
+  border-top: 1px solid var(--hairline-1);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--ledger-grid-line) 0,
+    var(--ledger-grid-line) 1px,
+    transparent 1px,
+    transparent 6px
+  );
+}
+
+.rounded-2xl {
+  border-radius: 0.5rem !important;
+}
+
+.rounded-3xl {
+  border-radius: 0.5rem !important;
+}
+
+.rounded-xl {
+  border-radius: 0.5rem !important;
+}
+
+.shadow-2xl {
+  box-shadow: var(--glass-shadow-strong) !important;
+}
+
+@media (min-width: 768px) {
+  .text-page-title {
+    font-size: 1.625rem;
+  }
+}
+
 /* ===== FORM ELEMENTS ===== */
 
 select {
   background: var(--color-surface-3);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
 }
 
 select option,
@@ -864,7 +928,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus {
 
 /* ===== ACCESSIBILITY ===== */
 
-/* Double-ring focus — cleaner on dark backgrounds */
+/* Double-ring focus -- cleaner on dark backgrounds */
 a:focus-visible,
 button:focus-visible,
 [tabindex]:focus-visible {
@@ -877,6 +941,58 @@ button:focus-visible,
 
 /* ===== FORM CONTROLS ===== */
 
+.touch-slider {
+  width: 100%;
+  height: 44px;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.touch-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--overlay-5);
+}
+
+.touch-slider::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  appearance: none;
+  border: 2px solid var(--color-background);
+  border-radius: 9999px;
+  background: var(--color-app-blue);
+  box-shadow: var(--ledger-control-shadow);
+}
+
+.touch-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--overlay-5);
+}
+
+.touch-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-background);
+  border-radius: 9999px;
+  background: var(--color-app-blue);
+  box-shadow: var(--ledger-control-shadow);
+}
+
+.touch-slider:focus-visible {
+  outline: none;
+}
+
+.touch-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.touch-slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
 /* Hide native number-input spinners (used by projection / parameter inputs). */
 input[type='number']::-webkit-outer-spin-button,
 input[type='number']::-webkit-inner-spin-button {
@@ -885,6 +1001,22 @@ input[type='number']::-webkit-inner-spin-button {
 }
 input[type='number'] {
   -moz-appearance: textfield;
+}
+
+/* Keep dense desktop controls while giving touch layouts a reliable hit area. */
+@media (max-width: 639px) {
+  #root button:not([role='switch']),
+  #root [role='button'],
+  #root [role='tab'] {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+  }
+
+  #root input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  #root select,
+  #root textarea {
+    min-block-size: 44px;
+  }
 }
 
 /* ===== PRINT STYLESHEET ===== */

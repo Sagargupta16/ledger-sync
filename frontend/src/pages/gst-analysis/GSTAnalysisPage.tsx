@@ -212,7 +212,7 @@ export default function GSTAnalysisPage() {
             )}
             <Link
               to={ROUTES.TAX_PLANNING}
-              className="inline-flex items-center gap-2 px-3 py-2.5 sm:py-1.5 text-sm font-medium rounded-lg border border-border bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+              className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-lg border border-border bg-[var(--overlay-2)] px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--overlay-5)] hover:text-foreground sm:min-h-8 sm:py-1.5"
               title="View Income Tax planning"
             >
               <Landmark className="w-4 h-4" />

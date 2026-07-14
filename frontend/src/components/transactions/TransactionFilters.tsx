@@ -31,6 +31,8 @@ export interface FilterValues {
 }
 
 const TRANSACTION_TYPES = ['Income', 'Expense', 'Transfer']
+const FILTER_CONTROL_CLASSES =
+  'ledger-control min-h-11 w-full rounded-md border border-[var(--hairline-2)] px-3 py-2 text-foreground transition-colors duration-150 focus:outline-none'
 
 // Custom debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -111,23 +113,23 @@ export default function TransactionFilters({
   return (
     <div className="space-y-4">
       {/* Search Bar */}
-      <div className="bg-[var(--overlay-2)] border border-border rounded-xl p-4">
+      <div className="ledger-panel p-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[12rem]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" aria-hidden="true" />
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-tertiary" aria-hidden="true" />
             <input
               type="text"
               placeholder="Search transactions by note, category, or account..."
               value={searchQuery}
               onChange={(e) => handleFilterChange('query', e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-transparent border border-[var(--hairline-2)] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-foreground"
+              className="ledger-control min-h-11 w-full rounded-md border pl-9 pr-3 text-foreground placeholder:text-text-quaternary focus:outline-none lg:min-h-10"
               aria-label="Search transactions"
             />
           </div>
           {savedViewsSlot}
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg transition-colors duration-150 ${showAdvanced
+            className={`flex min-h-11 items-center gap-2 rounded-md border border-transparent px-3 py-2 transition-colors duration-150 lg:min-h-10 ${showAdvanced
                 ? 'bg-[var(--overlay-4)] text-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)]'
               }`}
@@ -149,7 +151,7 @@ export default function TransactionFilters({
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg text-app-red hover:text-app-red hover:bg-[var(--overlay-3)] transition-colors duration-150"
+              className="flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-app-red transition-colors duration-150 hover:bg-app-red/10 lg:min-h-10"
               aria-label="Clear all filters"
             >
               <X className="w-4 h-4" aria-hidden="true" />
@@ -167,12 +169,12 @@ export default function TransactionFilters({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-[var(--overlay-2)] border border-border rounded-xl p-4 sm:p-6 space-y-4 overflow-hidden"
+            className="ledger-panel space-y-4 overflow-hidden p-4 sm:p-5"
             role="region"
             aria-label="Advanced filters"
           >
-            <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">
-              <Filter className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Filter className="size-4 text-muted-foreground" aria-hidden="true" />
               Advanced Filters
             </h3>
 
@@ -184,7 +186,7 @@ export default function TransactionFilters({
                   id="filter-type"
                   value={filters.type || ''}
                   onChange={(e) => handleFilterChange('type', e.target.value)}
-                  className="w-full px-3 py-2.5 min-h-[44px] bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-foreground"
+                  className={FILTER_CONTROL_CLASSES}
                   aria-label="Filter by transaction type"
                 >
                   <option value="" className="bg-background text-foreground">All Types</option>
@@ -203,7 +205,7 @@ export default function TransactionFilters({
                   id="filter-category"
                   value={filters.category || ''}
                   onChange={(e) => handleFilterChange('category', e.target.value)}
-                  className="w-full px-3 py-2.5 min-h-[44px] bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-foreground"
+                  className={FILTER_CONTROL_CLASSES}
                 >
                   <option value="" className="bg-background text-foreground">All Categories</option>
                   {categories.map((category) => (
@@ -221,7 +223,7 @@ export default function TransactionFilters({
                   id="filter-account"
                   value={filters.account || ''}
                   onChange={(e) => handleFilterChange('account', e.target.value)}
-                  className="w-full px-3 py-2.5 min-h-[44px] bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-foreground"
+                  className={FILTER_CONTROL_CLASSES}
                 >
                   <option value="" className="bg-background text-foreground">All Accounts</option>
                   {accounts.map((account) => (
@@ -239,7 +241,7 @@ export default function TransactionFilters({
                   id="filter-tag"
                   value={filters.tag || ''}
                   onChange={(e) => handleFilterChange('tag', e.target.value)}
-                  className="w-full px-3 py-2.5 min-h-[44px] bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-foreground"
+                  className={FILTER_CONTROL_CLASSES}
                   aria-label="Filter by tag"
                 >
                   <option value="" className="bg-background text-foreground">All tags</option>
@@ -262,7 +264,7 @@ export default function TransactionFilters({
                   type="date"
                   value={filters.start_date || ''}
                   onChange={(e) => handleFilterChange('start_date', e.target.value)}
-                  className="w-full px-3 py-2.5 min-h-[44px] bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-foreground"
+                  className={FILTER_CONTROL_CLASSES}
                 />
               </div>
 
@@ -277,7 +279,7 @@ export default function TransactionFilters({
                   type="date"
                   value={filters.end_date || ''}
                   onChange={(e) => handleFilterChange('end_date', e.target.value)}
-                  className="w-full px-3 py-2.5 min-h-[44px] bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-foreground"
+                  className={FILTER_CONTROL_CLASSES}
                 />
               </div>
 
@@ -291,7 +293,7 @@ export default function TransactionFilters({
                   placeholder="0"
                   value={filters.min_amount || ''}
                   onChange={(e) => handleFilterChange('min_amount', e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full px-3 py-2.5 min-h-[44px] bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-foreground"
+                  className={FILTER_CONTROL_CLASSES}
                 />
               </div>
 
@@ -305,7 +307,7 @@ export default function TransactionFilters({
                   placeholder="∞"
                   value={filters.max_amount || ''}
                   onChange={(e) => handleFilterChange('max_amount', e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full px-3 py-2.5 min-h-[44px] bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 text-foreground"
+                  className={FILTER_CONTROL_CLASSES}
                 />
               </div>
             </div>

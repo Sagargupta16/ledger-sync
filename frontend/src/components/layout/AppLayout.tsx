@@ -13,6 +13,7 @@ import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 
 import Sidebar from './Sidebar/Sidebar'
 import MobileTabBar from './MobileTabBar'
+import WorkspaceHeader from './WorkspaceHeader'
 
 const pageTransition = {
   initial: { opacity: 0, y: 8 },
@@ -35,6 +36,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/year-in-review': 'Year in Review',
   '/budgets': 'Budget Manager',
   '/goals': 'Financial Goals',
+  '/fire-calculator': 'FIRE Calculator',
   '/anomalies': 'Anomaly Review',
   '/net-worth': 'Net Worth',
   '/forecasts': 'Trends & Forecasts',
@@ -81,49 +83,31 @@ export default function AppLayout() {
         Skip to main content
       </a>
 
-      <div className="ledger-workspace-bg fixed inset-0 pointer-events-none" aria-hidden="true" />
-
       <Sidebar />
-      {/*
-        Mobile PWA notes:
-        - `overscroll-contain` stops the rubber-band scroll from bleeding into
-          the document (which otherwise shows a white flash under the notch).
-        - On phone (<lg) we reserve ~68px at the bottom for MobileTabBar + its
-          own safe-area padding. On desktop (lg+) the tab bar is hidden, so
-          we fall back to pb-safe so the last row clears the home indicator
-          if someone opens the site on a phone-sized desktop browser window.
-      */}
-      {/*
-        In demo mode the fixed DemoBanner sits centered at the top. On desktop
-        it's narrow and the left-aligned page title clears it, but on phone the
-        page title is centered and collides with the banner. Reserve banner
-        height at the top of <main> on phone-only when demo mode is active.
-      */}
-      <main
-        id="main-content"
-        className={`flex-1 overflow-auto overscroll-contain relative z-10 pb-[calc(68px+env(safe-area-inset-bottom,0px))] lg:pb-safe ${
-          isDemoMode ? 'pt-14 sm:pt-0' : ''
-        }`}
-      >
-        <AnimatePresence mode="popLayout">
-          <motion.div key={`${location.pathname}:${resolvedTheme}`} {...pageTransition}>
-            {/*
-              Page-scoped error boundary: a crash in one route renders the
-              fallback INSIDE the layout (sidebar + nav stay alive) instead of
-              taking down the whole app. Keyed on pathname so navigating to
-              another route auto-resets the boundary.
-            */}
-            <ErrorBoundary key={location.pathname}>
-              <Outlet />
-            </ErrorBoundary>
-          </motion.div>
-        </AnimatePresence>
-      </main>
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+        <WorkspaceHeader title={PAGE_TITLES[location.pathname] ?? 'Ledger Sync'} />
+        <main
+          id="main-content"
+          className="min-h-0 flex-1 overflow-auto overscroll-contain pb-[calc(68px+env(safe-area-inset-bottom,0px))] lg:pb-safe"
+        >
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={`${location.pathname}:${resolvedTheme}`}
+              className="min-h-full"
+              {...pageTransition}
+            >
+              <ErrorBoundary key={location.pathname}>
+                <Outlet />
+              </ErrorBoundary>
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
 
-      {/* Bottom tab bar — phone-only. Sidebar handles lg+. */}
+      {/* Bottom tab bar -- phone-only. Sidebar handles lg+. */}
       <MobileTabBar />
 
-      {/* Global command palette — Cmd+K / Ctrl+K */}
+      {/* Global command palette -- Cmd+K / Ctrl+K */}
       <CommandPalette />
       <ChatWidget />
     </div>

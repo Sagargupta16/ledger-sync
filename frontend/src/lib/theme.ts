@@ -1,7 +1,7 @@
 /**
  * Theme handling. Three modes:
- *  - 'dark'   -> always dark (the app's original design)
- *  - 'light'  -> always the premium light theme
+ *  - 'dark'   -> always dark
+ *  - 'light'  -> always the default ledger workspace theme
  *  - 'system' -> follow the OS `prefers-color-scheme`
  *
  * The resolved theme is written to `data-theme` on <html>; index.css defines
@@ -16,7 +16,7 @@ export type ThemeMode = 'dark' | 'light' | 'system'
 
 export const THEME_STORAGE_KEY = 'ledger-sync-theme'
 
-/** Read the stored mode, defaulting to 'dark' (the app's historical default). */
+/** Read the stored mode, defaulting to the light ledger workspace. */
 export function getStoredThemeMode(): ThemeMode {
   try {
     const v = localStorage.getItem(THEME_STORAGE_KEY)
@@ -24,7 +24,7 @@ export function getStoredThemeMode(): ThemeMode {
   } catch {
     // localStorage may be unavailable (private mode / quota) -- fall through.
   }
-  return 'dark'
+  return 'light'
 }
 
 /** Resolve a mode to the concrete theme to paint ('dark' | 'light'). */
@@ -70,7 +70,7 @@ export function applyTheme(resolved: 'dark' | 'light', skipTransition = false): 
 
   // Keep the mobile browser chrome (theme-color / color-scheme) tracking the
   // active theme on a live toggle, mirroring the pre-paint script in index.html.
-  const bar = resolved === 'light' ? '#f6f3ee' : '#000000'
+  const bar = resolved === 'light' ? '#f7f7f5' : '#101112'
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bar)
   document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', resolved)
 

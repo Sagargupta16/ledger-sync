@@ -45,8 +45,8 @@ interface PageContainerProps {
 
 export default function PageContainer({ children, className, maxWidth = '7xl' }: PageContainerProps) {
   return (
-    <div className="min-h-dvh py-4 md:py-6 lg:py-8 px-[max(1rem,env(safe-area-inset-left))] md:px-[max(1.5rem,env(safe-area-inset-left))] lg:px-[max(2rem,env(safe-area-inset-left))]">
-      <div className={cn(MAX_WIDTH_CLASSES[maxWidth], 'mx-auto space-y-6 md:space-y-8', className)}>
+    <div className="min-h-full px-[max(1rem,env(safe-area-inset-left))] py-5 md:px-[max(1.5rem,env(safe-area-inset-left))] md:py-6 lg:px-[max(2rem,env(safe-area-inset-left))]">
+      <div className={cn(MAX_WIDTH_CLASSES[maxWidth], 'mx-auto space-y-5 md:space-y-6', className)}>
         {children}
       </div>
     </div>

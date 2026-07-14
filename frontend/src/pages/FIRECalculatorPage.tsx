@@ -26,9 +26,7 @@ function SliderInput({ id, label, value, min, max, step, unit, valueText, onChan
         <label htmlFor={id} className="text-xs font-medium text-muted-foreground">{label}</label>
         <span className="text-xs font-semibold text-foreground">{value}{unit}</span>
       </div>
-      {/* Visible track stays thin (h-1.5) but the input fills a >=44px tall box
-          so the pointer/touch hit area is accessible for dragging. */}
-      <div className="flex items-center min-h-[44px]">
+      <div className="flex min-h-11 items-center">
         <input
           id={id}
           type="range"
@@ -39,7 +37,7 @@ function SliderInput({ id, label, value, min, max, step, unit, valueText, onChan
           aria-valuenow={value}
           aria-valuetext={valueText ?? `${value}${unit}`}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none bg-[var(--overlay-5)] accent-app-blue cursor-pointer"
+          className="touch-slider"
         />
       </div>
     </div>

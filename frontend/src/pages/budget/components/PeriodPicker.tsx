@@ -78,7 +78,7 @@ export function PeriodPicker({
   return (
     <>
       <div
-        className="flex items-center gap-1 p-1 glass-thin rounded-xl"
+        className="scrollbar-none flex w-full max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-[var(--hairline-1)] bg-[var(--overlay-2)] p-1 sm:w-auto"
         role="tablist"
         aria-label="Select period"
       >
@@ -88,7 +88,7 @@ export function PeriodPicker({
             role="tab"
             aria-selected={value === v}
             onClick={() => onChange(v)}
-            className={`relative px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`relative min-h-11 shrink-0 rounded-md px-3 py-2.5 text-sm font-medium transition-colors sm:min-h-8 sm:py-1.5 ${
               value === v
                 ? 'text-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
@@ -113,7 +113,7 @@ export function PeriodPicker({
           aria-haspopup="dialog"
           aria-expanded={showCustom}
           onClick={() => setShowCustom(true)}
-          className={`relative px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+          className={`relative flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors sm:min-h-8 sm:py-1.5 ${
             value === 'custom'
               ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
@@ -139,7 +139,7 @@ export function PeriodPicker({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-[var(--modal-backdrop)] backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--modal-backdrop)] p-4"
             onClick={handleClose}
           >
             <motion.div
@@ -150,7 +150,7 @@ export function PeriodPicker({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="bg-surface-dropdown rounded-2xl border border-[var(--hairline-2)] p-6 max-w-md w-full shadow-2xl"
+              className="w-full max-w-md rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-6 shadow-[var(--glass-shadow-strong)]"
               onClick={(e) => e.stopPropagation()}
             >
               <h3

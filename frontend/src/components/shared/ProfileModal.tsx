@@ -129,7 +129,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-[var(--modal-backdrop)] backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--modal-backdrop)] p-4"
       onClick={handleClose}
     >
       <motion.div
@@ -140,7 +140,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.15, ease: 'easeOut' }}
-        className="max-w-lg w-full bg-surface-dropdown rounded-2xl border border-[var(--hairline-2)] p-0 overflow-hidden shadow-2xl"
+        className="w-full max-w-lg overflow-hidden rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-0 shadow-[var(--glass-shadow-strong)]"
         onClick={(e) => e.stopPropagation()}
       >
         <ProfileHeader

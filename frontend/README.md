@@ -155,9 +155,9 @@ pnpm run test
 
 ## Environment Variables
 
-```env
-VITE_API_BASE_URL=http://localhost:8000
-```
+Local development uses Vite's same-origin `/api` proxy, so no frontend
+environment variable is required. Set `VITE_API_BASE_URL` only for a production
+frontend whose API is hosted on a different origin.
 
 ## State Management
 

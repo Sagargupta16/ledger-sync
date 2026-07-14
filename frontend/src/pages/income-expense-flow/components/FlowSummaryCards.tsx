@@ -21,35 +21,42 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
-      className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6"
+      className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
     >
-      <div className="glass rounded-2xl border border-border border-l-4 border-l-app-green p-4 sm:p-6">
-        <div className="flex items-center gap-3 mb-2">
-          <TrendingUp className="w-5 h-5 text-app-green shrink-0" />
-          <p className="text-sm text-muted-foreground">Total Income</p>
+      <div className="ledger-panel p-4 sm:p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-app-green/10">
+            <TrendingUp className="size-3.5 text-app-green" />
+          </span>
+          <p className="text-xs font-medium text-muted-foreground">Total Income</p>
         </div>
-        <p className="text-xl sm:text-2xl font-bold text-app-green truncate tabular-nums" title={formatCurrency(totalIncome)}>{formatCurrency(totalIncome)}</p>
+        <p className="ledger-figure truncate text-base font-semibold text-app-green sm:text-xl" title={formatCurrency(totalIncome)}>{formatCurrency(totalIncome)}</p>
       </div>
 
-      <div className="glass rounded-2xl border border-border border-l-4 border-l-app-red p-4 sm:p-6">
-        <div className="flex items-center gap-3 mb-2">
-          <TrendingDown className="w-5 h-5 text-app-red shrink-0" />
-          <p className="text-sm text-muted-foreground">Total Expense</p>
+      <div className="ledger-panel p-4 sm:p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-app-red/10">
+            <TrendingDown className="size-3.5 text-app-red" />
+          </span>
+          <p className="text-xs font-medium text-muted-foreground">Total Expense</p>
         </div>
-        <p className="text-xl sm:text-2xl font-bold text-app-red truncate tabular-nums" title={formatCurrency(totalExpense)}>{formatCurrency(totalExpense)}</p>
+        <p className="ledger-figure truncate text-base font-semibold text-app-red sm:text-xl" title={formatCurrency(totalExpense)}>{formatCurrency(totalExpense)}</p>
       </div>
 
-      <div className="glass rounded-2xl border border-border p-4 sm:p-6">
-        <div className="flex items-center gap-3 mb-2">
-          <ArrowRightLeft
-            className={`w-5 h-5 shrink-0 ${netSavings >= 0 ? 'text-primary' : 'text-app-red'}`}
-          />
-          <p className="text-sm text-muted-foreground">Net Savings</p>
+      <div className="ledger-panel p-4 sm:p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <span className={`flex size-7 shrink-0 items-center justify-center rounded-md ${netSavings >= 0 ? 'bg-app-blue/10' : 'bg-app-red/10'}`}>
+            <ArrowRightLeft
+              className={`size-3.5 ${netSavings >= 0 ? 'text-primary' : 'text-app-red'}`}
+            />
+          </span>
+          <p className="text-xs font-medium text-muted-foreground">Net Savings</p>
         </div>
         <p
-          className={`text-xl sm:text-2xl font-bold truncate tabular-nums ${
+          className={`ledger-figure truncate text-base font-semibold sm:text-xl ${
             netSavings >= 0 ? 'text-primary' : 'text-app-red'
           }`}
+          title={`${netSavings < 0 ? '-' : ''}${formatCurrency(Math.abs(netSavings))}`}
         >
           {netSavings < 0 && <span aria-hidden>-</span>}
           {formatCurrency(Math.abs(netSavings))}
@@ -61,15 +68,17 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
         )}
       </div>
 
-      <div className="glass rounded-2xl border border-border p-4 sm:p-6">
-        <div className="flex items-center gap-3 mb-2">
-          <TrendingUp
-            className={`w-5 h-5 shrink-0 ${savingsRate >= 20 ? 'text-app-green' : 'text-app-yellow'}`}
-          />
-          <p className="text-sm text-muted-foreground">Savings Rate</p>
+      <div className="ledger-panel p-4 sm:p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <span className={`flex size-7 shrink-0 items-center justify-center rounded-md ${savingsRate >= 20 ? 'bg-app-green/10' : 'bg-app-yellow/10'}`}>
+            <TrendingUp
+              className={`size-3.5 ${savingsRate >= 20 ? 'text-app-green' : 'text-app-yellow'}`}
+            />
+          </span>
+          <p className="text-xs font-medium text-muted-foreground">Savings Rate</p>
         </div>
         <p
-          className={`text-xl sm:text-2xl font-bold tabular-nums ${
+          className={`ledger-figure text-xl font-semibold ${
             savingsRate >= SAVINGS_RATE_BENCHMARK ? 'text-app-green' : 'text-app-yellow'
           }`}
         >
