@@ -75,7 +75,7 @@ export default function YearInReviewPage() {
         <EmptyState
           icon={Flame}
           title="No transaction data yet"
-          description="Upload your bank statements to see your annual financial review — spending heatmaps, streaks, and year-over-year highlights."
+          description="Upload your bank statements to see your annual financial review -- spending heatmaps, streaks, and year-over-year highlights."
           actionLabel="Upload Data"
           actionHref="/upload"
           variant="card"
@@ -108,7 +108,7 @@ export default function YearInReviewPage() {
               availableModes={['yearly', 'fy']}
             />
 
-            <div className="flex items-center gap-1 p-1 glass-thin rounded-xl" role="tablist">
+            <div className="flex w-full items-center gap-1 rounded-lg border border-[var(--hairline-1)] bg-[var(--overlay-2)] p-1 sm:w-auto" role="tablist">
               {(
                 [
                   ['expense', 'Spending', TrendingDown],
@@ -121,7 +121,7 @@ export default function YearInReviewPage() {
                   role="tab"
                   aria-selected={mode === val}
                   onClick={() => setMode(val)}
-                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`relative flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors sm:min-h-8 sm:flex-none sm:px-3 sm:py-1.5 ${
                     mode === val
                       ? 'text-foreground'
                       : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
@@ -191,7 +191,7 @@ export default function YearInReviewPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Flame className="w-5 h-5" style={{ color: modeAccent[mode] }} />
-            {{ expense: 'Spending', income: 'Earning', net: 'Savings' }[mode]} Heatmap —{' '}
+            {{ expense: 'Spending', income: 'Earning', net: 'Savings' }[mode]} Heatmap --{' '}
             {isFYMode ? currentFY : selectedYear}
           </h2>
           <div className="flex items-center gap-1.5 text-xs text-text-tertiary">

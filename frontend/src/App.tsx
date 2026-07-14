@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
 
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MotionConfig } from 'framer-motion'
@@ -17,13 +17,13 @@ import { useAuthStore } from '@/store/authStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useAuthInit } from '@/hooks/api/useAuth'
 
-// Eagerly loaded — core pages the user hits immediately
+// Eagerly loaded -- core pages the user hits immediately
 import HomePage from '@/pages/home/HomePage'
 import DashboardPage from '@/pages/DashboardPage'
 import OAuthCallbackPage from '@/pages/OAuthCallbackPage'
 import DemoEntryPage from '@/pages/DemoEntryPage'
 
-// Lazy-loaded — heavier pages, prefetched in background after initial load
+// Lazy-loaded -- heavier pages, prefetched in background after initial load
 const pageImports = {
   UploadSyncPage: () => import('@/pages/upload-sync/UploadSyncPage'),
   TransactionsPage: () => import('@/pages/TransactionsPage'),
@@ -93,7 +93,7 @@ function prefetchAllPages() {
 }
 
 /**
- * Minimal Suspense fallback — only shows after 150ms delay
+ * Minimal Suspense fallback -- only shows after 150ms delay
  * so fast chunk loads produce zero visible flash.
  */
 function PageLoader() {
@@ -130,7 +130,7 @@ function NotFoundPage() {
         <p className="text-xl text-muted-foreground">Page not found</p>
         <Link
           to={ROUTES.DASHBOARD}
-          className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-on-accent rounded-lg hover:shadow-lg transition-colors"
+          className="inline-block rounded-md border border-foreground bg-foreground px-6 py-3 text-background transition-colors hover:bg-foreground/90"
         >
           Go to Dashboard
         </Link>
@@ -197,7 +197,6 @@ function LandingPage() {
  *  rendering as a dark glass chip (which was unreadable in light mode). */
 const TOASTER_STYLE: React.CSSProperties = {
   background: 'var(--color-popover)',
-  backdropFilter: 'blur(12px)',
   border: '1px solid var(--glass-border-strong)',
   color: 'var(--color-foreground)',
   boxShadow: 'var(--glass-shadow-strong)',
@@ -209,11 +208,13 @@ const TOASTER_OPTIONS = {
 } as const
 
 function App() {
+  const resolvedTheme = useThemeStore((state) => state.resolved)
+
   return (
     <ErrorBoundary>
       <ThemeWatcher />
       {/* reducedMotion="user" keeps motion full for everyone EXCEPT users whose
-          OS requests reduced motion (WCAG 2.3.3) — library-level, so individual
+          OS requests reduced motion (WCAG 2.3.3) -- library-level, so individual
           components don't each need a prefers-reduced-motion gate. */}
       <MotionConfig reducedMotion="user">
       <QueryClientProvider client={queryClient}>
@@ -237,7 +238,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   >
-                    <Route path="home" element={<HomePage />} />
+                    <Route path="home" element={<Navigate replace to={ROUTES.DASHBOARD} />} />
                     <Route path={toRelativePath(ROUTES.DASHBOARD)} element={<DashboardPage />} />
                     <Route path={toRelativePath(ROUTES.OVERVIEW)} element={<OverviewPage />} />
                     <Route path={toRelativePath(ROUTES.UPLOAD)} element={<UploadSyncPage />} />
@@ -271,7 +272,7 @@ function App() {
             </BrowserRouter>
             <Toaster
               position="bottom-right"
-              theme="dark"
+              theme={resolvedTheme}
               toastOptions={TOASTER_OPTIONS}
             />
           </PreferencesProvider>

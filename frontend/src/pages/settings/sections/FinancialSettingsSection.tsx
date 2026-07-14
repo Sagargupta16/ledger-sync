@@ -63,7 +63,7 @@ export default function FinancialSettingsSection({
               step="1"
               value={localPrefs.savings_goal_percent ?? 20}
               onChange={(e) => updateLocalPref('savings_goal_percent', Number(e.target.value))}
-              className="flex-1 h-2 bg-[var(--overlay-5)] rounded-full appearance-none cursor-pointer accent-primary"
+              className="touch-slider flex-1"
             />
             <input
               id="savings-goal"
@@ -79,7 +79,7 @@ export default function FinancialSettingsSection({
                   Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0,
                 )
               }}
-              className="w-16 px-2 py-2 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm text-center focus:border-primary focus:outline-none"
+              className="min-h-11 w-16 px-2 py-2 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm text-center focus:border-primary focus:outline-none sm:min-h-10"
             />
           </div>
         </div>
@@ -138,7 +138,7 @@ export default function FinancialSettingsSection({
             {(['new', 'old'] as const).map((regime) => (
               <label
                 key={regime}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors border text-sm ${
+                className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors sm:min-h-10 ${
                   (localPrefs.preferred_tax_regime ?? 'new') === regime
                     ? 'bg-primary/15 border-primary text-foreground font-medium'
                     : 'bg-[var(--overlay-2)] border-border text-muted-foreground hover:text-foreground'

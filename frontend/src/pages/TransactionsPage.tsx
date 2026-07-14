@@ -6,7 +6,7 @@ import { Download, Receipt } from 'lucide-react'
 import type { SortingState } from '@tanstack/react-table'
 import { toast } from 'sonner'
 
-import { PageContainer, PageHeader } from '@/components/ui'
+import { Button, PageContainer, PageHeader } from '@/components/ui'
 import TransactionTable from '@/components/transactions/TransactionTable'
 import TransactionFilters, { type FilterValues } from '@/components/transactions/TransactionFilters'
 import SavedViewsMenu from '@/components/transactions/SavedViewsMenu'
@@ -134,75 +134,65 @@ export default function TransactionsPage() {
         {/* Header */}
         <PageHeader
           title="Transactions"
-          subtitle="Browse and search your transaction history"
+          subtitle="Search, filter, and export every reconciled ledger entry."
           action={
-            <motion.button
+            <Button
               onClick={handleExportCSV}
-              whileTap={{ scale: 0.97 }}
               disabled={isExporting || filteredTransactions.length === 0}
               aria-disabled={isExporting || filteredTransactions.length === 0}
               title={filteredTransactions.length === 0 ? 'No transactions to export' : undefined}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-on-accent rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-[color,background-color,border-color,transform,box-shadow] duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              variant="outline"
+              size="md"
+              icon={<Download className={`size-4 ${isExporting ? 'animate-pulse' : ''}`} />}
             >
-              <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} />
-              <span className="text-sm font-medium">{isExporting ? 'Exporting...' : 'Export CSV'}</span>
-            </motion.button>
+              {isExporting ? 'Exporting...' : 'Export CSV'}
+            </Button>
           }
         />
 
-        {/* Stats Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="glass rounded-2xl border border-border p-4 sm:p-6"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-4 sm:gap-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/20 rounded-xl">
-                <Receipt className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{isFiltered ? 'Matching Transactions' : 'Total Transactions'}</p>
-                <p className="text-xl sm:text-2xl font-bold tabular-nums">
+        <section className="ledger-panel">
+          <div className="grid grid-cols-2 divide-x divide-y divide-[var(--hairline-1)] lg:grid-cols-4 lg:divide-y-0">
+            <div className="flex min-h-24 items-center gap-3 p-4">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--overlay-3)]">
+                <Receipt className="size-4 text-foreground" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-xs text-muted-foreground">{isFiltered ? 'Matching transactions' : 'Total transactions'}</p>
+                <p className="ledger-figure mt-1 text-xl font-semibold">
                   {total.toLocaleString('en-IN')}
                   {isFiltered && (
-                    <span className="text-base font-medium text-muted-foreground"> of {unfilteredTotal.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-medium text-muted-foreground"> of {unfilteredTotal.toLocaleString('en-IN')}</span>
                   )}
                 </p>
               </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-6 sm:gap-10">
-                <div>
-                  <p className="text-sm text-muted-foreground">Income</p>
-                  <p className="text-xl font-semibold tabular-nums text-app-green">{typeCounts.income.toLocaleString('en-IN')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Expense</p>
-                  <p className="text-xl font-semibold tabular-nums text-app-red">{typeCounts.expense.toLocaleString('en-IN')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Transfer</p>
-                  <p className="text-xl font-semibold tabular-nums text-app-teal">{typeCounts.transfer.toLocaleString('en-IN')}</p>
-                </div>
+            {[
+              { label: 'Income', value: typeCounts.income, color: 'text-app-green' },
+              { label: 'Expense', value: typeCounts.expense, color: 'text-app-red' },
+              { label: 'Transfer', value: typeCounts.transfer, color: 'text-app-teal' },
+            ].map((item) => (
+              <div key={item.label} className="min-h-24 p-4">
+                <p className="text-xs text-muted-foreground">{item.label}</p>
+                <p className={`ledger-figure mt-3 text-xl font-semibold ${item.color}`}>
+                  {item.value.toLocaleString('en-IN')}
+                </p>
               </div>
-              {/* Type mix as a 100% stacked bar -- the proportional split the
-                  three counts above imply, without a separate chart. */}
-              {typeCounts.income + typeCounts.expense + typeCounts.transfer > 0 && (
-                <div
-                  className="flex h-1.5 w-full min-w-40 overflow-hidden rounded-full"
-                  role="img"
-                  aria-label={`Transaction type mix: ${typeCounts.income} income, ${typeCounts.expense} expense, ${typeCounts.transfer} transfer`}
-                >
-                  <div className="bg-app-green" style={{ width: `${(typeCounts.income / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
-                  <div className="bg-app-red" style={{ width: `${(typeCounts.expense / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
-                  <div className="bg-app-teal" style={{ width: `${(typeCounts.transfer / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
-                </div>
-              )}
-            </div>
+            ))}
           </div>
-        </motion.div>
+          {typeCounts.income + typeCounts.expense + typeCounts.transfer > 0 && (
+            <div className="border-t border-[var(--hairline-1)] px-4 py-3">
+              <div
+                className="flex h-1.5 w-full overflow-hidden rounded-full bg-[var(--overlay-2)]"
+                role="img"
+                aria-label={`Transaction type mix: ${typeCounts.income} income, ${typeCounts.expense} expense, ${typeCounts.transfer} transfer`}
+              >
+                <div className="bg-app-green" style={{ width: `${(typeCounts.income / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
+                <div className="bg-app-red" style={{ width: `${(typeCounts.expense / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
+                <div className="bg-app-teal" style={{ width: `${(typeCounts.transfer / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
+              </div>
+            </div>
+          )}
+        </section>
 
         {/* Filters */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
@@ -240,6 +230,7 @@ export default function TransactionsPage() {
             />
           </motion.div>
         )}
+        <div className="ledger-ruler" aria-hidden="true" />
     </PageContainer>
   )
 }

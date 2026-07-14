@@ -77,7 +77,7 @@ export default function TaxPlanningPage() {
     <PageContainer>
         <PageHeader
           title="Income Tax"
-          subtitle={`Estimate your tax liability — ${regimeLabel}`}
+          subtitle={`Estimate your tax liability -- ${regimeLabel}`}
           action={
             <div className="flex items-center gap-3 flex-wrap">
               <TaxPageActions
@@ -96,7 +96,7 @@ export default function TaxPlanningPage() {
               />
               <Link
                 to={ROUTES.GST_ANALYSIS}
-                className="inline-flex items-center gap-2 px-3 py-2.5 sm:py-1.5 text-sm font-medium rounded-lg border border-border bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+                className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-lg border border-border bg-[var(--overlay-2)] px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--overlay-5)] hover:text-foreground sm:min-h-8 sm:py-1.5"
                 title="View Indirect Tax (GST) analysis"
               >
                 <Receipt className="w-4 h-4" />
@@ -205,8 +205,8 @@ export default function TaxPlanningPage() {
                 >
                   <p className="text-xs text-muted-foreground mb-4">
                     {isNewRegime
-                      ? 'New Regime — Limited deductions, lower rates'
-                      : 'Old Regime — Maximize deductions to reduce taxable income'}
+                      ? 'New Regime -- Limited deductions, lower rates'
+                      : 'Old Regime -- Maximize deductions to reduce taxable income'}
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -218,7 +218,7 @@ export default function TaxPlanningPage() {
                         description="Automatically applied to salaried individuals. No action needed."
                       />
                       <TaxTip
-                        title="NPS — Employer Contribution"
+                        title="NPS -- Employer Contribution"
                         amount={null}
                         description="Section 80CCD(2): Up to 14% of basic salary contributed by employer is deductible even in New Regime."
                       />
@@ -244,7 +244,7 @@ export default function TaxPlanningPage() {
                       <TaxTip
                         title="Consider Old Regime?"
                         amount={null}
-                        description="If you have significant 80C investments (1.5L), HRA, home loan interest, or medical insurance — Old Regime may save more. Compare both."
+                        description="If you have significant 80C investments (1.5L), HRA, home loan interest, or medical insurance -- Old Regime may save more. Compare both."
                       />
                     </>
                   ) : (
@@ -255,17 +255,17 @@ export default function TaxPlanningPage() {
                         description="PPF, ELSS, LIC, EPF, tuition fees, home loan principal. Max deduction: 1.5L."
                       />
                       <TaxTip
-                        title="Section 80CCD(1B) — NPS"
+                        title="Section 80CCD(1B) -- NPS"
                         amount={50000}
                         description="Additional 50K deduction for NPS contributions (over and above 80C)."
                       />
                       <TaxTip
-                        title="Section 80D — Health Insurance"
+                        title="Section 80D -- Health Insurance"
                         amount={75000}
                         description="Self/family: 25K (50K if senior). Parents: 25K (50K if senior). Total max: 75K-1L."
                       />
                       <TaxTip
-                        title="Section 24(b) — Home Loan Interest"
+                        title="Section 24(b) -- Home Loan Interest"
                         amount={200000}
                         description="Interest on self-occupied property loan: up to 2L deduction per year."
                       />
@@ -275,17 +275,17 @@ export default function TaxPlanningPage() {
                         description="If you live in rented housing and receive HRA as part of salary, claim exemption under Section 10(13A)."
                       />
                       <TaxTip
-                        title="Section 80E — Education Loan"
+                        title="Section 80E -- Education Loan"
                         amount={null}
                         description="Full interest deduction on education loan for self, spouse, or children. No upper limit. Available for 8 years."
                       />
                       <TaxTip
-                        title="Section 80G — Donations"
+                        title="Section 80G -- Donations"
                         amount={null}
                         description="50% or 100% deduction for donations to approved charities. Keep receipts with PAN of the organization."
                       />
                       <TaxTip
-                        title="Section 80TTA — Savings Interest"
+                        title="Section 80TTA -- Savings Interest"
                         amount={10000}
                         description="Interest from savings bank accounts: up to 10K deduction (50K for senior citizens under 80TTB)."
                       />

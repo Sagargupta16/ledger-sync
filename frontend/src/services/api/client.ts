@@ -16,6 +16,7 @@ import {
 import type { Transaction } from '@/types'
 
 function resolveDemoData(url: string, params: Record<string, unknown>, txs: Transaction[]): unknown {
+  if (url.includes('/api/ai/tools')) return { tools: [] }
   if (url.includes('/calculations/totals')) return generateDemoTotals(txs, params)
   if (url.includes('/calculations/monthly-aggregation')) return generateDemoMonthlyAggregation(txs, params)
   if (url.includes('/calculations/account-balances')) return generateDemoAccountBalances(txs)
@@ -55,7 +56,7 @@ export const apiClient = axios.create({
   },
 })
 
-// Demo mode interceptor — blocks all real API calls when demo is active.
+// Demo mode interceptor -- blocks all real API calls when demo is active.
 // For GET requests, returns computed data; for mutations, rejects.
 apiClient.interceptors.request.use(
   (config) => {
@@ -82,7 +83,7 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 )
 
-// Request interceptor — always attach the token if one exists.
+// Request interceptor -- always attach the token if one exists.
 // If it's expired, the server returns 401, and the response interceptor
 // handles the refresh transparently.
 apiClient.interceptors.request.use(

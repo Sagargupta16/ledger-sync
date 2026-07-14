@@ -1,27 +1,35 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-PFFMG7D8DP"></script>
+    <!-- Google Analytics is included only in production builds. -->
     <script>
-      globalThis.dataLayer = globalThis.dataLayer || [];
-      function gtag(){globalThis.dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-PFFMG7D8DP');
+      if ('%MODE%' === 'production') {
+        var analyticsScript = document.createElement('script');
+        analyticsScript.async = true;
+        analyticsScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-PFFMG7D8DP';
+        document.head.appendChild(analyticsScript);
+        globalThis.dataLayer = globalThis.dataLayer || [];
+        globalThis.gtag = function () {
+          globalThis.dataLayer.push(arguments);
+        };
+        globalThis.gtag('js', new Date());
+        globalThis.gtag('config', 'G-PFFMG7D8DP');
+      }
     </script>
     <meta charset="UTF-8" />
+    <meta name="theme-color" content="#f7f7f5" />
+    <meta name="color-scheme" content="light dark" />
     <!-- Apply the saved theme before first paint to avoid a flash of the wrong theme. -->
     <script>
       (function () {
         try {
-          var m = localStorage.getItem('ledger-sync-theme') || 'dark';
+          var m = localStorage.getItem('ledger-sync-theme') || 'light';
           var resolved = m === 'system'
             ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
             : m;
-          document.documentElement.setAttribute('data-theme', resolved);
-          // Keep the mobile browser chrome (address bar / status bar) in step
-          // with the theme so it doesn't render black behind the warm light UI.
-          var bar = resolved === 'light' ? '#f6f3ee' : '#000000';
+          document.documentElement.dataset.theme = resolved;
+          // Keep the mobile browser chrome in step with the selected theme.
+          var bar = resolved === 'light' ? '#f7f7f5' : '#101112';
           var setMeta = function (name, content) {
             var el = document.querySelector('meta[name="' + name + '"]');
             if (el) el.setAttribute('content', content);
@@ -29,14 +37,12 @@
           setMeta('theme-color', bar);
           setMeta('color-scheme', resolved);
         } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.dataset.theme = 'light';
         }
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Ledger Sync — Self-hosted personal finance dashboard with analytics, budgeting, and tax planning." />
-    <meta name="theme-color" content="#000000" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="Ledger Sync - self-hosted personal finance dashboard with analytics, budgeting, and tax planning." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { rawColors } from '@/constants/colors'
 
 interface CreateGoalFormProps {
   formData: {
@@ -83,8 +82,7 @@ export default function CreateGoalForm({
           <button
             type="submit"
             disabled={isPending}
-            className="px-5 py-2 rounded-xl text-sm font-medium text-foreground transition-colors disabled:opacity-50"
-            style={{ background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})` }}
+            className="min-h-9 rounded-md border border-foreground bg-foreground px-5 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
           >
             {isPending ? 'Creating...' : 'Create Goal'}
           </button>

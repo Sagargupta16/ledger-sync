@@ -21,7 +21,7 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={() => setMode(NEXT[mode])}
-      className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:text-foreground hover:bg-surface-hover transition-colors duration-150"
+      className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 hover:bg-surface-hover hover:text-foreground lg:size-9"
       title={`Theme: ${LABEL[mode]} (tap to change)`}
       aria-label={`Theme: ${LABEL[mode]}. Tap to switch to ${LABEL[NEXT[mode]]}.`}
     >

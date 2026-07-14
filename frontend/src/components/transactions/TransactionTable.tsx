@@ -8,7 +8,7 @@ import {
   type SortingState,
   type Updater,
 } from '@tanstack/react-table'
-import { TrendingUp, TrendingDown, Search } from 'lucide-react'
+import { ArrowRightLeft, TrendingUp, TrendingDown, Search } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 import type { Transaction } from '@/types'
@@ -67,14 +67,14 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
 
   if (isLoading) {
     return (
-      <div className="bg-[var(--overlay-1)] border border-border rounded-xl overflow-hidden">
+      <div className="ledger-panel">
         {/* Desktop skeleton */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-[var(--overlay-2)] border-b border-[var(--hairline-1)] sticky top-0 z-10">
+            <thead className="sticky top-0 z-10 border-b border-[var(--hairline-1)] bg-surface-3">
               <tr>
                 {Array.from({ length: 7 }, (_, i) => (
-                  <th key={`skeleton-header-${i}`} className="px-6 py-3 text-left">
+                  <th key={`skeleton-header-${i}`} className="px-4 py-2.5 text-left">
                     <div className="h-4 skeleton w-20" />
                   </th>
                 ))}
@@ -84,7 +84,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
               {Array.from({ length: 10 }, (_, i) => (
                 <tr key={`skeleton-row-${i}`} className="border-b border-[var(--hairline-1)]">
                   {Array.from({ length: 7 }, (_, j) => (
-                    <td key={`skeleton-cell-${i}-${j}`} className="px-6 py-4">
+                    <td key={`skeleton-cell-${i}-${j}`} className="px-4 py-3">
                       <div className="h-4 skeleton w-full" />
                     </td>
                   ))}
@@ -115,7 +115,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
 
   if (transactions.length === 0) {
     return (
-      <div className="bg-[var(--overlay-1)] border border-border rounded-xl">
+      <div className="ledger-panel">
         <EmptyState
           icon={Search}
           title="No transactions found"
@@ -130,13 +130,13 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-[var(--overlay-1)] border border-border rounded-xl overflow-hidden"
+      className="ledger-panel"
     >
       {/* Desktop table */}
       <div className="hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-[var(--overlay-2)] border-b border-[var(--hairline-1)] sticky top-0 z-10">
+            <thead className="sticky top-0 z-10 border-b border-[var(--hairline-1)] bg-surface-3">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
@@ -151,7 +151,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                     return (
                       <th
                         key={header.id}
-                        className="px-6 py-3 text-left text-sm font-semibold"
+                        className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground"
                         aria-sort={ariaSort}
                       >
                         {header.isPlaceholder
@@ -174,7 +174,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                   className="border-b border-[var(--hairline-1)] hover:bg-[var(--overlay-2)] transition-colors duration-150"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4">
+                    <td key={cell.id} className="px-4 py-3 text-[13px]">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -185,7 +185,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
         </div>
       </div>
 
-      {/* Mobile card view — grouped by day with daily totals */}
+      {/* Mobile card view -- grouped by day with daily totals */}
       <div className="md:hidden">
         {(() => {
           const rows = table.getRowModel().rows
@@ -206,7 +206,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
             return (
               <div key={dateKey}>
                 {/* Day header */}
-                <div className="sticky top-0 z-10 px-4 py-2 bg-background/90 backdrop-blur-sm flex items-center justify-between border-b border-[var(--hairline-1)]">
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--hairline-1)] bg-surface-3 px-4 py-2">
                   <span className="text-xs font-semibold text-text-tertiary">
                     {formatDate(dateKey, { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })}
                   </span>
@@ -229,7 +229,7 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2">
                             {isTransfer ? (
-                              <span className="text-app-teal text-sm">→</span>
+                              <ArrowRightLeft className="size-3.5 text-app-teal" />
                             ) : (
                               <TypeIcon className={`w-3.5 h-3.5 ${isIncome ? 'text-app-green' : 'text-app-red'}`} />
                             )}

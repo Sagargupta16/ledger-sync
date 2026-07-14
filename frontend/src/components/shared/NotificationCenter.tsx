@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { rawColors } from '@/constants/colors'
 import { useBudgets, useAnomalies, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import {
   type Notification,
@@ -127,7 +126,7 @@ export default function NotificationCenter() {
         ref={buttonRef}
         onClick={() => setIsOpen((v) => !v)}
         className={cn(
-          'w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150 ease-out relative',
+          'relative flex size-11 items-center justify-center rounded-md border border-transparent transition-colors duration-150 ease-out sm:size-9',
           'text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)]',
           isOpen && 'bg-[var(--overlay-4)] text-foreground',
         )}
@@ -137,10 +136,7 @@ export default function NotificationCenter() {
         <Bell size={18} />
         {totalCount > 0 && (
           <span
-            className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 flex items-center justify-center px-0.5 rounded-full text-[9px] font-bold text-foreground"
-            style={{
-              background: `linear-gradient(135deg, ${rawColors.app.red}, ${rawColors.app.pink})`,
-            }}
+            className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-app-red px-0.5 text-[9px] font-bold text-on-accent"
           >
             {totalCount > 9 ? '9+' : totalCount}
           </span>
@@ -153,15 +149,13 @@ export default function NotificationCenter() {
           <motion.div
             ref={panelRef}
             aria-label="Notifications panel"
-            initial={{ opacity: 0, x: -8, scale: 0.96 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -8, scale: 0.96 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
             className={cn(
-              'absolute z-[100] w-80 max-h-[70vh] rounded-2xl overflow-hidden',
-              'glass-strong border border-border shadow-2xl shadow-black/40',
-              // Position: to the right of the sidebar, vertically centered near the bell
-              'left-full bottom-0 ml-3',
+              'absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-80 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg',
+              'glass-strong border border-border shadow-lg',
             )}
           >
             {/* Header */}
@@ -172,12 +166,7 @@ export default function NotificationCenter() {
                   Notifications
                 </span>
                 {totalCount > 0 && (
-                  <span
-                    className="px-1.5 py-0.5 rounded-md text-[10px] font-bold text-foreground"
-                    style={{
-                      background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})`,
-                    }}
-                  >
+                  <span className="rounded-md bg-app-blue/10 px-1.5 py-0.5 text-[10px] font-bold text-app-blue">
                     {totalCount}
                   </span>
                 )}
@@ -205,12 +194,7 @@ export default function NotificationCenter() {
             <div role="list" className="overflow-y-auto max-h-[calc(70vh-48px)] scrollbar-none">
               {totalCount === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 px-4">
-                  <div
-                    className="p-3 rounded-2xl mb-3"
-                    style={{
-                      background: `linear-gradient(135deg, ${rawColors.app.green}20, ${rawColors.app.teal}20)`,
-                    }}
-                  >
+                  <div className="mb-3 rounded-lg bg-app-green/10 p-3">
                     <Bell size={24} className="text-app-green" />
                   </div>
                   <p className="text-sm font-medium text-foreground">All caught up!</p>
@@ -232,7 +216,7 @@ export default function NotificationCenter() {
                         <div className={cn('p-1 rounded-md', config.bgClass)}>
                           <GroupIcon size={12} className={config.colorClass} />
                         </div>
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <span className="text-[11px] font-semibold text-muted-foreground">
                           {config.label}
                         </span>
                         <span

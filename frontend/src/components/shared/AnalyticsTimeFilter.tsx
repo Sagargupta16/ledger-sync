@@ -185,13 +185,13 @@ export default function AnalyticsTimeFilter({
 
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-      {/* Period Navigation — LEFT of the mode selector */}
+      {/* Period Navigation -- LEFT of the mode selector */}
       {showNavigation && (
         <div className="flex items-center justify-center sm:justify-start gap-2">
           <motion.button
             onClick={handlePrevious}
             disabled={!canGoPrev}
-            className="p-2.5 sm:p-2 text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] rounded-lg transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
+            className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary sm:size-9"
             whileTap={canGoPrev ? { scale: 0.95 } : undefined}
             aria-label="Previous period"
           >
@@ -209,7 +209,7 @@ export default function AnalyticsTimeFilter({
           <motion.button
             onClick={handleNext}
             disabled={!canGoNext}
-            className="p-2.5 sm:p-2 text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] rounded-lg transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
+            className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary sm:size-9"
             whileTap={canGoNext ? { scale: 0.95 } : undefined}
             aria-label="Next period"
           >
@@ -227,7 +227,7 @@ export default function AnalyticsTimeFilter({
             role="tab"
             aria-selected={viewMode === mode.value}
             onClick={() => onViewModeChange(mode.value)}
-            className={`relative flex-1 sm:flex-none px-2 sm:px-3 py-2.5 sm:py-1.5 rounded-md text-sm transition-colors duration-150 ease-out ${
+            className={`relative min-h-11 flex-1 whitespace-nowrap rounded-md px-2 py-2.5 text-sm transition-colors duration-150 ease-out sm:min-h-8 sm:flex-none sm:px-3 sm:py-1.5 ${
               viewMode === mode.value
                 ? 'text-foreground font-medium'
                 : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-2)]'

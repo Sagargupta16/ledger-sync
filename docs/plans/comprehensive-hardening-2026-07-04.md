@@ -1,5 +1,10 @@
 # Comprehensive Hardening Plan (2026-07-04)
 
+> **Status: historical implementation record.** The core hardening work shipped
+> in 2.20.0 through PR #202. This file preserves the plan as written on
+> 2026-07-04; it is not the current backlog. Treat deferred waves as proposals
+> unless current code, the changelog, or a tracked issue confirms otherwise.
+
 Feature-branch: `feat/comprehensive-hardening`.
 
 Wave 1 research fanned out six specialist agents; this plan is the distilled action list. Original raw findings are archived at the top-level workflow output; only the merged action plan lives here.

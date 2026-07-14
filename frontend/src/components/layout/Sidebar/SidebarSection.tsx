@@ -8,9 +8,9 @@ export default function SidebarSection({
   children,
 }: Readonly<SidebarSectionProps>) {
   return (
-    <div className="mt-6">
-      <div className="px-3 mb-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-text-quaternary">
+    <div className="mt-4">
+      <div className="mb-1 px-3">
+        <span className="text-[11px] font-medium text-text-secondary">
           {title}
         </span>
       </div>

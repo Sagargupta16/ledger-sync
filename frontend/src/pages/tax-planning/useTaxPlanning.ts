@@ -170,12 +170,11 @@ export function useTaxPlanning() {
     )
   }, [salaryProjection, taxSlabs, standardDeduction, isNewRegime, fyYear])
 
-  // Forward TDS schedule -- flat baseline on regular salary, with a one-month
-  // spike whenever an RSU vesting lands. Driven purely by the salary structure
-  // (base/bonus = certain, RSU = dated), so it is computed whenever salary data
-  // exists for this FY -- independent of the projection toggle. (The page-level
-  // `salaryProjection` is null outside projection mode, so we project here on
-  // its own to keep the TDS chart available on the normal current-FY view.)
+  // Forward TDS schedule -- flat baseline on recurring compensation, annual
+  // bonus spread across 12 monthly extras, and dated RSU spikes. It is computed
+  // whenever salary data exists for this FY, independent of the projection
+  // toggle. The page-level `salaryProjection` is null outside projection mode,
+  // so project here to keep the chart available on the current-FY view.
   const tdsProjection = useMemo<ProjectedFYBreakdown | null>(() => {
     if (!hasSalaryData) return null
     return projectFiscalYear(
@@ -198,7 +197,7 @@ export function useTaxPlanning() {
     if (!tdsProjection) return []
     // Base = certain recurring comp ONLY (exclude bonus AND RSU), so the flat
     // monthly baseline = tax(base)/12 -- the exact same per-month figure the
-    // summary cards use. Bonus + RSU are the "extra" that spikes in its month.
+    // summary cards use. Bonus and RSU are modeled as extra income.
     const baseAnnual = Math.max(
       0,
       tdsProjection.grossTaxable - tdsProjection.bonus - tdsProjection.rsuIncome,

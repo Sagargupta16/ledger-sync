@@ -54,7 +54,7 @@ export default function ConfirmDialog({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-[var(--modal-backdrop)] backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--modal-backdrop)] p-4"
           onClick={handleClose}
         >
           <motion.div
@@ -66,7 +66,7 @@ export default function ConfirmDialog({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="bg-surface-dropdown rounded-2xl border border-[var(--hairline-2)] p-6 max-w-md w-full shadow-2xl"
+            className="w-full max-w-md rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-6 shadow-[var(--glass-shadow-strong)]"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="confirm-dialog-title" className="text-lg font-semibold text-foreground mb-2">{title}</h3>

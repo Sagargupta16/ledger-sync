@@ -173,26 +173,26 @@ export default function InstrumentProjections() {
 
   return (
     <motion.div
-      className="glass rounded-2xl border border-border p-6"
+      className="ledger-panel p-4 sm:p-5"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
     >
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Landmark className="w-5 h-5 text-app-blue" />
-          <h3 className="text-lg font-semibold text-foreground">Instrument Maturity Projections</h3>
+          <h3 className="min-w-0 text-base font-semibold text-foreground sm:text-lg">Instrument Maturity Projections</h3>
           <StaleDataBadge
             isFallback={isFallback}
             reason="Couldn't fetch the latest instrument rates -- using compiled-in defaults until the next refresh."
           />
         </div>
-        <div className="flex gap-1 p-0.5 rounded-lg bg-muted/20">
+        <div className="grid w-full grid-cols-3 gap-1 rounded-lg bg-muted/20 p-0.5 sm:flex sm:w-auto">
           {TABS.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === key ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`min-h-11 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:min-h-8 ${tab === key ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {label}
             </button>

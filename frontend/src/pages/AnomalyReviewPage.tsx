@@ -41,10 +41,10 @@ const SEVERITY_ICONS: Record<Anomaly['severity'], typeof AlertTriangle> = {
   low: Info,
 }
 
-const SEVERITY_STYLES: Record<Anomaly['severity'], { bg: string; text: string; border: string; borderLeft: string; iconColor: string }> = {
-  high: { bg: 'bg-app-red/15', text: 'text-app-red', border: 'border-app-red/20', borderLeft: 'border-l-4 border-l-app-red', iconColor: rawColors.app.red },
-  medium: { bg: 'bg-app-orange/15', text: 'text-app-orange', border: 'border-app-orange/20', borderLeft: 'border-l-4 border-l-app-orange', iconColor: rawColors.app.orange },
-  low: { bg: 'bg-app-yellow/15', text: 'text-app-yellow', border: 'border-app-yellow/20', borderLeft: 'border-l-4 border-l-app-yellow', iconColor: rawColors.app.yellow },
+const SEVERITY_STYLES: Record<Anomaly['severity'], { bg: string; text: string; border: string; iconColor: string }> = {
+  high: { bg: 'bg-app-red/15', text: 'text-app-red', border: 'border-app-red/20', iconColor: rawColors.app.red },
+  medium: { bg: 'bg-app-orange/15', text: 'text-app-orange', border: 'border-app-orange/20', iconColor: rawColors.app.orange },
+  low: { bg: 'bg-app-yellow/15', text: 'text-app-yellow', border: 'border-app-yellow/20', iconColor: rawColors.app.yellow },
 }
 
 const DETECTED_AT_OPTS: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
@@ -111,7 +111,7 @@ function AnomalyDetectionPanel() {
           type="button"
           onClick={handleSave}
           disabled={!hasChanges || updateAnomalySettings.isPending}
-          className="flex items-center gap-2 px-4 py-2.5 sm:py-2 min-h-11 rounded-lg bg-gradient-to-r from-primary to-secondary text-on-accent text-sm font-medium transition-all hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex min-h-11 items-center gap-2 rounded-md border border-foreground bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
           {updateAnomalySettings.isPending ? 'Saving...' : 'Save'}
@@ -180,7 +180,7 @@ export default function AnomalyReviewPage() {
         action={
           <Link
             to={ROUTES.SETTINGS}
-            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-[var(--overlay-1)] hover:bg-[var(--overlay-2)] text-muted-foreground hover:text-foreground transition-colors"
+            className="ledger-control inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:min-h-9"
             title="Tune sensitivity, threshold, and which anomaly types are active"
           >
             <Settings2 className="w-3.5 h-3.5" />
@@ -265,7 +265,7 @@ export default function AnomalyReviewPage() {
             <option value="low">Low</option>
           </select>
 
-          <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-foreground sm:min-h-0">
             <input
               type="checkbox"
               checked={includeReviewed}
@@ -299,7 +299,7 @@ export default function AnomalyReviewPage() {
                 key={anomaly.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`glass rounded-2xl border p-4 sm:p-6 ${severity.borderLeft} ${anomaly.is_reviewed ? 'border-border opacity-60' : 'border-border'}`}
+                className={`ledger-panel p-4 sm:p-5 ${anomaly.is_reviewed ? 'opacity-60' : ''}`}
               >
                 {/* Header Row */}
                 <div className="flex items-start justify-between gap-4">

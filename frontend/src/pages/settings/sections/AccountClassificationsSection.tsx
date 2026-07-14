@@ -5,7 +5,7 @@
 import { motion } from 'framer-motion'
 import { Wallet, GripVertical } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
-import { ACCOUNT_TYPES, CATEGORY_COLORS } from '../types'
+import { ACCOUNT_TYPES } from '../types'
 import { Section } from '../sectionPrimitives'
 
 interface Props {
@@ -109,9 +109,7 @@ export default function AccountClassificationsSection({
                 : 'border-border bg-[var(--overlay-1)]'
             }`}
           >
-            <div
-              className={`bg-gradient-to-r ${CATEGORY_COLORS[category] || 'from-muted-foreground to-text-tertiary'} rounded-lg px-3 py-1.5 mb-2`}
-            >
+            <div className="mb-2 rounded-md border border-[var(--hairline-1)] bg-[var(--overlay-2)] px-3 py-1.5">
               <h4 className="text-xs font-semibold text-foreground">{category}</h4>
               <p className="text-[10px] text-foreground/70">
                 {accountsByCategory[category]?.length || 0}{' '}accounts

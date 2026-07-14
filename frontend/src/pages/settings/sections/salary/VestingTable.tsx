@@ -117,7 +117,7 @@ export function VestingTable(props: Readonly<VestingTableProps>) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[32rem] text-sm">
         <thead>
           <tr className="text-xs text-muted-foreground border-b border-border">
             <th className="text-left py-2 pr-3 font-medium">Date</th>

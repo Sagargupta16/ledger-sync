@@ -1,82 +1,71 @@
-import { motion } from 'framer-motion'
-import { BarChart3, Shield, Sparkles, TrendingUp, Zap } from 'lucide-react'
-
-import { rawColors } from '@/constants/colors'
+import { BarChart3, Shield, TrendingUp, Zap } from 'lucide-react'
 
 const FEATURES = [
   {
     icon: BarChart3,
-    title: 'Smart Analytics',
+    title: 'Smart analytics',
     description:
-      '50/30/20 budget tracking, spending patterns, and income analysis with beautiful visualizations',
-    color: rawColors.app.blue,
+      '50/30/20 budget tracking, spending patterns, and income analysis with clear visualizations.',
+    iconClass: 'bg-[var(--overlay-3)] text-app-blue',
   },
   {
     icon: TrendingUp,
-    title: 'Investment Tracking',
-    description: 'Track FD/Bonds, Mutual Funds, PPF/EPF, and Stocks with returns analysis',
-    color: rawColors.app.green,
+    title: 'Investment tracking',
+    description: 'Track FD and bonds, mutual funds, PPF and EPF, and stocks with returns analysis.',
+    iconClass: 'bg-[var(--overlay-3)] text-income',
   },
   {
     icon: Shield,
-    title: 'Tax Planning',
-    description: 'India FY-based tax insights, deduction tracking, and regime comparison',
-    color: rawColors.app.orange,
+    title: 'Tax planning',
+    description: 'Review India FY-based tax insights, deduction tracking, and regime comparison.',
+    iconClass: 'bg-[var(--overlay-3)] text-app-orange',
   },
   {
     icon: Zap,
-    title: 'Instant Sync',
+    title: 'Instant sync',
     description:
-      'Upload Excel files with automatic duplicate detection and smart reconciliation',
-    color: rawColors.app.purple,
+      'Upload Excel files with automatic duplicate detection and smart reconciliation.',
+    iconClass: 'bg-[var(--overlay-3)] text-savings',
   },
 ]
 
 export function FeaturesSection() {
   return (
-    <section id="features" className="py-20 border-t border-border">
-      <div className="max-w-6xl mx-auto px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-12"
-        >
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <Sparkles className="w-5 h-5" style={{ color: rawColors.app.yellow }} />
-            <span className="text-sm font-medium" style={{ color: rawColors.app.yellow }}>
-              Features
-            </span>
+    <section id="features" className="scroll-mt-20 py-16 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-4 border-b border-border pb-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">
+              Capabilities
+            </p>
+            <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">
+              Everything you need
+            </h2>
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Everything You Need
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Powerful features designed to give you complete visibility into your finances
+          <p className="max-w-2xl text-base leading-7 text-muted-foreground lg:justify-self-end">
+            A complete set of focused tools for understanding daily money movement, long-term
+            wealth, and upcoming obligations.
           </p>
-        </motion.div>
+        </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {FEATURES.map((feature, index) => (
-            <motion.div
+        <div className="grid md:grid-cols-2">
+          {FEATURES.map((feature) => (
+            <div
               key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              className="flex items-start gap-4 p-6 rounded-2xl glass border border-border hover:border-border-strong hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/20 transition-all duration-300"
+              className="flex min-h-40 items-start gap-4 border-b border-border py-7 md:px-7 md:even:border-l md:odd:pl-0 md:even:pr-0"
             >
               <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: `${feature.color}20` }}
+                className={`flex size-10 shrink-0 items-center justify-center rounded-md ${feature.iconClass}`}
               >
-                <feature.icon className="w-6 h-6" style={{ color: feature.color }} />
+                <feature.icon className="size-4.5" aria-hidden="true" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">{feature.description}</p>
+                <h3 className="text-base font-semibold text-foreground">{feature.title}</h3>
+                <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+                  {feature.description}
+                </p>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

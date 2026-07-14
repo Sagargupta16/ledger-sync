@@ -107,7 +107,7 @@ export default function DashboardPage() {
   if (!filteredTransactions?.length) {
     return (
       <PageContainer>
-        <PageHeader title="Dashboard" subtitle="Your financial overview at a glance" />
+        <PageHeader title="Dashboard" subtitle="Monitor cash flow, financial health, and account activity." />
         <EmptyState
           icon={Upload}
           title="No transactions yet"
@@ -124,7 +124,7 @@ export default function DashboardPage() {
     <PageContainer>
       <PageHeader
         title="Dashboard"
-        subtitle="Your financial overview at a glance"
+        subtitle="Monitor cash flow, financial health, and account activity."
         action={
           <AnalyticsTimeFilter
             viewMode={viewMode} onViewModeChange={setViewMode}
@@ -136,9 +136,13 @@ export default function DashboardPage() {
         }
       />
 
-      {/* Quick Insights -- full width */}
-      <motion.div className="p-6 glass rounded-2xl border border-border" {...SCROLL_FADE_UP}>
-        <h2 className="text-lg font-semibold mb-4">Quick Insights</h2>
+      <motion.section className="space-y-3" {...SCROLL_FADE_UP}>
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Ledger snapshot</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Key movements and operating signals for the selected period.
+          </p>
+        </div>
         <QuickInsights
           dateRange={dateRange}
           ageOfMoney={ageOfMoney}
@@ -147,7 +151,7 @@ export default function DashboardPage() {
           fixedCount={fixedCount}
           momChanges={momChanges}
         />
-      </motion.div>
+      </motion.section>
 
       {/* Financial Health Score */}
       <FinancialHealthScore transactions={filteredTransactions} />
@@ -155,10 +159,12 @@ export default function DashboardPage() {
       {/* Income Sources & Expense Sources */}
       <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6" {...SCROLL_FADE_UP}>
         {/* Income Sources */}
-        <div className="p-6 glass rounded-2xl border border-border border-l-4 border-l-app-green glow-income">
+        <section className="ledger-panel p-4 sm:p-5">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-app-green" />
-            Income Sources
+            <span className="flex size-7 items-center justify-center rounded-md bg-app-green/10">
+              <Wallet className="size-3.5 text-app-green" />
+            </span>
+            <span>Income Sources</span>
           </h2>
           {incomeChartData.length > 0 ? (
             <div className="space-y-4">
@@ -210,13 +216,15 @@ export default function DashboardPage() {
           ) : (
             <EmptyState icon={Wallet} title="No income data available" description="Configure income categories in Settings." actionLabel="Go to Settings" actionHref="/settings" variant="compact" />
           )}
-        </div>
+        </section>
 
         {/* Expense Sources */}
-        <div className="p-6 glass rounded-2xl border border-border border-l-4 border-l-app-red glow-expense">
+        <section className="ledger-panel p-4 sm:p-5">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-app-red" />
-            Expense Sources
+            <span className="flex size-7 items-center justify-center rounded-md bg-app-red/10">
+              <CreditCard className="size-3.5 text-app-red" />
+            </span>
+            <span>Expense Sources</span>
           </h2>
           {expenseChartData.length > 0 ? (
             <div className="space-y-4">
@@ -260,8 +268,10 @@ export default function DashboardPage() {
           ) : (
             <EmptyState icon={CreditCard} title="No expense data available" description="Upload transactions to see your expense breakdown." actionLabel="Upload Data" actionHref="/upload" variant="compact" />
           )}
-        </div>
+        </section>
       </motion.div>
+
+      <div className="ledger-ruler" aria-hidden="true" />
     </PageContainer>
   )
 }

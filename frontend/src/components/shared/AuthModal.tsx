@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   PiggyBank,
@@ -49,6 +49,9 @@ function buildAuthorizeUrl(provider: OAuthProviderConfig): string {
 }
 
 export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
+  const modalRef = useRef<HTMLDivElement>(null)
+  const closeModal = useEffectEvent(onClose)
+
   // 'loading' -> providers[] on success. 'failed' when the request errored:
   // a cold serverless backend or network blip must NOT render the "not
   // configured" message (that copy is for a truly empty provider list), so
@@ -77,8 +80,54 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
     return () => { cancelled = true }
   }, [isOpen, retryToken])
 
+  useEffect(() => {
+    if (!isOpen) return
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const modal = modalRef.current
+    const focusableSelector =
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+    modal?.querySelector<HTMLElement>(focusableSelector)?.focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeModal()
+        return
+      }
+      if (event.key !== 'Tab' || !modal) return
+
+      const focusable = Array.from(
+        modal.querySelectorAll<HTMLElement>(focusableSelector),
+      )
+      if (focusable.length === 0) {
+        event.preventDefault()
+        modal.focus()
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable.at(-1)
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last?.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused?.focus()
+    }
+  }, [isOpen])
+
   const handleOAuthLogin = (provider: OAuthProviderConfig) => {
-    // Navigate to provider's authorize URL — will redirect back to /auth/callback/:provider
+    // Navigate to provider's authorize URL -- will redirect back to /auth/callback/:provider
     globalThis.location.assign(buildAuthorizeUrl(provider))
   }
 
@@ -100,33 +149,35 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
             exit={{ opacity: 0 }}
             onClick={onClose}
             aria-hidden="true"
-            className="fixed inset-0 bg-[var(--modal-backdrop)] backdrop-blur-sm z-50"
+            className="fixed inset-0 z-50 bg-[var(--modal-backdrop)]"
           />
 
           {/* Modal */}
           <motion.div
+            ref={modalRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="auth-modal-title"
+            tabIndex={-1}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50 p-4"
           >
-            <div className="relative bg-surface-dropdown rounded-2xl p-8 border border-[var(--hairline-2)] shadow-2xl">
+            <div className="relative rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-8 shadow-[var(--glass-shadow-strong)]">
               {/* Close Button */}
               <button
                 onClick={onClose}
                 aria-label="Close sign-in dialog"
-                className="absolute top-4 right-4 p-2 rounded-lg text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] transition-colors duration-150 ease-out"
+                className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-lg text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground"
               >
                 <X className="w-5 h-5" />
               </button>
 
               {/* Header */}
               <div className="flex flex-col items-center mb-8">
-                <div className="p-3 rounded-xl bg-app-blue/10 mb-3">
+                <div className="mb-3 rounded-lg bg-app-blue/10 p-3">
                   <PiggyBank className="w-8 h-8 text-app-blue" />
                 </div>
                 <h2 id="auth-modal-title" className="text-xl font-semibold text-foreground">
@@ -153,7 +204,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                         <button
                           type="button"
                           onClick={() => handleOAuthLogin(googleProvider)}
-                          className="w-full py-3 px-4 rounded-xl font-medium text-foreground flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-[var(--overlay-3)] border border-[var(--hairline-2)] hover:bg-[var(--overlay-5)]"
+                          className="flex min-h-11 w-full items-center justify-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-[var(--overlay-3)] px-4 py-3 font-medium text-foreground transition-colors duration-150 ease-out hover:bg-[var(--overlay-5)]"
                         >
                           <GoogleIcon className="w-5 h-5" />
                           Continue with Google
@@ -163,7 +214,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                         <button
                           type="button"
                           onClick={() => handleOAuthLogin(githubProvider)}
-                          className="w-full py-3 px-4 rounded-xl font-medium text-foreground flex items-center justify-center gap-3 transition-all duration-150 ease-out bg-[var(--overlay-3)] border border-[var(--hairline-2)] hover:bg-[var(--overlay-5)]"
+                          className="flex min-h-11 w-full items-center justify-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-[var(--overlay-3)] px-4 py-3 font-medium text-foreground transition-colors duration-150 ease-out hover:bg-[var(--overlay-5)]"
                         >
                           <GitHubIcon className="w-5 h-5" />
                           Continue with GitHub
@@ -221,7 +272,7 @@ export function LoginButton({ onClick }: Readonly<{ onClick: () => void }>) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-foreground transition-colors hover:scale-105 border border-border-strong hover:border-border-strong bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)]"
+      className="flex min-h-11 items-center gap-2 rounded-md border border-border-strong bg-[var(--overlay-2)] px-5 py-2.5 font-medium text-foreground transition-colors hover:bg-[var(--overlay-5)] hover:border-border-strong"
     >
       <LogIn className="w-4 h-4" />
       Sign In

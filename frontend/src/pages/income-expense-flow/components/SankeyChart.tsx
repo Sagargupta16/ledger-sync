@@ -68,7 +68,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
       </div>
 
       {isLoading && (
-        <div className="h-[400px] md:h-[550px] lg:h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
+        <div className="flex h-[400px] items-center justify-center rounded-lg border border-border bg-[var(--overlay-1)] md:h-[550px] lg:h-[700px]">
           <Spinner size="lg" label="Loading flow diagram..." />
         </div>
       )}
@@ -88,7 +88,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
           data there are 0 links and Recharts <Sankey> would render orphan nodes
           / a NaN layout. Links is the real "has data" signal. */}
       {!isLoading && !isMobile && sankeyData.links.length > 0 && (
-        <div className="relative bg-gradient-to-br from-background/30 to-surface-dropdown/30 rounded-xl border border-border p-6">
+        <div className="relative rounded-lg border border-border bg-[var(--overlay-1)] p-6">
           <ChartContainer
             height={700}
             ariaLabel="Sankey diagram showing income sources flowing into total income, then splitting into savings and expense categories."
@@ -173,7 +173,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
       )}
 
       {!isLoading && sankeyData.links.length === 0 && (
-        <div className="h-[400px] md:h-[550px] lg:h-[700px] flex items-center justify-center bg-gradient-to-br from-background/50 to-surface-dropdown/50 rounded-xl border border-border">
+        <div className="flex h-[400px] items-center justify-center rounded-lg border border-border bg-[var(--overlay-1)] md:h-[550px] lg:h-[700px]">
           <div className="text-center">
             <ArrowRightLeft className="w-16 h-16 text-text-quaternary mx-auto mb-4" />
             <p className="text-muted-foreground text-lg">

@@ -14,7 +14,7 @@ import {
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 
-import { Spinner } from '@/components/ui'
+import { PageContainer, PageHeader, Spinner } from '@/components/ui'
 import { useUpload } from '@/hooks/api/useUpload'
 import { uploadService } from '@/services/api/upload'
 import { parseFile, FileParseError } from '@/lib/fileParser'
@@ -29,7 +29,7 @@ type UploadPhase = 'parsing' | 'uploading' | 'processing' | 'analytics' | null
 function getUploadErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError
   if (axiosError.code === 'ECONNABORTED') {
-    return 'Request timed out. The server may be busy — please try again.'
+    return 'Request timed out. The server may be busy -- please try again.'
   }
   if (axiosError.code === 'ERR_NETWORK') {
     return 'Could not reach the server. Check your internet connection and try again.'
@@ -106,7 +106,7 @@ export default function UploadSyncPage() {
       try {
         await uploadService.refreshAnalytics()
       } catch {
-        toast.warning('Analytics refresh failed — dashboard may show stale data until next upload.')
+        toast.warning('Analytics refresh failed -- dashboard may show stale data until next upload.')
       }
 
       setPhase(null)
@@ -158,7 +158,7 @@ export default function UploadSyncPage() {
       try {
         await uploadService.refreshAnalytics()
       } catch {
-        toast.warning('Analytics refresh failed — dashboard may show stale data until next upload.')
+        toast.warning('Analytics refresh failed -- dashboard may show stale data until next upload.')
       }
 
       setPhase(null)
@@ -201,41 +201,36 @@ export default function UploadSyncPage() {
   })
 
   return (
-    <div className="min-h-dvh flex flex-col justify-center p-6 md:p-8 pb-24">
-      <div className="max-w-5xl mx-auto w-full space-y-6">
-        {/* Hero Section with Upload */}
+    <PageContainer maxWidth="5xl">
+      <PageHeader
+        title="Upload & Sync"
+        subtitle="Import Excel or CSV transactions and reconcile them with your ledger"
+      />
+
+      <div className="space-y-5">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-app-purple/10 to-secondary/20 border border-border"
+          className="ledger-panel"
         >
-          {/* Background decoration */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px]" />
-          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-
-          <div className="relative p-8 md:p-10">
-            <div className="flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 items-center">
-              {/* Left: Title & Info */}
+          <div className="p-4 sm:p-5">
+            <div className="flex flex-col items-stretch gap-5 lg:flex-row lg:items-center lg:gap-8">
               <div className="flex-1 space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-sm">
+                <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
                   <Sparkles className="w-4 h-4" />
-                  <span>Smart Sync</span>
+                  <span>Import transactions</span>
                 </div>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground">
-                  Upload & Sync
-                </h1>
-                <p className="text-lg text-muted-foreground max-w-md">
-                  Import your Excel or CSV transactions. We'll automatically detect changes and sync your data.
+                <p className="max-w-lg text-sm leading-6 text-muted-foreground">
+                  Drop one statement to detect new rows, changed entries, and duplicates before the ledger is refreshed.
                 </p>
 
-                {/* Feature bullets */}
-                <div className="flex flex-wrap gap-4 pt-2">
+                <div className="grid gap-2 text-sm sm:grid-cols-3">
                   {[
                     { icon: CheckCircle2, text: 'Auto-detect duplicates' },
                     { icon: RefreshCw, text: 'Smart sync' },
                     { icon: FileSpreadsheet, text: '.xlsx, .xls & .csv' },
                   ].map((feature) => (
-                    <div key={feature.text} className="flex items-center gap-2 text-sm text-foreground">
+                    <div key={feature.text} className="flex items-center gap-2 text-foreground">
                       <feature.icon className="w-4 h-4 text-primary" />
                       <span>{feature.text}</span>
                     </div>
@@ -243,7 +238,6 @@ export default function UploadSyncPage() {
                 </div>
               </div>
 
-              {/* Right: Upload Zone */}
               <div className="w-full lg:w-96 shrink-0">
                 <div
                   {...getRootProps({
@@ -251,10 +245,10 @@ export default function UploadSyncPage() {
                     'aria-busy': isBusy,
                   })}
                   className={cn(
-                    'relative border-2 border-dashed rounded-2xl p-4 md:p-8 text-center cursor-pointer transition-colors duration-300',
-                    'bg-[var(--overlay-3)] backdrop-blur-sm',
+                    'relative cursor-pointer rounded-lg border border-dashed p-5 text-center transition-colors duration-150 md:p-7',
+                    'bg-[var(--overlay-2)]',
                     'hover:border-primary hover:bg-primary/10',
-                    isDragActive && 'border-primary bg-primary/20 scale-[1.02]',
+                    isDragActive && 'border-primary bg-primary/20',
                     isBusy && 'opacity-50 cursor-not-allowed',
                     selectedFile ? 'border-primary' : 'border-[var(--hairline-5)]'
                   )}
@@ -269,16 +263,15 @@ export default function UploadSyncPage() {
                   ) : (
                     <div className="flex flex-col items-center gap-4">
                       <div className={cn(
-                        'w-16 h-16 rounded-full flex items-center justify-center transition-colors',
-                        isDragActive ? 'bg-primary/30 scale-110' : 'bg-primary/20'
+                        'flex size-12 items-center justify-center rounded-md border border-app-blue/15 transition-colors',
+                        isDragActive ? 'bg-primary/20' : 'bg-primary/10'
                       )}>
                         <Upload className={cn(
-                          'w-8 h-8 text-primary transition-transform',
-                          isDragActive && 'scale-110'
+                          'size-6 text-primary transition-transform'
                         )} />
                       </div>
                       <div>
-                        <p className="font-semibold text-foreground text-lg">
+                        <p className="text-base font-semibold text-foreground">
                           {isDragActive ? 'Drop your file here' : 'Drop Excel or CSV file here'}
                         </p>
                         <p className="text-sm text-muted-foreground mt-1">
@@ -297,13 +290,12 @@ export default function UploadSyncPage() {
           </div>
         </motion.div>
 
-        {/* Conflict Error */}
         {conflictError && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             role="alert"
-            className="p-5 rounded-xl bg-app-yellow/10 border border-app-yellow/30 flex flex-wrap items-center gap-4"
+            className="flex flex-wrap items-center gap-4 rounded-lg border border-app-yellow/30 bg-app-yellow/10 p-5"
           >
             <div className="p-3 rounded-full bg-app-yellow/20">
               <AlertTriangle className="w-6 h-6 text-app-yellow" aria-hidden="true" />
@@ -325,15 +317,14 @@ export default function UploadSyncPage() {
           </motion.div>
         )}
 
-        {/* Sample Format Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="space-y-4"
+          className="space-y-3"
         >
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/20">
+            <div className="rounded-md border border-app-blue/15 bg-primary/10 p-2">
               <FileSpreadsheet className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -342,8 +333,38 @@ export default function UploadSyncPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border overflow-hidden bg-[var(--overlay-3)] backdrop-blur-sm">
-            <div className="overflow-x-auto">
+          <div className="ledger-panel">
+            <div className="space-y-2 p-3 sm:hidden">
+              {SAMPLE_EXCEL_DATA.map((row) => (
+                <div
+                  key={`${row.date}-${row.amount}-${row.note}-mobile`}
+                  className="rounded-md border border-[var(--hairline-1)] bg-[var(--overlay-1)] p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{row.account}</p>
+                      <p className="mt-0.5 font-mono text-xs text-text-tertiary">{row.date}</p>
+                    </div>
+                    <span className="ledger-figure shrink-0 text-sm font-semibold text-foreground">
+                      {'\u20b9'}{row.amount.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className={cn(
+                      'rounded border px-2 py-0.5 text-xs font-medium',
+                      TYPE_STYLES[row.type] || 'bg-muted-foreground/20 text-muted-foreground'
+                    )}>
+                      {row.type}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{row.category}</span>
+                    <span className="text-xs text-text-tertiary">{row.subcategory}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-text-tertiary">{row.note}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-[var(--overlay-2)]">
@@ -384,17 +405,16 @@ export default function UploadSyncPage() {
               </table>
             </div>
 
-            {/* Footer tip */}
             <div className="px-4 py-3 border-t border-border bg-[var(--overlay-2)] flex items-center gap-2">
               <ArrowRight className="w-4 h-4 text-primary shrink-0" />
               <p className="text-xs text-muted-foreground">
-                Column names are flexible — <span className="text-foreground">"Period"</span> or <span className="text-foreground">"Date"</span> both work.
+                Column names are flexible -- <span className="text-foreground">"Period"</span> or <span className="text-foreground">"Date"</span> both work.
                 Export from Money Manager Pro for best results.
               </p>
             </div>
           </div>
         </motion.div>
       </div>
-    </div>
+    </PageContainer>
   )
 }

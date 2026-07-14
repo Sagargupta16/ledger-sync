@@ -3,13 +3,11 @@
  *
  * Unlike a reactive "tax on income received to date" view, payroll projects
  * your full-year income from April and deducts tax proportionally, truing-up
- * whenever income changes. The rule this app uses (confirmed with the user):
+ * whenever income changes. The current Tax Planning caller uses:
  *
- *   - Base salary + bonus are configured/known -> projected from month 1, so
- *     they set a flat TDS baseline.
- *   - RSU vestings are dated but uncertain -> folded into the projection only
- *     in the month they vest, which makes that month's TDS spike as payroll
- *     catches up the under-deducted tax across the remaining months.
+ *   - Recurring taxable compensation excluding bonus and RSU as the flat base.
+ *   - Annual bonus split into 12 equal monthly extras.
+ *   - RSU vestings as dated extras in their vesting month.
  *
  * Per month the algorithm is:
  *   baselineMonthly = calculateTax(regular*12) / 12          (flat all year)
@@ -17,11 +15,11 @@
  *     calculateTax(regular*12 + extrasIncludingThis)
  *       - calculateTax(regular*12 + extrasBeforeThis)
  *
- * So regular salary TDS is a flat baseline, and a bonus/RSU's tax appears as
- * a one-month spike in the month it lands -- matching a real payslip. The
- * marginal tax is computed progressively (including prior extras) so slab
- * stacking stays correct, and the monthly amounts telescope to exactly the
- * full-year tax on total income.
+ * So regular salary TDS is a flat baseline. Bonus adds a monthly marginal
+ * increment, while an RSU's tax appears as a one-month spike. The marginal tax
+ * is computed progressively (including prior extras) so slab stacking stays
+ * correct, and the monthly amounts telescope to exactly the full-year tax on
+ * total income.
  */
 
 import { calculateTax, type TaxSlab } from '@/lib/taxCalculator'
@@ -41,13 +39,13 @@ export interface TdsMonthRow {
   month: string
   /** 0-based index within the fiscal year (0 = FY start month). */
   monthIndex: number
-  /** Taxable income credited this month (regular + any RSU vesting). */
+  /** Taxable income credited this month (regular + configured extras). */
   monthIncome: number
   /** Projected full-year income known as of this month. */
   projectedAnnual: number
   /** Tax on the projected annual income at this point in the year. */
   annualTax: number
-  /** TDS deducted this month (remaining liability / remaining months). */
+  /** Baseline TDS plus marginal tax on extras assigned to this month. */
   monthlyTds: number
   /** Running total of TDS deducted through this month. */
   cumulativeTds: number
@@ -56,9 +54,9 @@ export interface TdsMonthRow {
 }
 
 export interface TdsScheduleParams {
-  /** Regular taxable income per month (base + hra + special + other + bonus, net of exempt EPF). */
+  /** Recurring taxable income per month used to establish the flat baseline. */
   regularMonthlyIncome: number
-  /** RSU (or other dated) income keyed by 0-based FY month index. */
+  /** Bonus, RSU, or other extra income keyed by 0-based FY month index. */
   extraByMonth: Record<number, number>
   /** Month (1-12) the fiscal year starts on (India: 4 = April). */
   fyStartMonth: number
@@ -205,9 +203,9 @@ function monthLabel(fyStartMonth: number, offset: number): string {
 /**
  * Build the 12-month forward TDS schedule.
  *
- * Returns one row per fiscal month. TDS for a month is the remaining annual
- * liability spread over the remaining months, so a mid-year RSU vesting
- * produces a one-month spike followed by a lower steady state.
+ * Returns one row per fiscal month. Each row contains the flat baseline plus
+ * marginal tax on extras assigned to that month, so a dated RSU vesting
+ * produces a one-month spike.
  */
 export function buildTdsSchedule(params: TdsScheduleParams): TdsMonthRow[] {
   const {

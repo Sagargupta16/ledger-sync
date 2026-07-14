@@ -1,27 +1,40 @@
-%%{init: {'theme': 'dark', 'themeVariables': {'actorBkg': '#6366f1', 'actorTextColor': '#fff', 'actorBorder': '#818cf8', 'actorLineColor': '#94a3b8', 'signalColor': '#e2e8f0', 'signalTextColor': '#e2e8f0', 'labelBoxBkgColor': '#1e293b', 'labelBoxBorderColor': '#334155', 'labelTextColor': '#f8fafc', 'loopTextColor': '#f8fafc', 'activationBorderColor': '#6366f1', 'activationBkgColor': '#312e81', 'sequenceNumberColor': '#fff', 'noteBkgColor': '#1e293b', 'noteBorderColor': '#334155', 'noteTextColor': '#f8fafc', 'background': '#0f172a', 'mainBkg': '#1e293b'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Arial, sans-serif', 'actorBkg': '#eef2f1', 'actorTextColor': '#17201d', 'actorBorder': '#63716c', 'actorLineColor': '#8a9691', 'signalColor': '#39443f', 'signalTextColor': '#17201d', 'labelBoxBkgColor': '#f1f3f1', 'labelBoxBorderColor': '#b5bdb9', 'labelTextColor': '#17201d', 'loopTextColor': '#17201d', 'activationBorderColor': '#2563eb', 'activationBkgColor': '#dbeafe', 'sequenceNumberColor': '#17201d', 'noteBkgColor': '#fef3c7', 'noteBorderColor': '#b45309', 'noteTextColor': '#17201d', 'background': '#f7f7f5', 'mainBkg': '#f7f7f5'}}}%%
 sequenceDiagram
     actor U as User
-    participant F as Frontend<br/>(React SPA)
+    participant F as React SPA
+    participant B as FastAPI API
     participant P as Google / GitHub
-    participant B as FastAPI<br/>Backend
     participant D as PostgreSQL
 
-    U->>F: Click Sign in with Google
-    F->>P: Redirect to OAuth authorize URL
-    P->>U: Show consent screen
-    U->>P: Grant permission
-    P-->>F: Redirect to /auth/callback with code
-    F->>B: POST /api/auth/oauth/google/callback
-    B->>P: Exchange code for user info via httpx
-    P-->>B: email, name, avatar
-    B->>D: Find or create user record
-    D-->>B: User object
-    B-->>F: access_token + refresh_token (JWT)
-    F->>F: Persist tokens in Zustand store
-    F-->>U: Redirect to Dashboard
+    U->>F: Open sign-in dialog
+    F->>B: GET /api/auth/oauth/providers
+    B-->>F: Provider config + signed state
+    U->>F: Choose provider
+    F->>P: Authorize with client, callback, state
+    P-->>F: Redirect with code + state
+    F->>B: POST provider callback
+    B->>B: Validate HMAC state and 10-minute expiry
+    B->>P: Exchange authorization code
+    P-->>B: Verified provider profile
+    B->>D: Find or create provider identity
+    D-->>B: User + token_version
+    B-->>F: Access token + refresh token
+    F-->>U: Open dashboard
 
-    Note over F,B: All subsequent requests include<br/>Authorization: Bearer access_token
+    Note over F,D: Protected requests include the access token
+    F->>B: Authenticated API request
+    B->>D: Load user and compare token_version
+    D-->>B: Current user
+    B-->>F: User-scoped response
 
-    Note over F,B: Token refresh flow
-    F->>B: POST /api/auth/refresh (refresh_token)
-    B-->>F: New access_token
+    Note over F,D: Refresh returns a fresh token pair
+    F->>B: POST /api/auth/refresh
+    B->>D: Validate user + token_version
+    D-->>B: Current version
+    B-->>F: New access + refresh tokens
+
+    Note over F,D: Logout revokes every outstanding token pair
+    F->>B: POST /api/auth/logout
+    B->>D: Increment token_version
+    D-->>B: Commit
+    B-->>F: Clear local auth state

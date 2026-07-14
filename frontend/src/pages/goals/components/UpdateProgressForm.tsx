@@ -5,7 +5,6 @@ import { Save, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { formatCurrencyCompact } from '@/lib/formatters'
-import { rawColors } from '@/constants/colors'
 
 export default function UpdateProgressForm({
   goalId,
@@ -61,8 +60,7 @@ export default function UpdateProgressForm({
         <div className="flex gap-2 pt-4">
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground transition-colors hover:opacity-90"
-            style={{ background: `linear-gradient(135deg, ${rawColors.app.green}, ${rawColors.app.teal})` }}
+            className="flex items-center gap-1.5 rounded-md border border-foreground bg-foreground px-3 py-2 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
           >
             <Save className="w-3.5 h-3.5" /> Save
           </button>

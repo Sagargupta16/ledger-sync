@@ -1,148 +1,193 @@
-import { useState, useMemo, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { Menu, X, LogOut, Search } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, Search, X } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 
+import ProfileModal from '@/components/shared/ProfileModal'
 import { ROUTES } from '@/constants'
+import {
+  useAnomalies,
+  useBudgets,
+  useRecurringTransactions,
+} from '@/hooks/api/useAnalyticsV2'
 import { cn } from '@/lib/cn'
+import { exitDemoMode } from '@/lib/demo'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { useLogout } from '@/hooks/api/useAuth'
-import NotificationCenter from '@/components/shared/NotificationCenter'
-import ProfileModal from '@/components/shared/ProfileModal'
-import { useBudgets, useAnomalies, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
-import { exitDemoMode } from '@/lib/demo'
 
-import SidebarSection from './SidebarSection'
-import SidebarItem from './SidebarItem'
-import CurrencySwitcher from './CurrencySwitcher'
-import ThemeToggle from './ThemeToggle'
 import BrandHeader from './BrandHeader'
+import CurrencySwitcher from './CurrencySwitcher'
 import {
-  dashboardItem,
-  overviewItem,
-  navigationSections,
-  utilityItems,
   ALERT_BADGE_ROUTES,
+  dashboardItem,
+  navigationSections,
+  overviewItem,
+  utilityItems,
 } from './navConfig'
+import SidebarItem from './SidebarItem'
+import SidebarSection from './SidebarSection'
+import ThemeToggle from './ThemeToggle'
 
-// ─── Component ──────────────────────────────────────────────────────────────
+function getInitials(name?: string | null, email?: string): string {
+  const source = name?.trim() || email?.split('@')[0] || 'LS'
+  return source
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+}
 
 export default function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const mobileToggleRef = useRef<HTMLButtonElement>(null)
+  const sidebarRef = useRef<HTMLElement>(null)
 
   const { user } = useAuthStore()
-  const isDemoMode = useDemoStore((s) => s.isDemoMode)
+  const isDemoMode = useDemoStore((state) => state.isDemoMode)
   const logout = useLogout()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-
-  // ── Badge counts from API data ──────────────────────────────────────────
 
   const { data: budgets = [] } = useBudgets({ active_only: true })
   const { data: anomalies = [] } = useAnomalies({ include_reviewed: false })
   const { data: recurring = [] } = useRecurringTransactions({ active_only: true })
 
   const badgeCounts = useMemo(() => {
-    const map: Record<string, number> = {}
-    const currentTime = new Date()
+    const counts: Record<string, number> = {}
+    const now = new Date()
 
-    const unreviewedAnomalies = anomalies.filter(
-      (a) => !a.is_dismissed && !a.is_reviewed,
+    const anomalyCount = anomalies.filter(
+      (item) => !item.is_dismissed && !item.is_reviewed,
     ).length
-    if (unreviewedAnomalies > 0) map[ROUTES.ANOMALIES] = unreviewedAnomalies
+    if (anomalyCount > 0) counts[ROUTES.ANOMALIES] = anomalyCount
 
-    const overBudget = budgets.filter(
-      (b) => b.usage_pct >= b.alert_threshold,
+    const budgetCount = budgets.filter(
+      (item) => item.usage_pct >= item.alert_threshold,
     ).length
-    if (overBudget > 0) map[ROUTES.BUDGETS] = overBudget
+    if (budgetCount > 0) counts[ROUTES.BUDGETS] = budgetCount
 
-    const upcomingBills = recurring.filter((r) => {
-      if (!r.next_expected) return false
+    const billCount = recurring.filter((item) => {
+      if (!item.next_expected) return false
       const days = Math.ceil(
-        (new Date(r.next_expected).getTime() - currentTime.getTime()) / 86_400_000,
+        (new Date(item.next_expected).getTime() - now.getTime()) / 86_400_000,
       )
       return days >= 0 && days <= 7
     }).length
-    if (upcomingBills > 0) map[ROUTES.BILL_CALENDAR] = upcomingBills
+    if (billCount > 0) counts[ROUTES.BILL_CALENDAR] = billCount
 
-    return map
+    return counts
   }, [anomalies, budgets, recurring])
 
-  // ── Handlers ────────────────────────────────────────────────────────────
-
-  const handleLogout = () => {
-    logout.mutate(undefined, { onSuccess: () => navigate('/') })
-  }
+  const closeMobile = useCallback(() => {
+    setIsMobileOpen(false)
+    globalThis.requestAnimationFrame(() => mobileToggleRef.current?.focus())
+  }, [])
 
   const openSearch = useCallback(() => {
     document.dispatchEvent(new CustomEvent('open-command-palette'))
   }, [])
 
-  const closeMobile = useCallback(() => setIsMobileOpen(false), [])
+  const handleLogout = () => {
+    logout.mutate(undefined, { onSuccess: () => navigate('/') })
+  }
+
+  const displayUser = isDemoMode
+    ? { full_name: 'Demo workspace', email: 'Explore sample data' }
+    : user
+
+  useEffect(() => {
+    if (!isMobileOpen) return
+
+    const sidebar = sidebarRef.current
+    const focusableSelector =
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    sidebar?.querySelector<HTMLElement>(focusableSelector)?.focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeMobile()
+        return
+      }
+      if (event.key !== 'Tab' || !sidebar) return
+
+      const focusable = [
+        mobileToggleRef.current,
+        ...sidebar.querySelectorAll<HTMLElement>(focusableSelector),
+      ].filter((element): element is HTMLElement => element !== null)
+      const first = focusable[0]
+      const last = focusable.at(-1)
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last?.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first?.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [closeMobile, isMobileOpen])
 
   return (
     <>
-      {/* Mobile toggle -- offset by safe-area-inset-top so it clears the iOS notch in PWA mode.
-          Left offset also respects safe-area-inset-left for landscape on notched devices. */}
       <button
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="ledger-control fixed z-50 flex h-11 w-11 items-center justify-center rounded-xl border backdrop-blur-sm transition-transform active:scale-95 lg:hidden"
+        ref={mobileToggleRef}
+        type="button"
+        onClick={() => {
+          if (isMobileOpen) closeMobile()
+          else setIsMobileOpen(true)
+        }}
+        className="ledger-control fixed z-50 flex size-11 items-center justify-center rounded-md border transition-transform active:scale-95 lg:hidden"
         style={{
-          top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
-          left: 'calc(env(safe-area-inset-left, 0px) + 1rem)',
+          top: 'calc(env(safe-area-inset-top, 0px) + 0.375rem)',
+          left: 'calc(env(safe-area-inset-left, 0px) + 0.625rem)',
         }}
         aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={isMobileOpen}
+        aria-controls="workspace-navigation"
       >
-        {isMobileOpen
-          ? <X size={20} className="text-foreground" />
-          : <Menu size={20} className="text-foreground" />}
+        {isMobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
       </button>
 
-      {/* Sidebar -- h-dvh so the nav tracks the real viewport height
-          (h-screen = 100vh jumps when the mobile browser address bar toggles). */}
       <aside
+        ref={sidebarRef}
+        id="workspace-navigation"
+        aria-label="Workspace navigation"
         className={cn(
-          'fixed lg:sticky top-0 h-dvh w-64 z-40',
-          'bg-[var(--sidebar-bg)] backdrop-blur-sm',
-          'border-r border-[var(--hairline-2)] shadow-[8px_0_24px_-22px_rgba(0,0,0,0.7)]',
-          'transition-transform duration-200 ease-out',
+          'fixed top-0 z-40 h-dvh w-60 border-r border-[var(--hairline-2)] bg-[var(--sidebar-bg)] transition-transform duration-200 ease-out lg:sticky',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
-        {/* pt-safe ensures the brand row clears the iOS notch when the drawer
-            opens in PWA standalone mode; desktop gets no extra padding. */}
-        <div className="flex flex-col h-full pt-safe">
-          {/* Brand Header */}
-          <BrandHeader
-            user={isDemoMode ? { email: 'Demo Mode' } : user}
-            onOpenProfile={() => { if (!isDemoMode) setShowProfile(true) }}
-          />
+        <div className="flex h-full flex-col pt-safe">
+          <BrandHeader />
 
-          {/* Search */}
-          <div className="border-b border-[var(--hairline-2)] px-3 py-2">
+          <div className="border-b border-[var(--hairline-1)] p-2.5">
             <button
+              type="button"
               onClick={openSearch}
-              className="ledger-control flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-sm text-text-tertiary transition-colors duration-150 hover:text-foreground"
-              title="Search (⌘K)"
+              className="ledger-control flex min-h-11 w-full items-center gap-2 rounded-md border px-2.5 text-xs text-text-tertiary transition-colors duration-150 hover:text-foreground lg:min-h-9"
+              aria-label="Search workspace"
             >
-              <Search size={15} className="flex-shrink-0" />
-              <span className="flex-1 text-left">Search...</span>
-              <kbd className="hidden rounded border border-[var(--hairline-2)] bg-[var(--overlay-3)] px-1.5 py-0.5 text-[10px] font-medium text-text-quaternary sm:inline">
-                ⌘K
+              <Search className="size-3.5 shrink-0" />
+              <span className="flex-1 text-left">Search workspace</span>
+              <kbd className="rounded border border-[var(--hairline-2)] px-1 py-0.5 text-[9px]">
+                Ctrl K
               </kbd>
             </button>
           </div>
 
-          {/* Scrollable navigation */}
           <nav
             aria-label="Main navigation"
-            className="flex-1 min-h-0 overflow-y-auto scrollbar-none py-1"
+            className="min-h-0 flex-1 overflow-y-auto py-2 scrollbar-none"
           >
-            {/* Dashboard + Overview — standalone top-level entries */}
-            <div className="px-2 pt-2 space-y-0.5">
+            <div className="space-y-0.5 px-2">
               <SidebarItem
                 to={dashboardItem.path}
                 icon={dashboardItem.icon}
@@ -157,7 +202,6 @@ export default function Sidebar() {
               />
             </div>
 
-            {/* Navigation sections */}
             {navigationSections.map((section) => (
               <SidebarSection key={section.title} title={section.title}>
                 {section.items.map((item) => (
@@ -167,7 +211,9 @@ export default function Sidebar() {
                     icon={item.icon}
                     label={item.label}
                     badge={badgeCounts[item.path]}
-                    badgeVariant={ALERT_BADGE_ROUTES.has(item.path) ? 'alert' : 'default'}
+                    badgeVariant={
+                      ALERT_BADGE_ROUTES.has(item.path) ? 'alert' : 'default'
+                    }
                     onNavigate={closeMobile}
                   />
                 ))}
@@ -175,66 +221,72 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          {/* Bottom icon bar -- extra bottom padding on iOS to clear the home-indicator. */}
-          <div
-            className="border-t border-[var(--hairline-2)] px-3 py-2.5"
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.625rem)' }}
-          >
-            <div className="flex items-center justify-center gap-1">
+          <div className="border-t border-[var(--hairline-2)]">
+            <div className="flex items-center gap-1 px-2.5 py-2">
               <CurrencySwitcher />
               <ThemeToggle />
-              <NotificationCenter />
-              {utilityItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={closeMobile}
-                  className="flex h-11 w-11 items-center justify-center rounded-lg text-text-tertiary transition-colors duration-150 hover:bg-[var(--ledger-control-bg-hover)] hover:text-foreground lg:h-9 lg:w-9"
-                  title={item.label}
-                  aria-label={item.label}
-                >
-                  <item.icon size={18} />
-                </Link>
-              ))}
-              {isDemoMode ? (
+              <div className="ml-auto flex items-center gap-1">
+                {utilityItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={closeMobile}
+                    className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 hover:bg-[var(--overlay-2)] hover:text-foreground lg:size-9"
+                    title={item.label}
+                    aria-label={item.label}
+                  >
+                    <item.icon className="size-4" />
+                  </Link>
+                ))}
                 <button
                   type="button"
-                  onClick={() => exitDemoMode(queryClient, navigate)}
-                  className="flex h-11 w-11 items-center justify-center rounded-lg text-text-tertiary transition-colors duration-150 hover:bg-app-red/10 hover:text-app-red lg:h-9 lg:w-9"
-                  title="Exit Demo"
-                  aria-label="Exit Demo"
-                >
-                  <LogOut size={18} />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleLogout}
+                  onClick={
+                    isDemoMode
+                      ? () => exitDemoMode(queryClient, navigate)
+                      : handleLogout
+                  }
                   disabled={logout.isPending}
-                  className="flex h-11 w-11 items-center justify-center rounded-lg text-text-tertiary transition-colors duration-150 hover:bg-app-red/10 hover:text-app-red disabled:opacity-50 lg:h-9 lg:w-9"
-                  title="Sign out"
-                  aria-label="Sign out"
+                  className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 hover:bg-app-red/10 hover:text-app-red disabled:opacity-50 lg:size-9"
+                  aria-label={isDemoMode ? 'Exit demo' : 'Sign out'}
                 >
-                  <LogOut size={18} />
+                  <LogOut className="size-4" />
                 </button>
-              )}
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!isDemoMode) setShowProfile(true)
+              }}
+              className="flex min-h-14 w-full items-center gap-2.5 border-t border-[var(--hairline-1)] px-3 text-left transition-colors duration-150 hover:bg-[var(--overlay-2)]"
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-semibold text-background">
+                {getInitials(displayUser?.full_name, displayUser?.email)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-medium text-foreground">
+                  {displayUser?.full_name || 'Ledger Sync user'}
+                </span>
+                <span className="block truncate text-[10px] text-text-tertiary">
+                  {displayUser?.email || 'Personal workspace'}
+                </span>
+              </span>
+              <ChevronDown className="size-3.5 shrink-0 text-text-quaternary" />
+            </button>
           </div>
         </div>
       </aside>
 
-      {/* Mobile overlay */}
       {isMobileOpen && (
         <button
           type="button"
           aria-label="Close sidebar"
-          className="fixed inset-0 bg-[var(--modal-backdrop)] backdrop-blur-sm z-30 lg:hidden appearance-none border-none p-0 m-0 cursor-default w-full"
-          onClick={() => setIsMobileOpen(false)}
-          onKeyDown={(e) => e.key === 'Escape' && setIsMobileOpen(false)}
+          className="fixed inset-0 z-30 m-0 w-full cursor-default appearance-none border-none bg-[var(--modal-backdrop)] p-0 lg:hidden"
+          onClick={closeMobile}
         />
       )}
 
-      {/* Profile Modal */}
       <ProfileModal open={showProfile} onOpenChange={setShowProfile} />
     </>
   )

@@ -1,921 +1,687 @@
-# Calculations & Data Processing
+# Calculations and Data Processing
 
-This document is a reference for every metric, chart, and derived number shown in Ledger Sync -- how it is computed, from which data source, with what formula, and where the code lives.
+Calculation reference for Ledger Sync 2.22.0.
 
-Read this when:
+Verified against the backend analytics engine and frontend calculator modules
+on 2026-07-14.
 
-- A chart displays unexpected values and you need to trace back to the source
-- You're building a new page and want to reuse an existing calculation
-- You're writing a test for a finance metric and need the formula
-- You're adding a new metric and want to place it in the right layer
+## Calculation Boundaries
 
----
+Ledger Sync has three calculation layers:
 
-## Table of Contents
+1. **Reconciliation** converts browser-parsed rows into the canonical ledger.
+2. **Backend analytics** computes user-scoped rollups and on-demand metrics.
+3. **Frontend calculators** handle interactive tax, RSU, TDS, FIRE, projection,
+   GST, and return scenarios.
 
-1. [Pipeline Overview](#pipeline-overview)
-2. [Upload & Reconciliation](#upload--reconciliation)
-3. [Aggregations (Pre-Computed Tables)](#aggregations-pre-computed-tables)
-4. [Core Calculations](#core-calculations)
-5. [Tax Calculations (India)](#tax-calculations-india)
-6. [Salary & Multi-Year Projections](#salary--multi-year-projections)
-7. [Investment & Net Worth](#investment--net-worth)
-8. [Recurring Transaction Detection](#recurring-transaction-detection)
-9. [Anomaly Detection](#anomaly-detection)
-10. [FIRE Calculator](#fire-calculator)
-11. [Financial Health Score](#financial-health-score)
-12. [Currency Conversion](#currency-conversion)
-13. [Chart-Specific Data Shapes](#chart-specific-data-shapes)
+Primary sources:
 
----
+```text
+backend/src/ledger_sync/
+  ingest/hash_id.py
+  core/reconciler.py
+  core/calculator.py
+  core/analytics/
+  api/calculations.py
+  api/analytics.py
+  api/analytics_v2_impl/
 
-## Pipeline Overview
-
-```
-Excel/CSV upload
-     |
-     | (client-side: SheetJS, SHA-256 hashing, column mapping)
-     v
-POST /api/upload  ->  sync_engine.import_rows()
-     |
-     v
-normalizer.normalize_from_dict()  (category canonicalization, transfer resolution)
-     |
-     v
-reconciler.reconcile()  (SHA-256 of {date, amount, category, account} -> deterministic PK)
-     |
-     v
-transactions table (soft-deleted on re-import if missing)
-     |
-     v
-POST /api/analytics/v2/refresh  ->  AnalyticsEngine.run_full_analytics()
-     |
-     +-- daily_summaries (1 row per day per user)
-     +-- monthly_summaries (1 row per YYYY-MM per user)
-     +-- category_trends (1 row per category per month)
-     +-- transfer_flows (aggregated transfers between accounts)
-     +-- merchant_intelligence (extracted vendor names)
-     +-- recurring_transactions (detected patterns)
-     +-- net_worth_snapshots (time-series net worth)
-     +-- investment_holdings (per-account invested/income/expense)
-     +-- fy_summaries (fiscal year totals with YoY changes)
-     +-- anomalies (flagged unusual transactions)
+frontend/src/lib/
+  taxCalculator.ts
+  tax-config/
+  projectionCalculator.ts
+  rsuVesting.ts
+  tdsScheduleCalculator.ts
+  fireCalculator.ts
+  gstCalculator.ts
+  instrumentCalculators.ts
+  xirr.ts
 ```
 
-Frontend pages call either:
+All backend financial aggregation starts from active rows owned by the
+authenticated user. `is_deleted=true` rows and configured excluded accounts
+are removed where the calculation contract requires it.
 
-- `/api/analytics/*` -- **on-the-fly** computation over the transactions table (for arbitrary date ranges / filters)
-- `/api/analytics/v2/*` -- **pre-aggregated** tables (fast, used for default views)
-- `/api/calculations/*` -- medium-weight aggregations (totals, monthly breakdowns, category splits) with a fast path that reads from V2 tables when no date filter is active
+## Time Filtering
 
-### Earning-Start-Date: View Filter, Not Data Filter
+Backend relative ranges anchor to the current UTC date, not to the newest
+transaction:
 
-The `earning_start_date` + `use_earning_start_date` preferences are a **chart x-axis lower bound**, not a data cutoff. Backend queries and the `useTransactions` hook do not honor them — underlying data (account balances, totals, historical milestones) is always derived from the user's full transaction history.
+- `all_time`
+- `this_month`
+- `last_month`
+- `last_3_months`
+- `last_6_months`
+- `last_12_months`
+- `this_year`
+- `last_year`
+- `last_decade`
 
-The clamp is applied only at the view layer in `frontend/src/hooks/useAnalyticsTimeFilter.ts` via `clampStartToEarningStart`, which raises the chart window's `start_date` to the earning date when the preference is active. Consumers that compute historical facts (e.g. "when did I first cross ₹1L?") must scan the full unfiltered series, not the chart-windowed slice.
+Sliding month ranges are calendar aligned. For example, last three months means
+the current calendar month plus the prior two calendar months.
 
-If you need "data since I started earning" semantics for a specific query, call `build_transaction_query(..., apply_earning_start=True)` explicitly — it's opt-in, never implicit.
+The shared frontend analytics selector supports:
 
-`build_transaction_query` also applies the user's `excluded_accounts` preference by default (filters on `account`, `from_account`, and `to_account` so transfers landing in excluded accounts are dropped too). Pass `apply_excluded_accounts=False` only for diagnostic admin tooling that needs the unfiltered set.
+- All Time
+- Fiscal Year
+- Yearly
+- Monthly
 
----
+Historical range end dates are capped at today. Projection pages intentionally
+build future ranges separately.
 
-## Upload & Reconciliation
+### Earning start date
 
-### Transaction Hash (Primary Key)
+The optional earning start date is a view filter only. It clamps chart and
+query start dates but does not delete or rewrite earlier ledger rows.
 
-**Code**: `backend/src/ledger_sync/ingest/hash_id.py`
+## Upload and Reconciliation
 
-Each transaction's primary key is a SHA-256 hex digest of the normalized tuple:
+### Transaction hash
 
-```
-transaction_id = sha256(
-    date_iso  |  "|"  |
-    round(amount, 2)  |  "|"  |
-    category.lower().strip()  |  "|"  |
-    account.lower().strip()
+For income and expense rows, the deterministic ID is:
+
+```text
+SHA-256(
+  normalized user_id
+  | date
+  | amount
+  | account
+  | note
+  | category
+  | subcategory
+  | type
+  | occurrence when occurrence > 0
 )
 ```
 
-**Why**: makes re-uploads idempotent. Uploading the same file twice produces the same IDs, so reconciliation is an upsert, not a duplicate.
+Normalization rules:
 
-**Edge case**: if two genuine transactions have the same `(date, amount, category, account)`, they collapse into one row. This is intentional -- in practice such collisions are rare in personal finance data.
+- Strings are trimmed and lowercased.
+- Amounts use two decimal places.
+- Dates use ISO 8601.
+- Missing optional values become empty strings.
 
-### Reconciliation
+The occurrence counter is zero-based inside one import batch. The first
+identical row keeps the legacy hash shape. Later identical rows append their
+occurrence before hashing, so legitimate duplicate purchases are preserved.
 
-**Code**: `backend/src/ledger_sync/core/reconciler.py`
+Transfers use normalized source and destination accounts. Matching
+Transfer-In and Transfer-Out source rows collapse into one canonical
+`Transfer`.
 
+### Reconciliation actions
+
+For each normalized record:
+
+| Condition | Action |
+| --- | --- |
+| ID does not exist for the user | Insert |
+| ID exists and mutable fields changed | Update |
+| ID exists with no mutable change | Skip and refresh `last_seen_at` |
+| ID exists but was soft-deleted | Restore |
+| Active user row was not seen in the current import | Soft-delete |
+
+The unseen-row sweep is user-wide. It is not scoped to the latest source file.
+That behavior makes an import a current ledger snapshot, not an additive file
+append.
+
+After reconciliation, the API runs the full analytics pipeline. A failed
+analytics refresh does not undo persisted transaction changes; a manual refresh
+can be run later.
+
+## Persisted Analytics
+
+`AnalyticsEngine` is composed from domain mixins under `core/analytics/`.
+`core/analytics_engine.py` is only a compatibility import facade.
+
+One full refresh:
+
+1. Loads active user transactions once.
+2. Updates daily summaries.
+3. Updates monthly summaries.
+4. Rebuilds category trends.
+5. Rebuilds transfer flows.
+6. Rebuilds merchant intelligence.
+7. Re-detects recurring transactions while preserving confirmed rows.
+8. Upserts today's net-worth snapshot.
+9. Rebuilds derived investment holdings.
+10. Rebuilds fiscal-year summaries.
+11. Re-detects anomalies.
+12. Updates budget tracking.
+13. Rebuilds spending cohorts.
+14. Writes an audit log and commits.
+
+### Daily summaries
+
+Grain:
+
+```text
+(user_id, YYYY-MM-DD)
 ```
-for each row in uploaded_batch:
-    compute hash -> txn_id
-    if txn_id exists:
-        update last_seen_at = now
-        undelete (is_deleted = False)
-    else:
-        insert
 
-# After upload:
-mark transactions with last_seen_at < upload_start AND source_file = current_file  as  is_deleted=True
+Stored values:
+
+- Total income
+- Total expenses
+- Net, `income - expenses`
+- Counts by type
+- Total transaction count
+- Highest-spend expense category
+
+### Monthly summaries
+
+Grain:
+
+```text
+(user_id, YYYY-MM)
 ```
 
-So deleting a row from your Excel file and re-uploading will soft-delete the corresponding row. The row is not hard-deleted -- it's preserved for audit.
+Core formulas:
 
----
-
-## Aggregations (Pre-Computed Tables)
-
-Computed by `AnalyticsEngine.run_full_analytics()` after each upload.
-
-### Daily Summary
-
-**Code**: `core/analytics_engine.py::_calculate_daily_summaries`  
-**Table**: `daily_summaries`  
-**Grain**: one row per (user_id, date)
-
-```
-for each day with at least one transaction:
-    income = sum(amount where type=Income)
-    expense = sum(amount where type=Expense)
-    net = income - expense
-    txn_count = count(*)
-    top_category = argmax(sum(amount) group by category where type=Expense)
-```
-
-**Used by**: YearInReview heatmap (single query vs scanning 5000+ transactions).
-
-### Monthly Summary
-
-**Code**: `_calculate_monthly_summaries`  
-**Table**: `monthly_summaries`  
-**Grain**: one row per (user_id, YYYY-MM)
-
-```
-total_income = sum(amount where type=Income)
-total_expenses = sum(amount where type=Expense)
-
-salary_income = sum(amount where type=Income AND category::subcategory IN taxable_income_categories AND subcategory IN {Salary, Stipend})
-investment_income = sum(amount where type=Income AND category::subcategory IN investment_returns_categories)
-other_income = total_income - salary_income - investment_income
-
-essential_expenses = sum(amount where type=Expense AND category IN essential_categories)
-discretionary_expenses = total_expenses - essential_expenses
-
-total_transfers_out = sum(amount where type=Transfer AND from_account NOT IN investment_accounts)
-total_transfers_in = sum(amount where type=Transfer AND to_account NOT IN investment_accounts)
-net_investment_flow = sum(amount where type=Transfer AND to_account IN investment_accounts)
-                    - sum(amount where type=Transfer AND from_account IN investment_accounts)
-
+```text
 net_savings = total_income - total_expenses
-savings_rate = net_savings / total_income * 100  (0 if income = 0)
-expense_ratio = total_expenses / total_income * 100
-
-income_change_pct = (income_this_month - income_prev_month) / income_prev_month * 100
-expense_change_pct = same formula for expenses
+savings_rate = net_savings / total_income * 100, when income > 0
+expense_ratio = total_expenses / total_income * 100, when income > 0
 ```
 
-**Used by**: Dashboard KPIs, Trends & Forecasts page, Year in Review bars.
+Savings rate is not capped at 100 percent. Negative rates and values above 100
+remain mathematically visible.
 
-### Category Trend
+Income is split into salary, investment, and other income using user
+preferences and classification helpers. Expenses are split into essential and
+discretionary values using the configured essential-category set.
 
-**Code**: `_calculate_category_trends`  
-**Table**: `category_trends`  
-**Grain**: one row per (user_id, category, YYYY-MM)
+Transfer totals record both incoming and outgoing legs. Investment flow uses
+this sign convention:
 
-```
-for each (category, month):
-    amount = sum(abs(amount) where category=cat AND type IN {Income, Expense})
-    percentage_of_type = amount / type_total_for_month * 100
-    rank_within_type = rank by amount desc
-```
-
-**Used by**: SpendingAnalysis top-category chart, category breakdown treemaps.
-
-### Transfer Flows
-
-**Code**: `_calculate_transfer_flows`  
-**Table**: `transfer_flows`  
-**Grain**: one row per (user_id, from_account, to_account, YYYY-MM)
-
-Used by IncomeExpenseFlow (Sankey) page to map account-to-account money flow.
-
-### FY Summary
-
-**Code**: `_calculate_fy_summaries`  
-**Table**: `fy_summaries`  
-**Grain**: one row per (user_id, fy_label)
-
-```
-fy_label format: "FY{start_year}-{end_year_short}"  e.g. "FY2024-25"
-fy_start_month = user_preference.fiscal_year_start_month  (default 4 = April, Indian FY)
-
-For a transaction on date D:
-    if D.month >= fy_start_month: fy_year = D.year
-    else: fy_year = D.year - 1
-    fy_start = datetime(fy_year, fy_start_month, 1)
-    fy_end = datetime(fy_year+1, fy_start_month, 1) - 1 day  (or Dec 31 if fy_start_month = 1)
-
-Per-FY totals:
-    total_income, total_expenses, essential_expenses, discretionary_expenses
-    taxable_income, investment_income, salary_income
-    monthly_burn_rate = total_expenses / months_in_fy
-
-YoY changes (computed by _calculate_yoy_changes):
-    income_yoy_pct = (income_this_fy - income_prev_fy) / income_prev_fy * 100
-    expense_yoy_pct = same formula
+```text
+transfer into investment account  -> subtract amount
+transfer out of investment account -> add amount
+investment-to-investment transfer  -> net zero
 ```
 
-**Used by**: Tax Planning year selector, FY-grouped analytics pages.
+Therefore a negative `net_investment_flow` means net money was deployed into
+investments.
 
----
+Month-over-month percentages are zero when the prior value is absent or not
+positive.
 
-## Core Calculations
+### Category trends
 
-### Totals (`/api/calculations/totals`)
+Grain:
 
-**Code**: `core/calculator.py::calculate_totals` + `api/calculations.py::get_totals`
-
+```text
+(user_id, period_key, category, subcategory, transaction_type)
 ```
-total_income = sum(amount where type=Income AND not deleted AND user_id=current)
-total_expenses = sum(amount where type=Expense AND not deleted AND user_id=current)
+
+Transfers are excluded. Each row stores total, count, average, maximum,
+minimum, percent of that month's same-type total, and change from the previous
+month at the same category, subcategory, and type grain.
+
+### Transfer flows
+
+Grain:
+
+```text
+(user_id, from_account, to_account)
+```
+
+These are all-time account-pair aggregates, not monthly rows. They include
+total amount, count, average, last transfer date and amount, and current
+account classifications.
+
+### Spending cohorts
+
+Expense cohorts use three dimensions:
+
+| Dimension | Buckets | Average divisor |
+| --- | --- | --- |
+| Day of week | Monday 0 through Sunday 6 | Exact weekday occurrences in the inclusive data span |
+| Day of month | 1 through 31 | Distinct observed months that contain that day |
+| Month of year | 1 through 12 | Distinct years containing that month |
+
+The divisor includes zero-spend calendar occurrences where applicable. It is
+not simply the number of transactions in a bucket.
+
+### Fiscal-year summaries
+
+The user's configured fiscal-year start month determines each period.
+
+```text
 net_savings = total_income - total_expenses
-savings_rate = net_savings / total_income * 100  (0 if income = 0)
-transaction_count = count(*)
+savings_rate = net_savings / total_income * 100
 ```
 
-**Fast path**: when no date range is specified, reads `sum(total_income), sum(total_expenses)` from `monthly_summaries` instead of scanning the transactions table.
+Income is split into salary, bonus, investment, and other. Tax expenses are
+identified by the Taxes category or tax vocabulary in the note, including TDS,
+GST, cess, surcharge, advance tax, and self-assessment tax. Transfers into
+known investment accounts count as investments made.
 
-### Savings Rate
+Year-over-year savings change divides by the absolute prior savings value, so
+the direction does not invert when the prior year was negative.
 
-**Code**: `core/calculator.py::calculate_savings_rate`
+## On-Demand Core Metrics
 
-```
-if total_income <= 0:
-    return 0
-return (total_income - total_expenses) / total_income * 100
-```
+### Totals
 
-Capped at 100% even if the number is absurd due to transfers-as-income misclassification.
-
-### Monthly Aggregation
-
-**Code**: `api/calculations.py::get_monthly_aggregation`
-
-Groups transactions by `YYYY-MM` and returns:
-
-```
-for each month in range:
-    income = sum(amount where type=Income AND month = M)
-    expenses = sum(amount where type=Expense AND month = M)
-    surplus = income - expenses
-    savings_rate = surplus / income * 100 if income > 0 else 0
+```text
+total_income = sum(Income amounts)
+total_expenses = sum(Expense amounts)
+net_change = total_income - total_expenses
+savings_rate = net_change / total_income * 100, when income != 0
 ```
 
-Used by dashboard income/expense line chart and trend forecasts.
+Transfers do not enter income or expense totals.
 
-### Category Breakdown
+### Account balances
 
-**Code**: `api/calculations.py::get_category_breakdown`
+For each account:
 
-Two modes:
-
-- `transaction_type=expense` -- top expense categories
-- `transaction_type=income` -- top income categories
-
-```
-for each category:
-    total = sum(abs(amount) where category=C AND type=transaction_type)
-    count = count(*)
-    percentage = total / grand_total * 100
-sort desc by total
+```text
+Income  -> add to account
+Expense -> subtract from account
+Transfer -> subtract from from_account and add to to_account
 ```
 
-Returns at most `limit` results (default 10). Used by treemaps, pie charts, top-category tables.
+These are ledger-derived balances. They are not live balances fetched from a
+bank.
 
-### Spending Velocity
+### Daily spending and burn rate
 
-**Code**: `core/calculator.py::calculate_spending_velocity`
+```text
+daily_spending_rate =
+  total expense / inclusive day span from first to last expense
 
-Compares current-month expenses against the user's typical pace:
-
-```
-days_elapsed = today.day  (or 30 if past month)
-expected = (avg_monthly_expense / 30) * days_elapsed
-actual = sum(expenses in current month, up to today)
-velocity_pct = (actual / expected - 1) * 100
-
-if velocity_pct > 15: status = "high"     (spending fast)
-elif velocity_pct < -15: status = "low"   (spending slow)
-else: status = "normal"
+monthly_burn_rate =
+  total expense / inclusive month span from first to last expense
 ```
 
-Shown on Dashboard as a gauge.
+### Spending velocity
 
-### Consistency Score
+The latest expense date anchors the split.
 
-**Code**: `core/calculator.py::calculate_consistency_score`
+```text
+recent_daily =
+  expense in the inclusive latest 30-day window / 30
 
-```
-cv = stddev(monthly_expenses) / mean(monthly_expenses)
-score = max(0, min(100, 100 - cv * 100))
-```
+historical_daily =
+  earlier expense / inclusive historical day span
 
-Higher = more consistent month-to-month spending. Used in Financial Health Score.
-
-### Lifestyle Inflation
-
-**Code**: `core/calculator.py::calculate_lifestyle_inflation`
-
-```
-recent_3_months_avg = mean(expenses in last 3 months)
-prior_3_months_avg = mean(expenses in months 4-6 ago)
-inflation_pct = (recent - prior) / prior * 100
+velocity_ratio =
+  recent_daily / historical_daily, when historical_daily > 0
 ```
 
-Tracks whether you've been gradually spending more. Used in Insights page.
+A ratio above 1 means recent daily spending is faster than the historical
+baseline.
 
----
+### Consistency score
 
-## Tax Calculations (India)
+For monthly expense values:
 
-**Code**: `frontend/src/lib/taxCalculator.ts` (logic) + `frontend/src/lib/tax-config/index.ts` (rules).
-
-### Slab Rates
-
-Tax rules (slabs, surcharge bands, Section 87A rebate, standard deduction, cess, professional tax) live in `frontend/src/lib/tax-config/index.ts` as per-FY blocks:
-
-- **FY 2023-24** -- Budget 2023 new regime + pre-bump old regime (SD 50k)
-- **FY 2024-25** -- Budget 2024 new-regime slabs + old regime with bumped SD 75k
-- **FY 2025-26** -- Budget 2025 new-regime slabs (includes 25% band, 12L rebate ceiling)
-
-Each block carries a `source` field referencing the Budget notification. Adding a new Budget is a single new entry; historical calculations never change. `getTaxConfig(fyStartYear)` resolves with newest-first fallback so the app keeps working for future FYs until the file is updated.
-
-Slab lookup:
-
-```typescript
-getTaxSlabs(fyStartYear: number, regime: 'old' | 'new'): Slab[]
+```text
+coefficient_of_variation = population_stddev / mean * 100
+consistency_score = max(0, 100 - coefficient_of_variation)
 ```
 
-Each slab is `{ upto: number, rate: number }`, e.g. for New Regime FY2025-26:
+Zero or one month returns 100.
 
-```
-[0, 0], [4L, 5%], [8L, 10%], [12L, 15%], [16L, 20%], [20L, 25%], [24L, 30%]
-```
+### Lifestyle inflation
 
-### Standard Deduction
+The metric compares average expense in the first three calendar months of
+history with the last three.
 
-```
-FY2019-20 to FY2022-23:  50,000
-FY2023-24 onward (Old):  50,000
-FY2023-24 onward (New):  75,000 from FY2024-25, 50,000 before
-```
+It returns zero unless:
 
-### Tax Computation
+- At least six expense rows exist.
+- Both windows cover three distinct months.
+- The first-window monthly average is at least 1.
 
-```typescript
-calculateTax(grossIncome, slabs, standardDeduction, hasEmploymentIncome, salaryMonthsCount, isNewRegime, fyStartYear)
-```
+Otherwise:
 
-**Steps:**
-
-1. **Standard deduction**: `taxable = grossIncome - standardDeduction` (if employment income)
-2. **Professional tax**: `taxable -= 200 * salaryMonthsCount` (capped at 2500/FY, Maharashtra rate; only if employment income)
-3. **Slab tax**: walk slabs bottom-up, tax each slice at its rate
-4. **Section 87A Rebate**:
-   - Old regime, taxable <= 5L: tax = 0 (rebate = tax up to 12,500)
-   - New regime FY2023-24, taxable <= 7L: rebate up to 25,000
-   - New regime FY2025-26+, taxable <= 12L: rebate up to 60,000
-5. **Surcharge** (on tax after rebate):
-   - 50L-1Cr: 10%
-   - 1Cr-2Cr: 15%
-   - 2Cr-5Cr: 25% (old) / 25% (new before 2023-24) / capped at 25% after
-   - >5Cr: 37% (old) / 25% (new, post-2023-24 cap)
-6. **Cess**: `4% * (tax + surcharge)` -- Health & Education Cess
-7. **Total** = tax + surcharge + cess + professional_tax
-
-**Return shape**:
-
-```typescript
-{
-  tax,             // base slab tax after rebate
-  slabBreakdown,   // [{slab, amount_in_slab, tax}, ...] for display
-  rebate87A,
-  surcharge,
-  cess,
-  professionalTax,
-  totalTax,
-}
+```text
+lifestyle_inflation =
+  (latest_3_month_average - first_3_month_average)
+  / first_3_month_average
+  * 100
 ```
 
-### Gross-from-Net Reversal
+## 50/30/20 Spending Rule
 
-**Code**: `taxCalculator.ts::calculateGrossFromNet`
+`GET /api/analytics/v2/spending-rule` groups the selected period into:
 
-When computing tax from actual bank statements, the imported income amount is the **net** (post-tax) value. We need to reverse-engineer the gross.
+- Needs
+- Wants
+- Savings
 
-```typescript
-calculateGrossFromNet(netIncome, { slabs, standardDeduction, applyProfessionalTax, salaryMonthsCount, isNewRegime, fyStartYear })
+Targets default to 50, 30, and 20 percent but are user configurable.
+
+Classification combines:
+
+- Built-in category and account patterns
+- User essential categories
+- User investment account mappings
+- Transfer destination
+- Transaction category and subcategory
+
+Transfers into a recognized investment account and expenses booked directly
+on a recognized investment account count as Savings. Generic transfer labels
+are relabeled where the destination identifies an instrument.
+
+The response includes period totals, targets, amount and percent for each
+bucket, signed target deltas, and category details.
+
+## Investment Holdings
+
+Investment account mappings default to an empty object. Users configure the
+mapping in Settings; no hidden default account names are persisted.
+
+For each mapped investment account:
+
+```text
+transfer_principal =
+  transfers in - transfers out
+
+account_flow =
+  income booked on account - expenses booked on account
+
+current_value =
+  transfer_principal + account_flow
+
+invested_amount =
+  transfer_principal + max(account_flow, 0)
 ```
 
-Binary-searches for a gross such that `calculateTax(gross) == gross - netIncome`. Used by Tax Planning page to show gross taxable income from your actual deposited salary.
+Without lot-level market data, positive account income is treated as
+principal instead of being labeled as a gain. Both realized and unrealized
+gains remain zero. A holding is active when `current_value > 0`.
 
----
+## Net Worth
 
-## Salary & Multi-Year Projections
+Account balances are classified with `account_classifications` and investment
+mappings.
 
-**Code**: `frontend/src/lib/projectionCalculator.ts`
+```text
+total_investments =
+  stocks + mutual_funds + fixed_deposits + ppf_epf
 
-### Salary Components (per FY)
+total_assets =
+  cash_and_bank + total_investments + other_assets
 
-```typescript
-interface SalaryComponents {
-  basic: number               // annual
-  hra: number                 // annual
-  special_allowance: number   // annual
-  variable_pay: number        // annual bonus
-  epf_contribution: number    // annual, employer's share (taxable)
-  nps_80ccd2: number          // annual, employer's 80CCD(2) contribution (deductible in both regimes)
-  professional_tax: number    // annual, typically 2,500 in Maharashtra
-  other_allowances: number    // catch-all
-}
+total_liabilities =
+  credit_card_outstanding + loans_payable
 
-gross_annual = basic + hra + special_allowance + variable_pay + epf + nps + other
+net_worth =
+  total_assets - total_liabilities
 ```
 
-### RSU Vesting
+One snapshot per user and UTC day is upserted. Change compares against the most
+recent snapshot before today, not an earlier value from the same day.
 
-```typescript
-interface RsuGrant {
-  stock_name: string
-  stock_symbol: string
-  stock_currency: 'USD' | 'INR' | etc
-  stock_price: number        // current spot price
-  vesting_schedule: { date: string, quantity: number }[]
-}
+Frontend milestone projections use a different, explicitly labeled model:
+
+- Anchor on the latest filtered net-worth observation.
+- Compute average monthly change from the latest 12 monthly-end points.
+- Extend a constant linear monthly change for up to 60 months.
+
+This is an "if recent trend holds" projection, not a market forecast.
+
+## Recurring Detection
+
+Income and expense rows are grouped by normalized note and type. Rows without a
+note fall back to category and subcategory.
+
+Requirements:
+
+- At least three occurrences
+- Mean day gap within a supported band
+- Confidence at or above the user's threshold
+
+Frequency bands:
+
+| Mean gap | Frequency |
+| --- | --- |
+| 4 to under 11 days | Weekly |
+| 11 to under 20 | Biweekly |
+| 20 to under 50 | Monthly |
+| 50 to under 80 | Bimonthly |
+| 80 to under 130 | Quarterly |
+| 130 to under 270 | Semiannual |
+| 270 to under 400 | Yearly |
+
+Confidence is:
+
+```text
+max(0, 100 - standard_deviation(day_gaps) * cadence_penalty)
 ```
 
-```
-for each vesting in a FY:
-    stock_price_at_vest = stock_price * (1 + stock_appreciation_pct/100)^years_since_today
-    vest_value_inr = quantity * stock_price_at_vest * fx_rate_to_inr
-    rsu_income_total += vest_value_inr
-```
+Wider cadences use a smaller penalty. Expected amount and amount variance use
+the sample mean and sample standard deviation. Monthly-like frequencies infer
+an expected day from the modal day, with special handling for late-month
+clamping.
 
-### Growth Assumptions
-
-```typescript
-interface GrowthAssumptions {
-  salary_hike_pct: number           // e.g. 10 = 10% hike annually
-  variable_growth_pct: number       // bonus growth rate
-  stock_appreciation_pct: number    // RSU stock price CAGR assumption
-  projection_years: number          // how many future FYs to project
-  include_rsu_in_projection: boolean
-}
-```
-
-### `projectFiscalYear(fy, salaryStructure, rsuGrants, growth, fyStartMonth)`
-
-Returns `ProjectedFYBreakdown`:
-
-```
-baseSalary    = actual salary_structure[fy] if entered, else latest * (1+hike)^years_since
-bonus         = variable_pay * (1+var_growth)^years_since
-rsuIncome     = sum of RSU vests during this FY (using stock_appreciation for future years)
-epf           = employer EPF contribution
-otherTaxable  = nps + other_allowances
-grossTaxable  = baseSalary + bonus + rsuIncome + epf + otherTaxable
-totalTax      = calculateTax(grossTaxable, ...)  using preferred regime for that FY
-takeHome      = grossTaxable - totalTax - professional_tax
-effectiveTaxRate = totalTax / grossTaxable * 100
-```
-
-### `projectMultipleYears(...)`
-
-Iterates `projectFiscalYear` for each FY from the latest entered salary FY through `latest + projection_years`. Result is the table shown on the Tax Planning page's multi-year projection chart and summary.
-
----
-
-## Investment & Net Worth
-
-### Investment Account Classification
-
-**Code**: `core/analytics_engine.py::_is_investment_account`
-
-Reads `user_preferences.investment_account_mappings` (JSON dict of patterns like `"Groww Stocks": "stocks"`). Returns true if any configured pattern is a substring of the account name.
-
-Default patterns (when no user config):
-
-```
-"Grow Stocks" / "IND money" / "RSUs"  -> stocks
-"Grow Mutual Funds"                   -> mutual_funds
-"FD/Bonds"                            -> fixed_deposits
-"EPF" / "PPF"                         -> ppf_epf
-```
-
-### Investment Holdings
-
-**Code**: `_populate_investment_holdings` + `_analytics_helpers.aggregate_holdings_data`
-
-```
-for each investment account:
-    invested = sum(transfer amounts into this account) - sum(transfer amounts out)
-    income = sum(Income amounts credited to this account)  (dividends, interest)
-    expense = sum(Expense amounts deducted from this account)  (fees)
-    net_position = invested + income - expense
-```
-
-Used by Investment Analytics, Returns Analysis, Net Worth pages.
-
-### Net Worth Snapshot
-
-**Code**: `_calculate_net_worth_snapshot` + `_compute_account_balances`
-
-```
-for each account:
-    balance = sum(incoming transfers)
-            + sum(income into account)
-            - sum(expenses from account)
-            - sum(outgoing transfers)
-
-account_type = classify_account(name)  # from user account_classifications or default keyword match
-
-For the snapshot:
-    total_assets = sum(balance where account_type IN {bank, investment, cash})
-    total_liabilities = sum(abs(balance) where account_type IN {credit_card, loan})
-    net_worth = total_assets - total_liabilities
-
-    liquid_cash = sum(balance where account_type IN {bank, cash})
-    investments = sum(balance where account_type = investment)
-    real_estate = sum(balance where account_type = real_estate)  # user-tagged
-```
-
-**Snapshot cadence**: one snapshot per day maximum (upserts by date). Used for the Net Worth time-series chart.
-
-### Net Worth Milestones + Projections (unified)
-
-**Code**: `frontend/src/pages/net-worth/netWorthProjection.ts`
-
-All three views on the Net Worth page -- the Milestones table, the ETA rows inside it, and the chart projection overlay -- share ONE anchor point (the last observation on the filtered chart series) and ONE growth rate (trailing 12-month average monthly delta of that same series). This keeps every number self-consistent.
-
-```
-anchor = last point of the filtered chart series    # (date, netWorth)
-avg_monthly_growth = mean(
-    monthly_end_netWorth[i] - monthly_end_netWorth[i-1]
-    for the last 12 months in the series
-)
-
-buildMilestoneRows(series, anchor, growth):
-    # Scan the series once, record FIRST crossing of each threshold.
-    # Defaults: ₹1L, ₹5L, ₹10L, ₹25L, ₹50L, ₹1Cr, ₹2.5Cr, ₹5Cr, ₹10Cr.
-    for each default milestone:
-        if ever crossed in series:
-            status = "achieved"
-            date = first_crossing_date
-            stableSince = findStableSince(series, value, first_crossing_date)
-        elif growth > 0 and value > anchor.netWorth:
-            months_away = (value - anchor.netWorth) / growth
-            status = "upcoming"
-            date = anchor.date + months_away * 30.44 days
-            stableSince = null
-        else:
-            status = "upcoming", date = null, stableSince = null
-    sort rows by value ascending
-
-findStableSince(series, target, firstCrossing):
-    # Scan backward for the last index where value < target.
-    # Never dipped below -> stable since firstCrossing.
-    # Last index is the final point -> not stable (null).
-    # Otherwise -> stable since the first point after that dip that is >= target.
-```
-
-**Three status tiers** (displayed in the Milestones table):
-
-- **Stable** -- `stableSince !== null`: crossed and never dipped back below. Green.
-- **Reached** -- `status === 'achieved' && stableSince === null`: crossed at least once but net worth is currently (or was recently) below the threshold. Yellow.
-- **Upcoming** -- `status === 'upcoming'`: not yet crossed. Muted.
-
-The "Reached but not Stable" tier exists because touching a milestone once is weaker evidence than holding it -- a user who crossed ₹10L on a bonus day and then dipped back should not be told "₹10L achieved" the same way as a user who crossed it on salary growth and held.
-
-**Chart projection overlay** (toggle-gated):
-
-```
-if growth > 0:
-    historical = downsampleToMonthly(filtered_series)   # one point per month-end
-    projection = projectNetWorth(anchor, growth, horizon=60):
-        for i in 1..60:
-            date = anchor.date + i months
-            netWorth = anchor.netWorth + growth * i
-    chartData = [historical..., anchor, projection...]
-```
-
-The historical series is **downsampled to monthly** whenever the projection is on. This prevents ~1,400 daily points + 60 monthly points from sharing a categorical x-axis (which made the projected 5 years visually compress to ~4% of the chart).
-
-The projection is **"if recent trend holds"** -- constant linear growth, not a forecast. A bad month, windfall, or market swing will shift the ETA dates. A "Now" reference line marks where the historical data ends.
-
-### CAGR (Returns Analysis)
-
-**Code**: `frontend/src/pages/ReturnsAnalysisPage.tsx`
-
-```
-for each investment category:
-    invested_total = total transferred into category accounts
-    current_value = current balance (including income, fees)
-    years = (now - first_investment_date) / 365.25
-    CAGR = (current_value / invested_total)^(1/years) - 1
-```
-
-Note: this is simplified CAGR, not XIRR. For accurate XIRR-style returns with irregular cash flows, the frontend would need timestamps of each contribution -- currently deferred.
-
----
-
-## Recurring Transaction Detection
-
-**Code**: `core/analytics_engine.py::_detect_recurring_transactions`
-
-### Algorithm
-
-1. Group transactions by `(normalized_note_or_category, type)`.
-2. For each group with >= 3 transactions:
-   - Sort by date
-   - Compute gaps between consecutive dates in days
-   - Compute mean amount, amount variance (std dev / mean)
-3. Detect frequency via `_detect_frequency`:
-   ```
-   # Bands are half-open [lo, next_lo) so float averages between
-   # integer thresholds (e.g. mean_gap = 10.5) resolve cleanly.
-   mean_gap in [4, 11)    -> WEEKLY      (penalty 8)
-   mean_gap in [11, 20)   -> BIWEEKLY    (penalty 5)
-   mean_gap in [20, 50)   -> MONTHLY     (penalty 3)
-   mean_gap in [50, 80)   -> BIMONTHLY   (penalty 2.5)
-   mean_gap in [80, 130)  -> QUARTERLY   (penalty 2)
-   mean_gap in [130, 270) -> SEMIANNUAL  (penalty 1.5)
-   mean_gap in [270, 400) -> YEARLY      (penalty 1)
-   else                   -> not recurring
-   ```
-4. **Confidence score** (0-100):
-   ```
-   confidence = max(0, 100 - stddev(gaps) * penalty)
-   ```
-   Penalty scales with expected cadence -- wider cycles tolerate more jitter (yearly penalty 1, weekly penalty 8). Only patterns with `confidence >= recurring_min_confidence` (default 50) are saved.
-5. `expected_day = mode(txn.date.day)` for monthly+ patterns, else None.
-6. `next_expected = last_date + interval_days`.
-
-### User Confirmation
-
-`is_confirmed` field starts False. Users can manually confirm in the Subscription Tracker page, which promotes the pattern to "Confirmed" status (shown with a green indicator in the calendar).
-
----
+User-confirmed rows are preserved during a refresh and have their observed
+statistics updated.
 
 ## Anomaly Detection
 
-**Code**: `core/analytics_engine.py::_detect_anomalies`
+The active detector creates two statistical finding types plus budget-overrun
+findings from budget tracking.
 
-### High-Expense Months
+### High-expense months
 
-```
-for each month in monthly_summaries:
-    z_score = (expense - mean_expense_all_months) / stddev_expense_all_months
-    if z_score > anomaly_expense_threshold (default 2.0):
-        flag as "high_expense" anomaly
-```
+With at least four months:
 
-### Large Individual Transactions
-
-```
-for each expense in current month:
-    if amount > mean_monthly_expense + 2 * stddev_monthly_expense:
-        flag as "large_transfer" anomaly
+```text
+median = median(monthly expense totals)
+MAD = median(abs(value - median))
+modified_z = 0.6745 * (value - median) / MAD
 ```
 
-### Budget Exceeded
+The stored legacy threshold is mapped to a modified-Z cutoff:
 
-```
-for each budget in current month:
-    actual_spend = sum(expense in budget.category in budget period)
-    if actual_spend > budget.amount * (alert_threshold / 100):   # default 80%
-        flag as "budget_exceeded" anomaly
+```text
+effective_cutoff = 3.5 * (stored_threshold / 2.0)
 ```
 
-### Unusual Category
+When MAD is zero, the detector uses Tukey's upper fence:
 
-Compares current-month category spend against rolling 3-month average:
-
-```
-for each category:
-    if current > prior_3mo_avg * 2 AND current > 5000:
-        flag as "unusual_category" anomaly
+```text
+Q3 + 1.5 * IQR
 ```
 
-### Auto-Dismissal
+### Large individual expenses
 
-If `auto_dismiss_recurring_anomalies` is True, anomalies matching detected recurring transactions are auto-dismissed (e.g., your yearly insurance premium of 50,000 won't flag as unusual).
+Each expense is compared with the median of earlier transactions in the same
+category from the preceding 365 days.
 
----
+- At least five historical values are required.
+- At least 3 times the median is flagged.
+- At least 5 times the median is high severity.
+- The transaction under review is excluded from its own baseline.
 
-## FIRE Calculator
+Reviewed anomalies remain stored. Unreviewed findings are replaced on refresh.
+Findings are sorted by deviation and capped at 50 persisted rows.
 
-**Code**: `frontend/src/lib/fireCalculator.ts`
+### Budget exceeded
 
-### Core Formulas
+For each active budget, the current calendar month's category spending updates:
 
-```typescript
-// FIRE number = required portfolio to live off SWR indefinitely
-fireNumber = annualExpenses / (swr / 100)
-// Default swr = 4 (4% safe withdrawal rate, Trinity study)
-
-// Coast FIRE = portfolio you need now for compounding to hit FIRE at retirement
-coastFIRE = fireNumber / (1 + realReturn)^yearsToRetire
-
-// Lean FIRE = minimal-lifestyle version
-leanFIRE = fireNumber * 0.6
-
-// Fat FIRE = comfortable version
-fatFIRE = fireNumber * 2
-
-// Years to FIRE from current portfolio + annual savings
-//   Solve: currentPortfolio * (1+r)^n + annualSavings * [((1+r)^n - 1) / r] = fireNumber
-yearsToFIRE = log((fireNumber * r + annualSavings) / (currentPortfolio * r + annualSavings)) / log(1 + r)
+```text
+remaining = monthly_limit - spent
+percent = spent / monthly_limit * 100
 ```
 
-Default inputs:
-- `swr = 4` (4% safe withdrawal rate)
-- `realReturn = 0.07` (7% real return after inflation)
+A high-severity budget anomaly is created only after usage exceeds 100 percent.
 
-### Savings Rate
+There are no active unusual-category, duplicate, missing-recurring, or
+auto-dismiss detectors in the current analytics run.
 
-```typescript
-currentSavingsRate = (annualIncome - annualExpenses) / annualIncome * 100
+## Tax Calculation
+
+Tax rules are versioned by fiscal year under
+`frontend/src/lib/tax-config/`. The newest known fiscal-year configuration is
+used as fallback for later years until a new rule file is added.
+
+The frontend tax engine applies:
+
+1. Employment standard deduction where eligible.
+2. Professional tax where configured.
+3. Progressive slab tax.
+4. Section 87A rebate for the selected fiscal year and regime.
+5. Surcharge and applicable caps.
+6. Health and education cess.
+
+Tax Planning can reverse a net salary value to an estimated gross value using
+a bounded binary search through the same tax function.
+
+Always update the versioned tax configuration and its tests when tax law
+changes. Do not hardcode new slabs inside page components.
+
+## Salary, RSU, and TDS Projections
+
+### Salary projection
+
+Fiscal-year salary data contains base salary, HRA, bonus, monthly EPF and NPS,
+special allowance, and other taxable income. Growth assumptions independently
+control base salary, bonus, NPS, and stock price, with EPF optionally scaling
+with base.
+
+### RSU valuation
+
+Each vesting has a date, quantity, and optional `price_at_vest`.
+
+- A completed vesting uses its locked vest-date price when available.
+- An upcoming vesting uses the grant's current price and projection
+  assumptions where applicable.
+- Changing a completed vesting date clears the stale locked price in the UI so
+  it can be fetched again.
+
+### Forward TDS schedule
+
+The page derives the recurring base by excluding annual bonus and RSU income
+from projected gross taxable income:
+
+```text
+base_annual =
+  max(0, gross_taxable - annual_bonus - rsu_income)
+
+regular_monthly_income =
+  base_annual / 12
+
+bonus_monthly =
+  annual_bonus / 12
+
+extra_for_month =
+  bonus_monthly + dated_rsu_vestings_for_month
+
+baseline_monthly_tds =
+  tax(base_annual) / 12
 ```
 
----
+For each fiscal month:
 
-## Financial Health Score
+```text
+marginal_extra_tax =
+  tax(base_annual + prior_extras + current_extra)
+  - tax(base_annual + prior_extras)
 
-**Code**: `frontend/src/components/analytics/FinancialHealthScore.tsx`
+monthly_tds =
+  baseline_monthly_tds + marginal_extra_tax
 
-Four pillars, each 0-100, then averaged:
+projected_annual =
+  base_annual + extras_seen_so_far
 
-### 1. Spend (0-100)
+take_home =
+  month_income - monthly_tds
+```
 
-Composed of:
+The annual bonus is therefore represented as 12 equal monthly extras. RSU
+income remains tied to each vesting month and produces a dated marginal-tax
+spike. The progressive calculation stacks later extras on earlier ones, and
+the 12 projected values sum to tax on the full known income.
 
-- **Budget Adherence** (weight 40%): `100 - (% of budgets exceeded)`
-- **Savings Rate** (weight 30%): `min(100, current_savings_rate * 5)` (20% savings = 100 score)
-- **Expense Growth Control** (weight 30%): `100 - max(0, min(100, expense_yoy_pct * 2))` (0% YoY = 100, 50% YoY = 0)
+For a live current fiscal year, rows for paid months replace projected TDS with
+the average tax already deducted per paid month. Future rows retain the
+projection.
 
-### 2. Save (0-100)
+## FIRE and Retirement
 
-- **Emergency Fund Ratio** (weight 50%): `min(100, liquid_cash / (3 * monthly_expenses) * 100)` -- 3 months = 100
-- **Savings Rate** (weight 30%): same as above
-- **Consistency Score** (weight 20%): from `calculate_consistency_score` above
+Defaults are India-oriented:
 
-### 3. Borrow (0-100)
+- Safe withdrawal rate: 3 percent
+- Real return for FIRE timing: 6 percent
+- Retirement inflation: 6.5 percent
+- Nominal retirement return: 12 percent
 
-- **Debt-to-Income Ratio** (weight 60%): `100 - min(100, (total_liabilities / total_income) * 100)`
-- **Credit Card Utilization** (weight 40%): `100 - avg(card.balance / card.limit) * 100` across all credit cards
+Core formulas:
 
-### 4. Plan (0-100)
+```text
+FIRE number = annual expenses / safe withdrawal rate
+Lean FIRE = essential annual expenses / safe withdrawal rate
+Fat FIRE = FIRE number * 2
+Barista FIRE =
+  max(0, annual expenses - part-time annual income)
+  / safe withdrawal rate
+Coast FIRE =
+  FIRE number / (1 + real return) ^ years to retirement
+```
 
-- **Investment Allocation** (weight 40%): `min(100, investments / net_worth * 100 * 2)` -- 50% invested = 100
-- **Goal Progress** (weight 30%): mean of (current / target) for all active goals, capped at 100
-- **Tax Efficiency** (weight 30%): computed from 80C/80D utilization in the selected regime
+Years to FIRE solves the future-value equation for current portfolio plus
+annual savings. Zero-return, zero-savings, already-reached, and impossible
+cases have explicit branches.
 
-**Overall score** = mean of 4 pillars.
+Retirement SIP calculations convert the effective annual return to an
+effective monthly return:
 
-Grade:
-- 90-100: Excellent
-- 75-89: Good
-- 60-74: Fair
-- < 60: Needs attention
+```text
+monthly_rate = (1 + annual_return) ^ (1 / 12) - 1
+```
 
----
+The projection uses an annuity-due model, with contributions at the beginning
+of each month.
+
+## Investment Returns
+
+The frontend includes:
+
+- XIRR for irregular dated cash flows
+- CAGR helpers where only start, end, and duration are available
+- Mutual-fund SIP projection
+- EPF, PPF, NPS, and other instrument projections
+
+XIRR uses Newton iteration with bounded fallback behavior and a dated cash-flow
+convention. Contribution and withdrawal signs must match the helper's
+documented convention in `xirr.ts`.
 
 ## Currency Conversion
 
-**Code**: `frontend/src/lib/formatters.ts::convertAmount`, `/api/exchange-rates`
+The backend fetches rates from frankfurter.dev and caches each base currency
+for 24 hours.
 
-### Exchange Rate Fetch
+Fallback order:
 
-Backend: `GET /api/exchange-rates?base=INR` returns rates keyed by currency code. Source: [frankfurter.app](https://www.frankfurter.app) (ECB data).
+1. Fresh in-memory cache
+2. Upstream fetch
+3. Existing stale cache after a failed fetch
+4. Dated hardcoded INR fallback when no INR cache exists
 
-Cached server-side for 24 hours. Three-tier fallback:
+Responses expose Unix `fetched_at`. Hardcoded data exposes
+`fallback_as_of`. There is no seven-day stale cutoff or background refresh.
 
-1. Fresh cache (< 24h old) -- return immediately
-2. Stale cache (24h-7d) -- return stale, async refresh
-3. Hardcoded fallback rates -- used when upstream is down
+Frontend conversion:
 
-### Conversion
-
-```typescript
-convertAmount(amount, fromCurrency='INR', toCurrency=displayCurrency) {
-  if (from === to) return amount
-  rate = exchangeRates[to] / exchangeRates[from]
-  return amount * rate
-}
+```text
+converted =
+  amount * rates[to_currency] / rates[from_currency]
 ```
 
-All `formatCurrency`, `formatCurrencyCompact`, `formatCurrencyShort` call this automatically based on the user's `display_currency` preference.
-
-### Short Unit Selection
-
-```
-if display_currency == 'INR':
-    1 Cr  = 10,000,000
-    1 L   = 100,000
-    1 K   = 1,000
-elif display_currency IN { USD, EUR, GBP, ... }:
-    1 B   = 1,000,000,000
-    1 M   = 1,000,000
-    1 K   = 1,000
-```
-
----
-
-## Chart-Specific Data Shapes
-
-### Year in Review Heatmap
-
-```typescript
-// frontend/src/pages/year-in-review/heatmapUtils.ts
-buildDayCells(startDate, endDate, dayExpenses, dayIncomes) -> DayCell[]
-
-interface DayCell {
-  date: string            // "YYYY-MM-DD"
-  expense: number
-  income: number
-  net: number             // income - expense
-  dayOfWeek: number       // 0=Sun
-  weekIndex: number       // weeks from start
-  month: number           // 0=Jan
-  isToday: boolean
-  hasTx: boolean
-}
-```
-
-Intensity level 0-4 chosen by `getIntensityLevel(value, max)`:
-
-```
-ratio = value / max
-0 if value == 0 OR max == 0
-1 if ratio < 0.15
-2 if ratio < 0.35
-3 if ratio < 0.60
-4 otherwise
-```
-
-### Trends & Forecasts (3-month rolling average)
-
-```typescript
-// frontend/src/pages/trends-forecasts/useTrendsForecasts.ts
-monthlyTrendWithAvg = monthlyTrendChartData.map((d, i) => ({
-  ...d,
-  incomeAvg:   mean(window_i-2_to_i)
-  expensesAvg: mean(window_i-2_to_i)
-  savingsAvg:  mean(window_i-2_to_i)
-}))
-```
-
-### Cumulative Savings Rate (daily)
-
-```typescript
-dailySavingsData[k] = {
-  date: sorted_days[k],
-  savingsRate: max(0, (cumIncome - cumExpense) / cumIncome * 100),  // clamped for clean chart
-  rawSavingsRate: (cumIncome - cumExpense) / cumIncome * 100        // actual, may be negative
-}
-```
-
-The chart renders `savingsRate` but tooltip shows `rawSavingsRate` with a "(deficit)" label when negative.
-
-### Bill Calendar (recurring frequency -> days in month)
-
-```typescript
-// frontend/src/pages/bill-calendar/billUtils.ts
-getBillDaysForMonth(tx, year, month) -> number[]
-
-Weekly:        walk from tx.next_expected at 7-day intervals, collect days in month
-Fortnightly:   same, 14-day intervals
-Monthly:       [clamp(tx.expected_day, daysInMonth)]
-Quarterly:     [expected_day] if (month - next_expected.month) % 3 == 0 else []
-Yearly:        [expected_day] if next_expected.month == month else []
-```
-
-### Sankey (Income -> Expense flow)
-
-```typescript
-// frontend/src/pages/income-expense-flow/
-nodes = [ ...income_categories, ...expense_categories ]
-links = [
-  { source: income_cat, target: expense_cat, value: attributed_amount }
-]
-
-Attribution heuristic: for each month, allocate expense proportionally to income sources by percentage.
-(This is an approximation -- true source-of-funds tracking would require bank-level lineage, not possible from aggregated statements.)
-```
-
----
+INR compact formatting uses thousand, lakh, and crore units. Other currencies
+use thousand, million, and billion units.
 
 ## Related Reading
 
-- [architecture.md](architecture.md) -- high-level system design and layer responsibilities
-- [DATABASE.md](DATABASE.md) -- schema details, columns, indexes
-- [API.md](API.md) -- endpoint reference for all calculation/analytics routes
+- [API](API.md)
+- [Database](DATABASE.md)
+- [Architecture](architecture.md)
+- [Page Catalog](PAGES.md)

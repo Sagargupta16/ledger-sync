@@ -69,7 +69,7 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-72 rounded-xl bg-surface-dropdown border border-border shadow-xl z-50 p-3 space-y-3">
+        <div className="absolute right-0 top-full z-50 mt-2 w-72 space-y-3 rounded-lg border border-border bg-surface-dropdown p-3 shadow-[var(--glass-shadow-strong)]">
           {/* Saved view list */}
           {views && views.length > 0 ? (
             <ul className="space-y-1 max-h-56 overflow-y-auto">

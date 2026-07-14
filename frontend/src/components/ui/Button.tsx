@@ -13,21 +13,21 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'border border-app-blue/40 bg-app-blue text-primary-foreground shadow-[var(--ledger-control-shadow)] hover:bg-app-blue-vibrant hover:border-app-blue/60 active:scale-[0.98]',
+    'border border-foreground bg-foreground text-background shadow-sm hover:bg-foreground/90',
   secondary:
-    'ledger-control border text-foreground hover:text-foreground active:scale-[0.98]',
+    'ledger-control border text-foreground hover:text-foreground',
   ghost:
-    'text-muted-foreground hover:text-foreground hover:bg-[var(--ledger-control-bg-hover)] active:scale-[0.98]',
+    'text-muted-foreground hover:bg-[var(--ledger-control-bg-hover)] hover:text-foreground',
   danger:
-    'border border-app-red/40 bg-app-red/90 text-destructive-foreground shadow-[var(--ledger-control-shadow)] hover:bg-app-red hover:border-app-red/60 active:scale-[0.98]',
+    'border border-app-red bg-app-red text-destructive-foreground shadow-sm hover:bg-app-red-vibrant',
   outline:
-    'ledger-control border text-foreground hover:text-foreground active:scale-[0.98]',
+    'ledger-control border text-foreground hover:text-foreground',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-xs rounded-lg gap-1.5',
-  md: 'px-4 py-2 text-sm rounded-xl gap-2',
-  lg: 'px-5 py-2.5 text-base rounded-xl gap-2',
+  sm: 'min-h-11 min-w-11 px-2.5 py-1 text-xs rounded-md gap-1.5 sm:min-h-8 sm:min-w-0',
+  md: 'min-h-11 min-w-11 px-3.5 py-1.5 text-sm rounded-md gap-2 sm:min-h-9 sm:min-w-0',
+  lg: 'min-h-11 min-w-11 px-4 py-2 text-sm rounded-lg gap-2 sm:min-w-0',
 }
 
 /**
@@ -43,7 +43,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       ref={ref}
       disabled={disabled || isLoading}
       className={cn(
-        'inline-flex min-h-9 items-center justify-center whitespace-nowrap font-medium transition-all duration-150 ease-out',
+        'inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors duration-150 ease-out',
         'disabled:pointer-events-none disabled:opacity-50',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         variantClasses[variant],

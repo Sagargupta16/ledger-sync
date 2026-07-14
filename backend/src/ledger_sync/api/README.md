@@ -1,362 +1,141 @@
-# Ledger Sync API
+# Ledger Sync API Package
 
-FastAPI-based REST API for Excel file ingestion and database reconciliation.
+FastAPI routers for Ledger Sync. The generated OpenAPI document is the schema source of truth; [docs/API.md](../../../../docs/API.md) provides the maintained human-readable inventory.
 
-## 🚀 Quick Start
+## Start the API
+
+From `backend/`:
 
 ```bash
-# Install dependencies (using uv)
 uv sync --group dev
-
-# Start server
+uv run alembic upgrade head
 uv run uvicorn ledger_sync.api.main:app --reload --port 8000
-
-# Access API
-# - Base URL: http://localhost:8000
-# - API Docs: http://localhost:8000/docs
-# - ReDoc: http://localhost:8000/redoc
 ```
 
-## 📋 Endpoints
+Open:
 
-### Health Check
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+- OpenAPI JSON: `http://localhost:8000/openapi.json`
+- Health: `http://localhost:8000/health`
+- Database health: `http://localhost:8000/health/db`
 
-**GET /**
+The application version is `2.22.0`.
+
+## Authentication
+
+Only these runtime endpoints are public:
+
+- `GET /health`
+- `GET /health/db`
+- `GET /api/auth/oauth/providers`
+- `POST /api/auth/oauth/google/callback`
+- `POST /api/auth/oauth/github/callback`
+- `POST /api/auth/refresh`
+
+Financial and preference endpoints require:
+
+```http
+Authorization: Bearer <access-token>
+```
+
+Provider responses include a 10-minute HMAC-signed OAuth state token. Callback requests without a valid, unexpired state are rejected.
+
+Logout calls `POST /api/auth/logout`, increments the user's `token_version`, and invalidates outstanding access and refresh tokens.
+
+## JSON Upload
+
+`POST /api/upload` accepts parsed transaction rows, not multipart files.
 
 ```bash
-curl http://localhost:8000/
+curl -X POST http://localhost:8000/api/upload \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_name": "statement.xlsx",
+    "file_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "force": false,
+    "rows": [
+      {
+        "date": "2026-07-01",
+        "amount": 85000,
+        "currency": "INR",
+        "type": "Income",
+        "account": "HDFC Bank",
+        "category": "Salary",
+        "subcategory": "Monthly",
+        "note": "July salary"
+      }
+    ]
+  }'
 ```
 
-Response:
+Request rules:
 
-```json
-{
-  "status": "healthy",
-  "version": "1.0.0"
-}
-```
+- `file_name` must be non-empty.
+- `file_hash` must contain exactly 64 characters.
+- `rows` must contain 1 to 100,000 items.
+- Each row requires date, amount, type, account, and category.
+- `force` defaults to `false`.
 
-### Health Status
-
-**GET /health**
-
-```bash
-curl http://localhost:8000/health
-```
-
-Response:
-
-```json
-{
-  "status": "healthy",
-  "version": "1.0.0"
-}
-```
-
-### Upload Excel File
-
-**POST /api/upload**
-
-Upload and process an Excel file.
-
-**Parameters:**
-
-- `file` (form-data, required): Excel file (.xlsx or .xls)
-- `force` (query, optional): Force re-import if file was previously imported (default: false)
-
-**Example using curl:**
-
-```bash
-curl -X POST \
-  http://localhost:8000/api/upload \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@MoneyManager.xlsx" \
-  -F "force=false"
-```
-
-**Example using PowerShell:**
-
-```powershell
-$file = Get-Item "MoneyManager.xlsx"
-$form = @{
-    file = $file
-}
-Invoke-WebRequest -Uri "http://localhost:8000/api/upload?force=false" -Method Post -Form $form
-```
-
-**Success Response (200):**
+Success response:
 
 ```json
 {
   "success": true,
-  "message": "Successfully processed MoneyManager.xlsx",
+  "message": "Successfully processed statement.xlsx",
   "stats": {
-    "processed": 150,
-    "inserted": 10,
-    "updated": 5,
-    "deleted": 2,
-    "unchanged": 133
+    "processed": 1,
+    "inserted": 1,
+    "updated": 0,
+    "deleted": 0,
+    "unchanged": 0
   },
-  "file_name": "MoneyManager.xlsx"
+  "file_name": "statement.xlsx"
 }
 ```
 
-**Error Response (400) - Invalid File Type:**
-
-```json
-{
-  "detail": "Invalid file type. Expected .xlsx or .xls, got document.pdf"
-}
-```
-
-**Error Response (409) - File Already Imported:**
-
-```json
-{
-  "detail": "File already imported at 2026-01-10 12:00:00. Use --force to re-import."
-}
-```
-
-**Error Response (500) - Processing Error:**
-
-```json
-{
-  "detail": "Error processing file: [error message]"
-}
-```
-
-## 🔧 Configuration
-
-### CORS Settings
-
-By default, the API allows requests from:
-
-- `http://localhost:3000` (legacy fallback)
-- `http://localhost:5173` (Vite default)
-
-To modify CORS settings, edit `src/ledger_sync/api/main.py`:
-
-```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://your-domain.com"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-
-### Environment Variables
-
-No environment variables required for basic operation. The API uses the existing database configuration from the main application.
-
-## 📊 Response Models
-
-### UploadResponse
-
-```typescript
-{
-  success: boolean; // Operation success status
-  message: string; // Human-readable message
-  stats: {
-    processed: number; // Total rows processed
-    inserted: number; // New records added
-    updated: number; // Records updated
-    deleted: number; // Records soft-deleted
-    unchanged: number; // Records unchanged
-  }
-  file_name: string; // Original filename
-}
-```
-
-### HealthResponse
-
-```typescript
-{
-  status: string; // "healthy" or error message
-  version: string; // API version
-}
-```
-
-## 🐛 Error Handling
-
-The API returns standard HTTP status codes:
-
-| Status Code | Meaning                                       |
-| ----------- | --------------------------------------------- |
-| 200         | Success                                       |
-| 400         | Bad Request (invalid file type, missing file) |
-| 409         | Conflict (file already imported)              |
-| 500         | Internal Server Error                         |
-
-All errors return a JSON response with a `detail` field containing the error message.
-
-## 🔍 Interactive Documentation
-
-FastAPI automatically generates interactive API documentation:
-
-### Swagger UI
-
-Visit http://localhost:8000/docs
-
-Features:
-
-- Interactive API explorer
-- Try out requests directly in browser
-- View request/response schemas
-- Download OpenAPI specification
-
-### ReDoc
-
-Visit http://localhost:8000/redoc
-
-Features:
-
-- Clean, professional documentation
-- Easy to navigate
-- Code samples
-- Search functionality
-
-## 🧪 Testing the API
-
-### Using curl
-
-```bash
-# Health check
-curl http://localhost:8000/health
-
-# Upload file
-curl -X POST \
-  http://localhost:8000/api/upload \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@test.xlsx"
-```
-
-### Using Python requests
-
-```python
-import requests
-
-# Health check
-response = requests.get("http://localhost:8000/health")
-print(response.json())
-
-# Upload file
-with open("test.xlsx", "rb") as f:
-    files = {"file": f}
-    response = requests.post(
-        "http://localhost:8000/api/upload",
-        files=files,
-        params={"force": False}
-    )
-    print(response.json())
-```
-
-### Using Postman
-
-1. Create new request
-2. Method: POST
-3. URL: `http://localhost:8000/api/upload`
-4. Body → form-data
-5. Key: `file` (type: File)
-6. Value: Select your Excel file
-7. Params: Add `force` = `false`
-8. Send
-
-## 🚀 Production Deployment
-
-### Using Uvicorn (Development)
-
-```bash
-uvicorn ledger_sync.api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Using Gunicorn (Production)
-
-```bash
-pip install gunicorn
-gunicorn ledger_sync.api.main:app \
-  -w 4 \
-  -k uvicorn.workers.UvicornWorker \
-  --bind 0.0.0.0:8000
-```
-
-### Environment-Specific Settings
-
-```python
-# For production, modify main.py:
-app = FastAPI(
-    title="Ledger Sync API",
-    description="Production API",
-    version="1.0.0",
-    docs_url=None,  # Disable docs in production
-    redoc_url=None  # Disable redoc in production
-)
-```
-
-## 📝 Logging
-
-The API logs all operations using the existing logging configuration:
-
-```python
-from ledger_sync.utils.logging import logger
-
-logger.info("Processing uploaded file: filename.xlsx")
-logger.error("Error processing file", exc_info=True)
-```
-
-Logs are written to:
-
-- Console (stdout)
-- Log files (if configured)
-
-## 🔒 Security
-
-### Implemented
-
-- ✅ OAuth 2.0 authentication (Google, GitHub) with JWT tokens
-- ✅ Rate limiting (slowapi)
-- ✅ Security headers (CSP, HSTS, X-Frame-Options)
-- ✅ File type validation
-- ✅ CORS configuration (configurable origins)
-- ✅ Chunked file uploads
-- ✅ All data user-scoped (multi-tenant)
-
-## 📚 Additional Resources
-
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Uvicorn Documentation](https://www.uvicorn.org/)
-- [Pydantic Documentation](https://docs.pydantic.dev/)
-
-## 🆘 Troubleshooting
-
-### Port already in use
-
-```bash
-# Use different port
-uvicorn ledger_sync.api.main:app --reload --port 8001
-```
-
-### Module not found
-
-```bash
-# Reinstall dependencies
-uv sync --group dev
-```
-
-### CORS errors
-
-Check that your frontend URL is in `LEDGER_SYNC_CORS_ORIGINS` env var or `settings.cors_origins`.
-
-### Database errors
-
-Ensure database is initialized:
-
-```bash
-uv run alembic upgrade head
-```
-
----
-
-**API Version:** 0.8.0
-**Last Updated:** March 2026
+The upload endpoint normalizes and reconciles rows, then attempts a full analytics refresh. If that refresh fails after transaction persistence, the upload still succeeds and `POST /api/analytics/v2/refresh` can be retried.
+
+## Router Groups
+
+| Package area | Prefix |
+| --- | --- |
+| Authentication | `/api/auth` |
+| OAuth | `/api/auth/oauth` |
+| Transactions | `/api/transactions` |
+| Upload | `/api/upload` |
+| Analytics | `/api/analytics` |
+| Analytics v2 | `/api/analytics/v2` |
+| Calculations | `/api/calculations` |
+| Preferences | `/api/preferences` |
+| Account classifications | `/api/account-classifications` |
+| Categorization rules | `/api/categorization-rules` |
+| Saved views | `/api/saved-views` |
+| Reports | `/api/reports` |
+| AI | `/api/ai` |
+| Exchange rates | `/api/exchange-rates` |
+| Instrument rates | `/api/rates` |
+| Stock prices | `/api/stock-price` |
+
+## Errors and Limits
+
+FastAPI validation errors use HTTP 422. Application errors use standard status codes and a JSON `detail` or structured `error` response.
+
+Important limits:
+
+- Upload: 10 requests per authenticated user per minute, 50 per IP per minute.
+- Bedrock chat: 30 requests per authenticated user per minute, 60 per IP per minute.
+- OAuth callbacks: 20 requests per IP per minute.
+- Token refresh: 20 requests per IP per minute.
+
+## Deployment
+
+Production is Vercel serverless:
+
+- `backend/vercel.json` routes requests.
+- `backend/api/index.py` wraps the FastAPI app with Mangum.
+- Neon PostgreSQL provides production storage.
+- `.github/workflows/migrate.yml` applies Alembic migrations.
+
+Do not use the old multipart examples or Gunicorn instructions that appeared in earlier versions of this file.

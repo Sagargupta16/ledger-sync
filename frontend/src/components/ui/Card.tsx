@@ -22,8 +22,8 @@ export const Card = memo(function Card({
   variant = 'default'
 }: CardProps) {
   const variantClasses = {
-    default: 'glass rounded-2xl border border-[var(--glass-border)] p-5 sm:p-6',
-    interactive: 'glass rounded-2xl border border-[var(--glass-border)] p-5 sm:p-6 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-2)]'
+    default: 'glass rounded-lg border border-[var(--glass-border)] p-4 sm:p-5',
+    interactive: 'glass rounded-lg border border-[var(--glass-border)] p-4 sm:p-5 transition-colors duration-150 hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)]'
   }
 
   if (animate) {
@@ -65,7 +65,7 @@ export const CardHeader = memo(function CardHeader({
     <div className="flex items-start justify-between gap-3 mb-4">
       <div className="flex min-w-0 items-center gap-3">
         {icon && (
-          <div className="shrink-0 rounded-xl border border-[var(--hairline-2)] bg-app-blue/10 p-2.5">
+          <div className="shrink-0 rounded-md border border-[var(--hairline-2)] bg-[var(--overlay-2)] p-2">
             {icon}
           </div>
         )}
@@ -112,7 +112,7 @@ export const StatCard = memo(function StatCard({
       <div className="flex items-center gap-3">
         {icon && (
           <div
-            className="p-2.5 rounded-xl"
+            className="rounded-md p-2"
             style={{
               background: `${iconColor}10`
             }}

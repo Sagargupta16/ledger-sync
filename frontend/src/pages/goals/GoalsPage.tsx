@@ -34,8 +34,7 @@ export default function GoalsPage() {
         action={
           <button
             onClick={() => state.setShowCreateForm(!state.showCreateForm)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-on-accent transition-colors hover:opacity-90"
-            style={{ background: `linear-gradient(135deg, ${rawColors.app.blue}, ${rawColors.app.indigo})` }}
+            className="flex min-h-9 items-center gap-2 rounded-md border border-foreground bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
           >
             <Plus className="w-4 h-4" /> Create Goal
           </button>

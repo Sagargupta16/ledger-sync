@@ -1,763 +1,394 @@
 # Development Guide
 
-## Development Environment Setup
+Current for Ledger Sync 2.22.0.
 
-### Prerequisites
+This guide covers the supported local workflow. For behavior and ownership
+details, also see:
 
-- Python 3.13+
-- Node.js 22+ (with pnpm)
-- Git
-- VS Code (recommended)
+- [Architecture](architecture.md)
+- [API Reference](API.md)
+- [Database](DATABASE.md)
+- [Testing](TESTING.md)
+- [Deployment](DEPLOYMENT.md)
 
-### Quick Start
+## Toolchain
+
+| Tool | Supported baseline |
+| --- | --- |
+| Python | 3.13 or newer |
+| Python package manager | uv |
+| Node.js | 22 or newer |
+| JavaScript package manager | pnpm 11.10.0 |
+| Backend | FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
+| Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4 |
+
+Git is required. SQLite is used by default for local development; production
+uses PostgreSQL 17.
+
+## First Setup
 
 ```powershell
-# Clone and setup
-git clone https://github.com/Sagargupta16/ledger-sync.git
-cd ledger-sync
-pnpm run setup   # Installs all dependencies
-
-# Run development servers
-pnpm run dev     # Backend: http://localhost:8000, Frontend: http://localhost:5173
-```
-
-### Manual Setup
-
-```powershell
-# 1. Clone repository
 git clone https://github.com/Sagargupta16/ledger-sync.git
 cd ledger-sync
 
-# 2. Install Python dependencies
-cd backend
-uv sync --group dev
-cd ..
+pnpm install --frozen-lockfile
+pnpm run setup
 
-# 3. Install Node dependencies
-cd frontend
-pnpm install
-cd ..
-
-# 4. Initialize database
 cd backend
 uv run alembic upgrade head
-
-# 5. Install pre-commit hooks
-uv run pre-commit install
 cd ..
 ```
 
-## Running the Application
+`pnpm run setup` installs the backend development group and frontend
+dependencies. The root install provides the task runner used by the combined
+commands.
 
-### Option 1: Concurrent Development (Recommended)
+### Local configuration
 
-```bash
-# From project root - runs both services
+Copy `backend/.env.example` to `backend/.env` and change only the values needed
+for local development. Never commit `backend/.env`.
+
+The backend automatically creates an ephemeral JWT secret in development. At
+least one OAuth provider is required for real sign-in:
+
+| Provider | Local callback |
+| --- | --- |
+| Google | `http://localhost:5173/auth/callback/google` |
+| GitHub | `http://localhost:5173/auth/callback/github` |
+
+Set `LEDGER_SYNC_FRONTEND_URL=http://localhost:5173`. Register the matching
+callback with the provider and configure its client ID and secret.
+
+No frontend environment file is needed locally. The frontend uses same-origin
+`/api` requests, and Vite proxies them to `http://localhost:8000`.
+
+Use `/demo` when working on UI that does not require a real OAuth session or
+database data.
+
+## Run the App
+
+From the repository root:
+
+```powershell
 pnpm run dev
 ```
 
-### Option 2: Run Services Separately
+Services:
 
-**Terminal 1 - Backend:**
+| Service | URL |
+| --- | --- |
+| Frontend | `http://localhost:5173` |
+| Backend | `http://localhost:8000` |
+| OpenAPI UI | `http://localhost:8000/docs` |
+| API health | `http://localhost:8000/health` |
+| Database health | `http://localhost:8000/health/db` |
 
-```bash
-cd backend
-uv run uvicorn ledger_sync.api.main:app --reload --port 8000
+To run the services separately:
+
+```powershell
+pnpm run dev:backend
+pnpm run dev:frontend
 ```
 
-**Terminal 2 - Frontend:**
+The backend reloads Python files under `backend/src`. Vite provides frontend
+hot-module replacement.
 
-```bash
-cd frontend
-pnpm run dev
+## Root Commands
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm run setup` | Install backend and frontend dependencies |
+| `pnpm run dev` | Start both development servers |
+| `pnpm run lint` | Run Ruff and ESLint |
+| `pnpm run type-check` | Run mypy and TypeScript checks |
+| `pnpm run test` | Run pytest and Vitest |
+| `pnpm run check` | Run lint, type checks, and tests |
+| `pnpm run format` | Apply Ruff and ESLint fixes |
+| `pnpm run build` | Build the production frontend |
+
+The full local release gate is:
+
+```powershell
+pnpm run check
+pnpm run build
+```
+
+See [TESTING.md](TESTING.md) for focused commands and the current suite
+baseline.
+
+## Repository Layout
+
+```text
+ledger-sync/
+  backend/
+    api/
+    src/ledger_sync/
+      api/
+      config/
+      core/
+        analytics/
+        auth/
+      db/
+        _models/
+        migrations/
+      ingest/
+      schemas/
+      services/
+    tests/
+  frontend/
+    public/
+    src/
+      components/
+      constants/
+      hooks/
+      lib/
+      pages/
+      services/api/
+      store/
+      types/
+  docs/
+  .github/workflows/
 ```
 
 ## Backend Development
 
-### Project Structure
+### Request ownership
 
-```
-backend/
-├── src/ledger_sync/
-│   ├── api/              # FastAPI routers (one file per resource)
-│   │   ├── ai_chat.py    # Bedrock Converse proxy
-│   │   ├── analytics.py, analytics_v2.py
-│   │   ├── preferences.py  # incl. AI config endpoints
-│   │   └── ...
-│   ├── core/             # Business logic
-│   │   ├── query_helpers.py     # Shared SQL aggregation helpers
-│   │   ├── analytics_engine.py
-│   │   ├── _analytics_helpers.py  # Module-level helpers for analytics_engine
-│   │   ├── encryption.py        # AES-256-GCM for API keys
-│   │   ├── calculator.py
-│   │   ├── reconciler.py
-│   │   ├── sync_engine.py
-│   │   └── auth/                # JWT token creation/verification
-│   ├── db/               # Database layer
-│   │   ├── models.py            # 21-line facade that re-exports from _models/
-│   │   ├── _models/             # Split by bounded context
-│   │   │   ├── enums.py, user.py, transactions.py
-│   │   │   ├── investments.py, analytics.py, planning.py
-│   │   │   └── __init__.py
-│   │   ├── session.py, base.py
-│   │   └── migrations/versions/
-│   ├── schemas/          # Pydantic models (request/response)
-│   ├── services/         # Cross-cutting services
-│   ├── ingest/           # Data ingestion (CLI path only)
-│   ├── config/           # Settings
-│   └── utils/            # Utilities
-├── tests/                # Test suite
-└── pyproject.toml        # Dependencies (uv)
-```
+Keep responsibilities separated:
 
-### Hot Reload
+| Layer | Responsibility |
+| --- | --- |
+| `api/` | Routing, dependencies, validation, and HTTP responses |
+| `schemas/` | Pydantic request and response contracts |
+| `core/` | Financial, reconciliation, and analytics behavior |
+| `services/` | Cross-cutting provider and auth services |
+| `db/_models/` | SQLAlchemy models grouped by domain |
+| `db/migrations/` | Alembic schema history |
 
-The backend server automatically reloads when you make changes (using `--reload` flag).
+All financial queries must be scoped by `current_user.id`. Do not put domain
+logic in a router.
 
-### Creating New Endpoints
-
-1. **Add endpoint to** `src/ledger_sync/api/`:
+A minimal authenticated route uses the shared dependencies:
 
 ```python
-# In analytics.py
-from fastapi import APIRouter, Depends, Query
-from ledger_sync.db.session import get_session
+from fastapi import APIRouter
 
-router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+from ledger_sync.api.deps import CurrentUser, DatabaseSession
 
-@router.get("/new-endpoint")
-def get_new_data(db: Session = Depends(get_session)):
-    """Get new data"""
-    # Implementation
-    return {"data": []}
+router = APIRouter(prefix="/api/example", tags=["example"])
+
+
+@router.get("")
+def get_example(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> dict[str, int]:
+    count = load_user_scoped_count(db, user_id=current_user.id)
+    return {"count": count}
 ```
 
-2. **Add business logic to** `src/ledger_sync/core/`:
+Register new routers in `api/main.py`, place reusable behavior in `core/`, and
+add integration coverage for the HTTP contract.
 
-```python
-# In calculator.py
-def calculate_new_metric(transactions):
-    """Calculate new metric"""
-    return sum(t.amount for t in transactions)
-```
+### Database changes
 
-3. **Test the endpoint**:
-   - Access http://localhost:8000/docs
-   - Try the endpoint in Swagger UI
+1. Add the model to the relevant module under `db/_models/`.
+2. Export it from `db/_models/__init__.py`.
+3. Generate an Alembic revision.
+4. Inspect the generated operations.
+5. Test a clean upgrade.
 
-### Adding Database Models
-
-1. **Define model in** `src/ledger_sync/db/models.py`:
-
-```python
-from sqlalchemy import Column, String, Integer
-from ledger_sync.db.base import Base
-
-class NewModel(Base):
-    __tablename__ = "new_table"
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100))
-```
-
-2. **Create migration**:
-
-```bash
-uv run alembic revision --autogenerate -m "Add new_table"
-```
-
-3. **Apply migration**:
-
-```bash
+```powershell
+cd backend
+uv run alembic revision --autogenerate -m "add example table"
 uv run alembic upgrade head
+uv run alembic current
 ```
 
-### Testing Backend
+`db/models.py` is a compatibility facade, not the place to define a model.
 
-```bash
-# Run all tests
-uv run pytest tests/ -v
+Migrations from 2026-02-03 onward intentionally do not provide automatic
+downgrades. Do not rely on `alembic downgrade -1`. Use a backup, a forward
+repair migration, or both. See the
+[migration notes](../backend/src/ledger_sync/db/migrations/MIGRATION_NOTES.md).
 
-# Run specific test file
-uv run pytest tests/unit/test_hash_id.py
+Use `fmt_year_month`, `fmt_year`, `fmt_month`, and `fmt_date` from
+`core/query_helpers.py` instead of raw SQLite `strftime` calls. Production
+queries must also work on PostgreSQL.
 
-# Run with coverage
-uv run pytest --cov=ledger_sync tests/
+### Upload path
 
-# Run with verbose output
-uv run pytest -v
-```
+The web upload endpoint does not receive multipart files. The browser:
 
-### Writing Tests
+1. Parses Excel or CSV with SheetJS.
+2. Maps and validates columns.
+3. Computes a SHA-256 file hash.
+4. Sends `TransactionUploadRequest` JSON to `POST /api/upload`.
 
-```python
-# In tests/unit/test_example.py
-import pytest
-from ledger_sync.core.calculator import calculate_total_income
-
-def test_calculate_total_income():
-    transactions = [
-        {"type": "Income", "amount": 100},
-        {"type": "Expense", "amount": 50},
-    ]
-    result = calculate_total_income(transactions)
-    assert result == 100
-```
-
-### Debugging
-
-**Using print statements:**
-
-```python
-print(f"Debug: {variable}")  # Will show in terminal
-```
-
-**Using Python debugger:**
-
-```python
-import pdb
-pdb.set_trace()  # Execution will pause here
-```
-
-**Using logging:**
-
-```python
-from ledger_sync.utils.logging import logger
-logger.debug("Debug message")
-logger.info("Info message")
-logger.error("Error message")
-```
-
-### Database Debugging
-
-```bash
-# Open SQLite shell
-sqlite3 ledger_sync.db
-
-# List tables
-.tables
-
-# Show schema
-.schema transactions
-
-# Run query
-SELECT COUNT(*) FROM transactions;
-
-# Exit
-.quit
-```
-
-### Performance Profiling
-
-```python
-import time
-
-start = time.time()
-# Code to profile
-end = time.time()
-print(f"Elapsed: {end - start:.3f}s")
-```
+The backend normalizes and reconciles the rows, persists the ledger, and then
+attempts a full analytics refresh. The CLI retains the file-based ingestion
+path.
 
 ## Frontend Development
 
-### Project Structure
+### Routing and pages
 
-```
-frontend/
-├── src/
-│   ├── pages/                  # 23 page components
-│   │   ├── DashboardPage.tsx   # Single-file pages (PascalCase)
-│   │   ├── BudgetPage.tsx
-│   │   ├── ...
-│   │   ├── bill-calendar/      # Folder-based pages (kebab-case)
-│   │   ├── comparison/
-│   │   ├── goals/
-│   │   ├── income-expense-flow/
-│   │   ├── settings/           # Uses sections/ instead of components/
-│   │   ├── subscription-tracker/
-│   │   ├── tax-planning/
-│   │   ├── trends-forecasts/
-│   │   └── year-in-review/
-│   │       (Each folder: PageName.tsx + use<Page>.ts + types.ts + *utils.ts + components/)
-│   ├── components/      # UI components
-│   │   ├── analytics/   # Analytics components (25+, including CategoryBreakdown)
-│   │   ├── chat/        # AI chatbot widget (ChatWidget, ChatPanel, useChat)
-│   │   ├── layout/      # Layout components
-│   │   ├── shared/      # Shared components
-│   │   ├── transactions/ # Transaction components
-│   │   ├── ui/          # Base UI components
-│   │   └── upload/      # Upload components
-│   ├── hooks/           # Custom hooks
-│   │   ├── useAnalyticsTimeFilter.ts  # Shared time-filter state for analytics pages
-│   │   ├── useChartDimensions.ts      # Responsive chart sizing
-│   │   └── api/         # API-specific hooks (TanStack Query)
-│   ├── lib/             # Utilities (formatters, tax/projection calculators, chat adapters/context, queryClient)
-│   ├── services/        # API client
-│   │   └── api/         # API service modules (incl. aiConfig.ts)
-│   ├── store/           # Zustand state stores
-│   ├── types/           # TypeScript types
-│   └── constants/       # App constants
-├── public/              # Static assets
-└── package.json         # Dependencies
+`App.tsx` currently defines:
+
+- 3 public routes
+- 24 protected workspace routes
+- 4 eager page components
+- 23 lazy page components
+
+Add a route constant, direct page import, nested route, and navigation entry
+for every new page. Do not add page-level barrel files.
+
+Simple pages can remain one component. Larger features use:
+
+```text
+pages/<feature>/
+  <Feature>Page.tsx
+  use<Feature>.ts
+  types.ts
+  <feature>Utils.ts
+  components/
 ```
 
-### Hot Reload
+Keep the page component focused on composition. Put data access in hooks and
+pure transformations in utility modules.
 
-The frontend uses Vite's HMR (Hot Module Replacement). Changes automatically refresh in the browser.
+### Server state and API calls
 
-### Creating New Pages
+1. Add a typed method under `services/api/`.
+2. Add or extend a TanStack Query hook under `hooks/api/`.
+3. Use stable query keys.
+4. Invalidate only affected keys after mutations.
 
-**Decide between single-file and folder-based layout:**
+The shared Axios client attaches bearer tokens, serializes refresh attempts,
+replays queued requests, and handles demo-mode interception. Do not bypass it
+with ad hoc authenticated fetch calls.
 
-- **Single-file** (under ~300 lines, one concern): create `src/pages/<PageName>Page.tsx` using PascalCase
-- **Folder-based** (multi-concern, has sub-components, custom hook, utility functions): create `src/pages/<page-name>/` using kebab-case with the following structure:
-  ```
-  pages/<page-name>/
-  ├── <PageName>Page.tsx    # thin orchestrator (<300 lines)
-  ├── use<Page>.ts          # state/data hook
-  ├── types.ts              # page-specific types
-  ├── <page>Utils.ts        # pure helper functions
-  └── components/           # sub-components (no barrels)
-      ├── SubComponent1.tsx
-      └── SubComponent2.tsx
-  ```
+TanStack Query owns API server state. Use Zustand only for state that must
+persist or coordinate across pages, such as authentication, preferences,
+theme, and demo mode.
 
-**Single-file example:**
+### UI and responsive behavior
 
-```tsx
-// src/pages/NewPage.tsx
-export default function NewPage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold text-white">New Page</h1>
-      {/* Content */}
-    </div>
-  );
-}
+Use the shared page, control, table, money, loading, empty, error, and chart
+primitives before adding a new variant. Use design tokens from `index.css`
+instead of raw colors.
+
+Requirements:
+
+- Keep interactive targets at least 44 by 44 CSS pixels on touch layouts.
+- Use `PageContainer` and `PageHeader` for page structure.
+- Use `DataTable` with `mobileCards` for wide flat tables.
+- Use `Money` where amounts could be compressed.
+- Give every chart an accessible name.
+- Preserve Light, Dark, and System themes.
+- Verify 320 px phone, phone landscape, tablet, desktop, and wide desktop
+  layouts in a real browser.
+- Do not hide required workflows on mobile.
+
+## Testing
+
+Focused backend checks:
+
+```powershell
+cd backend
+uv run ruff check src/ tests/
+uv run ruff format --check src/ tests/
+uv run mypy src/
+uv run pytest tests/ -q
 ```
 
-**Then:**
+Focused frontend checks:
 
-1. **Add lazy import and route** in `App.tsx` (inside `pageImports` and `<Routes>`). Never eager-import pages. For folder-based pages, import the main file directly: `import('@/pages/my-page/MyPage')` -- don't rely on barrel files.
-
-2. **Add sidebar entry** in `Sidebar.tsx` under the appropriate navigation group.
-
-**Reference implementations** of folder-based pages: `bill-calendar/`, `year-in-review/`, `tax-planning/`, `trends-forecasts/`, `goals/`, `comparison/`, `subscription-tracker/`, `settings/` (uses `sections/` instead of `components/`).
-
-### Creating New Analytics Components
-
-1. **Create component** in `src/components/analytics/`:
-
-```tsx
-// src/components/analytics/MyAnalyticsComponent.tsx
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/services/api";
-
-interface Props {
-  timeRange?: string;
-}
-
-export default function MyAnalyticsComponent({ timeRange }: Props) {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["myData", timeRange],
-    queryFn: () => api.getMyData(timeRange),
-  });
-
-  if (isLoading) return <div className="animate-pulse">Loading...</div>;
-  if (error) return <div className="text-red-400">Error loading data</div>;
-
-  return (
-    <div className="bg-zinc-900 rounded-xl p-6 border border-white/10">
-      <h3 className="text-lg font-semibold text-white mb-4">My Analytics</h3>
-      {/* Chart or visualization */}
-    </div>
-  );
-}
-```
-
-2. **Import directly** from the file where needed (no barrel files / `index.ts` re-exports).
-
-### Using the Shared Analytics Time Filter
-
-All analytics pages use `useAnalyticsTimeFilter` to manage time-range state consistently:
-
-```tsx
-import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
-import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-
-export default function MyAnalyticsPage() {
-  const { data: allTransactions = [] } = useTransactions()
-
-  const { dateRange, dataDateRange, timeFilterProps } = useAnalyticsTimeFilter(
-    allTransactions,
-    { availableModes: ['all_time', 'fy', 'yearly', 'monthly'] }, // optional
-  )
-
-  // Use dateRange.start_date / dateRange.end_date to filter data
-  // Spread timeFilterProps onto AnalyticsTimeFilter
-  return <AnalyticsTimeFilter {...timeFilterProps} />
-}
-```
-
-### Creating Custom Hooks with TanStack Query
-
-```typescript
-// src/hooks/api/useMyData.ts
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/services/api";
-
-export function useMyData(timeRange?: string) {
-  return useQuery({
-    queryKey: ["myData", timeRange],
-    queryFn: () => api.getMyData(timeRange),
-    staleTime: Infinity, // Data is stable; only refetched on explicit invalidation
-  });
-}
-```
-
-### API Integration with Services
-
-1. **Add API call** in `src/services/api/`:
-
-```typescript
-// src/services/api/myApi.ts
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-
-export interface MyDataResponse {
-  data: MyData[];
-  total: number;
-}
-
-export async function getMyData(timeRange?: string): Promise<MyDataResponse> {
-  const params = new URLSearchParams();
-  if (timeRange) params.set("time_range", timeRange);
-
-  const response = await fetch(
-    `${API_BASE_URL}/api/my-endpoint?${params.toString()}`,
-  );
-  if (!response.ok) {
-    throw new Error(`Failed to fetch: ${response.statusText}`);
-  }
-  return await response.json();
-}
-```
-
-2. **Use with TanStack Query**:
-
-```tsx
-import { useQuery } from "@tanstack/react-query";
-import { getMyData } from "@/services/api/myApi";
-
-export const MyComponent = () => {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["myData"],
-    queryFn: () => getMyData(),
-  });
-
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
-
-  return <div>{/* Render data */}</div>;
-};
-```
-
-### Using Zustand Stores
-
-```typescript
-// src/store/myStore.ts
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-
-interface MyStore {
-  items: string[];
-  addItem: (item: string) => void;
-  removeItem: (item: string) => void;
-}
-
-export const useMyStore = create<MyStore>()(
-  persist(
-    (set) => ({
-      items: [],
-      addItem: (item) => set((state) => ({ items: [...state.items, item] })),
-      removeItem: (item) =>
-        set((state) => ({ items: state.items.filter((i) => i !== item) })),
-    }),
-    { name: "my-store" },
-  ),
-);
-```
-
-### Styling
-
-Use Tailwind CSS utility classes:
-
-```tsx
-<div className="p-4 bg-white rounded-lg shadow-lg border border-gray-200">
-  <h2 className="text-xl font-bold text-gray-900">Title</h2>
-  <p className="text-gray-600 mt-2">Description</p>
-</div>
-```
-
-### TypeScript
-
-Keep types organized in `src/types/`:
-
-```typescript
-// src/types/index.ts
-export interface Transaction {
-  id: string;
-  date: Date;
-  amount: number;
-  type: "Income" | "Expense" | "Transfer";
-  category: string;
-}
-
-export interface KPIData {
-  income: number;
-  expenses: number;
-  netSavings: number;
-}
-```
-
-### Debugging Frontend
-
-**Browser DevTools:**
-
-- F12 to open
-- Console tab for logs
-- Network tab to inspect API calls
-- React DevTools extension for component inspection
-
-**VS Code Debugger:**
-
-Create `.vscode/launch.json`:
-
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "type": "chrome",
-      "request": "launch",
-      "name": "Launch Chrome",
-      "url": "http://localhost:5173",
-      "webRoot": "${workspaceFolder}/frontend/src"
-    }
-  ]
-}
-```
-
-### Linting & Formatting
-
-```bash
+```powershell
 cd frontend
-
-# Check for errors
 pnpm run lint
-
-# Format code
-pnpm run format
-
-# Type check
 pnpm run type-check
+pnpm test
+pnpm run build
 ```
 
-## Common Development Tasks
+Test business logic and API behavior on the backend. On the frontend, prioritize
+hooks, utilities, state transitions, accessibility behavior, and regressions
+over render-only snapshots.
 
-### Adding a New Feature
+## Sign-In Troubleshooting
 
-1. Create feature branch:
+The sign-in dialog distinguishes two cases:
 
-```bash
-git checkout -b feature/new-feature
+- **No configured providers:** the provider request succeeded with an empty
+  list.
+- **Could not reach the sign-in service:** the provider request failed before a
+  valid response arrived.
+
+For the second case:
+
+1. Open `http://localhost:8000/health`.
+2. Open `http://localhost:8000/api/auth/oauth/providers`.
+3. Confirm the frontend is running through Vite on port 5173.
+4. Confirm local `VITE_API_BASE_URL` is unset so the Vite proxy is used.
+5. Confirm `LEDGER_SYNC_FRONTEND_URL` exactly matches the frontend origin.
+6. Check backend startup output for database connection or configuration
+   failure.
+
+A database migration is not the first assumption. The provider endpoint does
+not query application data, but backend startup initializes the database, so an
+unreachable database can prevent the service from starting at all.
+
+## Common Problems
+
+### PowerShell blocks `pnpm`
+
+Use the Windows command shim:
+
+```powershell
+pnpm.cmd run check
 ```
 
-2. Implement backend endpoint (if needed)
-3. Write backend tests
-4. Implement frontend page/component
-5. Add API integration
-6. Test end-to-end
-7. Commit and push:
+### Backend does not start
 
-```bash
-git add .
-git commit -m "feat: add new feature"
-git push origin feature/new-feature
+- Confirm Python 3.13 and uv are available.
+- Run `uv sync --group dev` inside `backend`.
+- Run `uv run alembic upgrade head`.
+- Check whether port 8000 is already in use.
+- Check `/health/db` after startup.
+
+### Frontend does not start
+
+- Confirm Node.js 22 and pnpm 11.10.0.
+- Run `pnpm install --frozen-lockfile` inside `frontend`.
+- Run `pnpm run clean` if the Vite cache is stale.
+- Check whether port 5173 is already in use.
+
+### Production-only query failure
+
+Search the affected query for SQLite-only functions. Replace raw date
+formatting with `core/query_helpers.py` helpers and test against PostgreSQL
+semantics.
+
+## Git Workflow
+
+Start from `main` and use the repository naming convention:
+
+```powershell
+git switch main
+git pull --ff-only origin main
+git switch -c feat/example
 ```
 
-### Updating Dependencies
+Before publishing:
 
-**Backend:**
-
-```bash
-cd backend
-uv pip list --outdated
-uv lock --upgrade-package package_name && uv sync
+```powershell
+pnpm run check
+pnpm run build
+git diff --check
+git status --short
 ```
 
-**Frontend:**
-
-```bash
-cd frontend
-pnpm outdated
-pnpm update
-pnpm install new-package
-```
-
-### Database Migration
-
-```bash
-cd backend
-
-# Create migration
-uv run alembic revision --autogenerate -m "Description"
-
-# Apply
-uv run alembic upgrade head
-
-# Rollback
-uv run alembic downgrade -1
-```
-
-### Environment Variables
-
-Create `.env` files:
-
-**backend/.env**
-
-```
-LEDGER_SYNC_DATABASE_URL=sqlite:///./ledger_sync.db
-LEDGER_SYNC_LOG_LEVEL=INFO
-
-# OAuth — at least one provider required for login
-LEDGER_SYNC_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-LEDGER_SYNC_GOOGLE_CLIENT_SECRET=your-google-client-secret
-LEDGER_SYNC_GITHUB_CLIENT_ID=your-github-client-id
-LEDGER_SYNC_GITHUB_CLIENT_SECRET=your-github-client-secret
-LEDGER_SYNC_FRONTEND_URL=http://localhost:5173
-```
-
-**frontend/.env**
-
-```
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-### OAuth Setup (Required for Login)
-
-Authentication uses OAuth only (no email/password). You need at least one provider configured:
-
-**Google:**
-1. Go to [Google Cloud Console > Credentials](https://console.cloud.google.com/apis/credentials)
-2. Create an OAuth 2.0 Client ID (Web application)
-3. Add authorized redirect URI: `http://localhost:5173/auth/callback/google`
-4. Add authorized JavaScript origin: `http://localhost:5173`
-5. Copy Client ID and Secret to `backend/.env`
-
-**GitHub:**
-1. Go to [GitHub Developer Settings > OAuth Apps](https://github.com/settings/developers)
-2. Create a new OAuth App
-3. Set callback URL: `http://localhost:5173/auth/callback/github`
-4. Copy Client ID and generate a Client Secret
-5. Add both to `backend/.env`
-
-### Git Workflow
-
-```bash
-# Update from main
-git pull origin main
-
-# Create feature branch
-git checkout -b feature/my-feature
-
-# Make changes and commit
-git add .
-git commit -m "commit message"
-
-# Push to remote
-git push origin feature/my-feature
-
-# Create pull request on GitHub
-```
-
-## Troubleshooting
-
-### Backend won't start
-
-1. Check Python version: `python --version`
-2. Install dependencies: `cd backend && uv sync --group dev`
-4. Check port 8000 is available
-5. Check database permissions
-
-### Frontend won't start
-
-1. Check Node version: `node --version`
-2. Install dependencies: `pnpm install`
-3. Clear node_modules: `rm -rf node_modules && pnpm install`
-4. Check port 5173 is available
-5. Clear Vite cache: `pnpm run clean`
-
-### Database errors
-
-1. Check SQLite file exists
-2. Run migrations: `uv run alembic upgrade head`
-3. Check permissions on database file
-4. Reset database: delete `.db` file and re-run migrations
-
-### API errors
-
-1. Check backend is running on port 8000
-2. Check API endpoint exists
-3. Check request/response format
-4. Check CORS configuration
-5. Check browser console for errors
-
-## IDE Setup (VS Code)
-
-### Recommended Extensions
-
-- **Python**: ms-python.python
-- **Pylance**: ms-python.vscode-pylance
-- **Prettier**: esbenp.prettier-vscode
-- **ESLint**: dbaeumer.vscode-eslint
-- **REST Client**: humao.rest-client
-- **SQLite**: alexcvzz.vscode-sqlite
-
-### Launch Configuration
-
-Create `.vscode/launch.json`:
-
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Backend",
-      "type": "python",
-      "request": "launch",
-      "module": "uvicorn",
-      "args": ["ledger_sync.api.main:app", "--reload"],
-      "jinja": true,
-      "cwd": "${workspaceFolder}/backend"
-    }
-  ]
-}
-```
-
-### Settings
-
-Add to `.vscode/settings.json`:
-
-```json
-{
-  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/Scripts/python",
-  "python.linting.enabled": true,
-  "python.linting.pylintEnabled": true,
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "[python]": {
-    "editor.defaultFormatter": "ms-python.python",
-    "editor.formatOnSave": true
-  }
-}
-```
+Stage intended files by name, use a conventional lowercase commit, push the
+feature branch, and open a pull request to `main`. Never commit directly to
+`main`, skip hooks, or stage the whole worktree blindly.

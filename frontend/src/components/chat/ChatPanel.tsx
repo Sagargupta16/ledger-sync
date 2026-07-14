@@ -69,7 +69,7 @@ export default function ChatPanel({
       transition={{ duration: 0.2 }}
       role="dialog"
       aria-label="AI Assistant chat"
-      className="absolute bottom-16 right-0 w-[calc(100vw-2rem)] max-w-[min(380px,calc(100vw-3rem))] max-h-[70dvh] sm:max-h-[500px] glass rounded-2xl border border-border flex flex-col overflow-hidden shadow-2xl"
+      className="glass absolute bottom-16 right-0 flex max-h-[70dvh] w-[calc(100vw-2rem)] max-w-[min(380px,calc(100vw-3rem))] flex-col overflow-hidden rounded-lg border border-border shadow-[var(--glass-shadow-strong)] sm:max-h-[500px]"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">

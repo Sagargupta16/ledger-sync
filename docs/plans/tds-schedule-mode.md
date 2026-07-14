@@ -1,6 +1,10 @@
 # Plan: Forward TDS Schedule mode for Tax Planning
 
-Status: PLAN ONLY (no code yet) -- awaiting review.
+> **Status: implemented with revisions.** The schedule and preference shipped
+> in 2026. The current model excludes bonus and RSU from the recurring base,
+> spreads configured annual bonus across all 12 months, and keeps RSU income in
+> its dated vesting month. This file is retained for decision history; see
+> [CALCULATIONS.md](../CALCULATIONS.md) for the authoritative formula.
 
 ## Problem
 
