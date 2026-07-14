@@ -1,360 +1,313 @@
 # Deployment Guide
 
-## Overview
+Current for Ledger Sync 2.22.0.
 
-Ledger Sync -- a self-hosted personal finance dashboard -- is deployed as three separate services, all on free tiers:
+## Production Topology
 
-| Service | Platform | URL | Cost |
-|---------|----------|-----|------|
-| **Frontend** | GitHub Pages | `https://sagargupta.online/ledger-sync/` | Free |
-| **Backend** | Vercel (serverless) | `https://ledger-sync-api.vercel.app` | Free |
-| **Database** | Neon PostgreSQL 17 | Singapore region (Vercel integration) | Free (0.5 GB) |
+| Layer | Platform | Production address |
+| --- | --- | --- |
+| Frontend | GitHub Pages | `https://sagargupta.online/ledger-sync/` |
+| Backend | Vercel serverless | `https://ledger-sync-api.vercel.app` |
+| Database | Neon PostgreSQL 17 | Singapore pooler endpoint |
 
-The frontend auto-deploys on every push to `main` via GitHub Actions.
-The backend auto-deploys on every push to `main` via Vercel's GitHub integration.
-
----
-
-## Architecture
-
-```
-Browser (sagargupta.online/ledger-sync/)
-   |
-   |-- Static assets --> GitHub Pages (frontend/dist)
-   |-- API calls ------> Vercel Serverless (FastAPI + Mangum)
-                             |
-                             +--> Neon PostgreSQL (Singapore)
+```text
+Browser
+  -> GitHub Pages React SPA
+  -> Vercel FastAPI function
+  -> Neon PostgreSQL 17
 ```
 
-- **Frontend** is a static React SPA served by GitHub Pages
-- **Backend** is a Python FastAPI app wrapped with Mangum, running as a Vercel serverless function
-- **Database** is managed PostgreSQL on Neon (free tier, auto-suspends compute on idle; first request after >24 h idle pays a 15-25 s reactivation cost due to branch archival), connected via Vercel's Neon integration
-- **CORS** is configured to allow requests from `sagargupta.online` and `sagargupta16.github.io`
+The frontend and backend deploy from `main`. Database schema changes run
+through a separate GitHub Actions migration workflow.
 
----
+## Deployment Sources
 
-## Current Deployment Setup
+| Concern | Source of truth |
+| --- | --- |
+| Frontend build | `.github/workflows/deploy-frontend.yml` |
+| Backend routing | `backend/vercel.json` |
+| Backend entry point | `backend/api/index.py` |
+| Database migration | `.github/workflows/migrate.yml` |
+| Scheduled health ping | `.github/workflows/keepalive.yml` |
+| Runtime settings | `backend/src/ledger_sync/config/settings.py` |
+| Frontend base and proxy | `frontend/vite.config.ts` |
 
-### 1. Neon PostgreSQL (Database)
+## Production Configuration
 
-**Dashboard:** [console.neon.tech](https://console.neon.tech) or Vercel dashboard > Storage tab
+Store secret values in Vercel or GitHub Actions. Never commit them.
 
-- **Project:** `neondb` (managed via Vercel Neon integration)
-- **Region:** Asia Pacific (Singapore)
-- **PostgreSQL version:** 17
-- **Connection:** Pooler endpoint (PgBouncer)
+### Required backend values
 
-The connection string is set as `LEDGER_SYNC_DATABASE_URL` in Vercel's environment variables.
+| Variable | Purpose |
+| --- | --- |
+| `LEDGER_SYNC_DATABASE_URL` | Neon PostgreSQL pooler URL |
+| `LEDGER_SYNC_JWT_SECRET_KEY` | JWT signing secret, at least 32 characters |
+| `LEDGER_SYNC_ENCRYPTION_KEY` | Dedicated BYOK encryption key, at least 32 characters |
+| `LEDGER_SYNC_ENVIRONMENT` | `production` |
+| `LEDGER_SYNC_FRONTEND_URL` | `https://sagargupta.online/ledger-sync` |
+| `LEDGER_SYNC_CORS_ORIGINS` | JSON array of allowed browser origins |
+| `PYTHON_VERSION` | `3.13` in Vercel project settings |
 
-> **Important:** Use the pooler connection string **without** `channel_binding=require` (PgBouncer doesn't support it). The URL should end with `?sslmode=require`.
+At least one OAuth client pair is required for sign-in:
 
-**Alembic migrations** run automatically via GitHub Actions (`.github/workflows/migrate.yml`) when `backend/alembic/**` or `models.py` files change on push to `main`. The workflow can also be triggered manually via `workflow_dispatch`.
+- `LEDGER_SYNC_GOOGLE_CLIENT_ID`
+- `LEDGER_SYNC_GOOGLE_CLIENT_SECRET`
+- `LEDGER_SYNC_GITHUB_CLIENT_ID`
+- `LEDGER_SYNC_GITHUB_CLIENT_SECRET`
 
-### 2. Vercel (Backend API)
+Optional AI settings:
 
-**Dashboard:** [vercel.com](https://vercel.com) > ledger-sync-api project
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `LEDGER_SYNC_BEDROCK_API_KEY` | unset | Server credential for app Bedrock mode |
+| `LEDGER_SYNC_AI_DEFAULT_BEDROCK_MODEL` | Haiku 4.5 model ID | App-mode model |
+| `LEDGER_SYNC_AI_DEFAULT_BEDROCK_REGION` | `us-east-1` | Bedrock region |
+| `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` | `10` | Per-user daily app-mode cap |
+| `LEDGER_SYNC_AI_MAX_TOOL_ROUNDS` | `6` | Tool rounds per message |
 
-The backend runs as a serverless function using the Mangum adapter to wrap FastAPI as an AWS Lambda-compatible handler.
+Optional PostgreSQL tuning:
 
-**Key files:**
-- `backend/vercel.json` - Routes all requests to the serverless handler
-- `backend/api/index.py` - Entry point that wraps FastAPI with Mangum
+| Variable | Default |
+| --- | --- |
+| `LEDGER_SYNC_DB_POOL_SIZE` | `5` |
+| `LEDGER_SYNC_DB_MAX_OVERFLOW` | `3` |
+| `LEDGER_SYNC_DB_POOL_RECYCLE_SECONDS` | `300` |
+| `LEDGER_SYNC_DB_CONNECT_TIMEOUT_SECONDS` | `10` |
+| `LEDGER_SYNC_DB_STATEMENT_TIMEOUT_SECONDS` | `30` |
+| `LEDGER_SYNC_DB_IDLE_TRANSACTION_TIMEOUT_SECONDS` | `60` |
 
-Vercel auto-detects `uv.lock` and uses `uv` to install dependencies (falls back to `requirements.txt` if needed).
+The current defaults are sized for the Neon free tier. Do not increase them
+without checking the database connection limit.
 
-**Environment variables set in Vercel dashboard** (secrets):
+### Required frontend value
 
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `LEDGER_SYNC_DATABASE_URL` | Yes | Neon pooler connection string (`postgresql://...?sslmode=require`). Do NOT include `channel_binding=require`. |
-| `LEDGER_SYNC_JWT_SECRET_KEY` | Yes | Generate with `openssl rand -hex 32` (min 32 chars) |
-| `LEDGER_SYNC_ENCRYPTION_KEY` | Yes | Separate random key for BYOK API-key encryption (min 32 chars) |
-| `LEDGER_SYNC_GOOGLE_CLIENT_ID` | For Google login | Google OAuth client ID |
-| `LEDGER_SYNC_GOOGLE_CLIENT_SECRET` | For Google login | Google OAuth client secret |
-| `LEDGER_SYNC_GITHUB_CLIENT_ID` | For GitHub login | GitHub OAuth client ID (create a **separate** prod app) |
-| `LEDGER_SYNC_GITHUB_CLIENT_SECRET` | For GitHub login | GitHub OAuth client secret |
-| `LEDGER_SYNC_BEDROCK_API_KEY` | For app AI mode | Bedrock API key bridged to `AWS_BEARER_TOKEN_BEDROCK` at startup |
-| `LEDGER_SYNC_FRONTEND_URL` | Yes | `https://sagargupta.online/ledger-sync` |
-| `LEDGER_SYNC_CORS_ORIGINS` | Yes | JSON array of allowed origins |
-| `LEDGER_SYNC_ENVIRONMENT` | Yes | `production` |
-| `PYTHON_VERSION` | Yes | `3.13` |
+Create this GitHub Actions repository variable:
 
-The Neon integration also injects `NEON_DATABASE_URL`, `NEON_PGHOST`, and other `NEON_*` variables automatically.
+| Variable | Value |
+| --- | --- |
+| `VITE_API_BASE_URL` | `https://ledger-sync-api.vercel.app` |
 
-**OAuth redirect URIs** (must be registered in provider consoles):
-- Google: `https://yourdomain.com/ledger-sync/auth/callback/google`
-- GitHub: `https://yourdomain.com/ledger-sync/auth/callback/github`
+The value is compiled into the static frontend. Changing it requires a new
+frontend build and deployment.
 
-> **Note:** GitHub only allows one callback URL per OAuth app. Create separate apps for local dev and production.
+`GITHUB_PAGES=true` is set by the workflow and changes the Vite base path to
+`/ledger-sync/`.
 
-### 3. GitHub Pages (Frontend)
+## Neon Database
 
-**Workflow:** `.github/workflows/deploy-frontend.yml`
+Use the pooled connection string from the Vercel Neon integration.
 
-The workflow:
-1. Checks out the repo
-2. Installs pnpm dependencies
-3. Builds with `GITHUB_PAGES=true` (sets `base: '/ledger-sync/'`)
-4. Copies `index.html` to `404.html` (SPA routing fallback)
-5. Deploys to GitHub Pages
+Requirements:
 
-**GitHub repo settings required:**
+- PostgreSQL 17
+- Singapore region
+- PgBouncer pooler endpoint
+- `sslmode=require`
+- No `channel_binding=require`
 
-| Setting | Value |
-|---------|-------|
-| Settings > Pages > Source | GitHub Actions |
-| Settings > Actions > Variables > `VITE_API_BASE_URL` | `https://ledger-sync-api.vercel.app` |
+The application normalizes `postgresql://` and
+`postgresql+psycopg2://` URLs to the psycopg 3 driver.
 
-**Custom domain:** `sagargupta.online` is configured at the GitHub account level, so the app is served at `sagargupta.online/ledger-sync/`.
+The production database URL must also exist as the
+`LEDGER_SYNC_DATABASE_URL` GitHub Actions secret so the migration workflow can
+connect.
 
-### SPA Routing on GitHub Pages
+### Migration workflow
 
-GitHub Pages doesn't natively support client-side routing. The workaround:
+The workflow runs on pushes to `main` that change:
 
-1. The build step copies `index.html` to `404.html`
-2. When GitHub Pages can't find a file (e.g., `/ledger-sync/dashboard`), it serves `404.html`
-3. React Router picks up the URL and renders the correct page
-4. `BrowserRouter` has `basename={import.meta.env.BASE_URL}` to handle the `/ledger-sync/` prefix
+- `backend/alembic/**`
+- `backend/src/ledger_sync/db/migrations/**`
+- `backend/src/ledger_sync/db/models.py`
+- `backend/src/ledger_sync/db/_models/**`
 
----
+It can also be run manually.
 
-## Database-Agnostic SQL
+The current migration head is `tags_rules_views_2026`. Migrations from
+2026-02-03 onward intentionally have no automatic downgrade. Take a database
+backup before a destructive or high-risk migration and prefer a forward repair
+revision.
 
-The codebase supports both SQLite (local dev) and PostgreSQL (production). Key difference:
+Because Vercel deployment and the migration workflow can run concurrently,
+schema changes must use an expand-and-contract sequence:
 
-- **SQLite** uses `strftime()` for date formatting in SQL
-- **PostgreSQL** uses `to_char()` for date formatting
+1. Add backward-compatible schema.
+2. Deploy code that can use both old and new states.
+3. Backfill where needed.
+4. Remove old schema in a later release.
 
-The `query_helpers.py` module provides database-agnostic helpers:
+See [DATABASE.md](DATABASE.md) and the
+[migration notes](../backend/src/ledger_sync/db/migrations/MIGRATION_NOTES.md).
 
-```python
-from ledger_sync.core.query_helpers import fmt_year_month, fmt_year, fmt_month, fmt_date
+## Vercel Backend
 
-# These automatically use strftime (SQLite) or to_char (PostgreSQL)
-month_col = fmt_year_month(base.c.date).label("month")  # "YYYY-MM"
-year_col = fmt_year(base.c.date).label("year")           # "YYYY"
+The Vercel project root must be `backend`.
+
+`backend/vercel.json`:
+
+- pins the function region to `sin1`
+- routes every request to `api/index.py`
+- allows a 50 MB function bundle
+
+`api/index.py` wraps the FastAPI application with Mangum. Vercel installs the
+locked Python environment through uv.
+
+After changing Vercel environment values, redeploy the backend so the function
+receives the new configuration.
+
+### Health checks
+
+```powershell
+curl.exe --fail https://ledger-sync-api.vercel.app/health
+curl.exe --fail https://ledger-sync-api.vercel.app/health/db
+curl.exe --fail https://ledger-sync-api.vercel.app/api/auth/oauth/providers
 ```
 
-**Always use these helpers** instead of `func.strftime()` directly.
+Expected behavior:
 
----
+- `/health` returns version `2.22.0`.
+- `/health/db` returns a connected database result.
+- `/api/auth/oauth/providers` returns HTTP 200 and a JSON array.
+- An empty provider array means no OAuth provider is configured.
 
-## Local Development
+The scheduled keepalive workflow calls `/health` every 30 minutes. It is a
+best-effort wake-up request and does not fail the workflow for a transient
+backend response.
 
-Local development uses SQLite and runs both services on localhost:
+## GitHub Pages Frontend
 
-```bash
-# Install dependencies
-pnpm run setup
+Repository settings:
 
-# Start both backend and frontend
-pnpm run dev
-# Backend: http://localhost:8000
-# Frontend: http://localhost:5173
+| Setting | Required value |
+| --- | --- |
+| Pages source | GitHub Actions |
+| Actions variable `VITE_API_BASE_URL` | Vercel backend origin |
+
+The deployment workflow:
+
+1. Installs pnpm 11.10.0 from the root `packageManager` field.
+2. Uses Node.js 22.
+3. Installs the frozen frontend lockfile.
+4. Builds with `GITHUB_PAGES=true`.
+5. Copies `index.html` to `404.html`.
+6. Publishes `frontend/dist`.
+
+The `404.html` copy allows direct navigation to React Router paths on GitHub
+Pages. `BrowserRouter` uses `import.meta.env.BASE_URL`, so every route remains
+under `/ledger-sync/`.
+
+## OAuth Production Setup
+
+Register these exact callback URLs:
+
+| Provider | Callback |
+| --- | --- |
+| Google | `https://sagargupta.online/ledger-sync/auth/callback/google` |
+| GitHub | `https://sagargupta.online/ledger-sync/auth/callback/github` |
+
+GitHub permits one callback URL per OAuth app, so use separate local and
+production apps.
+
+The backend creates a 10-minute HMAC-signed OAuth state value. The frontend
+includes it in the provider redirect, and the backend validates it before
+exchanging the authorization code.
+
+## Release Flow
+
+1. Push a feature branch.
+2. Open a pull request to `main`.
+3. Wait for frontend, backend, and security checks to pass.
+4. Review any schema or environment changes.
+5. Merge only when required checks are green.
+
+After merge:
+
+- GitHub Actions builds and deploys the frontend.
+- Vercel deploys the backend through its GitHub integration.
+- The migration workflow runs only when a watched schema path changed.
+
+Do not push release changes directly to `main`.
+
+## Post-Deployment Verification
+
+Verify the backend first:
+
+```powershell
+curl.exe --fail https://ledger-sync-api.vercel.app/health
+curl.exe --fail https://ledger-sync-api.vercel.app/health/db
+curl.exe --fail https://ledger-sync-api.vercel.app/api/auth/oauth/providers
 ```
 
-The Vite dev server proxies `/api` requests to `http://localhost:8000`, so no CORS configuration is needed locally.
+Then verify the frontend:
 
----
+1. Open `https://sagargupta.online/ledger-sync/`.
+2. Open the sign-in dialog and confirm configured provider buttons appear.
+3. Complete one OAuth sign-in.
+4. Refresh a protected nested route directly.
+5. Open Demo and confirm the dashboard renders without backend writes.
+6. Check phone and desktop layouts.
+7. Confirm the browser console has no uncaught errors.
 
-## Deploying Changes
+For a schema release, also confirm the migration workflow completed and
+`/health/db` remains healthy.
 
-### Automatic (on push to `main`)
+## Sign-In Incident Runbook
 
-Both Vercel and GitHub Pages auto-deploy when you push to `main`:
+The message "Couldn't reach the sign-in service" means the frontend did not
+receive a valid provider response. It does not by itself prove a migration
+problem.
 
-```bash
-git add .
-git commit -m "feat: your changes"
-git push origin main
-```
+Check in this order:
 
-- **Frontend:** GitHub Actions builds and deploys to Pages (~30 seconds)
-- **Backend:** Vercel detects the push and redeploys (~20-40 seconds for serverless build)
-- **Migrations:** If `backend/alembic/**` or `models.py` changed, GitHub Actions runs `alembic upgrade head`
+1. `GET /health`
+2. `GET /health/db`
+3. `GET /api/auth/oauth/providers`
+4. Vercel function logs
+5. The deployed frontend request URL in browser Network tools
+6. `VITE_API_BASE_URL` in GitHub Actions variables
+7. `LEDGER_SYNC_FRONTEND_URL` and OAuth callback registration
+8. CORS origin configuration
 
-### Manual Redeploy
+Interpretation:
 
-- **Vercel:** Dashboard > Deployments > Redeploy
-- **GitHub Pages:** Actions tab > Deploy Frontend workflow > Run workflow
-- **Migrations:** Actions tab > Run Database Migrations workflow > Run workflow
+- `/health` fails: backend deployment, startup configuration, or platform
+  availability is the first problem.
+- `/health` works but `/health/db` fails: investigate Neon connectivity.
+- Provider endpoint returns `[]`: configure an OAuth provider.
+- Provider endpoint works directly but the browser request fails: investigate
+  the compiled API base URL or CORS.
+- Provider endpoint returns 500: inspect Vercel logs and startup settings.
 
----
+If a variable was corrected, redeploy the affected service. A GitHub Actions
+variable change requires a frontend rebuild; a Vercel variable change requires
+a backend redeploy.
 
-## Environment Variables Reference
+## Rollback
 
-### Backend (Vercel)
+### Frontend
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `LEDGER_SYNC_DATABASE_URL` | Yes | `sqlite:///./ledger_sync.db` | Database connection string |
-| `LEDGER_SYNC_JWT_SECRET_KEY` | Yes (prod) | dev default | JWT signing secret (min 32 chars) |
-| `LEDGER_SYNC_ENCRYPTION_KEY` | Yes (prod) | JWT secret fallback | Dedicated key for BYOK API-key encryption |
-| `LEDGER_SYNC_ENVIRONMENT` | No | `development` | `development`, `staging`, or `production` |
-| `LEDGER_SYNC_CORS_ORIGINS` | No | See settings.py | JSON array of allowed origins |
-| `LEDGER_SYNC_FRONTEND_URL` | Yes (prod) | `http://localhost:5173` | Frontend base URL for OAuth redirects |
-| `LEDGER_SYNC_GOOGLE_CLIENT_ID` | No | - | Google OAuth client ID |
-| `LEDGER_SYNC_GOOGLE_CLIENT_SECRET` | No | - | Google OAuth client secret |
-| `LEDGER_SYNC_GITHUB_CLIENT_ID` | No | - | GitHub OAuth client ID |
-| `LEDGER_SYNC_GITHUB_CLIENT_SECRET` | No | - | GitHub OAuth client secret |
-| `LEDGER_SYNC_BEDROCK_API_KEY` | For app AI mode | - | Bedrock API key for server-side Converse calls |
-| `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` | No | `10` | Per-user daily app-mode chat cap |
-| `LEDGER_SYNC_AI_MAX_TOOL_ROUNDS` | No | `6` | Max tool-calling rounds per chat message |
-| `LEDGER_SYNC_LOG_LEVEL` | No | `INFO` | Python log level |
-| `PYTHON_VERSION` | Yes (Vercel) | - | Python version (e.g., `3.13`) |
+Redeploy a previously known-good commit through the GitHub Pages workflow.
 
-### Frontend (GitHub Actions)
+### Backend
 
-| Variable | Where | Description |
-|----------|-------|-------------|
-| `VITE_API_BASE_URL` | GitHub repo variable | Backend URL (`https://ledger-sync-api.vercel.app`) |
-| `GITHUB_PAGES` | Set in workflow | Triggers `/ledger-sync/` base path |
+Promote a known-good Vercel deployment or revert the application change through
+a new pull request.
 
----
+### Database
 
-## Troubleshooting
+Do not assume `alembic downgrade` is available. Restore the pre-migration
+backup or ship a tested forward repair migration. Coordinate code rollback with
+the schema state so the previous backend remains compatible.
 
-### Backend deployment fails on Vercel
+## Security Checks
 
-1. Check **Vercel build logs** in the dashboard
-2. Common issues:
-   - `uv.lock` must be committed and in sync with `pyproject.toml`
-   - `mangum` must be in `pyproject.toml` dependencies (Vercel uses `uv.lock`, not `requirements.txt`)
-   - `vercel.json` must be in the `backend/` directory
+Before every production release:
 
-### CORS errors in browser
-
-1. Verify the origin domain is in `settings.cors_origins` or `LEDGER_SYNC_CORS_ORIGINS`
-2. Check if the backend is returning 500 errors (CORS headers are missing on unhandled 500s)
-3. Test CORS directly: `curl -I -H "Origin: https://sagargupta.online" https://ledger-sync-api.vercel.app/health`
-
-### 500 errors on API endpoints
-
-1. Check Vercel function logs (Dashboard > Deployments > Functions tab)
-2. Common cause: SQLite-specific SQL (`func.strftime`) used instead of `fmt_year_month` helpers
-3. Database connection issues: verify `LEDGER_SYNC_DATABASE_URL` is correct and uses the pooler URL
-
-### Frontend 404 on refresh
-
-1. Ensure `404.html` is copied from `index.html` in the deploy workflow
-2. Ensure `BrowserRouter` has `basename={import.meta.env.BASE_URL}`
-3. Ensure Vite `base` is set to `/ledger-sync/` for production builds
-
-### Database migrations not running
-
-1. Check that `.github/workflows/migrate.yml` is triggered (only runs when `backend/alembic/**` or `backend/src/ledger_sync/db/models.py` change)
-2. Verify `LEDGER_SYNC_DATABASE_URL` GitHub Actions secret is set correctly
-3. Use the workflow_dispatch trigger for manual runs
-
----
-
-## Alternative Deployment Options
-
-### Self-Hosted (VPS)
-
-For an always-on deployment without cold starts:
-
-1. Get a VPS (DigitalOcean, Linode, Oracle Cloud free tier)
-2. Install Python 3.13+, Node.js 22+, Nginx
-3. Clone the repo, install dependencies
-4. Create a systemd service for the backend
-5. Build the frontend and serve with Nginx
-6. Use Let's Encrypt for SSL
-
-See the systemd and Nginx configuration examples below.
-
-<details>
-<summary>Systemd service file</summary>
-
-```ini
-[Unit]
-Description=Ledger Sync Backend
-After=network.target
-
-[Service]
-Type=notify
-User=deploy
-WorkingDirectory=/home/deploy/ledger-sync/backend
-ExecStart=uv run uvicorn ledger_sync.api.main:app --host 127.0.0.1 --port 8000
-Restart=always
-RestartSec=10
-Environment=LEDGER_SYNC_DATABASE_URL=postgresql://...
-Environment=LEDGER_SYNC_JWT_SECRET_KEY=...
-Environment=LEDGER_SYNC_ENVIRONMENT=production
-
-[Install]
-WantedBy=multi-user.target
-```
-
-</details>
-
-<details>
-<summary>Nginx configuration</summary>
-
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name yourdomain.com;
-
-    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-
-    client_max_body_size 100M;
-
-    location /api {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location / {
-        root /home/deploy/ledger-sync/frontend/dist;
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-
-</details>
-
-### Docker -- Alternative (not currently used in production)
-
-<details>
-<summary>Docker Compose setup</summary>
-
-```yaml
-version: "3.8"
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "8000:8000"
-    environment:
-      LEDGER_SYNC_DATABASE_URL: postgresql://user:pass@db:5432/ledger_sync
-      LEDGER_SYNC_JWT_SECRET_KEY: your-secret-key
-      LEDGER_SYNC_ENVIRONMENT: production
-    depends_on:
-      - db
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-
-  db:
-    image: postgres:17
-    environment:
-      POSTGRES_DB: ledger_sync
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-volumes:
-  pgdata:
-```
-
-</details>
+- Confirm no `.env` file is staged.
+- Confirm no secret value appears in the diff.
+- Keep production source maps disabled.
+- Keep CORS restricted to explicit origins.
+- Keep `LEDGER_SYNC_JWT_SECRET_KEY` and
+  `LEDGER_SYNC_ENCRYPTION_KEY` separate.
+- Rotate a credential immediately if it appears in logs, Git history, or a
+  public artifact.

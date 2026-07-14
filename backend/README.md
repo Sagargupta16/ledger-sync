@@ -1,190 +1,167 @@
-# Ledger Sync -- Backend
+# Ledger Sync Backend
 
-FastAPI backend powering the Ledger Sync personal finance dashboard. Handles Excel import, transaction reconciliation, financial analytics, exchange rate proxying, user preferences, AI assistant configuration with encrypted key storage, and the Bedrock Converse proxy.
+FastAPI backend for OAuth authentication, JSON transaction ingestion, reconciliation, financial analytics, preferences, planning data, external rate proxies, and the AI assistant.
 
-## Features
+## Stack
 
-- OAuth authentication (Google, GitHub) with JWT tokens
-- Excel file ingestion with duplicate detection
-- SHA-256 based transaction reconciliation
-- Financial analytics and calculations
-- SQLite (dev) / PostgreSQL (prod) with SQLAlchemy ORM
-- Alembic database migrations
-- AI assistant config with AES-256-GCM encrypted API keys (PBKDF2 + per-ciphertext random salt)
-- Bedrock Converse proxy via boto3 (SigV4 or Bedrock API-key auth, JSON response)
-
-## Tech Stack
-
-| Component  | Technology     |
-| ---------- | -------------- |
-| Language   | Python 3.13+   |
-| Framework  | FastAPI        |
-| ORM        | SQLAlchemy 2.0 |
-| Database   | SQLite (dev) / PostgreSQL (prod) |
-| Migrations | Alembic        |
-| Testing    | pytest         |
-| Linting    | Ruff           |
-| Type Check | mypy           |
-| Packaging  | uv             |
+| Area | Technology |
+| --- | --- |
+| Runtime | Python 3.13+ |
+| API | FastAPI |
+| ORM | SQLAlchemy 2 |
+| Validation | Pydantic 2 |
+| Migrations | Alembic |
+| Local database | SQLite |
+| Production database | Neon PostgreSQL 17 |
+| Serverless adapter | Mangum on Vercel |
+| Tests | pytest |
+| Quality | Ruff and mypy |
+| Packaging | uv |
 
 ## Quick Start
 
 ```bash
-# Install dependencies (including dev tools)
 uv sync --group dev
-
-# Initialize database
 uv run alembic upgrade head
-
-# Start development server
 uv run uvicorn ledger_sync.api.main:app --reload --port 8000
 ```
 
-Backend available at http://localhost:8000
+Local endpoints:
 
-## Project Structure
+- API: `http://localhost:8000`
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+- Health: `http://localhost:8000/health`
+- Database health: `http://localhost:8000/health/db`
 
-```
-backend/
-├── src/ledger_sync/
-│   ├── api/              # FastAPI routers (one file per resource)
-│   │   ├── main.py       # Application entry point
-│   │   ├── auth.py       # Token refresh, logout, profile
-│   │   ├── oauth.py      # Google/GitHub OAuth login
-│   │   ├── analytics.py  # On-the-fly analytics
-│   │   ├── analytics_v2.py  # Pre-aggregated analytics
-│   │   ├── calculations.py  # Financial calculation endpoints
-│   │   ├── preferences.py   # User preferences (incl. AI config)
-│   │   ├── ai_chat.py       # Bedrock Converse proxy
-│   │   ├── account_classifications.py
-│   │   ├── exchange_rates.py, stock_price.py
-│   │   └── meta.py, reports.py, transactions.py, upload.py
-│   ├── core/             # Business logic
-│   │   ├── reconciler.py          # Transaction reconciliation
-│   │   ├── calculator.py          # Financial calculations
-│   │   ├── analytics_engine.py    # Heavy analytics computation
-│   │   ├── _analytics_helpers.py  # Module-level helpers for analytics_engine
-│   │   ├── encryption.py          # AES-256-GCM for API keys
-│   │   ├── sync_engine.py         # Upload orchestration
-│   │   ├── query_helpers.py       # Shared SQL aggregation helpers
-│   │   ├── time_filter.py, insights.py, report_generator.py
-│   │   └── auth/                  # JWT token creation/verification
-│   ├── db/               # Database layer
-│   │   ├── models.py     # 21-line facade that re-exports from _models/
-│   │   ├── _models/      # Split by bounded context
-│   │   │   ├── __init__.py, _constants.py, enums.py
-│   │   │   ├── user.py, transactions.py
-│   │   │   └── investments.py, analytics.py, planning.py
-│   │   ├── session.py    # Database session
-│   │   ├── base.py
-│   │   └── migrations/versions/  # Alembic migrations
-│   ├── schemas/          # Pydantic request/response models
-│   ├── services/         # Cross-cutting services
-│   ├── ingest/           # Data ingestion (CLI path only)
-│   │   ├── excel_loader.py, csv_loader.py
-│   │   ├── normalizer.py, validator.py, hash_id.py
-│   ├── config/           # Configuration
-│   │   └── settings.py
-│   └── utils/            # Utilities
-├── tests/                # Test suite
-│   ├── unit/             # Unit tests
-│   └── integration/      # Integration tests
-└── pyproject.toml        # Dependencies (uv)
+## Responsibilities
+
+- Google and GitHub OAuth with 10-minute HMAC-signed state tokens.
+- JWT access and refresh tokens with server-side `token_version` invalidation.
+- Authenticated JSON ingestion at `/api/upload`.
+- User-scoped transaction reconciliation, tags, saved views, and categorization rules.
+- On-demand calculations plus precomputed analytics rollups.
+- Preferences, account classifications, budgets, goals, recurring items, and anomaly review.
+- Exchange-rate, instrument-rate, and stock-price proxies.
+- Fifteen read-only AI tools and AI usage accounting.
+- Bedrock Converse proxy for server-side Bedrock authentication.
+
+## Web Import Contract
+
+The browser parses Excel and CSV files. The backend receives:
+
+```json
+{
+  "file_name": "statement.xlsx",
+  "file_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "force": false,
+  "rows": [
+    {
+      "date": "2026-07-01",
+      "amount": 85000,
+      "currency": "INR",
+      "type": "Income",
+      "account": "HDFC Bank",
+      "category": "Salary",
+      "subcategory": "Monthly",
+      "note": "July salary"
+    }
+  ]
+}
 ```
 
-## API Endpoints
+Requirements:
 
-### Upload
+- JWT bearer authentication.
+- Exactly 64 hexadecimal characters in `file_hash`.
+- Between 1 and 100,000 rows.
+- Non-negative amounts and non-empty account and category values.
+- `force=true` only when intentionally reprocessing an already imported file.
 
-| Method | Endpoint      | Description       |
-| ------ | ------------- | ----------------- |
-| POST   | `/api/upload` | Upload Excel file |
+The CLI still supports direct Excel and CSV loading through `SyncEngine.import_file()`.
 
-**Response includes:**
+## Source Layout
 
-- `processed` - Total rows processed
-- `inserted` - New transactions
-- `updated` - Modified transactions
-- `deleted` - Soft-deleted transactions
-- `unchanged` - Skipped (no changes)
-
-### Analytics
-
-| Method | Endpoint                  | Description                |
-| ------ | ------------------------- | -------------------------- |
-| GET    | `/api/analytics/overview` | Financial overview         |
-| GET    | `/api/analytics/kpis`     | Key performance indicators |
-| GET    | `/api/analytics/trends`   | Financial trends           |
-
-### Calculations
-
-- `GET /api/calculations/totals` - Income/expense totals
-- `GET /api/calculations/monthly-aggregation` - Monthly data
-- `GET /api/calculations/category-breakdown` - Category analysis
-- `GET /api/calculations/insights` - Financial insights
-
-## Development
-
-### Running Tests
-
-```bash
-# Run all tests
-uv run pytest tests/ -v
-
-# Run with coverage
-uv run pytest --cov=ledger_sync tests/
-
-# Run specific test file
-uv run pytest tests/unit/test_hash_id.py -v
+```text
+src/ledger_sync/
+  api/                 FastAPI routers and dependencies
+    analytics_v2_impl/ Split analytics v2 routers
+    ai_tools_impl/     AI tool registry and implementations
+  core/                Business rules and calculations
+    analytics/         Analytics engine mixins and rollup builders
+    auth/              JWT helpers
+  db/
+    _models/           SQLAlchemy models by domain
+    migrations/        Alembic environment and revisions
+    models.py          Public model facade
+    session.py         Engine and session configuration
+  ingest/              CLI loaders, normalization, validation, hashing
+  schemas/             Pydantic request and response models
+  services/            Cross-cutting services
+  config/              Runtime settings
+  utils/               Logging and helpers
 ```
 
-### Linting & Type Checking
+`core/analytics_engine.py` is a compatibility facade. The active analytics implementation lives under `core/analytics/`.
 
-```bash
-# Lint
-uv run ruff check .
+## Security
 
-# Auto-fix lint issues
-uv run ruff check --fix .
-
-# Type check
-uv run mypy src/
-```
-
-### Database Migrations
-
-```bash
-# Apply migrations
-uv run alembic upgrade head
-
-# Create new migration
-uv run alembic revision --autogenerate -m "description"
-
-# Rollback one migration
-uv run alembic downgrade -1
-```
-
-## API Documentation
-
-- Interactive docs: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- All financial queries and mutations are scoped by `user_id`.
+- OAuth callbacks require a valid, unexpired signed state.
+- Logout increments `token_version`, invalidating outstanding access and refresh tokens.
+- API responses include security headers and authenticated data uses `Cache-Control: no-store`.
+- CORS uses an explicit allowlist.
+- Upload is limited to 10 requests per user per minute and 50 per IP per minute.
+- Bedrock chat is limited to 30 requests per user per minute and 60 per IP per minute.
+- Current BYOK ciphertexts use AES-256-GCM with HKDF-SHA256 and `LEDGER_SYNC_ENCRYPTION_KEY`.
+- Legacy PBKDF2 ciphertexts are read-only compatibility data and are upgraded when revealed.
 
 ## Configuration
 
-Environment variables (prefix: `LEDGER_SYNC_`):
+Environment variables use their full `LEDGER_SYNC_` names.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `sqlite:///./ledger_sync.db` | Database connection string |
-| `LOG_LEVEL` | `INFO` | Python log level |
-| `GOOGLE_CLIENT_ID` | - | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | - | Google OAuth client secret |
-| `GITHUB_CLIENT_ID` | - | GitHub OAuth client ID |
-| `GITHUB_CLIENT_SECRET` | - | GitHub OAuth client secret |
-| `FRONTEND_URL` | `http://localhost:5173` | Frontend URL for OAuth redirects |
-| `JWT_SECRET_KEY` | dev default | JWT signing secret (required in production) |
-| `ENVIRONMENT` | `development` | `development` or `production` |
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `LEDGER_SYNC_ENVIRONMENT` | `development` | Runtime mode |
+| `LEDGER_SYNC_DATABASE_URL` | `sqlite:///./ledger_sync.db` | SQLAlchemy database URL |
+| `LEDGER_SYNC_DATABASE_ECHO` | `false` | SQL logging |
+| `LEDGER_SYNC_LOG_LEVEL` | `INFO` | Application log level |
+| `LEDGER_SYNC_FRONTEND_URL` | `http://localhost:5173` | OAuth callback base |
+| `LEDGER_SYNC_CORS_ORIGINS` | Local origins | JSON allowlist |
+| `LEDGER_SYNC_JWT_SECRET_KEY` | Generated in development | JWT and OAuth state signing |
+| `LEDGER_SYNC_ENCRYPTION_KEY` | JWT key fallback | Dedicated BYOK encryption key |
+| `LEDGER_SYNC_GOOGLE_CLIENT_ID` | Empty | Enable Google OAuth |
+| `LEDGER_SYNC_GOOGLE_CLIENT_SECRET` | Empty | Google OAuth secret |
+| `LEDGER_SYNC_GITHUB_CLIENT_ID` | Empty | Enable GitHub OAuth |
+| `LEDGER_SYNC_GITHUB_CLIENT_SECRET` | Empty | GitHub OAuth secret |
+| `LEDGER_SYNC_BEDROCK_API_KEY` | Empty | App-mode Bedrock credential |
+| `LEDGER_SYNC_DB_POOL_SIZE` | `5` | PostgreSQL pool size |
+| `LEDGER_SYNC_DB_MAX_OVERFLOW` | `3` | PostgreSQL overflow connections |
 
-## License
+See [.env.example](../.env.example) for the complete template.
 
-MIT
+## Quality Checks
+
+```bash
+uv run ruff check src/ tests/
+uv run ruff format --check src/ tests/
+uv run mypy src/
+uv run pytest tests/ -v
+```
+
+The current backend suite contains 328 tests.
+
+## Migrations
+
+```bash
+uv run alembic revision --autogenerate -m "describe change"
+uv run alembic upgrade head
+```
+
+Read [MIGRATION_NOTES.md](src/ledger_sync/db/migrations/MIGRATION_NOTES.md) before attempting a downgrade. Several recent revisions intentionally have no schema-reversing downgrade.
+
+## Deployment
+
+Production runs on Vercel through `api/index.py` and `vercel.json`, with Neon PostgreSQL behind the PgBouncer pooler. Database migrations are applied by `.github/workflows/migrate.yml`.
+
+See [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md) and [docs/API.md](../docs/API.md).

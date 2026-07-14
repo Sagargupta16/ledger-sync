@@ -6,6 +6,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## Unreleased
+
+### Added
+
+- **Workspace header** with the current page label, command-palette access, notifications, and a context-aware AI entry point.
+- **Product screenshots** for desktop and mobile landing-page presentation.
+- **Authentication regression coverage** for provider loading/retry states, dialog focus management, and OAuth callback failures.
+
+### Changed
+
+- **Complete workspace UI rework.** The shell, sidebar, mobile navigation, page headers, metric cards, controls, transaction filters, tables, charts, settings, home page, upload flow, and key planning pages now share one compact ledger-oriented visual system.
+- **Responsive behavior** was tightened across desktop and phone layouts, including stable workspace dimensions, safe-area handling in the global header, mobile transaction presentation, and non-overlapping demo/chat/navigation surfaces.
+- **Home and sign-in flow** now use the real dashboard screenshots, clearer calls to action, a retryable provider-loading state, keyboard focus trapping, Escape dismissal, and focus restoration.
+- **Local API routing** now defaults to the same-origin Vite proxy. `VITE_API_BASE_URL` is required only for split production hosting.
+- **Theme-aware global feedback** now follows the resolved Light, Dark, or System theme.
+- **Documentation refresh** aligns the READMEs, handbook, route catalog, API reference, database guide, calculations, architecture, testing guide, deployment notes, migration notes, and diagrams with the 2.22.0 codebase.
+
+### Fixed
+
+- `/home` now redirects to `/dashboard` instead of rendering the public landing page inside the authenticated workspace.
+- Demo mode returns an empty AI tool registry without making a backend request.
+- Sign-in provider failures remain distinguishable from a valid but unconfigured provider list.
+
 ## 2.22.0 - 2026-07-09
 
 RSU vesting schedule overhaul: vested vs upcoming grouping with vest-date valuation.
@@ -27,14 +50,14 @@ Rule-based auto-categorization, transaction tags, and saved filter views (PR #20
 
 ## 2.20.0 - 2026-07-04 -- was `Unreleased` (PR #202)
 
-Comprehensive hardening wave landing on the branch: security tightening (BYOK key split + HKDF, refresh-token rotation, per-user rate limits, DB-level cascade), the anomaly-detection rewrite, the 50/30/20 Budget Rule page, and a design-system consistency pass that trims data past today across every historical chart and codifies the money-cell pattern.
+Comprehensive hardening wave landing on the branch: security tightening (BYOK key split + HKDF, token-version revocation, per-user rate limits, DB-level cascade), the anomaly-detection rewrite, the 50/30/20 Budget Rule page, and a design-system consistency pass that trims data past today across every historical chart and codifies the money-cell pattern.
 
 ### Added
 
 - **50/30/20 Budget Rule page (`/budget`).** Replaces the old category-CRUD `/budgets`. Three side-by-side bucket cards (Needs / Wants / Savings) show target vs actual with a delta score; the breakdown table caps each bucket at top-10 categories with an "Other (N more)" rollup that expands inline. Period picker covers 1yr, 2yr, 5yr, All-time, Custom. Backend endpoint `POST /api/analytics/v2/spending-rule` classifies categories via word-boundary regex (fixes Education-not-in-Needs bug), unions user overrides with defaults (fixes first-override-drops-defaults bug), and relabels compound `Transfer: Bank: X -> Y: Z` rows to instrument names (Stocks, Mutual Funds, PPF, etc.).
 - **`<Money>` primitive** (`frontend/src/components/ui/Money.tsx`). Codifies the canonical amount-cell rule set: `shrink-0 text-right tabular-nums whitespace-nowrap font-medium` plus `sm|md|lg|xl` width presets so flex parents can't compress the amount. Prevents the `₹12,91` truncation bug that occurred inside 33%-wide columns. Barrel-exported from `@/components/ui`; migrated `CategoryTable`, `CategoryBreakdown` (both top-level and subcategory rows).
 - **`capEndDateAtToday()` and `capSeriesToToday<T>()`** in `frontend/src/lib/dateUtils.ts`. Historical time-series charts across the app no longer render a flat-zero tail past today. `capEndDateAtToday()` is applied inside `getAnalyticsDateRange()` so it cascades through `useAnalyticsTimeFilter`, `useDashboardMetrics`, and every analytics query hook without per-caller edits. `capSeriesToToday<T>(rows, key)` is generic on row shape with ISO-string comparison for use with in-memory month or day series. Projection pages (FIRE, tax-planning multi-year, retirement forecasting) intentionally build their own future ranges and are untouched.
-- **Anomaly detection rewrite** (`api/analytics/anomalies.py`). Median + MAD (Median Absolute Deviation) with a rolling per-category baseline; robust to skew and single-transaction outliers.
+- **Anomaly detection rewrite** (`core/analytics/anomalies.py`). Median + MAD (Median Absolute Deviation) with a rolling per-category baseline; robust to skew and single-transaction outliers.
 - **DB-level `ON DELETE CASCADE`** on every `user_id` foreign key. Migration `20260704_1100_add_ondelete_cascade_user_fks.py` handles both PostgreSQL (`ALTER TABLE ... DROP CONSTRAINT / ADD CONSTRAINT`) and SQLite (`batch_alter_table(recreate="always", naming_convention=...)` with FK-name reflection to avoid the duplicate-FK trap that happens when `create_foreign_key` runs without an explicit `drop_constraint` in the same batch).
 
 ### Changed
@@ -55,7 +78,7 @@ Comprehensive hardening wave landing on the branch: security tightening (BYOK ke
 ### Security
 
 - **Split BYOK encryption key from JWT secret.** Uses HKDF for v2 keys with per-ciphertext salt; JWT rotation no longer invalidates stored API keys.
-- **Refresh-token rotation via `User.token_version`.** Logout / password reset increments the version claim; old refresh tokens fail verification server-side.
+- **Server-side token revocation via `User.token_version`.** Logout and account reset increment the stored version; outstanding access and refresh tokens then fail verification server-side.
 - **Per-authenticated-user rate limits** on `/api/upload` and `/api/ai/bedrock/chat` (was IP-keyed).
 
 ---
@@ -501,29 +524,29 @@ Finance data is structured. `SELECT category, SUM(amount) FROM transactions WHER
 
 Follow-up to 2.5.0's tool-calling chat. Biggest change: the chat now has a **two-mode split** so users can either use the app's shared Bedrock key (free, rate-limited) or bring their own API key (unlimited, they pay). Plus six new tools expose tax / FY / cash-flow / budget data to the assistant, and every LLM round-trip is now logged for cost transparency.
 
-### Added — App vs BYOK mode split
+### Added -- App vs BYOK mode split
 
 - **`ai_mode` column** on `user_preferences` (`'app_bedrock'` default or `'byok'`) + `PATCH /api/preferences/ai-config/mode` to toggle.
-- **App mode (default):** new users get a working chatbot immediately. No provider picker, no key input — the server uses the app's shared Bedrock bearer token and a fixed cheap default model (`us.anthropic.claude-haiku-4-5-20251001-v1:0`). Rate-limited to `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` messages per day (default 10) so our AWS bill stays predictable. Users who hit the cap get a clear 429 with a "switch to BYOK" pointer.
+- **App mode (default):** new users get a working chatbot immediately. No provider picker, no key input -- the server uses the app's shared Bedrock bearer token and a fixed cheap default model (`us.anthropic.claude-haiku-4-5-20251001-v1:0`). Rate-limited to `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` messages per day (default 10) so our AWS bill stays predictable. Users who hit the cap get a clear 429 with a "switch to BYOK" pointer.
 - **BYOK mode:** existing provider/model/key picker + per-user token limits. Users pay their own provider. No app-level cap (the provider bills them directly).
 - **`settings.py`** gains three new env-overridable fields: `ai_default_bedrock_model`, `ai_default_bedrock_region`, `ai_daily_message_limit`.
 - **Settings → AI Assistant** rebuilt with a stacked two-card mode picker. App-mode panel shows a live "3 / 10 left" counter with a small explainer. BYOK-mode panel unchanged from 2.5.0 (provider/model/key + optional token limits).
 - **ChatPanel usage badge** is now mode-aware: `"· 3 / 10 left"` in app mode (messages), `"· 1.2k / 50k"` in BYOK mode (tokens).
-- **ChatWidget gating:** opening the chat no longer requires `has_key` when the user is in app mode — they can chat out of the box.
+- **ChatWidget gating:** opening the chat no longer requires `has_key` when the user is in app mode -- they can chat out of the box.
 
-### Added — 6 new AI tools (registry now 15)
+### Added -- 6 new AI tools (registry now 15)
 
-- `get_fy_summary` — fiscal-year rollup (income by source, tax paid, savings, YoY change) from the `fy_summaries` table.
-- `get_tax_summary` — prefers uploaded `TaxRecord` filings (gross/TDS/advance/self-assessment/80C/80D/standard deductions) and falls back to transaction-derived totals when no filing is available.
-- `get_cash_flow` — monthly income-vs-expense time series with totals and averages.
-- `list_budgets` — active budgets with current-month usage %, ranked by usage.
-- `list_anomalies` — recent unusual-spending alerts the system detected.
-- `get_preferences_summary` — currency, fiscal-year start, and salary-structure components so the LLM can reason about context.
+- `get_fy_summary` -- fiscal-year rollup (income by source, tax paid, savings, YoY change) from the `fy_summaries` table.
+- `get_tax_summary` -- prefers uploaded `TaxRecord` filings (gross/TDS/advance/self-assessment/80C/80D/standard deductions) and falls back to transaction-derived totals when no filing is available.
+- `get_cash_flow` -- monthly income-vs-expense time series with totals and averages.
+- `list_budgets` -- active budgets with current-month usage %, ranked by usage.
+- `list_anomalies` -- recent unusual-spending alerts the system detected.
+- `get_preferences_summary` -- currency, fiscal-year start, and salary-structure components so the LLM can reason about context.
 
-### Added — Usage tracking
+### Added -- Usage tracking
 
 - **`ai_usage_log` table** with `(provider, model, input_tokens, output_tokens, tool_rounds, cost_usd, timestamp)`. Bedrock usage is recorded server-side after `converse()`; OpenAI and Anthropic report back from the browser via `POST /api/ai/usage/log`.
-- **Cost estimation** via `core/ai_pricing.py` — per-provider, per-model-prefix USD-per-1M-token table with longest-prefix match. Unknown models fall through to a conservative 10/40 USD-per-1M fallback so we never under-report cost.
+- **Cost estimation** via `core/ai_pricing.py` -- per-provider, per-model-prefix USD-per-1M-token table with longest-prefix match. Unknown models fall through to a conservative 10/40 USD-per-1M fallback so we never under-report cost.
 - **`GET /api/ai/usage`** returns today / MTD / all-time rollups + current limits + today's message count (for app mode). Used by Settings and the chat header.
 - **BYOK per-user token limits:** two nullable columns `ai_daily_token_limit` / `ai_monthly_token_limit` plus `PATCH /api/preferences/ai-config/limits`. Applies only in BYOK mode; app mode uses the server-wide message cap instead.
 
@@ -646,16 +669,16 @@ Codebase-wide consolidation of hand-rolled UI primitives. A component-reuse audi
 ### Changed
 
 - **Tables migrated to `DataTable`:** [MilestonesTable](frontend/src/pages/net-worth/components/MilestonesTable.tsx) (Net Worth), [MonthlyBreakdownTable](frontend/src/pages/trends-forecasts/components/MonthlyBreakdownTable.tsx) (Trends & Forecasts). Sort state moved off `useTrendsForecasts` into the table; hook now exposes `recentChartData` directly. `ariaSort` helper removed from `trendsUtils.tsx` (was only used by this table).
-- **Charts migrated to `StandardBarChart`:** [YearOverYearComparison](frontend/src/components/analytics/YearOverYearComparison.tsx), [DayOfWeekChart](frontend/src/pages/year-in-review/components/DayOfWeekChart.tsx), [CohortSpendingAnalysis](frontend/src/components/analytics/CohortSpendingAnalysis.tsx), [PeerComparisonBenchmarks](frontend/src/components/analytics/PeerComparisonBenchmarks.tsx), [IncomeStabilityIndex](frontend/src/components/analytics/IncomeStabilityIndex.tsx) (horizontal), [LifestyleCreepDetection](frontend/src/components/analytics/LifestyleCreepDetection.tsx) (horizontal), [ExpenseElasticityChart](frontend/src/components/analytics/ExpenseElasticityChart.tsx) (horizontal).
-- **Charts migrated to `StandardAreaChart`:** [SavingsMilestonesTimeline](frontend/src/components/analytics/SavingsMilestonesTimeline.tsx), [InstrumentProjections](frontend/src/components/analytics/InstrumentProjections.tsx), [FIRECalculatorPage](frontend/src/pages/FIRECalculatorPage.tsx) projection chart.
+- **Charts migrated to `StandardBarChart`:** `YearOverYearComparison`, [DayOfWeekChart](frontend/src/pages/year-in-review/components/DayOfWeekChart.tsx), [CohortSpendingAnalysis](frontend/src/components/analytics/CohortSpendingAnalysis.tsx), `PeerComparisonBenchmarks`, `IncomeStabilityIndex` (horizontal), `LifestyleCreepDetection` (horizontal), `ExpenseElasticityChart` (horizontal).
+- **Charts migrated to `StandardAreaChart`:** `SavingsMilestonesTimeline`, [InstrumentProjections](frontend/src/components/analytics/InstrumentProjections.tsx), [FIRECalculatorPage](frontend/src/pages/FIRECalculatorPage.tsx) projection chart.
 - **Charts migrated to `StandardPieChart`:** [TopMerchants](frontend/src/components/analytics/TopMerchants.tsx), [DashboardPage](frontend/src/pages/DashboardPage.tsx) (income + expense donuts with center labels), [IncomeAnalysisPage](frontend/src/pages/income-analysis/IncomeAnalysisPage.tsx) income-by-category donut.
 - **Charts migrated to `StandardRadarChart`:** [FinancialHealthScore](frontend/src/components/analytics/FinancialHealthScore.tsx), [CFPScoreView](frontend/src/components/analytics/health/CFPScoreView.tsx).
 
 ### Internal
 
-- Wrapper extensions needed during migration: `StandardBarChart` gained `referenceLines`, `xDomain`/`xType`/`yType`, `yCategoryKey` for horizontal layout, `xTickFormatter`/`yTickFormatter`, `tooltipValueWithPayload` (advanced tooltip that sees the row), `barGap`, `hideVerticalGrid`/`hideHorizontalGrid`, per-bar `fillOpacity`/`getCellColor`. `StandardAreaChart` gained `strokeDasharray` on `AreaConfig`. `StandardPieChart` gained `onSliceClick` (with auto pointer cursor). All extensions are generic — no file-specific escape hatches.
+- Wrapper extensions needed during migration: `StandardBarChart` gained `referenceLines`, `xDomain`/`xType`/`yType`, `yCategoryKey` for horizontal layout, `xTickFormatter`/`yTickFormatter`, `tooltipValueWithPayload` (advanced tooltip that sees the row), `barGap`, `hideVerticalGrid`/`hideHorizontalGrid`, per-bar `fillOpacity`/`getCellColor`. `StandardAreaChart` gained `strokeDasharray` on `AreaConfig`. `StandardPieChart` gained `onSliceClick` (with auto pointer cursor). All extensions are generic -- no file-specific escape hatches.
 - Net ~160 LOC deleted across migrated files. Same visual output, one source of truth for chart styling.
-- Deferred as intentionally custom (shape doesn't fit a generic wrapper): [CashFlowForecast](frontend/src/components/analytics/CashFlowForecast.tsx) (8 Areas with per-area strokeDasharray + confidence-cone trick), [EffectiveTaxRateChart](frontend/src/components/analytics/EffectiveTaxRateChart.tsx) (uses ReferenceDot), [SubcategoryAnalysis](frontend/src/components/analytics/SubcategoryAnalysis.tsx) (non-date x-axis with dots), [NetWorthPage](frontend/src/pages/net-worth/NetWorthPage.tsx) waterfall, [IncomeExpenseFlowPage](frontend/src/pages/income-expense-flow/IncomeExpenseFlowPage.tsx) Sankey, [SpendingAnalysisPage](frontend/src/pages/spending-analysis/SpendingAnalysisPage.tsx) nested pies, [TaxPlanningPage](frontend/src/pages/tax-planning/TaxPlanningPage.tsx) bar+line composed chart, [BudgetPage](frontend/src/pages/budget/BudgetPage.tsx) (mix of bar/area/radar in one page), plus IncomeAnalysisPage's area chart. Also deferred: the two non-flat tables ([TaxableIncomeTable](frontend/src/components/analytics/TaxableIncomeTable.tsx) expandable tree, [MultiYearProjectionTable](frontend/src/pages/tax-planning/components/MultiYearProjectionTable.tsx) pivot) — these need dedicated primitives, not `DataTable` flags.
+- Deferred as intentionally custom (shape doesn't fit a generic wrapper): [CashFlowForecast](frontend/src/components/analytics/CashFlowForecast.tsx) (8 Areas with per-area strokeDasharray + confidence-cone trick), [EffectiveTaxRateChart](frontend/src/components/analytics/EffectiveTaxRateChart.tsx) (uses ReferenceDot), `SubcategoryAnalysis` (non-date x-axis with dots), [NetWorthPage](frontend/src/pages/net-worth/NetWorthPage.tsx) waterfall, [IncomeExpenseFlowPage](frontend/src/pages/income-expense-flow/IncomeExpenseFlowPage.tsx) Sankey, [SpendingAnalysisPage](frontend/src/pages/spending-analysis/SpendingAnalysisPage.tsx) nested pies, [TaxPlanningPage](frontend/src/pages/tax-planning/TaxPlanningPage.tsx) bar+line composed chart, [BudgetPage](frontend/src/pages/budget/BudgetPage.tsx) (mix of bar/area/radar in one page), plus IncomeAnalysisPage's area chart. Also deferred: the two non-flat tables ([TaxableIncomeTable](frontend/src/components/analytics/TaxableIncomeTable.tsx) expandable tree, [MultiYearProjectionTable](frontend/src/pages/tax-planning/components/MultiYearProjectionTable.tsx) pivot) -- these need dedicated primitives, not `DataTable` flags.
 
 ---
 

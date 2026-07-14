@@ -1,510 +1,474 @@
 # System Architecture
 
-## Overview
+Architecture reference for Ledger Sync 2.22.0.
 
-Ledger Sync is a self-hosted personal finance dashboard built as a full-stack application with clear separation between backend and frontend. The system imports Excel bank statements, reconciles transactions via SHA-256 hashing, and delivers 23 pages of financial analytics -- from spending breakdowns to investment tracking and tax projections -- with multi-currency display and an AI chatbot that has full context of your financial data.
+Verified against the application entry points, route tree, stores, API
+registration, model metadata, and deployment workflows on 2026-07-14.
 
-## High-Level Architecture
+## System Overview
 
 <p align="center">
-  <img src="images/system-overview.svg" alt="System Architecture" width="100%"/>
+  <img src="images/system-overview.svg" alt="Ledger Sync system architecture" width="100%"/>
 </p>
+
+Ledger Sync is a static React workspace backed by a FastAPI JSON API and a
+user-scoped relational ledger.
+
+```text
+Browser
+  |
+  +-- React 19 SPA on GitHub Pages
+  |     +-- browser-side Excel and CSV parsing
+  |     +-- TanStack Query server cache
+  |     +-- Zustand client state
+  |     +-- responsive desktop and phone workspace
+  |
+  +-- HTTPS JSON API
+        +-- FastAPI on Vercel through Mangum
+              +-- SQLAlchemy and Alembic
+              +-- Neon PostgreSQL 17
+              +-- Google and GitHub OAuth
+              +-- external rate and stock proxies
+              +-- Bedrock chat proxy
+```
+
+Local development uses the same frontend and backend with SQLite and a Vite
+proxy.
+
+## Repository Layout
+
+```text
+ledger-sync/
+  frontend/                   React and TypeScript SPA
+  backend/                    Python and FastAPI service
+  docs/                       Maintained references and dated records
+  .github/workflows/          CI, deploy, migration, and keepalive workflows
+  package.json                Root orchestration scripts
+```
 
 ## Backend Architecture
 
-### Layers
-
-#### 1. **API Layer** (`src/ledger_sync/api/`)
-
-- **Responsibility**: HTTP endpoints, request/response handling
-- **Components**:
-  - `main.py` - FastAPI application setup, middleware, CORS, security headers
-  - `auth.py` - Token refresh, logout, profile management
-  - `oauth.py` - OAuth login via Google and GitHub (authorization code exchange via `httpx`)
-  - `analytics.py` - On-the-fly analytics endpoints (overview, KPIs, trends, behavior)
-  - `analytics_v2.py` - Pre-aggregated analytics endpoints (reads from summary tables for speed)
-  - `calculations.py` - Financial calculation endpoints
-  - `preferences.py` - User preferences CRUD (includes AI config endpoints: `PUT/GET/DELETE /api/preferences/ai-config`)
-  - `ai_chat.py` - Bedrock Converse proxy (`POST /api/ai/bedrock/chat`). Required because Bedrock needs signed server-side auth and doesn't support CORS for browser-direct calls. Uses `boto3.client('bedrock-runtime').converse()` and returns JSON.
-  - `exchange_rates.py` - Exchange rate proxy with 24h cache (frankfurter.dev)
-  - `stock_price.py` - Yahoo Finance proxy for RSU grant stock prices
-  - `deps.py` - JWT authentication dependency (`get_current_user`)
-  - Routes requests to business logic and return JSON responses
-- **Authentication**: OAuth-only (no email/password). Google/GitHub OAuth providers configured via environment variables. Backend exchanges authorization codes for user info, then issues JWT access/refresh tokens.
-
-#### 2. **Core/Business Logic Layer** (`src/ledger_sync/core/`)
-
-- **Responsibility**: Business rules, algorithms, data processing
-- **Components**:
-  - `reconciler.py` - Transaction reconciliation logic
-    - Insert new transactions
-    - Update existing ones
-    - Soft-delete stale records
-    - Uses SHA-256 hashing for deterministic IDs
-  - `sync_engine.py` - Data synchronization orchestration
-  - `calculator.py` - Financial calculations (income, expenses, insights)
-  - `analytics_engine.py` - Heavy analytics computation (monthly summaries, category trends, net worth snapshots, anomaly detection, FY summaries). Module-level helpers (`_group_txns_by_pattern`, `_resolve_pattern_display`, `_aggregate_holdings_data`) + constants (`DEFAULT_ESSENTIAL_CATEGORIES`, `DEFAULT_INVESTMENT_ACCOUNT_PATTERNS`) extracted into `_analytics_helpers.py`
-  - `insights.py` - Smart financial insight generation
-  - `query_helpers.py` - Shared SQL aggregation helpers (`income_sum_col`, `expense_sum_col`, `build_transaction_query`, `excluded_accounts_for`) used by both `calculations.py` and `analytics.py` to eliminate duplicated CASE/SUM patterns. `build_transaction_query` applies the user's `excluded_accounts` preference by default (override via `apply_excluded_accounts=False` for diagnostic queries) so all three transaction-query code paths (analytics engine, transactions API, on-the-fly calculations) stay consistent
-  - `time_filter.py` - Time range filtering logic
-  - `encryption.py` - AES-256-GCM encrypt/decrypt for AI API keys. Current writes use a v2 ciphertext format with HKDF-SHA256 derived from `LEDGER_SYNC_ENCRYPTION_KEY` and a per-ciphertext random 128-bit salt. Legacy v1 ciphertexts derived from the JWT secret via PBKDF2 remain readable and are re-encrypted on reveal. `DecryptionError` is raised on tag mismatch so callers can prompt for re-entry.
-  - `auth/` - JWT token creation and verification
-
-#### 3. **Data Access Layer** (`src/ledger_sync/db/`)
-
-- **Responsibility**: Database interactions, ORM operations
-- **Components**:
-  - `models.py` - 21-line facade that re-exports from `_models/` package. All consumer code imports from here (`from ledger_sync.db.models import User, Transaction, ...`)
-  - `_models/` - SQLAlchemy models split by bounded context:
-    - `_constants.py` - Length constants used across models
-    - `enums.py` - `TransactionType`, `AccountType`, `AnomalyType`, `RecurrenceFrequency`, `GoalStatus`
-    - `user.py` - `User`, `UserPreferences` (now includes `ai_provider`, `ai_model`, `ai_api_key_encrypted`), `AuditLog`
-    - `transactions.py` - `Transaction`, `ImportLog`, `AccountClassification`, `ColumnMappingLog`
-    - `investments.py` - `NetWorthSnapshot`, `InvestmentHolding`, `TaxRecord`
-    - `analytics.py` - `DailySummary`, `MonthlySummary`, `CategoryTrend`, `TransferFlow`, `FYSummary`, `MerchantIntelligence`
-    - `planning.py` - `RecurringTransaction`, `ScheduledTransaction`, `Anomaly`, `Budget`, `FinancialGoal`
-  - `session.py` - Database session management
-  - `base.py` - Base configuration
-  - `migrations/` - Alembic migration scripts
-
-#### 4. **Ingestion Layer** (`src/ledger_sync/ingest/`)
-
-- **Responsibility**: Data import and validation
-- **Components**:
-  - `excel_loader.py` - Read Excel files, parse data (used by CLI only; web uploads are parsed client-side)
-  - `csv_loader.py` - Read CSV files (used by CLI only)
-  - `normalizer.py` - Clean, transform, standardize data. `normalize_from_dict()` handles JSON upload rows; `normalize_row()` handles DataFrame rows from CLI
-  - `validator.py` - Validate data integrity and format
-  - `hash_id.py` - Generate deterministic transaction IDs
-
-#### 5. **Utilities Layer** (`src/ledger_sync/utils/`)
-
-- **Responsibility**: Helper functions, logging, common utilities
-- **Components**:
-  - `logging.py` - Centralized logging configuration
-
-### Data Flow
-
 <p align="center">
-  <img src="images/upload-pipeline.svg" alt="Upload & Sync Pipeline" width="100%"/>
+  <img src="images/backend-layers.svg" alt="Backend layer architecture" width="100%"/>
 </p>
 
-### Key Algorithms
+### API layer
 
-#### Transaction Reconciliation
+Location: `backend/src/ledger_sync/api/`
 
-```python
-For each imported transaction:
-1. Calculate SHA-256 hash of (date, amount, category, account)
-2. Look up hash_id in database
-3. If not found: INSERT
-4. If found but data changed: UPDATE
-5. If found and same: SKIP
-6. Mark old transactions not in import as SOFT_DELETE
+Responsibilities:
+
+- HTTP request and response contracts
+- Authentication dependencies
+- User-scoped query boundaries
+- Rate limits
+- External service proxies
+- Error and status mapping
+
+`main.py` creates the FastAPI app, shared `httpx` client, middleware, exception
+handlers, health checks, and router registration.
+
+The current OpenAPI schema contains 99 paths and 113 operations across:
+
+- Authentication and OAuth
+- Upload and transactions
+- Tags, rules, and saved views
+- Analytics and calculations
+- Preferences and classifications
+- Reports
+- Currency, instrument, and stock rates
+- AI chat, tools, and usage
+
+See [API.md](API.md) for the complete inventory.
+
+### Business logic
+
+Location: `backend/src/ledger_sync/core/`
+
+Key modules:
+
+| Module | Responsibility |
+| --- | --- |
+| `sync_engine.py` | Coordinates row or CLI-file imports |
+| `reconciler.py` | User-scoped upsert, restore, and soft-delete behavior |
+| `reconciler_transfers.py` | Transfer-pair normalization and reconciliation |
+| `calculator.py` | Pure on-demand financial metrics |
+| `query_helpers.py` | Database-agnostic SQL and shared filters |
+| `time_filter.py` | Current-date anchored relative ranges |
+| `rules.py` | Categorization rule matching |
+| `report_generator.py` | Monthly report construction |
+| `encryption.py` | AES-256-GCM BYOK key encryption and legacy migration |
+| `auth/` | JWT creation, decoding, and token-version verification |
+
+Analytics implementation lives under `core/analytics/` as domain mixins:
+
+```text
+base.py
+classification.py
+summaries.py
+trends.py
+merchants.py
+recurring.py
+net_worth.py
+fy_summaries.py
+anomalies.py
+cohort.py
+engine.py
 ```
 
-#### Income & Tax Projection Pipeline
+`core/analytics_engine.py` is a backwards-compatible facade that re-exports
+the composed `AnalyticsEngine`. New analytics behavior belongs in the domain
+package, not in the facade.
 
-The projection system is entirely client-side (no backend computation). Data flows through these layers:
+### Data access
 
+Location: `backend/src/ledger_sync/db/`
+
+- `base.py` owns the declarative base.
+- `session.py` owns the engine and request-session lifecycle.
+- `_models/` groups SQLAlchemy models by domain.
+- `models.py` re-exports the public model surface.
+- `migrations/versions/` contains the Alembic history.
+
+The current metadata contains 26 tables. Production uses Neon PostgreSQL;
+SQLite remains the local and test backend.
+
+Every user-owned query includes `user_id`. Current model foreign keys use
+database cascades for account deletion, but authorization remains an explicit
+query concern.
+
+### Schemas and services
+
+Location:
+
+```text
+backend/src/ledger_sync/schemas/
+backend/src/ledger_sync/services/
 ```
-Settings (SalaryStructureSection)
-  -> preferencesStore (Zustand, persisted to API)
-     -> TaxPlanningPage reads salaryStructure, rsuGrants, growthAssumptions
-        -> projectionCalculator.ts (pure functions)
-           -> projectFiscalYear(targetFY, salary, rsus, growth, fyStartMonth)
-              -> Returns ProjectedFYBreakdown (gross, basic, variable, RSU vestings)
-           -> projectMultipleYears(salary, rsus, growth, fyStartMonth)
-              -> Returns array of projected breakdowns for comparison table
-           -> getRsuVestingsByFY(grants, fyStartMonth, appreciation)
-              -> Returns FY-keyed vesting amounts with stock appreciation
-        -> taxCalculator.ts computes tax on projected gross
-           -> Returns slab breakdown, cess, surcharge, rebate
+
+Pydantic models validate wire contracts. Services contain cross-router
+workflows such as OAuth user creation, token refresh, account reset, and
+account deletion.
+
+### Ingestion
+
+Location: `backend/src/ledger_sync/ingest/`
+
+The web and CLI paths share normalization and hashing but enter differently:
+
+- Web import parses files in the browser and calls `SyncEngine.import_rows`.
+- CLI import reads a local file and calls `SyncEngine.import_file`.
+
+The web upload router does not pass the source file through an Excel loader.
+
+## Backend Request Lifecycle
+
+For an authenticated financial request:
+
+```text
+request
+  -> CORS and timing middleware
+  -> security and cache headers
+  -> IP and optional user rate limits
+  -> JWT decode
+  -> token_version comparison against users table
+  -> CurrentUser dependency
+  -> request-scoped SQLAlchemy session
+  -> user-scoped router or domain logic
+  -> commit only when the session has changes
+  -> JSON response
 ```
 
-Key design decisions:
-- **Pure functions**: `projectionCalculator.ts` has zero side effects, making it trivially testable
-- **FY-keyed salary**: Each fiscal year has its own salary structure, allowing users to track raises
-- **Growth compounding**: Projections compound from the latest user-entered FY (not from the current FY)
-- **RSU appreciation**: Stock price appreciates at user-configured rate from grant date to vesting date
+An exception rolls back the request session. Database operational errors become
+HTTP 503. Unexpected errors return a correlation ID without a traceback.
 
-#### Financial Calculations
+## Upload and Analytics Flow
 
-```python
-Income = Sum of all Income type transactions
-Expenses = Sum of all Expense type transactions
-Net = Income - Expenses
-Savings Rate = (Income - Expenses) / Income
+<p align="center">
+  <img src="images/upload-pipeline.svg" alt="Upload and analytics pipeline" width="100%"/>
+</p>
 
-# 50/30/20 Budget Rule (based on income)
-Needs = Essential expenses (should be ≤50% of income)
-Wants = Discretionary expenses (should be ≤30% of income)
-Savings = Income - Expenses (should be ≥20% of income)
-
-# Investment NET calculation
-NET Investment = Transfer-In amounts - Transfer-Out amounts
+```text
+Excel or CSV
+  -> SheetJS browser parser
+  -> flexible column mapping and validation
+  -> SHA-256 raw-file hash
+  -> authenticated JSON upload
+  -> normalization
+  -> occurrence-aware transaction IDs
+  -> user-scoped reconciliation
+  -> transaction commit
+  -> full analytics refresh
+  -> response statistics
+  -> frontend query invalidation
 ```
+
+The transaction hash includes user, date, amount, account, note, category,
+subcategory, type, and a duplicate occurrence suffix when needed.
+
+The reconciliation sweep is user-wide. Rows absent from the latest imported
+snapshot are soft-deleted. Transfer source legs are paired into one canonical
+row.
+
+The API attempts an analytics refresh after every upload. If that refresh
+fails, the transaction import remains successful and the user can run the
+manual refresh endpoint.
 
 ## Frontend Architecture
 
-### Layers
+Location: `frontend/src/`
 
-#### 1. **Pages Layer** (`src/pages/`)
-
-- **Responsibility**: Screen-level components, layout, page composition
-- **Structure convention**:
-  - **Single-file pages** use PascalCase (e.g., `DashboardPage.tsx`, `BudgetPage.tsx`)
-  - **Multi-file pages** use kebab-case directories, each containing `<PageName>Page.tsx` (thin orchestrator) + `use<Page>.ts` (state/data hook) + `types.ts` + `*utils.ts` + `components/` subfolder for sub-components
-  - Barrel files (`index.ts`) are **not** used at the page level; `App.tsx` lazy-imports each page's main file directly
-- **Multi-file page folders**: `bill-calendar/`, `comparison/`, `goals/`, `income-expense-flow/`, `settings/`, `subscription-tracker/`, `tax-planning/`, `trends-forecasts/`, `year-in-review/`. Settings uses `sections/` instead of `components/` because "section" is the domain term.
-- **Pages** (23 total):
-  - `HomePage` - Landing page
-  - `DashboardPage` - Main dashboard with KPIs, sparklines, and quick insights
-  - `UploadSyncPage` - Hero upload UI with sample format preview
-  - `TransactionsPage` - Transaction table with filtering
-  - `SpendingAnalysisPage` - 50/30/20 budget rule analysis
-  - `IncomeAnalysisPage` - Income sources and growth tracking
-  - `comparison/` - Period-over-period financial comparison (multi-file)
-  - `trends-forecasts/` - Trends and forecasting (multi-file)
-  - `income-expense-flow/` - Sankey diagram cash flow visualization (multi-file)
-  - `InvestmentAnalyticsPage` - 4-category investment portfolio
-  - `MutualFundProjectionPage` - SIP/MF projections
-  - `ReturnsAnalysisPage` - Investment returns tracking
-  - `tax-planning/` - Tax planning with salary-based multi-year projections (multi-file)
-  - `FIRECalculatorPage` - FIRE number, Coast FIRE, retirement corpus planner
-  - `NetWorthPage` - Net worth tracking
-  - `BudgetPage` - Budget tracking and monitoring
-  - `goals/` - Financial goal setting with savings allocation (multi-file)
-  - `AnomalyReviewPage` - Flag and review unusual transactions
-  - `year-in-review/` - Annual financial summary with heatmap (multi-file)
-  - `subscription-tracker/` - Recurring expense detection and manual tracking (multi-file)
-  - `bill-calendar/` - Monthly calendar of upcoming bills (multi-file)
-  - `settings/` - Single-page settings with collapsible sections, including AIAssistantSection and SalaryStructureSection (multi-file)
-
-#### 2. **Components Layer** (`src/components/`)
-
-- **Responsibility**: Reusable UI components organized by domain
-- **Modules**:
-  - `analytics/` - Analytics visualization components
-    - `FinancialHealthScore` - Comprehensive health score (8 metrics across 4 pillars)
-    - `YearOverYearComparison` - YoY financial comparison
-    - `PeriodComparison` - Month-to-month comparison with selectors
-    - `CashFlowForecast` - Future cash flow predictions
-    - `RecurringTransactions` - Recurring payment detection
-    - `CategoryBreakdown` - Shared category treemap/table component (parameterized for income or expense)
-    - `ExpenseTreemap` - Thin wrapper around `CategoryBreakdown` for expense visualization
-    - `TopMerchants` - Top merchants/vendors analysis
-    - `EnhancedSubcategoryAnalysis` - Advanced subcategory analysis
-    - `MultiCategoryTimeAnalysis` - Time-based category analysis
-    - `StandardBarChart` - Reusable bar chart wrapper with consistent theming and defaults
-    - `StandardAreaChart` - Reusable area chart wrapper with gradient fills and consistent styling
-    - `StandardPieChart` - Reusable pie/donut chart wrapper with legend defaults
-  - `chat/` - AI chatbot widget (`ChatWidget`, `ChatPanel`, `ChatMessage`, `useChat` hook). Floating bottom-right button expands into a glass-morphism panel; provider adapters return full JSON replies so the tool loop can stay request-per-turn.
-  - `layout/` - Layout components (AppLayout, Sidebar)
-  - `shared/` - Shared components (EmptyState, AnalyticsTimeFilter, MetricCard)
-  - `transactions/` - Transaction table components
-  - `ui/` - Base UI components (shadcn-style), including `chartDefaults.tsx` which exports shared Recharts configuration tokens (`GRID_DEFAULTS`, `xAxisDefaults`, `yAxisDefaults`, `LEGEND_DEFAULTS`, `BAR_RADIUS`, `shouldAnimate`, `areaGradient`, etc.) used by all chart components for consistent styling
-  - `upload/` - File upload components (DropZone)
-
-#### 3. **Hooks Layer** (`src/hooks/`)
-
-- **Responsibility**: Custom React hooks for logic reuse
-- **Examples**:
-  - `useAnalyticsTimeFilter` - Shared time-filter state (view mode, date range, FY) used by all analytics pages
-  - `useAccountTypes` - Account type management
-  - `useAnalytics` - Analytics data fetching
-  - `useChartDimensions` - Responsive chart sizing based on viewport
-  - `usePeriodNavigation` - Time period navigation
-  - `api/` - TanStack Query hooks for API calls
-
-#### 4. **Services Layer** (`src/services/`)
-
-- **Responsibility**: API communication
-- **Components**:
-  - `api/` - Backend API client with typed endpoints
-
-#### 5. **Store/State Layer** (`src/store/`)
-
-- **Responsibility**: Global state management with Zustand
-- **Stores**:
-  - `authStore` - JWT tokens with persist middleware
-  - `preferencesStore` - User display/financial preferences (hydrated from API)
-  - `accountStore` - Account settings and preferences
-  - `investmentAccountStore` - Investment account classifications
-  - `budgetStore` - Budget settings
-
-#### 6. **Utils Layer** (`src/lib/`)
-
-- **Responsibility**: Utility functions and helpers
-- **Modules**:
-  - `cn.ts` - Class name utility (clsx + tailwind-merge)
-  - `queryClient.ts` - TanStack Query client configuration
-  - `fileParser.ts` - Client-side Excel/CSV parsing (lazy-loads SheetJS, SHA-256 hashing, column mapping, row validation)
-  - `projectionCalculator.ts` - Pure functions for multi-year salary/RSU/tax projections
-  - `taxCalculator.ts` - India tax slab computation (old and new regime)
-  - `fireCalculator.ts` - FIRE number, Coast FIRE, retirement corpus calculations
-  - `formatters.ts` - Currency and number formatting with multi-currency conversion
-  - `chatAdapters.ts` - Streaming chat adapters for OpenAI, Anthropic, and Bedrock (OpenAI/Anthropic browser-direct, Bedrock via backend proxy)
-  - `chatContext.ts` - Financial context builder that fetches V2 analytics endpoints and compresses them into a ~2-4K token system prompt
-
-### Component Hierarchy
-
-```
-App
-├── Layout
-│   ├── Sidebar (Navigation)
-│   └── Main Content Area
-│       └── Page Component
-│           ├── Page-specific state
-│           ├── Data fetching (TanStack Query)
-│           └── Analytics Components
-│               ├── Chart Components (Recharts)
-│               │   ├── LineChart
-│               │   ├── BarChart
-│               │   ├── PieChart
-│               │   ├── AreaChart
-│               │   └── Treemap
-│               ├── Score Components
-│               │   └── FinancialHealthScore
-│               ├── Comparison Components
-│               │   ├── YearOverYearComparison
-│               │   └── PeriodComparison
-│               └── Analysis Components
-│                   ├── CashFlowForecast
-│                   ├── RecurringTransactions
-│                   └── SubcategoryAnalysis
-└── Upload Components
-    └── FileUpload
+```text
+App.tsx
+pages/
+components/
+hooks/
+services/api/
+store/
+lib/
+constants/
+types/
 ```
 
-### Authentication Flow
+### Routing and loading
+
+`App.tsx` defines 27 routed page components:
+
+- 3 public routes
+- 24 protected workspace pages
+- 4 eager page components
+- 23 lazy page components
+
+Eager components:
+
+- Home
+- Dashboard
+- Demo Entry
+- OAuth Callback
+
+The remaining pages use `React.lazy`. Their chunks are prefetched during
+browser idle time after authentication initialization. Suspense waits 150 ms
+before showing the page spinner to avoid a flash for fast chunk loads.
+
+The protected route wraps `AppLayout`, which renders the responsive shell and
+an `<Outlet>`. `/home` is a compatibility redirect to `/dashboard`.
+
+See [PAGES.md](PAGES.md) for every route and data source.
+
+### Page layer
+
+Simple pages can remain a single file. Larger pages use:
+
+```text
+pages/<feature>/
+  <Feature>Page.tsx
+  use<Feature>.ts
+  types.ts
+  <feature>Utils.ts
+  components/
+```
+
+Page orchestrators own composition. Data shaping belongs in hooks and pure
+utilities. Repeated visual patterns belong in shared components.
+
+### Component layer
+
+| Directory | Responsibility |
+| --- | --- |
+| `components/layout/` | Sidebar, mobile navigation, and workspace header |
+| `components/ui/` | Buttons, cards, inputs, tables, chart containers, and page primitives |
+| `components/shared/` | Cross-feature states, authentication UI, command palette, and preferences |
+| `components/analytics/` | Reusable financial visualizations |
+| `components/transactions/` | Ledger filters, table, tags, pagination, and saved views |
+| `components/upload/` | Drop zone, account classification, and upload result UI |
+| `components/chat/` | AI panel, messages, and orchestration |
+
+`PageContainer` and `PageHeader` define page-level structure. Shared tokens in
+`index.css` control theme, density, borders, chart colors, focus states, and
+responsive behavior.
+
+### Server state
+
+TanStack Query owns data fetched from the API.
+
+Defaults:
+
+- Infinite stale time
+- One retry
+- No refetch on window focus
+- One-hour garbage-collection time
+
+Mutations invalidate affected query keys. Upload invalidates ledger and
+analytics data after the backend response. Browser HTTP caching is disabled for
+API data, so TanStack Query is the only client cache.
+
+### API client
+
+`services/api/client.ts` creates the shared Axios instance.
+
+It:
+
+- Uses `API_BASE_URL` from the constants layer
+- Attaches the current access token
+- Serializes concurrent refresh attempts through one mutex
+- Replays queued requests after refresh
+- Clears auth state when refresh fails
+- Intercepts demo-mode reads
+- Blocks demo-mode mutations
+
+Feature service modules expose typed API methods. Hooks under `hooks/api/`
+compose those services with TanStack Query.
+
+### Client state
+
+Zustand stores:
+
+| Store | Responsibility |
+| --- | --- |
+| `authStore` | Token persistence and current auth state |
+| `preferencesStore` | Normalized user preferences |
+| `accountStore` | Account metadata |
+| `investmentAccountStore` | Local investment-account set |
+| `budgetStore` | Budget client state |
+| `demoStore` | Demo mode activation |
+| `themeStore` | Light, dark, system, and resolved theme |
+
+Stores should not duplicate API server state without a specific persistence or
+cross-page reason.
+
+### Demo mode
+
+Demo entry seeds generated transactions and analytics into the query cache.
+The API interceptor returns computed demo responses for supported GETs and
+rejects mutations. The mode does not send the generated ledger to the backend.
+
+### Responsive shell
+
+Desktop uses a grouped sidebar and global workspace header. Phone layouts use
+a fixed bottom bar plus the complete More page. Shared page and table
+primitives switch wide tabular data into readable card or stacked layouts
+where appropriate.
+
+The layout reserves fixed space for navigation and safe areas so the chat
+widget, demo banner, mobile bar, and page content do not overlap.
+
+## Authentication Flow
 
 <p align="center">
-  <img src="images/auth-flow.svg" alt="Authentication Flow" width="100%"/>
+  <img src="images/auth-flow.svg" alt="OAuth and token lifecycle" width="100%"/>
 </p>
 
-### Backend Layer Architecture
+The backend, not the frontend, generates a signed OAuth state token. Callback
+requests must return that state with the provider code. State is stateless,
+HMAC-signed, and valid for 10 minutes, so it works across serverless instances.
 
-<p align="center">
-  <img src="images/backend-layers.svg" alt="Backend Layers" width="100%"/>
-</p>
+JWTs contain the user ID, email, type, expiry, and token version. Protected
+requests load the user and compare the token version. Logout and reset
+increment the stored version and revoke every outstanding token pair.
 
-## Data Models
+The Axios refresh mutex prevents a burst of simultaneous 401 responses from
+creating parallel refresh requests.
 
-### Core Entities
+## AI Architecture
 
-#### Transaction
+The assistant supports three provider adapters with one provider-neutral block
+shape:
 
-```
-id (hash_id)          - Unique identifier (SHA-256)
-date                  - Transaction date
-amount                - Transaction amount
-type                  - Income/Expense/Transfer
-category              - Spending category
-subcategory          - Sub-category (optional)
-account              - Account name
-description          - Transaction description
-is_deleted           - Soft delete flag
-file_source          - Source file
-created_at           - Insert timestamp
-updated_at           - Last update timestamp
-```
+- OpenAI, browser-direct with the user's key
+- Anthropic, browser-direct with the user's key
+- Bedrock, backend proxy because AWS authentication and browser CORS require it
 
-#### Account (implied)
+All adapters are non-streaming. One round returns complete JSON text or tool
+requests. The tool loop:
 
-```
-name                 - Account name (Savings, Checking, etc.)
-total_balance        - Current balance
-transactions         - Related transactions
+```text
+send messages
+  -> receive text or tool_use blocks
+  -> execute requested read-only tools in parallel
+  -> append tool_result blocks
+  -> send next round
+  -> stop at end_turn or the configured round limit
 ```
 
-### Derived Data (Calculations)
+`chatContext.ts` fetches preferences only. It provides currency, date,
+fiscal-year context, and tool-use rules. Financial summaries are not copied
+into the system prompt; the model calls one of 15 read-only, user-scoped tools
+for data.
 
-#### Financial Metrics
+Browser-direct provider usage is logged through `/api/ai/usage/log`. Bedrock
+usage is logged by the proxy to avoid double counting.
 
-- Total Income
-- Total Expenses
-- Net Savings
-- Savings Rate
-- Average Monthly Spending
-- Category Totals
+## Security Architecture
 
-#### Behavioral Insights
+- OAuth-only login
+- Signed, expiring OAuth state
+- Verified provider email where required
+- JWT access and refresh tokens with server-side version revocation
+- Explicit user scoping in API and analytics queries
+- Database `ON DELETE CASCADE` for current user foreign keys
+- AES-256-GCM BYOK key encryption
+- Dedicated HKDF-derived encryption key for current ciphertexts
+- IP and authenticated-user rate limits
+- Explicit CORS allowlist
+- Security response headers and production HSTS
+- No browser or service-worker cache for financial API responses
+- No production source maps
+- Bounded upload rows, AI rounds, and AI tool results
+- Generic server errors with correlation IDs
 
-- Spending Patterns
-- Recurring Payments
-- Unusual Transactions
-- Cash Flow Forecast
+## Performance Design
 
-## Technology Choices
+Backend:
 
-### Backend
+- Shared `httpx` client for OAuth and stock calls
+- PostgreSQL pool size 5 with max overflow 3 by default
+- Pool pre-ping and bounded database timeouts
+- User-scoped composite transaction indexes
+- One active-transaction load per full analytics refresh
+- Persisted daily, monthly, category, cohort, net-worth, and fiscal-year data
+- GZip for larger responses
 
-- **FastAPI**: Modern, fast, with automatic API documentation
-- **SQLAlchemy 2.0**: Type-safe ORM with async support
-- **SQLite**: Lightweight, file-based, no server needed
-- **Alembic**: Version control for database schema
+Frontend:
 
-### Frontend
-
-- **React 19**: Component-based UI with latest features
-- **TypeScript**: Type safety and better DX
-- **Vite**: Fast build tool and dev server
-- **Tailwind CSS**: Utility-first styling
-- **Recharts**: Data visualization library (replaces Chart.js)
-- **Zustand**: Lightweight state management
-- **TanStack Query**: Server state management and caching
-
-## API Contract
-
-### Request/Response Format
-
-```
-Request: JSON
-Response: JSON
-Status Codes:
-  200 - Success
-  400 - Bad Request
-  404 - Not Found
-  409 - Conflict (duplicate file)
-  500 - Server Error
-```
-
-### Key Endpoints
-
-```
-POST   /api/upload                      - Upload transactions (JSON body: file_name, file_hash, rows, force)
-GET    /api/transactions                - Get all transactions
-GET    /api/analytics/overview          - Get financial overview
-GET    /api/analytics/kpis              - Get KPIs
-GET    /api/analytics/behavior          - Get spending behavior
-GET    /api/analytics/trends            - Get financial trends
-GET    /api/analytics/wrapped           - Get yearly financial wrap
-GET    /api/analytics/charts/*          - Chart data endpoints
-GET    /api/analytics/insights/generated - AI-generated insights
-GET    /api/calculations/totals         - Get income/expense totals
-GET    /api/calculations/monthly-aggregation - Monthly data
-GET    /api/calculations/yearly-aggregation - Yearly data
-GET    /api/calculations/category-breakdown - Category analysis
-GET    /api/calculations/account-balances - Account balances
-GET    /api/calculations/categories/master - Master category list
-GET    /api/account-classifications/*   - Account classification endpoints
-GET    /api/meta/*                      - Metadata endpoints
-```
-
-## Security Considerations
-
-1. **Input Validation**
-   - Client-side file parsing via SheetJS (files never leave the browser as raw uploads)
-   - Backend validates structured JSON via Pydantic schemas (`TransactionRow`, `TransactionUploadRequest`)
-   - Sanitize data during normalization
-   - Type checking with TypeScript and Python
-
-2. **Data Protection**
-   - Use soft deletes instead of hard deletes
-   - Maintain audit trail with timestamps
-   - CORS configuration for cross-origin requests
-
-3. **CORS**
-   - Frontend and backend on different ports
-   - CORS middleware configured in FastAPI
-
-4. **AI API Key Encryption**
-   - User-provided AI provider API keys (OpenAI, Anthropic, Bedrock) are encrypted at rest with AES-256-GCM
-   - Current v2 keys derive from `LEDGER_SYNC_ENCRYPTION_KEY` with HKDF-SHA256; legacy v1 keys derived from `LEDGER_SYNC_JWT_SECRET_KEY` with PBKDF2-HMAC-SHA256 remain readable during rollout
-   - Each ciphertext uses a fresh random 128-bit salt stored alongside nonce and ciphertext
-   - Decryption errors (tag mismatch) raise `DecryptionError`, prompting the user to re-enter their key if the encryption secret changed
-   - OpenAI and Anthropic calls go browser-direct; Bedrock goes through the backend proxy because it requires signed server-side auth and has no CORS headers
-
-## Scalability Considerations
-
-### Current Design
-
-- SQLite for development (file-based), PostgreSQL-ready for production
-- PostgreSQL connection pooling pre-configured (pool_size=20, max_overflow=10)
-- JWT-based multi-user authentication and authorization
-- All data is user-scoped
-
-### Future Improvements
-
-- Implement caching (Redis) for analytics
-- Async database operations
-- Virtual scrolling for large transaction tables
-
-## Performance Optimizations
-
-### Backend
-
-- Composite indexes on high-traffic query patterns (`user_id+category`, `user_id+date+type`)
-- PostgreSQL connection pooling (pool_size=20, max_overflow=10, pool_pre_ping=True)
-- SQLite WAL mode with 64MB cache and NORMAL sync for fast writes
-- O(n) pre-grouped category analysis (replaced O(c*n) nested loops)
-- Batch processing for large imports
-- Shared SQL aggregation helpers to reduce query duplication
-
-### Frontend
-
-- Code splitting with Vite and lazy-loaded pages (`React.lazy`)
-- `useDeferredValue` for non-blocking search in CommandPalette
-- Memoized chart data objects in DashboardPage to prevent unnecessary re-renders
-- Responsive chart dimensions via `useChartDimensions` hook
-- TanStack Query caching with `staleTime: Infinity` to avoid refetches
-
-## Testing Strategy
-
-### Backend
-
-- Unit tests for business logic
-- Integration tests for API endpoints
-- Test database fixtures
-- Coverage reporting
-
-### Frontend
-
-- Component testing
-- Integration testing
-- Type checking with TypeScript
-- End-to-end testing (future)
+- Route-level lazy loading
+- Idle chunk prefetch
+- Vendor chunk splitting
+- Infinite-stale server cache with explicit invalidation
+- Lightweight facet and date-range endpoints instead of full-ledger reads
+- Responsive chart sizing
+- PWA app-shell caching with API denial rules
 
 ## Deployment
 
-### Backend
+| Layer | Hosted platform |
+| --- | --- |
+| Frontend | GitHub Pages |
+| Backend | Vercel serverless through Mangum |
+| Database | Neon PostgreSQL 17 |
 
-- Vercel serverless function via Mangum adapter (`backend/api/index.py`)
-- Wraps FastAPI ASGI app for AWS Lambda-compatible execution
-- Dependencies installed via `uv` (auto-detected from `uv.lock`)
-- Neon PostgreSQL connected via Vercel's Neon integration
+Frontend and backend deploy from `main`. A separate migration workflow runs
+when migrations or model files change. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
-### Frontend
+## Verification
 
-- Static React SPA built with Vite, deployed to GitHub Pages
-- `VITE_API_BASE_URL` GitHub Actions variable points to Vercel backend
-- SPA routing via `404.html` copy workaround
+CI has three gates:
 
-## Error Handling
+- Frontend shared workflow for install, lint, build, and Vitest
+- Backend Python 3.13 job for Ruff, format check, mypy, and pytest
+- Shared security scan workflow
 
-### Backend
+Current local suite baseline:
 
-- Try-catch blocks for database operations
-- Meaningful error messages
-- Logging of errors and warnings
+- 328 backend tests
+- 287 frontend tests
+- 615 total tests
 
-### Frontend
+See [TESTING.md](TESTING.md) for commands and scope.
 
-- Error boundaries for React errors
-- Toast notifications for user feedback
-- Graceful fallbacks for failed API calls
+## Related Reading
 
-## Monitoring & Logging
-
-### Backend
-
-- Structured logging with timestamps
-- Log levels: DEBUG, INFO, WARNING, ERROR
-- Centralized logging configuration
-
-### Frontend
-
-- Browser console for development
-- Error tracking in production (future)
-- Performance monitoring (future)
+- [API](API.md)
+- [Database](DATABASE.md)
+- [Calculations](CALCULATIONS.md)
+- [Development](DEVELOPMENT.md)
+- [Page Catalog](PAGES.md)

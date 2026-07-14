@@ -1,696 +1,604 @@
-# Pages Reference — Data Catalog
+# Pages Reference
 
-> **Looking for the full, card-by-card walkthrough?** See the [Complete Handbook](HANDBOOK.md) — it documents every card, chart, metric, and setting on every page, with the exact formula and data source for each. This file is the shorter data-catalog summary.
+Developer-facing route and data-source catalog for Ledger Sync 2.22.0.
 
-A functional tour of every page in Ledger Sync focused on **what data each one shows, where that data comes from, and what decisions it helps you make**. This is the document to read when you want to answer _"what can I actually learn from this app?"_ rather than _"how is it built?"_ For architecture, see [architecture.md](architecture.md); for API shapes, see [API.md](API.md); for the full walkthrough, see [HANDBOOK.md](HANDBOOK.md).
+Verified against `frontend/src/App.tsx`, navigation configuration, page components, and API hooks on 2026-07-14.
 
-Every value shown on every page is derived from:
+## Router Summary
 
-1. Your **uploaded transactions** (Excel / CSV → parsed client-side → JSON to `/api/upload` → deduplicated by SHA-256 hash of `date+amount+category+account`).
-2. Your **user preferences** — fiscal-year month, 50/30/20 targets, essential categories, salary structure, RSU grants, growth assumptions, credit-card limits, etc.
-3. **Pre-aggregated analytics tables** refreshed synchronously after each upload (`monthly_summaries`, `category_trends`, `fy_summaries`, `net_worth_snapshots`, `recurring_transactions`, `goals`, `budgets`, `anomalies`, `merchant_intelligence`, `daily_summaries`). These exist because Neon free tier is slow on ad-hoc aggregation across the full transaction table.
-4. **Live read endpoints** — exchange rates (frankfurter.dev, 24 h cache), stock prices (Yahoo Finance via backend proxy).
+The application has 27 routed page components:
 
-No third-party financial data feeds — everything you see is inferred from the transactions _you_ upload. That's the whole product.
+- 3 public page routes.
+- 24 protected workspace page routes.
+- 4 eager page components: Home, Dashboard, Demo Entry, and OAuth Callback.
+- 23 lazy page components, prefetched during browser idle time.
 
----
+`/home` is a protected compatibility route that redirects to `/dashboard`.
 
-## Page index
+## Public Routes
 
-| Tab / Route | Page | What it answers |
-|---|---|---|
-| **Home** | [`/dashboard`](#dashboard) | "What happened this month at a glance?" |
-| **Txns** | [`/transactions`](#transactions) | "Give me the raw ledger." |
-| **Flow** | [`/income-expense-flow`](#cash-flow--sankey) | "Where did my income actually go?" |
-| More → Analytics | [`/spending`](#expense-analysis) | "Am I overspending, and on what?" |
-| More → Analytics | [`/income`](#income-analysis) | "Where does my money come from?" |
-| More → Analytics | [`/comparison`](#comparison) | "How does this month / FY compare to last?" |
-| More → Analytics | [`/year-in-review`](#year-in-review) | "Full-year retrospective." |
-| More → Net Worth | [`/net-worth`](#net-worth) | "What am I actually worth today?" |
-| More → Net Worth | [`/forecasts`](#trends--forecasts) | "Where is my wealth trending?" |
-| More → Investments | [`/investments/analytics`](#investment-analytics) | "How is my portfolio doing?" |
-| More → Investments | [`/investments/sip-projection`](#mutual-fund-sip-projections) | "What will my SIPs be worth later?" |
-| More → Investments | [`/investments/returns`](#returns-analysis) | "Which holdings are winners?" |
-| More → Tracking | [`/subscriptions`](#recurring--subscriptions) | "What's auto-draining my account?" |
-| More → Tracking | [`/bill-calendar`](#bill-calendar) | "What's due when?" |
-| More → Planning | [`/budgets`](#budgets) | "Am I staying within limits this month?" |
-| More → Planning | [`/goals`](#goals) | "How close am I to my savings goals?" |
-| More → Planning | [`/fire-calculator`](#fire-calculator) | "When can I retire?" |
-| More → Planning | [`/anomalies`](#anomaly-review) | "Did anything weird happen?" |
-| More → Tax | [`/tax`](#income-tax-planning) | "What will I owe this FY?" |
-| More → Tax | [`/tax/gst`](#gst-analysis) | "What indirect tax did I pay?" |
-| More → Data | [`/upload`](#upload--sync) | "How do I add more data?" |
-| More → Data | [`/settings`](#settings) | "Configure the app." |
+| Route | Component | Purpose |
+| --- | --- | --- |
+| `/` | `pages/home/HomePage.tsx` | Public product page and sign-in entry |
+| `/demo` | `pages/DemoEntryPage.tsx` | Seeds demo state and enters Dashboard |
+| `/auth/callback/:provider` | `pages/OAuthCallbackPage.tsx` | Completes Google or GitHub OAuth |
 
-All pages share a top-right **Analytics Time Filter** (except Upload, Settings, More) — toggle between View modes: **All Time**, **Fiscal Year**, **Month**, **Custom Range**. The selected range drives every chart and KPI on that page.
+The public Home route remains available to authenticated users. Its primary action changes from sign-in to opening the workspace.
 
----
+## Protected Routes
 
-## Dashboard
+| Group | Route | Page |
+| --- | --- | --- |
+| Core | `/dashboard` | Dashboard |
+| Core | `/overview` | Overview |
+| Analytics | `/spending` | Expense Analysis |
+| Analytics | `/income` | Income Analysis |
+| Analytics | `/income-expense-flow` | Cash Flow |
+| Analytics | `/comparison` | Comparison |
+| Analytics | `/year-in-review` | Year in Review |
+| Wealth | `/net-worth` | Net Worth Tracker |
+| Wealth | `/forecasts` | Trends and Forecasts |
+| Wealth | `/investments/analytics` | Investment Analytics |
+| Wealth | `/investments/sip-projection` | Projections |
+| Wealth | `/investments/returns` | Returns Analysis |
+| Commitments | `/subscriptions` | Recurring |
+| Commitments | `/bill-calendar` | Bill Calendar |
+| Planning | `/budgets` | Budget Rule |
+| Planning | `/goals` | Financial Goals |
+| Planning | `/fire-calculator` | FIRE Calculator |
+| Planning | `/anomalies` | Anomaly Review |
+| Tax | `/tax` | Income Tax |
+| Tax | `/tax/gst` | Indirect Tax (GST) |
+| Data | `/transactions` | Transactions |
+| Data | `/upload` | Upload and Sync |
+| Data | `/settings` | Settings |
+| Mobile | `/more` | More |
 
-**Route:** `/dashboard` · **Tab:** Home · [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx)
+## Shared Time Filter
 
-The at-a-glance summary for the selected time range (default: current month). Four blocks, top to bottom:
+`AnalyticsTimeFilter` appears on nine pages:
 
-### 1. Quick Insights strip
+- Dashboard
+- Expense Analysis
+- Income Analysis
+- Cash Flow
+- Year in Review
+- Net Worth
+- Trends and Forecasts
+- Investment Analytics
+- Returns Analysis
 
-Six small metrics driven by the transaction feed:
+Available modes are:
 
-| Metric | How it's computed |
-|---|---|
-| **Age of Money** | Days of expenses the current cash balance could sustain at the trailing-90-day average burn rate |
-| **Days of Buffering** | Consecutive days the cash pile survives monthly fixed commitments |
-| **Fixed Commitments / month** | Sum of categories marked as **fixed** in Settings → Expense Categories (rent, EMIs, insurance, utilities, etc.) |
-| **Fixed count** | Number of fixed expense rows this month |
-| **MoM changes** | For each category, % change vs last month — flags the 3 biggest jumps (arrow + %) |
+- All Time
+- FY
+- Yearly
+- Monthly
 
-Configurable via the **Dashboard Widgets** section in Settings (hide/show any of 14 KPIs). All KPIs are derived on the fly from the filtered transaction list.
+Year in Review limits the control to Yearly and FY. The filter does not provide a custom date range. Previous and next navigation is bounded by the available data range where that range is known.
 
-### 2. Financial Health Score
+## Core
 
-An 8-metric score across 4 pillars (Spend / Save / Borrow / Plan), each pillar scored 0–100 and averaged to a single headline. Metrics:
+### Dashboard
 
-- **Spend**: savings rate, fixed commitments ratio
-- **Save**: emergency fund months, net worth trajectory
-- **Borrow**: credit-card utilization, DTI
-- **Plan**: recurring predictability, goal progress
+**Route:** `/dashboard`
 
-The score re-renders instantly when you change the time filter. See [CALCULATIONS.md](CALCULATIONS.md) for the per-metric formulas.
+**Source:** `frontend/src/pages/DashboardPage.tsx`
 
-### 3. Income Sources / Expense Sources
+Purpose: operating view for the selected period.
 
-Twin pie charts (treemap on wider screens) of the top categories feeding this period's totals. Hover tooltip shows `₹ amount (% of total)`. Click a slice to jump to the Spending/Income Analysis page pre-filtered to that category.
+Displays:
 
-### 4. Recent trends block
+- Ledger snapshot through configurable Quick Insights.
+- Confirmed active recurring expenses as fixed commitments.
+- Age of Money and Days of Buffering. Buffering uses only accounts classified as Cash, Bank Accounts, or Other Wallets.
+- Financial Health Score.
+- Income Sources and Expense Sources pies with drill-down links.
 
-Stacked area chart of Income vs Expense over the last 12 months (or the current FY when filter is set to FY). Pulls from `monthly_summaries` so it's a constant-time read regardless of how many transactions you have.
+There is no trailing recent-trends chart. When the selected period contains no transactions, the page shows a full-page upload prompt.
 
-**Empty state:** when the user has no transactions yet, the whole page is replaced with a call-to-action card linking to [Upload & Sync](#upload--sync).
+Primary sources:
 
----
+- `/api/calculations/*`
+- `/api/analytics/*`
+- `/api/analytics/v2/recurring-transactions`
+- `/api/account-classifications`
 
-## Transactions
+### Overview
 
-**Route:** `/transactions` · **Tab:** Txns · [TransactionsPage.tsx](../frontend/src/pages/TransactionsPage.tsx)
+**Route:** `/overview`
 
-The raw ledger — one row per imported transaction. The most-visited page after Dashboard.
+**Source:** `frontend/src/pages/OverviewPage.tsx`
 
-### Columns
+Purpose: fixed whole-picture summary with direct links into detail pages.
 
-Date · Description · Category · Subcategory · Account · Type (Income / Expense / Transfer / Investment) · Amount · Hash (for debugging duplicates)
+Displays:
 
-### Filters
+- Income, spending, net saved, savings rate, and a Net Worth link.
+- Top three income and expense sources.
+- Budgets at or above their alert threshold.
+- Up to four active financial goals.
 
-- **Search box** — full-text across description / category / account
-- **Type** — show only Income / Expense / Transfer / Investment
-- **Category / Subcategory** chips — multi-select
-- **Account** multi-select
-- **Amount range**
-- **Date range** — inherits from Analytics Time Filter but can be overridden per page
+Primary sources:
 
-All filters combine with AND. Count indicator at the top shows `N transactions` after filtering.
+- Shared Dashboard metrics.
+- `/api/analytics/v2/budgets`
+- `/api/analytics/v2/goals`
 
-### What each row lets you do
+Overview is not the public Home page and is not the configurable Dashboard.
 
-- **Edit** — change category / subcategory / type inline (the backend updates just that row; dependent pre-aggregated tables are recomputed on next refresh)
-- **Delete** — soft delete (sets `is_deleted = true`). Deleted transactions stay in the DB but are excluded from every aggregation
-- **Split** — break one transaction into multiple child transactions (e.g., a generic "Amazon ₹5000" → "Amazon — Groceries ₹3000" + "Amazon — Home ₹2000")
+## Analytics
 
-### Sort
+### Expense Analysis
 
-Click any column header. Default sort is date descending. Sort state is stored in the table's local state — no URL sync.
+**Route:** `/spending`
 
-### Virtualization
+**Source:** `frontend/src/pages/spending-analysis/SpendingAnalysisPage.tsx`
 
-The table uses row windowing via `@tanstack/react-table`, so loading 10 000+ transactions stays responsive.
+Displays:
 
----
+- Spending, monthly average, category count, and largest expense.
+- 50/30/20 context.
+- Category and subcategory breakdowns.
+- Monthly expense trend.
+- Multi-category and cohort views.
 
-## Cash Flow (Sankey)
+Category deep links use the `category` query parameter. Calculations combine the filtered ledger with user preferences such as essential categories.
 
-**Route:** `/income-expense-flow` · **Tab:** Flow · [IncomeExpenseFlowPage.tsx](../frontend/src/pages/income-expense-flow/IncomeExpenseFlowPage.tsx)
+### Income Analysis
 
-The flagship visualisation — a Sankey diagram that shows income sources flowing into categories:
+**Route:** `/income`
 
-```
-[Salary]     ──┐
-[Dividends]  ──┤                   ┌── Rent
-[RSUs]       ──┤                   ├── Food
-                ▶ [Total Income] ──▶── Transport
-[Interest]   ──┤                   ├── Investments
-[Gifts]      ──┘                   └── Savings
-```
+**Source:** `frontend/src/pages/income-analysis/IncomeAnalysisPage.tsx`
 
-### Desktop
+Displays:
 
-Interactive Recharts Sankey with hover-to-highlight and a legend (Income / Middle / Expense colour families). Node labels read e.g. `Rent  ₹24 500 (18.2 %)`.
+- Total and average income.
+- Primary source share and income trend.
+- Income categories and configured tax buckets.
+- Monthly income series and category drill-down.
 
-### Mobile
+Primary sources:
 
-The Recharts Sankey doesn't scale down — phones get a dedicated **vertical flow view** (cards stacked top-to-bottom) showing:
+- `/api/calculations/income-analysis`
+- `/api/calculations/data-date-range`
+- `/api/calculations/category-breakdown`
+- `/api/calculations/category-monthly-history`
 
-1. Top 8 income sources (plus an "Other (n)" row for the tail), led by a 100% income-split share bar
-2. "↓" dividing band with net savings + savings rate
-3. Top 8 expense categories (plus "Other (n)")
+The active route is `/income`, not `/income-analysis`.
 
-### Data source
+### Cash Flow
 
-Filtered transaction list grouped by `type = 'Income'` and `type = 'Expense'`, then capped to the **top 8 by amount per side** with everything beyond folded into a single **"Other (n)"** node so the visible flows still sum to Total Income / Total Expenses (the old top-10 slice silently dropped the tail). Transfers and Investments are excluded.
+**Route:** `/income-expense-flow`
 
----
+**Source:** `frontend/src/pages/income-expense-flow/IncomeExpenseFlowPage.tsx`
 
-## Expense Analysis
+Displays:
 
-**Route:** `/spending` · [SpendingAnalysisPage.tsx](../frontend/src/pages/spending-analysis/SpendingAnalysisPage.tsx)
+- Income, expenses, savings, and savings rate.
+- Desktop Sankey from income sources through total income into expense categories and savings.
+- Mobile vertical flow summary below the desktop breakpoint.
 
-A deep dive on where your money is going. Stacked sections:
+The largest nodes are retained and smaller nodes are grouped into Other so displayed flows reconcile with totals.
 
-1. **KPI strip** — total spend, transaction count, and a **Monthly Avg** card with a 12-month sparkline
-2. **50/30/20 panel** — a single-ring donut of Needs (fixed + essential) / Wants (everything else) / Savings, with the target percentages (50/30/20 default; configurable in Settings → Financial Settings) shown on the per-bucket Needs / Wants / Savings cards rather than on a second donut ring
-3. **Category treemap** — rectangles sized by spend, colored by parent category. Click a rectangle to drill into its subcategories
-4. **Multi-category + subcategory time charts** — default to **per-period** (non-cumulative) so they show _when_ spending happened; a cumulative toggle is available. The subcategory chart caps to the **top 6 by spend** with the rest folded into a single **"Other"** series
-5. **Monthly trend** — line chart of total expense month-over-month for the selected window
-6. **Top merchants** — a ranked list with an inline proportional bar per row (the donut was dropped — a list reads magnitudes more accurately and keeps the per-merchant detail like visits and average). Ranked by `SUM(amount)` across the window, sourced from `merchant_intelligence` pre-aggregated table when all-time, from raw transactions when a date range is active
+### Comparison
 
-### Controls
+**Route:** `/comparison`
 
-- **"Needs / Wants / Savings" toggle** — filter the rest of the page to a single bucket
-- **Include transfers toggle** — off by default; turn on to count internal movements as spend (rare)
+**Source:** `frontend/src/pages/comparison/ComparisonPage.tsx`
 
----
+Modes:
 
-## Income Analysis
+- Month
+- Year
+- FY
 
-**Route:** `/income` · [IncomeAnalysisPage.tsx](../frontend/src/pages/income-analysis/IncomeAnalysisPage.tsx)
+Each side has an independent period selector. The page compares:
 
-The income counterpart to Expense Analysis. Breaks your income into four tax-relevant buckets (user-configurable in Settings → Income Classification):
+- Income
+- Expenses
+- Savings
+- Savings rate
+- Expense distribution
+- Category movement
+- Generated comparison insights
 
-- **Taxable** — salary, bonus, RSU vests, consulting
-- **Investment returns** — dividends, interest, capital gains, F&O
-- **Non-taxable** — cashback, refunds, reimbursements, deposit returns
-- **Other** — gifts, prizes, EPF contributions, balancing entries
+There is no custom-range mode, net-worth delta, or normalized trend overlay.
 
-### KPIs
+### Year in Review
 
-- **Primary Income Type** — your largest bucket, with its **share of total income** shown as the subtitle
-- **Growth Rate** — month-over-month income growth, with a sparkline of the monthly income series
+**Route:** `/year-in-review`
 
-### Views
+**Source:** `frontend/src/pages/year-in-review/YearInReviewPage.tsx`
 
-- **Pie of buckets** — proportion of gross income in each bucket
-- **Monthly trend** — stacked area chart by bucket for the window
-- **Source table** — every income subcategory, grouped by bucket, sorted by total
+Supports Yearly and FY views.
 
-The taxable bucket feeds directly into [Tax Planning](#income-tax-planning); the investment bucket feeds [Returns Analysis](#returns-analysis).
+Headline metrics:
 
----
+- Total Spending
+- Total Earning
+- Savings Rate
+- Daily Average
 
-## Comparison
+Also displays a spending heatmap, monthly breakdown, day-of-week analysis, and generated year insights. It does not include merchant-growth, category-growth, net-worth, or milestone sections.
 
-**Route:** `/comparison` · [ComparisonPage.tsx](../frontend/src/pages/comparison/ComparisonPage.tsx)
+## Wealth
 
-Side-by-side view of two periods. Pick "This Month vs Last Month" / "This FY vs Last FY" / "Custom A vs Custom B" from the range picker. For each quick-stat (income, expense, savings, savings rate, net worth change), the page shows A, B, and a **signed delta** (`+`/`−`) with green/red colouring.
+### Net Worth Tracker
 
-Below:
+**Route:** `/net-worth`
 
-1. **Category distribution** — paired bars per category, period A and period B set against a shared axis (a diverging/butterfly layout) so you can compare each category across the two periods at a glance
-2. **Trend overlay** — A and B plotted on the same x-axis normalized to day-of-period, so a 31-day month and a 28-day month align
-3. **Category lists** — sortable tables of per-category spend for each period with a signed change column; card-stack on mobile
+**Source:** `frontend/src/pages/net-worth/NetWorthPage.tsx`
 
----
+Displays:
 
-## Year in Review
+- Net worth, total assets, and total liabilities.
+- Transaction-derived book-value trend.
+- Linear projection band based on average monthly net-worth delta.
+- Milestone ladder.
+- Expandable account-category tables.
+- Credit-card health.
 
-**Route:** `/year-in-review` · [YearInReviewPage.tsx](../frontend/src/pages/year-in-review/YearInReviewPage.tsx)
+There are no asset/liability donut charts or separate liquid-net-worth and emergency-fund KPI cards.
 
-A Spotify-Wrapped-style retrospective for the selected calendar year (defaults to current FY).
+Primary sources:
 
-Sections rendered top to bottom as a scroll narrative:
+- `/api/calculations/daily-net-worth`
+- `/api/calculations/account-balances`
+- User account classifications.
 
-1. **Hero KPIs** — total income, total expense, savings rate, net worth change
-2. **Spending heatmap** — 52×7 grid (one cell per day), coloured by spend intensity. Sourced from `daily_summaries` table
-3. **Peak day / peak month / peak merchant** — highest single-day spend, highest-spend month, most-frequented merchant
-4. **Category of the year** — the category that grew most and the category that shrank most
-5. **Spending by day of week** — a grouped 7-day bar (Sun→Sat) showing average spending vs average earning side by side
-6. **No-spend streak** — your longest run of consecutive zero-spend days, shown as a bold day count with a single accent bar sized relative to a 30-day mark
-7. **Milestones** — achievements detected from your data: _"Crossed ₹10L savings"_, _"Paid off EMI"_, _"First investment month"_, etc.
-8. **Fun facts** — weekend vs weekday spend, early-month vs late-month, biggest single transaction, etc.
+### Trends and Forecasts
 
-All data is derived from the transaction table + `fy_summaries` + `daily_summaries` for that year.
+**Route:** `/forecasts`
 
----
+**Source:** `frontend/src/pages/trends-forecasts/TrendsForecastsPage.tsx`
 
-## Net Worth
+Displays filtered monthly income, expenses, and savings with rolling context, trend metrics, daily cumulative savings behavior, and monthly breakdown tables.
 
-**Route:** `/net-worth` · [NetWorthPage.tsx](../frontend/src/pages/net-worth/NetWorthPage.tsx)
+Historical data is capped at today. Projection pages build their own future ranges.
 
-Your balance sheet right now.
+### Investment Analytics
 
-### Composition
+**Route:** `/investments/analytics`
 
-Two donut charts side by side:
+**Source:** `frontend/src/pages/investment-analytics/InvestmentAnalyticsPage.tsx`
 
-- **Assets** (green palette): Cash & Bank · Stocks · Mutual Funds · Fixed Deposits · PPF/EPF · Other Assets
-- **Liabilities** (red palette): Credit Card Outstanding · Loans Payable
+Configured account mappings are normalized into four display categories:
 
-The asset and liability tables carry an inline **%-of-total bar** on each row so you can read each holding's weight at a glance.
+- FD and Bonds
+- Mutual Funds
+- PPF and EPF
+- Stocks
 
-### KPIs
+Displays:
 
-Three cards: **Total Assets**, **Total Liabilities**, and the hero **Net Worth** card. The cards carry context beyond the headline number — Net Worth shows its **MoM delta** and a **trend sparkline**, Liabilities shows **leverage** (% of assets) and account count, Assets shows its account count.
+- Total Investment Value
+- Portfolio Assets
+- Net Investment P and L
+- Cashflow XIRR
+- Optional Monthly Target
+- Asset allocation and growth charts
+- Account, value, and allocation table
 
-- **Net Worth** = Assets − Liabilities
-- **Liquid Net Worth** = Cash/Bank + Stocks + MF (excludes locked PPF/EPF and FDs)
-- **Debt-to-Asset ratio**
-- **Emergency-fund months** = Cash balance ÷ monthly average fixed expenses
+There is no eight-type holdings editor on this page.
 
-Credit-card utilization renders as a **bullet bar** (threshold bands + a 30% target tick). The milestones table card-stacks on mobile.
+### Projections
 
-### Trend chart
+**Route:** `/investments/sip-projection`
 
-Daily net-worth line over the last 3 / 6 / 12 / 24 months, reading from `net_worth_snapshots`. A snapshot is taken after every upload.
+**Source:** `frontend/src/pages/mutual-fund-projection/MutualFundProjectionPage.tsx`
 
-### Bucket logic
+Combines detected mutual-fund transfers and account balances with user inputs:
 
-Accounts are placed into buckets using your **Account Classifications** (Settings → Account Classifications). The default classification is inferred from account name keywords + balance sign (negative balance without "loan" keyword → Credit Card) — you can drag-drop to reclassify at any time.
+- Current value
+- Monthly SIP
+- Annual step-up
+- Expected return
+- Projection years
 
----
+Outputs invested amount, projected value, gains, growth path, expected-value benchmark, XIRR context, and PPF/EPF/NPS instrument projections.
 
-## Trends & Forecasts
+### Returns Analysis
 
-**Route:** `/forecasts` · [TrendsForecastsPage.tsx](../frontend/src/pages/trends-forecasts/TrendsForecastsPage.tsx)
+**Route:** `/investments/returns`
 
-Looks backward (trends) and forward (projections).
+**Source:** `frontend/src/pages/returns-analysis/ReturnsAnalysisPage.tsx`
 
-### Backward
+Displays:
 
-- **Net worth growth** — monthly snapshots from `net_worth_snapshots` + linear-regression trendline
-- **Income / Expense / Savings** monthly stacks
-- **Category drift** — 12-month slope per category, sorted by fastest-growing
+- Investment-flow summary.
+- Monthly net investment.
+- Estimated CAGR.
+- Account ranking and return status.
+- Best and weakest accounts.
 
-### Forward
+Uses the shared time filter and client-side return calculations over user-scoped transactions and balances.
 
-- **Net worth projection** — extrapolates the regression forward 6 / 12 / 24 months with confidence band
-- **Savings target tracker** — at current burn rate + savings rate, when will you hit your next goal (fed by [Goals](#goals))
+## Commitments
 
-### Growth assumptions
+### Recurring
 
-Uses `growth_assumptions` from user preferences (expected salary growth %, investment return %, inflation %). Change them in Settings → Salary Structure → Growth Assumptions.
+**Route:** `/subscriptions`
 
----
+**Source:** `frontend/src/pages/subscription-tracker/SubscriptionTrackerPage.tsx`
 
-## Investment Analytics
+Displays active confirmed commitments, detected candidates, and inactive items.
 
-**Route:** `/investments/analytics` · [InvestmentAnalyticsPage.tsx](../frontend/src/pages/investment-analytics/InvestmentAnalyticsPage.tsx)
+Actions:
 
-Portfolio overview.
+- Confirm a detected item.
+- Add an item manually.
+- Update amount, cadence, category, or active state.
+- Delete an item.
 
-### Summary cards
+Mutations use `POST`, `PATCH`, and `DELETE /api/analytics/v2/recurring-transactions`.
 
-- **Invested capital** — cumulative inflows to investment-classified accounts
-- **Current value** — latest `current_value` from `investment_holdings` (computed as `invested + realized_gains` today; no live market prices yet)
-- **Realized gains** — redemptions minus investments for each account, aggregated
-- **Overall return** — `(current_value - invested) / invested`
+### Bill Calendar
 
-### Breakdown
+**Route:** `/bill-calendar`
 
-Grouped by investment type (MF / PPF-EPF / FD / Stocks / Gold / Crypto / Real Estate / Other). For each type: invested, current value, gain, gain %.
+**Source:** `frontend/src/pages/bill-calendar/BillCalendarPage.tsx`
 
-### Holdings table
+Displays:
 
-Every investment account with: name, type, invested, current value, gain, gain %, last updated.
+- Next upcoming bill.
+- Month grid with recurring and scheduled items.
+- Amount-scaled dots from 4px to 9px.
+- Due, paid, missed, and variance context.
+- Focused-day details.
 
-### Mapping
+Data comes from recurring commitments and calendar utility calculations.
 
-Investment accounts auto-map to types from their name (e.g. "Groww MF" → mutual_funds, "Zerodha Stocks" → stocks). Override any mapping in Settings → Investment Mappings.
+## Planning
 
----
+### Budget Rule
 
-## Mutual Fund / SIP Projections
+**Route:** `/budgets`
 
-**Route:** `/investments/sip-projection` · [MutualFundProjectionPage.tsx](../frontend/src/pages/mutual-fund-projection/MutualFundProjectionPage.tsx)
+**Source:** `frontend/src/pages/budget/BudgetPage.tsx`
 
-Future-value calculator for SIPs and lump sums.
+This is a 50/30/20 analysis page, not a category budget CRUD table.
 
-### Inputs
+Displays:
 
-- Monthly SIP amount
-- Initial investment (lump sum, optional)
-- Expected annual return %
-- Years
+- Needs, Wants, and Savings cards.
+- Target, actual, delta, and score for each bucket.
+- Grouped category averages.
+- Period choices for 1 year, 2 years, 5 years, All Time, and Custom.
 
-### Outputs
+Primary source: `/api/analytics/v2/spending-rule`.
 
-- Maturity value, total invested, wealth gained
-- Year-by-year table + a **Growth Path** chart of corpus growth, overlaid with an **expected-return benchmark line** (orange dashed) and a **"Today" reference line**
-- Real-return toggle (subtracts your configured inflation from the nominal return)
+### Financial Goals
 
-### Instrument tabs
+**Route:** `/goals`
 
-Per-instrument projections (PPF / EPF / NPS, etc.). NPS shows its asset allocation as a **100% stacked bar** (Equity / Corporate / Government segments) instead of inline text.
+**Source:** `frontend/src/pages/goals/GoalsPage.tsx`
 
-Pure client-side math in `projectionCalculator.ts`.
+Displays:
 
----
+- Savings pool summary.
+- Inline Create Goal form.
+- Goal progress and feasibility.
+- Average-monthly-savings projections.
+- Local allocation overrides.
 
-## Returns Analysis
+The backend creates goals and returns `current_amount`. Current edit, progress, allocation, and delete interactions are browser-local overrides rather than persisted goal mutations.
 
-**Route:** `/investments/returns` · [ReturnsAnalysisPage.tsx](../frontend/src/pages/returns-analysis/ReturnsAnalysisPage.tsx)
+### FIRE Calculator
 
-Which of your investment accounts has actually made money?
+**Route:** `/fire-calculator`
 
-### Monthly net chart
+**Source:** `frontend/src/pages/FIRECalculatorPage.tsx`
 
-A single signed bar per month (green when net-positive, red when negative) with a cumulative line overlay, a zero reference line, and a brush for scrubbing longer histories. (Replaces the old split positive/negative area chart; the redundant monthly-performance heatmap strip was dropped.)
+Displays:
 
-### Ranking table
+- FIRE number.
+- Years to FIRE.
+- Coast FIRE.
+- Savings rate.
+- Lean, Barista, Standard, and Fat variants.
+- Retirement corpus and contribution projections.
 
-Per investment account: invested · current value · realized gains · unrealized gains · total return · XIRR (if computable).
+Inputs include safe withdrawal rate, real return, retirement horizon, Barista income, inflation, and expected nominal return. Defaults are seeded from ledger totals and monthly history where available.
 
-### Winners / losers
+### Anomaly Review
 
-Top 5 and bottom 5 by absolute gain. Flagged accounts: "Underwater" (losing money), "Dormant" (no flows in 12+ months).
+**Route:** `/anomalies`
 
-### XIRR
+**Source:** `frontend/src/pages/AnomalyReviewPage.tsx`
 
-Computed using the Newton-Raphson method over the account's full cash-flow history. Falls back to annualized CAGR if XIRR fails to converge.
+Current anomaly types:
 
----
+- High Expense
+- Unusual Category
+- Large Transfer
+- Budget Exceeded
 
-## Recurring / Subscriptions
+Actions:
 
-**Route:** `/subscriptions` · [SubscriptionTrackerPage.tsx](../frontend/src/pages/subscription-tracker/SubscriptionTrackerPage.tsx)
+- Review
+- Dismiss
+- Add Note
 
-Auto-detected recurring payments — subscriptions, EMIs, rent, utilities.
+The page can include reviewed items and exposes anomaly preference controls.
 
-### Detection
+## Tax
 
-Backend scans your transaction history for items that repeat within a tolerance band (same account + same category + amount within ±10 % of median + occurs ≥ 3× in ≥ 2 different months). Results cached in `recurring_transactions`.
+### Income Tax
 
-### Columns
+**Route:** `/tax`
 
-Name · Category · Account · Frequency (monthly / weekly / yearly) · Expected amount · Variance · Expected day-of-month · Confidence % · Occurrences · Last occurrence · Next expected · Times missed · Active
+**Source:** `frontend/src/pages/tax-planning/TaxPlanningPage.tsx`
 
-### What you can do
+Displays:
 
-- **Confirm** — mark a detected recurring item as yours (boosts confidence)
-- **Dismiss** — not a real recurring payment (removes it from the list)
-- **Edit** — rename, adjust expected amount
-- **Deactivate** — you've cancelled the subscription; stop counting it as expected
+- Old and new regime comparison.
+- Taxable-income classification.
+- Deductions and regime recommendation.
+- Salary and RSU projection mode.
+- Multi-year projection table.
+- Optional projected TDS schedule for the current FY.
 
-Confirmed + active items populate the **Bill Calendar** and the **Next expected** predictions on the Dashboard.
+Tax math is client-side and uses versioned fiscal-year tax configuration. Vested RSU rows use a stored vest-date price when available; upcoming rows use the configured appreciation assumption.
 
----
+### Indirect Tax (GST)
 
-## Bill Calendar
+**Route:** `/tax/gst`
 
-**Route:** `/bill-calendar` · [BillCalendarPage.tsx](../frontend/src/pages/bill-calendar/BillCalendarPage.tsx)
+**Source:** `frontend/src/pages/gst-analysis/GSTAnalysisPage.tsx`
 
-Month-view calendar of upcoming bills and past recurring payments.
+Estimates indirect tax from categorized expenses and date-aware GST slab rules. Results are estimates because imported bank rows do not contain invoice-level GST components.
 
-### Next Upcoming Bill
+## Data
 
-Leads with a due-date **countdown** ("Due today" / "Due tomorrow" / "In N days"), with the bill name and amount underneath.
+### Transactions
 
-### Month grid
+**Route:** `/transactions`
 
-Each cell shows expected / paid bills for that date with:
+**Source:** `frontend/src/pages/TransactionsPage.tsx`
 
-- Day dots **scaled by amount** — bigger bills get a larger dot
-- Past-due indicator (red dot) — expected but no payment seen
-- Paid indicator (green check) — transaction matched the expected amount
-- Amount variance (yellow pill) — paid but > 10 % different from expected
+Columns:
 
-### Side panel
+- Date
+- Type
+- Category, subcategory, and tags
+- Account
+- Amount
+- Note
+- Tag action
 
-- **Today's bills**
-- **This week**
-- **Missed / Overdue** — bills that should've cleared but haven't
-- **Total due this month**
+Filters:
 
----
+- Search
+- Category
+- Subcategory
+- Account
+- Type
+- Tags
+- Date range
+- Amount range
+- Saved view
 
-## Budgets
+The table uses server pagination. Sorting is supported for Date and Amount. There is no inline edit, split, delete, or client virtualization workflow.
 
-**Route:** `/budgets` · [BudgetPage.tsx](../frontend/src/pages/budget/BudgetPage.tsx)
+Related endpoints:
 
-Monthly category budgets with live tracking.
+- `GET /api/transactions`
+- `GET /api/transactions/facets`
+- `GET /api/transactions/export`
+- `PUT /api/transactions/{transaction_id}/tags`
+- `/api/saved-views`
 
-### Rows
+### Upload and Sync
 
-Per category: Budget amount · Spent · Remaining · % used · status badge (On track / Warning / Over). Each row's progress is a **bullet bar** (threshold bands + a target tick).
+**Route:** `/upload`
 
-### Charts
+**Source:** `frontend/src/pages/upload-sync/UploadSyncPage.tsx`
 
-- **Budget vs Actual** — a horizontal bar per category comparing budget against actual spend, the spent bar coloured by status
-- **Budget Utilization** — a horizontal bar of percent-of-budget used per category, sorted highest first, with a dashed **100% reference line** (replaces the old category-usage radar)
+Accepts `.xlsx`, `.xls`, and `.csv`.
+
+Flow:
+
+1. Parse and validate in the browser.
+2. Compute a SHA-256 file hash.
+3. Post structured rows to `/api/upload`.
+4. Request `/api/analytics/v2/refresh`.
+5. Invalidate cached workspace data.
+
+Rows upload immediately after successful parsing. There is no 50-row preview or column-remapping step. The page shows a static expected-format table.
 
 ### Settings
 
-- **Auto-create budgets** (Settings → Financial Settings) — set a default budget for every category based on your trailing 3-month average
-- **Alert threshold** — when Spent ÷ Budget crosses this (default 80 %), the budget is flagged on the Dashboard and in the budget list
-- **Rollover** — if enabled, unused budget from month N rolls into month N+1 for that category
+**Route:** `/settings`
 
-All budgets live in the `budgets` table and are month-scoped.
+**Source:** `frontend/src/pages/settings/SettingsPage.tsx`
 
----
+Twelve sections:
 
-## Goals
+1. Financial Settings
+2. Income and Salary Structure
+3. Account Classifications
+4. Expense Categories
+5. Income Classification
+6. Categorization Rules
+7. Investment Mappings
+8. Display Preferences
+9. Notifications
+10. Dashboard Widgets
+11. AI Assistant
+12. Advanced
 
-**Route:** `/goals` · [GoalsPage.tsx](../frontend/src/pages/goals/GoalsPage.tsx)
+The first six sections start expanded. The remaining six start collapsed.
 
-Savings goals with progress tracking.
+Settings are grouped under Money Setup, Categories and Classification, Profile and Display, and Advanced. Save persists staged preference changes. Reset restores default preferences but preserves account classifications.
 
-### Per goal
+AI configuration endpoints are under `/api/preferences/ai-config`.
 
-- **Name** (e.g. "Down payment", "Emergency fund", "Vacation 2027")
-- **Target amount** and **Target date**
-- **Linked account(s)** — balance in these accounts counts toward the goal
-- **Progress bar** — current balance / target
-- **On-track indicator** — at current monthly contribution, will you hit the target by the date? (Green / Yellow / Red)
-- **Required monthly** — what you'd need to save from now to hit the target on time
+## Mobile
 
-Stored in the `goals` table. The "current balance" is recomputed on every net-worth snapshot.
+### More
 
----
+**Route:** `/more`
 
-## FIRE Calculator
+**Source:** `frontend/src/pages/MorePage.tsx`
 
-**Route:** `/fire-calculator` · [FIRECalculatorPage.tsx](../frontend/src/pages/FIRECalculatorPage.tsx)
+Phone navigation mirror grouped as:
 
-"When can I retire?" modelled on the FIRE (Financial Independence, Retire Early) framework.
+- Overview
+- Analytics
+- Wealth
+- Commitments
+- Planning
+- Tax
+- Data
 
-### KPIs
+The page includes sign-out and exposes every route that is not a dedicated bottom-tab destination.
 
-- **FIRE number** = annual expenses × (1 / SWR) — default SWR 4 %
-- **Coast FIRE** — corpus that if left alone (no further contributions) grows to your FIRE number by retirement age
-- **Years to FIRE** — at current savings rate + real return, how long until your corpus ≥ FIRE number
-- **Savings rate** — monthly net savings / monthly gross income
+## Cross-Page Mechanics
 
-### Inputs
+### Responsive tables
 
-- Current age · Retirement age
-- Current corpus (auto-filled from net worth)
-- Monthly expenses (auto-filled from trailing 12-month average)
-- Real return % · Inflation % (from growth assumptions)
-- SWR % (default 4, adjustable)
-- FIRE variant: Lean (1× expenses) / Standard (1.5×) / Fat (2×)
+`DataTable.mobileCards` switches below the `sm` breakpoint, 640px. Tables with genuinely different shapes use responsive column visibility or a purpose-built mobile layout.
 
-### Outputs
+### Themes
 
-- **FIRE variants comparison** — Lean / Barista / Standard / Fat target numbers as a single horizontal bar on a shared axis (so the tiers are directly comparable) plus a descriptive legend, replacing four isolated number tiles
-- Projection chart: corpus over years, with horizontal bands at Coast FIRE, FIRE number, Fat FIRE
-- Year-by-year table: age, contributions, growth, corpus, passive income at SWR
-
-Pure client-side calculation — no backend call.
-
----
-
-## Anomaly Review
-
-**Route:** `/anomalies` · [AnomalyReviewPage.tsx](../frontend/src/pages/AnomalyReviewPage.tsx)
-
-Unusual transactions flagged by the backend, awaiting your review.
-
-### Detection types
-
-- **Duplicate** — same amount + category + account within 2 days (likely accidental re-upload)
-- **Unusual amount** — transaction amount > 3× the category's trailing-90-day median
-- **Unusual category** — a category that hasn't appeared in 6 months suddenly reappears
-- **Missing recurring** — an expected recurring payment didn't occur
-
-Amount-based anomalies render an **expected-vs-actual mini comparison** — two bars on a shared scale with a deviation-% badge between them.
-
-### Review actions
-
-- **Confirm** — mark as legitimate, suppress future same-pattern anomalies
-- **Delete** — soft-delete the underlying transaction
-- **Edit** — change the category to something more fitting
-- **Ignore** — dismiss without confirming or deleting
-
-Anomalies live in `anomalies` table with `review_status` (`pending` / `confirmed` / `dismissed`).
-
----
-
-## Income Tax Planning
-
-**Route:** `/tax` · [TaxPlanningPage.tsx](../frontend/src/pages/tax-planning/TaxPlanningPage.tsx)
-
-India-specific income tax estimator for the selected financial year (Apr–Mar).
-
-### Sections
-
-1. **Gross taxable income** — sum of subcategories classified as `taxable_income_categories` in Settings → Income Classification, broken into Salary / Perks / Other Taxable
-2. **Deductions** — Standard deduction (₹50 000), 80C (PF contributions + ELSS + PPF detected from transactions, capped at ₹1.5L), HRA if rent category present, Section 80D (health insurance), 24(b) (home loan interest)
-3. **Old vs New regime** — side-by-side slab breakdown. The "better regime" is highlighted. A dual-regime **effective-rate chart** plots each regime as a line (old dashed, new solid) across income, with regime-crossover and your-income markers
-4. **Final tax** — tax after cess (4 %) and surcharge (if applicable), plus effective tax rate. The tax-summary grid no longer repeats cells already shown in the KPI cards
-
-### Salary projection
-
-If you've filled **Settings → Salary Structure + RSU Grants + Growth Assumptions**, a second section projects tax for the current FY + next N FYs with RSU vesting schedule accounted for.
-
-### Data sources
-
-- Your `taxable_income_categories` classification
-- `salary_structure` (Basic, HRA, Special, PF, Insurance, etc.)
-- `rsu_grants` (grant date, vests, price, RSU-tax classification)
-- `growth_assumptions.salary_growth_rate`
-
-All math in [projectionCalculator.ts](../frontend/src/lib/projectionCalculator.ts) + [taxCalculator.ts](../frontend/src/lib/taxCalculator.ts).
-
----
-
-## GST Analysis
-
-**Route:** `/tax/gst` · [GSTAnalysisPage.tsx](../frontend/src/pages/gst-analysis/GSTAnalysisPage.tsx)
-
-Estimates indirect tax (GST) you've paid on expenses this FY.
-
-Assumes standard Indian GST rates per category (e.g. restaurants 5 %, electronics 18 %, alcohol 28 %) and applies them against your spend per category. The result is an approximation — GST isn't line-itemed in bank statements — but it gives you a ballpark of "taxes-within-taxes" paid.
-
-The GST-by-category breakdown is a sortable table that card-stacks on mobile.
-
----
-
-## Upload & Sync
-
-**Route:** `/upload` · [UploadSyncPage.tsx](../frontend/src/pages/upload-sync/UploadSyncPage.tsx)
-
-Drag-and-drop interface for bringing in transaction data.
-
-### Accepted formats
-
-Excel (`.xlsx`, `.xls`) and CSV. Column mapping is flexible — the parser looks for common headers (date, amount, description, category, account) and synonyms. Unmapped columns are ignored.
-
-### Four-phase UX
-
-1. **Parsing** — SheetJS loads in-browser (lazy-imported from CDN to avoid npm supply-chain risk)
-2. **Processing** — rows are validated, hashed, and sent to `/api/upload` as JSON
-3. **Reconciling** — backend compares hashes with existing transactions (SHA-256 of date+amount+category+account); new rows are inserted, duplicates are skipped
-4. **Refreshing analytics** — `POST /api/analytics/v2/refresh` recomputes all pre-aggregated tables
-
-Safe to re-upload — duplicates are idempotent.
-
-### Data preview
-
-After parsing, before submitting, you see a preview table of the first 50 rows with any mapping conflicts highlighted. You can adjust column mapping there.
-
----
-
-## Settings
-
-**Route:** `/settings` · [SettingsPage.tsx](../frontend/src/pages/settings/SettingsPage.tsx)
-
-Eleven collapsible sections. Since v2.7 every section starts collapsed so the page opens as a clean table of contents.
-
-| Section | What it controls |
-|---|---|
-| **Account Classifications** | Which bucket each account belongs to (Bank / Credit Card / Investments / Cash / Loans / Other) — drives Net Worth bucketing. Auto-classified from name keywords + balance sign; drag-drop to override |
-| **Investment Mappings** | Per-investment-account, which type it belongs to (stocks / MF / PPF-EPF / FD / gold / crypto / real estate / other) |
-| **Expense Categories** | Which categories are "fixed" (rent, EMIs, etc.) vs "variable" — drives the Fixed Commitments metric and 50/30/20 split |
-| **Income Classification** | Per income subcategory, which tax bucket (taxable / investment returns / non-taxable / other). Auto-classifies known subcategories by name |
-| **Salary Structure** | CTC components (Basic, HRA, Special, PF, etc.) for tax projection; growth assumptions; RSU grants with vesting schedule |
-| **AI Assistant** | Choose **App mode** (shared Bedrock key, 10 msgs/day free) or **BYOK** (paste your own OpenAI/Anthropic/Bedrock key for unlimited use); set per-user token limits when BYOK |
-| **Financial Settings** | Fiscal year start month, 50/30/20 targets, auto-budget, budget alert threshold, preferred tax regime, savings goal %, earning start date |
-| **Display Preferences** | Currency, currency symbol position, number format, default time range, theme |
-| **Notifications** | Budget alerts · Anomalies · Upcoming bills — each on/off + days-ahead lead time |
-| **Advanced** | Anomaly types enabled + threshold, credit card limits (per card), excluded accounts (won't appear in analytics) |
-| **Dashboard Widgets** | Which of the 14 Quick Insight KPIs appear on the Dashboard (6 on by default) |
-
-### Reset
-
-A top-level "Reset to Defaults" button resets every preference but **preserves account classifications** — the latter are expensive to redo by hand.
-
----
-
-## Home / Landing
-
-**Route:** `/` · [HomePage.tsx](../frontend/src/pages/home/HomePage.tsx)
-
-Pre-auth landing page (shown to logged-out visitors):
-
-- Hero copy and CTA (**Get Started** / **Try Demo**)
-- Feature highlights
-- Mock dashboard preview
-- **Try Demo** button — enters demo mode with ~500 seeded transactions, so you can explore every page without signing up
-
-When already signed in, `/` redirects to `/dashboard`.
-
----
-
-## More
-
-**Route:** `/more` · [MorePage.tsx](../frontend/src/pages/MorePage.tsx)
-
-Phone-only grid menu for every page that didn't earn a bottom-tab slot. Grouped by domain (Analytics / Net Worth / Investments / Tracking / Planning / Tax / Data) with a sign-out button at the bottom. Desktop users navigate via the sidebar instead.
-
----
-
-## Cross-page mechanics
-
-### Charts, tables, and bars
-
-App-wide conventions shared by every page:
-
-- **Accessible charts** — every chart carries an accessible name (`aria-label` on `ChartContainer`) so screen readers announce what it shows
-- **Responsive tables** — wide tables card-stack on mobile (the `DataTable` `mobileCards` option renders each row as a label/value card under the `lg` breakpoint)
-- **Shared progress bars** — a single `ProgressBar` primitive backs every progress, bullet, and utilization bar (threshold bands + optional target tick), so they look and behave the same across Budgets, Net Worth, Tax, and Anomalies
+`themeStore` persists Light, Dark, or System mode. Light is the default for new users.
 
 ### Demo mode
 
-`/demo` bootstraps a fully-populated in-memory dataset of ~500 Indian-household-model transactions, all 11 preference JSONs, recurring / net-worth / merchant / goal / budget / anomaly records. No backend calls are made — every API hook is short-circuited via a `demoStore` flag. Mutations (upload, save settings, add goal, etc.) are blocked with a toast that suggests signing up.
+Demo Entry seeds deterministic sample transactions and query data. Real API mutations are blocked and explain that sign-in is required. Demo state is session-scoped.
 
-### AI chatbot (floating widget)
+### AI assistant
 
-A sparkle-icon button bottom-right on every authenticated page. When open, a 70 dvh-tall chat panel slides in. Two modes:
+The assistant has these 15 tools:
 
-- **App mode** — calls `/api/ai/bedrock/chat` using the server-configured Bedrock key. 10 messages/day cap per user.
-- **BYOK mode** — browser-direct calls to OpenAI/Anthropic (or server-proxied for Bedrock). Per-user daily/monthly token caps configurable.
+1. `list_accounts`
+2. `search_transactions`
+3. `get_monthly_summary`
+4. `list_categories`
+5. `get_category_spending`
+6. `get_net_worth`
+7. `list_recurring`
+8. `list_goals`
+9. `list_recent_months`
+10. `get_fy_summary`
+11. `list_budgets`
+12. `get_cash_flow`
+13. `get_tax_summary`
+14. `get_preferences_summary`
+15. `list_anomalies`
 
-The bot has **15 read-only tools** it can invoke: `list_accounts`, `search_transactions`, `get_monthly_summary`, `list_categories`, `get_category_spending`, `get_net_worth`, `list_recurring`, `list_goals`, `list_recent_months`, `get_fy_summary`, `list_budgets`, `get_savings_rate`, `get_top_merchants`, `get_transfer_flows`, `get_investment_holdings`. It picks tools based on your question. Every tool is user-scoped — the LLM can't see another user's data.
+Tools execute through the authenticated backend and are scoped to the current user.
 
-### Analytics Time Filter
+### Currency
 
-Shared component shown in the top-right of every analytics page. State lives in each page's `use<Page>.ts` hook; the filter itself is stateless. Options:
+Display conversion uses the selected currency and cached exchange rates. Stored transaction values remain in their imported currency context; changing display currency does not rewrite ledger rows.
 
-- **All Time** (default for Net Worth / Trends)
-- **Fiscal Year** (default everywhere else) — uses your configured FY start month
-- **Month** — pick year + month
-- **Custom Range** — two date pickers
+## Known Boundaries
 
-### Currency & Exchange Rates
-
-Settings → Display Preferences → Currency sets the display currency (15 options). If not INR, every amount is converted using the latest exchange rate from frankfurter.dev (24 h cache). The underlying transaction amounts are always stored in the source currency — conversion is display-only.
-
----
-
-## What this app _does not_ do
-
-Deliberately outside scope:
-
-- No automatic bank syncing (no Plaid / SaltEdge / account aggregator integration). You upload Excel statements, period.
-- No receipt scanning / OCR.
-- No debt payoff planners (avalanche / snowball) — yet.
-- No multi-user households — every account is single-user.
-- No live market prices for mutual funds / stocks. Investment "current value" is approximated as `invested + realized_gains` only.
-- No budget alerts via email/push — the Budgets and Anomaly Review pages show breaches, but no push notifications yet.
+- No direct bank account synchronization.
+- No PDF statement parser.
+- No persisted transaction edit, split, or delete UI.
+- No invoice-level GST extraction.
+- No live mutual-fund NAV ingestion.
+- Goal edits and progress overrides are not yet fully persisted.

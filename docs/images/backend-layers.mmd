@@ -1,69 +1,76 @@
-%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#6366f1', 'primaryTextColor': '#fff', 'primaryBorderColor': '#818cf8', 'lineColor': '#94a3b8', 'secondaryColor': '#1e293b', 'tertiaryColor': '#0f172a', 'background': '#0f172a', 'mainBkg': '#1e293b', 'nodeBorder': '#334155', 'clusterBkg': '#1e293b', 'clusterBorder': '#334155', 'titleColor': '#f8fafc', 'edgeLabelBackground': '#1e293b'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Arial, sans-serif', 'primaryColor': '#eef2f1', 'primaryTextColor': '#17201d', 'primaryBorderColor': '#63716c', 'lineColor': '#63716c', 'secondaryColor': '#edf2f7', 'tertiaryColor': '#f7f7f5', 'background': '#f7f7f5', 'mainBkg': '#f7f7f5', 'nodeBorder': '#8a9691', 'clusterBkg': '#f1f3f1', 'clusterBorder': '#b5bdb9', 'titleColor': '#17201d', 'edgeLabelBackground': '#f7f7f5'}}}%%
 flowchart TB
-    subgraph API["  API Layer  (FastAPI Routers)  "]
-        R1["auth\noauth"]
-        R2["upload"]
-        R3["transactions"]
-        R4["analytics\nanalytics_v2"]
-        R5["calculations"]
-        R6["preferences"]
-        R7["account\nclassifications"]
-        R8["meta"]
+    HTTP["HTTP request"]
+
+    subgraph EDGE["Application boundary"]
+        MIDDLEWARE["CORS, timing, security,<br/>cache, GZip, rate limits"]
+        AUTH["JWT decode<br/>token_version check<br/>CurrentUser"]
+        SESSION["Request-scoped<br/>SQLAlchemy session"]
+        SCHEMAS["Pydantic schemas"]
     end
 
-    subgraph CORE["  Business Logic Layer  "]
-        S1["Sync Engine"]
-        S2["Reconciler"]
-        S3["Calculator"]
-        S4["Analytics Engine"]
-        S5["Query Helpers\n(shared SQL\naggregations)"]
-        S6["Time Filter"]
+    subgraph ROUTERS["FastAPI routers"]
+        R_AUTH["OAuth and auth"]
+        R_LEDGER["Upload and transactions"]
+        R_ANALYTICS["Analytics and calculations"]
+        R_PLANNING["Preferences, budgets,<br/>goals, rules, saved views"]
+        R_AI["AI chat, tools, usage"]
+        R_RATES["Rates, stock prices,<br/>reports, metadata"]
     end
 
-    subgraph INGEST["  Ingestion Layer  "]
-        E1["Excel Loader"]
-        E2["Normalizer"]
-        E3["Validator"]
-        E4["Hash ID\nGenerator"]
-        E1 --> E2 --> E3 --> E4
+    subgraph CORE["Domain and service layer"]
+        C_AUTH["Auth service<br/>JWT + encryption"]
+        C_SYNC["Sync engine<br/>normalizer + reconciler"]
+        C_ANALYTICS["Analytics engine<br/>rollups + anomalies"]
+        C_CALC["Financial calculations<br/>and query helpers"]
+        C_AI["15 user-scoped<br/>read-only AI tools"]
+        C_PROVIDER["OAuth, Bedrock,<br/>rate providers"]
     end
 
-    subgraph DATA["  Data Access Layer  "]
-        ORM["SQLAlchemy 2.0\nModels"]
-        MIG["Alembic\nMigrations"]
+    subgraph CLI["CLI file path"]
+        FILES["Excel / CSV loaders"]
     end
 
-    JWT{{"JWT Auth\nMiddleware\n(deps.py)"}} --> API
-    R1 -->|token mgmt| ORM
-    R2 --> S1 --> INGEST
-    E4 --> S2
-    R3 --> S3
-    R4 --> S4
-    R5 --> S3
-    S3 & S4 --> S5
-    S5 --> S6
-    S2 & S6 --> ORM
-    ORM --> DB[("PostgreSQL\nSQLite (dev)")]
+    subgraph DATA["Data layer"]
+        MODELS["SQLAlchemy models<br/>8 domain modules"]
+        MIGRATIONS["Alembic<br/>33 revisions"]
+        DB[("SQLite local<br/>PostgreSQL 17 production")]
+    end
 
-    style JWT fill:#f59e0b,color:#000,stroke:#fbbf24,stroke-width:2px
-    style DB fill:#10b981,color:#fff,stroke:#34d399,stroke-width:2px
-    style S5 fill:#8b5cf6,color:#fff,stroke:#a78bfa,stroke-width:2px
-    style R1 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
-    style R2 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
-    style R3 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
-    style R4 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
-    style R5 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
-    style R6 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
-    style R7 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
-    style R8 fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
-    style S1 fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
-    style S2 fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
-    style S3 fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
-    style S4 fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
-    style S6 fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
-    style E1 fill:#0ea5e9,color:#fff,stroke:#38bdf8,stroke-width:2px
-    style E2 fill:#0ea5e9,color:#fff,stroke:#38bdf8,stroke-width:2px
-    style E3 fill:#0ea5e9,color:#fff,stroke:#38bdf8,stroke-width:2px
-    style E4 fill:#0ea5e9,color:#fff,stroke:#38bdf8,stroke-width:2px
-    style ORM fill:#14b8a6,color:#fff,stroke:#2dd4bf,stroke-width:2px
-    style MIG fill:#14b8a6,color:#fff,stroke:#2dd4bf,stroke-width:2px
+    HTTP --> MIDDLEWARE --> AUTH
+    AUTH --> ROUTERS
+    SESSION --> ROUTERS
+    SCHEMAS --> ROUTERS
+
+    R_AUTH --> C_AUTH
+    R_LEDGER --> C_SYNC
+    R_ANALYTICS --> C_ANALYTICS
+    R_ANALYTICS --> C_CALC
+    R_PLANNING --> C_CALC
+    R_AI --> C_AI
+    R_RATES --> C_PROVIDER
+    FILES --> C_SYNC
+
+    C_AUTH --> MODELS
+    C_SYNC --> MODELS
+    C_ANALYTICS --> MODELS
+    C_CALC --> MODELS
+    C_AI --> MODELS
+    MODELS --> DB
+    MIGRATIONS --> DB
+
+    style HTTP fill:#17201d,color:#f7f7f5,stroke:#17201d,stroke-width:2px
+    style MIDDLEWARE fill:#dbeafe,color:#17201d,stroke:#2563eb,stroke-width:2px
+    style AUTH fill:#fef3c7,color:#17201d,stroke:#b45309,stroke-width:2px
+    style SESSION fill:#e0f2fe,color:#17201d,stroke:#0369a1,stroke-width:2px
+    style SCHEMAS fill:#e0f2fe,color:#17201d,stroke:#0369a1,stroke-width:2px
+    style C_AUTH fill:#dcfce7,color:#17201d,stroke:#15803d,stroke-width:2px
+    style C_SYNC fill:#dcfce7,color:#17201d,stroke:#15803d,stroke-width:2px
+    style C_ANALYTICS fill:#ede9fe,color:#17201d,stroke:#6d28d9,stroke-width:2px
+    style C_CALC fill:#ede9fe,color:#17201d,stroke:#6d28d9,stroke-width:2px
+    style C_AI fill:#ffedd5,color:#17201d,stroke:#c2410c,stroke-width:2px
+    style C_PROVIDER fill:#ffedd5,color:#17201d,stroke:#c2410c,stroke-width:2px
+    style FILES fill:#fee2e2,color:#17201d,stroke:#b91c1c,stroke-width:2px
+    style MODELS fill:#dcfce7,color:#17201d,stroke:#15803d,stroke-width:2px
+    style MIGRATIONS fill:#fef3c7,color:#17201d,stroke:#b45309,stroke-width:2px
+    style DB fill:#fef3c7,color:#17201d,stroke:#b45309,stroke-width:2px

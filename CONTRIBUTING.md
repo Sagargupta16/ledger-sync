@@ -1,10 +1,11 @@
 # Contributing
 
-Thanks for improving Ledger Sync. Keep changes focused and verify both stacks before opening a PR.
+Thanks for improving Ledger Sync. Keep changes focused and verify the affected behavior plus both quality gates before opening a PR.
 
 ## Setup
 
 ```bash
+corepack enable
 pnpm install
 pnpm run setup
 pnpm run dev
@@ -16,7 +17,7 @@ Local services:
 - Backend API: http://localhost:8000
 - API docs: http://localhost:8000/docs
 
-Use `.env.example` as the template. Put backend values in `backend/.env` and frontend values in `frontend/.env.local`. Never commit real secrets or `.env` files.
+Use `.env.example` as the template. Put backend values in `backend/.env`. Local frontend development needs no environment file because Vite proxies `/api`; use `frontend/.env.local` only when testing a separate API origin. Never commit real secrets or `.env` files.
 
 ## Checks
 
@@ -51,4 +52,5 @@ pnpm run build
 - Keep changes surgical and tied to one problem.
 - Use conventional commits such as `fix: update onboarding docs`.
 - Include what changed, why, and the checks you ran.
+- Update API, page, calculation, database, deployment, or changelog documentation when a change affects those contracts.
 - Do not include generated caches, local databases, `node_modules`, or secrets.

@@ -1,181 +1,160 @@
 # Ledger Sync Frontend
 
-Modern financial analytics dashboard built with React 19, TypeScript 6, and Vite 8.
+React 19 and TypeScript 6 application for the Ledger Sync personal finance workspace.
 
-## Tech Stack
+## Stack
 
-- **React 19** - UI framework
-- **TypeScript 6** - Type safety
-- **Vite 8** - Fast build tool and dev server
-- **Tailwind CSS 4** - Utility-first styling
-- **TanStack Query 5** - Server state management and caching
-- **Zustand 5** - Lightweight global state management
-- **Recharts 3** - Charting library for data visualization
-- **Framer Motion 12** - Animations and micro-interactions
-- **Sonner** - Toast notifications
+- React 19
+- TypeScript 6
+- Vite 8
+- Tailwind CSS 4
+- TanStack Query 5
+- Zustand 5
+- Recharts 3
+- Framer Motion 12
+- Vitest and Testing Library
 
-## Project Structure
-
-```
-src/
-├── pages/                          # Page components (24 total)
-│   # Single-file pages (PascalCase):
-│   ├── HomePage.tsx
-│   ├── DashboardPage.tsx
-│   ├── UploadSyncPage.tsx
-│   ├── TransactionsPage.tsx
-│   ├── SpendingAnalysisPage.tsx
-│   ├── IncomeAnalysisPage.tsx
-│   ├── InvestmentAnalyticsPage.tsx
-│   ├── MutualFundProjectionPage.tsx
-│   ├── ReturnsAnalysisPage.tsx
-│   ├── FIRECalculatorPage.tsx
-│   ├── NetWorthPage.tsx
-│   ├── BudgetPage.tsx
-│   ├── InsightsPage.tsx
-│   ├── AnomalyReviewPage.tsx
-│   ├── GSTAnalysisPage.tsx
-│   ├── DemoEntryPage.tsx
-│   ├── OAuthCallbackPage.tsx
-│   │
-│   # Folder-based pages (kebab-case; each has PageName.tsx + use<Page>.ts + types.ts + *utils.ts + components/):
-│   ├── bill-calendar/
-│   ├── comparison/
-│   ├── goals/
-│   ├── income-expense-flow/
-│   ├── settings/                   # Uses sections/ instead of components/
-│   ├── subscription-tracker/
-│   ├── tax-planning/
-│   ├── trends-forecasts/
-│   └── year-in-review/
-├── components/
-│   ├── analytics/      # Analytics components (25+)
-│   ├── chat/           # AI chatbot widget (ChatWidget, ChatPanel, useChat)
-│   ├── layout/         # Layout components (Sidebar, AppLayout)
-│   ├── shared/         # Shared components (EmptyState, TimeFilter, MetricCard)
-│   ├── transactions/   # Transaction table components
-│   ├── ui/             # Base UI components
-│   └── upload/         # Upload components (DropZone)
-├── hooks/              # Custom React hooks
-│   ├── api/            # TanStack Query hooks
-│   └── useDashboardMetrics.ts
-├── services/api/       # API client modules (incl. aiConfig.ts)
-├── store/              # Zustand state stores
-├── lib/                # Utilities (formatters, dateUtils, transactionUtils, chatAdapters, chatContext)
-│   └── demo/           # Demo mode data generators and cache seeder
-├── types/              # TypeScript type definitions
-└── constants/          # Colors, animations, chart config
-```
-
-## Key Features
-
-### AI Chatbot (App Mode + BYOK)
-
-- Floating widget in bottom-right; click to expand into a glass-morphism chat panel
-- User configures OpenAI / Anthropic / AWS Bedrock in Settings > AI Assistant
-- API keys encrypted server-side with AES-256-GCM (PBKDF2 + per-ciphertext random salt)
-- Financial context (monthly summaries, categories, recurring bills, net worth, goals) compressed into ~2-4K token system prompt and cached 5 minutes client-side
-- All providers use non-streaming JSON responses so tool-calling can run one request per turn
-- Bedrock calls go through the backend proxy because Bedrock requires signed server-side auth and has no browser CORS support
-
-### Demo Mode
-
-- "Try Demo" button on landing page and `/demo` direct link
-- ~500 realistic Indian household transactions generated client-side with seeded PRNG
-- 18 derived data generators populate all analytics pages via TanStack Query cache seeding
-- Axios interceptor blocks real API calls; `useDemoGuard` hook blocks mutations with toast
-- Floating banner overlay with sign-up and exit controls
-- Survives browser refresh (sessionStorage + cache re-seed); cleans up on real OAuth login
-
-### Upload & Sync
-
-- Hero section with gradient background and grid pattern
-- Inline drag-and-drop upload zone
-- Sample Excel format preview table
-- Toast notifications for upload status
-
-### Spending Analysis
-
-- **50/30/20 Budget Rule** with configurable targets:
-  - Needs (50% of income) - Essential expenses
-  - Wants (30% of income) - Discretionary expenses
-  - Savings (20% of income) - Income minus expenses
-- Expense treemap, top merchants, subcategory deep-dive
-- Year-over-year comparison, recurring transaction detection
-
-### Investment Analytics
-
-- **4 Investment Categories**: FD/Bonds, Mutual Funds, PPF/EPF, Stocks
-- NET investment calculation (Inflows - Outflows)
-- Asset allocation visualization
-- Mutual fund SIP projection calculator
-
-### Cash Flow (Sankey)
-
-- Income sources → Expense categories
-- Visual flow of money through accounts
-
-### Additional Pages
-
-- **Dashboard** - KPIs, sparklines, financial health score, quick insights
-- **Income Analysis** - Income sources, growth tracking
-- **Comparison** - Period-over-period financial comparison
-- **Trends & Forecasts** - Trend lines, rolling averages, cash flow forecast
-- **Tax Planning** - India FY-based tax insights and slab breakdown
-- **Net Worth** - Assets, liabilities, and credit card health
-- **Budget** - Budget tracking and monitoring
-- **Goals** - Financial goal setting and progress
-- **Insights** - Spending velocity, income stability, savings milestones
-- **Anomaly Review** - Flag and review unusual transactions
-- **Year in Review** - Annual financial summary
-- **Subscription Tracker** - Recurring expense detection, confirm/add manually
-- **Bill Calendar** - Monthly calendar view of upcoming bills
-
-## Getting Started
+## Run Locally
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Start development server
 pnpm run dev
-
-# Type check
-pnpm run type-check
-
-# Lint
-pnpm run lint
-
-# Build for production
-pnpm run build
-
-# Run tests
-pnpm run test
 ```
 
-## Environment Variables
+Other commands:
 
-Local development uses Vite's same-origin `/api` proxy, so no frontend
-environment variable is required. Set `VITE_API_BASE_URL` only for a production
-frontend whose API is hosted on a different origin.
+```bash
+pnpm run lint
+pnpm run type-check
+pnpm test
+pnpm run build
+```
 
-## State Management
+The dev server runs at `http://localhost:5173` and proxies `/api` to `http://localhost:8000`.
 
-### TanStack Query (Server State)
+## Router and Pages
 
-- Automatic caching with `staleTime: Infinity` (data only refetches on explicit invalidation)
-- Cache invalidated after uploads and mutations
-- Query invalidation on mutations
+`src/App.tsx` defines 27 routed page components:
 
-### Zustand (Client State)
+- 4 eager core pages: Home, Dashboard, Demo Entry, and OAuth Callback.
+- 23 lazy workspace pages, prefetched during browser idle time.
+- 3 public routes and 24 protected workspace routes.
 
-- `authStore` - JWT tokens with persist middleware
-- `demoStore` - Demo mode flag with sessionStorage persist
-- `preferencesStore` - User display preferences (hydrated from API)
-- `accountStore` - Account mappings
-- `investmentAccountStore` - Investment category mappings
-- `budgetStore` - Budget settings
+The protected workspace is organized into:
 
-## Development
+```text
+Core
+  Dashboard
+  Overview
 
-See the main [Development Guide](../docs/DEVELOPMENT.md) for comprehensive instructions.
+Analytics
+  Expense Analysis
+  Income Analysis
+  Cash Flow
+  Comparison
+  Year in Review
+
+Wealth
+  Net Worth
+  Trends and Forecasts
+  Investment Analytics
+  Projections
+  Returns Analysis
+
+Commitments
+  Recurring
+  Bill Calendar
+
+Planning
+  Budget Rule
+  Financial Goals
+  FIRE Calculator
+  Anomaly Review
+
+Tax
+  Income Tax
+  Indirect Tax (GST)
+
+Data
+  Transactions
+  Upload and Sync
+  Settings
+
+Mobile
+  More
+```
+
+Multi-file pages use kebab-case directories with a page component, hook, helpers, types, and local components. Smaller pages remain single PascalCase files.
+
+## Application Shell
+
+- `AppLayout` owns the responsive workspace frame.
+- `WorkspaceHeader` exposes the current page, search, notifications, and AI access.
+- `Sidebar` groups desktop navigation by financial workflow.
+- `MobileTabBar` exposes Dashboard, Transactions, Cash Flow, and More below `lg`.
+- `MorePage` provides mobile access to every remaining route.
+- `CommandPalette` handles workspace search.
+- `ChatWidget` and `ChatPanel` provide the AI assistant.
+
+Page bodies use shared `PageContainer` and `PageHeader` primitives. The global header handles safe-area placement; individual page headers remain in document flow.
+
+## State and Data
+
+### TanStack Query
+
+Server state is cached with long stale times and invalidated after uploads or mutations. API hooks live in `src/hooks/api/`.
+
+### Zustand
+
+The stores in `src/store/` are:
+
+- `authStore`
+- `demoStore`
+- `themeStore`
+- `preferencesStore`
+- `accountStore`
+- `investmentAccountStore`
+- `budgetStore`
+
+### API client
+
+`src/services/api/client.ts` attaches JWT access tokens, refreshes expired access tokens, blocks real mutations in demo mode, and uses `VITE_API_BASE_URL` only when configured.
+
+## Upload Flow
+
+1. `fileParser.ts` lazy-loads SheetJS and parses `.xlsx`, `.xls`, or `.csv`.
+2. Flexible headers are mapped to the standard transaction shape.
+3. The browser computes a SHA-256 file hash.
+4. Validated rows are posted as JSON to `/api/upload`.
+5. The frontend requests `/api/analytics/v2/refresh`.
+6. Query caches are invalidated so the workspace reloads current data.
+
+There is no multipart file upload and no post-parse mapping screen. The Upload page shows an inline drop zone, progress states, conflict handling, and a static expected-format example.
+
+## AI Assistant
+
+- The system prompt contains preferences, current date and fiscal-year context, and tool-use guidance.
+- Financial data is fetched on demand through 15 read-only tools.
+- OpenAI and Anthropic use browser-direct JSON requests.
+- Bedrock uses the backend proxy.
+- All provider adapters are non-streaming so tool calls can complete in bounded request rounds.
+- App Bedrock mode works without a user key. BYOK mode supports configured providers and usage limits.
+
+## Themes and Responsive Behavior
+
+- `themeStore` persists Light, Dark, or System mode.
+- `index.css` contains semantic color, surface, typography, chart, and control tokens.
+- Charts resolve theme colors through `rawColors`.
+- Wide shared tables can switch to mobile cards below `sm`.
+- Primary phone controls target at least 44px.
+- The service worker caches the application shell but excludes `/api/*`.
+
+## Tests
+
+The current frontend suite contains 287 tests in 23 files.
+
+```bash
+pnpm test
+```
+
+See [docs/TESTING.md](../docs/TESTING.md) and [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).

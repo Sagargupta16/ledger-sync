@@ -1,1385 +1,511 @@
-# API Documentation
+# API Reference
 
-## Base URL
+Human-readable reference for Ledger Sync API version 2.22.0.
 
+The generated OpenAPI document is the contract source of truth. This guide was
+verified against that document on 2026-07-14.
+
+Current OpenAPI inventory:
+
+- 99 paths
+- 113 HTTP operations
+- Swagger UI at `/docs`
+- ReDoc at `/redoc`
+- Raw schema at `/openapi.json`
+
+To inspect the current schema locally:
+
+```bash
+cd backend
+uv run uvicorn ledger_sync.api.main:app --reload --port 8000
 ```
-http://localhost:8000
-```
+
+## Base URLs
+
+| Environment | URL |
+| --- | --- |
+| Local | `http://localhost:8000` |
+| Hosted | `https://ledger-sync-api.vercel.app` |
+
+Frontend code should use relative `/api/...` paths through
+`frontend/src/services/api/client.ts`. Local Vite development proxies those
+requests to port 8000. `VITE_API_BASE_URL` is needed only when the built
+frontend and API use different origins.
 
 ## Authentication
 
-OAuth-only authentication via Google and GitHub. The API issues JWT Bearer tokens after OAuth login.
+Ledger Sync uses OAuth for sign-in and JWT bearer tokens for authenticated API
+requests.
 
-### OAuth Flow
+```http
+Authorization: Bearer <access_token>
+```
 
-1. `GET /api/auth/oauth/providers` — Returns enabled OAuth providers (Google, GitHub) with authorize URLs
-2. Frontend redirects user to provider's authorize URL
-3. Provider redirects back to `{frontend_url}/auth/callback/{provider}?code=...`
-4. Frontend sends code to `POST /api/auth/oauth/{provider}/callback`
-5. Backend exchanges code for user info, creates/links user, returns JWT tokens
+Public operations:
 
-### OAuth Endpoints
+- `GET /health`
+- `GET /health/db`
+- `GET /api/auth/oauth/providers`
+- `POST /api/auth/oauth/google/callback`
+- `POST /api/auth/oauth/github/callback`
+- `POST /api/auth/refresh`, which authenticates with a refresh token in the body
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/auth/oauth/providers` | No | List enabled OAuth providers |
-| POST | `/api/auth/oauth/google/callback` | No | Exchange Google auth code for JWT |
-| POST | `/api/auth/oauth/github/callback` | No | Exchange GitHub auth code for JWT |
-| POST | `/api/auth/refresh` | No | Refresh access token |
-| GET | `/api/auth/me` | Yes | Get current user profile |
-| PUT | `/api/auth/me` | Yes | Update profile (name) |
-| POST | `/api/auth/logout` | Yes | Logout (client-side token cleanup) |
-| DELETE | `/api/auth/account` | Yes | Delete account permanently |
-| POST | `/api/auth/account/reset` | Yes | Reset account data (supports `mode` param) |
+All financial data, preferences, external-rate proxies, and AI operations
+require an authenticated user.
 
-All other endpoints require `Authorization: Bearer <access_token>` header.
+### OAuth flow
 
-### Reset Account
+1. The frontend requests `GET /api/auth/oauth/providers`.
+2. The backend returns each configured provider plus a signed state token.
+3. The browser opens the provider authorization URL.
+4. The provider redirects to `/auth/callback/:provider` with `code` and `state`.
+5. The frontend posts both values to the matching backend callback.
+6. The backend validates the HMAC-SHA256 state token and its 10-minute expiry.
+7. The backend exchanges the code, verifies the provider identity, and creates
+   or loads the local user.
+8. The callback returns an access token and refresh token.
 
-**POST** `/api/auth/account/reset`
+The authoritative identity is `(auth_provider, auth_provider_id)`. The backend
+does not silently merge an email already linked to another provider.
 
-Reset account data while keeping the OAuth login. Supports two modes:
+### Token lifecycle
 
-**Query Parameters:**
-
-- `mode` (string, optional) - Reset scope (default: `full`)
-  - `full` — Deletes all user data (transactions, analytics, preferences, budgets, goals, account classifications)
-  - `transactions` — Deletes only transactions, import logs, and analytics. Preserves preferences, budgets, goals, and account classifications.
-
-**Response (200 OK):**
+- Access tokens expire after 30 minutes by default.
+- Refresh tokens expire after 7 days by default.
+- `POST /api/auth/refresh` returns a fresh access and refresh token pair.
+- Every token carries the user's `token_version`.
+- Logout and account reset increment `token_version`, invalidating all
+  outstanding access and refresh tokens server-side.
 
 ```json
 {
-  "message": "Transactions and analytics cleared. Preferences preserved."
+  "refresh_token": "<refresh-token>"
 }
 ```
 
-or (for `mode=full`):
+### Logout and account reset
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| `POST` | `/api/auth/logout` | Revokes all current token pairs for the user |
+| `POST` | `/api/auth/account/reset?mode=full` | Clears user data and recreates default preferences |
+| `POST` | `/api/auth/account/reset?mode=transactions` | Clears transactions and derived analytics while preserving settings, budgets, goals, and account classifications |
+| `DELETE` | `/api/auth/account` | Permanently deletes the account and its data |
+
+## Response and Error Conventions
+
+FastAPI validation failures use HTTP 422 and the standard `detail` array.
+Most application errors return a string in `detail`.
 
 ```json
 {
-  "message": "Account reset to fresh state. All data cleared."
+  "detail": "Invalid refresh token"
 }
 ```
 
-## Common Response Format
-
-### Success Response
+Database outages are normalized to:
 
 ```json
 {
-  "success": true,
-  "data": {
-    /* endpoint-specific data */
-  },
-  "message": "Operation successful"
+  "error": "Database unavailable",
+  "code": "DB_ERROR"
 }
 ```
 
-### Error Response
+Unhandled failures return a non-sensitive correlation ID:
 
 ```json
 {
-  "success": false,
-  "error": "Error description",
-  "detail": "Detailed error message"
+  "error": "Internal server error",
+  "code": "INTERNAL_ERROR",
+  "error_id": "0123456789abcdef"
 }
 ```
 
-## Upload Endpoints
+Common status codes:
 
-### Upload Transactions (JSON)
+| Status | Meaning |
+| --- | --- |
+| 200 | Successful read or update |
+| 201 | Resource created |
+| 204 | Successful deletion with no body |
+| 400 | Invalid operation or upstream request |
+| 401 | Missing, expired, or revoked token |
+| 404 | Resource not found |
+| 409 | Import or identity conflict |
+| 422 | Request validation failure |
+| 429 | Rate limit exceeded |
+| 500 | Unexpected server error |
+| 502 | External provider failure |
+| 503 | Database or configured service unavailable |
 
-**POST** `/api/upload`
+## Endpoint Inventory
 
-Upload pre-parsed transaction rows as structured JSON. Files are parsed client-side using SheetJS; the frontend computes a SHA-256 file hash, maps columns, validates rows, and sends the result here.
+### Health and authentication
 
-**Request Body (JSON):**
+| Methods | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | API process and version health |
+| `GET` | `/health/db` | Database connectivity |
+| `POST` | `/api/auth/refresh` | Exchange a refresh token for a new token pair |
+| `GET`, `PUT` | `/api/auth/me` | Read or update the current profile |
+| `POST` | `/api/auth/logout` | Revoke all current sessions |
+| `DELETE` | `/api/auth/account` | Delete the current account |
+| `POST` | `/api/auth/account/reset` | Reset full or transaction-only data |
+| `GET` | `/api/auth/oauth/providers` | List configured providers and signed state |
+| `POST` | `/api/auth/oauth/google/callback` | Complete Google OAuth |
+| `POST` | `/api/auth/oauth/github/callback` | Complete GitHub OAuth |
+
+### Transactions, import, tags, and saved organization
+
+| Methods | Path | Purpose |
+| --- | --- | --- |
+| `GET`, `POST` | `/api/transactions` | Paginated list or manual transaction creation |
+| `GET` | `/api/transactions/all` | Full active transaction list |
+| `GET` | `/api/transactions/facets` | Accounts, categories, tags, and type counts |
+| `GET` | `/api/transactions/search` | Filtered transaction search |
+| `GET` | `/api/transactions/export` | Filtered CSV export |
+| `PUT` | `/api/transactions/{transaction_id}/tags` | Replace a transaction's tags |
+| `POST` | `/api/upload` | Reconcile browser-parsed transaction rows |
+| `GET`, `POST` | `/api/saved-views` | List or create saved filters |
+| `DELETE` | `/api/saved-views/{view_id}` | Delete a saved filter |
+| `GET`, `POST` | `/api/categorization-rules` | List or create rules |
+| `PUT`, `DELETE` | `/api/categorization-rules/{rule_id}` | Update or delete a rule |
+| `POST` | `/api/categorization-rules/apply` | Apply active rules to existing transactions |
+
+### Analytics
+
+| Methods | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/analytics/overview` | Income, expenses, savings, and account overview |
+| `GET` | `/api/analytics/behavior` | Spending behavior metrics |
+| `GET` | `/api/analytics/trends` | Trend metrics |
+| `GET` | `/api/analytics/wrapped` | Year summary |
+| `GET` | `/api/analytics/kpis` | Dashboard KPIs |
+| `GET` | `/api/analytics/charts/income-expense` | Income and expense chart data |
+| `GET` | `/api/analytics/charts/categories` | Category chart data |
+| `GET` | `/api/analytics/charts/monthly-trends` | Monthly trend chart data |
+| `GET` | `/api/analytics/charts/account-distribution` | Account distribution chart data |
+| `GET` | `/api/analytics/insights/generated` | Rule-generated financial insights |
+| `GET` | `/api/analytics/v2/monthly-summaries` | Persisted monthly rollups |
+| `GET` | `/api/analytics/v2/daily-summaries` | Persisted daily rollups |
+| `GET` | `/api/analytics/v2/cohort-spending` | Day and month spending cohorts |
+| `GET` | `/api/analytics/v2/investment-holdings` | Derived investment holdings |
+| `GET` | `/api/analytics/v2/category-trends` | Monthly category and subcategory trends |
+| `GET` | `/api/analytics/v2/transfer-flows` | All-time account-pair transfer totals |
+| `GET`, `POST` | `/api/analytics/v2/recurring-transactions` | List or create recurring entries |
+| `PATCH`, `DELETE` | `/api/analytics/v2/recurring-transactions/{item_id}` | Update or delete a recurring entry |
+| `GET` | `/api/analytics/v2/merchant-intelligence` | Merchant aggregates |
+| `GET` | `/api/analytics/v2/spending-rule` | Needs, wants, and savings analysis |
+| `GET` | `/api/analytics/v2/net-worth` | Net worth history |
+| `GET` | `/api/analytics/v2/fy-summaries` | Fiscal-year rollups |
+| `GET` | `/api/analytics/v2/anomalies` | Detected anomalies |
+| `POST` | `/api/analytics/v2/anomalies/{anomaly_id}/review` | Review or dismiss an anomaly |
+| `GET`, `POST` | `/api/analytics/v2/budgets` | List or create category budgets |
+| `GET`, `POST` | `/api/analytics/v2/goals` | List or create financial goals |
+| `POST` | `/api/analytics/v2/refresh` | Recompute all persisted analytics |
+
+### Calculations and reports
+
+| Methods | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/calculations/categories/master` | Category hierarchy |
+| `GET` | `/api/calculations/totals` | Income, expenses, net change, and savings rate |
+| `GET` | `/api/calculations/monthly-aggregation` | Monthly values for a requested period |
+| `GET` | `/api/calculations/yearly-aggregation` | Yearly values |
+| `GET` | `/api/calculations/category-breakdown` | Category and subcategory totals |
+| `GET` | `/api/calculations/account-balances` | Ledger-derived account balances |
+| `GET` | `/api/calculations/insights` | Calculated insight metrics |
+| `GET` | `/api/calculations/category-monthly-history` | Monthly history for categories |
+| `GET` | `/api/calculations/data-date-range` | Earliest and latest active transaction dates |
+| `GET` | `/api/calculations/income-analysis` | Income source analysis |
+| `GET` | `/api/calculations/category-daily-series` | Daily category series |
+| `GET` | `/api/calculations/quick-insights` | Dashboard quick-insight values |
+| `GET` | `/api/calculations/daily-net-worth` | Daily ledger net worth |
+| `GET` | `/api/calculations/top-categories` | Highest-value categories |
+| `GET` | `/api/reports/monthly` | Monthly HTML report |
+
+### Metadata, accounts, and preferences
+
+| Methods | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/meta/types` | Transaction type values |
+| `GET` | `/api/meta/accounts` | Active account names |
+| `GET` | `/api/meta/filters` | Filter values |
+| `GET` | `/api/meta/buckets` | Dynamic budget-rule buckets |
+| `GET`, `POST` | `/api/account-classifications` | Read all mappings or upsert one |
+| `GET`, `DELETE` | `/api/account-classifications/{account_name}` | Read or remove one mapping |
+| `GET` | `/api/account-classifications/type/{account_type}` | Accounts in one type |
+| `GET`, `PUT` | `/api/preferences` | Read or partially update all preferences |
+| `POST` | `/api/preferences/reset` | Restore preference defaults |
+| `PUT` | `/api/preferences/fiscal-year` | Fiscal-year start |
+| `PUT` | `/api/preferences/essential-categories` | Essential categories |
+| `PUT` | `/api/preferences/investment-mappings` | Investment account mappings |
+| `PUT` | `/api/preferences/income-sources` | Income tax-treatment groups |
+| `PUT` | `/api/preferences/budget-defaults` | Budget defaults |
+| `PUT` | `/api/preferences/display` | Number, currency, and time display |
+| `PUT` | `/api/preferences/anomaly-settings` | Anomaly settings |
+| `PUT` | `/api/preferences/recurring-settings` | Recurring detection settings |
+| `PUT` | `/api/preferences/spending-rule` | Needs, wants, and savings targets |
+| `PUT` | `/api/preferences/credit-card-limits` | Credit-card limits |
+| `PUT` | `/api/preferences/earning-start-date` | Optional chart start date |
+| `PUT` | `/api/preferences/salary-structure` | Fiscal-year salary data |
+| `PUT` | `/api/preferences/rsu-grants` | RSU grants and vestings |
+| `PUT` | `/api/preferences/growth-assumptions` | Projection assumptions |
+
+### AI and external data
+
+| Methods | Path | Purpose |
+| --- | --- | --- |
+| `GET`, `PUT`, `DELETE` | `/api/preferences/ai-config` | Read, save, or remove BYOK configuration |
+| `PATCH` | `/api/preferences/ai-config/mode` | Switch `app_bedrock` or `byok` |
+| `PATCH` | `/api/preferences/ai-config/limits` | Set or clear user token limits |
+| `GET` | `/api/preferences/ai-config/key` | Reveal the current user's decrypted key |
+| `POST` | `/api/ai/bedrock/chat` | Non-streaming Bedrock Converse proxy |
+| `GET` | `/api/ai/tools` | List 15 read-only tool schemas |
+| `POST` | `/api/ai/tools/execute` | Execute one user-scoped tool |
+| `POST` | `/api/ai/usage/log` | Record browser-direct provider usage |
+| `GET` | `/api/ai/usage` | Today, month-to-date, and all-time usage |
+| `GET` | `/api/exchange-rates` | Currency rates by base currency |
+| `GET` | `/api/rates/instruments` | EPF, PPF, and NPS reference rates |
+| `GET` | `/api/stock-price/{symbol}` | Latest or historical stock price |
+
+## Upload Contract
+
+The browser parses Excel or CSV content with SheetJS. The API never receives
+the original statement file on the web path.
+
+```http
+POST /api/upload
+Content-Type: application/json
+Authorization: Bearer <access_token>
+```
 
 ```json
 {
-  "file_name": "MoneyManager.xlsx",
-  "file_hash": "a1b2c3d4e5f6...",
+  "file_name": "statement.xlsx",
+  "file_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "force": false,
   "rows": [
     {
-      "date": "2025-01-15",
-      "amount": 5000.0,
+      "date": "2026-07-01",
+      "amount": 1250.5,
+      "currency": "INR",
       "type": "Expense",
-      "category": "Groceries",
-      "subcategory": "Supermarket",
-      "account": "HDFC Savings",
-      "note": "Weekly groceries"
+      "account": "Bank",
+      "category": "Food",
+      "subcategory": "Groceries",
+      "note": "Market"
     }
-  ],
-  "force": false
+  ]
 }
 ```
 
-**Fields:**
+Contract rules:
 
-- `file_name` (string, required) - Original file name
-- `file_hash` (string, required) - SHA-256 hash of the file (for deduplication)
-- `rows` (array, required) - Array of `TransactionRow` objects with `date`, `amount`, `type`, `category`, `subcategory`, `account`, `note`
-- `force` (boolean, optional) - Force re-import if file hash already exists (default: false)
+- `file_hash` is exactly 64 hexadecimal characters.
+- `rows` contains 1 to 100,000 items.
+- Amounts are non-negative.
+- Import row types are `Income`, `Expense`, `Transfer-In`, or `Transfer-Out`.
+- `force=true` bypasses the already-imported file check.
 
-**Response (200 OK):**
+Successful response:
 
 ```json
 {
   "success": true,
-  "message": "File uploaded and processed successfully",
+  "message": "Successfully processed statement.xlsx",
   "stats": {
-    "processed": 291,
-    "inserted": 45,
-    "updated": 12,
-    "deleted": 3,
-    "unchanged": 231
+    "processed": 1,
+    "inserted": 1,
+    "updated": 0,
+    "deleted": 0,
+    "unchanged": 0
   },
-  "file_name": "MoneyManager.xlsx"
+  "file_name": "statement.xlsx"
 }
 ```
 
-**Error Responses:**
+The upload endpoint normalizes rows, creates occurrence-aware transaction
+hashes, reconciles the current user's ledger, and runs a full analytics
+refresh. A refresh failure is logged but does not roll back successfully
+persisted transactions. `POST /api/analytics/v2/refresh` remains available for
+a manual retry.
 
-- 400: Invalid data or missing required fields
-- 409: File already imported (use `force: true` to override)
-- 500: Server error
+## Transaction Contracts
 
-**Example:**
-
-```bash
-curl -X POST http://localhost:8000/api/upload \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "file_name": "transactions.xlsx",
-    "file_hash": "abc123...",
-    "rows": [{"date": "2025-01-15", "amount": 5000, "type": "Expense", "category": "Food", "subcategory": "Dining", "account": "HDFC", "note": ""}],
-    "force": false
-  }'
-```
-
----
-
-## Transaction Endpoints
-
-### Get All Transactions
-
-**GET** `/api/transactions`
-
-Retrieve all transactions from the database.
-
-**Query Parameters:**
-
-- `skip` (integer, optional) - Number of records to skip (default: 0)
-- `limit` (integer, optional) - Number of records to return (default: 100)
-
-**Response (200 OK):**
+Manual creation accepts:
 
 ```json
 {
-  "data": [
-    {
-      "id": "abc123def456...",
-      "date": "2025-01-15",
-      "amount": 5000.0,
-      "type": "Expense",
-      "category": "Groceries",
-      "subcategory": "Supermarket",
-      "account": "Checking",
-      "description": "Weekly groceries",
-      "file_source": "MoneyManager.xlsx",
-      "created_at": "2025-01-15T10:30:00Z",
-      "updated_at": "2025-01-15T10:30:00Z"
-    }
-  ],
-  "total": 1234,
-  "skip": 0,
-  "limit": 100
+  "date": "2026-07-01T10:00:00Z",
+  "amount": 1250.5,
+  "type": "Expense",
+  "category": "Food",
+  "subcategory": "Groceries",
+  "account": "Bank",
+  "note": "Market",
+  "from_account": null,
+  "to_account": null
 }
 ```
 
-### Get All Transactions (No Pagination)
+Manual `type` values are `Income`, `Expense`, and `Transfer`. Transfers should
+provide `from_account` and `to_account`.
 
-**GET** `/api/transactions/all`
-
-Return every non-deleted transaction in a single JSON array. Designed for the frontend analytics layer which needs the full dataset for client-side aggregation.
-
-**Query Parameters:**
-
-- `start_date` (ISO date, optional) - Start date filter
-- `end_date` (ISO date, optional) - End date filter
-
-**Response (200 OK):**
-
-```json
-[
-  {
-    "id": "abc123def456...",
-    "date": "2025-01-15",
-    "amount": 5000.0,
-    "type": "Expense",
-    "category": "Groceries",
-    "subcategory": "Supermarket",
-    "account": "Checking",
-    "description": "Weekly groceries",
-    "file_source": "MoneyManager.xlsx"
-  }
-]
-```
-
-### Search Transactions
-
-**GET** `/api/transactions/search`
-
-Search and filter transactions with pagination, sorting, and full-text search across notes, category, and account fields.
-
-**Query Parameters:**
-
-- `query` (string, optional) - Search text in notes, category, account
-- `category` (string, optional) - Filter by category
-- `subcategory` (string, optional) - Filter by subcategory
-- `account` (string, optional) - Filter by account
-- `type` (string, optional) - Filter by type (`Income`, `Expense`, `Transfer`)
-- `min_amount` (float, optional) - Minimum amount
-- `max_amount` (float, optional) - Maximum amount
-- `start_date` (ISO date, optional) - Start date filter
-- `end_date` (ISO date, optional) - End date filter
-- `limit` (integer, optional) - Max results to return (1-1000, default: 100)
-- `offset` (integer, optional) - Number of results to skip (default: 0)
-- `sort_by` (string, optional) - Sort field: `date`, `amount`, `category`, or `account` (default: `date`)
-- `sort_order` (string, optional) - `asc` or `desc` (default: `desc`)
-
-**Response (200 OK):**
+Tag replacement accepts up to 10 tags. Each trimmed tag must be 1 to 50
+characters. An empty list clears all tags.
 
 ```json
 {
-  "data": [
-    {
-      "id": "abc123def456...",
-      "date": "2025-01-15",
-      "amount": 5000.0,
-      "type": "Expense",
-      "category": "Groceries",
-      "account": "Checking"
-    }
-  ],
-  "total": 234,
-  "limit": 100,
-  "offset": 0,
-  "has_more": true
+  "tags": ["reimbursable", "work"]
 }
 ```
 
-### Export Transactions as CSV
+## Account Classifications
 
-**GET** `/api/transactions/export`
+`POST /api/account-classifications` takes `account_name` and `account_type` as
+query parameters. Valid persisted account types are:
 
-Export all non-deleted transactions as a CSV file download.
+- `Cash`
+- `Bank Accounts`
+- `Credit Cards`
+- `Investments`
+- `Loans/Lended`
+- `Other Wallets`
 
-**Query Parameters:**
-
-- `start_date` (ISO date, optional) - Start date filter
-- `end_date` (ISO date, optional) - End date filter
-
-**Response (200 OK):** CSV file with headers: `id`, `date`, `amount`, `currency`, `type`, `category`, `subcategory`, `account`, `from_account`, `to_account`, `note`, `source_file`, `last_seen_at`
-
----
-
-### Get Transaction Facets
-
-**GET** `/api/transactions/facets`
-
-Dropdown options + per-type counts for the Transactions page, computed via SQL `DISTINCT`/`GROUP BY` (replaces three full-ledger fetches the page used for dropdowns + the summary card). Honors the user's `excluded_accounts` preference and soft-delete filter.
-
-**Response (200 OK):**
+`GET /api/account-classifications` returns an account-to-type object:
 
 ```json
 {
-  "categories": ["Charity", "Education", "..."],
-  "accounts": ["Bank: DCB", "Bank: HDFC", "..."],
-  "income_count": 715,
-  "expense_count": 4868,
-  "transfer_count": 1185,
-  "total_count": 6768
+  "Salary Account": "Bank Accounts",
+  "Broker": "Investments"
 }
 ```
 
----
+An unclassified single-account lookup returns `Other` without creating a row.
 
-## Meta Endpoints
+## Salary and Projection Preferences
 
-Metadata endpoints for populating dropdowns and filter options. All require authentication.
-
-### List Account Names
-
-**GET** `/api/meta/accounts`
-
-Return unique account names from all transactions (including transfer from/to accounts).
-
-**Response (200 OK):**
-
-```json
-{
-  "accounts": ["Checking", "HDFC Savings", "Grow Mutual Funds"]
-}
-```
-
-### Get Filter Options
-
-**GET** `/api/meta/filters`
-
-Return combined filter metadata (transaction types + account names).
-
-**Response (200 OK):**
-
-```json
-{
-  "transaction_types": ["Expense", "Income", "Transfer"],
-  "accounts": ["Checking", "HDFC Savings", "Grow Mutual Funds"]
-}
-```
-
-### Get Category Buckets
-
-**GET** `/api/meta/buckets`
-
-Return dynamically classified category buckets (needs/wants/savings/investment) based on existing transaction data.
-
-**Response (200 OK):**
-
-```json
-{
-  "needs": ["Food", "Rent", "Utilities"],
-  "wants": ["Entertainment", "Shopping"],
-  "savings": ["Emergency Fund"],
-  "investment_categories": ["Mutual Funds", "Stocks"],
-  "investment_accounts": ["Grow Mutual Funds", "Zerodha Stocks"]
-}
-```
-
----
-
-## Analytics Endpoints
-
-### Get Financial Overview
-
-**GET** `/api/analytics/overview`
-
-Get high-level financial metrics.
-
-**Query Parameters:**
-
-- `time_range` (string, optional) - Filter by time range
-  - `all_time` (default)
-  - `last_month`
-  - `last_3_months`
-  - `last_6_months`
-  - `last_year`
-
-**Response (200 OK):**
-
-```json
-{
-  "total_income": 450000.0,
-  "total_expenses": 285000.0,
-  "net_change": 165000.0,
-  "best_month": {
-    "month": "December",
-    "net": 45000.0
-  },
-  "worst_month": {
-    "month": "October",
-    "net": 8000.0
-  },
-  "account_distribution": {
-    "Savings": 250000.0,
-    "Checking": 150000.0,
-    "Credit Card": -50000.0
-  }
-}
-```
-
-### Get KPIs
-
-**GET** `/api/analytics/kpis`
-
-Get key performance indicators.
-
-**Query Parameters:**
-
-- `time_range` (string, optional) - Time range filter
-
-**Response (200 OK):**
-
-```json
-{
-  "total_income": 450000.0,
-  "total_expenses": 285000.0,
-  "net_savings": 165000.0,
-  "savings_rate": 0.3667,
-  "transaction_count": 1234,
-  "average_transaction": 365.57,
-  "expense_count": 945,
-  "income_count": 289,
-  "top_category": {
-    "category": "Rent",
-    "amount": 120000.0,
-    "percentage": 0.42
-  },
-  "top_income_source": {
-    "category": "Salary",
-    "amount": 400000.0,
-    "percentage": 0.89
-  }
-}
-```
-
-### Get Spending Behavior
-
-**GET** `/api/analytics/behavior`
-
-Get behavioral insights about spending patterns.
-
-**Query Parameters:**
-
-- `time_range` (string, optional) - Time range filter
-
-**Response (200 OK):**
-
-```json
-{
-  "average_monthly_spending": 23750.0,
-  "spending_velocity": 2847.25,
-  "expense_concentration": 0.42,
-  "top_categories": [
-    {
-      "category": "Rent",
-      "amount": 120000.0,
-      "percentage": 0.42,
-      "trend": "stable"
-    },
-    {
-      "category": "Food",
-      "amount": 45000.0,
-      "percentage": 0.16,
-      "trend": "increasing"
-    }
-  ],
-  "lifestyle_changes": [
-    "Increased dining out spending",
-    "More frequent entertainment expenses"
-  ]
-}
-```
-
-### Get Financial Trends
-
-**GET** `/api/analytics/trends`
-
-Get spending and income trends over time.
-
-**Query Parameters:**
-
-- `time_range` (string, optional) - Time range filter
-
-**Response (200 OK):**
-
-```json
-{
-  "monthly_trends": [
-    {
-      "month": "January",
-      "income": 37500.0,
-      "expenses": 23750.0,
-      "net": 13750.0,
-      "trend": "up"
-    }
-  ],
-  "consistency_score": 0.85,
-  "surplus_trend": "increasing",
-  "average_monthly_surplus": 13750.0,
-  "forecast_next_month": 14200.0
-}
-```
-
-### Get Yearly Wrapped
-
-**GET** `/api/analytics/wrapped`
-
-Get text-based insights and narratives about financial year.
-
-**Query Parameters:**
-
-- `time_range` (string, optional) - Time range filter
-
-**Response (200 OK):**
-
-```json
-{
-  "summary": "You had a financially strong year with consistent savings.",
-  "income_narrative": "You earned ₹450,000 from 289 income transactions...",
-  "expense_narrative": "Your expenses totaled ₹285,000...",
-  "highlights": [
-    "Highest spending month was October",
-    "Food expenses increased 15% YoY",
-    "Maintained 37% savings rate"
-  ],
-  "recommendations": [
-    "Consider reducing discretionary spending",
-    "Track subscription costs more carefully"
-  ]
-}
-```
-
----
-
-## Calculation Endpoints
-
-### Get Totals
-
-**GET** `/api/calculations/totals`
-
-Calculate total income, expenses, and net savings.
-
-**Query Parameters:**
-
-- `start_date` (ISO date, optional) - Start date filter
-- `end_date` (ISO date, optional) - End date filter
-
-**Response (200 OK):**
-
-```json
-{
-  "total_income": 450000.0,
-  "total_expenses": 285000.0,
-  "net_savings": 165000.0,
-  "income_transactions": 289,
-  "expense_transactions": 945
-}
-```
-
-### Get Monthly Aggregation
-
-**GET** `/api/calculations/monthly-aggregation`
-
-Get monthly income and expense data.
-
-**Query Parameters:**
-
-- `start_date` (ISO date, optional)
-- `end_date` (ISO date, optional)
-
-**Response (200 OK):**
-
-```json
-{
-  "months": [
-    {
-      "month": "2025-01",
-      "income": 37500.0,
-      "expenses": 23750.0,
-      "net": 13750.0,
-      "transactions": 45
-    }
-  ]
-}
-```
-
-### Get Category Breakdown
-
-**GET** `/api/calculations/category-breakdown`
-
-Get spending by category.
-
-**Query Parameters:**
-
-- `start_date` (ISO date, optional)
-- `end_date` (ISO date, optional)
-- `transaction_type` (string, optional) - "Income" or "Expense"
-
-**Response (200 OK):**
-
-```json
-{
-  "categories": [
-    {
-      "category": "Rent",
-      "amount": 120000.0,
-      "percentage": 0.42,
-      "transaction_count": 12
-    },
-    {
-      "category": "Food",
-      "amount": 45000.0,
-      "percentage": 0.16,
-      "transaction_count": 234
-    }
-  ],
-  "total": 285000.0
-}
-```
-
-### Get Account Balances
-
-**GET** `/api/calculations/account-balances`
-
-Get current balance for each account.
-
-**Query Parameters:**
-
-- `start_date` (ISO date, optional)
-- `end_date` (ISO date, optional)
-
-**Response (200 OK):**
-
-```json
-{
-  "accounts": [
-    {
-      "name": "Savings",
-      "balance": 250000.0
-    },
-    {
-      "name": "Checking",
-      "balance": 150000.0
-    }
-  ],
-  "total_balance": 400000.0
-}
-```
-
-### Get Financial Insights
-
-**GET** `/api/calculations/insights`
-
-Get comprehensive financial insights.
-
-**Query Parameters:**
-
-- `start_date` (ISO date, optional)
-- `end_date` (ISO date, optional)
-
-**Response (200 OK):**
-
-```json
-{
-  "average_daily_income": 1232.88,
-  "average_daily_expense": 780.82,
-  "average_monthly_expense": 23750.0,
-  "savings_rate": 0.3667,
-  "largest_transaction": {
-    "amount": 120000.0,
-    "category": "Rent",
-    "date": "2025-01-01"
-  },
-  "unusual_spending": [
-    {
-      "amount": 95000.0,
-      "category": "Travel",
-      "date": "2025-06-15",
-      "reason": "2x normal spending"
-    }
-  ]
-}
-```
-
-### Get Top Categories
-
-**GET** `/api/calculations/top-categories`
-
-Get top spending categories.
-
-**Query Parameters:**
-
-- `start_date` (ISO date, optional)
-- `end_date` (ISO date, optional)
-- `limit` (integer, optional) - Number of categories (default: 10)
-- `transaction_type` (string, optional) - "Income" or "Expense"
-
-**Response (200 OK):**
-
-```json
-[
-  {
-    "category": "Rent",
-    "amount": 120000.0,
-    "percentage": 0.42,
-    "count": 12
-  },
-  {
-    "category": "Food",
-    "amount": 45000.0,
-    "percentage": 0.16,
-    "count": 234
-  }
-]
-```
-
----
-
-### Get Quick Insights
-
-**GET** `/api/calculations/quick-insights`
-
-Raw-transaction-derived Dashboard "band" stats, computed server-side (the page no longer ships the full ledger). Date-range aware.
-
-**Query Parameters:** `start_date`, `end_date` (ISO date, optional)
-
-**Response (200 OK):** `min_date`, `max_date`, `net_cashback`, `cashback_count`, `median_expense`, `biggest_expense` `{amount, category}`, `avg_expense`, `total_spending`, `expense_count`, `weekend_spending`, `weekday_spending`, `peak_day` (JS getDay: 0=Sun..6=Sat), `peak_day_total`, `total_transfers`, `transfer_count`, `top_income_source` `{category, amount}|null`, `most_expensive_month` `{period, amount}|null`. Net cashback matches Income rows whose subcategory contains "cashback" minus Transfers whose `to_account` contains "cashback shared".
-
----
-
-### Get Data Date Range
-
-**GET** `/api/calculations/data-date-range`
-
-Min/max active-transaction date for the analytics time-filter nav bounds (avoids a full-ledger fetch).
-
-**Response (200 OK):** `{ "min_date": "2019-01-01", "max_date": "2026-06-30" }` (either may be `null` when no data).
-
----
-
-### Get Income Analysis
-
-**GET** `/api/calculations/income-analysis`
-
-Income page stats. The cashback classification is the user's `non_taxable_income_categories` preference, forwarded by the client so the backend reproduces `matchesClassification` (case-insensitive `Category::Subcategory`) without a second preference source.
-
-**Query Parameters:** `start_date`, `end_date` (ISO, optional); `cashback_categories` (repeated string, optional); `category` (string, optional -- mirrors the `?category=` deep-link).
-
-**Response (200 OK):** `total_income`, `category_breakdown` `{category: amount}`, `monthly_data` `[{month, income, income_avg_3m}]`, `cashbacks_total`, `peak_income`, `growth_rate`.
-
----
-
-### Get Category Monthly History
-
-**GET** `/api/calculations/category-monthly-history`
-
-Per-category spend aligned to a caller-supplied list of month keys (powers the CategoryBreakdown trailing-12-month sparkline). The client passes its local month keys; the backend buckets into exactly those (timezone-stable).
-
-**Query Parameters:** `months` (comma-separated `YYYY-MM`, oldest first, required); `transaction_type` ("income"/"expense", default expense).
-
-**Response (200 OK):** `{ "Groceries": [m0, m1, ..., mN], ... }` (absolute sums; 0 for empty months).
-
----
-
-### Get Category Daily Series
-
-**GET** `/api/calculations/category-daily-series`
-
-Daily per-`(category, subcategory)` sums for client-side time-series bucketing (MultiCategoryTimeAnalysis, EnhancedSubcategoryAnalysis). The client keeps its own day/week/month bucketing.
-
-**Query Parameters:** `start_date`, `end_date` (ISO, optional); `transaction_type` (default expense); `category` (optional -- restrict to one category for subcategory drill-down).
-
-**Response (200 OK):** `{ "data": [{date, category, subcategory, amount}], "transaction_count": N }`.
-
----
-
-## Account Classification Endpoints
-
-### Get All Account Classifications
-
-**GET** `/api/account-classifications`
-
-Get all account classifications set by user.
-
-**Response (200 OK):**
-
-```json
-{
-  "classifications": [
-    {
-      "account_name": "Grow Mutual Funds",
-      "account_type": "investment"
-    },
-    {
-      "account_name": "HDFC Savings",
-      "account_type": "savings"
-    }
-  ]
-}
-```
-
-### Get Account Classification
-
-**GET** `/api/account-classifications/{account_name}`
-
-Get classification for a specific account.
-
-**Response (200 OK):**
-
-```json
-{
-  "account_name": "Grow Mutual Funds",
-  "account_type": "investment"
-}
-```
-
-### Set Account Classification
-
-**POST** `/api/account-classifications`
-
-Set or update account classification.
-
-**Request Body:**
-
-```json
-{
-  "account_name": "Grow Mutual Funds",
-  "account_type": "investment"
-}
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Account classification saved"
-}
-```
-
-### Delete Account Classification
-
-**DELETE** `/api/account-classifications/{account_name}`
-
-Remove account classification.
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Account classification removed"
-}
-```
-
-### Get Accounts by Type
-
-**GET** `/api/account-classifications/type/{account_type}`
-
-Get all accounts of a specific type.
-
-**Parameters:**
-
-- `account_type` - One of: `investment`, `savings`, `checking`, `credit`, `loan`
-
-**Response (200 OK):**
-
-```json
-{
-  "accounts": ["Grow Mutual Funds", "Zerodha Stocks", "PPF Account"]
-}
-```
-
----
-
-## Analytics V2 Endpoints
-
-Pre-aggregated analytics data. All require authentication.
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/analytics/v2/daily-summaries` | Daily income/expense/net aggregations |
-| GET | `/api/analytics/v2/investment-holdings` | Investment portfolio holdings |
-| GET | `/api/analytics/v2/monthly-summaries` | Monthly income/expense/savings |
-| GET | `/api/analytics/v2/category-trends` | Category-level trends over time |
-| GET | `/api/analytics/v2/transfer-flows` | Account-to-account transfer flows |
-| GET | `/api/analytics/v2/recurring-transactions` | Detected recurring patterns |
-| GET | `/api/analytics/v2/merchant-intelligence` | Merchant spending insights |
-| GET | `/api/analytics/v2/net-worth` | Net worth snapshots over time |
-| GET | `/api/analytics/v2/fy-summaries` | Fiscal year summaries |
-| GET | `/api/analytics/v2/anomalies` | Detected spending anomalies |
-| GET | `/api/analytics/v2/budgets` | Budget tracking data |
-| GET | `/api/analytics/v2/goals` | Financial goals and progress |
-| POST | `/api/analytics/v2/budgets` | Create a new budget |
-| POST | `/api/analytics/v2/goals` | Create a new financial goal |
-| POST | `/api/analytics/v2/anomalies/{id}/review` | Mark anomaly as reviewed |
-| POST | `/api/analytics/v2/refresh` | Recompute all pre-aggregated analytics tables |
-
-### Refresh Analytics
-
-**POST** `/api/analytics/v2/refresh`
-
-Recompute all pre-aggregated analytics tables (daily summaries, monthly summaries, category trends, transfer flows, merchants, recurring transactions, net worth, investment holdings, FY summaries, anomalies, budgets). Called by the frontend after a successful upload to ensure analytics data is fresh.
-
-Runs synchronously -- the response is only sent after all tables are updated. This replaces the previous `BackgroundTasks` approach which was unreliable on Vercel serverless.
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "analytics": {
-    "daily_summaries": 730,
-    "monthly_summaries": 24,
-    "category_trends": 156,
-    "transfer_flows": 42,
-    "merchants": 18,
-    "recurring": 12,
-    "investment_holdings": 5,
-    "fy_summaries": 3,
-    "anomalies": 7,
-    "budgets_updated": 4
-  }
-}
-```
-
----
-
-## Preferences Endpoints
-
-User preference management. All require authentication.
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/preferences` | Get all preferences |
-| PUT | `/api/preferences` | Update preferences (partial) |
-| POST | `/api/preferences/reset` | Reset to defaults |
-| PUT | `/api/preferences/fiscal-year` | Update fiscal year |
-| PUT | `/api/preferences/essential-categories` | Update essential categories |
-| PUT | `/api/preferences/investment-mappings` | Update investment mappings |
-| PUT | `/api/preferences/income-sources` | Update income classification |
-| PUT | `/api/preferences/budget-defaults` | Update budget defaults |
-| PUT | `/api/preferences/display` | Update display preferences |
-| PUT | `/api/preferences/anomaly-settings` | Update anomaly settings |
-| PUT | `/api/preferences/recurring-settings` | Update recurring settings |
-| PUT | `/api/preferences/spending-rule` | Update 50/30/20 targets |
-| PUT | `/api/preferences/credit-card-limits` | Update credit card limits |
-| PUT | `/api/preferences/earning-start-date` | Update earning start date |
-| PUT | `/api/preferences/salary-structure` | Update salary CTC structure per FY |
-| PUT | `/api/preferences/rsu-grants` | Update RSU grant list with vesting schedules |
-| PUT | `/api/preferences/growth-assumptions` | Update growth assumptions (hike %, variable growth, stock appreciation, projection years) |
-
-Preferences include 20 sections: fiscal year, essential categories, investment mappings, income classification, budget defaults, display format, anomaly settings, recurring settings, spending rule targets, credit card limits, earning start date, fixed expense categories, savings/investment targets, payday, tax regime, excluded accounts, notification preferences, salary structure, RSU grants, and growth assumptions.
-
-### Update Salary Structure
-
-**PUT** `/api/preferences/salary-structure`
-
-Update the salary CTC structure per fiscal year. Each FY key maps to a salary components object.
-
-**Request Body:**
+Salary structure is keyed by fiscal-year label:
 
 ```json
 {
   "salary_structure": {
-    "2025-26": {
-      "basic_annual": 600000,
-      "hra_annual": 300000,
-      "special_allowance_annual": 200000,
-      "epf_monthly": 1800,
-      "nps_monthly": null,
-      "professional_tax_annual": 2400,
-      "variable_pay_annual": 100000,
-      "other_annual": 0,
-      "is_new_regime": true
+    "2026-27": {
+      "base_salary_annual": 2400000,
+      "hra_annual": 600000,
+      "bonus_annual": 300000,
+      "epf_monthly": 3600,
+      "nps_monthly": 0,
+      "special_allowance_annual": 0,
+      "other_taxable_annual": 0
     }
   }
 }
 ```
 
-### Update RSU Grants
-
-**PUT** `/api/preferences/rsu-grants`
-
-Update the list of RSU grants with vesting schedules.
-
-**Request Body:**
+RSU grants use dated vestings. `price_at_vest` is optional and stores a locked
+historical price for completed vestings.
 
 ```json
 {
   "rsu_grants": [
     {
       "id": "grant-1",
-      "company": "ACME Corp",
-      "grant_date": "2025-01-15",
-      "total_shares": 100,
-      "stock_price": 1500,
-      "vesting_schedule": [
-        { "date": "2026-01-15", "quantity": 25 },
-        { "date": "2027-01-15", "quantity": 25 },
-        { "date": "2028-01-15", "quantity": 25 },
-        { "date": "2029-01-15", "quantity": 25 }
+      "stock_name": "Example Corp",
+      "stock_price": 100,
+      "grant_date": "2026-01-01",
+      "notes": null,
+      "vestings": [
+        {
+          "date": "2026-08-01",
+          "quantity": 10,
+          "price_at_vest": null
+        }
       ]
     }
   ]
 }
 ```
 
-### Update Growth Assumptions
-
-**PUT** `/api/preferences/growth-assumptions`
-
-Update the assumptions used for multi-year tax projections.
-
-**Request Body:**
+Growth assumptions:
 
 ```json
 {
   "growth_assumptions": {
-    "salary_hike_pct": 10,
-    "variable_growth_pct": 5,
-    "stock_appreciation_pct": 8,
-    "projection_years": 3,
-    "include_rsu_in_projection": true
+    "base_salary_growth_pct": 8,
+    "bonus_growth_pct": 5,
+    "epf_scales_with_base": true,
+    "nps_growth_pct": 0,
+    "stock_price_appreciation_pct": 7,
+    "projection_years": 3
   }
 }
 ```
 
----
+## AI Configuration and Tools
 
-## AI Assistant Endpoints
+Modes:
 
-User-provided LLM credentials for the chat widget. Keys are encrypted at rest with AES-256-GCM (PBKDF2-derived from the app's JWT secret + per-ciphertext random 128-bit salt). OpenAI and Anthropic calls go browser-direct using the decrypted key; Bedrock is proxied via the backend because it requires SigV4 auth.
+- `app_bedrock` uses the server-configured Bedrock model and credential.
+- `byok` uses a saved OpenAI, Anthropic, or Bedrock configuration.
 
-### Get AI Config
+Saved API keys are encrypted at rest with AES-256-GCM. Current v2 ciphertexts
+derive their key with HKDF-SHA256 from `LEDGER_SYNC_ENCRYPTION_KEY`. Legacy v1
+PBKDF2 ciphertexts remain readable and are rewritten as v2 when revealed.
 
-**GET** `/api/preferences/ai-config`
+`GET /api/preferences/ai-config` never includes the key. The explicit key
+endpoint returns `Cache-Control: no-store, no-cache, private, max-age=0`.
 
-Returns the user's AI configuration without the raw key.
+All 15 financial tools are read-only, user-scoped, and response-capped. The AI
+cannot mutate ledger data through the tool endpoint. Provider calls are
+non-streaming JSON requests with a maximum tool-round count enforced by the
+frontend.
 
-**Response:**
+## Exchange and Instrument Data
 
-```json
-{
-  "provider": "anthropic",
-  "model": "claude-sonnet-4-6",
-  "has_key": true,
-  "region": null
-}
-```
+`GET /api/exchange-rates?base=INR` uses frankfurter.dev and a 24-hour,
+per-process memory cache.
 
-For Bedrock, `region` is set (e.g., `"us-east-1"`). If the user has not configured AI, all fields are `null`/`false`.
+- Fresh results include `base`, `rates`, and Unix `fetched_at`.
+- A failed upstream refresh can return the existing cache with `stale: true`.
+- If no INR cache exists, the endpoint returns dated fallback rates with
+  `fallback: true` and `fallback_as_of`.
+- A non-INR request with no usable result returns HTTP 502.
 
-### Update AI Config
-
-**PUT** `/api/preferences/ai-config`
-
-Stores AI provider configuration with the key encrypted at rest.
-
-**Request Body:**
-
-```json
-{
-  "provider": "openai",
-  "model": "gpt-4.1",
-  "api_key": "sk-...",
-  "region": null
-}
-```
-
-`provider` must be one of `openai`, `anthropic`, `bedrock`. Saving provider-specific config switches the user to BYOK mode. For Bedrock, set `region` (e.g. `"us-east-1"`); calls still go through the backend proxy because Bedrock requires signed server-side auth.
-
-### Get Decrypted API Key
-
-**GET** `/api/preferences/ai-config/key`
-
-Returns the decrypted API key for browser-direct OpenAI and Anthropic calls. The frontend calls this on each chat send; the key is never cached in localStorage.
-
-**Response:**
-
-```json
-{ "api_key": "sk-..." }
-```
-
-**Error Responses:**
-
-- `404` if no key is configured
-- `400` if the encrypted key cannot be decrypted because the encryption secret changed (user must re-enter their key in Settings)
-
-### Delete AI Config
-
-**DELETE** `/api/preferences/ai-config`
-
-Clears the stored provider, model, and encrypted key. Returns `{"status": "deleted"}`.
-
-### Bedrock Chat Proxy
-
-**POST** `/api/ai/bedrock/chat`
-
-Calls Bedrock Converse server-side and returns the full assistant response as JSON. Required because Bedrock needs signed server-side authentication and doesn't support CORS for browser-direct calls. Uses `boto3.client('bedrock-runtime').converse()` server-side.
-
-**Request Body:**
-
-```json
-{
-  "messages": [
-    { "role": "user", "content": "How much did I spend last month?" }
-  ],
-  "system_prompt": "You are a financial assistant...",
-  "max_tokens": 1024
-}
-```
-
-**Response:** JSON with text and optional tool-use blocks:
-
-```json
-{
-  "blocks": [
-    { "type": "text", "text": "Based on your latest data..." }
-  ],
-  "stop_reason": "end_turn"
-}
-```
-
-Errors return normal HTTP error responses with a JSON `detail` field.
-
----
-
-## Chart Data Endpoints
-
-### Income/Expense Chart
-
-**GET** `/api/analytics/charts/income-expense`
-
-Get monthly income vs expense data for charts.
-
-**Response (200 OK):**
-
-```json
-{
-  "data": [
-    {
-      "month": "Jan 2025",
-      "income": 150000,
-      "expense": 85000
-    }
-  ]
-}
-```
-
-### Category Chart
-
-**GET** `/api/analytics/charts/categories`
-
-Get category breakdown for pie/donut charts.
-
-**Response (200 OK):**
-
-```json
-{
-  "data": [
-    {
-      "category": "Food",
-      "amount": 25000,
-      "percentage": 0.15
-    }
-  ]
-}
-```
-
-### Monthly Trends Chart
-
-**GET** `/api/analytics/charts/monthly-trends`
-
-Get monthly trend data for line charts.
-
-**Response (200 OK):**
-
-```json
-{
-  "data": [
-    {
-      "month": "2025-01",
-      "income": 150000,
-      "expense": 85000,
-      "savings": 65000
-    }
-  ]
-}
-```
-
-### Account Distribution Chart
-
-**GET** `/api/analytics/charts/account-distribution`
-
-Get account balance distribution.
-
-**Response (200 OK):**
-
-```json
-{
-  "data": [
-    {
-      "account": "HDFC Savings",
-      "balance": 250000,
-      "percentage": 0.45
-    }
-  ]
-}
-```
-
----
-
-## Generated Insights
-
-### Get AI-Generated Insights
-
-**GET** `/api/analytics/insights/generated`
-
-Get AI-generated financial insights and recommendations.
-
-**Response (200 OK):**
-
-```json
-{
-  "insights": [
-    {
-      "type": "spending",
-      "message": "Your food expenses increased 20% this month",
-      "severity": "warning"
-    },
-    {
-      "type": "savings",
-      "message": "Great job! You saved 35% of your income",
-      "severity": "success"
-    }
-  ]
-}
-```
-
----
-
-## Exchange Rate Endpoints
-
-### Get Exchange Rates
-
-**GET** `/api/exchange-rates`
-
-Fetch live exchange rates from the European Central Bank (via frankfurter.dev) with 24-hour in-memory cache.
-
-**Query Parameters:**
-
-- `base` (string, optional) - Base currency (default: `INR`)
-
-**Response (200 OK):**
-
-```json
-{
-  "base": "INR",
-  "rates": {
-    "USD": 0.01179,
-    "EUR": 0.01087,
-    "GBP": 0.00935
-  },
-  "updated_at": "2026-04-11T10:30:00Z"
-}
-```
-
-**Fallback behavior:** Fresh cache -> stale cache -> hardcoded fallback rates. Returns 502 only if all three tiers fail. Fallback responses additionally include `fallback: true` and `fallback_as_of: "YYYY-MM-DD"` so the frontend can warn users.
-
----
-
-## Instrument Rate Endpoints
-
-### Get EPF / PPF / NPS Rates
-
-**GET** `/api/rates/instruments`
-
-Return EPF/PPF/NPS rates with effective-from / source-url metadata. No reliable public JSON API exists for Indian EPF (EPFO publishes via yearly PDF notification) or PPF (Ministry of Finance publishes quarterly via press release), so these rates are served from a file config at `backend/src/ledger_sync/config/instrument_rates.json`. Updating a rate is a one-line PR.
-
-**Response (200 OK):**
-
-```json
-{
-  "updated_at": "2026-05-13",
-  "epf": {
-    "rate_pct": 8.25,
-    "effective_from": "2024-04-01",
-    "effective_until": null,
-    "source_url": "https://www.epfindia.gov.in/site_en/WhatsNew.php",
-    "notes": "..."
-  },
-  "ppf": {
-    "rate_pct": 7.1,
-    "effective_from": "2025-04-01",
-    "effective_until": "2026-06-30",
-    "source_url": "https://dea.gov.in/small-savings-scheme"
-  },
-  "nps": {
-    "default_allocation_pct": {"equity": 50, "corp_bond": 30, "govt_bond": 20},
-    "historical_return_pct": {"equity": 10.0, "corp_bond": 8.5, "govt_bond": 7.5},
-    "source_url": "https://npscra.nsdl.co.in/scheme-performance.php"
-  }
-}
-```
-
-Consumed by `useInstrumentRates()` on the frontend, which ships a compiled-in fallback so `InstrumentProjections` renders zero-network.
-
----
-
-## Stock Price Endpoints
-
-### Get Stock Price
-
-**GET** `/api/stock-price/{symbol}`
-
-Fetch the latest regular-market price for a stock ticker via Yahoo Finance. Proxied through the backend to avoid CORS restrictions.
-
-**Path Parameters:**
-
-- `symbol` (string, required) - Stock ticker symbol (e.g. `AMZN`, `AAPL`, `GOOGL`). Max 10 characters.
-
-**Response (200 OK):**
-
-```json
-{
-  "symbol": "AMZN",
-  "price": 186.49,
-  "currency": "USD"
-}
-```
-
-**Error Responses:**
-
-- 400: Invalid symbol (empty or exceeds 10 chars)
-- 502: Could not fetch price from Yahoo Finance
-
----
-
-## Error Codes
-
-| Code | Meaning      | Action                                 |
-| ---- | ------------ | -------------------------------------- |
-| 200  | OK           | Success                                |
-| 400  | Bad Request  | Check parameters                       |
-| 404  | Not Found    | Resource doesn't exist                 |
-| 409  | Conflict     | File already imported (use force=true) |
-| 500  | Server Error | Contact support                        |
-
----
+`GET /api/stock-price/{symbol}` returns the latest Yahoo Finance market price.
+Pass `on_date=YYYY-MM-DD` for the closing price on that date or the nearest
+prior trading day within seven days. Historical responses include `as_of`.
 
 ## Rate Limiting
 
-Rate limiting is implemented using **slowapi**, keyed by remote IP address. Limits applied:
+| Operation | Limit key | Limit |
+| --- | --- | --- |
+| OAuth callbacks | IP | 20/minute |
+| Token refresh | IP | 20/minute |
+| Upload | Authenticated user | 10/minute |
+| Upload | IP | 50/minute |
+| Bedrock chat | Authenticated user | 30/minute |
+| Bedrock chat | IP | 60/minute |
 
-- `POST /api/auth/refresh` -- 20/minute
-- `POST /api/auth/oauth/{provider}/callback` and `/api/auth/oauth/{provider}/login-url` -- 20/minute
-- `POST /api/upload` -- 10/minute
-- `POST /api/ai/bedrock/chat` -- 30/minute (complements the per-user daily message cap in app_bedrock mode)
+The app-provided Bedrock mode also has a configurable per-user daily message
+limit. BYOK token limits are independently configurable per user.
 
-Over-limit requests receive HTTP 429 via a globally registered exception handler. Other endpoints are unthrottled; add `@limiter.limit(...)` in the relevant router module to protect new sensitive endpoints.
+## CORS, Caching, and Security Headers
 
----
+- CORS uses an explicit origin allowlist plus the configured frontend origin.
+- Bearer authentication does not use credentialed cookies.
+- Authenticated API GET responses use `Cache-Control: no-store`.
+- The PWA service worker does not cache `/api/*`.
+- GZip applies to responses of at least 1,000 bytes.
+- Responses include content-type, frame, referrer, permissions, and content
+  security headers.
+- Production responses also include HSTS.
 
-## CORS
+## Related Reading
 
-CORS is enabled for cross-origin requests. Allowed origins are configurable via the `LEDGER_SYNC_CORS_ORIGINS` environment variable (JSON array).
-
-Default origins (development):
-
-- http://localhost:5173
-- http://localhost:5174
-
-Production origins are set via the `LEDGER_SYNC_CORS_ORIGINS` environment variable on Vercel.
-
----
-
-## Interactive Documentation
-
-Access interactive API documentation at:
-
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- [Architecture](architecture.md)
+- [Database](DATABASE.md)
+- [Calculations](CALCULATIONS.md)
+- [Deployment](DEPLOYMENT.md)

@@ -1,455 +1,425 @@
-# Database Schema & Models
+# Database Reference
 
-## Overview
+Database reference for Ledger Sync 2.22.0.
 
-Ledger Sync uses SQLite (dev) / Neon PostgreSQL (prod) with SQLAlchemy 2.0 ORM (Mapped types). The database stores financial transactions with multi-user support, and includes models for analytics, budgets, anomalies, net worth tracking, user display preferences (including multi-currency settings), salary/tax projection data, and AI assistant configuration (provider, model, encrypted API key).
+Verified against SQLAlchemy metadata and the Alembic chain on 2026-07-14.
+The current model contains 26 tables.
 
-Models are organized by bounded context in `backend/src/ledger_sync/db/_models/` (split into `enums.py`, `user.py`, `transactions.py`, `investments.py`, `analytics.py`, `planning.py`). The `models.py` file at the top of `db/` is a thin re-export facade -- **always import from `ledger_sync.db.models`, never from `_models` directly**.
+## Runtime Databases
 
-## Database Models
+| Environment | Database |
+| --- | --- |
+| Local development and tests | SQLite |
+| Hosted production | Neon PostgreSQL 17 through PgBouncer |
 
-### Transaction Model
+SQLAlchemy 2 is the shared ORM. Alembic owns schema migrations. Production is
+already PostgreSQL; it is not a future migration target.
 
-Represents a single financial transaction (income, expense, or transfer). Uses SHA-256 hash as the primary key for deduplication.
+Primary files:
+
+```text
+backend/src/ledger_sync/db/
+  base.py
+  session.py
+  models.py                 Re-export facade
+  _models/
+    enums.py
+    user.py
+    transactions.py
+    analytics.py
+    investments.py
+    planning.py
+    organization.py
+    ai_usage.py
+  migrations/
+    env.py
+    versions/
+```
+
+Application code imports model types through `ledger_sync.db.models`. New
+models belong in the appropriate `_models/*.py` domain module and must be
+re-exported through `_models/__init__.py` and `models.py`.
+
+## Table Inventory
+
+### Identity and preferences
+
+| Table | Purpose |
+| --- | --- |
+| `users` | OAuth identity, profile, active state, and token revocation version |
+| `user_preferences` | Fiscal year, classification, display, planning, salary, notification, and AI settings |
+| `audit_logs` | User-scoped import and analytics audit records |
+| `ai_usage_log` | Provider, model, token, round, and cost usage |
+
+### Ledger and organization
+
+| Table | Purpose |
+| --- | --- |
+| `transactions` | Active and soft-deleted income, expense, and transfer ledger rows |
+| `transaction_tags` | User-owned tags attached to transactions |
+| `import_logs` | File hash idempotency and reconciliation counts |
+| `column_mapping_logs` | Parser column-mapping diagnostics |
+| `account_classifications` | Account name to account type mapping |
+| `categorization_rules` | Ordered pattern-based category rules |
+| `saved_filter_views` | Named transaction filter objects |
+
+### Persisted analytics
+
+| Table | Purpose |
+| --- | --- |
+| `daily_summaries` | Daily income, expenses, net, counts, and top category |
+| `monthly_summaries` | Monthly income, expense, transfer, savings, and comparison totals |
+| `category_trends` | Monthly category and subcategory aggregates by transaction type |
+| `cohort_spending` | Day-of-week, day-of-month, and month-of-year spending cohorts |
+| `transfer_flows` | All-time aggregates for each account pair |
+| `merchant_intelligence` | Merchant totals, activity span, and recurring signal |
+| `fy_summaries` | Fiscal-year income, expense, tax, investment, and savings totals |
+| `net_worth_snapshots` | Daily asset, liability, and net-worth snapshots |
+| `investment_holdings` | Ledger-derived investment principal and value |
+
+### Planning and review
+
+| Table | Purpose |
+| --- | --- |
+| `recurring_transactions` | Detected or manually created recurring patterns |
+| `scheduled_transactions` | Expected future transactions |
+| `anomalies` | Detected outliers and review state |
+| `budgets` | Category budget limits and current tracking |
+| `financial_goals` | Goal target, progress, status, and dates |
+| `tax_records` | Imported or calculated fiscal-year tax records |
+
+## Transaction Model
+
+`transactions.transaction_id` is a 64-character SHA-256 hexadecimal primary
+key. Every row also carries a required `user_id`.
+
+Important columns:
+
+| Column | Meaning |
+| --- | --- |
+| `transaction_id` | Deterministic occurrence-aware hash |
+| `user_id` | Owning user |
+| `date` | Transaction timestamp |
+| `amount` | `NUMERIC(15, 2)` positive amount |
+| `currency` | Currency code, default `INR` |
+| `type` | `Income`, `Expense`, or `Transfer` |
+| `account` | Primary account |
+| `category`, `subcategory` | Classification |
+| `from_account`, `to_account` | Transfer legs |
+| `note` | Optional description |
+| `source_file` | Last importing file name |
+| `last_seen_at` | Last reconciliation timestamp |
+| `is_deleted` | Soft-delete flag |
+| `created_at`, `updated_at` | Row timestamps |
+
+### Transaction ID generation
+
+The normalized hash input is:
+
+```text
+user_id
+| date
+| amount
+| account
+| note
+| category
+| subcategory
+| type
+| occurrence when greater than zero
+```
+
+Values are trimmed and lowercased where applicable. Amounts use two decimal
+places and dates use ISO 8601.
+
+The first identical row uses occurrence zero and preserves the original hash
+shape. Later identical rows in the same import append occurrence 1, 2, and so
+on before hashing. This keeps legitimate duplicate transactions instead of
+silently collapsing them.
+
+### Reconciliation
+
+For each authenticated user:
+
+1. Normalize incoming rows.
+2. Build deterministic IDs.
+3. Insert unknown IDs.
+4. Update changed category, subcategory, note, or type values.
+5. Refresh `last_seen_at` and restore a matching soft-deleted row.
+6. Mark active rows not seen in the current import as deleted.
+
+The unseen-row sweep is user-wide, not limited to one `source_file`. Transfer
+pairs use separate reconciliation logic so incoming and outgoing source rows
+become one `Transfer` record.
+
+### Transaction indexes
+
+The current composite indexes are optimized for user-scoped access:
+
+```text
+(user_id, date)
+(user_id, type, date)
+(user_id, category)
+(user_id, account)
+(user_id, from_account)
+(user_id, to_account)
+```
+
+Single-column legacy transaction indexes were removed because authenticated
+queries always include `user_id`.
+
+## User Preferences Storage
+
+`user_preferences` is one row per user. Several structured settings are JSON
+serialized into `TEXT` columns, then converted to typed objects by the API.
+
+JSON-in-text fields include:
+
+- Essential categories
+- Investment account mappings
+- Taxable, investment-return, non-taxable, and other income categories
+- Enabled anomaly types
+- Credit-card limits
+- Fixed-expense categories
+- Excluded accounts
+- Salary structure
+- RSU grants
+- Growth assumptions
+
+Do not query these fields as normalized relational data. Update them through
+the preference API or serialize valid JSON in application code.
+
+AI keys are stored only as encrypted ciphertext in
+`ai_api_key_encrypted`. Current v2 writes use AES-256-GCM and HKDF-SHA256 with
+`LEDGER_SYNC_ENCRYPTION_KEY`. Legacy PBKDF2 v1 ciphertexts are read-only
+compatibility data and are upgraded on reveal.
+
+## User Scoping and Cascades
+
+All user-owned operational and analytics tables include `user_id`.
+`column_mapping_logs` is parser diagnostic data and is the notable
+non-user-scoped table.
+
+User foreign keys use `ON DELETE CASCADE` in the current model. Important
+secondary relationships include:
+
+- `transaction_tags.transaction_id` cascades with its transaction.
+- `anomalies.transaction_id` cascades when the referenced transaction is
+  hard-deleted.
+- User account deletion explicitly clears domain rows before deleting the
+  user, while database cascades provide defense in depth.
+
+Every API query must still filter by the authenticated user. A cascade does not
+replace authorization.
+
+## Common ORM Patterns
+
+### Read active rows for one user
 
 ```python
-class Transaction(Base):
-    __tablename__ = "transactions"
+from sqlalchemy import select
 
-    # Primary key is the SHA-256 hash (no separate auto-increment ID)
-    transaction_id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+from ledger_sync.db.models import Transaction
 
-    # Core fields
-    date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    amount: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), nullable=False)
-    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="INR")
-    type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False, index=True)
-
-    # Categorization
-    account: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    category: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
-
-    # Transfer-specific (only used when type=Transfer)
-    from_account: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    to_account: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-
-    # Optional
-    note: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    # Metadata
-    source_file: Mapped[str] = mapped_column(String(500), nullable=False)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
-```
-
-**Transaction Types** (enum): `Expense`, `Income`, `Transfer`
-
-**Table Schema:**
-
-| Column           | Type            | Constraints | Index | Description                      |
-| ---------------- | --------------- | ----------- | ----- | -------------------------------- |
-| transaction_id   | VARCHAR(64)     | PRIMARY KEY | YES   | SHA-256 hash (dedup + PK)        |
-| user_id          | INTEGER         | FOREIGN KEY | YES   | Owning user                      |
-| date             | TIMESTAMP       | NOT NULL    | YES   | Transaction date                 |
-| amount           | DECIMAL(15,2)   | NOT NULL    | NO    | Transaction amount               |
-| currency         | VARCHAR(10)     | DEFAULT INR | NO    | Currency code                    |
-| type             | ENUM            | NOT NULL    | YES   | Expense / Income / Transfer      |
-| account          | VARCHAR(255)    | NOT NULL    | YES   | Account name                     |
-| category         | VARCHAR(255)    | NOT NULL    | YES   | Category                         |
-| subcategory      | VARCHAR(255)    | NULL        | NO    | Sub-category                     |
-| from_account     | VARCHAR(255)    | NULL        | YES   | Transfer source account          |
-| to_account       | VARCHAR(255)    | NULL        | YES   | Transfer destination account     |
-| note             | TEXT            | NULL        | NO    | Transaction note                 |
-| source_file      | VARCHAR(500)    | NOT NULL    | NO    | Source Excel filename            |
-| last_seen_at     | TIMESTAMP       | NOT NULL    | YES   | Last import time                 |
-| is_deleted       | BOOLEAN         | DEFAULT 0   | YES   | Soft delete flag                 |
-
-**Composite Indexes** (canonical user-scoped set, migration `optimize_tx_indexes_2026`):
-
-Every query against `transactions` is user-scoped (`WHERE user_id = ? AND is_deleted = false`, then a date / type / category / account filter), so all indexes lead with `user_id` and are equality-first. Non-user-scoped indexes (`date`, `type`, `category`, `date_type`, `category_subcategory`) were removed -- the planner can never use them for these queries, so they only taxed writes.
-
-```sql
-ix_transactions_user_date (user_id, date)              -- primary analytics range scan
-ix_transactions_user_type_date (user_id, type, date)   -- type-filtered rollups + search
-ix_transactions_user_category (user_id, category)      -- category breakdown
-ix_transactions_user_account (user_id, account)        -- account facets + balances
-ix_transactions_user_from_account (user_id, from_account)  -- transfer-flow legs
-ix_transactions_user_to_account (user_id, to_account)
--- plus the kept user_id FK index and ix_transactions_last_seen_at (reconciliation)
-```
-
-A standalone `user_id` index is unnecessary -- `ix_transactions_user_date` (leading column `user_id`) covers user_id-only lookups. Partial indexes (`WHERE is_deleted = false`) would shrink these further (~63% of rows are soft-deleted) but the `.is_(False)`-vs-`= false` predicate match differs between SQLite and Postgres, so that is a Postgres-verified follow-up rather than shipped blind.
-
-### Other Models
-
-The database also includes these models (see `backend/src/ledger_sync/db/models.py`):
-
-- **User** — OAuth authentication (Google, GitHub) with JWT tokens. Fields: `email`, `full_name`, `auth_provider`, `auth_provider_id`, `is_verified`, timestamps
-- **UserPreferences** — fiscal year, essential categories, investment mappings, income classification, budget defaults, display format, anomaly settings, recurring settings, spending rule targets, credit card limits, earning start date, fixed expenses, savings/investment targets, payday, tax regime, excluded accounts, notification preferences, salary/tax projections, and AI assistant config:
-  - `salary_structure` (JSON) — FY-keyed salary CTC breakdown (basic, HRA, special allowance, EPF, NPS, professional tax, variable pay)
-  - `rsu_grants` (JSON) — array of RSU grants with vesting schedules
-  - `growth_assumptions` (JSON) — salary hike %, variable growth %, stock appreciation %, projection years, RSU inclusion flag
-  - `ai_provider` (VARCHAR(20), nullable) — `openai`, `anthropic`, or `bedrock`
-  - `ai_model` (VARCHAR(100), nullable) — provider-specific model ID; for Bedrock uses `{model_id}|{region}` composite format to avoid adding a separate region column
-  - `ai_api_key_encrypted` (TEXT, nullable) — base64-encoded `salt(16) || nonce(12) || ciphertext`. Encrypted with AES-256-GCM using a PBKDF2-derived key (salt is per-ciphertext random)
-- **AccountClassification** — User-defined account type mappings (Bank, Investment, Credit Card, etc.)
-- **DailySummary** — Pre-computed daily aggregations (income, expenses, net, counts, top category per day). Unique index on (user_id, date). Used by YearInReview heatmap.
-- **MonthlySummary** — Pre-calculated monthly income/expense/savings aggregations
-- **CategoryTrend** — Category-level trends over time periods
-- **TransferFlow** — Aggregated transfer flows between accounts
-- **RecurringTransaction** — Detected recurring patterns (SIPs, subscriptions, salaries)
-- **MerchantIntelligence** — Extracted merchant data from transaction notes
-- **CohortSpending** — Average expense per temporal cohort (day-of-week / day-of-month / month-of-year) with occurrence-correct divisors baked into `avg_amount`. One row per `(user_id, dimension, bucket)`; unique index on those three. Powers the "Spending Patterns" widget server-side (replaces client-side bucketing). Migration `cohort_spending_2026`.
-- **NetWorthSnapshot** — Point-in-time net worth with asset/liability breakdown
-- **FYSummary** — Fiscal year summaries with YoY changes
-- **Anomaly** — Detected anomalies (high expenses, budget exceeded)
-- **Budget** — User-defined budget limits per category
-- **FinancialGoal** — Savings goals with target amounts and dates
-- **AuditLog** — Operation audit trail
-
-## Auto-Initialization
-
-The database is automatically initialized on application startup. The `init_db()` function in `db/session.py` runs when the FastAPI app starts (via the lifespan handler in `api/main.py`) and creates all tables defined by SQLAlchemy models if they do not already exist. This means you do not need to manually create tables for a fresh install -- simply starting the backend is sufficient. For schema changes after the initial setup, use Alembic migrations (see below).
-
-## Database Operations
-
-### Create (Insert)
-
-Insert a new transaction:
-
-```python
-transaction = Transaction(
-    transaction_id="abc123...",
-    date=datetime(2025, 1, 15),
-    amount=5000.00,
-    type=TransactionType.EXPENSE,
-    category="Groceries",
-    account="Checking",
-    note="Weekly groceries",
-    source_file="MoneyManager.xlsx"
-)
-session.add(transaction)
-session.commit()
-```
-
-### Read (Query)
-
-Get transactions by various criteria:
-
-```python
-# Get all transactions
-all_txns = session.query(Transaction).all()
-
-# Get by date range
-txns = session.query(Transaction).filter(
-    Transaction.date >= start_date,
-    Transaction.date <= end_date
-).all()
-
-# Get by category
-category_txns = session.query(Transaction).filter(
-    Transaction.category == "Rent"
-).all()
-
-# Get non-deleted transactions
-active = session.query(Transaction).filter(
-    Transaction.is_deleted == False
-).all()
-
-# Get by transaction_id (for deduplication check)
-existing = session.query(Transaction).filter(
-    Transaction.transaction_id == transaction_id
-).first()
-
-# Aggregations
-from sqlalchemy import func
-total_income = session.query(func.sum(Transaction.amount)).filter(
-    Transaction.type == "Income"
-).scalar()
-```
-
-### Update
-
-Update an existing transaction:
-
-```python
-transaction = session.query(Transaction).filter(
-    Transaction.transaction_id == transaction_id
-).first()
-
-if transaction:
-    transaction.category = "Groceries"
-    transaction.amount = 5500.00
-    transaction.updated_at = datetime.utcnow()
-    session.commit()
-```
-
-### Delete (Soft)
-
-Mark transaction as deleted instead of removing:
-
-```python
-transaction = session.query(Transaction).filter(
-    Transaction.transaction_id == transaction_id
-).first()
-
-if transaction:
-    transaction.is_deleted = True
-    transaction.updated_at = datetime.utcnow()
-    session.commit()
-```
-
-## Migrations (Alembic)
-
-### Create a New Migration
-
-```bash
-alembic revision --autogenerate -m "Add new field to transactions"
-```
-
-This creates a migration file in `alembic/versions/`.
-
-### Apply Migrations
-
-```bash
-# Apply all pending migrations
-alembic upgrade head
-
-# Apply specific migration
-alembic upgrade abc123def456
-
-# Rollback one migration
-alembic downgrade -1
-
-# Rollback all
-alembic downgrade base
-```
-
-### Migration Files
-
-Migration files are Python scripts that define `upgrade()` and `downgrade()` functions:
-
-```python
-def upgrade() -> None:
-    op.add_column('transactions',
-        sa.Column('new_field', sa.String(100), nullable=True)
+statement = (
+    select(Transaction)
+    .where(
+        Transaction.user_id == current_user.id,
+        Transaction.is_deleted.is_(False),
     )
-
-def downgrade() -> None:
-    op.drop_column('transactions', 'new_field')
+    .order_by(Transaction.date.desc())
+)
+transactions = session.execute(statement).scalars().all()
 ```
 
-## Hash ID Generation
-
-Transaction IDs are generated using SHA-256 hash of:
+### Insert a user-owned row
 
 ```python
-hash_input = f"{date}|{amount}|{category}|{account}"
-transaction_id = hashlib.sha256(hash_input.encode()).hexdigest()
+from ledger_sync.db.models import SavedFilterView
+
+view = SavedFilterView(
+    user_id=current_user.id,
+    name="Large food purchases",
+    filters='{"category":"Food","min_amount":5000}',
+)
+session.add(view)
+session.commit()
+session.refresh(view)
 ```
 
-**Benefits:**
-
-- Deterministic: Same transaction always generates same ID
-- No central ID service needed
-- Collision resistant (SHA-256)
-- Enables file re-import without duplicates
-
-## Data Integrity
-
-### Constraints
-
-1. **Unique transaction_id** - No duplicate transactions
-2. **Non-null date** - Every transaction must have a date
-3. **Non-null amount** - Every transaction must have an amount
-4. **Non-null type** - Transaction type is required
-
-### Cascading Deletes
-
-User-linked child tables reference `users.id` via foreign keys. Cascade behavior varies by migration — newer tables include `ON DELETE CASCADE`, but older migrations may not. Verify per table if needed.
-
-### Audit Trail
-
-- `created_at` - When record was created
-- `updated_at` - When record was last modified
-- `is_deleted` - Soft delete instead of hard delete
-- `last_import_time` - When transaction was last imported
-
-## Performance Optimization
-
-### Current Indexes
-
-All `transactions` indexes are user-scoped composites (see "Composite Indexes" above) -- the app never queries without a `user_id` filter, so non-user-scoped indexes were removed in `optimize_tx_indexes_2026`.
-
-- `transaction_id` - O(1) lookup for duplicates (PK)
-- `(user_id, date)` - per-user time-range scan (also covers user_id-only lookups)
-- `(user_id, type, date)` - per-user type-filtered rollups + search
-- `(user_id, category)` - per-user category aggregation
-- `(user_id, account)` - per-user account facets / balances
-- `(user_id, from_account)` / `(user_id, to_account)` - transfer-flow legs
-- `last_seen_at` - reconciliation lookup during re-import
-
-### Query Optimization Strategies
-
-1. **Use indexes** - Always filter by indexed columns
-2. **Avoid full table scans** - Use WHERE clauses
-3. **Limit results** - Use LIMIT for pagination
-4. **Batch operations** - Use bulk_insert for large imports
-5. **Connection pooling** - Reuse database connections
-6. **Pre-computed aggregation tables** - `daily_summaries`, `monthly_summaries`, and `category_trends` store pre-computed data. Calculation endpoints use a fast-path (read from these tables) when no date filter is active, falling back to raw transaction scans when filters are applied.
-
-### Example Optimized Query
+### Update only an owned row
 
 ```python
-# Instead of this (full table scan)
-all_txns = session.query(Transaction).all()
-rent = [t for t in all_txns if t.category == "Rent"]
+from sqlalchemy import select
 
-# Do this (indexed query)
-rent = session.query(Transaction).filter(
-    Transaction.category == "Rent",
-    Transaction.is_deleted == False
-).all()
+from ledger_sync.db.models import FinancialGoal
+
+goal = session.execute(
+    select(FinancialGoal).where(
+        FinancialGoal.id == goal_id,
+        FinancialGoal.user_id == current_user.id,
+    )
+).scalar_one_or_none()
+
+if goal is not None:
+    goal.current_amount = new_amount
+    session.commit()
 ```
 
-## Backup & Recovery
+Never look up a user-owned row by its public ID alone.
 
-### Backup
+## Sessions and Connection Pooling
 
-```bash
-# Copy SQLite database file
-cp ledger_sync.db ledger_sync.db.backup
+`db/session.py` creates one SQLAlchemy engine and a `SessionLocal` factory.
+Request dependencies yield a session, commit only when pending changes exist,
+roll back on failure, and always close.
 
-# Or with timestamp
-cp ledger_sync.db "ledger_sync.db.$(date +%Y%m%d_%H%M%S).backup"
+SQLite settings:
+
+- `check_same_thread=False`
+- WAL journal mode
+- Foreign keys enabled
+- Normal synchronous mode
+- In-memory temporary storage
+
+PostgreSQL defaults are sized for the Neon free tier:
+
+| Setting | Default |
+| --- | --- |
+| Pool size | 5 |
+| Max overflow | 3 |
+| Pool recycle | 300 seconds |
+| Connect timeout | 10 seconds |
+| Statement timeout | 30 seconds |
+| Idle transaction timeout | 60 seconds |
+| Pre-ping | Enabled |
+
+Connection URLs beginning with `postgresql://` or
+`postgresql+psycopg2://` are normalized to psycopg 3.
+
+Relevant environment variables:
+
+```text
+LEDGER_SYNC_DATABASE_URL
+LEDGER_SYNC_DATABASE_ECHO
+LEDGER_SYNC_DB_POOL_SIZE
+LEDGER_SYNC_DB_MAX_OVERFLOW
+LEDGER_SYNC_DB_POOL_RECYCLE_SECONDS
+LEDGER_SYNC_DB_CONNECT_TIMEOUT_SECONDS
+LEDGER_SYNC_DB_STATEMENT_TIMEOUT_SECONDS
+LEDGER_SYNC_DB_IDLE_TRANSACTION_TIMEOUT_SECONDS
 ```
 
-### Restore
+## Database-Agnostic Date SQL
 
-```bash
-# Restore from backup
-cp ledger_sync.db.backup ledger_sync.db
+Use the helpers in `core/query_helpers.py`:
+
+```python
+from ledger_sync.core.query_helpers import fmt_date, fmt_month, fmt_year, fmt_year_month
+
+period = fmt_year_month(Transaction.date)
 ```
 
-### SQLite Backup Command
+They select SQLite `strftime` or PostgreSQL `to_char` behavior. Directly using
+one database's date function can pass local tests and fail in production.
 
-```bash
-sqlite3 ledger_sync.db ".backup ledger_sync.db.backup"
+## Initialization and Migrations
+
+Application startup calls `Base.metadata.create_all()`. This creates missing
+tables for a fresh local database, but it does not evolve existing columns,
+constraints, or indexes. Alembic remains required for schema upgrades.
+
+Migration location:
+
+```text
+backend/src/ledger_sync/db/migrations/versions/
 ```
 
-## Database Maintenance
-
-### Check Database Integrity
+Run commands from `backend/`:
 
 ```bash
+# Inspect current revision
+uv run alembic current
+
+# Apply every pending revision
+uv run alembic upgrade head
+
+# Create a reviewed migration after changing model metadata
+uv run alembic revision --autogenerate -m "add example field"
+
+# Show the chain
+uv run alembic history
+```
+
+Review every autogenerated revision before applying it. Verify:
+
+- Table and column names
+- Nullability and server defaults
+- Foreign-key cascade behavior
+- PostgreSQL and SQLite compatibility
+- Backfill order before making columns non-null
+- Index creation and removal
+
+### Downgrade warning
+
+Downgrade support is mixed. Early and some intermediate migrations implement
+real reversals, while many newer revisions intentionally use a no-op
+`downgrade()`. Never assume `alembic downgrade -1` is safe.
+
+Before production schema work:
+
+1. Inspect the target revision's `downgrade()` function.
+2. Take a database backup.
+3. Prefer a forward corrective migration.
+4. Restore the backup when a no-op or destructive downgrade cannot recover the
+   prior state.
+
+See
+[`MIGRATION_NOTES.md`](../backend/src/ledger_sync/db/migrations/MIGRATION_NOTES.md)
+for the concise warning.
+
+## Production Migration Automation
+
+`.github/workflows/migrate.yml` runs `alembic upgrade head` on pushes to
+`main` when any of these paths change:
+
+```text
+backend/alembic/**
+backend/src/ledger_sync/db/migrations/**
+backend/src/ledger_sync/db/models.py
+backend/src/ledger_sync/db/_models/**
+```
+
+The workflow uses the `LEDGER_SYNC_DATABASE_URL` GitHub Actions secret. Model
+changes without a matching migration are not sufficient to evolve production
+tables.
+
+## Backup and Recovery
+
+For production, use Neon branch, point-in-time restore, or PostgreSQL backup
+facilities. Do not copy a live PostgreSQL data directory.
+
+For local SQLite:
+
+```bash
+sqlite3 ledger_sync.db ".backup ledger_sync.backup.db"
 sqlite3 ledger_sync.db "PRAGMA integrity_check;"
 ```
 
-### Vacuum (Optimize)
+Before restoring, stop local writers and preserve the current file until the
+replacement has been verified.
 
-```bash
-# Reclaim space and optimize
-sqlite3 ledger_sync.db "VACUUM;"
-```
+## Source of Truth
 
-### Analyze Statistics
+When this guide and code differ, use this order:
 
-```bash
-# Update query optimizer statistics
-sqlite3 ledger_sync.db "ANALYZE;"
-```
+1. Alembic revisions for the deployed schema history
+2. SQLAlchemy metadata under `db/_models/`
+3. API schemas and serializers
+4. This guide
 
-## Future Enhancements
+Related references:
 
-### Scaling to PostgreSQL
-
-PostgreSQL is supported out of the box. The application auto-detects the database type from `DATABASE_URL` and applies the appropriate configuration:
-
-- **SQLite**: WAL mode, 64MB cache, NORMAL sync, foreign keys enabled
-- **PostgreSQL**: Connection pooling (pool_size=20, max_overflow=10, pool_pre_ping=True)
-
-For high-availability production deployments:
-
-1. Set `LEDGER_SYNC_DATABASE_URL` to a PostgreSQL connection string
-2. Add replication for high availability
-3. Implement partitioning for large tables
-
-### Sample PostgreSQL Migration
-
-```python
-# Change DATABASE_URL
-# postgresql://user:password@localhost/ledger_sync
-
-# SQLAlchemy automatically uses PostgreSQL features
-```
-
-### Note on Existing Tables
-
-The `User` model already exists with full OAuth support (Google, GitHub). Account data is derived from transactions (no separate `accounts` table). Categories are also derived from transaction data and managed via `UserPreferences.essential_categories`.
-
-## Connection String
-
-### SQLite (default)
-
-```
-sqlite:///ledger_sync.db
-```
-
-### PostgreSQL
-
-```
-postgresql://username:password@localhost:5432/ledger_sync
-```
-
-## Database Configuration
-
-Environment variables (in `.env`):
-
-```bash
-DATABASE_URL=sqlite:///ledger_sync.db
-DB_ECHO=False  # Log SQL queries (set to True for debugging)
-```
-
-## Transactions & Sessions
-
-### SQLAlchemy Session Management
-
-```python
-from ledger_sync.db.session import SessionLocal
-
-def process_transactions(transactions):
-    session = SessionLocal()
-    try:
-        for txn in transactions:
-            session.add(txn)
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        raise
-    finally:
-        session.close()
-```
-
-### Context Manager Pattern
-
-```python
-from contextlib import contextmanager
-
-@contextmanager
-def get_db():
-    session = SessionLocal()
-    try:
-        yield session
-        session.commit()
-    except:
-        session.rollback()
-        raise
-    finally:
-        session.close()
-
-# Usage
-with get_db() as db:
-    db.add(transaction)
-```
+- [API](API.md)
+- [Calculations](CALCULATIONS.md)
+- [Development](DEVELOPMENT.md)
+- [Deployment](DEPLOYMENT.md)

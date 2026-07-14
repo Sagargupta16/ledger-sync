@@ -1,640 +1,436 @@
 # Testing Guide
 
-## Overview
+Testing reference for Ledger Sync 2.22.0.
 
-Ledger Sync includes comprehensive testing for both backend and frontend to ensure code quality and reliability.
+Verified on 2026-07-14:
 
-## Backend Testing
+| Suite | Tests | Files |
+| --- | ---: | ---: |
+| Backend pytest | 328 | 35 |
+| Frontend Vitest | 287 | 23 |
+| Total | 615 | 58 |
 
-### Testing Framework
+Backend files are split into 25 unit files and 10 integration files.
 
-- **pytest** - Unit and integration testing
-- **pytest-cov** - Code coverage reporting
-- **pytest-mock** - Mocking and patching
-- **SQLAlchemy** test fixtures
+Counts are a point-in-time baseline, not a permanent assertion. Recalculate
+them when adding or removing tests.
 
-### Test Structure
+## Full Project Gate
 
+From the repository root:
+
+```bash
+pnpm run check
+pnpm run build
 ```
+
+`check` runs lint, type checking, and tests for both stacks in parallel.
+`build` then performs the production frontend compile and bundle.
+
+On Windows PowerShell systems where script execution blocks the pnpm shim, use:
+
+```powershell
+pnpm.cmd run check
+pnpm.cmd run build
+```
+
+Do not treat type checking alone as feature verification. For user-facing
+changes, also run the application and exercise the affected workflow.
+
+## Backend Suite
+
+### Tooling
+
+- pytest 9
+- pytest-cov
+- FastAPI `TestClient`
+- SQLAlchemy SQLite fixtures
+- `unittest.mock` and pytest `monkeypatch`
+
+`pytest-mock` is not a project dependency.
+
+### Layout
+
+```text
 backend/tests/
-├── __init__.py
-├── conftest.py                          # Shared fixtures
-├── fixtures/                            # Test data fixtures
-├── unit/
-│   ├── test_ai_chat.py                  # Bedrock SSE proxy
-│   ├── test_ai_tools.py                 # 15 read-only LLM tools, user-scoping
-│   ├── test_ai_usage.py                 # Token-cost rollup endpoints
-│   ├── test_analytics_helpers.py        # Module-level analytics helpers
-│   ├── test_auth.py                     # JWT issue/verify
-│   ├── test_encryption.py               # AES-256-GCM for AI keys
-│   ├── test_exchange_rates.py           # frankfurter.dev proxy
-│   ├── test_hash_id.py                  # SHA-256 transaction IDs
-│   ├── test_normalizer.py               # Bank-name regex normalizer
-│   ├── test_rates.py                    # /api/rates/instruments
-│   ├── test_salary_schemas.py           # Salary/RSU/growth validation
-│   └── test_upload_schema.py            # Upload payload validation
-└── integration/
-    ├── test_analytics_user_scoping.py   # User-scoped query isolation + excluded_accounts
-    ├── test_reconciler.py               # Transaction reconciliation upsert/soft-delete
-    └── test_transfer_reconciliation.py  # Transfer-pair detection
+  conftest.py
+  fixtures/
+  unit/             25 test files
+  integration/      10 test files
 ```
 
-Run `uv run pytest tests/` to execute the full suite (currently 113 tests, ~5 s).
+Unit coverage includes:
 
-### Running Tests
+- AI chat, tools, usage, and pricing behavior
+- Analytics helpers and robust anomaly detection
+- Authentication and token-version revocation
+- Cohort spending
+- Core calculator and time filters
+- Encryption v1 compatibility and v2 writes
+- Exchange, instrument, and stock rate handling
+- Hash generation and duplicate occurrences
+- Income, investment holding, and quick-insight calculations
+- Normalization and rules
+- Recurring frequency bands
+- Salary and upload schemas
+- Per-user rate-limit keys
+
+Integration coverage includes:
+
+- Analytics user isolation
+- Categorization rules
+- Daily net-worth opening balances
+- Reconciliation and soft deletion
+- Saved views
+- 50/30/20 spending-rule responses
+- Tag replacement and user scoping
+- Transaction facets
+- Current-date time-range behavior
+- Transfer pair reconciliation
+
+### Commands
+
+Run from `backend/`:
 
 ```bash
-cd backend
+# Full suite
+uv run python -m pytest tests/ -v
 
-# Run all tests
-uv run pytest tests/ -v
+# Quiet full suite
+uv run python -m pytest tests/ -q
 
-# Run specific test file
-uv run pytest tests/unit/test_hash_id.py
+# One file
+uv run python -m pytest tests/unit/test_hash_id.py -v
 
-# Run specific test function
-uv run pytest tests/unit/test_hash_id.py::test_hash_generation
+# One test
+uv run python -m pytest tests/unit/test_hash_id.py::test_hash_generation -v
 
-# Run with coverage
-uv run pytest --cov=ledger_sync tests/
+# Last failures
+uv run python -m pytest tests/ --lf
 
-# Run with coverage and HTML report
-uv run pytest --cov=ledger_sync --cov-report=html tests/
+# Stop on first failure
+uv run python -m pytest tests/ -x
 
-# Run only failing tests
-uv run pytest --lf
+# Coverage
+uv run python -m pytest tests/ --cov=ledger_sync --cov-report=term-missing
 
-# Run with detailed output
-uv run pytest -vv --tb=long
+# Collection count without execution
+uv run python -m pytest tests/ --collect-only -q
 ```
 
-### Writing Unit Tests
+The repository does not enforce a coverage percentage threshold. Coverage is a
+diagnostic; behavioral risk determines what must be tested.
+
+### Fixtures
+
+`tests/conftest.py` provides:
+
+- Shared in-memory SQLite setup
+- A request-bound `TestClient`
+- Two-user fixtures for isolation checks
+- A replaceable current-user dependency
+- A standard test user
+- Sample transaction data
+
+The request fixture uses a shared SQLite connection so the fixture and FastAPI
+request thread observe the same database.
+
+### Unit-test pattern
+
+Use Arrange, Act, Assert and construct the smallest domain input that proves
+the behavior.
 
 ```python
-# tests/unit/test_example.py
-import pytest
-from ledger_sync.core.calculator import calculate_total_income
+from decimal import Decimal
 
-class TestCalculator:
-    """Test financial calculator"""
+from ledger_sync.ingest.hash_id import TransactionHasher
 
-    def test_calculate_total_income_with_valid_data(self):
-        """Test total income calculation with valid transactions"""
-        transactions = [
-            {"type": "Income", "amount": 1000},
-            {"type": "Income", "amount": 500},
-            {"type": "Expense", "amount": 200},
-        ]
-        result = calculate_total_income(transactions)
-        assert result == 1500
 
-    def test_calculate_total_income_with_no_income(self):
-        """Test total income calculation with no income transactions"""
-        transactions = [
-            {"type": "Expense", "amount": 100},
-            {"type": "Expense", "amount": 200},
-        ]
-        result = calculate_total_income(transactions)
-        assert result == 0
+def test_duplicate_occurrence_changes_transaction_id() -> None:
+    hasher = TransactionHasher()
 
-    def test_calculate_total_income_with_empty_list(self):
-        """Test total income calculation with empty transaction list"""
-        result = calculate_total_income([])
-        assert result == 0
+    first = hasher.generate_transaction_id(
+        date=transaction_date,
+        amount=Decimal("100.00"),
+        account="Bank",
+        note="Purchase",
+        category="Food",
+        subcategory="Groceries",
+        tx_type="Expense",
+        user_id=7,
+        occurrence=0,
+    )
+    duplicate = hasher.generate_transaction_id(
+        date=transaction_date,
+        amount=Decimal("100.00"),
+        account="Bank",
+        note="Purchase",
+        category="Food",
+        subcategory="Groceries",
+        tx_type="Expense",
+        user_id=7,
+        occurrence=1,
+    )
 
-    @pytest.mark.parametrize("amount,expected", [
-        (100, 100),
-        (0, 0),
-        (-100, 0),  # Negative income not counted
-    ])
-    def test_calculate_income_parametrized(self, amount, expected):
-        """Test income calculation with various amounts"""
-        transactions = [{"type": "Income", "amount": amount}]
-        result = calculate_total_income(transactions)
-        assert result == expected
+    assert first != duplicate
 ```
 
-### Writing Integration Tests
+Use explicit `user_id` values in reconciliation and query tests. A test that
+does not prove ownership boundaries is insufficient for a user-scoped
+endpoint.
+
+### API integration pattern
+
+Override dependencies through FastAPI and assert both status and database
+state.
 
 ```python
-# tests/integration/test_reconciler.py
-import pytest
-from ledger_sync.core.reconciler import Reconciler
-from ledger_sync.db.models import Transaction
+def test_saved_views_are_user_scoped(two_user_client) -> None:
+    client, _session, user_a, user_b, current = two_user_client
 
-class TestReconciler:
-    """Test transaction reconciliation"""
+    current["user"] = user_a
+    created = client.post(
+        "/api/saved-views",
+        json={"name": "Large food", "filters": {"category": "Food"}},
+    )
+    assert created.status_code == 200
 
-    def test_insert_new_transaction(self, test_db_session, sample_transaction_data):
-        """Test inserting a new transaction"""
-        reconciler = Reconciler(test_db_session)
-
-        transaction, action = reconciler.reconcile_transaction(
-            sample_transaction_data,
-            "test.xlsx",
-            datetime.now(UTC)
-        )
-
-        assert action == "inserted"
-        assert transaction.amount == sample_transaction_data["amount"]
-        assert transaction.category == sample_transaction_data["category"]
-
-    def test_update_existing_transaction(self, test_db_session, sample_transaction):
-        """Test updating an existing transaction"""
-        reconciler = Reconciler(test_db_session)
-
-        # Get existing transaction
-        existing = test_db_session.query(Transaction).first()
-        original_amount = existing.amount
-
-        # Update amount
-        updated_data = {
-            "date": existing.date,
-            "amount": 2000,
-            "category": existing.category,
-            "account": existing.account,
-        }
-
-        transaction, action = reconciler.reconcile_transaction(
-            updated_data,
-            "test.xlsx",
-            datetime.now(UTC)
-        )
-
-        assert action == "updated"
-        assert transaction.amount == 2000
-        assert transaction.amount != original_amount
-
-    def test_skip_unchanged_transaction(self, test_db_session, sample_transaction):
-        """Test skipping unchanged transaction"""
-        reconciler = Reconciler(test_db_session)
-
-        existing = test_db_session.query(Transaction).first()
-        data = {
-            "date": existing.date,
-            "amount": existing.amount,
-            "category": existing.category,
-            "account": existing.account,
-        }
-
-        transaction, action = reconciler.reconcile_transaction(
-            data,
-            "test.xlsx",
-            datetime.now(UTC)
-        )
-
-        assert action == "skipped"
+    current["user"] = user_b
+    assert client.get("/api/saved-views").json() == []
 ```
 
-### Test Fixtures
+For each authenticated endpoint, cover:
 
-```python
-# tests/conftest.py
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from ledger_sync.db.base import Base
-from ledger_sync.db.models import Transaction
+- Success
+- Validation failure
+- Missing resource
+- Cross-user isolation
+- Mutation persistence
+- Idempotency where promised
 
-@pytest.fixture
-def test_db():
-    """Create test database"""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    return engine
+### Backend static gates
 
-@pytest.fixture
-def test_db_session(test_db):
-    """Create test database session"""
-    Session = sessionmaker(bind=test_db)
-    session = Session()
-    yield session
-    session.close()
-
-@pytest.fixture
-def sample_transaction_data():
-    """Sample transaction data"""
-    return {
-        "date": datetime(2025, 1, 15),
-        "amount": 100.50,
-        "type": "Expense",
-        "category": "Food",
-        "account": "Checking",
-        "description": "Groceries",
-    }
-
-@pytest.fixture
-def sample_transaction(test_db_session, sample_transaction_data):
-    """Create sample transaction in database"""
-    txn = Transaction(**sample_transaction_data)
-    test_db_session.add(txn)
-    test_db_session.commit()
-    return txn
-```
-
-### Mocking
-
-```python
-from unittest.mock import patch, MagicMock
-import pytest
-
-def test_api_call_with_mock():
-    """Test API endpoint with mocked database"""
-    with patch("ledger_sync.api.analytics.get_filtered_transactions") as mock_get:
-        mock_get.return_value = [
-            {"type": "Income", "amount": 1000},
-        ]
-
-        result = get_overview()
-        assert result["total_income"] == 1000
-        mock_get.assert_called_once()
-```
-
-### Code Coverage
+Run from `backend/`:
 
 ```bash
-# Generate coverage report
-uv run pytest --cov=ledger_sync --cov-report=html tests/
-
-# View HTML report
-open htmlcov/index.html  # macOS
-start htmlcov/index.html # Windows
-xdg-open htmlcov/index.html # Linux
+uv run ruff check src/ tests/
+uv run ruff format --check src/ tests/
+uv run mypy src/
 ```
 
-### Continuous Integration
+## Frontend Suite
 
-The project uses GitHub Actions for CI. See `.github/workflows/ci.yml` for the full workflow. Backend tests run with:
+### Tooling
+
+- Vitest 4
+- jsdom
+- React Testing Library
+- `@testing-library/jest-dom`
+
+The suite does not include Jest, Cypress, Playwright, or
+`@testing-library/user-event` as test dependencies.
+
+### Configuration
+
+`frontend/vitest.config.ts` configures jsdom and the shared setup file:
+
+```text
+frontend/src/test/setup.ts
+```
+
+Test files are colocated under feature `__tests__/` directories.
+
+Current coverage areas:
+
+- Authentication modal and OAuth callback
+- Shared data table and transaction filters
+- Quick insights
+- Account-type constants
+- Shared analytics time filter
+- Chat provider adapters
+- Date, file, formatting, and financial utilities
+- FIRE, GST, instrument, projection, RSU, tax, TDS, and XIRR calculations
+- Tax configuration fallback
+- Mutual-fund expected value
+- Net-worth projection
+
+### Commands
+
+Run from `frontend/`:
 
 ```bash
-uv sync --group dev
-uv run pytest tests/ -v
+# Single run
+pnpm test
+
+# Verbose output
+pnpm test -- --reporter=verbose
+
+# One file
+pnpm test -- src/lib/__tests__/taxCalculator.test.ts
+
+# Name filter
+pnpm test -- -t "calculates"
+
+# Watch mode
+pnpm run test:watch
 ```
 
-## Frontend Testing
+The current package does not configure a coverage provider or UI-mode script.
+Add the corresponding dependency and configuration before documenting or
+using `--coverage` or `--ui`.
 
-### Testing Framework
+### Pure utility pattern
 
-- **Vitest** - Fast unit test runner (Vite-native)
-- **React Testing Library** - Component testing
-- **@testing-library/user-event** - User interaction simulation
-
-### Test Structure
-
-```
-frontend/
-├── src/
-│   ├── components/
-│   │   └── __tests__/      # Component tests
-│   ├── hooks/
-│   │   └── __tests__/      # Hook tests
-│   └── lib/
-│       └── __tests__/      # Utility tests (incl. projectionCalculator.test.ts)
-└── vitest.config.ts        # Vitest configuration
-```
-
-### Projection Calculator Tests (Example)
-
-The projection calculator (`lib/projectionCalculator.ts`) uses a TDD approach with pure functions:
+Financial calculations should remain pure so edge cases are cheap to test.
 
 ```typescript
-// src/lib/__tests__/projectionCalculator.test.ts
-import { describe, it, expect } from 'vitest'
-import { projectFiscalYear, projectMultipleYears, getRsuVestingsByFY } from '../projectionCalculator'
+import { describe, expect, it } from 'vitest'
 
-describe('projectFiscalYear', () => {
-  const baseSalary = {
-    '2025-26': {
-      basic_annual: 600000, hra_annual: 300000,
-      special_allowance_annual: 200000, epf_monthly: 1800,
-      nps_monthly: null, professional_tax_annual: 2400,
-      variable_pay_annual: 100000, other_annual: 0, is_new_regime: true,
-    },
-  }
+import { computeFIRENumber } from '@/lib/fireCalculator'
 
-  it('projects future FY with salary hike', () => {
-    const result = projectFiscalYear('2026-27', baseSalary, [], {
-      salary_hike_pct: 10, variable_growth_pct: 5,
-      stock_appreciation_pct: 8, projection_years: 3,
-      include_rsu_in_projection: true,
-    }, 4)
-    expect(result.grossTaxable).toBeGreaterThan(1200000)
+describe('computeFIRENumber', () => {
+  it('uses the configured safe withdrawal rate', () => {
+    expect(computeFIRENumber(600000, 0.03)).toBe(20000000)
   })
 
-  it('returns base FY as-is when targetFY matches', () => {
-    const result = projectFiscalYear('2025-26', baseSalary, [], defaultGrowth, 4)
-    expect(result.fy).toBe('2025-26')
+  it('returns zero for an invalid withdrawal rate', () => {
+    expect(computeFIRENumber(600000, 0)).toBe(0)
   })
 })
 ```
 
-Tests cover: base FY passthrough, single-year projection, multi-year compounding, RSU vesting with appreciation, empty salary structure edge cases.
+### Component pattern
 
-### Running Tests
+Prefer visible behavior and accessible roles over component internals.
+
+```typescript
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+
+describe('Example', () => {
+  it('shows the empty state', () => {
+    render(<Example items={[]} />)
+
+    expect(screen.getByRole('heading', { name: 'No items yet' })).toBeInTheDocument()
+  })
+})
+```
+
+Use the real shared providers when behavior depends on the router, query
+client, theme, or authentication store. Reset persisted Zustand state between
+tests that mutate it.
+
+### Frontend static and build gates
+
+Run from `frontend/`:
 
 ```bash
-cd frontend
-
-# Run all tests
-pnpm test
-
-# Run specific test file
-pnpm test MyComponent.test.tsx
-
-# Run with coverage
-pnpm test -- --coverage
-
-# Run in watch mode
-pnpm test -- --watch
-
-# Run UI mode
-pnpm test -- --ui
+pnpm run lint
+pnpm run type-check
+pnpm run build
 ```
 
-### Writing Component Tests
+## End-to-End and Browser Verification
 
-```typescript
-// src/components/__tests__/MyComponent.test.tsx
-import { render, screen } from "@testing-library/react";
-import { userEvent } from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
-import { MyComponent } from "../MyComponent";
+There is no committed automated E2E suite. Do not claim Cypress or Playwright
+coverage.
 
-describe("MyComponent", () => {
-  it("renders with data", () => {
-    render(<MyComponent data="Hello" onAction={() => {}} />);
-    expect(screen.getByText("Hello")).toBeInTheDocument();
-  });
+For a release or broad UI change, run both services and manually or
+programmatically verify:
 
-  it("calls onAction when button clicked", async () => {
-    const mockAction = vi.fn();
-    render(<MyComponent data="Test" onAction={mockAction} />);
+- Public Home at desktop and phone widths
+- Sign-in provider loading, retry, focus trap, and callback error
+- Demo entry
+- Dashboard and Overview
+- Transaction filters, tags, saved views, pagination, and mobile cards
+- Upload parse, conflict, force reupload, result summary, and cache refresh
+- Representative analytics, wealth, planning, and tax pages
+- Settings save and reset behavior
+- Light, dark, and system themes
+- Sidebar, More page, bottom navigation, safe areas, and no overlap
+- 404 and lazy-chunk failure states
 
-    const button = screen.getByRole("button", { name: /action/i });
-    await userEvent.click(button);
-
-    expect(mockAction).toHaveBeenCalled();
-  });
-
-  it("renders loading state", () => {
-    render(<MyComponent data="" onAction={() => {}} isLoading={true} />);
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
-  });
-});
-```
-
-### Writing Hook Tests
-
-```typescript
-// src/hooks/__tests__/useMyHook.test.ts
-import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
-import { useMyHook } from "../useMyHook";
-
-describe("useMyHook", () => {
-  it("returns initial value", () => {
-    const { result } = renderHook(() => useMyHook("initial"));
-    expect(result.current.value).toBe("initial");
-  });
-
-  it("updates value when setValue called", () => {
-    const { result } = renderHook(() => useMyHook("initial"));
-
-    act(() => {
-      result.current.setValue("updated");
-    });
-
-    expect(result.current.value).toBe("updated");
-  });
-});
-```
-
-### Testing with TanStack Query
-
-```typescript
-// src/components/__tests__/MyDataComponent.test.tsx
-import { render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, it, expect, vi } from "vitest";
-import { MyDataComponent } from "../MyDataComponent";
-
-// Mock the API module
-vi.mock("../../services/api", () => ({
-  api: {
-    getData: vi.fn(),
-  },
-}));
-
-import { api } from "../../services/api";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: false },
-  },
-});
-
-const wrapper = ({ children }) => (
-  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-);
-
-describe("MyDataComponent", () => {
-  it("renders data from API", async () => {
-    vi.mocked(api.getData).mockResolvedValue([{ id: 1, name: "Test" }]);
-
-    render(<MyDataComponent />, { wrapper });
-
-    await waitFor(() => {
-      expect(screen.getByText("Test")).toBeInTheDocument();
-    });
-  });
-});
-```
-
-### Mocking API Calls
-
-```typescript
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MyComponent } from "../MyComponent";
-
-// Mock the API module
-vi.mock("../../services/api", () => ({
-  fetchData: vi.fn(),
-}));
-
-import { fetchData } from "../../services/api";
-
-describe("MyComponent with API", () => {
-  it("fetches and displays data", async () => {
-    (fetchData as jest.Mock).mockResolvedValue([{ id: 1, name: "Item 1" }]);
-
-    render(<MyComponent />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Item 1")).toBeInTheDocument();
-    });
-  });
-
-  it("handles API error", async () => {
-    (fetchData as jest.Mock).mockRejectedValue(new Error("API failed"));
-
-    render(<MyComponent />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/error/i)).toBeInTheDocument();
-    });
-  });
-});
-```
-
-### Snapshot Testing
-
-```typescript
-import { render } from "@testing-library/react";
-import { MyComponent } from "../MyComponent";
-
-it("matches snapshot", () => {
-  const { container } = render(<MyComponent data="Test" onAction={() => {}} />);
-  expect(container).toMatchSnapshot();
-});
-```
-
-Update snapshots after intentional changes:
+Backend smoke checks:
 
 ```bash
-pnpm test -- -u
+curl http://localhost:8000/health
+curl http://localhost:8000/health/db
+curl http://localhost:8000/openapi.json
 ```
 
-## Performance Testing
+An authenticated workflow is required to verify financial endpoints. Do not
+put a real token into committed scripts or documentation.
 
-### Backend Performance
+## Continuous Integration
 
-```python
-import time
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`.
 
-def test_large_transaction_import_performance():
-    """Test importing large number of transactions"""
-    transactions = [create_transaction() for _ in range(10000)]
+### Frontend job
 
-    start = time.time()
-    reconciler.reconcile_many(transactions)
-    duration = time.time() - start
+Uses the shared Node workflow with `working-directory: frontend`. It installs
+dependencies, lints, builds, and runs Vitest.
 
-    # Should process in less than 5 seconds
-    assert duration < 5.0
-```
+### Backend job
 
-### Frontend Performance
-
-```typescript
-it("renders chart with 1000 data points in under 1 second", () => {
-  const data = generateChartData(1000);
-
-  const start = performance.now();
-  render(<Chart data={data} />);
-  const duration = performance.now() - start;
-
-  expect(duration).toBeLessThan(1000);
-});
-```
-
-## E2E Testing (Future)
-
-### Cypress Setup
+Uses Python 3.13 and runs:
 
 ```bash
-npm install --save-dev cypress
-npx cypress open
+uv sync --all-extras --group dev
+uv run ruff check src/ tests/
+uv run ruff format --check src/ tests/
+uv run mypy src/
+uv run pytest tests/ -q
 ```
 
-### Example E2E Test
+### Security job
 
-```typescript
-// cypress/e2e/file-upload.cy.ts
-describe("File Upload", () => {
-  it("uploads file successfully", () => {
-    cy.visit("http://localhost:5173");
-    cy.get("[data-testid=file-input]").selectFile("test.xlsx");
-    cy.get("[data-testid=upload-button]").click();
-    cy.contains("Upload successful").should("be.visible");
-  });
-});
-```
+Uses the shared security-scan workflow with read access to contents and write
+access for security events.
 
-## Test Best Practices
+CI uses a concurrency group and cancels an older run when a newer commit is
+pushed to the same pull request.
 
-1. **Test Behavior, Not Implementation**
+## Test Selection by Change
 
-   ```typescript
-   // ✅ Good - tests behavior
-   expect(screen.getByText("Hello")).toBeInTheDocument();
+| Change | Minimum verification |
+| --- | --- |
+| Pure frontend calculator | Focused Vitest file, frontend lint, type check |
+| Shared frontend primitive | Related component tests, full frontend suite, production build, responsive browser check |
+| Backend pure function | Focused unit file, Ruff, mypy |
+| API contract | Unit validation plus integration endpoint test and OpenAPI inspection |
+| User-owned data mutation | Integration success, persistence, validation, and cross-user isolation |
+| Reconciliation or analytics | Focused tests plus full backend suite |
+| Migration or model | Migration review, upgrade on disposable database, backend suite |
+| Auth, encryption, or rate limits | Focused security tests plus full backend suite and live workflow |
+| Cross-stack feature | Full root check, build, and browser workflow |
 
-   // ❌ Bad - tests implementation
-   expect(component.state.isVisible).toBe(true);
-   ```
+## Debugging Failures
 
-2. **Use Descriptive Test Names**
-
-   ```typescript
-   // ✅ Good
-   it("displays error message when API fails", () => {});
-
-   // ❌ Bad
-   it("handles error", () => {});
-   ```
-
-3. **Arrange, Act, Assert**
-
-   ```typescript
-   it("calculates total correctly", () => {
-     // Arrange
-     const numbers = [1, 2, 3];
-
-     // Act
-     const result = sum(numbers);
-
-     // Assert
-     expect(result).toBe(6);
-   });
-   ```
-
-4. **Keep Tests Isolated**
-   - Each test should be independent
-   - Clean up after tests (teardown)
-   - Don't rely on test execution order
-
-5. **Aim for Good Coverage**
-   - Aim for 80%+ code coverage
-   - Focus on critical paths
-   - Test edge cases and error scenarios
-
-## Debugging Tests
-
-### Backend Debugging
+Backend:
 
 ```bash
-# Run tests with debugging
-pytest -s  # Show print statements
-pytest -vv # Very verbose output
-pytest --pdb  # Drop into debugger on failure
+uv run python -m pytest tests/ -vv --tb=long
+uv run python -m pytest tests/ --pdb
 ```
 
-### Frontend Debugging
+Frontend:
 
 ```bash
-# Run tests in watch mode and debug in browser
-npm test -- --watch --debug
-
-# Or use VS Code debugger
-# Set breakpoint and run in debug mode
+pnpm run test:watch
+pnpm test -- --reporter=verbose
 ```
 
-## Continuous Testing
+When a failure is environment-specific, record:
 
-### Pre-commit Hooks
+- Exact command
+- Operating system and runtime versions
+- First failing assertion or stack frame
+- Whether the focused test passes alone
+- Whether state, time, timezone, or concurrency changes the result
 
-Use husky to run tests before commit:
+## Related Reading
 
-### GitHub Actions
-
-The CI workflow in `.github/workflows/ci.yml` automatically runs backend tests (pytest), linting (ruff), type checking (mypy), and frontend type checks, linting, and builds on every push and pull request.
+- [Development](DEVELOPMENT.md)
+- [Architecture](architecture.md)
+- [API](API.md)
+- [Contributing](../CONTRIBUTING.md)

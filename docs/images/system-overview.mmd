@@ -1,39 +1,42 @@
-%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#6366f1', 'primaryTextColor': '#fff', 'primaryBorderColor': '#818cf8', 'lineColor': '#94a3b8', 'secondaryColor': '#1e293b', 'tertiaryColor': '#0f172a', 'background': '#0f172a', 'mainBkg': '#1e293b', 'nodeBorder': '#334155', 'clusterBkg': '#1e293b', 'clusterBorder': '#334155', 'titleColor': '#f8fafc', 'edgeLabelBackground': '#1e293b'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Arial, sans-serif', 'primaryColor': '#eef2f1', 'primaryTextColor': '#17201d', 'primaryBorderColor': '#63716c', 'lineColor': '#63716c', 'secondaryColor': '#edf2f7', 'tertiaryColor': '#f7f7f5', 'background': '#f7f7f5', 'mainBkg': '#f7f7f5', 'nodeBorder': '#8a9691', 'clusterBkg': '#f1f3f1', 'clusterBorder': '#b5bdb9', 'titleColor': '#17201d', 'edgeLabelBackground': '#f7f7f5'}}}%%
 flowchart TB
-    subgraph DEPLOY["  Deployment Infrastructure  "]
-        direction TB
-        subgraph GHP["  GitHub Pages  "]
-            FE["React 19 SPA\nTypeScript + Vite 7\nTailwind CSS 4\nRecharts + Framer Motion"]
-        end
-        subgraph VERCEL["  Vercel (Serverless)  "]
-            BE["FastAPI Backend\nPython 3.11+ / Mangum\nSQLAlchemy 2.0 + Alembic\nPydantic v2 Schemas"]
-        end
-        subgraph NEON["  Neon PostgreSQL 17  "]
-            DB[("users\ntransactions\npreferences\nbudgets / goals\nanomalies\nimport_logs")]
-        end
+    USER((User))
+
+    subgraph DELIVERY["Delivery"]
+        PAGES["GitHub Pages<br/>React 19 SPA<br/>TypeScript 6 + Vite 8"]
+        VERCEL["Vercel sin1<br/>FastAPI + Mangum<br/>Python 3.13"]
+        NEON[("Neon PostgreSQL 17<br/>26 tables<br/>PgBouncer pooler")]
     end
 
-    subgraph OAUTH["  OAuth 2.0 Providers  "]
-        G["Google"]
-        GH["GitHub"]
+    subgraph BROWSER["Browser runtime"]
+        APP["Responsive workspace<br/>Light / Dark / System<br/>PWA app shell"]
+        QUERY["TanStack Query<br/>API server state"]
+        STORES["Zustand<br/>auth, preferences,<br/>theme, demo"]
+        APP --- QUERY
+        APP --- STORES
     end
 
-    subgraph STATE["  Frontend State  "]
-        ZS["Zustand Stores\n(auth, preferences,\naccounts, budget)"]
-        TQ["TanStack Query\n(server state cache,\nstaleTime: Infinity)"]
+    subgraph EXTERNAL["External services"]
+        OAUTH["Google and GitHub<br/>OAuth 2.0"]
+        AI["OpenAI / Anthropic<br/>browser-direct BYOK"]
+        BEDROCK["Amazon Bedrock<br/>backend proxy"]
     end
 
-    USER((User\nBrowser)) -->|HTTPS| FE
-    FE <-->|REST JSON\n+ JWT Bearer| BE
-    BE <-->|OAuth Code\nExchange| OAUTH
-    BE <-->|SQL\nConnection Pool\npool_size=20| DB
-    FE --- STATE
+    USER -->|loads static assets| PAGES
+    PAGES --> APP
+    APP <-->|REST JSON<br/>JWT bearer| VERCEL
+    VERCEL <-->|SQLAlchemy 2<br/>pool 5 + overflow 3| NEON
+    VERCEL <-->|code exchange| OAUTH
+    APP -->|BYOK request| AI
+    VERCEL -->|server credential| BEDROCK
 
-    style USER fill:#6366f1,color:#fff,stroke:#818cf8,stroke-width:2px
-    style FE fill:#3b82f6,color:#fff,stroke:#60a5fa,stroke-width:2px
-    style BE fill:#10b981,color:#fff,stroke:#34d399,stroke-width:2px
-    style DB fill:#f59e0b,color:#000,stroke:#fbbf24,stroke-width:2px
-    style G fill:#ea4335,color:#fff,stroke:#f87171,stroke-width:2px
-    style GH fill:#6b7280,color:#fff,stroke:#9ca3af,stroke-width:2px
-    style ZS fill:#8b5cf6,color:#fff,stroke:#a78bfa,stroke-width:2px
-    style TQ fill:#8b5cf6,color:#fff,stroke:#a78bfa,stroke-width:2px
+    style USER fill:#17201d,color:#f7f7f5,stroke:#17201d,stroke-width:2px
+    style PAGES fill:#dbeafe,color:#17201d,stroke:#2563eb,stroke-width:2px
+    style VERCEL fill:#dcfce7,color:#17201d,stroke:#15803d,stroke-width:2px
+    style NEON fill:#fef3c7,color:#17201d,stroke:#b45309,stroke-width:2px
+    style APP fill:#f7f7f5,color:#17201d,stroke:#63716c,stroke-width:2px
+    style QUERY fill:#e0f2fe,color:#17201d,stroke:#0369a1,stroke-width:2px
+    style STORES fill:#f3e8ff,color:#17201d,stroke:#7e22ce,stroke-width:2px
+    style OAUTH fill:#fee2e2,color:#17201d,stroke:#b91c1c,stroke-width:2px
+    style AI fill:#ede9fe,color:#17201d,stroke:#6d28d9,stroke-width:2px
+    style BEDROCK fill:#ffedd5,color:#17201d,stroke:#c2410c,stroke-width:2px
