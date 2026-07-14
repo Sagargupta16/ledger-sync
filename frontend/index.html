@@ -27,7 +27,7 @@
           var resolved = m === 'system'
             ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
             : m;
-          document.documentElement.setAttribute('data-theme', resolved);
+          document.documentElement.dataset.theme = resolved;
           // Keep the mobile browser chrome in step with the selected theme.
           var bar = resolved === 'light' ? '#f7f7f5' : '#101112';
           var setMeta = function (name, content) {
@@ -37,7 +37,7 @@
           setMeta('theme-color', bar);
           setMeta('color-scheme', resolved);
         } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'light');
+          document.documentElement.dataset.theme = 'light';
         }
       })();
     </script>

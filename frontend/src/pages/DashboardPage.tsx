@@ -164,7 +164,7 @@ export default function DashboardPage() {
             <span className="flex size-7 items-center justify-center rounded-md bg-app-green/10">
               <Wallet className="size-3.5 text-app-green" />
             </span>
-            Income Sources
+            <span>Income Sources</span>
           </h2>
           {incomeChartData.length > 0 ? (
             <div className="space-y-4">
@@ -224,7 +224,7 @@ export default function DashboardPage() {
             <span className="flex size-7 items-center justify-center rounded-md bg-app-red/10">
               <CreditCard className="size-3.5 text-app-red" />
             </span>
-            Expense Sources
+            <span>Expense Sources</span>
           </h2>
           {expenseChartData.length > 0 ? (
             <div className="space-y-4">
