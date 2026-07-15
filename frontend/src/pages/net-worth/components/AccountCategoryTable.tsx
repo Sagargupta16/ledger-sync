@@ -131,9 +131,6 @@ export function AccountCategoryTable({
               % Allocated
             </th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">
-              Type
-            </th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">
               Transactions
             </th>
           </tr>
@@ -212,9 +209,6 @@ export function AccountCategoryTable({
                           <AllocationCell balance={catBalance} total={total} barColor={barColor} />
                         </td>
                         <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
-                          n/a
-                        </td>
-                        <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
                           {catTransactions}
                         </td>
                       </tr>,
@@ -241,9 +235,6 @@ export function AccountCategoryTable({
                             total={total}
                             barColor={barColor}
                           />
-                        </td>
-                        <td className="py-3 px-4 text-right text-muted-foreground">
-                          {getAccountType(accountName)}
                         </td>
                         <td className="py-3 px-4 text-right text-muted-foreground">
                           {accountData.transactions}
