@@ -206,13 +206,15 @@ function DefaultSparkline({
               opacity={0.25}
               filter={`url(#${glowId})`}
             />
-            {/* Inner dot */}
+            {/* Inner dot -- ring matches the page background so the dot reads
+                as cut out in BOTH themes (was a hardcoded black ring that
+                disappeared into dark cards and smudged on light ones). */}
             <circle
               cx={hoverPoint.x}
               cy={hoverPoint.y}
               r={4}
               fill={color}
-              stroke="rgba(0,0,0,0.6)"
+              stroke="var(--app-bg)"
               strokeWidth={1.5}
             />
           </>

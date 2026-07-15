@@ -149,6 +149,9 @@
      blue. Carried as a full rgba so box-shadow can use it directly. */
   --focus-ring: rgba(59, 158, 255, 0.5);
   --focus-ring-soft: rgba(59, 158, 255, 0.12);
+  /* Error variant for invalid form fields -- tracks the theme's red. */
+  --focus-ring-error: rgba(255, 87, 87, 0.55);
+  --focus-ring-error-soft: rgba(255, 87, 87, 0.14);
   /* Text/icon color that sits ON a solid accent fill (blue/red/green buttons,
      warning chips). Stays near-white in BOTH themes -- a solid accent is dark
      enough for white text on light too -- so "white-on-accent" has a name
@@ -346,6 +349,8 @@
   /* Focus ring uses the darkened light-theme blue (#2563eb) for AA contrast. */
   --focus-ring: rgba(37, 99, 235, 0.55);
   --focus-ring-soft: rgba(37, 99, 235, 0.15);
+  --focus-ring-error: rgba(214, 75, 75, 0.55);
+  --focus-ring-error-soft: rgba(214, 75, 75, 0.15);
   /* On-accent text stays white -- light-theme accents (blue #2563eb, red
      #e23b3b, etc.) are dark enough for AA white text. Modal scrim a touch
      lighter so the light page doesn't go pitch-black behind a dialog. */
