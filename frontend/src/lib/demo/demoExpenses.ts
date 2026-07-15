@@ -31,55 +31,44 @@ function tagsFor(ctx: MonthCtx, subcategory: string): string[] | undefined {
   return undefined
 }
 
+type Template = (typeof EXPENSE_TEMPLATES)[number]
+
+/** Amount for one occurrence: rent is stepwise per lease; the rest ride CPI. */
+function amountFor(ctx: MonthCtx, tmpl: Template): number {
+  if (tmpl.subcategory === 'Rent') return rentForMonth(ctx.m)
+  const festivalBoost =
+    ctx.festival && FESTIVAL_SPIKE_SUBCATS.has(tmpl.subcategory) ? 1.35 : 1
+  return Math.round(ctx.rng.int(tmpl.min, tmpl.max) * ctx.inflation * festivalBoost)
+}
+
+function pushExpense(ctx: MonthCtx, tmpl: Template, day: number): void {
+  const notes = NOTES_MAP[tmpl.subcategory]
+  ctx.txs.push({
+    id: txId(ctx.idx++),
+    date: formatDate(new Date(ctx.year, ctx.month, day)),
+    amount: amountFor(ctx, tmpl),
+    type: 'Expense',
+    category: tmpl.category,
+    subcategory: tmpl.subcategory,
+    account: tmpl.account,
+    note: notes ? ctx.rng.pick(notes) : tmpl.subcategory,
+    currency: 'INR',
+    tags: tagsFor(ctx, tmpl.subcategory),
+  })
+}
+
 export function generateMonthlyExpenses(ctx: MonthCtx): void {
-  const { rng, txs, year, month, daysInMonth } = ctx
+  const { rng, daysInMonth } = ctx
 
   for (const tmpl of EXPENSE_TEMPLATES) {
-    // Variable spending rides the CPI curve; rent is stepwise per lease.
-    const isRent = tmpl.subcategory === 'Rent'
-    const festivalBoost =
-      ctx.festival && FESTIVAL_SPIKE_SUBCATS.has(tmpl.subcategory) ? 1.35 : 1
-
-    const scaledAmount = (): number => {
-      if (isRent) return rentForMonth(ctx.m)
-      return Math.round(rng.int(tmpl.min, tmpl.max) * ctx.inflation * festivalBoost)
-    }
-
     if (tmpl.day !== undefined) {
-      const day = Math.min(tmpl.day, daysInMonth)
-      const notes = NOTES_MAP[tmpl.subcategory]
-      txs.push({
-        id: txId(ctx.idx++),
-        date: formatDate(new Date(year, month, day)),
-        amount: scaledAmount(),
-        type: 'Expense',
-        category: tmpl.category,
-        subcategory: tmpl.subcategory,
-        account: tmpl.account,
-        note: notes ? rng.pick(notes) : tmpl.subcategory,
-        currency: 'INR',
-        tags: tagsFor(ctx, tmpl.subcategory),
-      })
+      pushExpense(ctx, tmpl, Math.min(tmpl.day, daysInMonth))
     } else if (tmpl.freq !== undefined) {
       // Festival months also see slightly MORE purchases, not just larger ones.
       const freqBoost = ctx.festival && FESTIVAL_SPIKE_SUBCATS.has(tmpl.subcategory) ? 1.3 : 1
-      const count = Math.round(
-        tmpl.freq * freqBoost + (rng.next() - 0.5) * tmpl.freq * 0.6,
-      )
+      const count = Math.round(tmpl.freq * freqBoost + (rng.next() - 0.5) * tmpl.freq * 0.6)
       for (let j = 0; j < Math.max(0, count); j++) {
-        const notes = NOTES_MAP[tmpl.subcategory]
-        txs.push({
-          id: txId(ctx.idx++),
-          date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
-          amount: scaledAmount(),
-          type: 'Expense',
-          category: tmpl.category,
-          subcategory: tmpl.subcategory,
-          account: tmpl.account,
-          note: notes ? rng.pick(notes) : tmpl.subcategory,
-          currency: 'INR',
-          tags: tagsFor(ctx, tmpl.subcategory),
-        })
+        pushExpense(ctx, tmpl, rng.int(1, daysInMonth))
       }
     }
   }

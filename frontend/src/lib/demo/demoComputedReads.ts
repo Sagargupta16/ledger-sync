@@ -81,7 +81,7 @@ export function generateDemoDataDateRange(txs: Transaction[]): {
 } {
   if (txs.length === 0) return { min_date: null, max_date: null }
   // txs arrive sorted newest-first.
-  return { min_date: txs[txs.length - 1].date, max_date: txs[0].date }
+  return { min_date: txs.at(-1)?.date ?? null, max_date: txs[0].date }
 }
 
 export function generateDemoQuickInsights(txs: Transaction[]): QuickInsightsData {
@@ -250,11 +250,11 @@ export function generateDemoMerchantIntelligence(txs: Transaction[]): MerchantIn
   return [...byMerchant.entries()]
     .filter(([, rows]) => rows.length >= 3)
     .map(([merchant, rows]) => {
-      const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date))
+      const sorted = rows.toSorted((a, b) => a.date.localeCompare(b.date))
       const total = rows.reduce((s, t) => s + t.amount, 0)
       const months = new Set(rows.map((t) => t.date.slice(0, 7))).size
       const first = sorted[0].date
-      const last = sorted[sorted.length - 1].date
+      const last = sorted.at(-1)?.date ?? first
       const spanDays =
         (new Date(last).getTime() - new Date(first).getTime()) / 86_400_000
       return {
@@ -425,7 +425,7 @@ export function generateDemoSpendingRule(
       wants: { amount: wants, pct_of_income: pct(wants), score_delta: 30 - pct(wants) },
       savings: { amount: savings, pct_of_income: pct(savings), score_delta: pct(savings) - 20 },
     },
-    categories: categories.sort((a, b) => b.total_amount - a.total_amount),
+    categories: categories.toSorted((a, b) => b.total_amount - a.total_amount),
   }
 }
 

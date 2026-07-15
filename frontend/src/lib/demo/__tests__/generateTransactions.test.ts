@@ -12,7 +12,7 @@ function monthKey(date: string): string {
 describe('generateDemoTransactions', () => {
   it('is deterministic', () => {
     const again = generateDemoTransactions()
-    expect(again.length).toBe(txs.length)
+    expect(again).toHaveLength(txs.length)
     expect(again[0]).toEqual(txs[0])
     expect(again.at(-1)).toEqual(txs.at(-1))
   })
@@ -32,7 +32,7 @@ describe('generateDemoTransactions', () => {
     const salaries = txs
       .filter((t) => t.subcategory === 'Salary')
       .sort((a, b) => a.date.localeCompare(b.date))
-    expect(salaries.length).toBe(DEMO_MONTHS)
+    expect(salaries).toHaveLength(DEMO_MONTHS)
     const first = salaries[0].amount
     const last = salaries.at(-1)!.amount
     // ~9.5%/yr + one promotion over 4 years => at least 40% total growth.
@@ -44,7 +44,7 @@ describe('generateDemoTransactions', () => {
     const rents = txs
       .filter((t) => t.subcategory === 'Rent')
       .sort((a, b) => a.date.localeCompare(b.date))
-    expect(rents.length).toBe(DEMO_MONTHS)
+    expect(rents).toHaveLength(DEMO_MONTHS)
     const distinct = [...new Set(rents.map((r) => r.amount))]
     // 48 months / 11-month leases => 4-5 distinct rent levels, ascending.
     expect(distinct.length).toBeGreaterThanOrEqual(4)
@@ -91,7 +91,7 @@ describe('generateDemoTransactions', () => {
     expect(subcats.has('Insurance')).toBe(true)
     expect(subcats.has('Vacation')).toBe(true)
     // EMI runs exactly 12 months.
-    expect(txs.filter((t) => t.subcategory === 'Consumer Durable EMI').length).toBe(12)
+    expect(txs.filter((t) => t.subcategory === 'Consumer Durable EMI')).toHaveLength(12)
     // Annual insurance premium appears ~4 times (once per year).
     const health = txs.filter((t) => t.note === 'Health Insurance Annual Premium')
     expect(health.length).toBeGreaterThanOrEqual(3)
