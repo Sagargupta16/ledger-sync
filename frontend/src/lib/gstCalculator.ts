@@ -241,9 +241,22 @@ export interface GSTSummary {
 // Core Functions
 // ────────────────────────────────────────────
 
+/** Split a label into lowercase word tokens ("Food & Dining" -> [food, dining]). */
+function wordTokens(label: string): string[] {
+  return label.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+}
+
 /**
- * Get the GST rate for a label (case-insensitive fuzzy match).
- * Tries exact match first, then partial match against known categories.
+ * Get the GST rate for a label (case-insensitive match).
+ * Tries exact match first, then WORD-BOUNDARY containment against known keys.
+ *
+ * The fallback compares whole word sequences, not raw substrings: a bare
+ * substring test made short keys false-positive traps ("Bus" matched
+ * "Business" -> 5% instead of 18%, "Train" matched "Training", "Gold"
+ * matched "Gold's Gym"). A key matches only when its full word sequence
+ * appears as consecutive whole words in the label (or vice versa), so
+ * "Public Transport" still matches a "Public Transport Pass" label while
+ * "Business Services" no longer trips the "Bus" key.
  */
 function matchRate(
   label: string,
@@ -256,14 +269,32 @@ function matchRate(
     if (key.toLowerCase() === lower) return rate
   }
 
-  // Partial match — label contains a known keyword or vice versa
+  // Word-boundary containment: key words appear consecutively in the label,
+  // or label words appear consecutively in the key.
+  const labelWords = wordTokens(label)
   for (const [key, rate] of Object.entries(rates)) {
-    if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) {
+    const keyWords = wordTokens(key)
+    if (
+      containsSequence(labelWords, keyWords) ||
+      containsSequence(keyWords, labelWords)
+    ) {
       return rate
     }
   }
 
   return null
+}
+
+/** True when `needle` appears as a consecutive run inside `haystack`. */
+function containsSequence(haystack: string[], needle: string[]): boolean {
+  if (needle.length === 0 || needle.length > haystack.length) return false
+  outer: for (let i = 0; i <= haystack.length - needle.length; i++) {
+    for (let j = 0; j < needle.length; j++) {
+      if (haystack[i + j] !== needle[j]) continue outer
+    }
+    return true
+  }
+  return false
 }
 
 /**

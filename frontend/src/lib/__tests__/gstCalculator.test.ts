@@ -138,24 +138,33 @@ describe('getGSTRate', () => {
     expect(getGSTRate('Jewellery', undefined, { Restaurants: 12 })).toBe(18)
   })
 
-  it('substring-matches a longer label against a known keyword', () => {
-    // "Fine Dining" contains "Dining" (5%)
+  it('word-matches a longer label against a known keyword', () => {
+    // "Fine Dining" contains the word "Dining" (5%)
     expect(getGSTRate('Fine Dining')).toBe(5)
-  })
-
-  it('QUIRK: a short label that is a substring of a key matches that key', () => {
-    // "Gold" is an exact key (3%). But a label like "Go" is a substring of
-    // many keys; first matching key in insertion order wins. "Go" is contained
-    // in "Gold" (3) which appears before "Gaming" (28) -> resolves to 3.
-    expect(getGSTRate('Go')).toBe(3)
-  })
-
-  it('QUIRK: substring collision can pull an unexpected slab', () => {
-    // "Bus" is an exact key (5%), so exact match wins first.
-    expect(getGSTRate('Bus')).toBe(5)
-    // But "Subscriptions" contains "Bus"? No. Use a real collision instead:
-    // "Air" is a substring of "Air Travel" (18) and resolves via partial match.
+    // "Air" appears as a word inside the "Air Travel" key (18%)
     expect(getGSTRate('Air')).toBe(18)
+    // Multi-word key inside a longer label
+    expect(getGSTRate('Public Transport Pass')).toBe(5)
+  })
+
+  it('does NOT match on raw substrings inside words (regression)', () => {
+    // These were false positives under the old bidirectional substring
+    // fallback: "Bus" ⊂ "Business" and "Train" ⊂ "Training" pulled 5%.
+    // Word-boundary matching sends them to the correct fallback instead.
+    // (Labels where a key IS a whole word, like "Gold Coin", still match --
+    // that's intended.)
+    expect(getGSTRate('Business Services')).toBe(18) // not the "Bus" 5% key
+    expect(getGSTRate('Training')).toBe(18) // not the "Train" 5% key
+    expect(getGSTRate('Automobile')).toBe(18) // not the "Auto" 5% key
+    // "Go" is not a whole-word match for "Gold" -> default 18, not 3.
+    expect(getGSTRate('Go')).toBe(18)
+  })
+
+  it("word-boundary still matches possessive-free word sequences", () => {
+    // "Gold Coin Purchase" contains the word "Gold" -> 3%.
+    expect(getGSTRate('Gold Coin Purchase')).toBe(3)
+    // "Bus" as an exact standalone key still resolves.
+    expect(getGSTRate('Bus')).toBe(5)
   })
 })
 
