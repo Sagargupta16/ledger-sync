@@ -301,7 +301,7 @@ export const BRUSH_DEFAULTS = {
   stroke: rawColors.chart.svgStroke,
   // Selection window: a blue wash so the kept range reads as "selected"
   // against the dimmed full-history overview behind it.
-  fill: 'rgba(74,158,255,0.12)',
+  fill: 'rgba(59,158,255,0.12)',
   fillOpacity: 1,
   // 34px wrapper gives touch users a comfortable drag target on tablets.
 } as const

@@ -8,7 +8,7 @@
  * Usage in components:
  * - Tailwind classes: `text-app-blue`, `bg-app-green/20`, etc.
  * - Inline styles:   `colors.app.blue` (returns `var(--color-app-blue)`)
- * - Recharts/SVG:    `rawColors.app.blue` (returns resolved hex like `#4a9eff`)
+ * - Recharts/SVG:    `rawColors.app.blue` (returns resolved hex like `#3b9eff`)
  */
 
 // Helper to reference CSS variables (for inline style props)
@@ -97,8 +97,8 @@ function buildRawColors() {
   const r = (v: string, fb: string) => resolveColor(v, fb)
   return {
     app: {
-      blue:           r('--color-app-blue',           '#4a9eff'),
-      blueVibrant:    r('--color-app-blue-vibrant',   '#0a84ff'),
+      blue:           r('--color-app-blue',           '#3b9eff'),
+      blueVibrant:    r('--color-app-blue-vibrant',   '#0090ff'),
       green:          r('--color-app-green',           '#30d158'),
       greenVibrant:   r('--color-app-green-vibrant',  '#28cd50'),
       red:            r('--color-app-red',             '#ff5757'),
@@ -121,7 +121,7 @@ function buildRawColors() {
       expense:    r('--color-expense',    '#ff5757'),
       savings:    r('--color-savings',    '#a78bfa'),
       transfer:   r('--color-transfer',   '#5ac8f5'),
-      investment: r('--color-investment', '#4a9eff'),
+      investment: r('--color-investment', '#3b9eff'),
     },
     text: {
       primary:    r('--color-text-primary',    '#f5f5f7'),
