@@ -12,39 +12,89 @@ import {
   generateDemoOverview,
   generateDemoBehavior,
   generateDemoTrends,
+  generateDemoMonthlySummaries,
+  generateDemoCategoryTrends,
+  generateDemoRecurring,
+  generateDemoNetWorth,
+  generateDemoFYSummaries,
+  generateDemoAnomalies,
+  generateDemoBudgets,
+  generateDemoGoals,
 } from '@/lib/demo/generateDerivedData'
+import {
+  generateDemoAccountClassifications,
+  generateDemoCategoryDailySeries,
+  generateDemoCategoryMonthlyHistory,
+  generateDemoCohortSpending,
+  generateDemoDailySummaries,
+  generateDemoDataDateRange,
+  generateDemoFacets,
+  generateDemoInvestmentHoldings,
+  generateDemoMerchantIntelligence,
+  generateDemoQuickInsights,
+  generateDemoSavedViews,
+  generateDemoSearch,
+  generateDemoSpendingRule,
+  generateDemoTransferFlows,
+} from '@/lib/demo/demoComputedReads'
 import type { Transaction } from '@/types'
+
+/** V2 list endpoints are wrapped as { data, count }. */
+function wrap<T>(rows: T[]): { data: T[]; count: number } {
+  return { data: rows, count: rows.length }
+}
 
 function resolveDemoData(url: string, params: Record<string, unknown>, txs: Transaction[]): unknown {
   if (url.includes('/api/ai/tools')) return { tools: [] }
+  // Calculations
   if (url.includes('/calculations/totals')) return generateDemoTotals(txs, params)
   if (url.includes('/calculations/monthly-aggregation')) return generateDemoMonthlyAggregation(txs, params)
   if (url.includes('/calculations/account-balances')) return generateDemoAccountBalances(txs)
   if (url.includes('/calculations/category-breakdown')) return generateDemoCategoryBreakdown(txs, params)
-  if (url.includes('/analytics/kpis')) return generateDemoKPIs(txs)
-  // Spending-rule returns a distinct shape from the other v2 endpoints; the
-  // /budgets page reads data.period.start etc, so the generic {data: []}
-  // stub below would blow up when the page renders. Return a zero-state
-  // response instead -- demo users see the empty-history layout, not a crash.
-  if (url.includes('/analytics/v2/spending-rule')) {
-    return {
-      period: { start: new Date().toISOString(), end: new Date().toISOString(), months: 1 },
-      income_total: 0,
-      expense_total: 0,
-      savings_amount: 0,
-      targets: { needs: 50, wants: 30, savings: 20 },
-      buckets: {
-        needs: { amount: 0, pct_of_income: 0, score_delta: 0 },
-        wants: { amount: 0, pct_of_income: 0, score_delta: 0 },
-        savings: { amount: 0, pct_of_income: 0, score_delta: 0 },
-      },
-      categories: [],
-    }
+  if (url.includes('/calculations/quick-insights')) return generateDemoQuickInsights(txs)
+  if (url.includes('/calculations/data-date-range')) return generateDemoDataDateRange(txs)
+  if (url.includes('/calculations/category-monthly-history')) {
+    return generateDemoCategoryMonthlyHistory(
+      txs,
+      Array.isArray(params.months) ? (params.months as string[]) : [],
+      params.transaction_type === 'income' ? 'income' : 'expense',
+    )
   }
+  if (url.includes('/calculations/category-daily-series')) return generateDemoCategoryDailySeries(txs, params)
+  // Analytics V1
+  if (url.includes('/analytics/kpis')) return generateDemoKPIs(txs)
+  // Analytics V2 -- specific endpoints first, generic {data: []} last.
+  // (The palette/filter pages hit these with non-default params, which miss
+  // the seeded cache keys -- so the adapter must answer them all directly.)
+  if (url.includes('/analytics/v2/spending-rule')) return generateDemoSpendingRule(txs, params)
+  if (url.includes('/analytics/v2/cohort-spending')) return { data: generateDemoCohortSpending(txs) }
+  if (url.includes('/analytics/v2/daily-summaries')) return wrap(generateDemoDailySummaries(txs))
+  if (url.includes('/analytics/v2/transfer-flows')) return wrap(generateDemoTransferFlows(txs))
+  if (url.includes('/analytics/v2/merchant-intelligence')) return wrap(generateDemoMerchantIntelligence(txs))
+  if (url.includes('/analytics/v2/investment-holdings')) return wrap(generateDemoInvestmentHoldings(txs))
+  if (url.includes('/analytics/v2/monthly-summaries')) return wrap(generateDemoMonthlySummaries(txs))
+  if (url.includes('/analytics/v2/category-trends')) return wrap(generateDemoCategoryTrends(txs))
+  if (url.includes('/analytics/v2/recurring-transactions')) {
+    const rows = generateDemoRecurring()
+    return wrap(params.active_only ? rows.filter((r) => r.is_active) : rows)
+  }
+  if (url.includes('/analytics/v2/net-worth')) return wrap(generateDemoNetWorth(txs))
+  if (url.includes('/analytics/v2/fy-summaries')) return wrap(generateDemoFYSummaries(txs))
+  if (url.includes('/analytics/v2/anomalies')) {
+    const rows = generateDemoAnomalies()
+    return wrap(params.include_reviewed === false ? rows.filter((a) => !a.is_reviewed) : rows)
+  }
+  if (url.includes('/analytics/v2/budgets')) return wrap(generateDemoBudgets())
+  if (url.includes('/analytics/v2/goals')) return wrap(generateDemoGoals())
   if (url.includes('/analytics/v2/')) return { data: [], count: 0 }
   if (url.includes('/analytics/overview')) return generateDemoOverview(txs)
   if (url.includes('/analytics/behavior')) return generateDemoBehavior(txs)
   if (url.includes('/analytics/trends')) return generateDemoTrends(txs)
+  // Transactions -- facets and paginated search before the generic list.
+  if (url.includes('/transactions/facets')) return generateDemoFacets(txs)
+  if (url.includes('/transactions/search')) return generateDemoSearch(txs, params)
+  if (url.includes('/saved-views')) return generateDemoSavedViews()
+  if (url.includes('/account-classifications')) return generateDemoAccountClassifications()
   if (url.includes('/transactions')) return txs.slice(0, (params.limit as number) || txs.length)
   return []
 }

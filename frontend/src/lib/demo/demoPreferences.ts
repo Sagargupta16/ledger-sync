@@ -23,23 +23,43 @@ function buildDemoSalaryStructure(): Record<
   const year = now.getFullYear()
   const currentFYStart = month >= 4 ? year : year - 1
 
+  // Four FYs matching the 48-month ledger: ~9.5% appraisals with one
+  // promotion year, mirroring salaryForMonth() in demoTxHelpers.
   return {
     [fyLabel(currentFYStart)]: {
-      base_salary_annual: 960000,
-      hra_annual: 480000,
-      bonus_annual: 150000,
+      base_salary_annual: 1_160_000,
+      hra_annual: 580_000,
+      bonus_annual: 190_000,
       epf_monthly: 1800,
       nps_monthly: 0,
-      special_allowance_annual: 320000,
+      special_allowance_annual: 390_000,
       other_taxable_annual: 0,
     },
     [fyLabel(currentFYStart - 1)]: {
-      base_salary_annual: 840000,
-      hra_annual: 420000,
-      bonus_annual: 120000,
+      base_salary_annual: 1_060_000,
+      hra_annual: 530_000,
+      bonus_annual: 170_000,
       epf_monthly: 1800,
       nps_monthly: 0,
-      special_allowance_annual: 280000,
+      special_allowance_annual: 350_000,
+      other_taxable_annual: 0,
+    },
+    [fyLabel(currentFYStart - 2)]: {
+      base_salary_annual: 900_000,
+      hra_annual: 450_000,
+      bonus_annual: 140_000,
+      epf_monthly: 1800,
+      nps_monthly: 0,
+      special_allowance_annual: 300_000,
+      other_taxable_annual: 0,
+    },
+    [fyLabel(currentFYStart - 3)]: {
+      base_salary_annual: 820_000,
+      hra_annual: 410_000,
+      bonus_annual: 120_000,
+      epf_monthly: 1800,
+      nps_monthly: 0,
+      special_allowance_annual: 270_000,
       other_taxable_annual: 0,
     },
   }
