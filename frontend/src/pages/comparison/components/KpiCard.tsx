@@ -36,6 +36,7 @@ export function KpiCard({
     <motion.div
       className="glass rounded-2xl border border-border p-6"
       whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 1 }}
     >
       <p className="text-kpi-label text-muted-foreground mb-1">{title}</p>
       <div className="flex items-end gap-2 mb-3">

@@ -82,6 +82,7 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
                       setOpen(false)
                     }}
                     className="flex-1 min-h-[44px] px-3 py-2 text-left text-sm text-foreground rounded-lg hover:bg-[var(--overlay-3)] transition-colors truncate"
+                    title={view.name}
                   >
                     {view.name}
                   </button>

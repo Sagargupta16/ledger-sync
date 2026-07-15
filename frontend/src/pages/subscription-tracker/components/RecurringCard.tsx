@@ -74,7 +74,9 @@ export function RecurringCard({
           <div className={`w-2 h-8 rounded-full shrink-0 ${isIncome ? 'bg-app-green' : 'bg-app-red'}`} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-medium text-foreground truncate">{item.name}</h3>
+              <h3 className="font-medium text-foreground truncate" title={item.name}>
+                {item.name}
+              </h3>
               <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${isIncome ? 'bg-app-green/10 text-app-green' : 'bg-app-red/10 text-app-red'}`}>
                 {item.type}
               </span>

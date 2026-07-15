@@ -84,6 +84,7 @@ export function BucketCard({
   return (
     <motion.div
       whileHover={{ y: -2 }}
+      whileTap={{ y: 0 }}
       transition={{ type: 'spring', stiffness: 350, damping: 25 }}
       className="h-full glass rounded-2xl border border-border p-5 flex flex-col gap-3"
       aria-label={`${title} bucket, ${pctOfIncome.toFixed(1)} percent of income, ${deltaLabel}`}

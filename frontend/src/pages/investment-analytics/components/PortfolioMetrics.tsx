@@ -70,6 +70,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
         icon={LineChart}
         color={portfolioXIRR >= 0 ? 'green' : 'red'}
         isLoading={isLoading}
+        titleInfo="Annualized return implied by the timing of your deposits and withdrawals (book value -- market gains aren't tracked)"
       />
       {monthlyInvestmentTarget > 0 && (
         <motion.div

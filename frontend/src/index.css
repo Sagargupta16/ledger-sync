@@ -932,6 +932,16 @@ input:not([type="checkbox"]):not([type="radio"]):focus {
   filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5));
 }
 
+/* Charts are visualizations, not copyable text: without this, clicking or
+   drag-scrubbing across a chart selects the SVG tick/label text and paints
+   the browser's blue selection overlay -- which reads as the chart being
+   stuck in a "selected" state until the user clicks elsewhere. */
+.recharts-wrapper,
+.recharts-wrapper text {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* ===== ACCESSIBILITY ===== */
 
 /* Double-ring focus -- cleaner on dark backgrounds */

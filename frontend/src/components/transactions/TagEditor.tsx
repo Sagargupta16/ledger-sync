@@ -69,6 +69,7 @@ export default function TagEditor({ transactionId, tags, availableTags }: Readon
         type="button"
         onClick={() => (open ? setOpen(false) : handleOpen())}
         className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)] transition-colors"
+        title="Edit tags"
         aria-label="Edit tags"
         aria-haspopup="true"
         aria-expanded={open}

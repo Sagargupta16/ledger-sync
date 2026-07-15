@@ -133,7 +133,7 @@ function DefaultSparkline({
     <div className="relative group">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full cursor-crosshair"
+        className="w-full cursor-crosshair select-none"
         style={{ height }}
         preserveAspectRatio="none"
         onMouseMove={handleMouseMove}

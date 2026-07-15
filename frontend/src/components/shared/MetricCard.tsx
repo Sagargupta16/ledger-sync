@@ -21,6 +21,12 @@ interface MetricCardProps {
   href?: string
   onClick?: () => void
   hero?: boolean
+  /**
+   * One-sentence hover explanation for computed metrics (XIRR, ratios) whose
+   * meaning isn't obvious from the label. Rendered as a native title tooltip
+   * on the card header.
+   */
+  titleInfo?: string
 }
 
 export default function MetricCard({
@@ -37,6 +43,7 @@ export default function MetricCard({
   href,
   onClick,
   hero = false,
+  titleInfo,
 }: Readonly<MetricCardProps>) {
   const colors = metricColorConfig[color]
 
@@ -76,7 +83,10 @@ export default function MetricCard({
           >
             <Icon className="size-3.5" style={{ color: colors.text }} />
           </span>
-          <h3 className="min-w-0 truncate text-xs font-medium text-muted-foreground">
+          <h3
+            className="min-w-0 truncate text-xs font-medium text-muted-foreground"
+            title={titleInfo ?? (title.length > 24 ? title : undefined)}
+          >
             {title}
           </h3>
         </div>

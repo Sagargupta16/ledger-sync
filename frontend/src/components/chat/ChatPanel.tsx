@@ -145,6 +145,7 @@ export default function ChatPanel({
             <button
               type="button"
               onClick={onStop}
+              title="Stop generating"
               aria-label="Stop generating"
               className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 rounded-xl bg-app-red/20 text-app-red hover:bg-app-red/30 transition-colors"
             >
@@ -155,6 +156,7 @@ export default function ChatPanel({
               type="button"
               onClick={handleSend}
               disabled={!input.trim()}
+              title={input.trim() ? 'Send message' : 'Type a message first'}
               aria-label="Send message"
               className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 rounded-xl bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >

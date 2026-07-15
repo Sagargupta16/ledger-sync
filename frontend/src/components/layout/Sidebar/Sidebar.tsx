@@ -247,6 +247,7 @@ export default function Sidebar() {
                   }
                   disabled={logout.isPending}
                   className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 hover:bg-app-red/10 hover:text-app-red disabled:opacity-50 lg:size-9"
+                  title={isDemoMode ? 'Exit demo' : 'Sign out'}
                   aria-label={isDemoMode ? 'Exit demo' : 'Sign out'}
                 >
                   <LogOut className="size-4" />

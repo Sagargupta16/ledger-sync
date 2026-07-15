@@ -252,7 +252,11 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                         )}
                         <div className="flex items-center justify-between text-xs text-text-tertiary">
                           <span className="text-muted-foreground">{tx.account}</span>
-                          {tx.note && <span className="truncate max-w-[150px]">{tx.note}</span>}
+                          {tx.note && (
+                            <span className="truncate max-w-[150px]" title={tx.note}>
+                              {tx.note}
+                            </span>
+                          )}
                         </div>
                       </div>
                     )

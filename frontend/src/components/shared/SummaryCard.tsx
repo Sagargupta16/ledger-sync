@@ -54,7 +54,13 @@ export default function SummaryCard({
         </div>
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg sm:text-xl font-bold text-foreground truncate">{value}</p>
+          {/* title reveals the full amount when the truncate clips it */}
+          <p
+            className="text-lg sm:text-xl font-bold text-foreground truncate"
+            title={typeof value === 'string' ? value : undefined}
+          >
+            {value}
+          </p>
         </div>
       </div>
     </motion.div>

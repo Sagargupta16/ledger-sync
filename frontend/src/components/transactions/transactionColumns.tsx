@@ -119,7 +119,10 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     header: 'Note',
     enableSorting: false,
     cell: ({ row }) => (
-      <span className="text-sm text-text-tertiary truncate max-w-[120px] lg:max-w-[200px] block">
+      <span
+        className="text-sm text-text-tertiary truncate max-w-[120px] lg:max-w-[200px] block"
+        title={row.original.note || undefined}
+      >
         {row.original.note || '-'}
       </span>
     ),

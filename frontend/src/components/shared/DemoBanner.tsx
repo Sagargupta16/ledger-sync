@@ -28,6 +28,7 @@ export function DemoBanner() {
         <button
           onClick={() => { exitDemoMode(queryClient, navigate); setDismissed(true) }}
           className="inline-flex size-11 items-center justify-center rounded-md p-1 text-foreground/40 transition-colors hover:bg-[var(--overlay-5)] hover:text-foreground sm:size-8"
+          title="Exit demo and clear sample data"
           aria-label="Exit demo"
         >
           <X className="w-3.5 h-3.5" />
