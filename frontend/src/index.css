@@ -1,13 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  /* ===== BASE COLORS ===== */
-  --color-background: #000000;
-  --color-foreground: #f5f5f7;
+  /* ===== BASE COLORS =====
+     Dark neutrals carry a subtle blue cast (Radix blue-dark 1-2 lineage:
+     #0d1520 / #111927) instead of pure black -- the "bluish workspace" look
+     of modern fintech dashboards comes from cool-tinted neutrals, not from
+     louder accents. Hue ~215, chroma kept low so charts stay legible. */
+  /* Page sits at a rich navy-black (not void black) and surfaces step UP a
+     full tone so cards visibly lift -- the flat look came from page and card
+     sharing near-identical luminance. */
+  --color-background: #0a0f16;
+  --color-foreground: #f2f6fb;
   --color-card: var(--color-surface-1);
-  --color-card-foreground: #f5f5f7;
-  --color-popover: rgba(28, 28, 30, 0.85);
-  --color-popover-foreground: #f5f5f7;
+  --color-card-foreground: #f2f6fb;
+  --color-popover: rgba(26, 34, 46, 0.88);
+  --color-popover-foreground: #f2f6fb;
   --color-primary: var(--color-app-blue);
   --color-primary-foreground: #ffffff;
   --color-secondary: var(--color-app-indigo);
@@ -23,16 +30,18 @@
   --color-ring: var(--color-app-blue);
   --radius: 0.5rem;
 
-  /* ===== SURFACE TOKENS ===== */
-  --color-surface-1: rgba(28, 28, 30, 0.6);
-  --color-surface-2: rgba(28, 28, 30, 0.75);
-  --color-surface-3: rgba(44, 44, 46, 0.6);
-  --color-surface-4: rgba(99, 99, 102, 0.3);
-  --color-surface-hover: rgba(38, 38, 40, 0.6);
-  --color-surface-nav: rgba(18, 18, 18, 0.7);
-  --color-surface-thin: rgba(44, 44, 46, 0.4);
-  --color-surface-tooltip: #2c2c2e;
-  --color-surface-dropdown: #1c1c1e;
+  /* ===== SURFACE TOKENS =====
+     Same alpha ladder as before, remapped from neutral grey to the blue-cast
+     greys (hue ~215) so every card/nav/dropdown carries the tint. */
+  --color-surface-1: rgba(28, 36, 48, 0.72);
+  --color-surface-2: rgba(28, 36, 48, 0.85);
+  --color-surface-3: rgba(40, 50, 65, 0.65);
+  --color-surface-4: rgba(96, 112, 134, 0.32);
+  --color-surface-hover: rgba(35, 44, 58, 0.7);
+  --color-surface-nav: rgba(16, 22, 31, 0.75);
+  --color-surface-thin: rgba(40, 50, 65, 0.45);
+  --color-surface-tooltip: #253040;
+  --color-surface-dropdown: #1a222e;
 
   /* ===== BORDER TOKENS (3 levels) ===== */
   --color-border-subtle: rgba(255, 255, 255, 0.08);
@@ -44,8 +53,11 @@
   --shadow-2xl: var(--glass-shadow-strong);
 
   /* ===== APP COLOR PALETTE ===== */
-  --color-app-blue: #4a9eff;
-  --color-app-blue-vibrant: #0a84ff;
+  /* Primary blue: Radix blue-dark 10/9 (#3b9eff / #0090ff) -- tuned for dark
+     surfaces with AA contrast for text-scale uses, brighter + cleaner than
+     the old #4a9eff. */
+  --color-app-blue: #3b9eff;
+  --color-app-blue-vibrant: #0090ff;
   --color-app-green: #30d158;
   --color-app-green-vibrant: #28cd50;
   --color-app-red: #ff5757;
@@ -77,21 +89,22 @@
   --color-investment: var(--color-app-blue);
 
   /* ===== TEXT COLORS ===== */
-  --color-text-primary: #f5f5f7;
-  --color-text-secondary: #8e8e93;
-  --color-text-tertiary: #7c7c80;
-  --color-text-quaternary: #48484a;
+  /* Cool-cast neutrals matching the blue surfaces; contrast tiers preserved. */
+  --color-text-primary: #f2f6fb;
+  --color-text-secondary: #93a1b3;
+  --color-text-tertiary: #7e8b9c;
+  --color-text-quaternary: #4a5462;
 
   /* ===== LEDGER INTERFACE TOKENS ===== */
-  --ledger-control-bg: rgba(12, 14, 18, 0.42);
-  --ledger-control-bg-hover: rgba(32, 36, 42, 0.58);
+  --ledger-control-bg: rgba(10, 14, 20, 0.42);
+  --ledger-control-bg-hover: rgba(28, 36, 48, 0.58);
   --ledger-control-border: rgba(255, 255, 255, 0.10);
   --ledger-control-border-hover: rgba(255, 255, 255, 0.16);
   --ledger-control-edge: rgba(255, 255, 255, 0.08);
   --ledger-control-shadow: inset 0 1px 0 var(--ledger-control-edge);
   --ledger-focus-shadow: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--focus-ring-soft);
-  --ledger-grid-line: rgba(255, 255, 255, 0.025);
-  --ledger-grid-band: rgba(74, 158, 255, 0.035);
+  --ledger-grid-line: rgba(148, 184, 255, 0.03);
+  --ledger-grid-band: rgba(59, 158, 255, 0.04);
 
   /* ===== DISABLED STATE ===== */
   --color-disabled: rgba(99, 99, 102, 0.3);
@@ -105,7 +118,7 @@
   /* Dark defaults. The light theme ([data-theme="light"]) overrides these so
      the whole glass/shadow/scrollbar system flips without per-component edits.
      `--glass-edge` is the top-edge highlight, `--glass-shadow-*` the depth. */
-  --app-bg: #000000;
+  --app-bg: #0a0f16;
   --glass-border: rgba(255, 255, 255, 0.06);
   --glass-border-hover: rgba(255, 255, 255, 0.10);
   --glass-border-strong: rgba(255, 255, 255, 0.08);
@@ -129,13 +142,16 @@
   --skeleton-base: rgba(255, 255, 255, 0.03);
   --skeleton-highlight: rgba(255, 255, 255, 0.06);
   --divider-color: rgba(255, 255, 255, 0.1);
-  --header-bg: rgba(0, 0, 0, 0.8);
-  --sidebar-bg: rgba(17, 17, 19, 0.95);
+  --header-bg: rgba(10, 15, 22, 0.82);
+  --sidebar-bg: rgba(15, 21, 30, 0.96);
   /* Focus ring (theme-aware). Used by :focus-visible and form :focus so the
      ring tracks the accent color in BOTH themes instead of a hardcoded dark
      blue. Carried as a full rgba so box-shadow can use it directly. */
-  --focus-ring: rgba(74, 158, 255, 0.5);
-  --focus-ring-soft: rgba(74, 158, 255, 0.12);
+  --focus-ring: rgba(59, 158, 255, 0.5);
+  --focus-ring-soft: rgba(59, 158, 255, 0.12);
+  /* Error variant for invalid form fields -- tracks the theme's red. */
+  --focus-ring-error: rgba(255, 87, 87, 0.55);
+  --focus-ring-error-soft: rgba(255, 87, 87, 0.14);
   /* Text/icon color that sits ON a solid accent fill (blue/red/green buttons,
      warning chips). Stays near-white in BOTH themes -- a solid accent is dark
      enough for white text on light too -- so "white-on-accent" has a name
@@ -230,39 +246,40 @@
    light frosted glass. Set via `data-theme="light"` on <html> by ThemeProvider.
    Only tokens are overridden -- components reference tokens, so they all flip. */
 [data-theme='light'] {
-  /* Warm off-white page background (LAB so the warmth is perceptually even) --
-     not a stark cold #fff. Surfaces step up toward pure white so cards lift
-     off the page. */
-  --color-background: #f7f7f5;
-  --color-foreground: #171918;
+  /* Cool blue-grey page background, a full tone deeper than the cards so
+     pure-white surfaces visibly lift off it (the flat look came from page
+     and card sitting within ~2% luminance of each other). Radix blue2-3
+     lineage rather than blue1. */
+  --color-background: #eaf0f7;
+  --color-foreground: #14181f;
   --color-card: var(--color-surface-1);
-  --color-card-foreground: #171918;
+  --color-card-foreground: #14181f;
   --color-popover: #ffffff;
-  --color-popover-foreground: #171918;
+  --color-popover-foreground: #14181f;
   --color-primary-foreground: #ffffff;
   --color-secondary-foreground: #ffffff;
   --color-muted: var(--color-surface-3);
-  --color-muted-foreground: #626862;
+  --color-muted-foreground: #5b6472;
   --color-accent: var(--color-surface-4);
-  --color-accent-foreground: #171918;
-  --color-input: #f5f6f3;
+  --color-accent-foreground: #14181f;
+  --color-input: #f2f5fa;
 
-  /* Surfaces: cards are pure-white over the warm page bg; muted/raised tiers
-     pick up the warm grey LAB tones. */
+  /* Surfaces: cards are pure-white over the cool page bg; muted/raised tiers
+     pick up blue-grey tones (Radix blue2-4 lineage). */
   --color-surface-1: #ffffff;
-  --color-surface-2: #fbfbfa;
-  --color-surface-3: #f1f2ef;
-  --color-surface-4: #e8eae6;
-  --color-surface-hover: #f3f4f1;
-  --color-surface-nav: #fbfbfa;
-  --color-surface-thin: #f6f6f4;
+  --color-surface-2: #f8fafd;
+  --color-surface-3: #e9eff6;
+  --color-surface-4: #dde6f0;
+  --color-surface-hover: #eef3f9;
+  --color-surface-nav: #f8fafd;
+  --color-surface-thin: #f2f6fa;
   --color-surface-tooltip: #ffffff;
   --color-surface-dropdown: #ffffff;
 
-  /* Borders: hairline cool grey (dark-on-light, the inverse of the dark theme) */
-  --color-border-subtle: rgba(23, 25, 24, 0.09);
-  --color-border-medium: rgba(23, 25, 24, 0.14);
-  --color-border-strong: rgba(23, 25, 24, 0.2);
+  /* Borders: hairline cool blue-grey (dark-on-light, inverse of dark theme) */
+  --color-border-subtle: rgba(20, 30, 45, 0.09);
+  --color-border-medium: rgba(20, 30, 45, 0.14);
+  --color-border-strong: rgba(20, 30, 45, 0.2);
 
   /* Accent palette: darken a few that are too pale on white for AA contrast */
   --color-app-blue: #2563eb;
@@ -284,35 +301,35 @@
   --color-app-indigo: #5b63d6;
   --color-app-indigo-vibrant: #4f46e5;
 
-  /* Text: near-black down to a soft grey */
-  --color-text-primary: #171918;
-  --color-text-secondary: #4f554f;
-  --color-text-tertiary: #5d635d;
-  --color-text-quaternary: #696f69;
+  /* Text: near-black (blue-cast) down to a soft cool grey */
+  --color-text-primary: #14181f;
+  --color-text-secondary: #46505e;
+  --color-text-tertiary: #55606f;
+  --color-text-quaternary: #626d7c;
 
-  --ledger-control-bg: #f7f8f5;
+  --ledger-control-bg: #f4f7fb;
   --ledger-control-bg-hover: #ffffff;
-  --ledger-control-border: rgba(23, 25, 24, 0.11);
-  --ledger-control-border-hover: rgba(23, 25, 24, 0.2);
+  --ledger-control-border: rgba(20, 30, 45, 0.11);
+  --ledger-control-border-hover: rgba(20, 30, 45, 0.2);
   --ledger-control-edge: rgba(255, 255, 255, 0.9);
-  --ledger-control-shadow: 0 1px 1px rgba(23, 25, 24, 0.03);
+  --ledger-control-shadow: 0 1px 1px rgba(20, 30, 45, 0.03);
   --ledger-focus-shadow: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--focus-ring-soft);
-  --ledger-grid-line: rgba(23, 25, 24, 0.055);
-  --ledger-grid-band: rgba(21, 138, 80, 0.025);
+  --ledger-grid-line: rgba(20, 30, 45, 0.055);
+  --ledger-grid-band: rgba(37, 99, 235, 0.03);
 
   --color-disabled: rgba(0, 0, 0, 0.08);
   --color-disabled-foreground: rgba(0, 0, 0, 0.35);
 
   /* Glass system flipped for light: white frost, dark-grey hairline edges,
      soft realistic shadows (premium card feel), brighter glow wash. */
-  --app-bg: #f7f7f5;
-  --glass-border: rgba(23, 25, 24, 0.09);
-  --glass-border-hover: rgba(23, 25, 24, 0.16);
-  --glass-border-strong: rgba(23, 25, 24, 0.12);
+  --app-bg: #eaf0f7;
+  --glass-border: rgba(20, 30, 45, 0.09);
+  --glass-border-hover: rgba(20, 30, 45, 0.16);
+  --glass-border-strong: rgba(20, 30, 45, 0.12);
   --glass-edge: rgba(255, 255, 255, 0.9);
-  --glass-shadow: 0 1px 2px rgba(23, 25, 24, 0.035);
-  --glass-shadow-strong: 0 4px 12px rgba(23, 25, 24, 0.08);
-  --glass-shadow-ultra: 0 12px 32px rgba(23, 25, 24, 0.12);
+  --glass-shadow: 0 1px 3px rgba(20, 30, 45, 0.06);
+  --glass-shadow-strong: 0 4px 14px rgba(20, 30, 45, 0.1);
+  --glass-shadow-ultra: 0 12px 32px rgba(20, 30, 45, 0.14);
   /* In light, glow cards DO get a soft drop shadow for premium depth. */
   --glow-base-shadow: var(--glass-shadow);
   --glow-strength: 0.08;
@@ -325,13 +342,15 @@
   --skeleton-base: rgba(17, 24, 39, 0.05);
   --skeleton-highlight: rgba(17, 24, 39, 0.10);
   --divider-color: rgba(17, 24, 39, 0.08);
-  --header-bg: rgba(251, 251, 250, 0.96);
-  /* Light sidebar: a hair softer/warmer than pure white so it reads as a
+  --header-bg: rgba(250, 252, 254, 0.96);
+  /* Light sidebar: a hair softer/cooler than pure white so it reads as a
      distinct rail against the white content cards. */
-  --sidebar-bg: #fbfbfa;
+  --sidebar-bg: #fafcfe;
   /* Focus ring uses the darkened light-theme blue (#2563eb) for AA contrast. */
   --focus-ring: rgba(37, 99, 235, 0.55);
   --focus-ring-soft: rgba(37, 99, 235, 0.15);
+  --focus-ring-error: rgba(214, 75, 75, 0.55);
+  --focus-ring-error-soft: rgba(214, 75, 75, 0.15);
   /* On-accent text stays white -- light-theme accents (blue #2563eb, red
      #e23b3b, etc.) are dark enough for AA white text. Modal scrim a touch
      lighter so the light page doesn't go pitch-black behind a dialog. */
@@ -911,6 +930,16 @@ input:not([type="checkbox"]):not([type="radio"]):focus {
 .recharts-tooltip-wrapper {
   pointer-events: none;
   filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5));
+}
+
+/* Charts are visualizations, not copyable text: without this, clicking or
+   drag-scrubbing across a chart selects the SVG tick/label text and paints
+   the browser's blue selection overlay -- which reads as the chart being
+   stuck in a "selected" state until the user clicks elsewhere. */
+.recharts-wrapper,
+.recharts-wrapper text {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* ===== ACCESSIBILITY ===== */

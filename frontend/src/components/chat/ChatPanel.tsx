@@ -1,7 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { Send, Square, Trash2, Minus, AlertCircle } from 'lucide-react'
+import {
+  Send,
+  Square,
+  Trash2,
+  Minus,
+  AlertCircle,
+  Sparkles,
+  PieChart,
+  Repeat2,
+  TrendingUp,
+  type LucideIcon,
+} from 'lucide-react'
 import { motion } from 'framer-motion'
 
 import type { ChatMessage as ChatMessageType } from '@/lib/chatAdapters'
@@ -19,10 +30,23 @@ interface Props {
   onMinimize: () => void
 }
 
-const SUGGESTIONS = [
-  'How much did I spend last month?',
-  'What are my top expense categories?',
-  "What's my savings rate?",
+/** Icon-led quick actions for the empty state (finance-specific, one per pillar). */
+const SUGGESTIONS: ReadonlyArray<{ icon: LucideIcon; label: string; prompt: string }> = [
+  {
+    icon: PieChart,
+    label: 'Break down my spending',
+    prompt: 'What are my top expense categories this month, and how do they compare to last month?',
+  },
+  {
+    icon: Repeat2,
+    label: 'Review my recurring bills',
+    prompt: 'List my recurring bills and subscriptions. Which ones grew recently?',
+  },
+  {
+    icon: TrendingUp,
+    label: 'Check my savings health',
+    prompt: "What's my savings rate over the last 3 months, and is it trending up or down?",
+  },
 ]
 
 export default function ChatPanel({
@@ -101,19 +125,37 @@ export default function ChatPanel({
 
       <div ref={scrollRef} aria-live="polite" aria-atomic="false" className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px]">
         {messages.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground">Ask me anything about your finances.</p>
-            <div className="mt-3 space-y-1.5">
-              {SUGGESTIONS.map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => onSend(q)}
-                  className="block w-full text-left text-xs text-primary/80 hover:text-primary px-3 py-1.5 rounded-lg hover:bg-[var(--overlay-2)] transition-colors"
-                >
-                  {q}
-                </button>
-              ))}
+          <div className="flex h-full flex-col justify-between py-2">
+            {/* Centered mark on a faint grid, echoing the workspace texture */}
+            <div className="ledger-workspace-bg flex flex-1 items-center justify-center py-8">
+              <div className="flex size-14 items-center justify-center rounded-full border border-[var(--hairline-2)] bg-[var(--overlay-2)] shadow-[var(--glass-shadow)]">
+                <Sparkles className="size-6 text-primary" aria-hidden="true" />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Hey there!</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Ask me anything about your spending, recurring bills, savings, taxes, or
+                  investments -- I read your ledger, so answers use your real numbers.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => onSend(s.prompt)}
+                    className="ledger-control flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-xs font-medium text-foreground transition-colors"
+                  >
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-[var(--hairline-1)] bg-[var(--overlay-2)]">
+                      <s.icon className="size-3.5 text-primary" aria-hidden="true" />
+                    </span>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -145,6 +187,7 @@ export default function ChatPanel({
             <button
               type="button"
               onClick={onStop}
+              title="Stop generating"
               aria-label="Stop generating"
               className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 rounded-xl bg-app-red/20 text-app-red hover:bg-app-red/30 transition-colors"
             >
@@ -155,6 +198,7 @@ export default function ChatPanel({
               type="button"
               onClick={handleSend}
               disabled={!input.trim()}
+              title={input.trim() ? 'Send message' : 'Type a message first'}
               aria-label="Send message"
               className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 rounded-xl bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >

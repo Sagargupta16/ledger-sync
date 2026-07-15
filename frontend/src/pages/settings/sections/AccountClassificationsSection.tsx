@@ -62,6 +62,7 @@ export default function AccountClassificationsSection({
                   onDragStart={() => onDragStart(name)}
                   onDragEnd={onDragEnd}
                   whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 1 }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--overlay-5)] border border-border rounded-full cursor-move hover:bg-[var(--overlay-6)] transition-colors min-w-0 flex-1"
                 >
                   <GripVertical className="w-3 h-3 text-foreground/40 shrink-0" />
@@ -123,6 +124,7 @@ export default function AccountClassificationsSection({
                   onDragStart={() => onDragStart(name)}
                   onDragEnd={onDragEnd}
                   whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 1 }}
                   className="flex items-center gap-1 px-2.5 py-1 bg-[var(--overlay-5)] border border-border rounded-full cursor-move hover:bg-[var(--overlay-6)] transition-colors"
                 >
                   <GripVertical className="w-2.5 h-2.5 text-foreground/30" />

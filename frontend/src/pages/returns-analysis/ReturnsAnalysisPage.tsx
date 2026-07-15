@@ -361,7 +361,7 @@ export default function ReturnsAnalysisPage() {
                 axisLine={{ stroke: rawColors.chart.axisLine }}
               />
               <Tooltip
-                cursor={{ fill: rawColors.chart.grid }}
+                cursor={chartTooltipProps.cursor}
                 content={AccountTooltip as never}
               />
               <Bar

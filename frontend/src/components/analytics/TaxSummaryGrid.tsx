@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { ProgressBar } from '@/components/shared'
-import { rawColors } from '@/constants/colors'
+import { hexToRgba, rawColors } from '@/constants/colors'
 
 interface TaxSummaryGridProps {
   selectedFY: string
@@ -48,9 +48,9 @@ export default function TaxSummaryGrid({
             height={6}
             color={rawColors.app.orange}
             bands={[
-              { upTo: (15 / 35) * 100, color: 'rgba(48,209,88,0.10)' },
-              { upTo: (25 / 35) * 100, color: 'rgba(255,159,10,0.10)' },
-              { upTo: 100, color: 'rgba(255,69,58,0.10)' },
+              { upTo: (15 / 35) * 100, color: hexToRgba(rawColors.app.green, 0.1) },
+              { upTo: (25 / 35) * 100, color: hexToRgba(rawColors.app.orange, 0.1) },
+              { upTo: 100, color: hexToRgba(rawColors.app.red, 0.1) },
             ]}
             ariaLabel={`Effective tax rate ${formatPercent(effectiveTaxRate)} of gross taxable income`}
             className="mt-3"
@@ -72,9 +72,9 @@ export default function TaxSummaryGrid({
               height={6}
               color={rawColors.app.purple}
               bands={[
-                { upTo: 20, color: 'rgba(255,69,58,0.10)' },
-                { upTo: 30, color: 'rgba(255,159,10,0.10)' },
-                { upTo: 100, color: 'rgba(48,209,88,0.10)' },
+                { upTo: 20, color: hexToRgba(rawColors.app.red, 0.1) },
+                { upTo: 30, color: hexToRgba(rawColors.app.orange, 0.1) },
+                { upTo: 100, color: hexToRgba(rawColors.app.green, 0.1) },
               ]}
               ariaLabel={`Savings rate ${formatPercent(savingsRate)} of total income`}
               className="mt-3"

@@ -40,7 +40,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
             'focus:outline-none',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             icon && 'pl-10',
-            error && 'border-app-red/50 focus:border-app-red/50 focus:shadow-[0_0_0_1px_rgba(255,87,87,0.55),0_0_0_4px_rgba(255,87,87,0.14)]',
+            error && 'border-app-red/50 focus:border-app-red/50 focus:shadow-[0_0_0_1px_var(--focus-ring-error),0_0_0_4px_var(--focus-ring-error-soft)]',
             className
           )}
           aria-invalid={error ? 'true' : undefined}
@@ -91,7 +91,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           'transition-all duration-150 ease-out',
           'focus:outline-none',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          error && 'border-app-red/50 focus:border-app-red/50 focus:shadow-[0_0_0_1px_rgba(255,87,87,0.55),0_0_0_4px_rgba(255,87,87,0.14)]',
+          error && 'border-app-red/50 focus:border-app-red/50 focus:shadow-[0_0_0_1px_var(--focus-ring-error),0_0_0_4px_var(--focus-ring-error-soft)]',
           className
         )}
         aria-invalid={error ? 'true' : undefined}

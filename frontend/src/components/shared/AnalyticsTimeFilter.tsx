@@ -193,6 +193,7 @@ export default function AnalyticsTimeFilter({
             disabled={!canGoPrev}
             className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary sm:size-9"
             whileTap={canGoPrev ? { scale: 0.95 } : undefined}
+            title={canGoPrev ? 'Previous period' : 'Already at your earliest data'}
             aria-label="Previous period"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -211,6 +212,7 @@ export default function AnalyticsTimeFilter({
             disabled={!canGoNext}
             className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary sm:size-9"
             whileTap={canGoNext ? { scale: 0.95 } : undefined}
+            title={canGoNext ? 'Next period' : 'Already at your latest data'}
             aria-label="Next period"
           >
             <ChevronRight className="w-4 h-4" />
