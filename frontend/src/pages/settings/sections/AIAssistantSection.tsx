@@ -129,7 +129,9 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
     saveMutation.mutate({
       provider,
       model,
-      api_key: isBedrock(provider) ? 'bedrock-uses-aws-credentials' : apiKey,
+      // Bedrock: the user's API key (bearer token) when provided; the legacy
+      // placeholder keeps the shared server credential path.
+      api_key: isBedrock(provider) && !apiKey ? 'bedrock-uses-aws-credentials' : apiKey,
       region: isBedrock(provider) ? region : undefined,
     })
   }
