@@ -266,11 +266,23 @@ export function useInvestmentAnalytics() {
   const filteredGrowthData = useMemo(() => {
     const startDate = dateRange.start_date
     const endDate = dateRange.end_date
-    if (!startDate || !endDate) return dailyGrowthData
-    return dailyGrowthData.filter((item) => {
-      const d = item.fullDate as string
-      return d >= startDate && d <= endDate
-    })
+    const ranged =
+      !startDate || !endDate
+        ? dailyGrowthData
+        : dailyGrowthData.filter((item) => {
+            const d = item.fullDate as string
+            return d >= startDate && d <= endDate
+          })
+    // Long ranges collapse to month-end points: the forward-filled daily
+    // series feeds 4 stacked SVG areas, and an all-time view was painting
+    // ~2,700 points per area (sluggish first paint + hover). Month-end
+    // sampling preserves the shape; short windows keep daily fidelity.
+    if (ranged.length <= 366) return ranged
+    const byMonth = new Map<string, (typeof ranged)[number]>()
+    for (const item of ranged) {
+      byMonth.set((item.fullDate as string).substring(0, 7), item)
+    }
+    return [...byMonth.values()]
   }, [dailyGrowthData, dateRange])
 
   return {
