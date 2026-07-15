@@ -49,6 +49,15 @@ export const overviewItem: NavItem = {
 }
 
 /**
+ * Transactions is a first-class destination (it's one of the four mobile tabs),
+ * so it sits top-level with Dashboard and Overview rather than alone in a
+ * single-item "Data" group.
+ */
+export const transactionsItem: NavItem = {
+  path: ROUTES.TRANSACTIONS, label: 'Transactions', icon: Receipt,
+}
+
+/**
  * Sections are ordered to follow the natural money decision-flow --
  * "where did it go -> what comes in -> what's left -> grow it -> plan ahead ->
  * what I owe" -- so the sidebar reads like how people think about their money
@@ -104,20 +113,13 @@ export const navigationSections: NavSection[] = [
       { path: ROUTES.GST_ANALYSIS, label: 'Indirect Tax (GST)', icon: Receipt },
     ],
   },
-  {
-    title: 'Data',
-    items: [
-      { path: ROUTES.TRANSACTIONS, label: 'Transactions', icon: Receipt },
-      { path: ROUTES.UPLOAD, label: 'Upload & Sync', icon: Upload },
-      { path: ROUTES.SETTINGS, label: 'Settings', icon: Settings2 },
-    ],
-  },
 ]
 
 /**
- * Bottom utility bar keeps quick access to Upload (the core recurring task, E)
- * and Settings as icons, even though both now also live in the Data section --
- * a power user mid-task shouldn't have to scroll the nav to re-sync.
+ * Bottom utility bar is the single home for Upload & Sync and Settings --
+ * always visible above the profile, no scrolling through the nav groups.
+ * They were previously duplicated in the Data section; the duplication read
+ * as two different destinations, so the list entries were dropped.
  */
 export const utilityItems: NavItem[] = [
   { path: ROUTES.UPLOAD, label: 'Upload & Sync', icon: Upload },

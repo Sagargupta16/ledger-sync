@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Save, RotateCcw } from 'lucide-react'
 import { PageContainer, PageHeader } from '@/components/ui'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -227,6 +227,37 @@ export default function SettingsPage() {
           variant="warning"
           onConfirm={s.handleReset}
         />
+
+        {/* Floating save bar: settings sections run several screens deep, so
+            saving must not require scrolling back to the header. Appears only
+            with unsaved changes; sits above the mobile tab bar. */}
+        <AnimatePresence>
+          {s.hasChanges && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 16 }}
+              transition={{ duration: 0.18 }}
+              className="fixed inset-x-0 z-40 flex justify-center px-4 bottom-[calc(68px+env(safe-area-inset-bottom,0px)+0.75rem)] lg:bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
+            >
+              <div className="flex items-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown/95 px-4 py-2.5 shadow-[var(--glass-shadow-strong)] backdrop-blur-lg">
+                <span className="flex items-center gap-1.5 text-sm text-app-yellow">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-app-yellow" />
+                  Unsaved changes
+                </span>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={s.handleSave}
+                  disabled={s.isSaving}
+                  className="flex items-center gap-2 rounded-md border border-foreground bg-foreground px-4 py-1.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>{s.isSaving ? 'Saving...' : 'Save'}</span>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
     </PageContainer>
   )
 }
