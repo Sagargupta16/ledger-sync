@@ -4,8 +4,9 @@ import { formatDate, txId, type MonthCtx } from './demoTxHelpers'
 export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
   const { rng, txs, year, month, m } = ctx
 
-  const baseSalary = 145000 + Math.floor(m / 6) * 8000
-  const salary = baseSalary + rng.int(-3000, 3000)
+  // Salary follows the April-appraisal growth curve (see salaryForMonth);
+  // small jitter models variable deductions month to month.
+  const salary = ctx.salaryMonthly + rng.int(-2000, 2000)
   txs.push(
     {
       id: txId(ctx.idx++),
@@ -31,7 +32,34 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
     },
   )
 
-  if (m % 6 === 5 || (m % 3 === 0 && rng.next() < 0.3)) {
+  // Annual performance bonus lands with the April appraisal (~1 month of
+  // salary); Diwali month carries a small festival bonus; occasional spot
+  // bonuses in other quarters.
+  if (month === 3) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(25, 28))),
+      amount: Math.round(ctx.salaryMonthly * (0.8 + rng.next() * 0.5)),
+      type: 'Income',
+      category: 'Employment Income',
+      subcategory: 'Bonuses',
+      account: ACCOUNTS.hdfc,
+      note: 'Annual Performance Bonus',
+      currency: 'INR',
+    })
+  } else if (ctx.festival && month === 9) {
+    txs.push({
+      id: txId(ctx.idx++),
+      date: formatDate(new Date(year, month, rng.int(15, 25))),
+      amount: rng.int(8000, 20000),
+      type: 'Income',
+      category: 'Employment Income',
+      subcategory: 'Bonuses',
+      account: ACCOUNTS.hdfc,
+      note: 'Festival Bonus',
+      currency: 'INR',
+    })
+  } else if (m % 3 === 0 && rng.next() < 0.3) {
     txs.push({
       id: txId(ctx.idx++),
       date: formatDate(new Date(year, month, rng.int(15, 28))),
@@ -40,7 +68,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
       category: 'Employment Income',
       subcategory: 'Bonuses',
       account: ACCOUNTS.hdfc,
-      note: rng.pick(['Performance Bonus', 'Spot Bonus', 'Quarterly Incentive', 'Festival Bonus']),
+      note: rng.pick(['Spot Bonus', 'Quarterly Incentive', 'Patent Award']),
       currency: 'INR',
     })
   }
@@ -64,10 +92,12 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
   }
 
   if (month % 3 === 0) {
+    // Interest grows with the corpus: roughly proportional to months elapsed.
+    const corpusFactor = 1 + (m / 48) * 3
     txs.push({
       id: txId(ctx.idx++),
       date: formatDate(new Date(year, month, rng.int(15, 28))),
-      amount: rng.int(200, 3000),
+      amount: Math.round(rng.int(400, 1500) * corpusFactor),
       type: 'Income',
       category: 'Investment Income',
       subcategory: 'Interest',
@@ -111,7 +141,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
 }
 
 function generateMonthlyCashbacksAndRefunds(ctx: MonthCtx): void {
-  const { rng, txs, year, month, m, daysInMonth } = ctx
+  const { rng, txs, year, month, daysInMonth } = ctx
 
   const cashbackCount = rng.int(2, 4)
   for (let c = 0; c < cashbackCount; c++) {
@@ -152,7 +182,8 @@ function generateMonthlyCashbacksAndRefunds(ctx: MonthCtx): void {
     })
   }
 
-  if (m < 6 && rng.next() < 0.4) {
+  // Occasional family gifts, more likely in festival months (shagun).
+  if ((ctx.festival && rng.next() < 0.5) || rng.next() < 0.08) {
     txs.push({
       id: txId(ctx.idx++),
       date: formatDate(new Date(year, month, rng.int(1, 15))),
@@ -161,7 +192,7 @@ function generateMonthlyCashbacksAndRefunds(ctx: MonthCtx): void {
       category: 'Other Income',
       subcategory: 'Gifts',
       account: ACCOUNTS.sbi,
-      note: rng.pick(['Birthday Gift', 'Festival Gift', 'Family Gift']),
+      note: rng.pick(['Birthday Gift', 'Festival Shagun', 'Family Gift']),
       currency: 'INR',
     })
   }

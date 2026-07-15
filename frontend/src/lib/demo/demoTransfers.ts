@@ -4,11 +4,15 @@ import { formatDate, txId, type MonthCtx } from './demoTxHelpers'
 export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
   const { rng, txs, year, month, daysInMonth } = ctx
 
+  // Sweep scales with salary (roughly 40% of net pay moves to savings).
+  // SIP follows the classic step-up pattern: starts at 12k/mo and steps up
+  // 10-15% each April alongside the appraisal, reaching ~18-20k by year 4.
+  const sipAmount = Math.round((12_000 * Math.pow(1.125, Math.floor(ctx.m / 12))) / 500) * 500
   txs.push(
     {
       id: txId(ctx.idx++),
       date: formatDate(new Date(year, month, 2)),
-      amount: rng.int(50000, 70000),
+      amount: Math.round((salary * (0.38 + rng.next() * 0.06)) / 1000) * 1000,
       type: 'Transfer',
       category: 'Transfer',
       subcategory: 'Bank Transfer',
@@ -22,7 +26,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
     {
       id: txId(ctx.idx++),
       date: formatDate(new Date(year, month, 10)),
-      amount: rng.pick([10000, 15000, 20000, 25000]),
+      amount: sipAmount,
       type: 'Transfer',
       category: 'Investment',
       subcategory: 'SIP',
@@ -79,10 +83,12 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
   })
 
   if (month % 3 === 0) {
+    // Quarterly PPF: fills more of the 1.5L 80C ceiling as salary grows.
+    const ppfQuarterly = rng.pick(ctx.m < 24 ? [10000, 12500, 15000] : [25000, 30000, 37500])
     txs.push({
       id: txId(ctx.idx++),
       date: formatDate(new Date(year, month, 15)),
-      amount: rng.pick([5000, 10000, 12500]),
+      amount: ppfQuarterly,
       type: 'Transfer',
       category: 'Investment',
       subcategory: 'PPF',
