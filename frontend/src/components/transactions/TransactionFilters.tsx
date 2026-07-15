@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useEffectEvent, useRef, type ReactNode } from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useDebounce } from '@/hooks/useDebounce'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import type { TagFacet } from '@/services/api/transactions'
 
@@ -31,18 +32,6 @@ export interface FilterValues {
 }
 
 const TRANSACTION_TYPES = ['Income', 'Expense', 'Transfer']
-
-// Custom debounce hook
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-
-  return debouncedValue
-}
 
 export default function TransactionFilters({
   onFilterChange,
