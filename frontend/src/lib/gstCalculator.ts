@@ -247,6 +247,42 @@ function wordTokens(label: string): string[] {
 }
 
 /**
+ * Per-rate-table caches, keyed by table object identity. computeGSTAnalysis
+ * calls matchRate once per transaction (7k tx x ~100 table keys), so without
+ * caching the table is re-lowercased/re-tokenized ~700k times per analysis.
+ * The rate tables are module constants (or a stable customRates object), so a
+ * WeakMap keyed on the table keeps this allocation-free across calls.
+ */
+interface TableCache {
+  /** lowercased key -> rate, for the exact-match pass */
+  exact: Map<string, number>
+  /** tokenized keys in insertion order, for the word-boundary pass */
+  tokenized: Array<{ words: string[]; rate: number }>
+  /** memoized resolution: lowercased label -> rate (null = no match) */
+  resolved: Map<string, number | null>
+}
+
+const tableCaches = new WeakMap<Record<string, number>, TableCache>()
+
+function cacheFor(rates: Record<string, number>): TableCache {
+  let cache = tableCaches.get(rates)
+  if (!cache) {
+    cache = {
+      exact: new Map(
+        Object.entries(rates).map(([k, r]) => [k.toLowerCase(), r]),
+      ),
+      tokenized: Object.entries(rates).map(([k, r]) => ({
+        words: wordTokens(k),
+        rate: r,
+      })),
+      resolved: new Map(),
+    }
+    tableCaches.set(rates, cache)
+  }
+  return cache
+}
+
+/**
  * Get the GST rate for a label (case-insensitive match).
  * Tries exact match first, then WORD-BOUNDARY containment against known keys.
  *
@@ -262,27 +298,35 @@ function matchRate(
   label: string,
   rates: Record<string, number>,
 ): number | null {
+  const cache = cacheFor(rates)
   const lower = label.toLowerCase()
 
-  // Exact match (case-insensitive)
-  for (const [key, rate] of Object.entries(rates)) {
-    if (key.toLowerCase() === lower) return rate
-  }
+  const memo = cache.resolved.get(lower)
+  if (memo !== undefined) return memo
 
-  // Word-boundary containment: key words appear consecutively in the label,
-  // or label words appear consecutively in the key.
-  const labelWords = wordTokens(label)
-  for (const [key, rate] of Object.entries(rates)) {
-    const keyWords = wordTokens(key)
-    if (
-      containsSequence(labelWords, keyWords) ||
-      containsSequence(keyWords, labelWords)
-    ) {
-      return rate
+  let result: number | null = null
+
+  // Exact match (case-insensitive)
+  const exact = cache.exact.get(lower)
+  if (exact !== undefined) {
+    result = exact
+  } else {
+    // Word-boundary containment: key words appear consecutively in the label,
+    // or label words appear consecutively in the key.
+    const labelWords = wordTokens(label)
+    for (const { words: keyWords, rate } of cache.tokenized) {
+      if (
+        containsSequence(labelWords, keyWords) ||
+        containsSequence(keyWords, labelWords)
+      ) {
+        result = rate
+        break
+      }
     }
   }
 
-  return null
+  cache.resolved.set(lower, result)
+  return result
 }
 
 /** True when `needle` appears as a consecutive run inside `haystack`. */
