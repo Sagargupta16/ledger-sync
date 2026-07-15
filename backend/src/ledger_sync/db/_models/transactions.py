@@ -14,6 +14,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +24,22 @@ from ledger_sync.db.base import Base
 
 if TYPE_CHECKING:
     from ledger_sync.db._models.user import User
+
+
+def _live_index(name: str, *columns: str) -> Index:
+    """Partial index over non-deleted rows, with per-dialect predicates.
+
+    SQLite matches partial-index predicates near-textually against the query
+    WHERE clause; SQLAlchemy's ``.is_(False)`` emits ``is_deleted IS 0`` on
+    SQLite, so the predicate must be the IS-form. Postgres proves predicate
+    implication instead, so the canonical ``= false`` form is used there.
+    """
+    return Index(
+        name,
+        *columns,
+        sqlite_where=text("is_deleted IS 0"),
+        postgresql_where=text("is_deleted = false"),
+    )
 
 
 class Transaction(Base):
@@ -64,7 +81,11 @@ class Transaction(Base):
         default=lambda: datetime.now(UTC),
         index=True,
     )
-    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    # No standalone index: every read path filters ``is_deleted`` alongside
+    # ``user_id`` and is served by the partial composite indexes below (the
+    # optimize_tx_indexes_2026 migration had already dropped the single-column
+    # index; the old ``index=True`` here was drift).
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Audit timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -89,25 +110,28 @@ class Transaction(Base):
     # removed: the planner can never use them for user-scoped queries, so they
     # only taxed writes. See migration ``optimize_tx_indexes_2026``.
     #
-    # NOTE: partial indexes (``WHERE is_deleted = false``) would shrink these
-    # further (~63% of rows are soft-deleted) but the predicate-matching of
-    # ``.is_(False)`` vs a ``= false`` partial differs between SQLite and
-    # Postgres and can't be verified here -- left as a Postgres-verified
-    # follow-up rather than shipped blind.
+    # All composites are PARTIAL on the live rows (soft-deleted rows are dead
+    # weight in every index; every read path filters them out). Predicate
+    # forms are dialect-specific and empirically verified:
+    #   - SQLite matches partial-index predicates near-textually, and
+    #     ``.is_(False)`` emits ``is_deleted IS 0`` -- so the SQLite predicate
+    #     must be the IS-form (a ``= 0`` predicate is NOT matched).
+    #   - Postgres does implication proofs, and ``.is_(False)`` emits
+    #     ``IS false``, which implies ``is_deleted = false``.
     __table_args__ = (
         # Primary analytics range scan: user's rows ordered/filtered by date.
-        Index("ix_transactions_user_date", "user_id", "date"),
+        _live_index("ix_transactions_user_date", "user_id", "date"),
         # Type-filtered + date range (search endpoint, type rollups) -- type is
         # an equality filter so it leads the date range.
-        Index("ix_transactions_user_type_date", "user_id", "type", "date"),
+        _live_index("ix_transactions_user_type_date", "user_id", "type", "date"),
         # Category filter / breakdown.
-        Index("ix_transactions_user_category", "user_id", "category"),
+        _live_index("ix_transactions_user_category", "user_id", "category"),
         # Account grouping (facets, account balances) + the account legs of the
         # search OR (account == X OR from_account == X OR to_account == X) and
         # transfer-flow aggregation.
-        Index("ix_transactions_user_account", "user_id", "account"),
-        Index("ix_transactions_user_from_account", "user_id", "from_account"),
-        Index("ix_transactions_user_to_account", "user_id", "to_account"),
+        _live_index("ix_transactions_user_account", "user_id", "account"),
+        _live_index("ix_transactions_user_from_account", "user_id", "from_account"),
+        _live_index("ix_transactions_user_to_account", "user_id", "to_account"),
     )
 
     def __repr__(self) -> str:
