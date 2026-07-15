@@ -6,11 +6,14 @@
      #0d1520 / #111927) instead of pure black -- the "bluish workspace" look
      of modern fintech dashboards comes from cool-tinted neutrals, not from
      louder accents. Hue ~215, chroma kept low so charts stay legible. */
-  --color-background: #05080d;
+  /* Page sits at a rich navy-black (not void black) and surfaces step UP a
+     full tone so cards visibly lift -- the flat look came from page and card
+     sharing near-identical luminance. */
+  --color-background: #0a0f16;
   --color-foreground: #f2f6fb;
   --color-card: var(--color-surface-1);
   --color-card-foreground: #f2f6fb;
-  --color-popover: rgba(21, 27, 36, 0.85);
+  --color-popover: rgba(26, 34, 46, 0.88);
   --color-popover-foreground: #f2f6fb;
   --color-primary: var(--color-app-blue);
   --color-primary-foreground: #ffffff;
@@ -30,15 +33,15 @@
   /* ===== SURFACE TOKENS =====
      Same alpha ladder as before, remapped from neutral grey to the blue-cast
      greys (hue ~215) so every card/nav/dropdown carries the tint. */
-  --color-surface-1: rgba(21, 27, 36, 0.6);
-  --color-surface-2: rgba(21, 27, 36, 0.75);
-  --color-surface-3: rgba(31, 39, 51, 0.6);
-  --color-surface-4: rgba(90, 105, 125, 0.3);
-  --color-surface-hover: rgba(27, 34, 45, 0.6);
-  --color-surface-nav: rgba(13, 18, 26, 0.7);
-  --color-surface-thin: rgba(31, 39, 51, 0.4);
-  --color-surface-tooltip: #1f2733;
-  --color-surface-dropdown: #151b24;
+  --color-surface-1: rgba(28, 36, 48, 0.72);
+  --color-surface-2: rgba(28, 36, 48, 0.85);
+  --color-surface-3: rgba(40, 50, 65, 0.65);
+  --color-surface-4: rgba(96, 112, 134, 0.32);
+  --color-surface-hover: rgba(35, 44, 58, 0.7);
+  --color-surface-nav: rgba(16, 22, 31, 0.75);
+  --color-surface-thin: rgba(40, 50, 65, 0.45);
+  --color-surface-tooltip: #253040;
+  --color-surface-dropdown: #1a222e;
 
   /* ===== BORDER TOKENS (3 levels) ===== */
   --color-border-subtle: rgba(255, 255, 255, 0.08);
@@ -115,7 +118,7 @@
   /* Dark defaults. The light theme ([data-theme="light"]) overrides these so
      the whole glass/shadow/scrollbar system flips without per-component edits.
      `--glass-edge` is the top-edge highlight, `--glass-shadow-*` the depth. */
-  --app-bg: #05080d;
+  --app-bg: #0a0f16;
   --glass-border: rgba(255, 255, 255, 0.06);
   --glass-border-hover: rgba(255, 255, 255, 0.10);
   --glass-border-strong: rgba(255, 255, 255, 0.08);
@@ -139,8 +142,8 @@
   --skeleton-base: rgba(255, 255, 255, 0.03);
   --skeleton-highlight: rgba(255, 255, 255, 0.06);
   --divider-color: rgba(255, 255, 255, 0.1);
-  --header-bg: rgba(5, 8, 13, 0.8);
-  --sidebar-bg: rgba(12, 17, 24, 0.95);
+  --header-bg: rgba(10, 15, 22, 0.82);
+  --sidebar-bg: rgba(15, 21, 30, 0.96);
   /* Focus ring (theme-aware). Used by :focus-visible and form :focus so the
      ring tracks the accent color in BOTH themes instead of a hardcoded dark
      blue. Carried as a full rgba so box-shadow can use it directly. */
@@ -240,10 +243,11 @@
    light frosted glass. Set via `data-theme="light"` on <html> by ThemeProvider.
    Only tokens are overridden -- components reference tokens, so they all flip. */
 [data-theme='light'] {
-  /* Cool off-white page background (Radix blue1/2 lineage: #fbfdff/#f4faff)
-     so light mode carries the same bluish cast as dark -- not a stark #fff,
-     not the old warm greige. Surfaces step toward pure white so cards lift. */
-  --color-background: #f5f8fc;
+  /* Cool blue-grey page background, a full tone deeper than the cards so
+     pure-white surfaces visibly lift off it (the flat look came from page
+     and card sitting within ~2% luminance of each other). Radix blue2-3
+     lineage rather than blue1. */
+  --color-background: #eaf0f7;
   --color-foreground: #14181f;
   --color-card: var(--color-surface-1);
   --color-card-foreground: #14181f;
@@ -260,12 +264,12 @@
   /* Surfaces: cards are pure-white over the cool page bg; muted/raised tiers
      pick up blue-grey tones (Radix blue2-4 lineage). */
   --color-surface-1: #ffffff;
-  --color-surface-2: #fafcfe;
-  --color-surface-3: #eef3f9;
-  --color-surface-4: #e3eaf3;
-  --color-surface-hover: #f1f5fa;
-  --color-surface-nav: #fafcfe;
-  --color-surface-thin: #f4f7fb;
+  --color-surface-2: #f8fafd;
+  --color-surface-3: #e9eff6;
+  --color-surface-4: #dde6f0;
+  --color-surface-hover: #eef3f9;
+  --color-surface-nav: #f8fafd;
+  --color-surface-thin: #f2f6fa;
   --color-surface-tooltip: #ffffff;
   --color-surface-dropdown: #ffffff;
 
@@ -315,14 +319,14 @@
 
   /* Glass system flipped for light: white frost, dark-grey hairline edges,
      soft realistic shadows (premium card feel), brighter glow wash. */
-  --app-bg: #f5f8fc;
+  --app-bg: #eaf0f7;
   --glass-border: rgba(20, 30, 45, 0.09);
   --glass-border-hover: rgba(20, 30, 45, 0.16);
   --glass-border-strong: rgba(20, 30, 45, 0.12);
   --glass-edge: rgba(255, 255, 255, 0.9);
-  --glass-shadow: 0 1px 2px rgba(20, 30, 45, 0.035);
-  --glass-shadow-strong: 0 4px 12px rgba(20, 30, 45, 0.08);
-  --glass-shadow-ultra: 0 12px 32px rgba(20, 30, 45, 0.12);
+  --glass-shadow: 0 1px 3px rgba(20, 30, 45, 0.06);
+  --glass-shadow-strong: 0 4px 14px rgba(20, 30, 45, 0.1);
+  --glass-shadow-ultra: 0 12px 32px rgba(20, 30, 45, 0.14);
   /* In light, glow cards DO get a soft drop shadow for premium depth. */
   --glow-base-shadow: var(--glass-shadow);
   --glow-strength: 0.08;
