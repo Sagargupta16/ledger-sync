@@ -139,22 +139,16 @@ function NotFoundPage() {
   )
 }
 
-// Keeps the resolved theme in sync when the OS color-scheme changes while the
-// user is in 'system' mode. The initial theme is already applied pre-paint by
-// the inline script in index.html; this re-applies on store mount (covering a
-// localStorage value the inline script also read) and watches OS changes.
+// Re-applies the resolved theme on store mount. The initial theme is already
+// applied pre-paint by the inline script in index.html; modes are now just
+// dark/light (new users default to the OS preference at load time), so there
+// is no live OS watcher anymore.
 function ThemeWatcher() {
-  const mode = useThemeStore((s) => s.mode)
   const syncResolved = useThemeStore((s) => s.syncResolved)
 
   useEffect(() => {
     syncResolved()
-    if (mode !== 'system') return
-    const mq = globalThis.matchMedia('(prefers-color-scheme: light)')
-    const onChange = () => syncResolved()
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [mode, syncResolved])
+  }, [syncResolved])
 
   return null
 }

@@ -1,11 +1,10 @@
 /**
  * Theme store -- single source of truth for the active theme mode.
  *
- * Holds the user's chosen `mode` ('dark' | 'light' | 'system') and the
- * `resolved` concrete theme ('dark' | 'light'). Setting the mode persists it
- * and applies `data-theme` to <html> via the theme lib. A `ThemeWatcher`
- * (mounted in App) keeps `resolved` in sync when the OS preference changes
- * while in 'system' mode.
+ * Holds the user's chosen `mode` ('dark' | 'light') and the `resolved`
+ * concrete theme. Setting the mode persists it and applies `data-theme` to
+ * <html> via the theme lib. New users default to the OS preference (resolved
+ * once at load); the toggle stores an explicit choice.
  */
 
 import { create } from 'zustand'

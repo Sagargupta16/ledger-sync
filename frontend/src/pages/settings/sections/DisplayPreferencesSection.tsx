@@ -5,7 +5,7 @@
  * from the CURRENCIES metadata map.
  */
 
-import { Settings2, Sun, Moon, Monitor, type LucideIcon } from 'lucide-react'
+import { Settings2, Sun, Moon, type LucideIcon } from 'lucide-react'
 import { CURRENCIES, getCurrencyMeta } from '@/constants/currencies'
 import { useThemeStore } from '@/store/themeStore'
 import type { ThemeMode } from '@/lib/theme'
@@ -25,7 +25,6 @@ const currencyList = Object.values(CURRENCIES)
 const THEME_OPTIONS: { value: ThemeMode; label: string; Icon: LucideIcon }[] = [
   { value: 'light', label: 'Light', Icon: Sun },
   { value: 'dark', label: 'Dark', Icon: Moon },
-  { value: 'system', label: 'System', Icon: Monitor },
 ]
 
 export default function DisplayPreferencesSection({
@@ -159,7 +158,7 @@ export default function DisplayPreferencesSection({
               </label>
             ))}
           </div>
-          <FieldHint>System follows your device's light/dark setting.</FieldHint>
+          <FieldHint>New users start on their device's light/dark preference.</FieldHint>
         </div>
       </div>
     </Section>
