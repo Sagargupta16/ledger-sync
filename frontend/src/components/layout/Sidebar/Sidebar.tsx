@@ -24,6 +24,7 @@ import {
   dashboardItem,
   navigationSections,
   overviewItem,
+  transactionsItem,
   utilityItems,
 } from './navConfig'
 import SidebarItem from './SidebarItem'
@@ -198,6 +199,12 @@ export default function Sidebar() {
                 to={overviewItem.path}
                 icon={overviewItem.icon}
                 label={overviewItem.label}
+                onNavigate={closeMobile}
+              />
+              <SidebarItem
+                to={transactionsItem.path}
+                icon={transactionsItem.icon}
+                label={transactionsItem.label}
                 onNavigate={closeMobile}
               />
             </div>

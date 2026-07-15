@@ -1,39 +1,47 @@
 /**
- * Theme handling. Three modes:
- *  - 'dark'   -> always dark
- *  - 'light'  -> always the default ledger workspace theme
- *  - 'system' -> follow the OS `prefers-color-scheme`
+ * Theme handling. Two modes:
+ *  - 'dark'  -> dark ledger workspace
+ *  - 'light' -> light ledger workspace
+ *
+ * New users default to their OS `prefers-color-scheme`; once they toggle,
+ * the explicit choice persists in localStorage under `ledger-sync-theme`.
  *
  * The resolved theme is written to `data-theme` on <html>; index.css defines
- * `[data-theme='light']` token overrides. The setting persists in localStorage
- * under `ledger-sync-theme`. An inline script in index.html applies it before
- * first paint (no flash); this module keeps it in sync at runtime.
+ * `[data-theme='light']` token overrides. An inline script in index.html
+ * applies it before first paint (no flash); this module keeps it in sync at
+ * runtime.
  */
 
 import { refreshRawColors } from '@/constants/colors'
 
-export type ThemeMode = 'dark' | 'light' | 'system'
+export type ThemeMode = 'dark' | 'light'
 
 export const THEME_STORAGE_KEY = 'ledger-sync-theme'
 
-/** Read the stored mode, defaulting to the light ledger workspace. */
+/** OS-level preference, used as the default for users with no stored choice. */
+export function osPreferredTheme(): ThemeMode {
+  const prefersLight =
+    globalThis.matchMedia?.('(prefers-color-scheme: light)').matches ?? false
+  return prefersLight ? 'light' : 'dark'
+}
+
+/**
+ * Read the stored mode. An explicit stored choice wins; anything else
+ * (no value, or the legacy 'system' value from before that mode was removed)
+ * falls back to the OS preference.
+ */
 export function getStoredThemeMode(): ThemeMode {
   try {
     const v = localStorage.getItem(THEME_STORAGE_KEY)
-    if (v === 'dark' || v === 'light' || v === 'system') return v
+    if (v === 'dark' || v === 'light') return v
   } catch {
     // localStorage may be unavailable (private mode / quota) -- fall through.
   }
-  return 'light'
+  return osPreferredTheme()
 }
 
-/** Resolve a mode to the concrete theme to paint ('dark' | 'light'). */
+/** Resolve a mode to the concrete theme to paint. Identity now that 'system' is gone. */
 export function resolveTheme(mode: ThemeMode): 'dark' | 'light' {
-  if (mode === 'system') {
-    const prefersLight =
-      globalThis.matchMedia?.('(prefers-color-scheme: light)').matches ?? false
-    return prefersLight ? 'light' : 'dark'
-  }
   return mode
 }
 
@@ -70,7 +78,8 @@ export function applyTheme(resolved: 'dark' | 'light', skipTransition = false): 
 
   // Keep the mobile browser chrome (theme-color / color-scheme) tracking the
   // active theme on a live toggle, mirroring the pre-paint script in index.html.
-  const bar = resolved === 'light' ? '#f7f7f5' : '#101112'
+  // Values match the --color-background tokens in index.css.
+  const bar = resolved === 'light' ? '#eaf0f7' : '#0a0f16'
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bar)
   document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', resolved)
 

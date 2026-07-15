@@ -20,12 +20,24 @@ export const MODELS: Record<string, { value: string; label: string }[]> = {
     { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
   ],
   bedrock: [
+    // Anthropic Claude (US cross-region inference profiles)
+    { value: 'us.anthropic.claude-fable-5', label: 'Claude Fable 5 (Bedrock)' },
+    { value: 'us.anthropic.claude-sonnet-5', label: 'Claude Sonnet 5 (Bedrock)' },
+    { value: 'us.anthropic.claude-opus-4-8', label: 'Claude Opus 4.8 (Bedrock)' },
     { value: 'us.anthropic.claude-opus-4-7', label: 'Claude Opus 4.7 (Bedrock)' },
     { value: 'us.anthropic.claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (Bedrock)' },
     {
       value: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
       label: 'Claude Haiku 4.5 (Bedrock)',
     },
+    // Amazon Nova
+    { value: 'us.amazon.nova-pro-v1:0', label: 'Amazon Nova Pro (Bedrock)' },
+    { value: 'us.amazon.nova-lite-v1:0', label: 'Amazon Nova Lite (Bedrock)' },
+    { value: 'us.amazon.nova-micro-v1:0', label: 'Amazon Nova Micro (Bedrock)' },
+    // Meta Llama
+    { value: 'us.meta.llama3-3-70b-instruct-v1:0', label: 'Llama 3.3 70B (Bedrock)' },
+    // DeepSeek
+    { value: 'us.deepseek.r1-v1:0', label: 'DeepSeek R1 (Bedrock)' },
   ],
 }
 

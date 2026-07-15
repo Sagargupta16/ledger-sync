@@ -12,6 +12,8 @@
  *   `content` and the adapters wrap it into a single text block.
  */
 
+import { API_BASE_URL } from '@/constants'
+
 // --- Public types ------------------------------------------------------------
 
 export type Block =
@@ -336,7 +338,9 @@ async function callBedrock(params: SendParams): Promise<ChatResponse> {
     messages: params.messages.map(toBedrockWireMessage),
     tools: params.tools,
   }
-  const res = await fetch('/api/ai/bedrock/chat', {
+  // MUST be absolute against the backend host: a relative /api path resolves
+  // to GitHub Pages in production, whose static host answers POST with 405.
+  const res = await fetch(`${API_BASE_URL}/api/ai/bedrock/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

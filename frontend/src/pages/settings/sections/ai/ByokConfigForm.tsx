@@ -37,7 +37,11 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
     setTestStatus,
   } = props
   const providerModels = MODELS[provider] ?? []
-  const needsApiKey = provider && !isBedrock(provider)
+  // Every provider takes a key now: OpenAI/Anthropic keys are used browser-
+  // direct; a Bedrock API key (bearer token) is stored encrypted and used by
+  // the server proxy to sign calls with YOUR AWS account instead of the
+  // app's shared credential.
+  const needsApiKey = Boolean(provider)
 
   return (
     <>
@@ -64,7 +68,7 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
         </select>
         <FieldHint>
           {isBedrock(provider)
-            ? 'Bedrock uses server-side AWS credentials (env vars or ~/.aws/credentials).'
+            ? 'Paste a Bedrock API key (bearer token from the AWS console). Calls are proxied through the server and signed with YOUR key -- leave empty to use the shared app credential.'
             : 'Your API key is encrypted and stored securely. LLM calls go directly from your browser to the provider.'}
         </FieldHint>
       </div>

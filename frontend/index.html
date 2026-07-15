@@ -23,13 +23,15 @@
     <script>
       (function () {
         try {
-          var m = localStorage.getItem('ledger-sync-theme') || 'light';
-          var resolved = m === 'system'
-            ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
-            : m;
+          var m = localStorage.getItem('ledger-sync-theme');
+          // Explicit choice wins; no value (or the legacy 'system') follows
+          // the OS preference -- the default for new users.
+          var resolved = (m === 'dark' || m === 'light')
+            ? m
+            : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
           document.documentElement.dataset.theme = resolved;
           // Keep the mobile browser chrome in step with the selected theme.
-          var bar = resolved === 'light' ? '#f7f7f5' : '#101112';
+          var bar = resolved === 'light' ? '#eaf0f7' : '#0a0f16';
           var setMeta = function (name, content) {
             var el = document.querySelector('meta[name="' + name + '"]');
             if (el) el.setAttribute('content', content);

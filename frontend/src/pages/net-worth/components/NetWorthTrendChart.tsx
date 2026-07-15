@@ -298,10 +298,11 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                   )}
                 </>
               )}
-              {/* Drag-to-zoom on the x-axis. Default window is the most-recent
-                  third of the data so the chart still reads at full fidelity
-                  on first paint; users can drag either traveller to widen or
-                  narrow the view without touching the global time filter. */}
+              {/* Drag-to-zoom on the x-axis. Default window: most-recent third
+                  of the HISTORY. When projecting, chartData appends 60 months
+                  of forecast -- a blind "last third" window would show ONLY
+                  the flat dashed projection with zero historical context, so
+                  anchor the window to start ~12 months before "now" instead. */}
               {chartData.length > 6 && (
                 <Brush
                   {...BRUSH_DEFAULTS}
@@ -309,7 +310,20 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                   tickFormatter={(value: string) =>
                     formatDate(value, { month: 'short', year: '2-digit' })
                   }
-                  startIndex={Math.max(0, chartData.length - Math.ceil(chartData.length / 3))}
+                  startIndex={(() => {
+                    if (!showProjectionLine) {
+                      return Math.max(0, chartData.length - Math.ceil(chartData.length / 3))
+                    }
+                    // Last historical point = last row with a non-null netWorth.
+                    let anchorIdx = chartData.length - 1
+                    for (let i = chartData.length - 1; i >= 0; i--) {
+                      if (chartData[i].netWorth != null) {
+                        anchorIdx = i
+                        break
+                      }
+                    }
+                    return Math.max(0, anchorIdx - 12)
+                  })()}
                 />
               )}
             </AreaChart>

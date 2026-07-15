@@ -45,7 +45,12 @@ from ledger_sync.api.ai_usage import (
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.api.rate_limit import limiter, user_limiter
 from ledger_sync.config.settings import settings
+from ledger_sync.core.encryption import DecryptionError, decrypt_api_key
 from ledger_sync.db.models import UserPreferences
+
+# Legacy placeholder the frontend used to send for Bedrock configs before
+# per-user bearer tokens were supported. Treated as "no user key".
+_LEGACY_BEDROCK_PLACEHOLDER = "bedrock-uses-aws-credentials"
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -233,27 +238,44 @@ def bedrock_chat_proxy(
             ]
         }
 
-    # Pre-flight: if no auth mechanism is reachable, give a clear error instead
-    # of letting boto3 surface its misleading "model identifier is invalid"
-    # exception (which is what it says when it can't sign the request).
-    has_bearer = bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
-    has_sigv4 = bool(os.environ.get("AWS_ACCESS_KEY_ID")) or bool(os.environ.get("AWS_PROFILE"))
-    if not has_bearer and not has_sigv4:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Bedrock is not configured on the server. Set "
-                "LEDGER_SYNC_BEDROCK_API_KEY (or AWS_BEARER_TOKEN_BEDROCK) "
-                "in the backend environment."
-            ),
-        )
+    # BYOK Bedrock: if the user stored their own Bedrock API key (bearer
+    # token), the call is signed with THEIR key -- they pay AWS directly and
+    # the app's shared-key message cap does not apply (their own token caps
+    # do). The legacy placeholder string means "no user key".
+    user_bearer: str | None = None
+    if prefs.ai_mode == "byok" and prefs.ai_provider == "bedrock" and prefs.ai_api_key_encrypted:
+        try:
+            candidate, _needs_reencrypt = decrypt_api_key(prefs.ai_api_key_encrypted)
+        except DecryptionError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail="Stored Bedrock key cannot be decrypted -- re-enter it in Settings.",
+            ) from exc
+        if candidate and candidate != _LEGACY_BEDROCK_PLACEHOLDER:
+            user_bearer = candidate
 
-    # This proxy ALWAYS signs with the server's Bedrock credential (there is
-    # no per-user AWS key path), so every call through it — app_bedrock OR
-    # byok+bedrock — spends the shared server token. Enforce the app-wide daily
-    # message cap regardless of mode so a user cannot bypass cost control by
-    # flipping to byok. BYOK's optional per-user token caps still apply on top.
-    check_app_message_limit(session, current_user.id)
+    if user_bearer is None:
+        # Server-credential path. Pre-flight: if no auth mechanism is
+        # reachable, give a clear error instead of letting boto3 surface its
+        # misleading "model identifier is invalid" exception (which is what
+        # it says when it can't sign the request).
+        has_bearer = bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
+        has_sigv4 = bool(os.environ.get("AWS_ACCESS_KEY_ID")) or bool(os.environ.get("AWS_PROFILE"))
+        if not has_bearer and not has_sigv4:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Bedrock is not configured on the server. Set "
+                    "LEDGER_SYNC_BEDROCK_API_KEY (or AWS_BEARER_TOKEN_BEDROCK) "
+                    "in the backend environment, or paste your own Bedrock "
+                    "API key in Settings > AI Assistant."
+                ),
+            )
+        # Shared-key spend: enforce the app-wide daily message cap regardless
+        # of mode so a user cannot bypass cost control by flipping to byok
+        # without bringing a key.
+        check_app_message_limit(session, current_user.id)
+
     if prefs.ai_mode != "app_bedrock":
         check_token_limits(session, current_user.id)
 
@@ -272,7 +294,22 @@ def bedrock_chat_proxy(
     )
 
     try:
-        client = boto3.client("bedrock-runtime", region_name=region, config=bedrock_config)
+        if user_bearer is not None:
+            # Per-user Bedrock API key: skip SigV4 (no server creds needed)
+            # and attach the user's bearer token to the request. Scoped to
+            # this client instance -- never mutates process env, so
+            # concurrent users cannot leak keys into each other's calls.
+            from botocore import UNSIGNED  # type: ignore[import-untyped]
+
+            unsigned_config = bedrock_config.merge(Config(signature_version=UNSIGNED))
+            client = boto3.client("bedrock-runtime", region_name=region, config=unsigned_config)
+
+            def _attach_bearer(request: Any, **_kwargs: Any) -> None:
+                request.headers["Authorization"] = f"Bearer {user_bearer}"
+
+            client.meta.events.register("request-created.bedrock-runtime", _attach_bearer)
+        else:
+            client = boto3.client("bedrock-runtime", region_name=region, config=bedrock_config)
         response = client.converse(**kwargs)
     except Exception as exc:
         # Surface the real boto/AWS error to the client so the UI can display
