@@ -72,30 +72,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
           </motion.div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.14, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-10 overflow-hidden rounded-lg border border-border bg-[var(--color-surface-1)] sm:mt-12"
-        >
-          <picture>
-            <source
-              media="(max-width: 639px)"
-              srcSet={`${import.meta.env.BASE_URL}ledger-dashboard-mobile.png`}
-            />
-            <img
-              src={`${import.meta.env.BASE_URL}ledger-dashboard-desktop.png`}
-              alt="Ledger Sync demo dashboard showing cash flow, financial health, and account activity"
-              width={1440}
-              height={900}
-              loading="eager"
-              fetchPriority="high"
-              className="block h-[430px] w-full object-cover object-top sm:h-[500px] lg:h-[520px]"
-            />
-          </picture>
-        </motion.div>
-
-        <div className="grid border-x border-b border-border sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid border-x border-b border-t border-border sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
           {HIGHLIGHTS.map((item) => (
             <div
               key={item}
