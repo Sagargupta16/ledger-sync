@@ -34,9 +34,14 @@ from ledger_sync.db.models import (
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.utils.logging import logger
 
-# Commit every N updated rows so a large retro-apply stays under the
-# Neon 30s statement timeout.
+# Commit every N moved rows to bound transaction size and lock /
+# idle-in-transaction exposure on Postgres (the Neon statement timeout is
+# per-statement, so chunking is about transaction lifetime, not statements).
 _COMMIT_CHUNK = 500
+
+# IN() lookups are chunked to avoid SQL parameter limits, mirroring
+# ``Reconciler._batch_fetch_existing``.
+_IN_CHUNK = 500
 
 
 def load_active_rules(session: Session, user_id: int) -> list[CategorizationRule]:
@@ -86,13 +91,14 @@ def _rehash_with_collision_handling(
     row: Transaction,
     rule: CategorizationRule,
     user_id: int,
-    live_ids: set[str],
+    ids: set[str],
 ) -> str:
     """Recompute the dedup hash with the rule's category/subcategory.
 
-    Bumps occurrence until the id is unique among the user's live ids
-    (including ids already assigned earlier in this pass), mirroring
-    ``Reconciler.reconcile_batch`` Phase 1.
+    Bumps occurrence until the id is unique among ALL of the user's
+    transaction ids -- soft-deleted rows still occupy their PK, so they
+    must collide too (including ids already assigned earlier in this
+    pass), mirroring ``Reconciler.reconcile_batch`` Phase 1.
     """
     old_id = row.transaction_id
     occurrence = 0
@@ -108,9 +114,47 @@ def _rehash_with_collision_handling(
             user_id=user_id,
             occurrence=occurrence,
         )
-        if new_id == old_id or new_id not in live_ids:
+        if new_id == old_id or new_id not in ids:
             return new_id
         occurrence += 1
+
+
+def _prefetch_children(
+    session: Session,
+    user_id: int,
+    old_ids: list[str],
+) -> tuple[dict[str, list[str]], dict[str, list[int]]]:
+    """Batch-fetch tags and anomaly ids for the rows about to move.
+
+    Two IN() queries per ``_IN_CHUNK`` ids instead of two SELECTs per row,
+    mirroring ``Reconciler._batch_fetch_existing``.
+
+    Returns:
+        Tuple of (tags_by_id, anomaly_ids_by_id) keyed by old transaction_id.
+
+    """
+    tags_by_id: dict[str, list[str]] = {}
+    anomaly_ids_by_id: dict[str, list[int]] = {}
+    for i in range(0, len(old_ids), _IN_CHUNK):
+        chunk = old_ids[i : i + _IN_CHUNK]
+        tag_rows = session.execute(
+            select(TransactionTag.transaction_id, TransactionTag.tag).where(
+                TransactionTag.user_id == user_id,
+                TransactionTag.transaction_id.in_(chunk),
+            )
+        ).all()
+        for tag_tx_id, tag in tag_rows:
+            tags_by_id.setdefault(tag_tx_id, []).append(tag)
+        anomaly_rows = session.execute(
+            select(Anomaly.transaction_id, Anomaly.id).where(
+                Anomaly.user_id == user_id,
+                Anomaly.transaction_id.in_(chunk),
+            )
+        ).all()
+        for anomaly_tx_id, anomaly_id in anomaly_rows:
+            if anomaly_tx_id is not None:
+                anomaly_ids_by_id.setdefault(anomaly_tx_id, []).append(anomaly_id)
+    return tags_by_id, anomaly_ids_by_id
 
 
 def _move_transaction_id(
@@ -119,25 +163,20 @@ def _move_transaction_id(
     rule: CategorizationRule,
     user_id: int,
     new_id: str,
+    tag_values: list[str],
+    anomaly_ids: list[int],
 ) -> None:
     """Rewrite *row*'s PK to *new_id*, carrying its tags and anomalies along.
 
     A direct UPDATE of the child FK column would violate the constraint on
     Postgres in either order (the new parent id doesn't exist yet / the old
-    one still has children), so: collect -> delete -> flush the parent PK
-    change -> re-insert against the new id. Anomalies (nullable FK) are
-    detached before the PK moves and re-pointed after.
+    one still has children), so: delete -> flush the parent PK change ->
+    re-insert against the new id. Anomalies (nullable FK) are detached
+    before the PK moves and re-pointed after. ``tag_values`` and
+    ``anomaly_ids`` are the row's children prefetched by
+    ``_prefetch_children`` so bulk applies avoid per-row SELECTs.
     """
     old_id = row.transaction_id
-    tag_values = [
-        tag_row[0]
-        for tag_row in session.execute(
-            select(TransactionTag.tag).where(
-                TransactionTag.user_id == user_id,
-                TransactionTag.transaction_id == old_id,
-            )
-        ).all()
-    ]
     if tag_values:
         session.execute(
             delete(TransactionTag).where(
@@ -145,15 +184,6 @@ def _move_transaction_id(
                 TransactionTag.transaction_id == old_id,
             )
         )
-    anomaly_ids = [
-        anomaly_row[0]
-        for anomaly_row in session.execute(
-            select(Anomaly.id).where(
-                Anomaly.user_id == user_id,
-                Anomaly.transaction_id == old_id,
-            )
-        ).all()
-    ]
     if anomaly_ids:
         session.execute(
             update(Anomaly).where(Anomaly.id.in_(anomaly_ids)).values(transaction_id=None)
@@ -170,14 +200,59 @@ def _move_transaction_id(
         )
 
 
+def _collect_moves(
+    rows: list[Transaction],
+    rules: list[CategorizationRule],
+    hasher: TransactionHasher,
+    user_id: int,
+    ids: set[str],
+) -> tuple[int, int, list[tuple[Transaction, CategorizationRule, str]]]:
+    """Phase A: match rules and rehash in memory, without touching the DB.
+
+    Rows whose recomputed id is unchanged (theoretically unreachable, since
+    category feeds the hash) are updated in place here; rows that need a PK
+    move are collected for the batched phases. ``ids`` is maintained as
+    moves are collected so ids assigned earlier in the pass also collide.
+
+    Returns:
+        Tuple of (matched, updated_in_place, moves) where each move is
+        (row, rule, new_id).
+
+    """
+    matched = 0
+    updated_in_place = 0
+    moves: list[tuple[Transaction, CategorizationRule, str]] = []
+    for row in rows:
+        rule = next((r for r in rules if match_rule(r, row.note, row.account)), None)
+        if rule is None:
+            continue
+        matched += 1
+
+        if row.category == rule.category and row.subcategory == rule.subcategory:
+            continue
+
+        old_id = row.transaction_id
+        new_id = _rehash_with_collision_handling(hasher, row, rule, user_id, ids)
+        if new_id == old_id:
+            row.category = rule.category
+            row.subcategory = rule.subcategory
+            updated_in_place += 1
+        else:
+            ids.discard(old_id)
+            ids.add(new_id)
+            moves.append((row, rule, new_id))
+    return matched, updated_in_place, moves
+
+
 def apply_rules_retroactively(session: Session, user_id: int) -> tuple[int, int]:
     """Apply all active rules to the user's live non-transfer transactions.
 
-    For each rewritten row the transaction_id is recomputed with the new
-    category/subcategory (occurrence-collision handling mirrors
-    ``Reconciler.reconcile_batch`` Phase 1) and any transaction_tags rows
-    are migrated to the new id. Commits every ``_COMMIT_CHUNK`` updated
-    rows and once at the end.
+    Three batched phases: (A) match + rehash in memory -- occurrence
+    collisions are checked against the user's FULL transaction id keyspace,
+    since soft-deleted rows still occupy their PK (mirroring
+    ``Reconciler.reconcile_batch`` Phase 1); (B) one IN()-chunked prefetch
+    of the moving rows' tags and anomalies; (C) the PK moves, committing
+    every ``_COMMIT_CHUNK`` moved rows and once at the end.
 
     Returns:
         Tuple of (matched, updated): matched counts rows where some rule
@@ -198,41 +273,48 @@ def apply_rules_retroactively(session: Session, user_id: int) -> tuple[int, int]
     )
     rows = list(session.execute(stmt).scalars().all())
 
-    # Live ids of this user -- used for collision detection when rehashing.
-    # Updated as we go so ids assigned earlier in this batch also collide.
-    live_ids: set[str] = {row.transaction_id for row in rows}
+    # ALL of this user's transaction ids -- soft-deleted rows still occupy
+    # their PK, so rehashing onto one would raise an IntegrityError if only
+    # live ids were considered.
+    ids: set[str] = set(
+        session.execute(
+            select(Transaction.transaction_id).where(Transaction.user_id == user_id)
+        ).scalars()
+    )
 
-    matched = 0
-    updated = 0
-    pending_since_commit = 0
+    matched, updated_in_place, moves = _collect_moves(rows, rules, hasher, user_id, ids)
+    tags_by_id, anomaly_ids_by_id = _prefetch_children(
+        session, user_id, [row.transaction_id for row, _, _ in moves]
+    )
 
-    for row in rows:
-        rule = next((r for r in rules if match_rule(r, row.note, row.account)), None)
-        if rule is None:
-            continue
-        matched += 1
+    # Chunked commits bound transaction size / lock lifetime on Postgres.
+    # expire_on_commit is disabled for the pass so those commits don't
+    # expire every loaded row (each attribute access after an expiring
+    # commit would otherwise refresh via its own SELECT).
+    prior_expire_on_commit = session.expire_on_commit
+    session.expire_on_commit = False
+    try:
+        pending_since_commit = 0
+        for row, rule, new_id in moves:
+            old_id = row.transaction_id
+            _move_transaction_id(
+                session,
+                row,
+                rule,
+                user_id,
+                new_id,
+                tags_by_id.get(old_id, []),
+                anomaly_ids_by_id.get(old_id, []),
+            )
+            pending_since_commit += 1
+            if pending_since_commit >= _COMMIT_CHUNK:
+                session.commit()
+                pending_since_commit = 0
+        session.commit()
+    finally:
+        session.expire_on_commit = prior_expire_on_commit
 
-        if row.category == rule.category and row.subcategory == rule.subcategory:
-            continue
-
-        old_id = row.transaction_id
-        new_id = _rehash_with_collision_handling(hasher, row, rule, user_id, live_ids)
-
-        if new_id != old_id:
-            _move_transaction_id(session, row, rule, user_id, new_id)
-            live_ids.discard(old_id)
-            live_ids.add(new_id)
-        else:
-            row.category = rule.category
-            row.subcategory = rule.subcategory
-        updated += 1
-        pending_since_commit += 1
-
-        if pending_since_commit >= _COMMIT_CHUNK:
-            session.commit()
-            pending_since_commit = 0
-
-    session.commit()
+    updated = updated_in_place + len(moves)
     logger.info(
         "Retroactive rule apply for user_id=%s: matched=%d updated=%d",
         user_id,

@@ -15,8 +15,11 @@ from typing import Any
 import pytest
 from sqlalchemy.orm import Session
 
+from ledger_sync.core import rules as rules_engine
 from ledger_sync.core.sync_engine import SyncEngine
 from ledger_sync.db.models import (
+    Anomaly,
+    AnomalyType,
     Transaction,
     TransactionTag,
     TransactionType,
@@ -281,6 +284,95 @@ def test_apply_handles_occurrence_collision(rules_client) -> None:
     assert all(row.category == "Food" for row in rows)
     recomputed = {_recomputed_id(rows[0], user_a.id, occurrence=n) for n in (0, 1)}
     assert ids == recomputed
+
+
+def test_apply_rehash_avoids_soft_deleted_row_ids(rules_client) -> None:
+    client, session, user_a, _, _ = rules_client
+    live = _seed_txn(session, user_a.id, "live1", note="swiggy order", category="Misc")
+    # A soft-deleted row already occupies the EXACT id the live row would
+    # rehash to at occurrence 0 (typical full-snapshot re-upload leftovers).
+    ghost_id = TransactionHasher().generate_transaction_id(
+        date=live.date,
+        amount=live.amount,
+        account=live.account,
+        note=live.note,
+        category="Food",
+        subcategory=None,
+        tx_type=live.type.value,
+        user_id=user_a.id,
+        occurrence=0,
+    )
+    ghost = _seed_txn(session, user_a.id, ghost_id, note="swiggy order", category="Food")
+    ghost.is_deleted = True
+    session.commit()
+    client.post("/api/categorization-rules", json=_rule_payload(subcategory=None))
+
+    r = client.post("/api/categorization-rules/apply")
+
+    # Was a duplicate-PK IntegrityError (HTTP 500) before soft-deleted rows
+    # were included in the collision keyspace.
+    assert r.status_code == 200, r.json()
+    assert r.json()["updated"] == 1
+    session.expire_all()
+    row = (
+        session.query(Transaction)
+        .filter(Transaction.user_id == user_a.id, Transaction.is_deleted.is_(False))
+        .one()
+    )
+    assert row.category == "Food"
+    assert row.transaction_id != ghost_id
+    assert row.transaction_id == _recomputed_id(row, user_a.id, occurrence=1)
+    ghost_row = session.get(Transaction, ghost_id)
+    assert ghost_row is not None
+    assert ghost_row.is_deleted is True
+
+
+def test_apply_migrates_anomalies_to_new_id(rules_client) -> None:
+    client, session, user_a, _, _ = rules_client
+    seeded = _seed_txn(session, user_a.id, "anom1", note="swiggy order", category="Misc")
+    old_id = seeded.transaction_id
+    session.add(
+        Anomaly(
+            user_id=user_a.id,
+            anomaly_type=AnomalyType.HIGH_EXPENSE,
+            severity="high",
+            description="big spend",
+            transaction_id=old_id,
+            is_reviewed=True,
+        )
+    )
+    session.commit()
+    client.post("/api/categorization-rules", json=_rule_payload(subcategory=None))
+
+    matched, updated = rules_engine.apply_rules_retroactively(session, user_a.id)
+
+    assert (matched, updated) == (1, 1)
+    session.expire_all()
+    row = session.query(Transaction).filter(Transaction.user_id == user_a.id).one()
+    anomaly = session.query(Anomaly).filter(Anomaly.user_id == user_a.id).one()
+    assert row.transaction_id != old_id
+    assert anomaly.transaction_id == row.transaction_id
+
+
+def test_apply_batches_across_commit_chunks_and_restores_expire_on_commit(
+    rules_client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, session, user_a, _, _ = rules_client
+    monkeypatch.setattr(rules_engine, "_COMMIT_CHUNK", 2)
+    for n in range(5):
+        _seed_txn(session, user_a.id, f"bulk{n}", note=f"swiggy order {n}", category="Misc")
+    client.post("/api/categorization-rules", json=_rule_payload(subcategory=None))
+    assert session.expire_on_commit is True  # sessionmaker default
+
+    matched, updated = rules_engine.apply_rules_retroactively(session, user_a.id)
+
+    assert (matched, updated) == (5, 5)
+    assert session.expire_on_commit is True  # restored after the pass
+    session.expire_all()
+    rows = session.query(Transaction).filter(Transaction.user_id == user_a.id).all()
+    assert len(rows) == 5
+    assert all(row.category == "Food" for row in rows)
+    assert all(row.transaction_id == _recomputed_id(row, user_a.id) for row in rows)
 
 
 def test_apply_with_no_active_rules_returns_zero_counts(rules_client) -> None:
