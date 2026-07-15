@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ledger_sync.core import rules
 from ledger_sync.core.analytics_engine import AnalyticsEngine
 from ledger_sync.core.reconciler import Reconciler, ReconciliationStats
-from ledger_sync.db.models import ImportLog
+from ledger_sync.db.models import ImportLog, Transaction
 from ledger_sync.ingest.csv_loader import CsvLoader
 from ledger_sync.ingest.excel_loader import ExcelLoader
 from ledger_sync.ingest.normalizer import DataNormalizer, NormalizationError
@@ -61,6 +61,44 @@ class SyncEngine:
             raise ValueError(msg)
         return existing_import
 
+    def _canonicalize_account_casing(self, normalized_rows: list[dict[str, Any]]) -> None:
+        """Fold case-variant account names onto one canonical spelling.
+
+        "CC: Axis Google Flex" and "CC: AXIS Google Flex" are the same real
+        account; letting both through creates two accounts everywhere
+        downstream (balances, net worth, classifications). Canonical form is
+        chosen per lowercased key: the spelling already stored in this user's
+        transactions wins (so re-uploads converge on existing data), else the
+        first spelling seen in this batch. Runs BEFORE hashing because the
+        account name feeds the SHA-256 transaction_id.
+
+        Transfer rows keep ``category`` in sync ("Transfer: A → B" embeds the
+        account names) so the displayed label matches the folded accounts.
+        """
+        # Seed with existing spellings from the user's ledger (all three legs).
+        canonical: dict[str, str] = {}
+        if self.user_id is not None:
+            for column in (Transaction.account, Transaction.from_account, Transaction.to_account):
+                stmt = (
+                    select(column)
+                    .where(Transaction.user_id == self.user_id, column.is_not(None))
+                    .distinct()
+                )
+                for (name,) in self.session.execute(stmt):
+                    canonical.setdefault(name.lower(), name)
+
+        def fold(name: str | None) -> str | None:
+            if not name:
+                return name
+            return canonical.setdefault(name.lower(), name)
+
+        for row in normalized_rows:
+            row["account"] = fold(row.get("account"))
+            if row.get("is_transfer", False):
+                row["from_account"] = fold(row.get("from_account"))
+                row["to_account"] = fold(row.get("to_account"))
+                row["category"] = f"Transfer: {row['from_account']} → {row['to_account']}"
+
     def _reconcile_and_log(
         self,
         normalized_rows: list[dict[str, Any]],
@@ -84,6 +122,8 @@ class SyncEngine:
             if active_rules:
                 for row in normalized_rows:
                     rules.apply_rules_to_row(active_rules, row)
+
+        self._canonicalize_account_casing(normalized_rows)
 
         transactions = [r for r in normalized_rows if not r.get("is_transfer", False)]
         transfers = [r for r in normalized_rows if r.get("is_transfer", False)]
