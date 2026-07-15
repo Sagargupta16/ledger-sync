@@ -1,12 +1,13 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Command, Search } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
 import { rawColors } from '@/constants/colors'
+import { useDebounce } from '@/hooks/useDebounce'
 import { transactionsService } from '@/services/api/transactions'
 
 import { PaletteResults } from './command-palette/PaletteResults'
@@ -75,16 +76,24 @@ export default function CommandPalette() {
   }, [isOpen])
 
   const deferredQuery = useDeferredValue(query)
-  const q = deferredQuery.trim()
+  // Debounce before the queryKey: useDeferredValue only defers re-rendering,
+  // it does NOT coalesce fetches -- without this, every keystroke minted a new
+  // queryKey and fired a server search request per key. 300ms trailing-edge
+  // debounce (same pattern as TransactionFilters) bounds it to ~1 per pause.
+  const debouncedQuery = useDebounce(deferredQuery, 300)
+  const q = debouncedQuery.trim()
 
   // Transaction matches come from the server-side search endpoint (note /
   // category / account, top 5) instead of filtering the full ledger in the
   // browser. Only runs while the palette is open with a non-empty query.
+  // keepPreviousData holds the previous matches on screen while the next
+  // fetch resolves, so the Transactions section doesn't flicker empty.
   const { data: txMatches = [] } = useQuery({
     queryKey: ['command-palette-search', q],
     queryFn: () => transactionsService.getTransactions({ query: q, limit: 5 }),
     enabled: isOpen && q.length > 0,
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   })
 
   const results: PaletteResult[] = useMemo(() => {

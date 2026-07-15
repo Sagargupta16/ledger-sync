@@ -133,6 +133,100 @@ def test_detect_large_transactions_scopes_by_user(analytics_db: Session) -> None
     assert anomalies_b == []
 
 
+def test_month_detector_uses_rolling_baseline_not_alltime(analytics_db: Session) -> None:
+    """A step-change in spending (lifestyle drift) must not flag every recent month.
+
+    36 months: 24 at 1000, then 12 at 5000. An all-time median (~1000-3000)
+    would flag many/all of the last 12 months; a trailing-12-month baseline
+    flags only the step boundary at most.
+    """
+    user = _make_user(analytics_db, "drift@example.com")
+    now = datetime.now(UTC) - timedelta(days=1)
+    for i in range(36):
+        year, month = divmod(i, 12)
+        analytics_db.add(
+            Transaction(
+                user_id=user.id,
+                transaction_id=f"drift-{i}",
+                date=datetime(2022 + year, month + 1, 15, tzinfo=UTC),
+                amount=Decimal("1000") if i < 24 else Decimal("5000"),  # noqa: PLR2004
+                currency="INR",
+                type=TransactionType.EXPENSE,
+                account="HDFC",
+                category="Food",
+                subcategory=None,
+                note=None,
+                source_file="test.xlsx",
+                last_seen_at=now,
+                is_deleted=False,
+            ),
+        )
+    analytics_db.commit()
+
+    engine = AnalyticsEngine(analytics_db, user_id=user.id)
+    anomalies: list[dict] = []
+    engine._detect_high_expense_months(anomalies, z_cutoff=3.5)
+    # The months right at the step legitimately flag (they ARE anomalous vs
+    # trailing history) until the window absorbs the new level; the tail of
+    # the series must be quiet once 5000 becomes the trailing normal.
+    flagged = {a["period_key"] for a in anomalies}
+    assert "2024-01" in flagged, "step month should flag against its trailing baseline"
+    assert "2024-12" not in flagged, "steady-state month flagged against stale all-time baseline"
+    assert len(flagged) <= 4, f"too many months flagged: {sorted(flagged)}"
+
+
+def test_large_txn_materiality_floor_skips_trivial_amounts(analytics_db: Session) -> None:
+    """A 3x blip in a tiny category must not flag when the amount is immaterial."""
+    user = _make_user(analytics_db, "chai@example.com")
+    now = datetime.now(UTC) - timedelta(days=1)
+    # Material spending elsewhere: 12 months of 50k rent fixes the monthly median.
+    for i in range(12):
+        analytics_db.add(
+            Transaction(
+                user_id=user.id,
+                transaction_id=f"rent-{i}",
+                date=datetime(2024, i + 1, 1, tzinfo=UTC),
+                amount=Decimal("50000"),
+                currency="INR",
+                type=TransactionType.EXPENSE,
+                account="HDFC",
+                category="Housing",
+                subcategory=None,
+                note=None,
+                source_file="test.xlsx",
+                last_seen_at=now,
+                is_deleted=False,
+            ),
+        )
+    # Tiny chai category: 20, 20, 20, 20, 20 then a 90 (4.5x median, but immaterial).
+    for i, amt in enumerate([20, 20, 20, 20, 20, 90]):
+        analytics_db.add(
+            Transaction(
+                user_id=user.id,
+                transaction_id=f"chai-{i}",
+                date=datetime(2024, i + 1, 20, tzinfo=UTC),
+                amount=Decimal(str(amt)),
+                currency="INR",
+                type=TransactionType.EXPENSE,
+                account="HDFC",
+                category="Chai",
+                subcategory=None,
+                note=None,
+                source_file="test.xlsx",
+                last_seen_at=now,
+                is_deleted=False,
+            ),
+        )
+    analytics_db.commit()
+
+    engine = AnalyticsEngine(analytics_db, user_id=user.id)
+    anomalies: list[dict] = []
+    engine._detect_large_transactions(anomalies)
+    assert all(a.get("transaction_id") != "chai-5" for a in anomalies), (
+        "immaterial 90-rupee blip flagged despite materiality floor"
+    )
+
+
 def test_excluded_accounts_filter_drops_transfer_endpoints(analytics_db: Session) -> None:
     """A transfer landing in an excluded account must not appear in the user query.
 

@@ -241,29 +241,104 @@ export interface GSTSummary {
 // Core Functions
 // ────────────────────────────────────────────
 
+/** Split a label into lowercase word tokens ("Food & Dining" -> [food, dining]). */
+function wordTokens(label: string): string[] {
+  return label.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+}
+
 /**
- * Get the GST rate for a label (case-insensitive fuzzy match).
- * Tries exact match first, then partial match against known categories.
+ * Per-rate-table caches, keyed by table object identity. computeGSTAnalysis
+ * calls matchRate once per transaction (7k tx x ~100 table keys), so without
+ * caching the table is re-lowercased/re-tokenized ~700k times per analysis.
+ * The rate tables are module constants (or a stable customRates object), so a
+ * WeakMap keyed on the table keeps this allocation-free across calls.
+ */
+interface TableCache {
+  /** lowercased key -> rate, for the exact-match pass */
+  exact: Map<string, number>
+  /** tokenized keys in insertion order, for the word-boundary pass */
+  tokenized: Array<{ words: string[]; rate: number }>
+  /** memoized resolution: lowercased label -> rate (null = no match) */
+  resolved: Map<string, number | null>
+}
+
+const tableCaches = new WeakMap<Record<string, number>, TableCache>()
+
+function cacheFor(rates: Record<string, number>): TableCache {
+  let cache = tableCaches.get(rates)
+  if (!cache) {
+    cache = {
+      exact: new Map(
+        Object.entries(rates).map(([k, r]) => [k.toLowerCase(), r]),
+      ),
+      tokenized: Object.entries(rates).map(([k, r]) => ({
+        words: wordTokens(k),
+        rate: r,
+      })),
+      resolved: new Map(),
+    }
+    tableCaches.set(rates, cache)
+  }
+  return cache
+}
+
+/**
+ * Get the GST rate for a label (case-insensitive match).
+ * Tries exact match first, then WORD-BOUNDARY containment against known keys.
+ *
+ * The fallback compares whole word sequences, not raw substrings: a bare
+ * substring test made short keys false-positive traps ("Bus" matched
+ * "Business" -> 5% instead of 18%, "Train" matched "Training", "Gold"
+ * matched "Gold's Gym"). A key matches only when its full word sequence
+ * appears as consecutive whole words in the label (or vice versa), so
+ * "Public Transport" still matches a "Public Transport Pass" label while
+ * "Business Services" no longer trips the "Bus" key.
  */
 function matchRate(
   label: string,
   rates: Record<string, number>,
 ): number | null {
+  const cache = cacheFor(rates)
   const lower = label.toLowerCase()
 
-  // Exact match (case-insensitive)
-  for (const [key, rate] of Object.entries(rates)) {
-    if (key.toLowerCase() === lower) return rate
-  }
+  const memo = cache.resolved.get(lower)
+  if (memo !== undefined) return memo
 
-  // Partial match — label contains a known keyword or vice versa
-  for (const [key, rate] of Object.entries(rates)) {
-    if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) {
-      return rate
+  let result: number | null = null
+
+  // Exact match (case-insensitive)
+  const exact = cache.exact.get(lower)
+  if (exact !== undefined) {
+    result = exact
+  } else {
+    // Word-boundary containment: key words appear consecutively in the label,
+    // or label words appear consecutively in the key.
+    const labelWords = wordTokens(label)
+    for (const { words: keyWords, rate } of cache.tokenized) {
+      if (
+        containsSequence(labelWords, keyWords) ||
+        containsSequence(keyWords, labelWords)
+      ) {
+        result = rate
+        break
+      }
     }
   }
 
-  return null
+  cache.resolved.set(lower, result)
+  return result
+}
+
+/** True when `needle` appears as a consecutive run inside `haystack`. */
+function containsSequence(haystack: string[], needle: string[]): boolean {
+  if (needle.length === 0 || needle.length > haystack.length) return false
+  outer: for (let i = 0; i <= haystack.length - needle.length; i++) {
+    for (let j = 0; j < needle.length; j++) {
+      if (haystack[i + j] !== needle[j]) continue outer
+    }
+    return true
+  }
+  return false
 }
 
 /**

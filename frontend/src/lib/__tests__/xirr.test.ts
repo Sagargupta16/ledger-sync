@@ -30,13 +30,54 @@ describe('calculateXIRR', () => {
     expect(rate).toBeLessThan(40)
   })
 
-  it('returns 0 when solver diverges (e.g. all same-sign flows)', () => {
-    // No positive return is mathematically solvable -- all money goes in,
-    // none comes out. The guard kicks in and returns 0.
+  it('returns 0 when no root exists (all same-sign flows)', () => {
+    // No rate is mathematically solvable -- all money goes in, none comes
+    // out. NPV never crosses zero, so bisection reports no root.
     const rate = calculateXIRR([
       { date: new Date('2024-01-01'), amount: 100 },
       { date: new Date('2025-01-01'), amount: 50 },
     ])
     expect(rate).toBe(0)
+  })
+
+  it('solves a losing year instead of returning 0 (regression)', () => {
+    // 100k in, 55k out a year later: true XIRR = -45%. Newton overshoots
+    // below -100% here and the old guard reported 0% -- a losing portfolio
+    // displayed as flat. Bisection fallback recovers the real rate.
+    const rate = calculateXIRR([
+      { date: new Date('2024-01-01'), amount: 100_000 },
+      { date: new Date('2025-01-01'), amount: -55_000 },
+    ])
+    expect(rate).toBeCloseTo(-45, 0)
+  })
+
+  it('solves a near-total loss (deep negative rate)', () => {
+    // 100k -> 500 in one year: XIRR = -99.5%.
+    const rate = calculateXIRR([
+      { date: new Date('2024-01-01'), amount: 100_000 },
+      { date: new Date('2025-01-01'), amount: -500 },
+    ])
+    expect(rate).toBeCloseTo(-99.5, 0)
+  })
+
+  it('solves an extreme short-horizon gain via bisection when Newton leaves the bracket', () => {
+    // 2x in one month annualizes to ~409,500% -- outside the 1000% bracket
+    // cap, so the solver returns the bracket-capped estimate rather than 0.
+    // What matters: a huge REAL gain never displays as 0%.
+    const rate = calculateXIRR([
+      { date: new Date('2025-01-01'), amount: 10_000 },
+      { date: new Date('2025-02-01'), amount: -20_000 },
+    ])
+    expect(rate).toBeGreaterThan(500) // enormous, definitely not 0
+  })
+
+  it('still fast-paths a normal gain through Newton', () => {
+    const rate = calculateXIRR([
+      { date: new Date('2023-01-01'), amount: 50_000 },
+      { date: new Date('2024-01-01'), amount: 20_000 },
+      { date: new Date('2025-01-01'), amount: -90_000 },
+    ])
+    expect(rate).toBeGreaterThan(10)
+    expect(rate).toBeLessThan(20)
   })
 })

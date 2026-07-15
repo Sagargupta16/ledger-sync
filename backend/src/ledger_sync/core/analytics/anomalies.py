@@ -11,16 +11,20 @@ its own modified-Z score below the flagging cutoff.
 
 - **High-expense-month detection**: Iglewicz-Hoaglin modified Z-score
   ``|0.6745 * (x - median) / MAD|`` with configurable cutoff (default 3.5,
-  the NIST-recommended outlier boundary). When MAD collapses to zero
-  (>=50% of months are identical, e.g. all-zero), fall back to Tukey's
-  upper IQR fence (Q3 + 1.5 * IQR).
+  the NIST-recommended outlier boundary), computed against a ROLLING
+  trailing-12-month baseline (excluding the month under test). An all-time
+  baseline on a non-stationary spend series (income growth, lifestyle
+  drift) made every recent month look anomalous versus years-old medians.
+  When the window's MAD collapses to zero (identical months), fall back to
+  Tukey's upper IQR fence (Q3 + 1.5 * IQR) over the same window.
 
-- **Large-transaction detection**: 12-month rolling per-category median.
-  Was previously comparing against the all-time category average, so a
-  legitimate big purchase 2 years ago poisoned the baseline forever --
-  new normal-size transactions looked small and genuinely large ones got
-  flagged less severely. Rolling window + median is order-of-magnitude
-  more robust.
+- **Large-transaction detection**: 12-month rolling per-category median,
+  gated by (a) a per-user materiality floor (fraction of median monthly
+  expense) and (b) a log-space modified-Z outlier test against the
+  category's own amount distribution. The bare ratio>=3 rule flagged
+  14.4% of all expenses on real data because right-skewed spend
+  categories make "3x the median" trivially reachable; the gates cut
+  that to ~2% while keeping genuine outliers.
 
 ## Threshold preservation across the algorithm swap
 
@@ -41,6 +45,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from math import log
 from statistics import median, quantiles
 from typing import Any
 
@@ -83,6 +88,19 @@ _LARGE_TXN_MIN_HISTORY = 5
 _LARGE_TXN_HIGH_RATIO = 5.0
 _LARGE_TXN_FLAG_RATIO = 3.0
 
+# Materiality floor for large-transaction flags, as a fraction of the user's
+# median monthly expense. A 3x-of-median chai in a tiny category is not an
+# anomaly worth surfacing; real-data measurement showed ratio>=3 alone flagged
+# 14.4% of ALL expenses, mostly sub-trivial amounts.
+_LARGE_TXN_MATERIALITY_FRACTION = 0.01
+
+# Rolling month window for the high-expense-month baseline.
+_MONTH_BASELINE_WINDOW = 12
+
+# Minimum months of history before a month can be judged (matches
+# _LARGE_TXN_MIN_HISTORY so both detectors share the same warmup notion).
+_MONTH_BASELINE_MIN_HISTORY = 5
+
 
 class AnomaliesMixin(AnalyticsEngineBase):
     """Mixin: anomaly detection + monthly budget tracking."""
@@ -99,6 +117,26 @@ class AnomaliesMixin(AnalyticsEngineBase):
         self._detect_high_expense_months(anomalies_detected, z_cutoff)
         self._detect_large_transactions(anomalies_detected)
 
+        # Suppress findings the user already reviewed/dismissed BEFORE the cap,
+        # so a dismissed anomaly neither resurrects as a fresh unreviewed row
+        # nor consumes cap slots. The `if r.period_key` / `if r.transaction_id`
+        # guards are load-bearing: both detectors emit HIGH_EXPENSE, so without
+        # them one reviewed txn anomaly (period_key=None) would suppress every
+        # month anomaly via (HIGH_EXPENSE, None) and vice versa.
+        reviewed_rows = (
+            self.db.query(Anomaly.anomaly_type, Anomaly.period_key, Anomaly.transaction_id)
+            .filter(Anomaly.user_id == self.user_id, Anomaly.is_reviewed.is_(True))
+            .all()
+        )
+        reviewed_periods = {(r.anomaly_type, r.period_key) for r in reviewed_rows if r.period_key}
+        reviewed_txn_ids = {r.transaction_id for r in reviewed_rows if r.transaction_id}
+        anomalies_detected = [
+            a
+            for a in anomalies_detected
+            if (a["type"], a.get("period_key")) not in reviewed_periods
+            and a.get("transaction_id") not in reviewed_txn_ids
+        ]
+
         # Delete old unreviewed anomalies for this user and insert new. Reviewed
         # anomalies are preserved so users don't have to re-dismiss the same
         # finding on every refresh.
@@ -107,13 +145,19 @@ class AnomaliesMixin(AnalyticsEngineBase):
             del_stmt = del_stmt.where(Anomaly.user_id == self.user_id)
         self.db.execute(del_stmt)
 
-        # Sort by deviation_pct desc BEFORE the 50-row cap so the most severe
-        # anomalies survive. (Cross-type ranking is imperfect since deviation_pct
-        # has different natural scales for month totals vs single txns; the
-        # comment thread notes this and it's on the follow-up list.)
-        anomalies_detected.sort(key=lambda a: a.get("deviation_pct") or 0, reverse=True)
+        # Cap per shape, not across shapes: month rows (period_key) and single-
+        # transaction rows (transaction_id) have different natural deviation_pct
+        # scales, so a global sort let hundreds of 300%-deviation txn flags
+        # evict nearly every month anomaly. Reserve up to 25 slots for months,
+        # give the remainder to transactions.
+        month_rows = [a for a in anomalies_detected if a.get("period_key")]
+        txn_rows = [a for a in anomalies_detected if not a.get("period_key")]
+        month_rows.sort(key=lambda a: a.get("deviation_pct") or 0, reverse=True)
+        txn_rows.sort(key=lambda a: a.get("deviation_pct") or 0, reverse=True)
+        kept_months = month_rows[:25]
+        keep = kept_months + txn_rows[: 50 - len(kept_months)]
 
-        for anomaly_data in anomalies_detected[:50]:  # Limit to 50 anomalies
+        for anomaly_data in keep:
             anomaly = Anomaly(
                 user_id=self.user_id,
                 anomaly_type=anomaly_data["type"],
@@ -170,25 +214,29 @@ class AnomaliesMixin(AnalyticsEngineBase):
             .filter(Transaction.type == TransactionType.EXPENSE)
         )
         monthly_query = apply_excluded_accounts_filter(monthly_query, self.excluded_accounts)
-        monthly_expenses = monthly_query.group_by(period_col).all()
+        monthly_expenses = sorted(monthly_query.group_by(period_col).all(), key=lambda m: m.period)
 
         if len(monthly_expenses) <= 3:  # noqa: PLR2004 -- documented warmup
             return
 
-        values = [float(m.total) for m in monthly_expenses]
-        med = median(values)
-        mad = self._mad(values, med)
+        # Rolling baseline: judge each month against the trailing 12 months
+        # only. Spending series are non-stationary (income growth, lifestyle
+        # drift), so an all-time median made every recent month "anomalous"
+        # versus years-old spending levels.
+        for i, month in enumerate(monthly_expenses):
+            window = [
+                float(m.total) for m in monthly_expenses[max(0, i - _MONTH_BASELINE_WINDOW) : i]
+            ]
+            if len(window) < _MONTH_BASELINE_MIN_HISTORY:
+                continue  # warmup: not enough trailing history
 
-        if med <= 0:
-            # All-zero (or worse) baseline -- nothing meaningful to flag.
-            return
+            med = median(window)
+            if med <= 0:
+                continue
+            mad = self._mad(window, med)
+            use_iqr = mad == 0
+            iqr_fence = self._tukey_upper_fence(window) if use_iqr else None
 
-        # Preferred path: modified Z-score. Falls back to IQR fence when MAD
-        # collapses to zero (many identical months).
-        use_iqr = mad == 0
-        iqr_fence = self._tukey_upper_fence(values) if use_iqr else None
-
-        for month in monthly_expenses:
             total = float(month.total)
             severity = self._grade_month(total, med, mad, z_cutoff, use_iqr, iqr_fence)
             if severity is None:
@@ -200,7 +248,7 @@ class AnomaliesMixin(AnalyticsEngineBase):
                     "severity": severity,
                     "description": (
                         f"Unusually high expenses in {month.period}: "
-                        f"{sym}{total:,.0f} vs median {sym}{med:,.0f}"
+                        f"{sym}{total:,.0f} vs trailing median {sym}{med:,.0f}"
                     ),
                     "period_key": month.period,
                     "expected_value": Decimal(str(med)),
@@ -248,6 +296,19 @@ class AnomaliesMixin(AnalyticsEngineBase):
             .all()
         )
 
+        # Materiality floor: a 3x-of-median blip in a tiny category (a pricier
+        # chai) is not worth a user's attention. Derived per user from their
+        # own median monthly expense -- no hardcoded currency constants.
+        monthly_totals: dict[str, float] = {}
+        for t in expense_txns:
+            key = t.date.strftime("%Y-%m")
+            monthly_totals[key] = monthly_totals.get(key, 0.0) + float(t.amount)
+        materiality_floor = (
+            _LARGE_TXN_MATERIALITY_FRACTION * median(monthly_totals.values())
+            if monthly_totals
+            else 0.0
+        )
+
         # Group amounts by category, retaining chronological order so the
         # rolling window can prune old entries with an O(1) index cursor.
         # amount_history[cat] = list of (date, amount) sorted ascending.
@@ -256,6 +317,10 @@ class AnomaliesMixin(AnalyticsEngineBase):
             history.setdefault(t.category, []).append((t.date, float(t.amount)))
 
         for txn in expense_txns:
+            amount = float(txn.amount)
+            if amount < materiality_floor:
+                continue
+
             cat_history = history.get(txn.category, [])
             # Rolling window: keep amounts strictly older than the txn under
             # test AND within the last 12 months. Leave-one-out prevents the
@@ -269,9 +334,25 @@ class AnomaliesMixin(AnalyticsEngineBase):
             if baseline <= 0:
                 continue
 
-            ratio = float(txn.amount) / baseline
+            ratio = amount / baseline
             if ratio < _LARGE_TXN_FLAG_RATIO:
                 continue
+
+            # Dispersion gate in log space: spend distributions are right-
+            # skewed, so "3x the median" is trivially reachable in high-
+            # variance categories (shopping ranges 100..15,000 routinely).
+            # Require the txn to be a genuine outlier of ITS OWN category's
+            # log-amount distribution. When log-MAD collapses (near-constant
+            # window), keep the ratio-based flag -- mirroring the module's
+            # MAD-collapse fallback convention.
+            log_window = [log(a) for a in window if a > 0]
+            if log_window:
+                log_med = median(log_window)
+                log_mad = self._mad(log_window, log_med)
+                if log_mad > 0:
+                    log_mz = _MZ_CONSTANT * (log(amount) - log_med) / log_mad
+                    if log_mz <= _DEFAULT_MODIFIED_Z_CUTOFF:
+                        continue
 
             severity = "high" if ratio >= _LARGE_TXN_HIGH_RATIO else "medium"
             anomalies.append(
@@ -320,6 +401,20 @@ class AnomaliesMixin(AnalyticsEngineBase):
         current_spending = spending_query.group_by(Transaction.category).all()
         spending_map = {c.category: float(c.total) for c in current_spending}
 
+        # Don't resurrect a budget-exceeded anomaly the user already reviewed
+        # for this period (same suppression rule as _detect_anomalies).
+        reviewed_budget_periods = {
+            r.period_key
+            for r in self.db.query(Anomaly.period_key)
+            .filter(
+                Anomaly.user_id == user_id,
+                Anomaly.is_reviewed.is_(True),
+                Anomaly.anomaly_type == AnomalyType.BUDGET_EXCEEDED,
+            )
+            .all()
+            if r.period_key
+        }
+
         count = 0
         for budget in budgets:
             spent = Decimal(str(spending_map.get(budget.category, 0)))
@@ -331,7 +426,7 @@ class AnomaliesMixin(AnalyticsEngineBase):
             budget.updated_at = now
 
             # Check for budget exceeded anomaly
-            if budget.current_month_pct > 100:  # noqa: PLR2004
+            if budget.current_month_pct > 100 and current_period not in reviewed_budget_periods:  # noqa: PLR2004
                 anomaly = Anomaly(
                     user_id=self.user_id,
                     anomaly_type=AnomalyType.BUDGET_EXCEEDED,

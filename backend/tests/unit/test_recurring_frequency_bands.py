@@ -122,6 +122,41 @@ def test_yearly_classic_365_day_cadence() -> None:
     assert freq == RecurrenceFrequency.YEARLY
 
 
+# ─── Skip folding: regular cadences with skipped periods ─────────────────
+
+
+def test_monthly_with_minority_skips_high_confidence() -> None:
+    """Monthly stream with two skipped months stays MONTHLY at high confidence.
+
+    Gaps [31, 30, 59, 31, 61, 30]: median 31 bands MONTHLY; the two doubled
+    gaps fold to 2x the median instead of exploding the jitter term.
+    """
+    eng = _engine()
+    dates = _dates_with_gaps(datetime(2026, 1, 1, tzinfo=UTC), [31, 30, 59, 31, 61, 30])
+    freq, conf, _ = eng._detect_frequency(dates)
+    assert freq == RecurrenceFrequency.MONTHLY
+    assert conf >= 80
+
+
+def test_long_monthly_stream_with_folded_skips() -> None:
+    """A 16-gap wifi-bill-like stream with three skipped months scores >= 90."""
+    eng = _engine()
+    gaps = [30, 31, 30, 61, 30, 31, 61, 31, 30, 31, 61, 30, 31, 30, 31, 30]
+    dates = _dates_with_gaps(datetime(2025, 1, 1, tzinfo=UTC), gaps)
+    freq, conf, _ = eng._detect_frequency(dates)
+    assert freq == RecurrenceFrequency.MONTHLY
+    assert conf >= 90
+
+
+def test_semiannual_with_one_skip() -> None:
+    """Semiannual stream with one skipped period: previously QUARTERLY conf 0."""
+    eng = _engine()
+    dates = _dates_with_gaps(datetime(2024, 1, 1, tzinfo=UTC), [139, 278, 140])
+    freq, conf, _ = eng._detect_frequency(dates)
+    assert freq == RecurrenceFrequency.SEMIANNUAL
+    assert conf >= 90
+
+
 def test_below_minimum_returns_none() -> None:
     """Sub-weekly gaps (avg < 4) still return None -- not a tracked cadence."""
     eng = _engine()

@@ -159,6 +159,15 @@ export function useNetWorth() {
 
   const chartData = useMemo(() => {
     if (!showProjection || monthlyGrowth <= 0 || anchor === null) {
+      // Long ranges collapse to month-end points: an all-time view was
+      // feeding ~1,500 daily points into the SVG area chart (slow paint,
+      // sub-pixel segments), while the projection path below already renders
+      // at monthly resolution. Short windows keep full daily fidelity.
+      if (filteredNetWorthData.length > 366) {
+        const monthly = downsampleToMonthly(chartSeries)
+        const byDate = new Map(filteredNetWorthData.map((p) => [p.date as string, p]))
+        return monthly.map((p) => byDate.get(p.date) ?? { date: p.date, netWorth: p.netWorth })
+      }
       return filteredNetWorthData
     }
     const monthlyHistorical = downsampleToMonthly(chartSeries)
