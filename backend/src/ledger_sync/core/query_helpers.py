@@ -13,7 +13,7 @@ from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql.selectable import Subquery
 
 from ledger_sync.config.settings import settings
-from ledger_sync.db.models import Transaction, TransactionType, User
+from ledger_sync.db.models import AccountClassification, Transaction, TransactionType, User
 
 # ---------------------------------------------------------------------------
 # Database-agnostic date formatting
@@ -166,6 +166,28 @@ def excluded_accounts_for(user: User) -> set[str]:
     if not isinstance(parsed, list):
         return set()
     return {str(a) for a in parsed if a}
+
+
+def closed_accounts_for(session: Session, user_id: int | None) -> set[str]:
+    """Return the names of accounts the user has marked closed.
+
+    Closed accounts keep their history in analytics (unlike
+    ``excluded_accounts``) but stop being treated as alive: recurring/bill
+    expectations are suppressed and pickers omit them. Consumers that only
+    need the forward-looking distinction should use this, not the excluded
+    set.
+    """
+    if user_id is None:
+        return set()
+    rows = (
+        session.query(AccountClassification.account_name)
+        .filter(
+            AccountClassification.user_id == user_id,
+            AccountClassification.is_closed.is_(True),
+        )
+        .all()
+    )
+    return {r[0] for r in rows}
 
 
 def apply_excluded_accounts_filter[QueryT: Query[Any]](query: QueryT, excluded: set[str]) -> QueryT:

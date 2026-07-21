@@ -55,6 +55,9 @@ interface AccountCategoryTableProps {
   readonly expandedCategories: Set<string>
   readonly onToggleCategory: (category: string) => void
   readonly getAccountType: (name: string) => string
+  /** Accounts the user marked closed -- shown with a badge, still listed while
+   *  the balance is nonzero (a closed card with unpaid dues is still a liability). */
+  readonly closedAccounts?: readonly string[]
   readonly emptyIcon: LucideIcon
   readonly emptyTitle: string
   readonly emptyDescription: string
@@ -71,6 +74,7 @@ export function AccountCategoryTable({
   expandedCategories,
   onToggleCategory,
   getAccountType,
+  closedAccounts = [],
   emptyIcon,
   emptyTitle,
   emptyDescription,
@@ -223,7 +227,16 @@ export function AccountCategoryTable({
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                       >
-                        <td className="py-3 pl-10 pr-4 text-foreground font-medium">{accountName}</td>
+                        <td className="py-3 pl-10 pr-4 text-foreground font-medium">
+                          <span className="inline-flex items-center gap-2">
+                            {accountName}
+                            {closedAccounts.includes(accountName) && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-[var(--overlay-5)] text-muted-foreground">
+                                Closed
+                              </span>
+                            )}
+                          </span>
+                        </td>
                         <td
                           className={`py-3 px-4 text-right font-bold tabular-nums ${balanceColorClass}`}
                         >

@@ -26,6 +26,7 @@ class AnomalyType(PyEnum):
     DUPLICATE_SUSPECTED = "duplicate_suspected"
     MISSING_RECURRING = "missing_recurring"
     BUDGET_EXCEEDED = "budget_exceeded"
+    CLOSED_ACCOUNT_ACTIVITY = "closed_account_activity"
 
 
 class RecurrenceFrequency(PyEnum):

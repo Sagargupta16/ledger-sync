@@ -165,7 +165,12 @@ export interface FYSummary {
 
 export interface Anomaly {
   id: number
-  anomaly_type: 'high_expense' | 'unusual_category' | 'large_transfer' | 'budget_exceeded'
+  anomaly_type:
+    | 'high_expense'
+    | 'unusual_category'
+    | 'large_transfer'
+    | 'budget_exceeded'
+    | 'closed_account_activity'
   severity: 'low' | 'medium' | 'high'
   description: string
   transaction_id: string | null

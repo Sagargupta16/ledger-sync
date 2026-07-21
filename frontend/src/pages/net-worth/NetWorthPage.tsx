@@ -9,6 +9,7 @@ import { rawColors } from '@/constants/colors'
 import { PageContainer, PageHeader } from '@/components/ui'
 import ErrorState from '@/components/shared/ErrorState'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { useClosedAccounts } from '@/hooks/api/useAccountStatus'
 
 import MilestonesTable from './components/MilestonesTable'
 import { AccountCategoryTable } from './components/AccountCategoryTable'
@@ -17,6 +18,7 @@ import { useNetWorth } from './useNetWorth'
 
 export default function NetWorthPage() {
   const m = useNetWorth()
+  const { data: closedAccounts = [] } = useClosedAccounts()
 
   // Leverage = liabilities as a share of assets. Reuses the totals already
   // computed in the hook; clamps the assets-zero edge so we never divide by 0.
@@ -143,6 +145,7 @@ export default function NetWorthPage() {
             expandedCategories={m.expandedAssetCategories}
             onToggleCategory={(cat) => m.toggleCategory(m.setExpandedAssetCategories, cat)}
             getAccountType={m.getAccountType}
+            closedAccounts={closedAccounts}
             emptyIcon={PiggyBank}
             emptyTitle="No asset accounts found"
             emptyDescription="Add transactions for accounts with positive balances to see your assets."
@@ -170,6 +173,7 @@ export default function NetWorthPage() {
             expandedCategories={m.expandedLiabilityCategories}
             onToggleCategory={(cat) => m.toggleCategory(m.setExpandedLiabilityCategories, cat)}
             getAccountType={m.getAccountType}
+            closedAccounts={closedAccounts}
             emptyIcon={CreditCard}
             emptyTitle="No liability accounts found"
             emptyDescription="Great news! You don't have any liability accounts with negative balances."

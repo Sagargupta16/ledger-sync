@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Info, Check, X, ChevronDown, ChevronUp, Settings2, Save, SlidersHorizontal } from 'lucide-react'
+import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Archive, Info, Check, X, ChevronDown, ChevronUp, Settings2, Save, SlidersHorizontal } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -25,6 +25,7 @@ const ANOMALY_TYPE_LABELS: Record<Anomaly['anomaly_type'], string> = {
   unusual_category: 'Unusual Category',
   large_transfer: 'Large Transfer',
   budget_exceeded: 'Budget Exceeded',
+  closed_account_activity: 'Closed Account Activity',
 }
 
 const ANOMALY_TYPE_ICONS: Record<Anomaly['anomaly_type'], typeof TrendingUp> = {
@@ -32,6 +33,7 @@ const ANOMALY_TYPE_ICONS: Record<Anomaly['anomaly_type'], typeof TrendingUp> = {
   unusual_category: HelpCircle,
   large_transfer: ArrowRightLeft,
   budget_exceeded: AlertTriangle,
+  closed_account_activity: Archive,
 }
 
 // Distinct icon per severity so the level reads without relying on colour alone.
@@ -251,6 +253,7 @@ export default function AnomalyReviewPage() {
             <option value="unusual_category">Unusual Category</option>
             <option value="large_transfer">Large Transfer</option>
             <option value="budget_exceeded">Budget Exceeded</option>
+            <option value="closed_account_activity">Closed Account Activity</option>
           </select>
 
           <select
@@ -391,6 +394,7 @@ export default function AnomalyReviewPage() {
                   <div className="mt-4 ml-0 sm:ml-11 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => handleReview(anomaly.id, false)}
                         disabled={reviewMutation.isPending}
                         className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-app-green/10 text-app-green border border-app-green/20 hover:bg-app-green/20 transition-colors disabled:opacity-50"
@@ -398,6 +402,7 @@ export default function AnomalyReviewPage() {
                         <Check className="w-3 h-3" /> Review
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleReview(anomaly.id, true)}
                         disabled={reviewMutation.isPending}
                         className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-app-red/10 text-app-red border border-app-red/20 hover:bg-app-red/20 transition-colors disabled:opacity-50"
@@ -405,6 +410,7 @@ export default function AnomalyReviewPage() {
                         <X className="w-3 h-3" /> Dismiss
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
                           setExpandedNoteId(isExpanded ? null : anomaly.id)
                           setNoteText('')

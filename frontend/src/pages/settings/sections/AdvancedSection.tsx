@@ -4,9 +4,11 @@
  */
 
 import { Shield } from 'lucide-react'
+import { useClosedAccounts } from '@/hooks/api/useAccountStatus'
 import type { LocalPrefs, LocalPrefKey } from '../types'
 import { Section } from '../sectionPrimitives'
 import AnomalyDetectionSubsection from './AnomalyDetectionSubsection'
+import ClosedAccountsSubsection from './ClosedAccountsSubsection'
 import CreditCardLimitsSubsection from './CreditCardLimitsSubsection'
 import ExcludedAccountsSubsection from './ExcludedAccountsSubsection'
 
@@ -27,20 +29,26 @@ export default function AdvancedSection({
   excludedAccounts,
   updateLocalPref,
 }: Readonly<Props>) {
+  // A closed credit card has no limit to configure.
+  const { data: closedAccounts = [] } = useClosedAccounts()
+  const openCreditCards = creditCardAccounts.filter((card) => !closedAccounts.includes(card))
+
   return (
     <Section
       index={index}
       icon={Shield}
       title="Advanced"
-      description="Anomaly detection, credit card limits, excluded accounts"
+      description="Anomaly detection, credit card limits, closed and excluded accounts"
     >
       <AnomalyDetectionSubsection localPrefs={localPrefs} updateLocalPref={updateLocalPref} />
 
       <CreditCardLimitsSubsection
         localPrefs={localPrefs}
-        creditCardAccounts={creditCardAccounts}
+        creditCardAccounts={openCreditCards}
         updateLocalPref={updateLocalPref}
       />
+
+      <ClosedAccountsSubsection accounts={accounts} />
 
       <ExcludedAccountsSubsection
         accounts={accounts}

@@ -52,8 +52,13 @@ from typing import Any
 from sqlalchemy import delete, func
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
-from ledger_sync.core.query_helpers import apply_excluded_accounts_filter, fmt_year_month
+from ledger_sync.core.query_helpers import (
+    apply_excluded_accounts_filter,
+    closed_accounts_for,
+    fmt_year_month,
+)
 from ledger_sync.db.models import (
+    AccountClassification,
     Anomaly,
     AnomalyType,
     Budget,
@@ -116,6 +121,7 @@ class AnomaliesMixin(AnalyticsEngineBase):
 
         self._detect_high_expense_months(anomalies_detected, z_cutoff)
         self._detect_large_transactions(anomalies_detected)
+        self._detect_closed_account_activity(anomalies_detected)
 
         # Suppress findings the user already reviewed/dismissed BEFORE the cap,
         # so a dismissed anomaly neither resurrects as a fresh unreviewed row
@@ -369,6 +375,58 @@ class AnomaliesMixin(AnalyticsEngineBase):
                     "deviation_pct": ((float(txn.amount) - baseline) / baseline) * 100,
                 },
             )
+
+    def _detect_closed_account_activity(self, anomalies: list[dict[str, Any]]) -> None:
+        """Flag transactions landing on a closed account after its close date.
+
+        Statements routinely trail closures in India by a cycle or two
+        (refunds, final interest, reversal entries), so new activity is
+        imported normally -- this just surfaces it for review instead of
+        silently absorbing it. Only rows dated AFTER the recorded close
+        date count; the account's own history never triggers it.
+        """
+        closed = closed_accounts_for(self.db, self.user_id)
+        if not closed:
+            return
+
+        close_dates: dict[str, datetime] = {
+            row.account_name: row.closed_date
+            for row in self.db.query(AccountClassification)
+            .filter(
+                AccountClassification.user_id == self.user_id,
+                AccountClassification.is_closed.is_(True),
+                AccountClassification.closed_date.is_not(None),
+            )
+            .all()
+            # The SQL filter already excludes NULLs; this narrows for mypy.
+            if row.closed_date is not None
+        }
+        if not close_dates:
+            return
+
+        sym = self._currency_symbol
+        for account, closed_at in close_dates.items():
+            late_txns = (
+                self._user_transaction_query()
+                .filter(Transaction.account == account, Transaction.date > closed_at)
+                .order_by(Transaction.date.desc())
+                .limit(5)
+                .all()
+            )
+            for txn in late_txns:
+                anomalies.append(
+                    {
+                        "type": AnomalyType.CLOSED_ACCOUNT_ACTIVITY,
+                        "severity": "medium",
+                        "description": (
+                            f"Activity on closed account {account}: "
+                            f"{sym}{float(txn.amount):,.0f} ({txn.category}) "
+                            f"on {txn.date.strftime('%d %b %Y')}"
+                        ),
+                        "transaction_id": txn.transaction_id,
+                        "actual_value": Decimal(str(txn.amount)),
+                    },
+                )
 
     # ─── budget tracking (unchanged behavior; kept in this mixin) ─────────
 
