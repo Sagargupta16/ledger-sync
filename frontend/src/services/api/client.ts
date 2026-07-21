@@ -108,6 +108,8 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   ['/transactions/facets', (txs) => generateDemoFacets(txs)],
   ['/transactions/search', (txs, params) => generateDemoSearch(txs, params)],
   ['/saved-views', () => generateDemoSavedViews()],
+  // Closed-accounts list must precede the generic prefix match below.
+  ['/account-classifications/closed', () => []],
   ['/account-classifications', () => generateDemoAccountClassifications()],
   ['/transactions', (txs, params) => txs.slice(0, (params.limit as number) || txs.length)],
 ]

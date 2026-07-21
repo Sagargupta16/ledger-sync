@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Info, Check, X, ChevronDown, ChevronUp, Settings2, Save, SlidersHorizontal } from 'lucide-react'
+import { TrendingUp, HelpCircle, ArrowRightLeft, AlertTriangle, AlertCircle, Archive, Info, Check, X, ChevronDown, ChevronUp, Settings2, Save, SlidersHorizontal } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -25,6 +25,7 @@ const ANOMALY_TYPE_LABELS: Record<Anomaly['anomaly_type'], string> = {
   unusual_category: 'Unusual Category',
   large_transfer: 'Large Transfer',
   budget_exceeded: 'Budget Exceeded',
+  closed_account_activity: 'Closed Account Activity',
 }
 
 const ANOMALY_TYPE_ICONS: Record<Anomaly['anomaly_type'], typeof TrendingUp> = {
@@ -32,6 +33,7 @@ const ANOMALY_TYPE_ICONS: Record<Anomaly['anomaly_type'], typeof TrendingUp> = {
   unusual_category: HelpCircle,
   large_transfer: ArrowRightLeft,
   budget_exceeded: AlertTriangle,
+  closed_account_activity: Archive,
 }
 
 // Distinct icon per severity so the level reads without relying on colour alone.
@@ -251,6 +253,7 @@ export default function AnomalyReviewPage() {
             <option value="unusual_category">Unusual Category</option>
             <option value="large_transfer">Large Transfer</option>
             <option value="budget_exceeded">Budget Exceeded</option>
+            <option value="closed_account_activity">Closed Account Activity</option>
           </select>
 
           <select

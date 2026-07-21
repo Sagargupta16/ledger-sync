@@ -41,4 +41,20 @@ export const accountClassificationsService = {
     )
     return response.data
   },
+
+  getClosedAccounts: async (): Promise<string[]> => {
+    const response = await apiClient.get<string[]>('/api/account-classifications/closed')
+    return response.data
+  },
+
+  setAccountStatus: async (
+    accountName: string,
+    isClosed: boolean
+  ): Promise<{ account_name: string; is_closed: boolean; status: string }> => {
+    const response = await apiClient.put('/api/account-classifications/status', {
+      account_name: accountName,
+      is_closed: isClosed,
+    })
+    return response.data
+  },
 }
