@@ -20,6 +20,7 @@ from ledger_sync.core._analytics_helpers import (
     resolve_pattern_display as _resolve_pattern_display,
 )
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.query_helpers import closed_accounts_for
 from ledger_sync.db.models import (
     RecurrenceFrequency,
     RecurringTransaction,
@@ -112,9 +113,21 @@ class RecurringMixin(AnalyticsEngineBase):
         confirmed_names = self._load_confirmed_recurring()
         min_conf = self.recurring_min_confidence
 
+        # A closed account has no future cash flows: don't create new
+        # recurring expectations on it, and deactivate confirmed ones so
+        # the bill calendar / missed-payment logic stops expecting them.
+        closed = closed_accounts_for(self.db, self.user_id)
+        for existing in confirmed_names.values():
+            if existing.account in closed and existing.is_active:
+                existing.is_active = False
+                existing.last_updated = datetime.now(UTC)
+
         count = 0
         for (label, txn_type), txns in patterns.items():
             if len(txns) < 3:  # Need at least 3 occurrences
+                continue
+
+            if closed and all(t.account in closed for t in txns):
                 continue
 
             dates = [t.date for t in txns]
