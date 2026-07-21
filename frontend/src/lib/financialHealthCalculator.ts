@@ -113,18 +113,19 @@ function computeLiquidityRatio(liquidAssets: number, monthlyExpenses: number): C
 
 /**
  * 3. Debt Service Ratio = Monthly Debt Payments / Gross Monthly Income
- * Target: <= 36% (banking standard), <= 20% ideal
+ * Target: <= 36% (banking back-end standard). Tiers per CFSI/FHN
+ * "Have a sustainable debt load": green < 36%, yellow 36-43%, red > 43%.
  */
 function computeDebtServiceRatio(monthlyDebt: number, monthlyIncome: number): CFPRatio {
   const value = monthlyIncome > 0 ? (monthlyDebt / monthlyIncome) * 100 : 0
-  const score = mapToScoreInverse(value, [5, 15, 25, 36, 50])
+  const score = mapToScoreInverse(value, [10, 20, 36, 43, 55])
   return {
     name: 'Debt Service Ratio',
     value,
     score: Math.round(clamp(score, 0, 100)),
     target: '<= 36%',
     status: statusFromScore(score),
-    description: describeByThresholdInverse(value, [[20, 'Healthy debt levels'], [36, 'Within banking limits']], 'High debt burden'),
+    description: describeByThresholdInverse(value, [[20, 'Healthy debt levels'], [36, 'Within banking limits'], [43, 'Elevated debt load']], 'High debt burden'),
     formattedValue: `${value.toFixed(1)}%`,
   }
 }
@@ -149,8 +150,9 @@ function computeInvestmentRatio(netInvestments: number, totalIncome: number): CF
 
 /**
  * 5. Solvency Ratio = Net Worth / Total Assets
- * Target: > 50%, approaching 100% as debt is paid off
- * Approximated as (cumulative savings) / (cumulative savings + total debt outstanding)
+ * Target: >= 50% (higher is better, approaching 100% as debt is paid off).
+ * Uses real net worth from account balances when available; otherwise
+ * approximated from cumulative savings minus outstanding debt.
  */
 function computeSolvencyRatio(netWorth: number, totalAssets: number): CFPRatio {
   let value: number
@@ -169,11 +171,12 @@ function computeSolvencyRatio(netWorth: number, totalAssets: number): CFPRatio {
 }
 
 /**
- * 6. Emergency Fund Coverage = Liquid Balance / Monthly Essential Expenses
- * Target: 3-6 months (salaried), 9-12 months (self-employed)
+ * 6. Emergency Fund Coverage = Liquid Balance / Monthly Living Expenses
+ * Target: 3-6 months (FHN/CFSI score against total living expenses).
+ * 6+ months = top tier, 3-5 next, under 1 month = red.
  */
-function computeEmergencyFundCoverage(liquidBalance: number, monthlyEssentials: number): CFPRatio {
-  const value = monthlyEssentials > 0 ? liquidBalance / monthlyEssentials : 0
+function computeEmergencyFundCoverage(liquidBalance: number, monthlyExpenses: number): CFPRatio {
+  const value = monthlyExpenses > 0 ? liquidBalance / monthlyExpenses : 0
   const score = mapToScore(value, [0, 1, 3, 6, 12])
   return {
     name: 'Emergency Fund',
@@ -190,6 +193,20 @@ function computeEmergencyFundCoverage(liquidBalance: number, monthlyEssentials: 
 const WEIGHTS = [20, 15, 20, 15, 15, 15] as const
 
 /**
+ * Real balance position from account balances. When supplied, the liquidity,
+ * solvency, and emergency-fund ratios use observed balances instead of the
+ * cumulative-flow proxy (which reads 0 for anyone whose lifetime investing
+ * exceeds their lifetime cash surplus).
+ */
+export interface BalanceInputs {
+  liquidAssets: number
+  investmentAssets: number
+  totalLiabilities: number
+  totalAssets: number
+  netWorth: number
+}
+
+/**
  * Compute all 6 CFP ratios and a weighted composite score.
  */
 export function computeCFPScore(params: {
@@ -202,33 +219,48 @@ export function computeCFPScore(params: {
   cumulativeNetSavings: number
   netInvestments: number
   totalDebtOutstanding: number
+  /** Real balances; when present, override the flow-based asset proxy. */
+  balances?: BalanceInputs | null
 }): CFPScoreResult {
   const {
     totalIncome,
     totalExpenses,
     avgMonthlyIncome,
     avgMonthlyExpense,
-    avgMonthlyEssentialExpense,
     avgMonthlyDebt,
     cumulativeNetSavings,
     netInvestments,
     totalDebtOutstanding,
+    balances,
   } = params
 
-  // Liquid assets = net savings minus money locked in investments
-  const liquidAssets = Math.max(0, cumulativeNetSavings - Math.max(0, netInvestments))
-  const totalAssets = liquidAssets + Math.max(0, netInvestments)
-  // Net worth must subtract outstanding debt; otherwise solvency is always
-  // 100% (netWorth === totalAssets) and debt has no effect on the score.
-  const netWorth = totalAssets - Math.max(0, totalDebtOutstanding)
+  let liquidAssets: number
+  let totalAssets: number
+  let netWorth: number
+  if (balances) {
+    // Observed balances: liquid = bank/cash/wallets, and net worth already
+    // nets out real liabilities (negative-balance accounts).
+    liquidAssets = balances.liquidAssets
+    totalAssets = balances.totalAssets
+    netWorth = balances.netWorth
+  } else {
+    // Fallback proxy: liquid = net savings minus money locked in investments.
+    liquidAssets = Math.max(0, cumulativeNetSavings - Math.max(0, netInvestments))
+    totalAssets = liquidAssets + Math.max(0, netInvestments)
+    // Net worth must subtract outstanding debt; otherwise solvency is always
+    // 100% (netWorth === totalAssets) and debt has no effect on the score.
+    netWorth = totalAssets - Math.max(0, totalDebtOutstanding)
+  }
 
+  // Emergency fund is scored on total monthly living expenses (FHN/CFSI use
+  // total living expenses, not essential-only).
   const ratios: CFPRatio[] = [
     computeSavingsRate(totalIncome, totalExpenses),
     computeLiquidityRatio(liquidAssets, avgMonthlyExpense),
     computeDebtServiceRatio(avgMonthlyDebt, avgMonthlyIncome),
     computeInvestmentRatio(netInvestments, totalIncome),
     computeSolvencyRatio(netWorth, totalAssets > 0 ? totalAssets : 1),
-    computeEmergencyFundCoverage(liquidAssets, avgMonthlyEssentialExpense),
+    computeEmergencyFundCoverage(liquidAssets, avgMonthlyExpense),
   ]
 
   const compositeScore = Math.round(
