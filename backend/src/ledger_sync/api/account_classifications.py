@@ -1,14 +1,23 @@
 """Account classification API endpoints."""
 
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.db.models import AccountClassification, AccountType
+from ledger_sync.db.models import AccountClassification, AccountType, RecurringTransaction
 
 router = APIRouter(prefix="/api/account-classifications", tags=["account-classifications"])
+
+
+class AccountStatusUpdate(BaseModel):
+    """Body for the close/reopen endpoint."""
+
+    account_name: str
+    is_closed: bool
 
 
 @router.get("")
@@ -26,6 +35,75 @@ async def get_all_classifications(
     classifications = db.execute(stmt).scalars().all()
 
     return {clf.account_name: clf.account_type.value for clf in classifications}
+
+
+@router.get("/closed")
+async def get_closed_accounts(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> list[str]:
+    """List account names the user has marked closed."""
+    stmt = select(AccountClassification.account_name).where(
+        AccountClassification.user_id == current_user.id,
+        AccountClassification.is_closed.is_(True),
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
+@router.put("/status")
+async def set_account_status(
+    body: AccountStatusUpdate,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> dict[str, Any]:
+    """Mark an account closed or reopen it.
+
+    Creates the classification row (type Other) if the account was never
+    classified, so unclassified accounts can still be closed.
+    """
+    stmt = select(AccountClassification).where(
+        AccountClassification.account_name == body.account_name,
+        AccountClassification.user_id == current_user.id,
+    )
+    classification = db.execute(stmt).scalar()
+
+    if not classification:
+        classification = AccountClassification(
+            account_name=body.account_name,
+            account_type=AccountType.OTHER_WALLETS,
+            user_id=current_user.id,
+        )
+        db.add(classification)
+
+    classification.is_closed = body.is_closed
+    classification.closed_date = datetime.now(UTC) if body.is_closed else None
+
+    # Apply the forward-looking consequences immediately instead of waiting
+    # for the next analytics refresh: a closed account has no future cash
+    # flows, so its recurring/bill expectations deactivate right away.
+    # Reopening restores user-confirmed patterns; auto-detected ones are
+    # recreated by the next detection pass anyway.
+    recurring_query = db.query(RecurringTransaction).filter(
+        RecurringTransaction.user_id == current_user.id,
+        RecurringTransaction.account == body.account_name,
+    )
+    if body.is_closed:
+        recurring_query.filter(RecurringTransaction.is_active.is_(True)).update(
+            {"is_active": False, "last_updated": datetime.now(UTC)}
+        )
+    else:
+        recurring_query.filter(
+            RecurringTransaction.is_active.is_(False),
+            RecurringTransaction.is_user_confirmed.is_(True),
+        ).update({"is_active": True, "last_updated": datetime.now(UTC)})
+
+    db.commit()
+
+    return {
+        "account_name": classification.account_name,
+        "is_closed": classification.is_closed,
+        "status": "success",
+    }
 
 
 @router.get("/{account_name}")

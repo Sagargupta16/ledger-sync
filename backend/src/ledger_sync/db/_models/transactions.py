@@ -198,6 +198,12 @@ class AccountClassification(Base):
         default=AccountType.OTHER_WALLETS,
     )
 
+    # Closed accounts keep their history in analytics but stop being treated
+    # as alive: no recurring/bill expectations, no credit-card limit config,
+    # not offered in account pickers. closed_date is informational only.
+    is_closed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    closed_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     # Metadata
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: datetime.now(UTC)
