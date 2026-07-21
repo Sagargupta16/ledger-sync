@@ -130,68 +130,79 @@ class RecurringMixin(AnalyticsEngineBase):
             if closed and all(t.account in closed for t in txns):
                 continue
 
-            dates = [t.date for t in txns]
-            amounts = [float(t.amount) for t in txns]
-
-            # Detect frequency
-            frequency, confidence, expected_day = self._detect_frequency(dates)
-            if not frequency or confidence < min_conf:
-                continue
-
-            # Median + scaled MAD: recurring groups routinely mix a dominant
-            # regular amount with a few small adjustment rows under the same
-            # note, and a mean/stdev pair gets dragged far from the typical
-            # payment. 1.4826 scales MAD to stdev-like units.
-            avg_amount = median(amounts)
-            amount_variance = (
-                1.4826 * median(abs(a - avg_amount) for a in amounts) if len(amounts) > 1 else 0.0
+            count += self._upsert_recurring_pattern(
+                label, txn_type, txns, confirmed_names, min_conf
             )
-
-            info = _resolve_pattern_display(
-                txns,
-                dates,
-                avg_amount,
-                amount_variance,
-                frequency,
-                confidence,
-                expected_day,
-                txn_type,
-            )
-
-            # If a user-confirmed record matches, update its stats instead
-            if label in confirmed_names:
-                existing = confirmed_names[label]
-                existing.occurrences_detected = info["occurrences"]
-                existing.last_occurrence = info["last_occurrence"]
-                existing.confidence_score = info["confidence"]
-                existing.expected_amount = info["expected_amount"]
-                existing.amount_variance = info["amount_variance"]
-                existing.last_updated = datetime.now(UTC)
-                count += 1
-                continue
-
-            recurring = RecurringTransaction(
-                user_id=self.user_id,
-                pattern_name=info["pattern_name"],
-                category=info["category"],
-                subcategory=info["subcategory"],
-                account=info["account"],
-                transaction_type=TransactionType(info["txn_type"]),
-                frequency=info["frequency"],
-                expected_amount=info["expected_amount"],
-                amount_variance=info["amount_variance"],
-                expected_day=info["expected_day"],
-                confidence_score=info["confidence"],
-                occurrences_detected=info["occurrences"],
-                last_occurrence=info["last_occurrence"],
-                is_active=True,
-                first_detected=datetime.now(UTC),
-                last_updated=datetime.now(UTC),
-            )
-            self.db.add(recurring)
-            count += 1
 
         return count
+
+    def _upsert_recurring_pattern(
+        self,
+        label: str,
+        txn_type: str,
+        txns: list[Transaction],
+        confirmed_names: dict[str, RecurringTransaction],
+        min_conf: float,
+    ) -> int:
+        """Detect one pattern group and persist it; returns 1 if kept, else 0."""
+        dates = [t.date for t in txns]
+        amounts = [float(t.amount) for t in txns]
+
+        frequency, confidence, expected_day = self._detect_frequency(dates)
+        if not frequency or confidence < min_conf:
+            return 0
+
+        # Median + scaled MAD: recurring groups routinely mix a dominant
+        # regular amount with a few small adjustment rows under the same
+        # note, and a mean/stdev pair gets dragged far from the typical
+        # payment. 1.4826 scales MAD to stdev-like units.
+        avg_amount = median(amounts)
+        amount_variance = (
+            1.4826 * median(abs(a - avg_amount) for a in amounts) if len(amounts) > 1 else 0.0
+        )
+
+        info = _resolve_pattern_display(
+            txns,
+            dates,
+            avg_amount,
+            amount_variance,
+            frequency,
+            confidence,
+            expected_day,
+            txn_type,
+        )
+
+        # If a user-confirmed record matches, update its stats instead
+        if label in confirmed_names:
+            existing = confirmed_names[label]
+            existing.occurrences_detected = info["occurrences"]
+            existing.last_occurrence = info["last_occurrence"]
+            existing.confidence_score = info["confidence"]
+            existing.expected_amount = info["expected_amount"]
+            existing.amount_variance = info["amount_variance"]
+            existing.last_updated = datetime.now(UTC)
+            return 1
+
+        recurring = RecurringTransaction(
+            user_id=self.user_id,
+            pattern_name=info["pattern_name"],
+            category=info["category"],
+            subcategory=info["subcategory"],
+            account=info["account"],
+            transaction_type=TransactionType(info["txn_type"]),
+            frequency=info["frequency"],
+            expected_amount=info["expected_amount"],
+            amount_variance=info["amount_variance"],
+            expected_day=info["expected_day"],
+            confidence_score=info["confidence"],
+            occurrences_detected=info["occurrences"],
+            last_occurrence=info["last_occurrence"],
+            is_active=True,
+            first_detected=datetime.now(UTC),
+            last_updated=datetime.now(UTC),
+        )
+        self.db.add(recurring)
+        return 1
 
     def _detect_frequency(
         self,

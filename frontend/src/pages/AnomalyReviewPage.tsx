@@ -394,6 +394,7 @@ export default function AnomalyReviewPage() {
                   <div className="mt-4 ml-0 sm:ml-11 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => handleReview(anomaly.id, false)}
                         disabled={reviewMutation.isPending}
                         className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-app-green/10 text-app-green border border-app-green/20 hover:bg-app-green/20 transition-colors disabled:opacity-50"
@@ -401,6 +402,7 @@ export default function AnomalyReviewPage() {
                         <Check className="w-3 h-3" /> Review
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleReview(anomaly.id, true)}
                         disabled={reviewMutation.isPending}
                         className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 text-xs rounded-lg bg-app-red/10 text-app-red border border-app-red/20 hover:bg-app-red/20 transition-colors disabled:opacity-50"
@@ -408,6 +410,7 @@ export default function AnomalyReviewPage() {
                         <X className="w-3 h-3" /> Dismiss
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
                           setExpandedNoteId(isExpanded ? null : anomaly.id)
                           setNoteText('')
