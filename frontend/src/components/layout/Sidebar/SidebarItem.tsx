@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
@@ -29,20 +30,30 @@ export default function SidebarItem({
         cn(
           'relative flex min-h-11 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors duration-150 lg:min-h-9',
           isActive
-            ? 'bg-[var(--overlay-4)] font-medium text-foreground'
+            ? 'font-medium text-foreground'
             : 'text-muted-foreground hover:bg-[var(--overlay-2)] hover:text-foreground',
         )
       }
     >
       {({ isActive }) => (
         <>
+          {/* Active pill slides between items (shared layoutId) instead of
+              snapping -- same pattern the mobile tab bar already uses. */}
+          {isActive && (
+            <motion.span
+              layoutId="sidebar-active-pill"
+              className="absolute inset-0 rounded-md bg-[var(--overlay-4)]"
+              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              aria-hidden
+            />
+          )}
           <Icon
             className={cn(
-              'size-4 shrink-0',
+              'relative size-4 shrink-0',
               isActive ? 'text-foreground' : 'text-text-tertiary',
             )}
           />
-          <span className="flex-1 truncate">{label}</span>
+          <span className="relative flex-1 truncate">{label}</span>
           {badge !== undefined && badge > 0 && (
             <span
               className={cn(

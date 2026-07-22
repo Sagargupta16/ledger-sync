@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 
+import { motion } from 'framer-motion'
 import {
   ShoppingBag, TrendingUp, TrendingDown, Zap, Gift, Receipt,
   Flame, ArrowLeftRight, Landmark, Calendar, BarChart3,
@@ -8,6 +9,8 @@ import {
 } from 'lucide-react'
 
 import { useCategoryBreakdown, useTotals, useQuickInsights } from '@/hooks/api/useAnalytics'
+import { waveCascadeContainer, waveCascadeItem } from '@/constants/animations'
+import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { formatCurrency } from '@/lib/formatters'
 
 import LoadingSkeleton from './LoadingSkeleton'
@@ -41,17 +44,22 @@ interface QuickInsightsProps {
 }
 
 function InsightCard({ item }: Readonly<{ item: InsightDescriptor }>) {
+  // Format-preserving count-up; settles on the exact formatted string.
+  const animatedValue = useAnimatedValue(item.value)
   return (
-    <div className="ledger-cell flex min-h-20 items-center gap-3 p-3 transition-colors duration-150 hover:bg-[var(--overlay-1)]">
+    <motion.div
+      variants={waveCascadeItem}
+      className="ledger-cell flex min-h-20 items-center gap-3 p-3 transition-colors duration-150 hover:bg-[var(--overlay-1)]"
+    >
       <div className={`flex size-7 shrink-0 items-center justify-center rounded-md ${item.bg}`}>
         <item.icon className={`size-3.5 ${item.color}`} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="truncate text-[11px] text-muted-foreground">{item.title}</p>
-        <p className="ledger-figure truncate text-xs font-semibold text-foreground sm:text-sm" title={item.value}>{item.value}</p>
+        <p className="ledger-figure truncate text-xs font-semibold text-foreground sm:text-sm tabular-nums" title={item.value}>{animatedValue}</p>
         {item.subtitle && <p className="text-[11px] text-text-tertiary truncate" title={item.subtitle}>{item.subtitle}</p>}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -216,17 +224,27 @@ export default function QuickInsights({
 
   return (
     <div className="space-y-4">
-      {/* Quick Insights */}
-      <div className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      {/* Quick Insights: tiles cascade in as a wave, values count up. */}
+      <motion.div
+        className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+        variants={waveCascadeContainer}
+        initial="hidden"
+        animate="visible"
+      >
         {filterByVisibility(quickInsights, visibleKeys).map((item) => <InsightCard key={item.title} item={item} />)}
-      </div>
+      </motion.div>
 
       {/* Fun Facts */}
       <div>
         <h3 className="mb-2 text-xs font-medium text-muted-foreground">Behavior signals</h3>
-        <div className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <motion.div
+          className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+          variants={waveCascadeContainer}
+          initial="hidden"
+          animate="visible"
+        >
           {filterByVisibility(funFacts, visibleKeys).map((item) => <InsightCard key={item.title} item={item} />)}
-        </div>
+        </motion.div>
       </div>
     </div>
   )
