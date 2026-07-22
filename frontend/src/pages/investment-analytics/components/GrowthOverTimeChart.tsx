@@ -79,8 +79,9 @@ export function GrowthOverTimeChart({
               <Tooltip
                 {...chartTooltipProps}
                 formatter={(value, name) => [currencyTooltipFormatter(value), name || '']}
+                // recharts 3.10 widened labelFormatter's label to ReactNode.
                 labelFormatter={(label) =>
-                  formatDate(label, {
+                  formatDate(String(label), {
                     month: 'long',
                     day: 'numeric',
                     year: 'numeric',

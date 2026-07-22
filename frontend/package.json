@@ -27,7 +27,7 @@
     "react-dom": "^19.2.7",
     "react-dropzone": "^15.0.0",
     "react-router-dom": "^7.18.0",
-    "recharts": "^3.9.0",
+    "recharts": "^3.10.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",

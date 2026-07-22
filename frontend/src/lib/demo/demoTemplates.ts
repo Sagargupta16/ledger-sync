@@ -63,6 +63,10 @@ export const EXPENSE_TEMPLATES: readonly ExpenseTemplate[] = [
   { category: 'Family', subcategory: 'Extra Expenses', min: 1000, max: 30000, account: ACCOUNTS.hdfc, freq: 0.3 },
   { category: 'Charity', subcategory: 'Donations', min: 100, max: 2000, account: ACCOUNTS.gpay, freq: 0.3 },
   { category: 'Charity', subcategory: 'Religious Offerings', min: 50, max: 500, account: ACCOUNTS.cash, freq: 0.2 },
+  // Payroll taxes, deducted monthly at source alongside payday. Two
+  // subcategories so the Cash Flow sankey's Tax branch is drillable.
+  { category: 'Tax', subcategory: 'TDS on Salary', min: 6500, max: 9500, account: ACCOUNTS.hdfc, day: 1 },
+  { category: 'Tax', subcategory: 'Professional Tax', min: 200, max: 200, account: ACCOUNTS.hdfc, day: 1 },
   { category: 'Miscellaneous', subcategory: 'Unknown', min: 50, max: 2000, account: ACCOUNTS.sbi, freq: 2 },
   { category: 'Miscellaneous', subcategory: 'Software Subscriptions', min: 100, max: 1500, account: ACCOUNTS.swiggyCC, freq: 0.3 },
   { category: 'Miscellaneous', subcategory: 'Bank Fees', min: 50, max: 500, account: ACCOUNTS.sbi, freq: 0.2 },

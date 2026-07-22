@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 
+import { motion } from 'framer-motion'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -63,7 +64,9 @@ export default function MetricCard({
   const ChangeIcon = isPositive ? ArrowUpRight : ArrowDownRight
 
   const content = (
-    <div
+    <motion.div
+      whileHover={{ y: -3 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       className={cn(
         'metric-card ledger-panel group relative min-h-28 overflow-hidden p-4 text-left transition-colors duration-150',
         isInteractive && 'hover:border-[var(--hairline-4)] hover:bg-[var(--overlay-1)]',
@@ -124,7 +127,7 @@ export default function MetricCard({
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 
   if (href) {

@@ -14,3 +14,6 @@ onlyBuiltDependencies:
 
 allowBuilds:
   sharp: true
+
+minimumReleaseAgeExclude:
+  - recharts@3.10.0
