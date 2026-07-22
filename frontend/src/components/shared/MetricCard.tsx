@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
+import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { cn } from '@/lib/cn'
 
 interface MetricCardProps {
@@ -47,6 +48,10 @@ export default function MetricCard({
   titleInfo,
 }: Readonly<MetricCardProps>) {
   const colors = metricColorConfig[color]
+  // Count-up on the KPI figure (format-preserving; settles on the exact
+  // original string). Hook order is stable: isLoading renders a skeleton with
+  // no value, and this hook runs unconditionally before that branch.
+  const animatedValue = useAnimatedValue(value)
 
   if (isLoading) {
     return (
@@ -97,13 +102,13 @@ export default function MetricCard({
         <div>
           <output
             className={cn(
-              'metric-value ledger-figure block whitespace-nowrap font-semibold leading-none text-foreground',
+              'metric-value ledger-figure block whitespace-nowrap font-semibold leading-none text-foreground tabular-nums',
               hero && 'metric-value-hero',
             )}
             title={String(value)}
             aria-live="polite"
           >
-            {value}
+            {animatedValue}
           </output>
           {subtitle && (
             <p className="mt-1 truncate text-[11px] text-text-tertiary" title={subtitle}>

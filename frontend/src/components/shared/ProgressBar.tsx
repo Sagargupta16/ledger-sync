@@ -1,3 +1,5 @@
+import { motion } from 'framer-motion'
+
 import { rawColors } from '@/constants/colors'
 
 /**
@@ -78,10 +80,13 @@ export default function ProgressBar({
         )
       })}
 
-      {/* Fill */}
-      <div
-        className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500"
-        style={{ width: `${pct}%`, backgroundColor: color }}
+      {/* Fill: draws from 0 on mount, springs between values on change. */}
+      <motion.div
+        className="absolute inset-y-0 left-0 rounded-full"
+        style={{ backgroundColor: color }}
+        initial={{ width: 0 }}
+        animate={{ width: `${pct}%` }}
+        transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
       />
 
       {/* Target tick */}

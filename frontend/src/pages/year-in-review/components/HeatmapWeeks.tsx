@@ -19,7 +19,11 @@ export default function HeatmapWeeks({ grid, mode, modeMax }: Readonly<Props>) {
         {Array.from({ length: 7 }, (_, dow) => {
           const cell = weekCells.find((c) => c.dayOfWeek === dow)
           if (!cell) return <div key={dow} className="w-[13px] h-[13px]" />
-          return <HeatmapCell key={dow} cell={cell} mode={mode} modeMax={modeMax} />
+          // Left-to-right wave: each week column pops in 8ms after the last
+          // (~3s full sweep across a year), echoing the calendar's time axis.
+          return (
+            <HeatmapCell key={dow} cell={cell} mode={mode} modeMax={modeMax} appearDelay={w * 8} />
+          )
         })}
       </div>,
     )
