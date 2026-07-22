@@ -13,12 +13,37 @@ interface ParsedValue {
   grouping: 'indian' | 'western' | 'none'
 }
 
+const isDigit = (ch: string) => ch >= '0' && ch <= '9'
+
 export function parseFormattedValue(sample: string): ParsedValue | null {
-  const match = /^(\D*)([\d,]+(?:\.\d+)?)(.*)$/s.exec(sample)
-  if (!match) return null
-  const [, prefix, numeric, suffix] = match
+  // Manual linear scan (a \D*/[\d,]+ regex backtracks super-linearly on the
+  // ambiguous comma): prefix = everything before the first digit, number =
+  // digits/commas + optional decimal part, suffix = the rest.
+  let firstDigit = -1
+  for (let i = 0; i < sample.length; i++) {
+    if (isDigit(sample[i])) {
+      firstDigit = i
+      break
+    }
+  }
+  if (firstDigit === -1) return null
+
+  let i = firstDigit
+  while (i < sample.length && (isDigit(sample[i]) || sample[i] === ',')) i++
+  let decimals = 0
+  if (sample[i] === '.') {
+    let j = i + 1
+    while (j < sample.length && isDigit(sample[j])) j++
+    if (j > i + 1) {
+      decimals = j - i - 1
+      i = j
+    }
+  }
+
+  const prefix = sample.slice(0, firstDigit)
+  const numeric = sample.slice(firstDigit, i)
+  const suffix = sample.slice(i)
   const dot = numeric.indexOf('.')
-  const decimals = dot === -1 ? 0 : numeric.length - dot - 1
   const amount = Number.parseFloat(numeric.replaceAll(',', ''))
   if (!Number.isFinite(amount)) return null
 
@@ -33,14 +58,21 @@ export function parseFormattedValue(sample: string): ParsedValue | null {
   return { prefix, suffix, amount, decimals, grouping }
 }
 
+/** Insert commas right-to-left every `size` digits. Linear, no regex. */
+function groupFromRight(digits: string, size: number): string {
+  const parts: string[] = []
+  for (let end = digits.length; end > 0; end -= size) {
+    parts.unshift(digits.slice(Math.max(0, end - size), end))
+  }
+  return parts.join(',')
+}
+
 function groupDigits(intStr: string, grouping: ParsedValue['grouping']): string {
   if (grouping === 'none' || intStr.length <= 3) return intStr
-  if (grouping === 'western') return intStr.replaceAll(/\B(?=(\d{3})+(?!\d))/g, ',')
+  if (grouping === 'western') return groupFromRight(intStr, 3)
   // Indian: last 3 digits, then groups of 2.
-  const head = intStr.slice(0, -3)
-  const tail = intStr.slice(-3)
-  const groupedHead = head.replaceAll(/\B(?=(\d{2})+(?!\d))/g, ',')
-  return `${groupedHead},${tail}`
+  const head = groupFromRight(intStr.slice(0, -3), 2)
+  return `${head},${intStr.slice(-3)}`
 }
 
 export function formatLikeSample(n: number, parsed: ParsedValue): string {
