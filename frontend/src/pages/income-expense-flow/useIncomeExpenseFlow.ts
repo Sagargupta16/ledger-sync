@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
@@ -6,26 +6,15 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import { getDateKey } from '@/lib/dateUtils'
 
 import { createSankeyNodeComponent } from './components/SankeyNodeRenderer'
-
-/** Cap a category map to the top N by amount, folding the remainder into a
- * single "Other (n)" bucket so the displayed flows still sum to the totals
- * shown on the KPI cards (a raw top-10 slice silently dropped the tail). */
-const SANKEY_TOP_N = 8
-function topCategoriesWithOther(
-  byCategory: Record<string, number>,
-  otherLabel: string,
-): Array<{ name: string; amount: number }> {
-  const sorted = Object.entries(byCategory)
-    .filter(([, amount]) => amount > 0)
-    .sort((a, b) => b[1] - a[1])
-  if (sorted.length <= SANKEY_TOP_N) {
-    return sorted.map(([name, amount]) => ({ name, amount }))
-  }
-  const head = sorted.slice(0, SANKEY_TOP_N).map(([name, amount]) => ({ name, amount }))
-  const restCount = sorted.length - SANKEY_TOP_N
-  const otherAmount = sorted.slice(SANKEY_TOP_N).reduce((sum, [, amount]) => sum + amount, 0)
-  return [...head, { name: `${otherLabel} (${restCount})`, amount: otherAmount }]
-}
+import {
+  attachOverviewDrills,
+  buildCategoryView,
+  buildOtherView,
+  buildOverviewView,
+  countSubBuckets,
+  foldTopWithOther,
+  type DrillCrumb,
+} from './sankeyDrilldown'
 
 export function useIncomeExpenseFlow() {
   const { data: allTransactions = [], isLoading } = useTransactions()
@@ -34,6 +23,9 @@ export function useIncomeExpenseFlow() {
   const isMobile = useIsMobile(1024)
 
   const { dateRange, currentFY, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
+
+  // Drill path (breadcrumb stack). Empty = the full overview diagram.
+  const [drillPath, setDrillPath] = useState<DrillCrumb[]>([])
 
   const fyTransactions = useMemo(() => {
     const startDate = dateRange.start_date
@@ -45,6 +37,29 @@ export function useIncomeExpenseFlow() {
       return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
     })
   }, [allTransactions, dateRange])
+
+  // Changing the time filter can remove the drilled category entirely, so a
+  // period switch always returns to the overview. State-adjust-during-render
+  // (not an effect) per React's "adjusting state when props change" pattern.
+  const rangeKey = `${dateRange.start_date ?? ''}|${dateRange.end_date ?? ''}`
+  const [prevRangeKey, setPrevRangeKey] = useState(rangeKey)
+  if (rangeKey !== prevRangeKey) {
+    setPrevRangeKey(rangeKey)
+    setDrillPath([])
+  }
+
+  const drillInto = useCallback((crumb: DrillCrumb) => {
+    setDrillPath((path) => [...path, crumb])
+  }, [])
+
+  /** Truncate to the first `depth` crumbs; 0 = back to overview. */
+  const drillTo = useCallback((depth: number) => {
+    setDrillPath((path) => (depth >= path.length ? path : path.slice(0, depth)))
+  }, [])
+
+  const drillBack = useCallback(() => {
+    setDrillPath((path) => path.slice(0, -1))
+  }, [])
 
   const computed = useMemo(() => {
     const incomeByCategory = fyTransactions
@@ -78,94 +93,69 @@ export function useIncomeExpenseFlow() {
     // therefore the KPI cards). A raw slice(0,10) silently dropped categories
     // 11+, so the flows didn't sum to Total Income / Expenses for users with
     // many categories.
-    const topIncomeCats = topCategoriesWithOther(incomeByCategory, 'Other Income')
-    const topExpenseCats = topCategoriesWithOther(expenseByCategory, 'Other Expense')
+    const incomeFold = foldTopWithOther(incomeByCategory, 'Other Income')
+    const expenseFold = foldTopWithOther(expenseByCategory, 'Other Expense')
 
-    const nodes: Array<{ name: string; color?: string }> = []
-    const links: Array<{ source: number; target: number; value: number; color?: string }> = []
-    let nodeIndex = 0
-    const incomeNodeIndexByName = new Map<string, number>()
-    const expenseNodeIndexByName = new Map<string, number>()
-    const nodeValues = new Map<number, number>()
+    // Categories with >= 2 subcategory buckets are click-to-drill; the folded
+    // "Other (n)" node drills into the tail it hides.
+    const subBuckets = countSubBuckets(fyTransactions)
+    const topIncome = attachOverviewDrills(
+      incomeFold.entries,
+      incomeFold.tail,
+      'income',
+      subBuckets.income,
+    )
+    const topExpense = attachOverviewDrills(
+      expenseFold.entries,
+      expenseFold.tail,
+      'expense',
+      subBuckets.expense,
+    )
 
-    topIncomeCats.forEach(({ name, amount }) => {
-      incomeNodeIndexByName.set(name, nodeIndex)
-      nodeValues.set(nodeIndex, amount)
-      nodes.push({ name })
-      nodeIndex++
-    })
+    return { totalIncome, totalExpense, netSavings, savingsRate, topIncome, topExpense }
+  }, [fyTransactions])
 
-    const totalIncomeNodeIndex = nodeIndex
-    nodeValues.set(nodeIndex, totalIncome)
-    nodes.push({ name: 'Total Income' })
-    nodeIndex++
-
-    const savingsNodeIndex = nodeIndex
-    nodeValues.set(nodeIndex, Math.max(netSavings, 0))
-    nodes.push({ name: 'Savings' })
-    nodeIndex++
-
-    const expensesNodeIndex = nodeIndex
-    nodeValues.set(nodeIndex, totalExpense)
-    nodes.push({ name: 'Expenses' })
-    nodeIndex++
-
-    topExpenseCats.forEach(({ name, amount }) => {
-      expenseNodeIndexByName.set(name, nodeIndex)
-      nodeValues.set(nodeIndex, amount)
-      nodes.push({ name })
-      nodeIndex++
-    })
-
-    topIncomeCats.forEach(({ name, amount }) => {
-      const sourceIndex = incomeNodeIndexByName.get(name)
-      if (sourceIndex !== undefined) {
-        links.push({ source: sourceIndex, target: totalIncomeNodeIndex, value: amount })
-      }
-    })
-
-    if (netSavings > 0) {
-      links.push({ source: totalIncomeNodeIndex, target: savingsNodeIndex, value: netSavings })
+  // The currently displayed view: overview, a category's subcategories, or an
+  // unfolded "Other" tail. Fresh { nodes, links } object per level -- Recharts
+  // links reference nodes by array index, so indexes are rebuilt per view.
+  const view = useMemo(() => {
+    const crumb = drillPath.at(-1)
+    if (!crumb) {
+      return buildOverviewView({
+        incomeEntries: computed.topIncome,
+        expenseEntries: computed.topExpense,
+        totalIncome: computed.totalIncome,
+        totalExpense: computed.totalExpense,
+        netSavings: computed.netSavings,
+      })
     }
-    if (totalExpense > 0) {
-      links.push({ source: totalIncomeNodeIndex, target: expensesNodeIndex, value: totalExpense })
-    }
+    if (crumb.view === 'other') return buildOtherView(crumb)
+    return buildCategoryView(fyTransactions, crumb)
+  }, [drillPath, computed, fyTransactions])
 
-    topExpenseCats.forEach(({ name, amount }) => {
-      const targetIndex = expenseNodeIndexByName.get(name)
-      if (targetIndex !== undefined) {
-        links.push({ source: expensesNodeIndex, target: targetIndex, value: amount })
-      }
-    })
+  const chartWidth = isMobile ? 720 : 900
+  const sankeyNodeComponent = useMemo(
+    () =>
+      createSankeyNodeComponent({
+        meta: view.meta,
+        chartWidth,
+        fontSize: isMobile ? 11 : 13,
+        onDrill: drillInto,
+      }),
+    [view.meta, chartWidth, isMobile, drillInto],
+  )
 
-    const incomeCategoryCount = topIncomeCats.length
-    const chartWidth = isMobile ? 720 : 900
-    const sankeyNodeComponent = createSankeyNodeComponent({
-      nodeValues,
-      incomeCategoryCount,
-      totalIncomeNodeIndex,
-      savingsNodeIndex,
-      expensesNodeIndex,
-      totalIncome,
-      chartWidth,
-      fontSize: isMobile ? 11 : 13,
-    })
-
-    // Mobile rows reuse the same top-N + Other lists so phone + desktop agree.
-    const topIncome = topIncomeCats
-    const topExpense = topExpenseCats
-
-    return {
-      totalIncome,
-      totalExpense,
-      netSavings,
-      savingsRate,
-      sankeyData: { nodes, links },
-      sankeyNodeComponent,
-      topIncome,
-      topExpense,
-    }
-  }, [fyTransactions, isMobile])
-
-  return { ...computed, isLoading, isMobile, currentFY, timeFilterProps }
+  return {
+    ...computed,
+    isLoading,
+    isMobile,
+    currentFY,
+    timeFilterProps,
+    view,
+    drillPath,
+    drillInto,
+    drillTo,
+    drillBack,
+    sankeyNodeComponent,
+  }
 }

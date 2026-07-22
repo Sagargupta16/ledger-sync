@@ -26,7 +26,11 @@ const IncomeExpenseFlowPage = () => {
       <SankeyChart
         isLoading={m.isLoading}
         isMobile={m.isMobile}
-        sankeyData={m.sankeyData}
+        view={m.view}
+        drillPath={m.drillPath}
+        drillTo={m.drillTo}
+        drillInto={m.drillInto}
+        drillBack={m.drillBack}
         sankeyNodeComponent={m.sankeyNodeComponent}
         topIncome={m.topIncome}
         topExpense={m.topExpense}

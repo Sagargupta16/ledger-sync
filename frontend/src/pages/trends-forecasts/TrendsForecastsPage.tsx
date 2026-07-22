@@ -294,8 +294,9 @@ export default function TrendsForecastsPage() {
                 />
                 <Tooltip
                   {...chartTooltipProps}
+                  // recharts 3.10 widened labelFormatter's label to ReactNode.
                   labelFormatter={(label) =>
-                    formatDate(label, {
+                    formatDate(String(label), {
                       month: 'long',
                       day: 'numeric',
                       year: 'numeric',

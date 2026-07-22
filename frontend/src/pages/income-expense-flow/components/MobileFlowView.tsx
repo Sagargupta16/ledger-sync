@@ -1,25 +1,27 @@
 import { motion } from 'framer-motion'
-import { ArrowDown } from 'lucide-react'
+import { ArrowDown, ChevronRight } from 'lucide-react'
 
 import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
-interface CategoryEntry {
-  readonly name: string
-  readonly amount: number
-}
+import type { DrillCrumb, FlowEntry, SankeyView } from '../sankeyDrilldown'
 
 interface Props {
-  readonly incomeByCategory: readonly CategoryEntry[]
-  readonly expenseByCategory: readonly CategoryEntry[]
+  readonly incomeByCategory: readonly FlowEntry[]
+  readonly expenseByCategory: readonly FlowEntry[]
   readonly totalIncome: number
   readonly totalExpense: number
   readonly netSavings: number
+  readonly view: SankeyView
+  readonly drillPath: DrillCrumb[]
+  readonly drillInto: (crumb: DrillCrumb) => void
 }
 
 /**
  * Mobile-first vertical flow: Income sources -> Total Income -> Savings + Expenses split
  * -> Expense categories. Bar width is proportional to the row's share of its section.
+ * Rows with a breakdown are tappable and drill into subcategories (the page-level
+ * breadcrumb handles the way back).
  */
 export default function MobileFlowView({
   incomeByCategory,
@@ -27,7 +29,42 @@ export default function MobileFlowView({
   totalIncome,
   totalExpense,
   netSavings,
+  view,
+  drillPath,
+  drillInto,
 }: Props) {
+  const crumb = drillPath.at(-1)
+
+  // Drilled view: one section listing the parent's breakdown.
+  if (crumb) {
+    const rows = view.rows
+    const max = rows.reduce((m, r) => Math.max(m, r.amount), 0)
+    const color = crumb.flow === 'income' ? rawColors.app.green : rawColors.app.red
+    return (
+      <Section
+        title={`${crumb.label} breakdown`}
+        total={view.rowsTotal}
+        totalColor={color}
+      >
+        {rows.map((entry, idx) => (
+          <FlowRow
+            key={entry.name}
+            label={entry.name}
+            amount={entry.amount}
+            percent={view.rowsTotal > 0 ? entry.amount / view.rowsTotal : 0}
+            barWidth={max > 0 ? entry.amount / max : 0}
+            color={color}
+            delay={idx * 0.03}
+            onDrill={entry.drill ? () => drillInto(entry.drill!) : undefined}
+          />
+        ))}
+        {rows.length === 0 && (
+          <p className="text-sm text-muted-foreground">No breakdown available.</p>
+        )}
+      </Section>
+    )
+  }
+
   const incomeMax = incomeByCategory[0]?.amount ?? 0
   const expenseMax = expenseByCategory[0]?.amount ?? 0
   const savingsShare = totalIncome > 0 ? Math.max(netSavings, 0) / totalIncome : 0
@@ -46,6 +83,7 @@ export default function MobileFlowView({
             barWidth={incomeMax > 0 ? entry.amount / incomeMax : 0}
             color={rawColors.app.green}
             delay={idx * 0.03}
+            onDrill={entry.drill ? () => drillInto(entry.drill!) : undefined}
           />
         ))}
       </Section>
@@ -113,6 +151,7 @@ export default function MobileFlowView({
                 barWidth={expenseMax > 0 ? entry.amount / expenseMax : 0}
                 color={rawColors.app.red}
                 delay={idx * 0.03}
+                onDrill={entry.drill ? () => drillInto(entry.drill!) : undefined}
               />
             ))}
           </Section>
@@ -155,6 +194,7 @@ function FlowRow({
   barWidth,
   color,
   delay,
+  onDrill,
 }: Readonly<{
   label: string
   amount: number
@@ -162,15 +202,15 @@ function FlowRow({
   barWidth: number
   color: string
   delay: number
+  onDrill?: () => void
 }>) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay, duration: 0.25 }}
-    >
+  const row = (
+    <>
       <div className="flex items-baseline justify-between gap-2 mb-1">
-        <span className="text-sm text-foreground truncate flex-1 min-w-0">{label}</span>
+        <span className="text-sm text-foreground truncate flex-1 min-w-0 inline-flex items-center gap-1">
+          {label}
+          {onDrill && <ChevronRight className="w-3.5 h-3.5 text-text-quaternary shrink-0" aria-hidden />}
+        </span>
         <span className="text-xs text-text-tertiary shrink-0">{formatPercent(percent * 100)}</span>
       </div>
       <div className="flex items-center gap-2">
@@ -187,6 +227,35 @@ function FlowRow({
           {formatCurrency(amount)}
         </span>
       </div>
+    </>
+  )
+
+  if (onDrill) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: -8 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay, duration: 0.25 }}
+      >
+        <button
+          type="button"
+          onClick={onDrill}
+          aria-label={`${label}: see breakdown`}
+          className="block w-full text-left -mx-2 px-2 py-1 rounded-lg hover:bg-[var(--overlay-2)] active:bg-[var(--overlay-2)] transition-colors"
+        >
+          {row}
+        </button>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay, duration: 0.25 }}
+    >
+      {row}
     </motion.div>
   )
 }
