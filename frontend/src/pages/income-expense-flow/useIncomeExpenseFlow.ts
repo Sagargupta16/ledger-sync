@@ -1,9 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
 
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { getDateKey } from '@/lib/dateUtils'
+import { FY_START_MONTH } from '@/lib/taxCalculator'
+import { computePaidTax, groupTransactionsByFY } from '@/pages/tax-planning/taxPlanningUtils'
 
 import { createSankeyNodeComponent } from './components/SankeyNodeRenderer'
 import {
@@ -20,9 +23,28 @@ import {
 
 export function useIncomeExpenseFlow() {
   const { data: allTransactions = [], isLoading } = useTransactions()
+  const { data: preferences } = usePreferences()
   // Gate the horizontal Sankey to lg+ (>=1024px): it uses left/right:200 margins
   // that crush a tablet, so phones and tablets get the vertical MobileFlowView.
   const isMobile = useIsMobile(1024)
+
+  // Same tax engine inputs the Income Tax page uses, so the sankey's Tax
+  // figures agree with that page for the same FY.
+  const fiscalYearStartMonth = preferences?.fiscal_year_start_month || FY_START_MONTH
+  const salaryIsNetOfTds = preferences?.salary_is_net_of_tds ?? true
+  const preferredRegime = preferences?.preferred_tax_regime || 'new'
+  const epfTaxableFraction = preferences?.epf_withdrawal_taxable
+    ? (preferences.epf_taxable_percent ?? 100) / 100
+    : 0
+  const incomeClassification = useMemo(
+    () => ({
+      taxable: preferences?.taxable_income_categories || [],
+      investmentReturns: preferences?.investment_returns_categories || [],
+      nonTaxable: preferences?.non_taxable_income_categories || [],
+      other: preferences?.other_income_categories || [],
+    }),
+    [preferences],
+  )
 
   const { dateRange, currentFY, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
 
@@ -125,8 +147,26 @@ export function useIncomeExpenseFlow() {
       subBuckets.expense,
     )
 
-    // Tax node drills into its categories (Income Tax, TDS, ...) when there is
-    // more than one; a single tax category drills into its subcategories.
+    // FY-wise slab computation (same engine as the Income Tax page): group the
+    // filtered window by FY and sum each FY's computed tax-already-paid. With
+    // net-of-TDS salaries the ledger never sees that money, so the computed
+    // figure over and above explicit tax transactions is "deducted at source".
+    const byFY = groupTransactionsByFY(
+      fyTransactions,
+      fiscalYearStartMonth,
+      incomeClassification,
+      epfTaxableFraction,
+    )
+    const computedTax = Object.entries(byFY).reduce(
+      (sum, [fy, fyData]) =>
+        sum + computePaidTax(fy, fyData, null, preferredRegime, salaryIsNetOfTds),
+      0,
+    )
+    const tdsAtSource = Math.max(0, computedTax - totalTax)
+    const taxTotal = totalTax + tdsAtSource
+
+    // Tax node drills into its breakdown: explicit tax categories plus the
+    // computed at-source figure when present.
     const taxEntries: FlowEntry[] = Object.entries(taxByCategory)
       .filter(([, amount]) => amount > 0)
       .sort((a, b) => b[1] - a[1])
@@ -137,6 +177,10 @@ export function useIncomeExpenseFlow() {
           ? { label: name, view: 'category' as const, flow: 'expense' as const }
           : null,
       }))
+    if (tdsAtSource > 0) {
+      taxEntries.push({ name: 'TDS deducted at source (computed)', amount: tdsAtSource, drill: null })
+      taxEntries.sort((a, b) => b.amount - a.amount)
+    }
     let taxDrill: DrillCrumb | null = null
     if (taxEntries.length > 1) {
       taxDrill = { label: 'Tax', view: 'other', flow: 'expense', tail: taxEntries }
@@ -147,14 +191,22 @@ export function useIncomeExpenseFlow() {
     return {
       totalIncome,
       totalExpense,
-      totalTax,
+      totalTax: taxTotal,
+      tdsAtSource,
       netSavings,
       savingsRate,
       topIncome,
       topExpense,
       taxDrill,
     }
-  }, [fyTransactions])
+  }, [
+    fyTransactions,
+    fiscalYearStartMonth,
+    incomeClassification,
+    epfTaxableFraction,
+    preferredRegime,
+    salaryIsNetOfTds,
+  ])
 
   // The currently displayed view: overview, a category's subcategories, or an
   // unfolded "Other" tail. Fresh { nodes, links } object per level -- Recharts
@@ -169,6 +221,7 @@ export function useIncomeExpenseFlow() {
         totalExpense: computed.totalExpense,
         netSavings: computed.netSavings,
         totalTax: computed.totalTax,
+        tdsAtSource: computed.tdsAtSource,
         taxDrill: computed.taxDrill,
       })
     }

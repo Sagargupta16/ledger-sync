@@ -210,6 +210,36 @@ describe('buildOverviewView', () => {
     })
     expect(noTax.nodes.some((n) => n.name === 'Tax')).toBe(false)
   })
+
+  it('shows computed TDS at both ends: source node into Gross Income and inside the Tax branch', () => {
+    // Recorded (net) income 100k; slab-computed TDS 12k on top; 2k explicit tax
+    // transactions. Tax branch = 14k; gross = 112k.
+    const view = buildOverviewView({
+      incomeEntries: [{ name: 'Salary', amount: 100000 }],
+      expenseEntries: [{ name: 'Family', amount: 30000 }],
+      totalIncome: 100000,
+      totalExpense: 30000,
+      netSavings: 68000, // 100000 - 30000 - 2000 explicit tax
+      totalTax: 14000, // 2000 explicit + 12000 TDS
+      tdsAtSource: 12000,
+    })
+    const names = view.nodes.map((n) => n.name)
+    expect(names).toContain('Tax Deducted at Source')
+    expect(names).toContain('Gross Income')
+    expect(names).not.toContain('Total Income')
+
+    const grossIndex = names.indexOf('Gross Income')
+    const tdsIndex = names.indexOf('Tax Deducted at Source')
+    // Income side: TDS feeds gross alongside recorded income.
+    const inflows = view.links.filter((l) => l.target === grossIndex)
+    expect(inflows.reduce((s, l) => s + l.value, 0)).toBe(112000)
+    expect(inflows.some((l) => l.source === tdsIndex && l.value === 12000)).toBe(true)
+    // Outflow side: tax + savings + expenses reconcile back to gross.
+    const outflows = view.links.filter((l) => l.source === grossIndex)
+    expect(outflows.reduce((s, l) => s + l.value, 0)).toBe(112000)
+    const taxIndex = names.indexOf('Tax')
+    expect(view.links.find((l) => l.target === taxIndex)?.value).toBe(14000)
+  })
 })
 
 describe('isTaxCategory', () => {

@@ -69,7 +69,9 @@ function DrillBreadcrumb({
       {drillPath.map((crumb, i) => {
         const isLast = i === drillPath.length - 1
         return (
-          <span key={`${crumb.flow}-${crumb.label}`} className="flex items-center gap-1 min-w-0">
+          // Depth in the key: the same label can legally appear twice in a
+          // path (the Tax branch drilling into a category also named Tax).
+          <span key={`${i}-${crumb.view}-${crumb.label}`} className="flex items-center gap-1 min-w-0">
             <ChevronRight className="w-3.5 h-3.5 text-text-quaternary shrink-0" aria-hidden />
             {isLast ? (
               <span className="font-semibold text-foreground truncate" aria-current="page">

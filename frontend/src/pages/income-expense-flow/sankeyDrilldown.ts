@@ -237,13 +237,25 @@ export function buildOverviewView(args: {
   totalIncome: number
   totalExpense: number
   netSavings: number
-  /** Tax paid out of income (tax-category expenses). 0 hides the branch. */
+  /** Total tax burden shown on the Tax branch (explicit tax transactions plus
+   * the computed TDS below). 0 hides the branch. */
   totalTax?: number
+  /**
+   * Slab-computed tax deducted at source (from the FY tax engine), i.e. money
+   * that never hit the ledger because salary is recorded net of TDS. Shown at
+   * BOTH ends: a source node feeding Gross Income on the left, and inside the
+   * Tax branch on the right, so gross in still equals out.
+   */
+  tdsAtSource?: number
   /** Crumb for drilling into the Tax node's own breakdown. */
   taxDrill?: DrillCrumb | null
 }): SankeyView {
   const { incomeEntries, expenseEntries, totalIncome, totalExpense, netSavings } = args
   const totalTax = args.totalTax ?? 0
+  const tdsAtSource = args.tdsAtSource ?? 0
+
+  // Recorded income + implied TDS = the gross every percentage is based on.
+  const grossIncome = totalIncome + tdsAtSource
 
   const nodes: Array<{ name: string }> = []
   const links: Array<{ source: number; target: number; value: number }> = []
@@ -251,12 +263,21 @@ export function buildOverviewView(args: {
 
   incomeEntries.forEach((e, i) => {
     nodes.push({ name: e.name })
-    meta.push({ value: e.amount, pct: pctOf(e.amount, totalIncome), color: cycleColor('income', i), drill: e.drill ?? null })
+    meta.push({ value: e.amount, pct: pctOf(e.amount, grossIncome), color: cycleColor('income', i), drill: e.drill ?? null })
   })
 
+  // TDS enters as an income-side source: part of gross pay that went straight
+  // to the taxman without touching a bank account.
+  let tdsIndex = -1
+  if (tdsAtSource > 0) {
+    tdsIndex = nodes.length
+    nodes.push({ name: 'Tax Deducted at Source' })
+    meta.push({ value: tdsAtSource, pct: pctOf(tdsAtSource, grossIncome), color: rawColors.app.orange, drill: null })
+  }
+
   const totalIncomeIndex = nodes.length
-  nodes.push({ name: 'Total Income' })
-  meta.push({ value: totalIncome, pct: 100, color: rawColors.app.indigoVibrant, drill: null })
+  nodes.push({ name: tdsAtSource > 0 ? 'Gross Income' : 'Total Income' })
+  meta.push({ value: grossIncome, pct: 100, color: rawColors.app.indigoVibrant, drill: null })
 
   // Tax leaves income before anything else -- its own branch, not an expense
   // category, so "Expenses" reads as living costs and "Savings" stays honest.
@@ -264,29 +285,30 @@ export function buildOverviewView(args: {
   if (totalTax > 0) {
     taxIndex = nodes.length
     nodes.push({ name: 'Tax' })
-    meta.push({ value: totalTax, pct: pctOf(totalTax, totalIncome), color: rawColors.app.orange, drill: args.taxDrill ?? null })
+    meta.push({ value: totalTax, pct: pctOf(totalTax, grossIncome), color: rawColors.app.orange, drill: args.taxDrill ?? null })
   }
 
   const savingsIndex = nodes.length
   nodes.push({ name: 'Savings' })
-  meta.push({ value: Math.max(netSavings, 0), pct: pctOf(Math.max(netSavings, 0), totalIncome), color: rawColors.app.purple, drill: null })
+  meta.push({ value: Math.max(netSavings, 0), pct: pctOf(Math.max(netSavings, 0), grossIncome), color: rawColors.app.purple, drill: null })
 
   const expensesIndex = nodes.length
   nodes.push({ name: 'Expenses' })
-  meta.push({ value: totalExpense, pct: pctOf(totalExpense, totalIncome), color: rawColors.app.red, drill: null })
+  meta.push({ value: totalExpense, pct: pctOf(totalExpense, grossIncome), color: rawColors.app.red, drill: null })
 
   expenseEntries.forEach((e, i) => {
     nodes.push({ name: e.name })
-    meta.push({ value: e.amount, pct: pctOf(e.amount, totalIncome), color: cycleColor('expense', i), drill: e.drill ?? null })
+    meta.push({ value: e.amount, pct: pctOf(e.amount, grossIncome), color: cycleColor('expense', i), drill: e.drill ?? null })
     links.push({ source: expensesIndex, target: nodes.length - 1, value: e.amount })
   })
 
   incomeEntries.forEach((e, i) => {
     links.push({ source: i, target: totalIncomeIndex, value: e.amount })
   })
+  if (tdsIndex >= 0) links.push({ source: tdsIndex, target: totalIncomeIndex, value: tdsAtSource })
   if (taxIndex >= 0) links.push({ source: totalIncomeIndex, target: taxIndex, value: totalTax })
   if (netSavings > 0) links.push({ source: totalIncomeIndex, target: savingsIndex, value: netSavings })
   if (totalExpense > 0) links.push({ source: totalIncomeIndex, target: expensesIndex, value: totalExpense })
 
-  return { nodes, links, meta, rows: [], rowsTotal: totalIncome }
+  return { nodes, links, meta, rows: [], rowsTotal: grossIncome }
 }
