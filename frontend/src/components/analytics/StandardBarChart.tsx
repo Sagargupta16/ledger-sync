@@ -12,6 +12,7 @@
  *   />
  */
 
+import { useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, Cell, ReferenceLine,
 } from 'recharts'
@@ -147,11 +148,32 @@ function buildTooltipFormatter(
   return (value: number | undefined): string => (tooltipFormatter ?? formatCurrency)(value ?? 0)
 }
 
-function renderBarCells(bar: BarConfig, data: ReadonlyArray<object>) {
-  if (!bar.cellColors && !bar.getCellColor) return null
+/**
+ * Render per-bar <Cell>s so we can (a) apply per-item colors and (b) dim the
+ * non-hovered bars. For single-series ranking charts we always emit cells --
+ * even without custom colors -- so hovering one bar isolates it (the same
+ * "focus one, fade the rest" affordance the pie chart uses). `activeIndex`
+ * null means nothing hovered -> everything full opacity.
+ */
+function renderBarCells(
+  bar: BarConfig,
+  data: ReadonlyArray<object>,
+  activeIndex: number | null,
+  isolate: boolean,
+) {
+  const hasCustomColor = Boolean(bar.cellColors || bar.getCellColor)
+  if (!hasCustomColor && !isolate) return null
   return data.map((row, i) => {
-    const color = resolveCellColor(bar, row as Record<string, unknown>, i)
-    return color ? <Cell key={`${bar.key}-${i}`} fill={color} /> : null
+    const color = resolveCellColor(bar, row as Record<string, unknown>, i) ?? bar.color
+    const dimmed = isolate && activeIndex !== null && activeIndex !== i
+    return (
+      <Cell
+        key={`${bar.key}-${i}`}
+        fill={color}
+        fillOpacity={dimmed ? 0.35 : (bar.fillOpacity ?? 1)}
+        style={{ transition: 'fill-opacity 200ms ease' }}
+      />
+    )
   })
 }
 
@@ -185,10 +207,15 @@ export default function StandardBarChart({
   onBarClick,
   ariaLabel,
 }: StandardBarChartProps) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
+
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
   }
 
+  // Hover-isolate only makes sense for a single-series ranking chart. With
+  // grouped/stacked bars, dimming by row index would fade unrelated series.
+  const isolateOnHover = bars.length === 1 && !stacked
   const animate = shouldAnimate(data.length)
   const xOpts = xAngle === undefined ? undefined : { angle: xAngle, height: xHeight }
   const xDefaults = xAxisDefaults(data.length, xOpts)
@@ -261,6 +288,12 @@ export default function StandardBarChart({
             barSize={bar.barSize}
             stackId={stacked ? 'stack' : bar.stackId}
             cursor={onBarClick ? 'pointer' : undefined}
+            onMouseEnter={
+              isolateOnHover
+                ? (_entry: unknown, index: number) => setActiveIndex(index)
+                : undefined
+            }
+            onMouseLeave={isolateOnHover ? () => setActiveIndex(null) : undefined}
             onClick={
               onBarClick
                 ? (entry: unknown) => {
@@ -271,7 +304,7 @@ export default function StandardBarChart({
                 : undefined
             }
           >
-            {renderBarCells(bar, data)}
+            {renderBarCells(bar, data, activeIndex, isolateOnHover)}
             {showLabels && (
               <LabelList
                 dataKey={bar.key}
