@@ -20,6 +20,35 @@ interface SankeyNodeRendererProps {
   readonly onDrill: (crumb: DrillCrumb, origin?: { x: number; y: number }) => void
 }
 
+/**
+ * Button semantics for a drillable node <g>: pointer cursor, hover ring,
+ * Enter/Space activation (recharts has no per-node keyboard support of its
+ * own -- SVG2 tabindex works on any element).
+ */
+function drillableGroupProps(
+  label: string,
+  activate: () => void,
+  setHovered: (v: boolean) => void,
+): React.SVGProps<SVGGElement> {
+  return {
+    role: 'button',
+    tabIndex: 0,
+    'aria-label': label,
+    onClick: activate,
+    onKeyDown: (e: React.KeyboardEvent<SVGGElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        activate()
+      }
+    },
+    onMouseEnter: () => setHovered(true),
+    onMouseLeave: () => setHovered(false),
+    onFocus: () => setHovered(true),
+    onBlur: () => setHovered(false),
+    style: { cursor: 'pointer', outline: 'none' },
+  }
+}
+
 export const SankeyNodeRenderer = ({
   x: rawX,
   y: rawY,
@@ -48,31 +77,12 @@ export const SankeyNodeRenderer = ({
   const labelX = onLeftSide ? x - 8 : x + width + 8
   const anchor: 'end' | 'start' = onLeftSide ? 'end' : 'start'
 
-  const activate = drill
-    ? () => onDrill(drill, { x: x + width / 2, y: y + height / 2 })
-    : undefined
-
-  // Drillable nodes are real buttons: pointer cursor, hover ring, chevron
-  // after the label, Enter/Space activation (recharts has no per-node
-  // keyboard support of its own -- SVG2 tabindex works on any element).
   const interactiveProps = drill
-    ? {
-        role: 'button' as const,
-        tabIndex: 0,
-        'aria-label': `${payload.name}, ${formatCurrency(value)}. Press Enter to see breakdown`,
-        onClick: activate,
-        onKeyDown: (e: React.KeyboardEvent<SVGGElement>) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            activate?.()
-          }
-        },
-        onMouseEnter: () => setHovered(true),
-        onMouseLeave: () => setHovered(false),
-        onFocus: () => setHovered(true),
-        onBlur: () => setHovered(false),
-        style: { cursor: 'pointer', outline: 'none' },
-      }
+    ? drillableGroupProps(
+        `${payload.name}, ${formatCurrency(value)}. Press Enter to see breakdown`,
+        () => onDrill(drill, { x: x + width / 2, y: y + height / 2 }),
+        setHovered,
+      )
     : {}
 
   return (

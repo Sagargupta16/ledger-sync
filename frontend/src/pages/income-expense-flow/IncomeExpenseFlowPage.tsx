@@ -38,6 +38,7 @@ const IncomeExpenseFlowPage = () => {
         topExpense={m.topExpense}
         totalIncome={m.totalIncome}
         totalExpense={m.totalExpense}
+        totalTax={m.totalTax}
         netSavings={m.netSavings}
         currentFY={m.currentFY}
       />

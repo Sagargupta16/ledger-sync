@@ -13,7 +13,9 @@ import {
   buildOverviewView,
   countSubBuckets,
   foldTopWithOther,
+  isTaxCategory,
   type DrillCrumb,
+  type FlowEntry,
 } from './sankeyDrilldown'
 
 export function useIncomeExpenseFlow() {
@@ -83,20 +85,21 @@ export function useIncomeExpenseFlow() {
         {} as Record<string, number>,
       )
 
-    const expenseByCategory = fyTransactions
-      .filter((txn) => txn.type === 'Expense')
-      .reduce(
-        (acc, txn) => {
-          const category = txn.category || 'Other Expense'
-          acc[category] = (acc[category] || 0) + txn.amount
-          return acc
-        },
-        {} as Record<string, number>,
-      )
+    // Tax outflows split from living expenses: the Sankey shows Tax as its own
+    // branch out of Total Income, so "Expenses" reads as living costs.
+    const expenseByCategory: Record<string, number> = {}
+    const taxByCategory: Record<string, number> = {}
+    for (const txn of fyTransactions) {
+      if (txn.type !== 'Expense') continue
+      const category = txn.category || 'Other Expense'
+      const target = isTaxCategory(category) ? taxByCategory : expenseByCategory
+      target[category] = (target[category] || 0) + txn.amount
+    }
 
     const totalIncome = Object.values(incomeByCategory).reduce((a, b) => a + b, 0)
     const totalExpense = Object.values(expenseByCategory).reduce((a, b) => a + b, 0)
-    const netSavings = totalIncome - totalExpense
+    const totalTax = Object.values(taxByCategory).reduce((a, b) => a + b, 0)
+    const netSavings = totalIncome - totalExpense - totalTax
     const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0
 
     // Top-N + "Other" so every visible flow reconciles with the totals (and
@@ -122,7 +125,35 @@ export function useIncomeExpenseFlow() {
       subBuckets.expense,
     )
 
-    return { totalIncome, totalExpense, netSavings, savingsRate, topIncome, topExpense }
+    // Tax node drills into its categories (Income Tax, TDS, ...) when there is
+    // more than one; a single tax category drills into its subcategories.
+    const taxEntries: FlowEntry[] = Object.entries(taxByCategory)
+      .filter(([, amount]) => amount > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, amount]) => ({
+        name,
+        amount,
+        drill: (subBuckets.expense.get(name)?.size ?? 0) >= 2
+          ? { label: name, view: 'category' as const, flow: 'expense' as const }
+          : null,
+      }))
+    let taxDrill: DrillCrumb | null = null
+    if (taxEntries.length > 1) {
+      taxDrill = { label: 'Tax', view: 'other', flow: 'expense', tail: taxEntries }
+    } else if (taxEntries.length === 1) {
+      taxDrill = taxEntries[0].drill ?? null
+    }
+
+    return {
+      totalIncome,
+      totalExpense,
+      totalTax,
+      netSavings,
+      savingsRate,
+      topIncome,
+      topExpense,
+      taxDrill,
+    }
   }, [fyTransactions])
 
   // The currently displayed view: overview, a category's subcategories, or an
@@ -137,6 +168,8 @@ export function useIncomeExpenseFlow() {
         totalIncome: computed.totalIncome,
         totalExpense: computed.totalExpense,
         netSavings: computed.netSavings,
+        totalTax: computed.totalTax,
+        taxDrill: computed.taxDrill,
       })
     }
     if (crumb.view === 'other') return buildOtherView(crumb)

@@ -9,6 +9,10 @@ import { formatCurrency } from '@/lib/formatters'
 
 import type { DrillCrumb, FlowEntry, SankeyView } from '../sankeyDrilldown'
 import MobileFlowView from './MobileFlowView'
+import { createSankeyLinkComponent } from './SankeyLinkRenderer'
+
+// One module-level instance: the renderer is stateless, so all views share it.
+const sankeyLinkComponent = createSankeyLinkComponent()
 
 interface SankeyChartProps {
   isLoading: boolean
@@ -34,6 +38,7 @@ interface SankeyChartProps {
   topExpense: FlowEntry[]
   totalIncome: number
   totalExpense: number
+  totalTax: number
   netSavings: number
   currentFY: string
 }
@@ -111,6 +116,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
     topExpense,
     totalIncome,
     totalExpense,
+    totalTax,
     netSavings,
     currentFY,
   } = props
@@ -135,6 +141,11 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
     ? `Sankey diagram showing the ${crumb.label} breakdown by subcategory.`
     : 'Sankey diagram showing income sources flowing into total income, then splitting into savings and expense categories.'
 
+  let subtitle = 'Income sources flowing to savings and expenses'
+  if (crumb) {
+    subtitle = crumb.flow === 'expense' ? `Where ${crumb.label} goes` : `Where ${crumb.label} comes from`
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -155,11 +166,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
               <span className="sm:hidden">Cash Flow</span>
               <span className="hidden sm:inline">Cash Flow Sankey</span>
             </h3>
-            <p className="text-sm text-muted-foreground">
-              {crumb
-                ? `Where ${crumb.label} ${crumb.flow === 'expense' ? 'goes' : 'comes from'}`
-                : 'Income sources flowing to savings and expenses'}
-            </p>
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
           </div>
         </div>
         <DrillBreadcrumb drillPath={drillPath} drillTo={drillTo} drillBack={drillBack} />
@@ -177,6 +184,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
           expenseByCategory={topExpense}
           totalIncome={totalIncome}
           totalExpense={totalExpense}
+          totalTax={totalTax}
           netSavings={netSavings}
           view={view}
           drillPath={drillPath}
@@ -219,10 +227,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
                   nodePadding={depth === 0 ? 60 : 40}
                   margin={{ top: 30, right: 200, bottom: 30, left: 200 }}
                   node={sankeyNodeComponent as never}
-                  link={{
-                    stroke: rawColors.app.purple,
-                    strokeOpacity: 0.25,
-                  }}
+                  link={sankeyLinkComponent as never}
                 >
                   <Tooltip
                     {...chartTooltipProps}

@@ -9,6 +9,7 @@ import {
   buildOverviewView,
   countSubBuckets,
   foldTopWithOther,
+  isTaxCategory,
   SANKEY_TOP_N,
   type DrillCrumb,
 } from '../sankeyDrilldown'
@@ -179,5 +180,46 @@ describe('buildOverviewView', () => {
     })
     const savingsIndex = view.nodes.findIndex((n) => n.name === 'Savings')
     expect(view.links.some((l) => l.target === savingsIndex)).toBe(false)
+  })
+
+  it('adds a Tax branch out of Total Income when tax exists, hides it otherwise', () => {
+    const withTax = buildOverviewView({
+      incomeEntries: [{ name: 'Salary', amount: 100000 }],
+      expenseEntries: [{ name: 'Family', amount: 30000 }],
+      totalIncome: 100000,
+      totalExpense: 30000,
+      netSavings: 62000,
+      totalTax: 8000,
+    })
+    const taxIndex = withTax.nodes.findIndex((n) => n.name === 'Tax')
+    expect(taxIndex).toBeGreaterThan(-1)
+    const totalIncomeIndex = withTax.nodes.findIndex((n) => n.name === 'Total Income')
+    const taxLink = withTax.links.find((l) => l.target === taxIndex)
+    expect(taxLink?.source).toBe(totalIncomeIndex)
+    expect(taxLink?.value).toBe(8000)
+    // Income splits exactly: tax + savings + expenses = total income.
+    const outflows = withTax.links.filter((l) => l.source === totalIncomeIndex)
+    expect(outflows.reduce((s, l) => s + l.value, 0)).toBe(100000)
+
+    const noTax = buildOverviewView({
+      incomeEntries: [{ name: 'Salary', amount: 100000 }],
+      expenseEntries: [{ name: 'Family', amount: 30000 }],
+      totalIncome: 100000,
+      totalExpense: 30000,
+      netSavings: 70000,
+    })
+    expect(noTax.nodes.some((n) => n.name === 'Tax')).toBe(false)
+  })
+})
+
+describe('isTaxCategory', () => {
+  it('matches tax-like category names, not lookalikes', () => {
+    expect(isTaxCategory('Tax')).toBe(true)
+    expect(isTaxCategory('Taxes')).toBe(true)
+    expect(isTaxCategory('Income Tax')).toBe(true)
+    expect(isTaxCategory('TDS')).toBe(true)
+    expect(isTaxCategory('Advance Tax')).toBe(true)
+    expect(isTaxCategory('Taxi')).toBe(false)
+    expect(isTaxCategory('Transportation')).toBe(false)
   })
 })

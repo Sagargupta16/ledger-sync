@@ -11,6 +11,7 @@ interface Props {
   readonly expenseByCategory: readonly FlowEntry[]
   readonly totalIncome: number
   readonly totalExpense: number
+  readonly totalTax: number
   readonly netSavings: number
   readonly view: SankeyView
   readonly drillPath: DrillCrumb[]
@@ -29,6 +30,7 @@ export default function MobileFlowView({
   expenseByCategory,
   totalIncome,
   totalExpense,
+  totalTax,
   netSavings,
   view,
   drillPath,
@@ -140,8 +142,8 @@ export default function MobileFlowView({
         <SplitShareBar savingsShare={savingsShare} expenseShare={expenseShare} />
       )}
 
-      {/* Savings vs Expenses split */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Savings vs Expenses (vs Tax when present) split */}
+      <div className={totalTax > 0 ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-3'}>
         <SplitCard
           label="Savings"
           amount={Math.max(netSavings, 0)}
@@ -154,6 +156,14 @@ export default function MobileFlowView({
           percent={expenseShare}
           color={rawColors.app.red}
         />
+        {totalTax > 0 && (
+          <SplitCard
+            label="Tax"
+            amount={totalTax}
+            percent={totalIncome > 0 ? totalTax / totalIncome : 0}
+            color={rawColors.app.orange}
+          />
+        )}
       </div>
 
       {expenseByCategory.length > 0 && (

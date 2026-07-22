@@ -55,6 +55,12 @@ export interface SankeyView {
 
 export const SANKEY_TOP_N = 8
 
+/** Category names that are tax outflows, not living expenses. Keyword match
+ * keeps it dynamic (no hardcoded user category list). */
+const TAX_PATTERN = /\btax(es)?\b|\btds\b|income tax|advance tax|self assessment/i
+
+export const isTaxCategory = (name: string): boolean => TAX_PATTERN.test(name)
+
 const INCOME_CYCLE = [
   rawColors.app.green,
   rawColors.app.green,
@@ -220,9 +226,10 @@ function buildParentChildView(crumb: DrillCrumb, children: FlowEntry[], total: n
 }
 
 /**
- * Level-0 overview: income sources -> Total Income -> Savings + Expenses ->
- * expense categories. Same topology the page always had, now with per-node
- * meta (color, pct, drill target) instead of index-range arithmetic.
+ * Level-0 overview: income sources -> Total Income -> Tax + Savings +
+ * Expenses -> expense categories. Same topology the page always had plus an
+ * optional first-class Tax branch, with per-node meta (color, pct, drill
+ * target) instead of index-range arithmetic.
  */
 export function buildOverviewView(args: {
   incomeEntries: FlowEntry[]
@@ -230,8 +237,13 @@ export function buildOverviewView(args: {
   totalIncome: number
   totalExpense: number
   netSavings: number
+  /** Tax paid out of income (tax-category expenses). 0 hides the branch. */
+  totalTax?: number
+  /** Crumb for drilling into the Tax node's own breakdown. */
+  taxDrill?: DrillCrumb | null
 }): SankeyView {
   const { incomeEntries, expenseEntries, totalIncome, totalExpense, netSavings } = args
+  const totalTax = args.totalTax ?? 0
 
   const nodes: Array<{ name: string }> = []
   const links: Array<{ source: number; target: number; value: number }> = []
@@ -245,6 +257,15 @@ export function buildOverviewView(args: {
   const totalIncomeIndex = nodes.length
   nodes.push({ name: 'Total Income' })
   meta.push({ value: totalIncome, pct: 100, color: rawColors.app.indigoVibrant, drill: null })
+
+  // Tax leaves income before anything else -- its own branch, not an expense
+  // category, so "Expenses" reads as living costs and "Savings" stays honest.
+  let taxIndex = -1
+  if (totalTax > 0) {
+    taxIndex = nodes.length
+    nodes.push({ name: 'Tax' })
+    meta.push({ value: totalTax, pct: pctOf(totalTax, totalIncome), color: rawColors.app.orange, drill: args.taxDrill ?? null })
+  }
 
   const savingsIndex = nodes.length
   nodes.push({ name: 'Savings' })
@@ -263,6 +284,7 @@ export function buildOverviewView(args: {
   incomeEntries.forEach((e, i) => {
     links.push({ source: i, target: totalIncomeIndex, value: e.amount })
   })
+  if (taxIndex >= 0) links.push({ source: totalIncomeIndex, target: taxIndex, value: totalTax })
   if (netSavings > 0) links.push({ source: totalIncomeIndex, target: savingsIndex, value: netSavings })
   if (totalExpense > 0) links.push({ source: totalIncomeIndex, target: expensesIndex, value: totalExpense })
 

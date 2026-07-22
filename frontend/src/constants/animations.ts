@@ -80,3 +80,57 @@ export const cardHover = {
   y: -4,
   transition: { type: 'spring' as const, stiffness: 400, damping: 25 },
 }
+
+/** MetricCard / stat-tile hover: subtle lift with a quick spring. */
+export const HOVER_LIFT = {
+  whileHover: { y: -3 },
+  transition: { type: 'spring' as const, stiffness: 400, damping: 25 },
+} as const
+
+// ---------------------------------------------------------------------------
+// Page-level presets (adapted from brand/portfolio-react's motion vocabulary)
+// ---------------------------------------------------------------------------
+
+/** Whole-page content entrance: one quiet fade-up on navigation. Applied by
+ * PageContainer so every page gets it without per-page wiring. */
+export const PAGE_ENTER = {
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] as const },
+} as const
+
+/** PageHeader title block: slides in slightly ahead of the body. */
+export const HEADER_ENTER = {
+  initial: { opacity: 0, y: -10 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.4, ease: 'easeOut' as const },
+} as const
+
+/** Section reveal with a hint of scale (portfolio-react sectionRevealEnhanced). */
+export const sectionReveal: Variants = {
+  hidden: { opacity: 0, y: 32, scale: 0.99 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94] },
+  },
+}
+
+/** Wave cascade for dense grids of small items (portfolio-react skill tags). */
+export const waveCascadeContainer: Variants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.04, delayChildren: 0.1 },
+  },
+}
+
+export const waveCascadeItem: Variants = {
+  hidden: { opacity: 0, y: 24, scale: 0.9 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.35, ease: 'easeOut' },
+  },
+}
