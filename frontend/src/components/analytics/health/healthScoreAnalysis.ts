@@ -1,14 +1,14 @@
 import type { Transaction } from '@/types'
 
-import type { AnalysisResult, MonthlyBucket } from './healthScoreTypes'
+import type { AnalysisResult, BalancePosition, MonthlyBucket } from './healthScoreTypes'
 import {
   DEBT_CATEGORIES,
   DISCRETIONARY_CATEGORIES,
   ESSENTIAL_CATEGORIES,
   checkIsInvestmentTransaction,
   checkIsInvestmentWithdrawal,
-  coefficientOfVariation,
   matchesCategoryList,
+  weightedCoefficientOfVariation,
 } from './healthScoreTypes'
 
 export function createEmptyBucket(): MonthlyBucket {
@@ -95,6 +95,7 @@ export function computeMonthlyData(
 export function computeAnalysis(
   months: string[],
   monthlyData: Record<string, MonthlyBucket>,
+  balances: BalancePosition | null = null,
 ): AnalysisResult {
   const buckets = months.map((m) => monthlyData[m])
   const count = months.length
@@ -123,7 +124,12 @@ export function computeAnalysis(
     totalIncome > 0 ? (totalNetInvestment / totalIncome) * 100 : 0
 
   const cumulativeNetSavings = totalIncome - totalExpense
-  const liquidSavings = Math.max(0, cumulativeNetSavings - Math.max(0, totalNetInvestment))
+  // Prefer the real liquid balance (bank + cash + wallets). Only when no
+  // balance feed is available do we fall back to the old cumulative-flow
+  // proxy -- which understates badly for anyone whose lifetime investing
+  // exceeds their lifetime cash surplus (it clamps to 0).
+  const flowProxyLiquid = Math.max(0, cumulativeNetSavings - Math.max(0, totalNetInvestment))
+  const liquidSavings = balances ? balances.liquidAssets : flowProxyLiquid
   const emergencyFundMonths = avgMonthlyExpense > 0 ? liquidSavings / avgMonthlyExpense : 0
 
   const totalDebt = buckets.reduce((s, m) => s + m.debt, 0)
@@ -151,17 +157,19 @@ export function computeAnalysis(
   // last 12 months -- not the full history. Over a multi-year ramp (a student
   // going from ~Rs0 to a salary) the all-time income CV is ~130%, which floors
   // every stability score at 0 even when the last year is rock-steady (CV ~10%).
+  // Within that window we recency-weight (JPMC/RiskMetrics EWMA of deviations)
+  // so a couple of older lean months don't dominate a now-steady reading.
   const VOLATILITY_WINDOW = 12
   const recentBuckets = buckets.slice(-VOLATILITY_WINDOW)
-  const recentSavingsRates = recentBuckets.map((m) =>
-    m.income > 0 ? ((m.income - m.expense) / m.income) * 100 : 0,
-  )
-  const savingsVolatilityCV = coefficientOfVariation(recentSavingsRates.filter((r) => r > 0))
+  const recentSavingsRates = recentBuckets
+    .map((m) => (m.income > 0 ? ((m.income - m.expense) / m.income) * 100 : 0))
+    .filter((r) => r > 0)
+  const savingsVolatilityCV = weightedCoefficientOfVariation(recentSavingsRates)
 
   // Income CV over recent months that actually had income (a pre-earning month
   // of Rs0 isn't "income instability"; it's no income yet).
   const recentIncomes = recentBuckets.map((m) => m.income).filter((v) => v > 0)
-  const incomeCV = coefficientOfVariation(recentIncomes)
+  const incomeCV = weightedCoefficientOfVariation(recentIncomes)
 
   return {
     monthsAnalyzed: count,
@@ -181,5 +189,6 @@ export function computeAnalysis(
     positiveSavingsRatio,
     savingsVolatilityCV,
     incomeCV,
+    balances,
   }
 }

@@ -1,5 +1,7 @@
 import { memo, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { rawColors } from '@/constants/colors'
+import { fadeUpItem, staggerContainer } from '@/constants/animations'
 import StandardRadarChart from '@/components/analytics/StandardRadarChart'
 import { computeCFPScore, type CFPRatio } from '@/lib/financialHealthCalculator'
 import type { AnalysisResult } from './healthScoreUtils'
@@ -13,22 +15,30 @@ function getStatusColor(status: 'good' | 'warning' | 'poor'): string {
 function RatioCard({ ratio }: Readonly<{ ratio: CFPRatio }>) {
   const color = getStatusColor(ratio.status)
   return (
-    <div className="p-3 rounded-xl border border-border bg-[var(--overlay-1)]">
+    <motion.div
+      variants={fadeUpItem}
+      whileHover={{ y: -2 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      className="p-3 rounded-xl border border-border bg-[var(--overlay-1)]"
+    >
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium text-foreground">{ratio.name}</span>
-        <span className="text-sm font-bold" style={{ color }}>{ratio.formattedValue}</span>
+        <span className="text-sm font-bold tabular-nums" style={{ color }}>{ratio.formattedValue}</span>
       </div>
       <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden mb-2">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${ratio.score}%`, backgroundColor: color }}
+        <motion.div
+          className="h-full rounded-full"
+          style={{ backgroundColor: color }}
+          initial={{ width: 0 }}
+          animate={{ width: `${ratio.score}%` }}
+          transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
         />
       </div>
       <div className="flex items-center justify-between">
         <span className="text-xs text-text-tertiary">{ratio.description}</span>
         <span className="text-xs text-text-quaternary">Target: {ratio.target}</span>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -54,6 +64,7 @@ const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPSc
       cumulativeNetSavings: analysisData.cumulativeNetSavings,
       netInvestments: analysisData.totalInvestmentInflow - analysisData.totalInvestmentOutflow,
       totalDebtOutstanding: analysisData.avgMonthlyDebt * totalMonths,
+      balances: analysisData.balances,
     })
   }, [analysisData])
 
@@ -80,11 +91,16 @@ const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPSc
       </div>
 
       {/* Ratio Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <motion.div
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+      >
         {ratios.map((ratio) => (
           <RatioCard key={ratio.name} ratio={ratio} />
         ))}
-      </div>
+      </motion.div>
 
       <p className="text-[10px] text-center text-muted-foreground/50">
         Based on CFP Board / FPSB India financial planning standards

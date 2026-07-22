@@ -78,6 +78,12 @@ export function scoreEmergencyFund(data: AnalysisResult): HealthMetric {
   else if (months >= 1) score = 40 + ((months - 1) / 2) * 29
   else score = clamp(months * 40, 0, 39)
 
+  // Prefer the real liquid balance (bank + cash + wallets); fall back to the
+  // flow proxy only when no balance feed is attached.
+  const liquid = data.balances
+    ? data.balances.liquidAssets
+    : data.cumulativeNetSavings - (data.totalInvestmentInflow - data.totalInvestmentOutflow)
+
   return {
     name: 'Emergency Fund',
     score: Math.round(clamp(score, 0, 100)),
@@ -87,7 +93,7 @@ export function scoreEmergencyFund(data: AnalysisResult): HealthMetric {
     description: `${months.toFixed(1)} months of expenses (liquid)`,
     target: `>= ${target} months`,
     details: [
-      `Liquid savings: ${formatCurrencyCompact(data.cumulativeNetSavings - (data.totalInvestmentInflow - data.totalInvestmentOutflow))}`,
+      `Liquid balance: ${formatCurrencyCompact(liquid)}`,
       `Avg monthly expenses: ${formatCurrencyCompact(data.avgMonthlyExpense)}`,
       months >= target
         ? `Target met: ${target}+ months coverage`
@@ -229,19 +235,24 @@ export function scoreSavingsConsistency(data: AnalysisResult): HealthMetric {
 }
 
 // PLAN 8: Income stability
+// Bands anchored to JPMorgan Chase Institute's monthly-income CV distribution:
+// median ~38%, so <=40% reads as typical/stable; >100% is the extreme tail.
+// cv is recency-weighted (recent months dominate) so a now-steady earner isn't
+// dragged down by long-past lean/student months.
 export function scoreIncomeStability(data: AnalysisResult): HealthMetric {
   const cv = data.incomeCV
   const stableMax = HEALTH_SCORE_RUBRIC.incomeStabilityMaxCV
+  const moderateMax = 75
   let score: number
-  if (cv < 10) score = clamp(90 + (10 - cv), 90, 100)
-  else if (cv <= stableMax) score = 70 + ((stableMax - cv) / (stableMax - 10)) * 19
-  else if (cv <= 50) score = 40 + ((50 - cv) / (50 - stableMax)) * 29
-  else score = clamp(40 - (cv - 50) * 0.8, 0, 39)
+  if (cv < 15) score = clamp(90 + (15 - cv), 90, 100)
+  else if (cv <= stableMax) score = 70 + ((stableMax - cv) / (stableMax - 15)) * 19
+  else if (cv <= moderateMax) score = 40 + ((moderateMax - cv) / (moderateMax - stableMax)) * 29
+  else score = clamp(40 - (cv - moderateMax) * 0.6, 0, 39)
 
   let desc: string
-  if (cv < 10) desc = 'Very stable income'
+  if (cv < 15) desc = 'Very stable income'
   else if (cv <= stableMax) desc = 'Stable income'
-  else if (cv <= 50) desc = 'Moderate variability'
+  else if (cv <= moderateMax) desc = 'Moderate variability'
   else desc = 'Volatile income'
 
   return {
@@ -255,7 +266,7 @@ export function scoreIncomeStability(data: AnalysisResult): HealthMetric {
     details: [
       `Income variability (CV): ${cv.toFixed(1)}%`,
       `Avg monthly income: ${formatCurrencyCompact(data.avgMonthlyIncome)}`,
-      cv <= 25 ? 'Predictable income stream' : 'Consider building a larger buffer',
+      cv <= stableMax ? 'Predictable income stream' : 'Consider building a larger buffer',
     ],
   }
 }
