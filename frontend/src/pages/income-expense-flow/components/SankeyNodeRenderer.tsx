@@ -16,7 +16,8 @@ interface SankeyNodeRendererProps {
   readonly meta: readonly SankeyNodeMeta[]
   readonly chartWidth: number
   readonly fontSize: number
-  readonly onDrill: (crumb: DrillCrumb) => void
+  /** origin = the node's center in chart px, so the next view can zoom in from it. */
+  readonly onDrill: (crumb: DrillCrumb, origin?: { x: number; y: number }) => void
 }
 
 export const SankeyNodeRenderer = ({
@@ -47,7 +48,9 @@ export const SankeyNodeRenderer = ({
   const labelX = onLeftSide ? x - 8 : x + width + 8
   const anchor: 'end' | 'start' = onLeftSide ? 'end' : 'start'
 
-  const activate = drill ? () => onDrill(drill) : undefined
+  const activate = drill
+    ? () => onDrill(drill, { x: x + width / 2, y: y + height / 2 })
+    : undefined
 
   // Drillable nodes are real buttons: pointer cursor, hover ring, chevron
   // after the label, Enter/Space activation (recharts has no per-node

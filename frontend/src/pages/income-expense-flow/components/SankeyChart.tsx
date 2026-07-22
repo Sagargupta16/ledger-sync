@@ -15,8 +15,12 @@ interface SankeyChartProps {
   isMobile: boolean
   view: SankeyView
   drillPath: DrillCrumb[]
+  /** 'in' after a node click, 'out' after breadcrumb/back -- picks the zoom direction. */
+  drillDirection: 'in' | 'out'
+  /** Clicked node's center in chart px; the drill view zooms in from this spot. */
+  zoomOrigin: { x: number; y: number } | null
   drillTo: (depth: number) => void
-  drillInto: (crumb: DrillCrumb) => void
+  drillInto: (crumb: DrillCrumb, origin?: { x: number; y: number }) => void
   drillBack: () => void
   sankeyNodeComponent: React.ComponentType<{
     x: number
@@ -97,6 +101,8 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
     isMobile,
     view,
     drillPath,
+    drillDirection,
+    zoomOrigin,
     drillTo,
     drillInto,
     drillBack,
@@ -113,6 +119,17 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
   const crumb = drillPath.at(-1)
   const viewKey = drillPath.map((c) => `${c.flow}:${c.label}`).join('/') || 'overview'
   const chartHeight = depth === 0 ? 700 : Math.max(320, 90 * view.links.length + 120)
+
+  // Zoom navigation. Forward: the new view grows out of the clicked node
+  // (transform-origin at its chart position), like zooming INTO it. Back: the
+  // parent view settles down from oversized, like zooming back OUT. The blur
+  // ramp sells the depth change; the spring keeps it snappy, not floaty.
+  const zoomIn = drillDirection === 'in'
+  const transformOrigin =
+    zoomIn && zoomOrigin ? `${zoomOrigin.x}px ${zoomOrigin.y}px` : '50% 50%'
+  const enterFrom = zoomIn
+    ? { opacity: 0, scale: 0.35, filter: 'blur(6px)' }
+    : { opacity: 0, scale: 1.45, filter: 'blur(6px)' }
 
   const chartLabel = crumb
     ? `Sankey diagram showing the ${crumb.label} breakdown by subcategory.`
@@ -163,6 +180,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
           netSavings={netSavings}
           view={view}
           drillPath={drillPath}
+          drillDirection={drillDirection}
           drillInto={drillInto}
         />
       )}
@@ -172,17 +190,27 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
       {!isLoading && !isMobile && view.links.length > 0 && (
         <div className="relative overflow-hidden rounded-lg border border-border bg-[var(--overlay-1)] p-6">
           {/* Recharts Sankey can't animate a data swap, so each drill level
-              remounts (key) and slides in. Enter-only on purpose: exit
+              remounts (key) and zooms in. Enter-only on purpose: exit
               animations kept the old chart mounted alongside the new one
               (AnimatePresence exit never completed under StrictMode), which
               doubled the diagram. The key remount also resets stale tooltip
-              active state. */}
+              active state. The outer div springs the height between levels so
+              the card doesn't jump-cut when a drill view is shorter. */}
+            <motion.div
+              initial={false}
+              animate={{ height: chartHeight }}
+              transition={{ type: 'spring', stiffness: 260, damping: 32 }}
+              style={{ overflow: 'hidden' }}
+            >
             <motion.div
               key={viewKey}
-              initial={{ opacity: 0, x: 32 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
+              initial={enterFrom}
+              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+              transition={{ type: 'spring', stiffness: 220, damping: 26, mass: 0.9 }}
+              style={{ transformOrigin }}
             >
+              {/* Chart renders at final height immediately; the outer wrapper's
+                  height spring just reveals it (no per-frame Sankey relayout). */}
               <ChartContainer height={chartHeight} ariaLabel={chartLabel}>
                 <Sankey
                   key={viewKey}
@@ -214,6 +242,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
                   />
                 </Sankey>
               </ChartContainer>
+            </motion.div>
             </motion.div>
 
           {depth === 0 && (

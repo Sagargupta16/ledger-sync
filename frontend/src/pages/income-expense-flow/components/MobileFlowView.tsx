@@ -14,6 +14,7 @@ interface Props {
   readonly netSavings: number
   readonly view: SankeyView
   readonly drillPath: DrillCrumb[]
+  readonly drillDirection: 'in' | 'out'
   readonly drillInto: (crumb: DrillCrumb) => void
 }
 
@@ -31,9 +32,17 @@ export default function MobileFlowView({
   netSavings,
   view,
   drillPath,
+  drillDirection,
   drillInto,
 }: Props) {
   const crumb = drillPath.at(-1)
+  const viewKey = drillPath.map((c) => `${c.flow}:${c.label}`).join('/') || 'overview'
+  // Same zoom language as the desktop chart: drilling in grows the new view
+  // out of the tapped row; going back settles the parent down from oversized.
+  const enterFrom =
+    drillDirection === 'in'
+      ? { opacity: 0, scale: 0.9, y: 12 }
+      : { opacity: 0, scale: 1.06, y: -8 }
 
   // Drilled view: one section listing the parent's breakdown.
   if (crumb) {
@@ -41,27 +50,35 @@ export default function MobileFlowView({
     const max = rows.reduce((m, r) => Math.max(m, r.amount), 0)
     const color = crumb.flow === 'income' ? rawColors.app.green : rawColors.app.red
     return (
-      <Section
-        title={`${crumb.label} breakdown`}
-        total={view.rowsTotal}
-        totalColor={color}
+      <motion.div
+        key={viewKey}
+        initial={enterFrom}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+        style={{ transformOrigin: '50% 20%' }}
       >
-        {rows.map((entry, idx) => (
-          <FlowRow
-            key={entry.name}
-            label={entry.name}
-            amount={entry.amount}
-            percent={view.rowsTotal > 0 ? entry.amount / view.rowsTotal : 0}
-            barWidth={max > 0 ? entry.amount / max : 0}
-            color={color}
-            delay={idx * 0.03}
-            onDrill={entry.drill ? () => drillInto(entry.drill!) : undefined}
-          />
-        ))}
-        {rows.length === 0 && (
-          <p className="text-sm text-muted-foreground">No breakdown available.</p>
-        )}
-      </Section>
+        <Section
+          title={`${crumb.label} breakdown`}
+          total={view.rowsTotal}
+          totalColor={color}
+        >
+          {rows.map((entry, idx) => (
+            <FlowRow
+              key={entry.name}
+              label={entry.name}
+              amount={entry.amount}
+              percent={view.rowsTotal > 0 ? entry.amount / view.rowsTotal : 0}
+              barWidth={max > 0 ? entry.amount / max : 0}
+              color={color}
+              delay={idx * 0.03}
+              onDrill={entry.drill ? () => drillInto(entry.drill!) : undefined}
+            />
+          ))}
+          {rows.length === 0 && (
+            <p className="text-sm text-muted-foreground">No breakdown available.</p>
+          )}
+        </Section>
+      </motion.div>
     )
   }
 
@@ -71,7 +88,14 @@ export default function MobileFlowView({
   const expenseShare = totalIncome > 0 ? totalExpense / totalIncome : 0
 
   return (
-    <div className="space-y-4">
+    <motion.div
+      key={viewKey}
+      initial={enterFrom}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+      style={{ transformOrigin: '50% 15%' }}
+      className="space-y-4"
+    >
       {/* Income sources */}
       <Section title="Income sources" total={totalIncome} totalColor={rawColors.app.green}>
         {incomeByCategory.map((entry, idx) => (
@@ -157,7 +181,7 @@ export default function MobileFlowView({
           </Section>
         </>
       )}
-    </div>
+    </motion.div>
   )
 }
 

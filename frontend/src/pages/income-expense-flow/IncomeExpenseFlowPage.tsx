@@ -28,6 +28,8 @@ const IncomeExpenseFlowPage = () => {
         isMobile={m.isMobile}
         view={m.view}
         drillPath={m.drillPath}
+        drillDirection={m.drillDirection}
+        zoomOrigin={m.zoomOrigin}
         drillTo={m.drillTo}
         drillInto={m.drillInto}
         drillBack={m.drillBack}

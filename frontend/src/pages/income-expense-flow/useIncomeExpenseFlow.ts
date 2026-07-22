@@ -26,6 +26,10 @@ export function useIncomeExpenseFlow() {
 
   // Drill path (breadcrumb stack). Empty = the full overview diagram.
   const [drillPath, setDrillPath] = useState<DrillCrumb[]>([])
+  // Last navigation direction + the clicked node's chart coordinates. Forward
+  // zooms the new view IN from the clicked spot; back zooms it OUT from center.
+  const [drillDirection, setDrillDirection] = useState<'in' | 'out'>('in')
+  const [zoomOrigin, setZoomOrigin] = useState<{ x: number; y: number } | null>(null)
 
   const fyTransactions = useMemo(() => {
     const startDate = dateRange.start_date
@@ -48,16 +52,22 @@ export function useIncomeExpenseFlow() {
     setDrillPath([])
   }
 
-  const drillInto = useCallback((crumb: DrillCrumb) => {
+  const drillInto = useCallback((crumb: DrillCrumb, origin?: { x: number; y: number }) => {
+    setDrillDirection('in')
+    setZoomOrigin(origin ?? null)
     setDrillPath((path) => [...path, crumb])
   }, [])
 
   /** Truncate to the first `depth` crumbs; 0 = back to overview. */
   const drillTo = useCallback((depth: number) => {
+    setDrillDirection('out')
+    setZoomOrigin(null)
     setDrillPath((path) => (depth >= path.length ? path : path.slice(0, depth)))
   }, [])
 
   const drillBack = useCallback(() => {
+    setDrillDirection('out')
+    setZoomOrigin(null)
     setDrillPath((path) => path.slice(0, -1))
   }, [])
 
@@ -153,6 +163,8 @@ export function useIncomeExpenseFlow() {
     timeFilterProps,
     view,
     drillPath,
+    drillDirection,
+    zoomOrigin,
     drillInto,
     drillTo,
     drillBack,
