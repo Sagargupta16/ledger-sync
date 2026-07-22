@@ -15,10 +15,32 @@ interface ParsedValue {
 
 const isDigit = (ch: string) => ch >= '0' && ch <= '9'
 
+/**
+ * Scan the number span starting at `start`: digits/commas, then an optional
+ * decimal part. Returns the end index (exclusive) and decimal count.
+ * Manual linear scan -- an equivalent digits-and-commas regex backtracks
+ * super-linearly on the ambiguous comma (Sonar S8786).
+ */
+function scanNumber(sample: string, start: number): { end: number; decimals: number } {
+  let i = start
+  while (i < sample.length && (isDigit(sample[i]) || sample[i] === ',')) i++
+  if (sample[i] !== '.') return { end: i, decimals: 0 }
+  let j = i + 1
+  while (j < sample.length && isDigit(sample[j])) j++
+  return j > i + 1 ? { end: j, decimals: j - i - 1 } : { end: i, decimals: 0 }
+}
+
+/** Indian grouping has a 2-digit group after the first comma ("45,33,242");
+ * western is all 3s ("4,533,242"). No comma = no grouping. */
+function detectGrouping(intPart: string): ParsedValue['grouping'] {
+  if (!intPart.includes(',')) return 'none'
+  const groups = intPart.split(',')
+  return groups.slice(1).some((g) => g.length === 2) ? 'indian' : 'western'
+}
+
 export function parseFormattedValue(sample: string): ParsedValue | null {
-  // Manual linear scan (a \D*/[\d,]+ regex backtracks super-linearly on the
-  // ambiguous comma): prefix = everything before the first digit, number =
-  // digits/commas + optional decimal part, suffix = the rest.
+  // prefix = everything before the first digit, number = digits/commas +
+  // optional decimal part, suffix = the rest.
   let firstDigit = -1
   for (let i = 0; i < sample.length; i++) {
     if (isDigit(sample[i])) {
@@ -28,34 +50,19 @@ export function parseFormattedValue(sample: string): ParsedValue | null {
   }
   if (firstDigit === -1) return null
 
-  let i = firstDigit
-  while (i < sample.length && (isDigit(sample[i]) || sample[i] === ',')) i++
-  let decimals = 0
-  if (sample[i] === '.') {
-    let j = i + 1
-    while (j < sample.length && isDigit(sample[j])) j++
-    if (j > i + 1) {
-      decimals = j - i - 1
-      i = j
-    }
-  }
-
-  const prefix = sample.slice(0, firstDigit)
-  const numeric = sample.slice(firstDigit, i)
-  const suffix = sample.slice(i)
-  const dot = numeric.indexOf('.')
+  const { end, decimals } = scanNumber(sample, firstDigit)
+  const numeric = sample.slice(firstDigit, end)
   const amount = Number.parseFloat(numeric.replaceAll(',', ''))
   if (!Number.isFinite(amount)) return null
 
-  // Indian grouping has a 2-digit group after the first comma ("45,33,242");
-  // western is all 3s ("4,533,242"). No comma at all = no grouping.
-  let grouping: ParsedValue['grouping'] = 'none'
-  const intPart = dot === -1 ? numeric : numeric.slice(0, dot)
-  if (intPart.includes(',')) {
-    const groups = intPart.split(',')
-    grouping = groups.slice(1).some((g) => g.length === 2) ? 'indian' : 'western'
+  const dot = numeric.indexOf('.')
+  return {
+    prefix: sample.slice(0, firstDigit),
+    suffix: sample.slice(end),
+    amount,
+    decimals,
+    grouping: detectGrouping(dot === -1 ? numeric : numeric.slice(0, dot)),
   }
-  return { prefix, suffix, amount, decimals, grouping }
 }
 
 /** Insert commas right-to-left every `size` digits. Linear, no regex. */
