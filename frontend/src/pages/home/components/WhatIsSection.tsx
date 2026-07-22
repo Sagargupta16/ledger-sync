@@ -1,4 +1,7 @@
+import { motion } from 'framer-motion'
 import { Calculator, FileSpreadsheet, Wallet } from 'lucide-react'
+
+import { sectionReveal, slideInLeftItem, staggerContainer } from '@/constants/animations'
 
 const WORKFLOWS = [
   {
@@ -49,9 +52,15 @@ export function WhatIsSection() {
               decision-ready analytics.
             </p>
 
-            <div className="mt-8 divide-y divide-border border-y border-border">
+            <motion.div
+              className="mt-8 divide-y divide-border border-y border-border"
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: '-80px' }}
+            >
               {WORKFLOWS.map((workflow) => (
-                <div key={workflow.title} className="flex gap-4 py-5">
+                <motion.div key={workflow.title} variants={slideInLeftItem} className="flex gap-4 py-5">
                   <div
                     className={`flex size-9 shrink-0 items-center justify-center rounded-md ${workflow.iconClass}`}
                   >
@@ -63,12 +72,18 @@ export function WhatIsSection() {
                       {workflow.description}
                     </p>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
 
-          <div className="self-center">
+          <motion.div
+            className="self-center"
+            variants={sectionReveal}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+          >
             <div className="ledger-panel">
               <div className="flex items-end justify-between gap-4 border-b border-border p-5 sm:p-6">
                 <div>
@@ -101,7 +116,7 @@ export function WhatIsSection() {
                 <span>Duplicate-safe import</span>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>

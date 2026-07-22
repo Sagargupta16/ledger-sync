@@ -1,4 +1,7 @@
+import { motion } from 'framer-motion'
 import { BarChart3, Shield, TrendingUp, Zap } from 'lucide-react'
+
+import { staggerContainer, fadeUpItem } from '@/constants/animations'
 
 const FEATURES = [
   {
@@ -48,10 +51,17 @@ export function FeaturesSection() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2">
+        <motion.div
+          className="grid md:grid-cols-2"
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+        >
           {FEATURES.map((feature) => (
-            <div
+            <motion.div
               key={feature.title}
+              variants={fadeUpItem}
               className="flex min-h-40 items-start gap-4 border-b border-border py-7 md:px-7 md:even:border-l md:odd:pl-0 md:even:pr-0"
             >
               <div
@@ -65,9 +75,9 @@ export function FeaturesSection() {
                   {feature.description}
                 </p>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   )
