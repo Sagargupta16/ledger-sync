@@ -43,7 +43,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       ref={ref}
       disabled={disabled || isLoading}
       className={cn(
-        'inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors duration-150 ease-out',
+        // transition-[color,background-color,border-color,transform] keeps the
+        // press scale springy without animating layout properties.
+        'inline-flex items-center justify-center whitespace-nowrap font-medium transition-[color,background-color,border-color,transform] duration-150 ease-out',
+        'active:scale-[0.97]',
         'disabled:pointer-events-none disabled:opacity-50',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         variantClasses[variant],

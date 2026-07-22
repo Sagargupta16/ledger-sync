@@ -1,6 +1,17 @@
 import { BarChart3 } from 'lucide-react'
 
+import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { formatCurrency } from '@/lib/formatters'
+
+/** Stat figure with the shared format-preserving count-up. */
+function AnimatedStat({ value, className }: Readonly<{ value: string; className: string }>) {
+  const animated = useAnimatedValue(value)
+  return (
+    <p className={`${className} tabular-nums`} title={value}>
+      {animated}
+    </p>
+  )
+}
 
 interface ReturnsAnalysisSectionProps {
   currentValueInput: number
@@ -69,10 +80,10 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
 
         <div className="flex flex-col justify-center">
           <p className="text-sm text-muted-foreground">Total Return</p>
-          <p className={`text-2xl font-bold ${totalReturnColorClass}`}>
-            {totalReturnSignPrefix}
-            {overrideGainsPercent.toFixed(2)}%
-          </p>
+          <AnimatedStat
+            value={`${totalReturnSignPrefix}${overrideGainsPercent.toFixed(2)}%`}
+            className={`text-2xl font-bold ${totalReturnColorClass}`}
+          />
           <p className="text-xs text-muted-foreground mt-1">
             {formatCurrency(overrideGains)} on {formatCurrency(totalHistoricalInvested)}
           </p>
@@ -80,10 +91,10 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
 
         <div className="flex flex-col justify-center">
           <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
-          <p className={`text-2xl font-bold ${xirrColorClass}`}>
-            {xirrSignPrefix}
-            {xirrPercent.toFixed(2)}% p.a.
-          </p>
+          <AnimatedStat
+            value={`${xirrSignPrefix}${xirrPercent.toFixed(2)}% p.a.`}
+            className={`text-2xl font-bold ${xirrColorClass}`}
+          />
           <p className="text-xs text-muted-foreground mt-1">
             Over {investmentDurationYears.toFixed(1)} years
           </p>
@@ -91,9 +102,10 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
 
         <div className="flex flex-col justify-center">
           <p className="text-sm text-muted-foreground">Effective Value</p>
-          <p className="text-2xl font-bold text-app-orange">
-            {formatCurrency(effectiveCurrentValue)}
-          </p>
+          <AnimatedStat
+            value={formatCurrency(effectiveCurrentValue)}
+            className="text-2xl font-bold text-app-orange"
+          />
           <p className="text-xs text-muted-foreground mt-1">{effectiveValueLabel}</p>
         </div>
       </div>

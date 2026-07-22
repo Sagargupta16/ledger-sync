@@ -16,6 +16,7 @@ import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { LEGEND_DEFAULTS, shouldAnimate } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { getChartColor, SEMANTIC_COLORS, CHART_TEXT } from '@/constants/chartColors'
 
 interface PieDataItem {
@@ -94,6 +95,8 @@ export default function StandardPieChart({
       : head
   }, [data, maxSlices])
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  // Donut center figure counts up alongside the sweep-in of the ring.
+  const animatedCenterValue = useAnimatedValue(centerValue ?? '')
 
   if (filteredData.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -175,7 +178,7 @@ export default function StandardPieChart({
                 fontSize={centerValueFontSize}
                 fontWeight="700"
               >
-                {centerValue}
+                {animatedCenterValue}
               </tspan>
             )}
             <tspan x="50%" dy={centerValue ? '20' : '0'} fill={CHART_TEXT.subtle} fontSize="11">
