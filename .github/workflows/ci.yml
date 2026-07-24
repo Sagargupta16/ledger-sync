@@ -24,6 +24,8 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      PYTHONPATH: src
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
@@ -36,19 +38,19 @@ jobs:
       - name: Install dependencies
         # --group dev pulls ruff/mypy/pytest (declared in [dependency-groups],
         # PEP 735) -- they are not extras, so --all-extras alone misses them.
-        run: uv sync --locked --no-build --all-extras --group dev
+        run: uv sync --locked --no-build --no-install-project --all-extras --group dev
 
       - name: Ruff lint
-        run: uv run --locked --no-build ruff check src/ tests/
+        run: uv run --no-sync --locked --no-build ruff check src/ tests/
 
       - name: Ruff format check
-        run: uv run --locked --no-build ruff format --check src/ tests/
+        run: uv run --no-sync --locked --no-build ruff format --check src/ tests/
 
       - name: Mypy
-        run: uv run --locked --no-build mypy src/
+        run: uv run --no-sync --locked --no-build mypy src/
 
       - name: Pytest
-        run: uv run --locked --no-build pytest tests/ -q
+        run: uv run --no-sync --locked --no-build pytest tests/ -q
 
   security:
     uses: Sagargupta16/shared-workflows/.github/workflows/security-scan.yml@main
