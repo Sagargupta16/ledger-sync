@@ -59,12 +59,14 @@ export default function UpdateProgressForm({
         </div>
         <div className="flex gap-2 pt-4">
           <button
+            type="button"
             onClick={handleSave}
             className="flex items-center gap-1.5 rounded-md border border-foreground bg-foreground px-3 py-2 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
           >
             <Save className="w-3.5 h-3.5" /> Save
           </button>
           <button
+            type="button"
             onClick={onCancel}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-muted-foreground bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-5)] transition-colors"
           >

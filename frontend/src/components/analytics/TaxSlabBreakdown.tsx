@@ -51,11 +51,9 @@ export default function TaxSlabBreakdown({
         </p>
       </div>
 
-      <div
+      <section
         className="overflow-x-auto"
-        role="region"
         aria-label={`${isNewRegime ? 'New' : 'Old'} regime tax slab calculation`}
-        tabIndex={0}
       >
         <table className="w-full">
           <caption className="sr-only">
@@ -212,7 +210,7 @@ export default function TaxSlabBreakdown({
             </tr>
           </tbody>
         </table>
-      </div>
+      </section>
     </div>
   )
 }

@@ -35,12 +35,23 @@ const sizeClasses: Record<ButtonSize, string> = {
  * Supports primary, secondary, ghost, danger, and outline variants.
  */
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', icon, isLoading, className, children, disabled, ...props },
+  {
+    variant = 'primary',
+    size = 'md',
+    type = 'button',
+    icon,
+    isLoading,
+    className,
+    children,
+    disabled,
+    ...props
+  },
   ref
 ) {
   return (
     <button
       ref={ref}
+      type={type}
       disabled={disabled || isLoading}
       className={cn(
         // transition-[color,background-color,border-color,transform] keeps the

@@ -36,19 +36,19 @@ jobs:
       - name: Install dependencies
         # --group dev pulls ruff/mypy/pytest (declared in [dependency-groups],
         # PEP 735) -- they are not extras, so --all-extras alone misses them.
-        run: uv sync --all-extras --group dev
+        run: uv sync --locked --no-build --all-extras --group dev
 
       - name: Ruff lint
-        run: uv run ruff check src/ tests/
+        run: uv run --locked --no-build ruff check src/ tests/
 
       - name: Ruff format check
-        run: uv run ruff format --check src/ tests/
+        run: uv run --locked --no-build ruff format --check src/ tests/
 
       - name: Mypy
-        run: uv run mypy src/
+        run: uv run --locked --no-build mypy src/
 
       - name: Pytest
-        run: uv run pytest tests/ -q
+        run: uv run --locked --no-build pytest tests/ -q
 
   security:
     uses: Sagargupta16/shared-workflows/.github/workflows/security-scan.yml@main

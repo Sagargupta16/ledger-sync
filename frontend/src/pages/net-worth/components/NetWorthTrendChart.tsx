@@ -83,8 +83,10 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
           <BarChart3 className="w-5 h-5 text-app-blue" />
           <h3 className="text-lg font-semibold text-foreground">Net Worth Trend</h3>
         </div>
-        <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Net worth chart view options">
+        <fieldset className="m-0 flex flex-wrap items-center gap-2 border-0 p-0">
+          <legend className="sr-only">Net worth chart view options</legend>
           <button
+            type="button"
             onClick={() => setShowProjection(!showProjection)}
             disabled={monthlyGrowth <= 0}
             aria-pressed={showProjection}
@@ -103,6 +105,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
             {showProjection ? 'Projecting' : 'Project'}
           </button>
           <button
+            type="button"
             onClick={() => setShowStacked(!showStacked)}
             disabled={!stackedAllowed}
             aria-pressed={effectiveStacked}
@@ -120,7 +123,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
             )}
             {effectiveStacked ? 'Stacked View' : 'Total View'}
           </button>
-        </div>
+        </fieldset>
       </div>
       {(() => {
         if (isLoading) {

@@ -63,7 +63,7 @@ describe('inferAccountType', () => {
 
   describe('word boundaries prevent substring collisions', () => {
     it('does not match "invest" inside "investigation"', () => {
-      expect(inferAccountType('Under Investigation')).toBe(null)
+      expect(inferAccountType('Under Investigation')).toBeNull()
     })
     it('"HDFC Credit Card" wins for credit_card, not deposit via "rd"', () => {
       expect(inferAccountType('HDFC Credit Card')).toBe('credit_card')
@@ -72,11 +72,11 @@ describe('inferAccountType', () => {
 
   describe('edge cases', () => {
     it('returns null for empty or whitespace-only input', () => {
-      expect(inferAccountType('')).toBe(null)
-      expect(inferAccountType('   ')).toBe(null)
+      expect(inferAccountType('')).toBeNull()
+      expect(inferAccountType('   ')).toBeNull()
     })
     it('returns null for unrecognized names', () => {
-      expect(inferAccountType('Random Label 123')).toBe(null)
+      expect(inferAccountType('Random Label 123')).toBeNull()
     })
     it('is case insensitive', () => {
       expect(inferAccountType('hdfc cc')).toBe('credit_card')

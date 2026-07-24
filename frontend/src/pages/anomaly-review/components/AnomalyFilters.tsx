@@ -65,7 +65,7 @@ export default function AnomalyFilters({
             onChange={(event) => onIncludeReviewedChange(event.target.checked)}
             className="rounded border-border-strong bg-surface-dropdown"
           />
-          Include Reviewed
+          <span>Include Reviewed</span>
         </label>
       </div>
     </motion.div>

@@ -57,7 +57,7 @@ export const aiUsageService = {
     // Guarantee `limits` exists so a partial/malformed payload (e.g. a 401
     // error body, or demo mode) can't crash components that read
     // usage.limits.app_daily_messages directly.
-    return { ...res.data, limits: { ...DEFAULT_LIMITS, ...(res.data?.limits ?? {}) } }
+    return { ...res.data, limits: { ...DEFAULT_LIMITS, ...res.data?.limits } }
   },
 
   /** Record usage from a browser-direct OpenAI/Anthropic response. */

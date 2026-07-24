@@ -42,11 +42,9 @@ export default function TaxableIncomeTable({
       <p className="text-sm font-medium text-muted-foreground mb-4">
         Salaried Taxable Income for {selectedFY}
       </p>
-      <div
+      <section
         className="overflow-x-auto"
-        role="region"
         aria-label={`Salaried taxable income for ${selectedFY}`}
-        tabIndex={0}
       >
         <table className="w-full">
           <caption className="sr-only">
@@ -182,7 +180,7 @@ export default function TaxableIncomeTable({
               )}
           </tbody>
         </table>
-      </div>
+      </section>
     </div>
   )
 }

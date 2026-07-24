@@ -113,11 +113,9 @@ export function AccountCategoryTable({
   }
 
   return (
-    <div
+    <section
       className="overflow-x-auto"
-      role="region"
       aria-label="Accounts by category"
-      tabIndex={0}
     >
       <table className="w-full">
         <caption className="sr-only">
@@ -317,6 +315,6 @@ export function AccountCategoryTable({
           }
         </tbody>
       </table>
-    </div>
+    </section>
   )
 }

@@ -72,8 +72,8 @@ export default function CurrencySwitcher() {
         )}
         title={`Display currency: ${displayCurrency}`}
         aria-label={`Change display currency (currently ${displayCurrency})`}
-        aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls="display-currency-options"
       >
         <span>{displayCurrency}</span>
         <ChevronDown size={12} />
@@ -91,31 +91,31 @@ export default function CurrencySwitcher() {
 
       {/* Dropdown */}
       {open && (
-        <div
-          role="listbox"
+        <ul
+          id="display-currency-options"
           aria-label="Display currency"
-          className="absolute bottom-full left-0 z-50 mb-2 max-h-72 w-56 overflow-y-auto rounded-lg border border-border bg-surface-dropdown shadow-[var(--glass-shadow-strong)]"
+          className="absolute bottom-full left-0 z-50 m-0 mb-2 max-h-72 w-56 list-none overflow-y-auto rounded-lg border border-border bg-surface-dropdown p-0 shadow-[var(--glass-shadow-strong)]"
         >
           {currencyList.map((meta) => (
-            <button
-              key={meta.code}
-              type="button"
-              role="option"
-              aria-selected={meta.code === displayCurrency}
-              onClick={() => handleSelect(meta)}
-              className={cn(
-                'flex min-h-11 w-full items-center gap-3 px-3 py-2 text-sm transition-colors',
-                meta.code === displayCurrency
-                  ? 'bg-app-blue/15 text-foreground'
-                  : 'text-muted-foreground hover:bg-[var(--overlay-3)] hover:text-foreground',
-              )}
-            >
-              <span className="w-6 text-center font-medium text-xs">{meta.symbol}</span>
-              <span className="flex-1 text-left">{meta.name}</span>
-              <span className="text-xs text-text-tertiary">{meta.code}</span>
-            </button>
+            <li key={meta.code}>
+              <button
+                type="button"
+                aria-pressed={meta.code === displayCurrency}
+                onClick={() => handleSelect(meta)}
+                className={cn(
+                  'flex min-h-11 w-full items-center gap-3 px-3 py-2 text-sm transition-colors',
+                  meta.code === displayCurrency
+                    ? 'bg-app-blue/15 text-foreground'
+                    : 'text-muted-foreground hover:bg-[var(--overlay-3)] hover:text-foreground',
+                )}
+              >
+                <span className="w-6 text-center font-medium text-xs">{meta.symbol}</span>
+                <span className="flex-1 text-left">{meta.name}</span>
+                <span className="text-xs text-text-tertiary">{meta.code}</span>
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )

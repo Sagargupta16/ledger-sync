@@ -34,7 +34,7 @@ interface ProgressBarProps {
   readonly target?: number
   /** Qualitative background zones, ascending by `upTo`. Renders a bullet graph. */
   readonly bands?: readonly Band[]
-  /** Accessible label; sets role=progressbar + aria-valuenow. */
+  /** Accessible label; renders a native progress element for assistive technology. */
   readonly ariaLabel?: string
   readonly className?: string
 }
@@ -52,51 +52,57 @@ export default function ProgressBar({
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0
   const targetPct =
     target !== undefined && max > 0 ? Math.max(0, Math.min(100, (target / max) * 100)) : null
+  const semanticMax = max > 0 ? max : 100
+  const semanticValue = Math.max(0, Math.min(semanticMax, value))
 
   return (
-    <div
-      className={`relative w-full rounded-full overflow-hidden bg-[var(--overlay-3)] ${className}`}
-      style={{ height }}
-      role={ariaLabel ? 'progressbar' : undefined}
-      aria-label={ariaLabel}
-      aria-valuenow={ariaLabel ? Math.round(value) : undefined}
-      aria-valuemin={ariaLabel ? 0 : undefined}
-      aria-valuemax={ariaLabel ? max : undefined}
-    >
-      {/* Qualitative bands (bullet graph background) */}
-      {bands?.map((band, i) => {
-        const start = i === 0 ? 0 : bands[i - 1].upTo
-        return (
-          <div
-            key={`band-${band.upTo}`}
-            aria-hidden
-            className="absolute inset-y-0"
-            style={{
-              left: `${start}%`,
-              width: `${Math.max(0, band.upTo - start)}%`,
-              backgroundColor: band.color,
-            }}
-          />
-        )
-      })}
-
-      {/* Fill: draws from 0 on mount, springs between values on change. */}
-      <motion.div
-        className="absolute inset-y-0 left-0 rounded-full"
-        style={{ backgroundColor: color }}
-        initial={{ width: 0 }}
-        animate={{ width: `${pct}%` }}
-        transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
-      />
-
-      {/* Target tick */}
-      {targetPct !== null && (
-        <div
-          aria-hidden
-          className="absolute inset-y-0 w-0.5 bg-[var(--overlay-8)]"
-          style={{ left: `${targetPct}%` }}
+    <>
+      {ariaLabel && (
+        <progress
+          className="sr-only"
+          value={semanticValue}
+          max={semanticMax}
+          aria-label={ariaLabel}
         />
       )}
-    </div>
+      <div
+        aria-hidden
+        className={`relative w-full rounded-full overflow-hidden bg-[var(--overlay-3)] ${className}`}
+        style={{ height }}
+      >
+        {/* Qualitative bands (bullet graph background) */}
+        {bands?.map((band, i) => {
+          const start = i === 0 ? 0 : bands[i - 1].upTo
+          return (
+            <div
+              key={`band-${band.upTo}`}
+              className="absolute inset-y-0"
+              style={{
+                left: `${start}%`,
+                width: `${Math.max(0, band.upTo - start)}%`,
+                backgroundColor: band.color,
+              }}
+            />
+          )
+        })}
+
+        {/* Fill: draws from 0 on mount, springs between values on change. */}
+        <motion.div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{ backgroundColor: color }}
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+        />
+
+        {/* Target tick */}
+        {targetPct !== null && (
+          <div
+            className="absolute inset-y-0 w-0.5 bg-[var(--overlay-8)]"
+            style={{ left: `${targetPct}%` }}
+          />
+        )}
+      </div>
+    </>
   )
 }

@@ -144,6 +144,14 @@ export function deriveMonthLabels(cells: DayCell[]) {
   return labels
 }
 
+function laterPeak(
+  current: { date: string; amount: number },
+  date: string,
+  amount: number,
+): { date: string; amount: number } {
+  return amount > current.amount ? { date, amount } : current
+}
+
 /** Accumulate summary statistics from grid cells. */
 export function accumulateStats(grid: DayCell[]) {
   // Days that have actually happened in the period. The grid spans the whole
@@ -168,15 +176,9 @@ export function accumulateStats(grid: DayCell[]) {
     monthlyExpense[cell.month] += cell.expense
     monthlyIncome[cell.month] += cell.income
 
-    if (cell.expense > 0) {
-      daysWithExpense++
-      if (cell.expense > biggestExpenseDay.amount) {
-        biggestExpenseDay = { date: cell.date, amount: cell.expense }
-      }
-    }
-    if (cell.income > biggestIncomeDay.amount) {
-      biggestIncomeDay = { date: cell.date, amount: cell.income }
-    }
+    if (cell.expense > 0) daysWithExpense++
+    biggestExpenseDay = laterPeak(biggestExpenseDay, cell.date, cell.expense)
+    biggestIncomeDay = laterPeak(biggestIncomeDay, cell.date, cell.income)
 
     if (cell.expense === 0 && cell.hasTx) {
       streak++

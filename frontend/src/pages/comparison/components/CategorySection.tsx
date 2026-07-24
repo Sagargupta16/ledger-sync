@@ -21,49 +21,54 @@ interface CategorySectionProps {
   delay: number
 }
 
-/**
- * Sortable category-comparison table. Each row shows period A vs B as PAIRED
- * mini progress bars (A faded above B solid, sharing one axis) plus a signed
- * %-change badge. Sortable by category name, either period total, or the
- * change magnitude so the user can surface the biggest movers either way.
- */
-export function CategorySection({
-  icon, title, deltas, periodA, periodB, invertChange, delay,
-}: Readonly<CategorySectionProps>) {
-  const axisMax = deltas.length > 0 ? Math.max(deltas[0].periodA, deltas[0].periodB, 1) : 1
-  const color = rawColors.app.indigo
+interface CategoryColumnsOptions {
+  axisMax: number
+  color: string
+  periodA: PeriodSummary
+  periodB: PeriodSummary
+  invertChange?: boolean
+}
 
-  const columns: DataTableColumn<CategoryDelta>[] = [
+function buildCategoryColumns({
+  axisMax,
+  color,
+  periodA,
+  periodB,
+  invertChange,
+}: Readonly<CategoryColumnsOptions>): DataTableColumn<CategoryDelta>[] {
+  return [
     {
       key: 'category',
       header: 'Category',
       sortable: true,
       sortType: 'text',
-      sortValue: (d) => d.category,
+      sortValue: (delta) => delta.category,
       mobilePrimary: true,
-      cell: (d) => <span className="text-sm font-medium text-foreground truncate block">{d.category}</span>,
+      cell: (delta) => (
+        <span className="text-sm font-medium text-foreground truncate block">{delta.category}</span>
+      ),
     },
     {
       key: 'bars',
       header: `${periodA.label} vs ${periodB.label}`,
       widthClass: 'w-[42%]',
       mobileLabel: `${periodA.label} vs ${periodB.label}`,
-      cell: (d) => (
+      cell: (delta) => (
         <div className="space-y-1">
           <ProgressBar
-            value={d.periodA}
+            value={delta.periodA}
             max={axisMax}
             color={color}
             height={6}
             className="opacity-40"
-            ariaLabel={`${d.category} ${periodA.label}: ${formatCurrency(d.periodA)}`}
+            ariaLabel={`${delta.category} ${periodA.label}: ${formatCurrency(delta.periodA)}`}
           />
           <ProgressBar
-            value={d.periodB}
+            value={delta.periodB}
             max={axisMax}
             color={color}
             height={6}
-            ariaLabel={`${d.category} ${periodB.label}: ${formatCurrency(d.periodB)}`}
+            ariaLabel={`${delta.category} ${periodB.label}: ${formatCurrency(delta.periodB)}`}
           />
         </div>
       ),
@@ -75,11 +80,13 @@ export function CategorySection({
       sortable: true,
       widthClass: 'w-24',
       mobileLabel: `${periodA.label} / ${periodB.label}`,
-      sortValue: (d) => d.periodB,
-      cell: (d) => (
+      sortValue: (delta) => delta.periodB,
+      cell: (delta) => (
         <div className="leading-tight">
-          <p className="text-sm font-semibold text-foreground">{formatCurrency(d.periodB)}</p>
-          <p className="text-caption text-text-tertiary">{periodA.label}: {formatCurrency(d.periodA)}</p>
+          <p className="text-sm font-semibold text-foreground">{formatCurrency(delta.periodB)}</p>
+          <p className="text-caption text-text-tertiary">
+            {periodA.label}: {formatCurrency(delta.periodA)}
+          </p>
         </div>
       ),
     },
@@ -90,18 +97,35 @@ export function CategorySection({
       sortable: true,
       widthClass: 'w-24',
       mobileLabel: 'Change',
-      sortValue: (d) => d.change,
-      cell: (d) => {
-        const isGood = invertChange ? d.change < 0 : d.change >= 0
+      sortValue: (delta) => delta.change,
+      cell: (delta) => {
+        const isGood = invertChange ? delta.change < 0 : delta.change >= 0
         return (
-          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${changeBadgeClass(d.change, isGood)}`}>
-            <ChangeIcon change={d.change} size="w-3 h-3" />
-            {d.change > 0 ? '+' : ''}{d.change.toFixed(1)}%
+          <span
+            className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${changeBadgeClass(delta.change, isGood)}`}
+          >
+            <ChangeIcon change={delta.change} size="w-3 h-3" />
+            {delta.change > 0 ? '+' : ''}
+            {delta.change.toFixed(1)}%
           </span>
         )
       },
     },
   ]
+}
+
+/**
+ * Sortable category-comparison table. Each row shows period A vs B as PAIRED
+ * mini progress bars (A faded above B solid, sharing one axis) plus a signed
+ * %-change badge. Sortable by category name, either period total, or the
+ * change magnitude so the user can surface the biggest movers either way.
+ */
+export function CategorySection({
+  icon, title, deltas, periodA, periodB, invertChange, delay,
+}: Readonly<CategorySectionProps>) {
+  const axisMax = deltas.length > 0 ? Math.max(deltas[0].periodA, deltas[0].periodB, 1) : 1
+  const color = rawColors.app.indigo
+  const columns = buildCategoryColumns({ axisMax, color, periodA, periodB, invertChange })
 
   return (
     <motion.div

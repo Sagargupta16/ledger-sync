@@ -201,9 +201,9 @@ export default function NotificationCenter() {
             </div>
 
             {/* Notification list */}
-            <div role="list" className="overflow-y-auto max-h-[calc(70vh-48px)] scrollbar-none">
+            <ul className="m-0 max-h-[calc(70vh-48px)] list-none overflow-y-auto p-0 scrollbar-none">
               {totalCount === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 px-4">
+                <li className="flex flex-col items-center justify-center py-12 px-4">
                   <div className="mb-3 rounded-lg bg-app-green/10 p-3">
                     <Bell size={24} className="text-app-green" />
                   </div>
@@ -211,7 +211,7 @@ export default function NotificationCenter() {
                   <p className="text-xs text-muted-foreground mt-1">
                     No new notifications
                   </p>
-                </div>
+                </li>
               ) : (
                 groupOrder.map((type) => {
                   const items = grouped.get(type)
@@ -220,7 +220,7 @@ export default function NotificationCenter() {
                   const GroupIcon = config.icon
 
                   return (
-                    <div key={type} className="py-1">
+                    <li key={type} className="py-1">
                       {/* Group header */}
                       <div className="flex items-center gap-2 px-4 py-2">
                         <div className={cn('p-1 rounded-md', config.bgClass)}>
@@ -241,48 +241,49 @@ export default function NotificationCenter() {
                       </div>
 
                       {/* Items */}
-                      {items.map((item) => (
-                        <motion.div
-                          key={item.id}
-                          role="listitem"
-                          layout
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, x: -20 }}
-                          transition={{ duration: 0.2 }}
-                          className="group mx-2 mb-1 px-3 py-2.5 rounded-xl hover:bg-[var(--overlay-2)] transition-colors"
-                        >
-                          <div className="flex items-start gap-2.5">
-                            <SeverityDot severity={item.severity} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-foreground leading-snug">
-                                {item.message}
-                              </p>
-                              <p className="text-[10px] text-muted-foreground mt-0.5">
-                                {relativeTime(item.timestamp)}
-                              </p>
+                      <ul className="m-0 list-none p-0">
+                        {items.map((item) => (
+                          <motion.li
+                            key={item.id}
+                            layout
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.2 }}
+                            className="group mx-2 mb-1 px-3 py-2.5 rounded-xl hover:bg-[var(--overlay-2)] transition-colors"
+                          >
+                            <div className="flex items-start gap-2.5">
+                              <SeverityDot severity={item.severity} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-foreground leading-snug">
+                                  {item.message}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  {relativeTime(item.timestamp)}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDismiss(item.id)
+                                }}
+                                className="size-11 shrink-0 p-0 text-muted-foreground opacity-100 sm:size-8 sm:min-h-8 sm:min-w-8 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                                aria-label={`Dismiss: ${item.message}`}
+                              >
+                                <X size={12} aria-hidden="true" />
+                              </Button>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDismiss(item.id)
-                              }}
-                              className="size-11 shrink-0 p-0 text-muted-foreground opacity-100 sm:size-8 sm:min-h-8 sm:min-w-8 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
-                              aria-label={`Dismiss: ${item.message}`}
-                            >
-                              <X size={12} aria-hidden="true" />
-                            </Button>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
+                          </motion.li>
+                        ))}
+                      </ul>
+                    </li>
                   )
                 })
               )}
-            </div>
+            </ul>
           </motion.div>
         )}
       </AnimatePresence>

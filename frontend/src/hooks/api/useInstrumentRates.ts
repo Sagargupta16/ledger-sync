@@ -56,12 +56,12 @@ export function useInstrumentRates(): {
   const valid = !!d && !!d.epf && !!d.ppf && !!d.nps
   const data: InstrumentRates = valid
     ? d
-    : {
+      : {
         ...FALLBACK_RATES,
-        ...(d ?? {}),
-        epf: { ...FALLBACK_RATES.epf, ...(d?.epf ?? {}) },
-        ppf: { ...FALLBACK_RATES.ppf, ...(d?.ppf ?? {}) },
-        nps: { ...FALLBACK_RATES.nps, ...(d?.nps ?? {}) },
+        ...d,
+        epf: { ...FALLBACK_RATES.epf, ...d?.epf },
+        ppf: { ...FALLBACK_RATES.ppf, ...d?.ppf },
+        nps: { ...FALLBACK_RATES.nps, ...d?.nps },
       }
 
   return {

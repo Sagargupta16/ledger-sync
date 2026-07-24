@@ -80,11 +80,9 @@ export default function AccountClassifier() {
       </div>
 
       <div className="bg-[var(--overlay-2)] backdrop-blur-sm rounded-xl border border-border overflow-hidden">
-        <div
+        <section
           className="overflow-x-auto"
-          role="region"
           aria-label="Account classification matrix"
-          tabIndex={0}
         >
           <table
             className="w-full min-w-[30rem] text-left"
@@ -149,7 +147,7 @@ export default function AccountClassifier() {
               })}
             </tbody>
           </table>
-        </div>
+        </section>
       </div>
       <p
         id="account-classification-help"

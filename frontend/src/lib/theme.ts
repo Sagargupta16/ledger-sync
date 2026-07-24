@@ -64,7 +64,7 @@ let transitionTimer: ReturnType<typeof setTimeout> | undefined
 export function applyTheme(resolved: 'dark' | 'light', skipTransition = false): void {
   if (typeof document === 'undefined') return
   const root = document.documentElement
-  const changed = root.getAttribute('data-theme') !== resolved
+  const changed = root.dataset.theme !== resolved
 
   if (changed && !skipTransition) {
     root.classList.add('theme-transition')
@@ -74,7 +74,7 @@ export function applyTheme(resolved: 'dark' | 'light', skipTransition = false): 
     }, 400)
   }
 
-  root.setAttribute('data-theme', resolved)
+  root.dataset.theme = resolved
 
   // Keep the mobile browser chrome (theme-color / color-scheme) tracking the
   // active theme on a live toggle, mirroring the pre-paint script in index.html.

@@ -11,6 +11,12 @@ interface QuickStatProps {
   isCurrency?: boolean
 }
 
+function getDeltaPrefix(delta: number): string {
+  if (delta > 0) return '+'
+  if (delta < 0) return '-'
+  return ''
+}
+
 export function QuickStat({
   label, valueA, valueB, labelA, labelB, isCurrency,
 }: Readonly<QuickStatProps>) {
@@ -23,7 +29,7 @@ export function QuickStat({
   const absDelta = valueB - valueA
   const isFlat = Math.abs(change) < 1
   const deltaText = isCurrency
-    ? `${absDelta > 0 ? '+' : absDelta < 0 ? '-' : ''}${formatCurrencyShort(Math.abs(absDelta))}`
+    ? `${getDeltaPrefix(absDelta)}${formatCurrencyShort(Math.abs(absDelta))}`
     : `${absDelta > 0 ? '+' : ''}${Math.round(absDelta)}`
 
   return (

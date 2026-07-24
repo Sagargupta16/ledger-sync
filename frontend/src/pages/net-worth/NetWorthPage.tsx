@@ -16,6 +16,10 @@ import { AccountCategoryTable } from './components/AccountCategoryTable'
 import { NetWorthTrendChart } from './components/NetWorthTrendChart'
 import { useNetWorth } from './useNetWorth'
 
+function accountLabel(count: number): string {
+  return count === 1 ? 'account' : 'accounts'
+}
+
 export default function NetWorthPage() {
   const m = useNetWorth()
   const closedAccountsQuery = useClosedAccounts()
@@ -24,6 +28,12 @@ export default function NetWorthPage() {
   // Leverage = liabilities as a share of assets. Reuses the totals already
   // computed in the hook; clamps the assets-zero edge so we never divide by 0.
   const leveragePct = m.totalAssets > 0 ? (m.totalLiabilities / m.totalAssets) * 100 : 0
+  const assetAccountSubtitle = m.assetAccountCount > 0
+    ? `Across ${m.assetAccountCount} ${accountLabel(m.assetAccountCount)}`
+    : undefined
+  const liabilityAccountSubtitle = m.liabilityAccountCount > 0
+    ? `${formatPercent(leveragePct)} of assets · ${m.liabilityAccountCount} ${accountLabel(m.liabilityAccountCount)}`
+    : 'Debt-free'
 
   if (m.isLoading || closedAccountsQuery.isLoading) return <PageSkeleton />
 
@@ -55,11 +65,7 @@ export default function NetWorthPage() {
             value={formatCurrency(m.totalAssets)}
             icon={PiggyBank}
             color="green"
-            subtitle={
-              m.assetAccountCount > 0
-                ? `Across ${m.assetAccountCount} account${m.assetAccountCount === 1 ? '' : 's'}`
-                : undefined
-            }
+            subtitle={assetAccountSubtitle}
             isLoading={m.isLoading}
           />
           <MetricCard
@@ -67,11 +73,7 @@ export default function NetWorthPage() {
             value={formatCurrency(m.totalLiabilities)}
             icon={CreditCard}
             color="red"
-            subtitle={
-              m.liabilityAccountCount > 0
-                ? `${formatPercent(leveragePct)} of assets · ${m.liabilityAccountCount} account${m.liabilityAccountCount === 1 ? '' : 's'}`
-                : 'Debt-free'
-            }
+            subtitle={liabilityAccountSubtitle}
             isLoading={m.isLoading}
           />
           <MetricCard

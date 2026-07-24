@@ -263,7 +263,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown/95 px-4 py-2.5 shadow-[var(--glass-shadow-strong)] backdrop-blur-lg">
                 <span className="flex items-center gap-1.5 text-sm text-app-yellow">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-app-yellow" />
-                  Unsaved changes
+                  {' '}Unsaved changes
                 </span>
                 <Button
                   id="save-settings-floating"

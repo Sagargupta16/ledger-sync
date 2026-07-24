@@ -7,14 +7,13 @@ import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { useTotals, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { computeFIRE, computeRetirementCorpus } from '@/lib/fireCalculator'
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
 import StandardAreaChart from '@/components/analytics/StandardAreaChart'
 import StandardBarChart from '@/components/analytics/StandardBarChart'
 import { Button, PageContainer, PageHeader, currencyTooltipFormatter } from '@/components/ui'
-import { formatCurrencyShort } from '@/lib/formatters'
 
 function SliderInput({ id, label, value, min, max, step, unit, valueText, onChange }: Readonly<{
   id: string; label: string; value: number; min: number; max: number; step: number; unit: string
@@ -56,7 +55,9 @@ export default function FIRECalculatorPage() {
   const totalsQuery = useTotals()
   const monthlyData = monthlyQuery.data
   const totals = totalsQuery.data
-  const isLoading = monthlyQuery.isLoading || totalsQuery.isLoading
+  const queries = [monthlyQuery, totalsQuery] as const
+  const isLoading = queries.some((query) => query.isLoading)
+  const hasError = queries.some((query) => query.isError)
   const [activeTab, setActiveTab] = useState<'fire' | 'retirement'>('fire')
 
   // FIRE inputs with defaults from transaction data. The distinct-month count
@@ -107,7 +108,7 @@ export default function FIRECalculatorPage() {
 
   if (isLoading) return <PageSkeleton />
 
-  if (monthlyQuery.isError || totalsQuery.isError) {
+  if (hasError) {
     const retryFire = () => {
       void monthlyQuery.refetch()
       void totalsQuery.refetch()
@@ -179,7 +180,8 @@ export default function FIRECalculatorPage() {
             actionLabel="Upload transactions"
             actionHref="/upload"
           />
-        ) : activeTab === 'fire' ? (
+        ) : ({
+          fire: (
           <div role="tabpanel" id="fire-panel" aria-labelledby="fire-tab" className="space-y-6 md:space-y-8">
             {/* FIRE Metrics */}
             <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
@@ -256,7 +258,8 @@ export default function FIRECalculatorPage() {
               </p>
             </motion.div>
           </div>
-        ) : (
+          ),
+          retirement: (
           <div role="tabpanel" id="retirement-panel" aria-labelledby="retirement-tab" className="space-y-6 md:space-y-8">
             {/* Retirement Metrics */}
             <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
@@ -307,7 +310,8 @@ export default function FIRECalculatorPage() {
               </p>
             </motion.div>
           </div>
-        )}
+          ),
+        }[activeTab])}
       </motion.div>
     </PageContainer>
   )

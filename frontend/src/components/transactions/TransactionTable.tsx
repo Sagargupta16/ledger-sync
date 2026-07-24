@@ -5,6 +5,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   flexRender,
+  type Row,
   type SortingState,
   type Updater,
 } from '@tanstack/react-table'
@@ -38,6 +39,21 @@ function getAmountPrefix(type: string): string {
   if (type === 'Transfer') return ''
   if (type === 'Income') return '+'
   return '-'
+}
+
+function getCellClass(columnId: string): string {
+  if (columnId === 'amount') return 'text-right ledger-figure whitespace-nowrap'
+  if (columnId === 'date') return 'whitespace-nowrap'
+  return ''
+}
+
+function groupRowsByDate(rows: Row<Transaction>[]): Record<string, Row<Transaction>[]> {
+  return rows.reduce<Record<string, Row<Transaction>[]>>((groups, row) => {
+    const dateKey = row.original.date.substring(0, 10)
+    groups[dateKey] ??= []
+    groups[dateKey].push(row)
+    return groups
+  }, {})
 }
 
 export default function TransactionTable({
@@ -146,6 +162,8 @@ export default function TransactionTable({
     )
   }
 
+  const groupedRows = groupRowsByDate(table.getRowModel().rows)
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -154,12 +172,7 @@ export default function TransactionTable({
     >
       {/* Desktop table */}
       <div className="hidden md:block">
-        <div
-          className="overflow-x-auto"
-          role="region"
-          aria-label="Transaction table"
-          tabIndex={0}
-        >
+        <section className="overflow-x-auto" aria-label="Transaction table">
           <table className="w-full">
             <caption className="sr-only">
               Transactions matching the current filters
@@ -207,12 +220,7 @@ export default function TransactionTable({
                   className="border-b border-[var(--hairline-1)] hover:bg-[var(--overlay-2)] transition-colors duration-150"
                 >
                   {row.getVisibleCells().map((cell) => {
-                    const cellClass =
-                      cell.column.id === 'amount'
-                        ? 'text-right ledger-figure whitespace-nowrap'
-                        : cell.column.id === 'date'
-                          ? 'whitespace-nowrap'
-                          : ''
+                    const cellClass = getCellClass(cell.column.id)
                     return (
                       <td key={cell.id} className={`px-4 py-3 text-[13px] ${cellClass}`}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -223,21 +231,15 @@ export default function TransactionTable({
               ))}
             </motion.tbody>
           </table>
-        </div>
+        </section>
       </div>
 
       {/* Mobile card view -- grouped by day with daily totals */}
-      <div className="md:hidden" role="list" aria-label="Transactions grouped by date">
-        {(() => {
-          const rows = table.getRowModel().rows
-          const grouped = rows.reduce<Record<string, typeof rows>>((acc, row) => {
-            const dateKey = row.original.date.substring(0, 10)
-            if (!acc[dateKey]) acc[dateKey] = []
-            acc[dateKey].push(row)
-            return acc
-          }, {})
-
-          return Object.entries(grouped).map(([dateKey, dayRows]) => {
+      <ul
+        className="m-0 list-none p-0 md:hidden"
+        aria-label="Transactions grouped by date"
+      >
+        {Object.entries(groupedRows).map(([dateKey, dayRows]) => {
             const dayTotal = dayRows.reduce((sum, r) => {
               if (r.original.type === 'Expense') return sum - r.original.amount
               if (r.original.type === 'Income') return sum + r.original.amount
@@ -251,7 +253,7 @@ export default function TransactionTable({
             })
 
             return (
-              <section key={dateKey} role="listitem" aria-label={dayLabel}>
+              <li key={dateKey} aria-label={dayLabel}>
                 {/* Day header */}
                 <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--hairline-1)] bg-surface-3 px-4 py-2">
                   <span className="min-w-0 text-xs font-semibold text-text-tertiary">
@@ -267,9 +269,8 @@ export default function TransactionTable({
                   />
                 </div>
                 {/* Day transactions */}
-                <div
-                  className="divide-y divide-[var(--hairline-1)]"
-                  role="list"
+                <ul
+                  className="m-0 list-none divide-y divide-[var(--hairline-1)] p-0"
                   aria-label={`${dayLabel} transactions`}
                 >
                   {dayRows.map((row) => {
@@ -281,9 +282,8 @@ export default function TransactionTable({
                     const TypeIcon = isIncome ? TrendingUp : TrendingDown
 
                     return (
-                      <div
+                      <li
                         key={row.id}
-                        role="listitem"
                         className="p-3 sm:p-4 hover:bg-[var(--overlay-2)] transition-colors duration-150"
                       >
                         <div className="mb-1.5 flex items-start justify-between gap-3">
@@ -342,15 +342,15 @@ export default function TransactionTable({
                             </span>
                           )}
                         </div>
-                      </div>
+                      </li>
                     )
                   })}
-                </div>
-              </section>
+                </ul>
+              </li>
             )
           })
-        })()}
-      </div>
+        }
+      </ul>
     </motion.div>
   )
 }

@@ -73,6 +73,7 @@ export default function GoalCard({
             <h4 className="text-lg font-semibold text-foreground truncate">{goal.name}</h4>
             <div className="flex items-center gap-1 flex-shrink-0">
               <button
+                type="button"
                 onClick={onStartEditDetails}
                 title="Edit goal"
                 aria-label="Edit goal"
@@ -81,6 +82,7 @@ export default function GoalCard({
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
               <button
+                type="button"
                 onClick={() => setConfirmDelete(true)}
                 title="Delete goal"
                 aria-label={`Delete goal: ${goal.name}`}
@@ -152,6 +154,7 @@ export default function GoalCard({
       {/* Footer with Update Progress button */}
       <div className="flex items-center justify-between mt-4">
         <button
+          type="button"
           onClick={onStartEdit}
           className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-colors bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-5)] text-text-secondary hover:text-foreground"
         >

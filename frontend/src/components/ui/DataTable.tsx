@@ -114,7 +114,7 @@ export default function DataTable<T>({
   const sortedRows = useMemo(() => {
     if (sortKey === null) return rows
     const col = columns.find((c) => c.key === sortKey)
-    if (!col || col.sortable !== true) return rows
+    if (col?.sortable !== true) return rows
     const getter = col.sortValue ?? ((r: T) => defaultSortValue(r, sortKey))
     const copy = [...rows]
     copy.sort((a, b) => {
@@ -149,14 +149,13 @@ export default function DataTable<T>({
     const labelFor = (col: DataTableColumn<T>) =>
       col.mobileLabel ?? (typeof col.header === 'string' ? col.header : '')
     return (
-      <div className="space-y-2" role="list" aria-label={ariaLabel}>
+      <ul className="m-0 list-none space-y-2 p-0" aria-label={ariaLabel}>
         {sortedRows.map((row, i) => {
           const primary = columns.find((c) => c.mobilePrimary)
           const rest = columns.filter((c) => !c.mobilePrimary)
           return (
-            <div
+            <li
               key={rowKey(row, i)}
-              role="listitem"
               className={`ledger-panel p-3 ${rowClassName?.(row, i) ?? ''}`.trim()}
             >
               {primary && (
@@ -174,10 +173,10 @@ export default function DataTable<T>({
                   </div>
                 ))}
               </dl>
-            </div>
+            </li>
           )
         })}
-      </div>
+      </ul>
     )
   }
 

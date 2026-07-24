@@ -51,11 +51,9 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
         </div>
       </div>
 
-      <div
+      <section
         className="overflow-x-auto"
-        role="region"
         aria-label="Multi-year salary and tax projection"
-        tabIndex={0}
       >
         <table
           className="w-full min-w-max text-sm"
@@ -167,7 +165,7 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
             </tr>
           </tbody>
         </table>
-      </div>
+      </section>
 
       <p id="multi-year-projection-note" className="text-xs text-text-tertiary mt-3">
         * Projected values based on growth assumptions. Actual figures may vary.

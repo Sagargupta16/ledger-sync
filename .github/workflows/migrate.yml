@@ -26,10 +26,10 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: uv sync --no-group dev
+        run: uv sync --locked --no-build --no-group dev
 
       - name: Run Alembic migrations
         working-directory: backend
         env:
           LEDGER_SYNC_DATABASE_URL: ${{ secrets.LEDGER_SYNC_DATABASE_URL }}
-        run: uv run alembic upgrade head
+        run: uv run --locked --no-build alembic upgrade head
